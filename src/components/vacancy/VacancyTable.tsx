@@ -184,9 +184,9 @@ export function VacancyTable({
               <tr>
                 <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-                    <div className="rounded-md border border-red-200 bg-red-50 p-2">
+                    <div className="rounded-md border border-status-danger-border bg-status-danger-bg p-2">
                       <LockKeyhole
-                        className="h-5 w-5 text-red-500"
+                        className="h-5 w-5 text-status-danger-text"
                         aria-hidden="true"
                       />
                     </div>
@@ -261,7 +261,7 @@ export function VacancyTable({
                   </td>
                   <td className="border-b border-table-rule px-3 py-2">
                     <div className="flex flex-col items-start gap-1">
-                      <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                      <Badge className="border-status-info-border bg-status-info-bg text-status-info-text">
                         {getStatusLabel(row)}
                       </Badge>
                       <span className="text-xs text-table-text-muted">

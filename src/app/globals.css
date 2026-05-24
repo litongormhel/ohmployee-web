@@ -49,6 +49,35 @@
   --mono-pill-surface: #f8fafc;    /* chip background */
   --mono-pill-ink: #374151;        /* chip text (Gray 700) */
   --mono-pill-ring: #e2e8f0;       /* chip border */
+
+  /* Semantic badge tokens — runtime, dark-mode aware */
+  --status-success-bg: #ecfdf5;      /* Emerald 50 */
+  --status-success-border: #a7f3d0;  /* Emerald 200 */
+  --status-success-text: #047857;    /* Emerald 700 */
+
+  --status-warning-bg: #fef3c7;      /* Amber 50 */
+  --status-warning-border: #fde68a;  /* Amber 200 */
+  --status-warning-text: #b45309;    /* Amber 700 */
+
+  --status-danger-bg: #fff1f2;       /* Rose 50 */
+  --status-danger-border: #fecdd3;   /* Rose 200 */
+  --status-danger-text: #be123c;     /* Rose 700 */
+
+  --status-info-bg: #f0f9ff;         /* Sky 50 */
+  --status-info-border: #bae6fd;     /* Sky 200 */
+  --status-info-text: #0369a1;       /* Sky 700 */
+
+  --status-neutral-bg: #f8fafc;      /* Slate 50 */
+  --status-neutral-border: #e2e8f0;  /* Slate 200 */
+  --status-neutral-text: #475569;    /* Slate 600 */
+
+  --status-accent-bg: #faf5ff;       /* Purple 50 */
+  --status-accent-border: #e9d5ff;   /* Purple 200 */
+  --status-accent-text: #7c3aed;     /* Purple 600 */
+
+  /* Alert row states — runtime, dark-mode aware */
+  --table-row-danger: #fff1f2;       /* Rose 50 — pending deletion */
+  --table-row-danger-hover: #ffe4e6; /* Rose 100 — hover on danger row */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -87,6 +116,35 @@
     --mono-pill-surface: #1e293b;
     --mono-pill-ink: #cbd5e1;
     --mono-pill-ring: #334155;
+
+    /* Semantic badge tokens — dark */
+    --status-success-bg: #052e16;      /* Emerald 950 */
+    --status-success-border: #166534;  /* Emerald 800 */
+    --status-success-text: #6ee7b7;    /* Emerald 300 */
+
+    --status-warning-bg: #451a03;      /* Amber 950 */
+    --status-warning-border: #92400e;  /* Amber 800 */
+    --status-warning-text: #fcd34d;    /* Amber 300 */
+
+    --status-danger-bg: #4c0519;       /* Rose 950 */
+    --status-danger-border: #9f1239;   /* Rose 800 */
+    --status-danger-text: #fb7185;     /* Rose 400 */
+
+    --status-info-bg: #082f49;         /* Sky 950 */
+    --status-info-border: #075985;     /* Sky 800 */
+    --status-info-text: #7dd3fc;       /* Sky 300 */
+
+    --status-neutral-bg: #1e293b;      /* Slate 800 */
+    --status-neutral-border: #475569;  /* Slate 600 */
+    --status-neutral-text: #94a3b8;    /* Slate 400 */
+
+    --status-accent-bg: #2e1065;       /* Purple 950 */
+    --status-accent-border: #7e22ce;   /* Purple 700 */
+    --status-accent-text: #c084fc;     /* Purple 400 */
+
+    /* Alert row states — dark */
+    --table-row-danger: #2d0a0f;
+    --table-row-danger-hover: #3f0d14;
   }
 }
 
@@ -126,6 +184,35 @@
   --color-mono-pill-ink: var(--mono-pill-ink);
   --color-mono-pill-ring: var(--mono-pill-ring);
 
+  /* Semantic badge utilities (runtime → dark-mode aware) */
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-success-border: var(--status-success-border);
+  --color-status-success-text: var(--status-success-text);
+
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-border: var(--status-warning-border);
+  --color-status-warning-text: var(--status-warning-text);
+
+  --color-status-danger-bg: var(--status-danger-bg);
+  --color-status-danger-border: var(--status-danger-border);
+  --color-status-danger-text: var(--status-danger-text);
+
+  --color-status-info-bg: var(--status-info-bg);
+  --color-status-info-border: var(--status-info-border);
+  --color-status-info-text: var(--status-info-text);
+
+  --color-status-neutral-bg: var(--status-neutral-bg);
+  --color-status-neutral-border: var(--status-neutral-border);
+  --color-status-neutral-text: var(--status-neutral-text);
+
+  --color-status-accent-bg: var(--status-accent-bg);
+  --color-status-accent-border: var(--status-accent-border);
+  --color-status-accent-text: var(--status-accent-text);
+
+  /* Alert row state utilities */
+  --color-table-row-danger: var(--table-row-danger);
+  --color-table-row-danger-hover: var(--table-row-danger-hover);
+
   --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -137,27 +224,6 @@
   --color-brand-500: #0ea5e9;
   --color-brand-600: #0284c7;
   --color-brand-700: #0369a1;
-
-  /* Status semantic colors */
-  --color-status-success-bg: #ecfdf5;
-  --color-status-success-border: #a7f3d0;
-  --color-status-success-text: #047857;
-
-  --color-status-warning-bg: #fef3c7;
-  --color-status-warning-border: #fde68a;
-  --color-status-warning-text: #b45309;
-
-  --color-status-danger-bg: #fff1f2;
-  --color-status-danger-border: #fecdd3;
-  --color-status-danger-text: #be123c;
-
-  --color-status-info-bg: #f0f9ff;
-  --color-status-info-border: #bae6fd;
-  --color-status-info-text: #0369a1;
-
-  --color-status-neutral-bg: #f8fafc;
-  --color-status-neutral-border: #e2e8f0;
-  --color-status-neutral-text: #475569;
 
   /* Border radii tiers */
   --radius-xs: 2px;

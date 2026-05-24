@@ -175,7 +175,7 @@ export function HrEmplocTable({
                       selectedId === row.id
                         ? "bg-table-row-selected"
                         : isPendingDeletion
-                        ? "bg-red-50 hover:bg-red-100"
+                        ? "bg-table-row-danger hover:bg-table-row-danger-hover"
                         : "hover:bg-table-row-hover"
                     }`}
                     key={row.id}
@@ -189,7 +189,7 @@ export function HrEmplocTable({
                     <td className="border-b border-table-rule px-3 py-2">
                       <div className="font-semibold text-table-text flex items-center gap-1.5">
                         {isPendingDeletion && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" aria-hidden="true" />
+                          <AlertTriangle className="h-3.5 w-3.5 text-status-danger-text shrink-0" aria-hidden="true" />
                         )}
                         <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
                           {row.applicantName}
@@ -218,7 +218,7 @@ export function HrEmplocTable({
                     <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                       {row.assignmentType === "Roving" ? (
                         <div className="relative group inline-block">
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-status-accent-bg text-status-accent-text border border-status-accent-border">
                             Roving ({row.coveredStoresCount})
                           </span>
                           {/* Tooltip */}
@@ -227,7 +227,7 @@ export function HrEmplocTable({
                           </div>
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-100">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-status-neutral-bg text-status-neutral-text border border-status-neutral-border">
                           Stationary
                         </span>
                       )}
@@ -255,7 +255,7 @@ export function HrEmplocTable({
                     {/* Employee Number */}
                     <td className="border-b border-table-rule px-3 py-2">
                       {row.employeeNo ? (
-                        <Badge className="font-mono text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <Badge className="font-mono text-xs bg-status-success-bg text-status-success-text border-status-success-border">
                           {row.employeeNo}
                         </Badge>
                       ) : (
@@ -268,13 +268,13 @@ export function HrEmplocTable({
                       <div className="flex flex-col items-start">
                         <span
                           className={`font-semibold ${
-                            isSlaBreached ? "text-red-600" : "text-table-text-sub"
+                            isSlaBreached ? "text-status-danger-text" : "text-table-text-sub"
                           }`}
                         >
                           {row.slaElapsedDays} Days
                         </span>
                         {isSlaBreached && (
-                          <span className="inline-flex text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1 mt-0.5 uppercase tracking-wide">
+                          <span className="inline-flex text-[9px] font-bold text-status-danger-text bg-status-danger-bg border border-status-danger-border rounded px-1 mt-0.5 uppercase tracking-wide">
                             Breach
                           </span>
                         )}
@@ -295,21 +295,21 @@ export function HrEmplocTable({
                         {row.rowCapabilities.canAssignEmployeeNo && (
                           <span
                             aria-label="Can assign employee number"
-                            className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+                            className="inline-block w-2 h-2 rounded-full bg-status-success-text"
                             title="Can Assign Employee ID"
                           />
                         )}
                         {row.rowCapabilities.canMoveToPlantilla && (
                           <span
                             aria-label="Can deploy to Plantilla"
-                            className="inline-block w-2 h-2 rounded-full bg-blue-500"
+                            className="inline-block w-2 h-2 rounded-full bg-status-info-text"
                             title="Can Deploy to Plantilla"
                           />
                         )}
                         {isPendingDeletion && (
                           <span title="Record Locked: Pending Deletion">
                             <LockKeyhole
-                              className="h-3.5 w-3.5 text-red-500"
+                              className="h-3.5 w-3.5 text-status-danger-text"
                             />
                           </span>
                         )}
