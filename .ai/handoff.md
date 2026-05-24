@@ -85,5 +85,24 @@
   1. Approve the backend transactional mutation RPC signatures on Supabase (tagging deficiencies, entering employee IDs, transitioning plantilla directories, separator approvals).
   2. Implement React Query mutations (`useMutation`) and cache invalidation triggers on the client.
 
+## Plantilla Web Handoff
+
+- **Target Architecture & Specification**: Fully documented in `docs/state/plantilla_web_state.md`.
+- **Core Focus Areas**:
+  1. **Dual Views**: Segmented View Toggle (`/plantilla`) switching between Employee-Centric (active roster listing with monospaced employee IDs, positions, primary store, status badges) and Store-Centric (staffing capacities listing targets, active budgeted/AH, vacancies, and staffing SLA health statuses).
+  2. **Scoped RBAC**: RLS-enforced read restrictions based on authenticated profiles. Scoped roles (`om`, `hrco`, `atl`, `tl`) see only their allowed accounts.
+  3. **PII Masking**: Strict database-level masking of sensitive contact details (phone, email, address, salary rates, government IDs) for restricted roles, returning pre-masked strings over the network.
+  4. **Deactivation Overlays**: 65% opacity, dashed borders, and warning banner overlays for suspended, inactive, or separation-pending rows/profiles.
+  5. **Separation Workflows**: Resignations, involuntary Terminations, Day 1 Backouts (which automatically reopen original Vacancies), and Administrative Archives backed by asset return checklists and interactive clearances.
+  6. **Additional Headcount (AH)**: Tracking of seasonal, temporary headcount slots with expiration calendars and visual warning countdown indicators.
+  7. **Detail Drawer**: High-density 640px overlay featuring employment/allocation details, roving coverages, separation checklists, SLA breachers, and timelines.
+  8. **SLA Breach Clocks**: 48h movement SLAs and 7-day store vacancy vacancy alarm clocks.
+- **Backend RPC Recommendations**: Mapped out SQL definitions for `list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
+- **Next Phase Steps**:
+  1. Set up the client-side routes and dual-view segmented shells in `src/app/(dashboard)/plantilla/page.tsx` using the shared UI containers (`AdminPageHeader`, `MetricCard`, `AdminFilterBar`, and `DataState`).
+  2. Implement the backend SQL functions (`list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, `get_web_plantilla_detail`) including context resolution and PII masking.
+  3. Wire the query handlers (`src/lib/queries/plantilla.ts`) and React Query hooks to populate the table grids and detail drawer.
+  4. Wire operational mutations (transfers, AH requests, separations, clearance ticks).
+
 
 
