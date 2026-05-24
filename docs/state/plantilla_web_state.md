@@ -529,10 +529,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - Enforce strict SQL-level data masking for personal numbers, emails, addresses, salary rates, and Gov IDs for restricted roles.
 - Set up RLS security policies gating queries against user accounts and group scopes.
 
-### Phase 3: Client Integration & State Management
-- Add typed query helper helpers inside `src/lib/queries/plantilla.ts`.
-- Integrate React Query hooks (`useQuery`) into the main page directory and Detail Drawer.
-- Standardize full state boundary cards using `DataState` (Access Denied shields, Spinner loads, empty clipboards).
+### Phase 3: Client Integration & State Management ✅ QUERY CONTRACTS COMPLETE
+- `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers.
+- Exported RPC wrappers: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`.
+- Typed JSONB sub-types: `PlantillaCoveredStore`, `PlantillaGovernmentIds`, `PlantillaClearanceChecklistItem`, `PlantillaClearanceDocument`, `PlantillaMovementRequest`, `PlantillaAuditTimelineItem`.
+- Presentation-layer derivation helpers: `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk`.
+- Error class `PlantillaDataError` with `access_denied` / `retryable` kind discriminator.
+- Remaining: integrate React Query hooks (`useQuery`) into the main page directory and Detail Drawer; standardize full state boundary cards using `DataState` (Access Denied shields, Spinner loads, empty clipboards).
 
 ### Phase 4: Action Mutations Integration
 - Hook up React Query mutations (`useMutation`) to backend action RPCs:

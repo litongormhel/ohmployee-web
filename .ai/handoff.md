@@ -111,11 +111,15 @@
   7. **Detail Drawer**: High-density 640px overlay featuring employment/allocation details, roving coverages, separation checklists, SLA breachers, and timelines.
   8. **SLA Breach Clocks**: 48h movement SLAs and 7-day store vacancy vacancy alarm clocks.
 - **Backend RPC Recommendations**: Mapped out SQL definitions for `list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
+- **Query Contract Status**: `src/lib/queries/plantilla.ts` is fully implemented. Exports: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`, `PlantillaDataError`, and all typed structs. Presentation helpers `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk` are pure functions that accept normalized data and return overlay hint objects — no backend calls.
+- **RPC names wired**: `get_web_plantilla_summary`, `list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_detail`. All use `auth.uid()`-derived scopes server-side; no caller-controlled role/scope params are passed from the frontend.
+- **Masking contract**: backend returns pre-masked strings for `contact_number`, `email_address`, `residential_address`, `base_rate_masked`, and `government_ids` JSONB for restricted roles. The frontend never strips or applies masking itself.
 - **Next Phase Steps**:
   1. Set up the client-side routes and dual-view segmented shells in `src/app/(dashboard)/plantilla/page.tsx` using the shared UI containers (`AdminPageHeader`, `MetricCard`, `AdminFilterBar`, and `DataState`).
-  2. Implement the backend SQL functions (`list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, `get_web_plantilla_detail`) including context resolution and PII masking.
-  3. Wire the query handlers (`src/lib/queries/plantilla.ts`) and React Query hooks to populate the table grids and detail drawer.
-  4. Wire operational mutations (transfers, AH requests, separations, clearance ticks).
+  2. Implement the backend SQL functions (`list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_summary`, `get_web_plantilla_detail`) including context resolution and PII masking.
+  3. Wire React Query `useQuery` hooks (consuming `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getPlantillaSummary`, `getWebPlantillaDetail`) into the page and Detail Drawer.
+  4. Use `deriveDeactivationOverlay` on each employee row for opacity/border/banner styling; use `deriveTransferOverlay` inside the Detail Drawer SLA block.
+  5. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 4.
 
 
 
