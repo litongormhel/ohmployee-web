@@ -49,6 +49,63 @@ export type VacancyListItem = {
   totalCount: number;
 };
 
+export type ActiveApplicantItem = {
+  applicantId: string;
+  displayName: string;
+  statusLabel: string;
+  updatedAt: string | null;
+};
+
+export type ActivityHistoryItem = {
+  eventId: string;
+  eventLabel: string;
+  eventDescription: string | null;
+  createdAt: string;
+  profileName: string | null;
+};
+
+export type VacancyDetailItem = {
+  vacancyId: string;
+  vcode: string;
+  accountName: string | null;
+  groupName: string | null;
+  storeName: string | null;
+  position_title: string | null;
+  department: string | null;
+  employmentType: string | null;
+  vacancyStatus: string | null;
+  pipelineStatus: string | null;
+  derivedStatus: string | null;
+  activeApplicantCount: number;
+  confirmedOnboardCount: number;
+  hasRecentHire: boolean;
+  hasPendingClosure: boolean;
+  closureRequestStatus: string | null;
+  vacantDate: string | null;
+  agingDays: number | null;
+  agingBucket: string | null;
+  targetFillDate: string | null;
+  urgencyLevel: string | null;
+  hrcoName: string | null;
+  lastActivityAt: string | null;
+  rowCapabilities: VacancyRowCapabilities;
+
+  // Detail-specific fields
+  requestedById: string | null;
+  requestedByName: string | null;
+  approvedById: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  headcountRequestId: string | null;
+  vacancyReason: string | null;
+  jobDescription: string | null;
+  closureRequestedAt: string | null;
+  closureRequestedBy: string | null;
+  closureReason: string | null;
+  activeApplicantsList: ActiveApplicantItem[];
+  activityHistory: ActivityHistoryItem[];
+};
+
 export type VacancyListParams = {
   status: VacancyStatus;
   search?: string;
@@ -195,6 +252,84 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   };
 }
 
+function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
+  const obj = asObject(item);
+  return {
+    applicantId: asString(obj.applicant_id) ?? "",
+    displayName: asString(obj.display_name) ?? "Anonymous",
+    statusLabel: asString(obj.status_label) ?? "New",
+    updatedAt: asString(obj.updated_at),
+  };
+}
+
+function normalizeActivityHistory(item: unknown): ActivityHistoryItem {
+  const obj = asObject(item);
+  return {
+    eventId: asString(obj.event_id ?? obj.id) ?? "",
+    eventLabel: asString(obj.event_label ?? obj.label) ?? "Event",
+    eventDescription: asString(obj.event_description ?? obj.description),
+    createdAt: asString(obj.created_at ?? obj.timestamp) ?? new Date().toISOString(),
+    profileName: asString(obj.profile_name ?? obj.user_name),
+  };
+}
+
+function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
+  const id = asString(row.vacancy_id ?? row.id);
+
+  if (!id) {
+    return null;
+  }
+
+  const rawApplicants = Array.isArray(row.active_applicants_list) ? row.active_applicants_list : [];
+  const activeApplicantsList = rawApplicants.map(normalizeActiveApplicant);
+
+  const rawHistory = Array.isArray(row.activity_history) ? row.activity_history : [];
+  const activityHistory = rawHistory.map(normalizeActivityHistory);
+
+  return {
+    vacancyId: id,
+    vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
+    accountName: asString(row.account_name ?? row.account),
+    groupName: asString(row.group_name),
+    storeName: asString(row.store_name ?? row.store),
+    position_title: asString(row.position_title),
+    department: asString(row.department ?? row.business_unit),
+    employmentType: asString(row.employment_type),
+    vacancyStatus: asString(row.vacancy_status ?? row.status),
+    pipelineStatus: asString(row.pipeline_status),
+    derivedStatus: asString(row.derived_status),
+    activeApplicantCount: asCount(row.active_applicant_count),
+    confirmedOnboardCount: asCount(row.confirmed_onboard_count),
+    hasRecentHire: asBoolean(row.has_recent_hire),
+    hasPendingClosure: asBoolean(row.has_pending_closure),
+    closureRequestStatus: asString(row.closure_request_status),
+    vacantDate: asString(row.vacant_date),
+    agingDays: asNumber(row.aging_days),
+    agingBucket: asString(row.aging_bucket),
+    targetFillDate: asString(row.target_fill_date),
+    urgencyLevel: asString(row.urgency_level),
+    hrcoName: asString(row.hrco_name),
+    lastActivityAt: asString(row.last_activity_at),
+    rowCapabilities: normalizeCapabilities(row.row_capabilities),
+
+    // Detail-specific fields
+    requestedById: asString(row.requested_by_id),
+    requestedByName: asString(row.requested_by_name),
+    approvedById: asString(row.approved_by_id),
+    approvedByName: asString(row.approved_by_name),
+    approvedAt: asString(row.approved_at),
+    headcountRequestId: asString(row.headcount_request_id),
+    vacancyReason: asString(row.vacancy_reason),
+    jobDescription: asString(row.job_description),
+    closureRequestedAt: asString(row.closure_requested_at),
+    closureRequestedBy: asString(row.closure_requested_by),
+    closureReason: asString(row.closure_reason),
+    activeApplicantsList,
+    activityHistory,
+  };
+}
+
+
 function normalizeSummary(data: unknown): VacancySummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
@@ -273,3 +408,27 @@ export async function listVacancies(params: VacancyListParams) {
     pageSize,
   };
 }
+
+export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetailItem> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_web_vacancy_detail", {
+    p_vacancy_id: vacancyId,
+  });
+
+  if (error) {
+    throwVacancyError(error);
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    throw new VacancyDataError("retryable", "No vacancy detail record found");
+  }
+
+  const normalized = normalizeDetailRow(asObject(row));
+  if (!normalized) {
+    throw new VacancyDataError("retryable", "Failed to normalize vacancy detail record");
+  }
+
+  return normalized;
+}
+

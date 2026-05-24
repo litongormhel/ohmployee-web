@@ -121,44 +121,65 @@ Recommended columns:
 
 The table supports loading, empty, retryable error, blocked/read-denied, selected-row, and paginated states. Empty states are real no-record states, not mocked data.
 
-### Detail Drawer/Panel
+### Detail Drawer/Panel UX Structure
 
-Selecting a row opens the right-side detail panel using only list-returned read fields. A future detail RPC is still required before exposing broader detail context.
+The Vacancy Detail Drawer is a desktop-first, admin-oriented command center surface. When a vacancy is selected from the dense table, the drawer slides in from the right hand side to show the following sections:
 
-Recommended sections:
+1. **Compact Desktop Header**:
+   - **VCode Identifier**: Displayed prominently in a large, high-contrast monospaced badge (e.g., `VAC-2026-0042`).
+   - **Position Title**: Displayed as the primary heading (e.g., `Operations Supervisor`).
+   - **Scope Hierarchy Breadcrumbs**: Rendered as `Account / Group / Store` (e.g., `Visayas Region / Cebu Hub / Cebu Store 1`) for location clarity.
+   - **Close Trigger**: A clear top-right dismissal button (supports `Escape` key capture).
 
-- Vacancy identity: code, `position_title`, department, scope, status.
-- Request/headcount context.
-- Timeline or status history placeholder if a backend-safe contract exists later.
-- Applicant section placeholder.
-- Capability-controlled action area.
+2. **Vacancy Summary**:
+   - **Status Badges**: Multi-dimensional display showing `derived_status` (e.g., `Open`, `Pipeline`, `Closed`), raw `vacancy_status`, and `pipeline_status`.
+   - **Urgency Indicator**: High/Medium/Normal urgency badge using existing Mobile Urgency/Priority level taxonomy.
+   - **Deployment/Employment Type**: Highlighting deployment model (e.g., `Full-time`, `Contractor`).
+   - **Department / Business Unit**: Clear alignment label (e.g., `Logistics & Warehousing`).
 
-The detail surface should not fetch or expose fields beyond the user's RLS/RPC-authorized scope.
+3. **Operational Metadata**:
+   - **Target Fill Date**: Highlighting the deadline target (`target_fill_date`).
+   - **Requested By**: Identity of the requester (e.g., `requested_by_name`).
+   - **HRCO Assignment**: Active HRCO profile (`hrco_name`).
+   - **Job / Qualifications Placeholder**: Structural display of roles or certifications required.
 
-### Applicant Section Placeholder
+4. **Pipeline / Applicant Summary**:
+   - **Aggregate Metrics**: Active applicant count (`active_applicant_count`) and confirmed onboard count (`confirmed_onboard_count`).
+   - **Active Candidates Sub-list**: Dense list showing applicant names and their current step/phase (e.g., `For Interview`, `For Requirements`) matching active status filters (`fn_is_active_vacancy_applicant_status`).
+   - **PII Guard Rails**: Strict privacy compliance: no email addresses, mobile numbers, or raw contact details are exposed in this desktop read-only list.
 
-The applicant section should reserve the structure for future applicant workflows without implementing them prematurely.
+5. **Aging / SLA Section**:
+   - **Aging Days**: Displays `aging_days` and the corresponding `aging_bucket`.
+   - **SLA Alert Thresholds**: Structural indicators linked to CENCOM buckets (`1_15`, `16_30`, `31_60`, `61_120`, `gt121`).
+   - **SLA Breach Warnings**: Highlighting high penalty risk when vacancies fall into long-tail buckets (e.g., `gt121` or `61_120`) using the optional `penalty_exposure` or custom bucket warnings.
 
-Recommended placeholder states:
+6. **Approval / Status Section**:
+   - **Approver Identity & Date**: Detailed metadata of who approved/requested the vacancy slot and when (`approved_by_name`, `approved_at`).
+   - **Original Headcount Reference**: Link/reference to the underlying headcount request ID (`headcount_request_id`).
+   - **Vacancy Reason**: Stated purpose (e.g. `Replacement`, `Expansion`).
 
-- No applicant attached.
-- Applicant summary available from detail contract.
-- Applicant workflow unavailable until backend contract is implemented.
+7. **Activity / History Placeholder**:
+   - Clean vertical audit timeline showing state transitions, HRCO assignment updates, and candidate status updates.
 
-Do not add applicant mutation UI until backend action RPCs and capability keys are confirmed.
+8. **Capability-Aware Action Area Placeholder**:
+   - Renders disabled action buttons (e.g., `Approve Vacancy`, `Update Applicant Status`, `Request Closure`).
+   - Renders available capabilities (based on `row_capabilities.can_approve`, `row_capabilities.can_update_applicant_status`, and `row_capabilities.can_request_closure`) as "available" / "not exposed" presentation hints, ensuring final validation boundaries in Supabase remain clear.
 
-### Capability-Controlled Action Area
+### Drawer Interaction Behavior
 
-Actions should render only when the current module capabilities and selected record state allow them. The backend action RPC must still enforce the same rule.
-
-Expected action families:
-
-- Approve vacancy or vacancy movement.
-- Update applicant status.
-- Request closure.
-- Add vacancy/headcount if allowed.
-
-Action buttons are disabled and display backend row capability hints only. The browser does not infer authority from role names.
+- **Open State**:
+  - Instantly triggered by clicking the action "Eye" icon in the dense vacancy table row.
+  - Supports standard keyboard triggers: arrow keys to move row selection, and pressing `Enter` to open the drawer.
+- **Close State**:
+  - Dismissed by clicking the top-right close icon, clicking outside the panel area (backdrop overlay), or pressing the `Escape` key.
+  - Instantly clears row selection state.
+- **Deep-Linking Readiness**:
+  - The drawer state is designed to align with URL query routing parameters (e.g., `?vacancyId=UUID`), allowing users to share links that automatically open the drawer for a specific vacancy.
+- **Loading State**:
+  - Displays consistent, highly-structured skeleton loaders for the entire panel layout to prevent layout shifts during fetches.
+- **Blocked/Not-Found State**:
+  - **Access Denied**: If a user attempts to select a vacancy they are not authorized to view due to RLS/scope limits, a locked shield icon is shown indicating access is denied.
+  - **Not Found**: If the record has been closed or deleted, a "Record Not Found" panel with a refresh trigger is displayed.
 
 ## Web-Specific Behavior Mirroring Mobile Rules
 
@@ -283,25 +304,70 @@ Recommended `p_filters` keys:
 
 Pagination should use offset/limit for the first Web integration because it is simple for admin tables and works with a filtered count. Use deterministic secondary ordering, such as `ORDER BY <allowlisted sort>, vcode, vacancy_id`, so rows do not jump between pages. Consider keyset pagination only if the list grows large enough to make deep offsets expensive.
 
-### Detail Contract
+### Detail Contract Recommendation
 
-A detail RPC is needed later if the drawer requires fields beyond the list row. Do not implement it in the first Web list migration unless the frontend is ready to consume it.
+A specialized read-only detail contract is required to populate the rich operational layout of the Vacancy Detail Drawer.
 
-Recommended shape:
+#### Recommended RPC Signature
 
 ```sql
 select *
-from public.get_web_vacancy_detail(p_vacancy_id := '<uuid>');
+from public.get_web_vacancy_detail(p_vacancy_id := '93cfa3cc-4e5a-4712-a1f9-58b29f0e1fcc'::uuid);
 ```
 
-The detail contract should:
+#### Access Control & Scoped Authority Boundaries
+- **Caller Identity**: Derived exclusively from `auth.uid()`. Under no circumstances should `auth_user_id`, `profile_id`, `role_key`, or scoped ID parameters be accepted as caller arguments.
+- **Grants**: Execution is strictly granted to the `authenticated` role. Access is revoked from `PUBLIC` and `anon`.
+- **RBAC & Scope Filters**: Enforces matching Mobile RBAC parameters:
+  - **Super Admin / Head Admin**: Broad read access over all active/closed vacancies.
+  - **Operations Manager (OM) / ATL / TL / HRCO / Recruitment**: Read access is strictly restricted to vacancies within their allowed accounts (`get_my_allowed_accounts()`) and groups (`user_scopes`).
+  - **Viewer**: Scoped read-only access.
+  - **Disabled/Inactive Profiles**: Instantly denied (fails closed returning empty/error status).
+- **RLS Preservations**: Calls the view invokers under the user's current security context (`vw_vacancy_detail`) to respect database-level RLS policies.
 
-- Derive caller identity from `auth.uid()`.
-- Validate record visibility through existing Mobile RBAC/RLS.
-- Return one vacancy detail payload or no row/permission error.
-- Include applicant summary only when authorized.
-- Include action eligibility hints only as presentation metadata; action RPCs remain authoritative.
-- Keep applicant detail minimal: summary/status counts and current active applicant display name only if already allowed by Mobile. Do not return mobile number/contact fields in the initial detail contract.
+#### Field Mappings & Taxonomy (List vs. Detail)
+
+To maintain database efficiency and minimize payload size, fields are strictly segregated between the list contract and the detail contract:
+
+| Field | List Only | Detail Only | Both | Notes / Business Rules |
+| --- | :---: | :---: | :---: | --- |
+| `total_count` | `X` | | | Result count windowing for list pagination. |
+| `vacancy_id` | | | `X` | Internal record primary key. |
+| `vcode` | | | `X` | Human-readable vacancy code. |
+| `account_name` | | | `X` | Client account / regional name. |
+| `group_name` | | | `X` | Sub-group scope assignment. |
+| `store_name` | | | `X` | Store/branch location. |
+| `position_title` | | | `X` | Position mapping name. |
+| `employment_type` | | | `X` | Deployment model label. |
+| `vacancy_status` | | | `X` | Baseline status enum. |
+| `pipeline_status` | | | `X` | Slot occupancy state (Open/Pipeline). |
+| `derived_status` | | | `X` | Derived queue state. |
+| `active_applicant_count` | | | `X` | Total counts for candidate summary. |
+| `confirmed_onboard_count` | | | `X` | Total counts for onboard/hire summary. |
+| `has_recent_hire` | | | `X` | Hired queue visibility indicator. |
+| `has_pending_closure` | | | `X` | Closure request marker. |
+| `closure_request_status`| | | `X` | Pending closure queue tracking. |
+| `vacant_date` | | | `X` | Vacant slot baseline date. |
+| `aging_days` | | | `X` | Days active (backend-computed). |
+| `aging_bucket` | | | `X` | SLA aging bucket. |
+| `target_fill_date` | | | `X` | Target recruitment deadline. |
+| `urgency_level` | | | `X` | Existing urgency values. |
+| `hrco_name` | | | `X` | Live HRCO assignee profile label. |
+| `last_activity_at` | | | `X` | Recency tracking index. |
+| `row_capabilities` | | | `X` | Action hint presentation mapping (`jsonb`). |
+| `requested_by_id` | | `X` | | Audit metadata: requester UUID. |
+| `requested_by_name` | | `X` | | Audit metadata: requester profile name. |
+| `approved_by_id` | | `X` | | Audit metadata: approver UUID. |
+| `approved_by_name` | | `X` | | Audit metadata: approver profile name. |
+| `approved_at` | | `X` | | Audit metadata: approval timestamp. |
+| `headcount_request_id` | | `X` | | Parent headcount request reference link. |
+| `vacancy_reason` | | `X` | | Stated origin (Replacement vs. Expansion). |
+| `job_description` | | `X` | | Compact summary of roles/qualifications. |
+| `closure_requested_at` | | `X` | | Timestamp of closure submission. |
+| `closure_requested_by` | | `X` | | User profile who requested closure. |
+| `closure_reason` | | `X` | | Stated reason for closure cancellation. |
+| `active_applicants_list` | | `X` | | JSONB array of active candidates: `[{ "applicant_id": uuid, "display_name": text, "status_label": text, "updated_at": timestamp }]`. No email or phone contact details exposed. |
+| `activity_history` | | `X` | | JSONB array of structural audit events for the timeline component. |
 
 ### KPI Contract
 
@@ -400,11 +466,14 @@ Recommended implementation style:
 - Add loading, empty, error, pagination, search, filter, and tab behavior.
 - Keep actions disabled or absent unless capabilities are present.
 
-### Phase 3: Detail Drawer
+### Phase 3: Detail Drawer (Frontend Implemented in OHM2026_1084)
 
-- Implement the approved detail contract in Supabase first.
-- Load detail data only after row selection.
-- Render vacancy context, applicant placeholder/summary, record activity fields, and record-level capability state.
+- The detail contract RPC `public.get_web_vacancy_detail(p_vacancy_id uuid)` frontend integration is complete.
+- We refactored `src/components/vacancy/VacancyTable.tsx` and `src/app/(dashboard)/vacancy/page.tsx` to load detail data using a clean React Query call triggered by `selectedVacancyId` instead of relying on list-level row projection.
+- Rendered the rich, high-fidelity drawer layout including: desktop header, vacancy summary badges, operational metadata, active applicant sub-list (excluding candidate phone/email PII), aging metrics (SLA breach warnings), approvals context, vertical audit activity history timeline, and capability-aware actions dynamically.
+- Supported detailed interaction states: loading skeletons, access denied (for Supabase RLS boundaries), not found, and retryable RPC failure.
+- Enabled Escape key support and backdrop click-to-dismiss closing mechanisms.
+- Refactored the Vacancy list page and the selected detail drawer to fully consume the central Shared Web UI System (`AdminPageHeader`, `MetricCard`, `AdminFilterBar`, `DetailDrawer`, `CapabilityActionBar`, and `StatusBadge`), removing redundant layout/event handling logic while maintaining visual and functional alignment.
 
 ### Phase 4: Actions Later
 
@@ -478,3 +547,58 @@ Validation:
 - Verify list rows and summary counts match the same scoped base query.
 - Verify search/filter/sort/pagination are deterministic and scoped.
 - Verify rejected/backout counts are omitted, null, or correctly derived without inventing vacancy statuses.
+
+---
+
+ID: OHM2026_1082-IMPL-1
+
+Implement the Supabase backend read contract for the OHMployee Web Vacancy Detail Drawer.
+
+Read only:
+- `docs/state/vacancy_web_state.md`
+- `docs/state/web_auth_rbac_state.md`
+- `docs/state/web_foundation_state.md`
+- `.ai/current_state.md`
+- `.ai/handoff.md`
+- Existing Supabase vacancy migrations/views/RPCs only, especially `vw_vacancy_list`, `vw_vacancy_detail`, `v_vacancy_pipeline_status`, candidate status helpers, and SLA/CENCOM aging calculators.
+- Existing Supabase RBAC/scope helper migrations only, especially `get_web_current_user_context`, `get_my_role_level`, `get_effective_role`, `get_my_profile_id`, `get_current_profile_id`, `i_have_full_access`, `get_my_allowed_accounts`, `user_scopes`, and the role permission matrix.
+
+Tasks:
+1. Add a migration in the authoritative Supabase repo; do not edit frontend code.
+2. Create the scoped Web vacancy detail RPC, recommended `public.get_web_vacancy_detail(p_vacancy_id uuid)`.
+3. Derive caller identity exclusively from `auth.uid()`. Do not accept caller-controlled profile, role, account scope, or group scope authority.
+4. Enforce `vacancy.view`/Mobile-equivalent read access and existing Mobile scope:
+   - Super Admin / Head Admin broad access via existing full-access semantics.
+   - OM / ATL / TL / HRCO / Recruitment scoped by allowed accounts (`get_my_allowed_accounts()`) and groups (`user_scopes`).
+   - Viewer read-only only within allowed scope.
+5. Base detail semantics on existing Mobile Vacancy sources:
+   - use `vw_vacancy_detail` semantics and joins;
+   - use `fn_is_active_vacancy_applicant_status` for active applicant/pipeline status;
+   - preserve `derived_status`, `has_recent_hire`, `has_pending_closure`, and closure status behavior;
+   - do not invent vacancy statuses.
+6. Return detail-specific and shared fields:
+   - Shared fields: `vacancy_id`, `vcode`, `account_name`, `group_name`, `store_name`, `position_title`, `employment_type`, `vacancy_status`, `pipeline_status`, `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, `vacant_date`, `aging_days`, `aging_bucket`, `target_fill_date`, `urgency_level`, `hrco_name`, `last_activity_at`, `row_capabilities`.
+   - Detail-specific fields: `requested_by_id`, `requested_by_name`, `approved_by_id`, `approved_by_name`, `approved_at`, `headcount_request_id`, `vacancy_reason`, `job_description`, `closure_requested_at`, `closure_requested_by`, `closure_reason`.
+   - Active Applicants sub-list as a JSONB array `active_applicants_list` containing `applicant_id`, `display_name`, `status_label`, `updated_at`. Ensure no email or phone PII is returned.
+   - Audit trail activity history as a JSONB array `activity_history`.
+7. Enforce strict capability checks for row-level permissions within `row_capabilities`:
+   - `can_approve` based on user context role and vacancy status.
+   - `can_update_applicant_status` based on user context role and vacancy pipeline state.
+   - `can_request_closure` based on user context role and current vacancy status.
+8. Add comments and validation SQL proving unauthenticated callers are blocked, scoped users cannot see out-of-scope vacancies, and Viewer receives read-only hints.
+
+Constraints:
+- Do not edit frontend code.
+- Do not add fake data.
+- Do not weaken RLS or grants.
+- Do not expose applicant contact number or email PII in the candidates list.
+- Do not invent new Vacancy statuses.
+- Do not use caller-provided account/group/profile/role arguments as authority.
+- Preserve Supabase as business authority.
+- Mirror Mobile Vacancy semantics.
+
+Validation:
+- Run the authoritative Supabase migration validation/test workflow.
+- Test as Super Admin, Head Admin, OM/ATL/TL/HRCO/Recruitment scoped users, Viewer, unauthorized active user, and unauthenticated caller.
+- Verify detail fields and active candidate statuses match their authoritative sources in the database.
+- Verify access is denied with a clear Postgres RLS exception if the caller is out of scope.

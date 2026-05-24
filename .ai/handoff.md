@@ -45,15 +45,54 @@
 ## Vacancy Web Handoff
 
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
-- Current Vacancy implementation is a client desktop admin shell with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging filters, dense read-only table rows, pagination, loading/empty/error/blocked states, a right-side selected-row detail panel, applicant placeholder, and disabled capability-labeled action zone.
-- The Vacancy page calls only `get_web_vacancy_summary(...)` and `list_web_vacancies(...)` through `src/lib/queries/vacancy.ts`.
-- Vacancy list rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and selected-row detail panel.
+- Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
+- The Vacancy page integrates `get_web_vacancy_summary(...)`, `list_web_vacancies(...)`, and `get_web_vacancy_detail(p_vacancy_id uuid)` queries through `src/lib/queries/vacancy.ts`.
+- Vacancy list/detail rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and detail drawer.
 - Do not add raw table queries, caller-controlled role/scope parameters, fake data, CRUD, or mutations.
-- Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense table, detail drawer/panel, applicant placeholder, and capability-controlled action area.
+- Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense full-width table, sliding right-side detail drawer, candidate summary listing (shielded PII), audit timeline, and capability-controlled action area.
 - Web must mirror Mobile vacancy business rules and status transitions, but present them in a dense admin-panel workflow rather than Mobile cards.
-- `OHM2026_1077` adds the backend read-contract architecture for Vacancy Web. The recommended migration should create `public.list_web_vacancies(...)` for scoped dense-table rows and `public.get_web_vacancy_summary(...)` for scoped KPI/counts, with `public.get_web_vacancy_detail(p_vacancy_id uuid)` deferred until the detail drawer needs real fields.
-- The Vacancy Web list contract must reuse existing Mobile semantics from `vw_vacancy_list`, `vw_vacancy_detail`, `fn_is_active_vacancy_applicant_status`, `v_vacancy_pipeline_status`, `has_recent_hire`, and closure flags. It must not invent new Vacancy statuses, expose applicant contact fields, or expose employee/Plantilla-sensitive fields.
-- Read scope must be enforced in Supabase from `auth.uid()` and existing RBAC/scope helpers: Super Admin / Head Admin broad access; OM / ATL / TL / HRCO / Recruitment scoped access; Viewer scoped read-only as allowed.
-- Required future backend contracts include verification/availability of the scoped vacancy list RPC and KPI summary RPC in the target Supabase project, optional detail RPC, and later action RPCs that reuse Mobile vacancy rules for approval, applicant status updates, closure requests, and allowed vacancy/headcount creation.
-- Vacancy UI uses backend `row_capabilities` only for presentation hints. Supabase RPC/RLS must remain the authority for view, approve, applicant-status update, request-closure, and add-vacancy/headcount permissions. Current action buttons remain disabled because no action RPC contract exists yet.
-- See the `OHM2026_1077-IMPL-1` prompt in `docs/state/vacancy_web_state.md` for the exact Supabase migration implementation brief.
+- `OHM2026_1077` and `OHM2026_1082` define the backend read-contract architecture for Vacancy Web. The recommended Supabase migration creates `public.list_web_vacancies(...)` for dense list rows, `public.get_web_vacancy_summary(...)` for KPI counts, and `public.get_web_vacancy_detail(p_vacancy_id uuid)` for the selected vacancy's detail drawer context.
+- The Vacancy Detail contract must reuse existing Mobile semantics from `vw_vacancy_detail`, `fn_is_active_vacancy_applicant_status`, and existing RBAC/scope helpers. It enforces strict access controls using the caller's `auth.uid()`, segregates list-only vs. detail-only fields, exposes capability hints (`can_approve`, `can_update_applicant_status`, `can_request_closure`), and provides candidate sub-lists and timelines without exposing candidate contact PII (emails/phone numbers).
+- Scoped reads must be enforced in Supabase from `auth.uid()` and existing RBAC/scope helpers (Super Admin/Head Admin broad access; OM/ATL/TL/HRCO/Recruitment scoped access; Viewer scoped read-only access).
+- Current Vacancy UI uses backend `row_capabilities` only for presentation hints inside the drawer. Actual mutations are disabled because no action RPC contract is implemented.
+- See the `OHM2026_1077-IMPL-1` and `OHM2026_1082-IMPL-1` prompts in `docs/state/vacancy_web_state.md` for the exact Supabase migration implementation briefs.
+
+## Shared Web UI System Handoff
+
+- **Design System Blueprint**: Documented completely in `docs/state/web_ui_system_state.md`. Defines the core architecture for extracting consistent, reusable, desktop-first administrative layout structures.
+- **Audited Visual Patterns**: Audited KPI metric cards, dense scrolling grids, search-and-filter bars, status badges, details drawers, access-denied RLS boundaries, network retry elements, loading skeletons, and capability action lists.
+- **Shared Primitives & Layouts**: Implementation is complete for Phase 2 low-risk primitives:
+  - `AdminPageHeader` (`src/components/shared/AdminPageHeader.tsx`): Reusable header with read-only badge indicator and custom administrative button actions.
+  - `MetricCard` (`src/components/shared/MetricCard.tsx`): Centralized KPI item supporting blank state indicators, loading behaviors, error/retry states, and blocked-access overrides.
+  - `DataState` (`src/components/shared/DataState.tsx`): Single-point presenter for data states (loading spinner, custom empty records, lock-shield access denied block, warning alert card with retry triggers).
+  - `StatusBadge` (`src/components/ui/StatusBadge.tsx`): Consistent mapping of raw backend strings to tailored HSL variant color schemes, safely wrapping/extending basic badges.
+- **Shared Primitives & Layouts**: Implementation is complete for both Phase 2 primitives and Phase 3 structural containers:
+  - `AdminPageHeader` (`src/components/shared/AdminPageHeader.tsx`): Reusable header with read-only badge indicator and custom administrative button actions.
+  - `MetricCard` (`src/components/shared/MetricCard.tsx`): Centralized KPI item supporting blank state indicators, loading behaviors, error/retry states, and blocked-access overrides.
+  - `DataState` (`src/components/shared/DataState.tsx`): Single-point presenter for data states (loading spinner, custom empty records, lock-shield access denied block, warning alert card with retry triggers).
+  - `StatusBadge` (`src/components/ui/StatusBadge.tsx`): Consistent mapping of raw backend strings to HSL variant styles, safely wrapping/extending basic badges.
+  - `DetailDrawer` (`src/components/shared/DetailDrawer.tsx`): Reusable slide-over aside drawer that locks body scroll, listens to ESC keys, dim overlay, and accepts dynamic header badge/slots.
+  - `AdminFilterBar` (`src/components/shared/AdminFilterBar.tsx`): Modular form panel container featuring standard search bars and supporting modular selects or action buttons via children slots.
+  - `CapabilityActionBar` (`src/components/shared/CapabilityActionBar.tsx`): Locked administrative capability bars displaying indicator badges showing available or unexposed states.
+- **Domain Boundaries**: Column definitions, raw database statuses, query RPC bindings, candidate detail PII blocks, and custom log events must remain module-specific to avoid layout dilution or scope leaks.
+- **Extraction Roadmap**: Structured in 5 clear phases (Docs [Done] -> Low-risk primitives [Done] -> Structural layouts [Done] -> Vacancy refactoring [Done] -> HR Emploc/Plantilla deployment [Active]) to ensure safe execution.
+- **Next Phase Actions**: Refer to Phase 5 in `docs/state/web_ui_system_state.md` to deploy shared structures across `HR Emploc` and `Plantilla` routes, replacing basic empty states with high-fidelity, shared UI shells.
+
+## HR Emploc Web Architecture Handoff
+
+- **Architecture Specification**: Main document at `docs/state/hr_emploc_web_state.md`.
+- **Module Mandate**: Governs onboarding document compliance, deficiencies, corrections, employee number assignments, and plantilla transitions for new hires.
+- **Visual Mapping**: High-density compact table, `DetailDrawer` (`drawer-width-lg` or `640px`) command center layout, interactive deficiency checklists, attachment panels, and `CapabilityActionBar` buttons.
+- **SLA Breach Rules**: Highlighted warning segments triggered if a recruit remains undeployed for **> 3 days** (using the database `sla_breached` calculation).
+- **Core Workflow Actions**: Defect tagging, file uploads (Attachments), and transactional transitions.
+- **Scoped RBAC Restrictions**: 
+  - Ops Roles: Create deletion requests (Backout / Duplicate Record).
+  - HR Personnel: deficiency tagging, approvals.
+  - Encoder / Super Admin: assigning employee numbers, move to plantilla.
+  - **CRITICAL**: `Head Admin` is strictly blocked from assigning employee numbers per backend constraints.
+- **Next Phase Steps**:
+  1. Add proposed RPC endpoints (`list_web_hr_emplocs`, `get_web_hr_emploc_summary`, `get_web_hr_emploc_detail`) to the target Supabase migrations.
+  2. Implement Phase 1 frontend layouts in `src/app/(dashboard)/hr-emploc/page.tsx` using the shared component reuse maps.
+
+
+

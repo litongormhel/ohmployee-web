@@ -5,11 +5,8 @@ import {
   ClipboardList,
   Clock3,
   Eye,
-  FileText,
   LockKeyhole,
-  MoreHorizontal,
   RefreshCw,
-  UserRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -33,11 +30,6 @@ const tableColumns = [
   "",
 ];
 
-const actionCapabilities = [
-  { key: "vacancy.approve", label: "Approve" },
-  { key: "vacancy.update_applicant_status", label: "Applicant status" },
-  { key: "vacancy.request_closure", label: "Request closure" },
-];
 
 type VacancyTableProps = {
   status: VacancyStatus;
@@ -54,9 +46,6 @@ type VacancyTableProps = {
   onPageChange: (page: number) => void;
 };
 
-type VacancyDetailPanelProps = {
-  vacancy: VacancyListItem | null;
-};
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -241,10 +230,17 @@ export function VacancyTable({
             ) : (
               rows.map((row) => (
                 <tr
-                  className={`border-b border-gray-100 ${
+                  className={`border-b border-gray-100 transition-colors ${
+                    row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
+                  } ${
                     selectedId === row.id ? "bg-blue-50" : "hover:bg-gray-50"
                   }`}
                   key={row.id}
+                  onClick={() => {
+                    if (row.rowCapabilities.canViewDetail) {
+                      onSelect(row);
+                    }
+                  }}
                 >
                   <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-gray-700">
                     {row.vcode}
@@ -288,9 +284,12 @@ export function VacancyTable({
                   <td className="border-b border-gray-100 px-3 py-2 text-right">
                     <button
                       aria-label={`Select vacancy ${row.vcode}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-white"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-white transition animate-duration-150"
                       disabled={!row.rowCapabilities.canViewDetail}
-                      onClick={() => onSelect(row)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(row);
+                      }}
                       type="button"
                     >
                       <Eye className="h-4 w-4" aria-hidden="true" />
@@ -333,107 +332,3 @@ export function VacancyTable({
   );
 }
 
-export function VacancyDetailPanel({ vacancy }: VacancyDetailPanelProps) {
-  const capabilities = vacancy?.rowCapabilities;
-
-  return (
-    <aside className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              Vacancy Detail
-            </h2>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Selection-driven detail drawer placeholder.
-            </p>
-          </div>
-          <button
-            aria-label="Detail actions"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-400"
-            disabled
-            type="button"
-          >
-            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-3 p-3">
-        <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-          <div className="flex items-start gap-2">
-            <FileText className="mt-0.5 h-4 w-4 text-gray-400" aria-hidden="true" />
-            <div>
-              <div className="text-sm font-medium text-gray-700">
-                {vacancy ? vacancy.vcode : "Select a vacancy from the table"}
-              </div>
-              <p className="mt-1 text-sm text-gray-500">
-                {vacancy
-                  ? `${vacancy.position_title ?? "Position unavailable"} / ${
-                      getScope(vacancy) || "Scope unavailable"
-                    }`
-                  : "The drawer opens from real list rows only. No placeholder vacancy identity, request context, or timeline data is fabricated."}
-              </p>
-              {vacancy ? (
-                <div className="mt-3 grid gap-1 text-xs text-gray-500">
-                  <div>Status: {getStatusLabel(vacancy)}</div>
-                  <div>Aging: {getAgingLabel(vacancy)}</div>
-                  <div>HRCO: {vacancy.hrcoName ?? "--"}</div>
-                  <div>Target fill: {formatDate(vacancy.targetFillDate)}</div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-md border border-gray-200 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-            <UserRound className="h-4 w-4 text-gray-500" aria-hidden="true" />
-            Applicant Section
-          </div>
-          <p className="mt-2 text-sm text-gray-500">
-            {vacancy
-              ? `${getApplicantLabel(vacancy)}. Applicant workflow controls remain disabled until backend action RPCs are implemented.`
-              : "Applicant summary and workflow controls are reserved for a future detail contract and backend-authorized action RPCs."}
-          </p>
-        </section>
-
-        <section className="rounded-md border border-gray-200 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-            <LockKeyhole className="h-4 w-4 text-gray-500" aria-hidden="true" />
-            Action Zone
-          </div>
-          <div className="mt-3 grid gap-2">
-            {actionCapabilities.map((action) => {
-              const isAvailable =
-                action.key === "vacancy.approve"
-                  ? capabilities?.canApprove === true
-                  : action.key === "vacancy.update_applicant_status"
-                    ? capabilities?.canUpdateApplicantStatus === true
-                    : capabilities?.canRequestClosure === true;
-
-              return (
-                <button
-                  className="flex h-9 items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 text-left text-sm text-gray-500"
-                  disabled
-                  key={action.key}
-                  type="button"
-                >
-                  <span>{action.label}</span>
-                  <span className="font-mono text-[11px]">
-                    {isAvailable ? "available" : "not exposed"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-xs text-gray-500">
-            Capability visibility is presentation-only. Supabase RPCs must still
-            enforce record state, scope, and authorization before actions are
-            wired.
-          </p>
-        </section>
-      </div>
-    </aside>
-  );
-}

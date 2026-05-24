@@ -20,6 +20,8 @@ OHMployee Web is a Next.js App Router project with a lightweight admin command s
 - The admin shell renders only when the RPC returns `access_status === "allowed"`.
 - Backend `allowed_module_keys` drives sidebar/topbar module visibility; `module_capabilities` is kept presentation-only.
 - Missing profiles, inactive/disabled accounts, unauthorized web roles, RPC failures, malformed module arrays, and malformed capability payloads render a blocked-access screen instead of the shell.
+- The Shared Web UI System architecture has been defined and documented in `docs/state/web_ui_system_state.md`, auditing existing Vacancy UI patterns, specifying reusable admin primitives, defining visual system tokens, and mapping out a phased extraction roadmap.
+
 
 ## Module Registry
 
@@ -44,12 +46,18 @@ OHMployee Web is a Next.js App Router project with a lightweight admin command s
 - Vacancy data access is now wired through `get_web_vacancy_summary(...)` and `list_web_vacancies(...)` only.
 - Vacancy list row typing and rendering now use the RPC field name `position_title` rather than a legacy `position`/camelCase frontend alias.
 - Vacancy Web target architecture is now documented in `docs/state/vacancy_web_state.md`: desktop admin command-center layout, KPI row, status tabs, filter/search toolbar, dense table, detail drawer, applicant placeholder, and capability-controlled action area.
-- Vacancy Web expects the read contracts `get_web_vacancy_summary(...)` and `list_web_vacancies(...)`; detail and action contracts are still not implemented in the frontend.
+- Vacancy Web is fully integrated with the detail read contract `public.get_web_vacancy_detail(p_vacancy_id uuid)` in the frontend.
 - Blank module pages intentionally avoid mocked records, charts, and CRUD actions.
 - The safe web current-user context RPC/view contract is documented in `docs/state/web_auth_rbac_state.md`; this repo has no local migration for it.
 - Frontend code may use module capabilities only for shell display metadata. Supabase RLS/RPC remains the authority for all actions and business data.
-- Vacancy Web now renders a desktop/admin-first read-only UI: compact page header, RPC-backed KPI row, status tabs, submitted search, pipeline/aging filters, dense table rows, pagination, loading, empty, retryable error, blocked/read-denied states, detail panel from selected list rows, applicant summary placeholder, and disabled capability-labeled action zone.
+- Vacancy Web now renders a high-fidelity desktop/admin-first read-only overlay drawer for vacancy details instead of a static selection sidebar. The dense list table is full screen width.
 - Vacancy Web fetches only from the approved read RPCs. It does not render fake rows, query raw tables, include sample employee/applicant names, bypass RLS, or implement CRUD/mutations.
-- `OHM2026_1077` documents the proposed Vacancy Web read contract in `docs/state/vacancy_web_state.md`. The recommended backend-first contract is `public.list_web_vacancies(...)` for scoped dense-table reads and `public.get_web_vacancy_summary(...)` for scoped KPI/counts, with an optional later `public.get_web_vacancy_detail(p_vacancy_id uuid)`.
-- The Web Vacancy read contract should wrap existing Mobile semantics from `vw_vacancy_list`, `vw_vacancy_detail`, `fn_is_active_vacancy_applicant_status`, `v_vacancy_pipeline_status`, hired visibility, closure flags, and existing RBAC/scope helpers. It must derive the caller from `auth.uid()`, enforce Super Admin/Head Admin broad access and scoped OM/ATL/TL/HRCO/Recruitment/Viewer reads, and return only web-safe fields.
-- Remaining Vacancy gaps are backend availability/verification of the scoped list and summary RPCs in the target Supabase project, an optional detail contract, and later action RPCs for approval, applicant updates, closure requests, and vacancy/headcount creation.
+- `OHM2026_1077` and `OHM2026_1082` document the proposed Vacancy Web read contracts in `docs/state/vacancy_web_state.md`. The recommended backend-first list contract is `public.list_web_vacancies(...)` and `public.get_web_vacancy_summary(...)`. The recommended detail drawer contract is `public.get_web_vacancy_detail(p_vacancy_id uuid)`.
+- The Web Vacancy detail contract wraps existing Mobile semantics from `vw_vacancy_detail`, `fn_is_active_vacancy_applicant_status`, active applicant lists, and existing RBAC/scope helpers. It derives the caller from `auth.uid()`, enforces Super Admin/Head Admin broad access and scoped OM/ATL/TL/HRCO/Recruitment/Viewer reads, separates list-only vs. detail-only fields, and returns row capabilities (`can_approve`, `can_update_applicant_status`, `can_request_closure`) without exposing applicant PII (contact numbers or email addresses).
+- Remaining Vacancy gaps are backend availability/verification of the scoped list, summary, and detail RPCs in the target Supabase project, followed by Phase 4 (mutations and action RPCs).
+- The Shared Web UI System Phase 2 low-risk primitives (`AdminPageHeader`, `MetricCard`, `DataState`, and `StatusBadge`) are fully implemented under `src/components/shared/` and `src/components/ui/` with lightweight TypeScript typings, explicit prop mappings, and strict aesthetic adherence. The Phase 3 structural layout components (`AdminFilterBar`, `CapabilityActionBar`, and `DetailDrawer`) are also fully implemented as generic, domain-neutral containers under `src/components/shared/`.
+- The Vacancy module has been fully refactored to consume the central Shared Web UI System (Phase 4): the list page uses `AdminPageHeader`, `MetricCard`, and `AdminFilterBar`, and the detail drawer uses `DetailDrawer`, `CapabilityActionBar`, and `StatusBadge` where safe. All exact read-only queries, filter query parameter bindings, active pipeline filters, pagination, access-denied RLS shields, non-PII candidate structures, and historical timelines are preserved perfectly with zero visual or functional regressions.
+- The HR Emploc Web module architecture has been designed and documented under `docs/state/hr_emploc_web_state.md` (OHM2026_1090), defining its queue architecture, KPI cards, compact table, detail drawer sections, SLA clock rules, correction/approval flows, role access boundaries, and RPC recommendations. No frontend code or Supabase migrations have been implemented yet.
+
+
+
