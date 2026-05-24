@@ -127,20 +127,20 @@ export function VacancyTable({
   const errorCopy = getErrorCopy(errorKind);
 
   return (
-    <section className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-3 py-2">
+    <section className="flex min-h-[440px] flex-col rounded-md border border-table-rule-section bg-table-row">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-3 py-2">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">
+            <h2 className="text-sm font-semibold text-table-text">
               {statusDescription}
             </h2>
-            <Badge className="font-mono text-[11px] text-gray-500">{status}</Badge>
+            <Badge className="font-mono text-[11px] text-table-text-muted">{status}</Badge>
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-table-text-muted">
             Read-only rows from the scoped vacancy list RPC.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
           {isLoading ? "Loading vacancy queue" : `${totalCount} scoped records`}
         </div>
@@ -148,11 +148,11 @@ export function VacancyTable({
 
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1060px] border-separate border-spacing-0 text-left text-sm">
-          <thead className="sticky top-0 z-10 bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+          <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
               {tableColumns.map((column) => (
                 <th
-                  className="border-b border-gray-200 px-3 py-2"
+                  className="border-b border-table-rule-section px-3 py-2"
                   key={column || "actions"}
                   scope="col"
                 >
@@ -170,10 +170,10 @@ export function VacancyTable({
                       className="h-5 w-5 animate-spin text-blue-500"
                       aria-hidden="true"
                     />
-                    <div className="text-sm font-medium text-gray-700">
+                    <div className="text-sm font-medium text-table-text-sub">
                       Loading scoped vacancies
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-table-text-muted">
                       Fetching {statusDescription.toLowerCase()} through
                       list_web_vacancies.
                     </div>
@@ -190,13 +190,13 @@ export function VacancyTable({
                         aria-hidden="true"
                       />
                     </div>
-                    <div className="text-sm font-medium text-gray-800">
+                    <div className="text-sm font-medium text-table-text">
                       {errorCopy.title}
                     </div>
-                    <div className="text-sm text-gray-500">{errorCopy.body}</div>
+                    <div className="text-sm text-table-text-muted">{errorCopy.body}</div>
                     {errorKind === "retryable" ? (
                       <button
-                        className="mt-2 inline-flex h-8 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700"
+                        className="mt-2 inline-flex h-8 items-center gap-2 rounded-md border border-table-rule-section bg-table-row px-3 text-sm font-medium text-table-text-sub"
                         onClick={onRetry}
                         type="button"
                       >
@@ -211,16 +211,16 @@ export function VacancyTable({
               <tr>
                 <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-                    <div className="rounded-md border border-gray-200 bg-gray-50 p-2">
+                    <div className="rounded-md border border-table-rule-section bg-table-header p-2">
                       <ClipboardList
-                        className="h-5 w-5 text-gray-400"
+                        className="h-5 w-5 text-table-text-muted"
                         aria-hidden="true"
                       />
                     </div>
-                    <div className="text-sm font-medium text-gray-700">
+                    <div className="text-sm font-medium text-table-text-sub">
                       No vacancies found
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-table-text-muted">
                       The backend returned an empty scoped result for this queue,
                       search, and filter combination.
                     </div>
@@ -230,10 +230,10 @@ export function VacancyTable({
             ) : (
               rows.map((row) => (
                 <tr
-                  className={`border-b border-gray-100 transition-colors ${
+                  className={`border-b border-table-rule transition-colors ${
                     row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
                   } ${
-                    selectedId === row.id ? "bg-blue-50" : "hover:bg-gray-50"
+                    selectedId === row.id ? "bg-table-row-selected" : "hover:bg-table-row-hover"
                   }`}
                   key={row.id}
                   onClick={() => {
@@ -242,49 +242,49 @@ export function VacancyTable({
                     }
                   }}
                 >
-                  <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-gray-700">
+                  <td className="border-b border-table-rule px-3 py-2 font-mono text-xs text-table-text-sub">
                     {row.vcode}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2">
-                    <div className="font-medium text-gray-900">
+                  <td className="border-b border-table-rule px-3 py-2">
+                    <div className="font-medium text-table-text">
                       {row.position_title ?? "--"}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-table-text-muted">
                       {row.employmentType ?? "Employment type unavailable"}
                     </div>
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {row.department ?? "--"}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {getScope(row) || "--"}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2">
+                  <td className="border-b border-table-rule px-3 py-2">
                     <div className="flex flex-col items-start gap-1">
                       <Badge className="border-blue-200 bg-blue-50 text-blue-700">
                         {getStatusLabel(row)}
                       </Badge>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-table-text-muted">
                         {row.pipelineStatus ?? "Pipeline unavailable"}
                       </span>
                     </div>
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {getApplicantLabel(row)}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {formatDate(row.vacantDate)}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {getAgingLabel(row)}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                     {formatDate(row.lastActivityAt)}
                   </td>
-                  <td className="border-b border-gray-100 px-3 py-2 text-right">
+                  <td className="border-b border-table-rule px-3 py-2 text-right">
                     <button
                       aria-label={`Select vacancy ${row.vcode}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-white transition animate-duration-150"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition animate-duration-150"
                       disabled={!row.rowCapabilities.canViewDetail}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -302,13 +302,13 @@ export function VacancyTable({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-3 py-2 text-xs text-table-text-muted">
         <span>
           {firstRecord}-{lastRecord} of {totalCount} records
         </span>
         <div className="flex items-center gap-2">
           <button
-            className="h-8 rounded-md border border-gray-200 px-3 font-medium text-gray-600 disabled:text-gray-300"
+            className="h-8 rounded-md border border-table-rule-section px-3 font-medium text-table-text-sub disabled:opacity-50"
             disabled={page <= 1 || isLoading}
             onClick={() => onPageChange(page - 1)}
             type="button"
@@ -319,7 +319,7 @@ export function VacancyTable({
             Page {page} of {pageCount}
           </span>
           <button
-            className="h-8 rounded-md border border-gray-200 px-3 font-medium text-gray-600 disabled:text-gray-300"
+            className="h-8 rounded-md border border-table-rule-section px-3 font-medium text-table-text-sub disabled:opacity-50"
             disabled={page >= pageCount || isLoading}
             onClick={() => onPageChange(page + 1)}
             type="button"

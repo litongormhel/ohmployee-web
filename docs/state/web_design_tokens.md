@@ -16,7 +16,22 @@ The token system is **live** in `src/app/globals.css`. Implementation notes:
 - **Status tokens are wired through `StatusBadge`**, so every semantic badge now reads from `status-*` variables rather than ad-hoc green/amber/red strings.
 - **Shared primitives** (`AdminPageHeader`, `MetricCard`, `DataState`, `DetailDrawer`, `AdminFilterBar`, `StatusBadge`) consume the semantic surface/text/border tokens and therefore respond to dark mode automatically.
 
-Dense feature tables (Vacancy, HR Emploc) intentionally keep their literal Tailwind row classes for now; only the shared chrome and the cross-module inconsistencies listed in OHM2026_1097 were tokenized to avoid risky module-wide churn.
+Dense feature tables (Vacancy, HR Emploc) are now fully tokenized (OHM2026_1098). Table interior tokens are declared as runtime `:root` variables alongside the existing semantic surface/text/border set and remapped under `@media (prefers-color-scheme: dark)`. They are exposed via `@theme inline`:
+
+| Token variable | Light value | Dark value | Tailwind utility |
+|---|---|---|---|
+| `--table-header` | `#fafafa` | `#0f172a` | `bg-table-header` |
+| `--table-row` | `#ffffff` | `#111827` | `bg-table-row` |
+| `--table-row-hover` | `#f8fafc` | `#1e293b` | `bg-table-row-hover` |
+| `--table-row-selected` | `#eff6ff` | `#0c2433` | `bg-table-row-selected` |
+| `--table-rule` | `#f1f5f9` | `#1e293b` | `border-table-rule` |
+| `--table-rule-section` | `#e2e8f0` | `#334155` | `border-table-rule-section` |
+| `--table-text` | `#0f172a` | `#e2e8f0` | `text-table-text` |
+| `--table-text-sub` | `#475569` | `#94a3b8` | `text-table-text-sub` |
+| `--table-text-muted` | `#6b7280` | `#64748b` | `text-table-text-muted` |
+| `--mono-pill-surface` | `#f8fafc` | `#1e293b` | `bg-mono-pill-surface` |
+| `--mono-pill-ink` | `#374151` | `#cbd5e1` | `text-mono-pill-ink` |
+| `--mono-pill-ring` | `#e2e8f0` | `#334155` | `border-mono-pill-ring` |
 
 ---
 

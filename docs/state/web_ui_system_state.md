@@ -206,7 +206,7 @@ graph TD
 
 To maintain high-fidelity visual aesthetics (premium dashboard layouts), all extracted and refactored components must respect the following unified tokens:
 
-> **Token activation (OHM2026_1097):** the design token system is now live in `src/app/globals.css` (see `docs/state/web_design_tokens.md` §0). The shared primitives below have been refactored onto the semantic tokens (`surface-*`, `text-*`, `border-*`, `status-*`) and are dark-mode aware. The "Badge Variant Mapping" colors below describe the original light-mode intent; the live `StatusBadge` now resolves them through the `status-*` token variables. Sidebar width is aligned to `--sidebar-width` (240px), the `DetailDrawer` slide-in uses the `animate-drawer-in` entrance keyframe, and selected-row highlighting is standardized on `bg-blue-50` with `hover:bg-gray-50` across Vacancy and HR Emploc.
+> **Token activation (OHM2026_1097 + OHM2026_1098):** the design token system is now live in `src/app/globals.css` (see `docs/state/web_design_tokens.md` §0). The shared primitives use semantic tokens (`surface-*`, `text-*`, `border-*`, `status-*`) and are dark-mode aware. `VacancyTable` and `HrEmplocTable` interiors are fully tokenized via dedicated table tokens (`table-header`, `table-row`, `table-row-hover`, `table-row-selected`, `table-rule`, `table-rule-section`, `table-text`, `table-text-sub`, `table-text-muted`, `mono-pill-surface`, `mono-pill-ink`, `mono-pill-ring`) — all hardcoded `bg-white`, `bg-gray-*`, `border-gray-*`, and `text-gray-*` classes inside both tables have been replaced. Selected-row highlight uses `bg-table-row-selected` (Blue 50 in light, `#0c2433` in dark). No feature changes, columns, queries, or behaviors were altered.
 
 ### Spacing & Layout Tokens
 - **Page Container Padding**: `p-4 sm:p-5 flex flex-col gap-4`
@@ -230,8 +230,8 @@ To maintain high-fidelity visual aesthetics (premium dashboard layouts), all ext
 
 ### Table Density & Behavior
 - **Column Padding**: Cell contents must use compact sizes (`px-3 py-2`).
-- **Interactive Rows**: Interactive lines must use `transition-colors hover:bg-gray-50 cursor-pointer`.
-- **Row Select Color**: Highlighting active rows must strictly use `bg-blue-50` to match the dashboard sidebar styles.
+- **Interactive Rows**: Interactive lines must use `transition-colors hover:bg-table-row-hover cursor-pointer` (token resolves to gray-50 in light, Slate 800 in dark).
+- **Row Select Color**: Highlighting active rows must use `bg-table-row-selected` (Blue 50 / `#eff6ff` in light, `#0c2433` in dark).
 
 ---
 

@@ -33,6 +33,22 @@
   --border-subtle: #f1f5f9; /* Slate 100 - in-drawer rules */
   --border-default: #e2e8f0; /* Slate 200 - section dividers */
   --border-strong: #cbd5e1; /* Slate 300 - emphasized edges */
+
+  /* Table interior tokens */
+  --table-header: #fafafa;         /* thead background */
+  --table-row: #ffffff;            /* tbody base row */
+  --table-row-hover: #f8fafc;      /* row hover */
+  --table-row-selected: #eff6ff;   /* active row (Blue 50) */
+  --table-rule: #f1f5f9;           /* row divider (Slate 100) */
+  --table-rule-section: #e2e8f0;   /* header / footer divider (Slate 200) */
+  --table-text: #0f172a;           /* strong cell text */
+  --table-text-sub: #475569;       /* standard cell text */
+  --table-text-muted: #6b7280;     /* de-emphasised text (Gray 500) */
+
+  /* Mono / code chip */
+  --mono-pill-surface: #f8fafc;    /* chip background */
+  --mono-pill-ink: #374151;        /* chip text (Gray 700) */
+  --mono-pill-ring: #e2e8f0;       /* chip border */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +71,22 @@
     --border-subtle: #1e293b;
     --border-default: #334155;
     --border-strong: #475569;
+
+    /* Table interior tokens — dark */
+    --table-header: #0f172a;
+    --table-row: #111827;
+    --table-row-hover: #1e293b;
+    --table-row-selected: #0c2433;
+    --table-rule: #1e293b;
+    --table-rule-section: #334155;
+    --table-text: #e2e8f0;
+    --table-text-sub: #94a3b8;
+    --table-text-muted: #64748b;
+
+    /* Mono / code chip — dark */
+    --mono-pill-surface: #1e293b;
+    --mono-pill-ink: #cbd5e1;
+    --mono-pill-ring: #334155;
   }
 }
 
@@ -77,6 +109,22 @@
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
+
+  /* Table interior utilities */
+  --color-table-header: var(--table-header);
+  --color-table-row: var(--table-row);
+  --color-table-row-hover: var(--table-row-hover);
+  --color-table-row-selected: var(--table-row-selected);
+  --color-table-rule: var(--table-rule);
+  --color-table-rule-section: var(--table-rule-section);
+  --color-table-text: var(--table-text);
+  --color-table-text-sub: var(--table-text-sub);
+  --color-table-text-muted: var(--table-text-muted);
+
+  /* Mono / code chip utilities */
+  --color-mono-pill-surface: var(--mono-pill-surface);
+  --color-mono-pill-ink: var(--mono-pill-ink);
+  --color-mono-pill-ring: var(--mono-pill-ring);
 
   --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;

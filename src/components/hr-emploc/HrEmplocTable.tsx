@@ -87,23 +87,23 @@ export function HrEmplocTable({
   };
 
   return (
-    <section className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
+    <section className="flex min-h-[440px] flex-col rounded-md border border-table-rule-section bg-table-row">
       {/* Table Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-3 py-2">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">
+            <h2 className="text-sm font-semibold text-table-text">
               {queueLabel}
             </h2>
-            <Badge className="font-mono text-[10px] text-gray-500 bg-gray-100 hover:bg-gray-100 border-none">
+            <Badge className="font-mono text-[10px] text-table-text-muted bg-surface-muted hover:bg-surface-muted border-none">
               {queue}
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-table-text-muted">
             Compact queue tracking compliant onboarding milestones.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
           {isLoading ? "Loading compliance list" : `${totalCount} records scoped`}
         </div>
@@ -112,11 +112,11 @@ export function HrEmplocTable({
       {/* Main Table Container */}
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left text-sm">
-          <thead className="sticky top-0 z-10 bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+          <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
               {tableColumns.map((column, idx) => (
                 <th
-                  className={`border-b border-gray-200 px-3 py-2 ${
+                  className={`border-b border-table-rule-section px-3 py-2 ${
                     column === "" ? "text-right" : ""
                   }`}
                   key={column || `actions-${idx}`}
@@ -169,14 +169,14 @@ export function HrEmplocTable({
 
                 return (
                   <tr
-                    className={`border-b border-gray-100 transition-colors ${
+                    className={`border-b border-table-rule transition-colors ${
                       row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
                     } ${
                       selectedId === row.id
-                        ? "bg-blue-50"
+                        ? "bg-table-row-selected"
                         : isPendingDeletion
                         ? "bg-red-50 hover:bg-red-100"
-                        : "hover:bg-gray-50"
+                        : "hover:bg-table-row-hover"
                     }`}
                     key={row.id}
                     onClick={() => {
@@ -186,36 +186,36 @@ export function HrEmplocTable({
                     }}
                   >
                     {/* Candidate Name */}
-                    <td className="border-b border-gray-100 px-3 py-2">
-                      <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                    <td className="border-b border-table-rule px-3 py-2">
+                      <div className="font-semibold text-table-text flex items-center gap-1.5">
                         {isPendingDeletion && (
                           <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" aria-hidden="true" />
                         )}
-                        <span className={isPendingDeletion ? "text-gray-500 line-through" : ""}>
+                        <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
                           {row.applicantName}
                         </span>
                       </div>
                     </td>
 
                     {/* Vacancy Code */}
-                    <td className="border-b border-gray-100 px-3 py-2">
-                      <span className="font-mono text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 select-all">
+                    <td className="border-b border-table-rule px-3 py-2">
+                      <span className="font-mono text-xs text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 select-all">
                         {row.vcode}
                       </span>
                     </td>
 
                     {/* Account / Store */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
-                      <div className="font-medium text-gray-800 truncate max-w-[180px]">
+                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                      <div className="font-medium text-table-text truncate max-w-[180px]">
                         {row.accountName ?? "--"}
                       </div>
-                      <div className="text-xs text-gray-400 truncate max-w-[180px]">
+                      <div className="text-xs text-table-text-muted truncate max-w-[180px]">
                         {row.storeName ?? "--"}
                       </div>
                     </td>
 
                     {/* Assignment Type */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
                       {row.assignmentType === "Roving" ? (
                         <div className="relative group inline-block">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
@@ -234,41 +234,41 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Position */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-800">
+                    <td className="border-b border-table-rule px-3 py-2 text-table-text">
                       {row.positionTitle ?? "--"}
                     </td>
 
                     {/* HR Status */}
-                    <td className="border-b border-gray-100 px-3 py-2">
+                    <td className="border-b border-table-rule px-3 py-2">
                       <StatusBadge variant={getHrStatusVariant(row.hrStatus)}>
                         {row.hrStatus}
                       </StatusBadge>
                     </td>
 
                     {/* Deployment Status */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
-                      <span className="text-xs font-medium text-gray-700 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">
+                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                      <span className="text-xs font-medium text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
                         {row.deploymentStatus}
                       </span>
                     </td>
 
                     {/* Employee Number */}
-                    <td className="border-b border-gray-100 px-3 py-2">
+                    <td className="border-b border-table-rule px-3 py-2">
                       {row.employeeNo ? (
                         <Badge className="font-mono text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
                           {row.employeeNo}
                         </Badge>
                       ) : (
-                        <span className="text-xs text-gray-400 italic">Unassigned</span>
+                        <span className="text-xs text-table-text-muted italic">Unassigned</span>
                       )}
                     </td>
 
                     {/* SLA Age */}
-                    <td className="border-b border-gray-100 px-3 py-2">
+                    <td className="border-b border-table-rule px-3 py-2">
                       <div className="flex flex-col items-start">
                         <span
                           className={`font-semibold ${
-                            isSlaBreached ? "text-red-600" : "text-gray-700"
+                            isSlaBreached ? "text-red-600" : "text-table-text-sub"
                           }`}
                         >
                           {row.slaElapsedDays} Days
@@ -282,14 +282,14 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Deficiency Summary */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-xs text-gray-500 max-w-[150px] truncate">
+                    <td className="border-b border-table-rule px-3 py-2 text-xs text-table-text-muted max-w-[150px] truncate">
                       {row.deficiencySummary || (
-                        <span className="text-gray-400 italic">None</span>
+                        <span className="text-table-text-muted italic">None</span>
                       )}
                     </td>
 
                     {/* Actions */}
-                    <td className="border-b border-gray-100 px-3 py-2 text-right">
+                    <td className="border-b border-table-rule px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Capability hints */}
                         {row.rowCapabilities.canAssignEmployeeNo && (
@@ -315,7 +315,7 @@ export function HrEmplocTable({
                         )}
                         <button
                           aria-label={`Inspect candidate ${row.applicantName}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition"
                           disabled={!row.rowCapabilities.canViewDetail}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -336,13 +336,13 @@ export function HrEmplocTable({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-3 py-2 text-xs text-table-text-muted">
         <span>
           Showing {firstRecord}-{lastRecord} of {totalCount} compliance records
         </span>
         <div className="flex items-center gap-2">
           <button
-            className="h-8 rounded-md border border-gray-200 bg-white px-3 font-medium text-gray-600 shadow-xs hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={page <= 1 || isLoading}
             onClick={() => onPageChange(page - 1)}
             type="button"
@@ -353,7 +353,7 @@ export function HrEmplocTable({
             Page {page} of {pageCount}
           </span>
           <button
-            className="h-8 rounded-md border border-gray-200 bg-white px-3 font-medium text-gray-600 shadow-xs hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={page >= pageCount || isLoading}
             onClick={() => onPageChange(page + 1)}
             type="button"
