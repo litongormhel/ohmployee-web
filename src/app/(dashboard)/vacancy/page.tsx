@@ -2,6 +2,7 @@
 'use client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { VacancyTable } from '@/components/vacancy/VacancyTable'
+import type { VacancyStatus } from '@/lib/queries/vacancy'
 
 const tabs = [
   { value: 'open', label: 'Open' },
@@ -20,7 +21,7 @@ export default function VacancyPage() {
         </TabsList>
         {tabs.map(t => (
           <TabsContent key={t.value} value={t.value}>
-            <VacancyTable status={t.value as any} />
+            <VacancyTable status={t.value as VacancyStatus} />
           </TabsContent>
         ))}
       </Tabs>

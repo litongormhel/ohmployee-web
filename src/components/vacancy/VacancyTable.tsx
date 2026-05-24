@@ -21,7 +21,6 @@ export function VacancyTable({ status }: { status: VacancyStatus }) {
             <th className="p-3">Position</th>
             <th className="p-3">Department</th>
             <th className="p-3">Status</th>
-            <th className="p-3">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -31,10 +30,6 @@ export function VacancyTable({ status }: { status: VacancyStatus }) {
               <td className="p-3">{v.position}</td>
               <td className="p-3">{v.department}</td>
               <td className="p-3"><Badge>{v.status}</Badge></td>
-              <td className="p-3 space-x-2">
-                <button className="text-blue-500 hover:underline text-xs">Edit</button>
-                <button className="text-red-400 hover:underline text-xs">Archive</button>
-              </td>
             </tr>
           ))}
         </tbody>
