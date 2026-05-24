@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document defines the intended OHMployee Web authentication guard and RBAC shell architecture. The first lightweight web auth/RBAC shell is now implemented without middleware, module business queries, or backend role rules.
+This document defines the intended OHMployee Web authentication guard and RBAC shell architecture. The lightweight web auth/RBAC shell now calls the backend current-user context RPC without middleware, module business queries, or frontend role rules.
 
 The web app remains an admin-panel presentation layer. Supabase is the authority for session validity, RBAC, RLS, business rules, and data integrity.
 
@@ -11,13 +11,13 @@ The web app remains an admin-panel presentation layer. Supabase is the authority
 - `src/lib/supabase/client.ts` creates a browser Supabase client from `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - `src/app/(auth)/login/page.tsx` signs in with Supabase Auth, redirects successful login to `/dashboard`, and redirects already-authenticated visitors away from `/login`.
 - `src/app/(dashboard)/layout.tsx` delegates the dashboard route group to `src/components/DashboardAuthShell.tsx`.
-- `src/components/DashboardAuthShell.tsx` loads the current Supabase Auth session/user on the client, redirects missing sessions to `/login`, redirects hidden direct module routes back to `/dashboard`, and passes filtered modules into the shell.
-- `src/components/Sidebar.tsx` signs out through the browser Supabase client, redirects to `/login`, and renders only visible modules.
-- `src/components/AdminTopbar.tsx` renders the active module title and mobile module navigation from visible modules only.
-- `src/lib/auth.ts` defines the minimal current-user context placeholder and fail-closed module visibility helper.
+- `src/components/DashboardAuthShell.tsx` loads the current Supabase Auth session/user on the client, calls `get_web_current_user_context`, redirects missing sessions to `/login`, renders a blocked-access screen for denied authenticated users, redirects hidden direct module routes back to `/dashboard`, and passes backend-filtered modules into the shell.
+- `src/components/Sidebar.tsx` signs out through the browser Supabase client, redirects to `/login`, and renders only backend-visible modules.
+- `src/components/AdminTopbar.tsx` renders the active module title and mobile module navigation from backend-visible modules only.
+- `src/lib/auth.ts` defines the RPC-backed current-user context loader, fail-closed blocked states, and module visibility helper.
 - `src/lib/modules.ts` is the current module registry and now includes stable module keys for future backend capability mapping.
 - Most module pages are scaffold-only empty states. `vacancy` has a typed empty query placeholder and client-side table shell, but no real Supabase data contract.
-- This repo currently has no local `supabase/migrations` directory, so the backend contract below is a design handoff only. The migration/RPC/view must be implemented in the Supabase authority repo or in a future migration directory once that workflow is established.
+- This repo currently has no local `supabase/migrations` directory. The frontend now expects the `get_web_current_user_context` RPC to exist in the Supabase authority project.
 
 ## Recommended Auth/RBAC Architecture
 
@@ -32,14 +32,13 @@ The web app remains an admin-panel presentation layer. Supabase is the authority
 
 ### Current User Context
 
-Web needs one normalized current-user context before rendering dashboard navigation. The current placeholder context contains:
+Web needs one normalized current-user context before rendering dashboard navigation. The current frontend loader calls:
 
-- Supabase Auth user id from `supabase.auth.getUser()`.
-- Email/display metadata from Supabase Auth only.
-- `profileId: null`, unresolved role, and `none` group/account scope until a safe backend profile/scope view or RPC is available.
-- Module access that fails closed to the minimal dashboard shell only.
+```ts
+supabase.rpc("get_web_current_user_context")
+```
 
-The future backend-backed context should add:
+The backend-backed context includes:
 
 - Supabase Auth user id.
 - Profile id and display metadata safe for the admin shell.
@@ -47,7 +46,7 @@ The future backend-backed context should add:
 - Group scope for modules that are group-limited.
 - Account scope for modules that are account-limited.
 - Module visibility/capability data derived from existing Mobile RBAC semantics.
-- Optional status flags needed to block inactive, disabled, or unlinked accounts.
+- Status flags needed to block missing-profile, inactive, disabled, unauthorized, or failed access checks.
 
 This context is currently fetched once in the dashboard shell wrapper and passed to shell components as presentation data. Client components may consume the already-loaded context, but they should not independently decide authority.
 
@@ -60,11 +59,9 @@ This context is currently fetched once in the dashboard shell wrapper and passed
 
 ## Required Backend Contracts
 
-No existing profile/scope contract is visible in the allowed web files. Before implementation, web needs confirmation of the Mobile RBAC-backed Supabase contracts.
+Required safe contract:
 
-Required existing or new safe contract:
-
-- A safe current-user profile/scope RPC, preferably named `get_web_current_user_context`, that returns only the authenticated user's web-safe context.
+- A safe current-user profile/scope RPC named `get_web_current_user_context` that returns only the authenticated user's web-safe context.
 - An optional `security_invoker` view can expose the same current-user context for read/query ergonomics after the RPC is in place, but the RPC should remain the canonical contract for shell bootstrap and fail-closed status handling.
 - The contract must map the Supabase Auth user to the OHMployee profile/account identity used by Mobile.
 - The contract must expose the existing Mobile role semantics without inventing web-only roles.
@@ -105,6 +102,8 @@ type WebCurrentUserContext = {
 ```
 
 This is a web projection shape, not a new database role model.
+
+The current frontend accepts `access_status = "allowed"` as the only renderable shell state. It reads `allowed_module_keys` for navigation visibility and `module_capabilities` for sidebar/topbar display metadata only. If `access_status` is anything else, the dashboard route group stays blocked for the authenticated user.
 
 Recommended database shape:
 
@@ -159,11 +158,13 @@ The view is useful for composable read access, but it must be `security_invoker`
 ## Fail-Closed Behavior
 
 - Unauthenticated: web redirects to `/login`; backend should return no context or an unauthenticated error.
-- Authenticated but no linked profile: return `status = authenticated_profile_missing`, `active = false`, no scopes, no modules except an optional backend-approved `dashboard` blocked shell, and no capabilities.
-- Inactive profile/account: return `status = inactive`, `active = false`, no scopes, no modules except an optional blocked shell, and no capabilities.
-- Disabled user: return `status = disabled`, `active = false`, no scopes, no modules except an optional blocked shell, and no capabilities.
-- Authenticated and active but not web-authorized: return `status = unauthorized_web`, `active = false`, no scopes, no modules except an optional blocked shell, and no capabilities.
-- Active and web-authorized: return `status = active`, `active = true`, Mobile-derived role, Mobile-derived scopes, allowed module keys, and module capabilities.
+- Authenticated but no linked profile: return `access_status = authenticated_profile_missing` or equivalent missing-profile status, no scopes, no modules, and no capabilities.
+- Inactive profile/account: return `access_status = inactive`, no scopes, no modules, and no capabilities.
+- Disabled user: return `access_status = disabled`, no scopes, no modules, and no capabilities.
+- Authenticated and active but not web-authorized: return `access_status = unauthorized_web` or `unauthorized_role`, no scopes, no modules, and no capabilities.
+- RPC failure, malformed payloads, missing module arrays, missing capability objects, and unknown statuses block the shell.
+- Active and web-authorized: return `access_status = allowed`, Mobile-derived role, Mobile-derived scopes, `allowed_module_keys`, and `module_capabilities`.
+- If an allowed user has an empty `allowed_module_keys` array, the frontend renders a dashboard-only shell. Missing or malformed module data is blocked.
 
 The web app must treat unknown statuses, unknown roles, missing arrays, malformed capabilities, and hidden module keys as blocked. Frontend filtering is display-only; RLS/RPC checks still enforce authorization on every data query and mutation.
 
@@ -179,7 +180,7 @@ The web app must treat unknown statuses, unknown roles, missing arrays, malforme
 
 ## Module Visibility Matrix Draft
 
-Visibility must be resolved from existing Mobile RBAC semantics and backend-provided capabilities. Until those contracts are confirmed, every module fails closed except dashboard shell access for authenticated users with a valid Supabase Auth session. This is navigation/display filtering only and is not an authorization claim.
+Visibility must be resolved from existing Mobile RBAC semantics and backend-provided capabilities. The frontend now filters navigation from backend `allowed_module_keys`; `module_capabilities` may be shown as display metadata only and must not become action authority. This is navigation/display filtering only and is not an authorization claim.
 
 | Module | Route | Visibility rule draft | Scope input | Notes |
 | --- | --- | --- | --- | --- |
@@ -201,7 +202,7 @@ Visibility must be resolved from existing Mobile RBAC semantics and backend-prov
 1. Confirm Mobile RBAC contract names and scope semantics in Supabase.
 2. Add a server-capable Supabase helper for App Router session reads once an SSR cookie adapter/package is approved.
 3. Dashboard layout session guard and unauthenticated redirect to `/login` are implemented in the client auth shell.
-4. Replace the typed placeholder current-user context loader with the approved safe view/RPC.
+4. Typed current-user context loading now calls `get_web_current_user_context`.
 5. Stable module keys have been added to `webModules`; align them with backend capability keys when the contract is confirmed.
 6. `Sidebar` and `AdminTopbar` now filter navigation from resolved module visibility.
 7. Direct navigation to hidden modules redirects back to `/dashboard` in the client shell.

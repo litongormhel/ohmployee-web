@@ -6,7 +6,20 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 
-export function Sidebar({ visibleModules }: { visibleModules: WebModule[] }) {
+type SidebarProps = {
+  visibleModules: WebModule[];
+  moduleCapabilities: Record<string, string[]>;
+};
+
+function getCapabilitySummary(moduleKey: string, capabilities: Record<string, string[]>) {
+  const capabilityCount = capabilities[moduleKey]?.length ?? 0;
+
+  return capabilityCount > 0
+    ? `${capabilityCount} capabilities available`
+    : "No module actions available";
+}
+
+export function Sidebar({ visibleModules, moduleCapabilities }: SidebarProps) {
   const path = usePathname();
   const router = useRouter();
   const activeModule = getActiveModule(path, visibleModules);
@@ -30,13 +43,14 @@ export function Sidebar({ visibleModules }: { visibleModules: WebModule[] }) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {visibleModules.map(({ href, title, icon: Icon }) => {
+        {visibleModules.map(({ key, href, title, icon: Icon }) => {
           const isActive = activeModule.href === href;
 
           return (
             <Link
               key={href}
               href={href}
+              title={getCapabilitySummary(key, moduleCapabilities)}
               aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition ${
                 isActive

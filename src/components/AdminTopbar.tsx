@@ -4,7 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 
-export function AdminTopbar({ visibleModules }: { visibleModules: WebModule[] }) {
+type AdminTopbarProps = {
+  visibleModules: WebModule[];
+  moduleCapabilities: Record<string, string[]>;
+};
+
+function getCapabilitySummary(moduleKey: string, capabilities: Record<string, string[]>) {
+  const capabilityCount = capabilities[moduleKey]?.length ?? 0;
+
+  return capabilityCount > 0
+    ? `${capabilityCount} capabilities available`
+    : "No module actions available";
+}
+
+export function AdminTopbar({
+  visibleModules,
+  moduleCapabilities,
+}: AdminTopbarProps) {
   const pathname = usePathname();
   const activeModule = getActiveModule(pathname, visibleModules);
 
@@ -28,6 +44,7 @@ export function AdminTopbar({ visibleModules }: { visibleModules: WebModule[] })
               <Link
                 key={module.href}
                 href={module.href}
+                title={getCapabilitySummary(module.key, moduleCapabilities)}
                 className={`whitespace-nowrap rounded-md px-3 py-2 text-sm ${
                   isActive
                     ? "bg-slate-950 text-white"
