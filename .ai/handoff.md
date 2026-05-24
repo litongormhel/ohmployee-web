@@ -78,21 +78,12 @@
 - **Extraction Roadmap**: Structured in 5 clear phases (Docs [Done] -> Low-risk primitives [Done] -> Structural layouts [Done] -> Vacancy refactoring [Done] -> HR Emploc/Plantilla deployment [Active]) to ensure safe execution.
 - **Next Phase Actions**: Refer to Phase 5 in `docs/state/web_ui_system_state.md` to deploy shared structures across `HR Emploc` and `Plantilla` routes, replacing basic empty states with high-fidelity, shared UI shells.
 
-## HR Emploc Web Architecture Handoff
-
-- **Architecture Specification**: Main document at `docs/state/hr_emploc_web_state.md`.
-- **Module Mandate**: Governs onboarding document compliance, deficiencies, corrections, employee number assignments, and plantilla transitions for new hires.
-- **Visual Mapping**: High-density compact table, `DetailDrawer` (`drawer-width-lg` or `640px`) command center layout, interactive deficiency checklists, attachment panels, and `CapabilityActionBar` buttons.
-- **SLA Breach Rules**: Highlighted warning segments triggered if a recruit remains undeployed for **> 3 days** (using the database `sla_breached` calculation).
-- **Core Workflow Actions**: Defect tagging, file uploads (Attachments), and transactional transitions.
-- **Scoped RBAC Restrictions**: 
-  - Ops Roles: Create deletion requests (Backout / Duplicate Record).
-  - HR Personnel: deficiency tagging, approvals.
-  - Encoder / Super Admin: assigning employee numbers, move to plantilla.
-  - **CRITICAL**: `Head Admin` is strictly blocked from assigning employee numbers per backend constraints.
+- **Implementation Status**: The frontend read-only queue page, summary KPI metrics, compact dense grid table, and 640px sliding details drawer are fully implemented and validated (compiled cleanly in both linting and production bundling tests).
+- **Security & RLS boundaries**: PII shielding is active (contact numbers/email are never rendered), and data queries strictly consume server-derived RLS scopes.
+- **Workflow Action Area**: CapabilityActionBar buttons are fully mapped to dynamic permission flags returned on `rowCapabilities` (`canTagDeficiency`, `canAssignEmployeeNo`, `canMoveToPlantilla`, `canRequestDeletion`).
 - **Next Phase Steps**:
-  1. Add proposed RPC endpoints (`list_web_hr_emplocs`, `get_web_hr_emploc_summary`, `get_web_hr_emploc_detail`) to the target Supabase migrations.
-  2. Implement Phase 1 frontend layouts in `src/app/(dashboard)/hr-emploc/page.tsx` using the shared component reuse maps.
+  1. Approve the backend transactional mutation RPC signatures on Supabase (tagging deficiencies, entering employee IDs, transitioning plantilla directories, separator approvals).
+  2. Implement React Query mutations (`useMutation`) and cache invalidation triggers on the client.
 
 
 

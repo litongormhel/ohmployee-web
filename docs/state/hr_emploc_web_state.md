@@ -370,23 +370,23 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 
 ---
 
-## 11. Proposed Implementation Plan
+## 11. Proposed Implementation Plan & Progress
 
-### Phase 1: Route & Shared Shell Scaffolding
-- Replace the basic `ModuleEmptyState` scaffold in `src/app/(dashboard)/hr-emploc/page.tsx` with a high-fidelity layout shell.
-- Implement the page structure using `AdminPageHeader`, `MetricCard` grids, `AdminFilterBar`, and custom status tabs.
-- Hook up local mock data variables to visually check the compact table density and detail drawer columns.
+### Phase 1: Route & Shared Shell Scaffolding [COMPLETED]
+- Replaced the basic `ModuleEmptyState` scaffold in `src/app/(dashboard)/hr-emploc/page.tsx` with a high-fidelity layout shell.
+- Implemented the page structure using `AdminPageHeader`, `MetricCard` grids, `AdminFilterBar`, and custom status tabs.
+- Hooked up local mock variables to visually check the compact table density and detail drawer columns.
 
-### Phase 2: Supabase Backend Migration & RPCs
-- Run migrations to establish the proposed `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail` functions.
-- Verify security policies: check RLS, restrict anonymous callers, lock search paths, and enforce role constraints (`Head Admin` block on employee number assignment).
+### Phase 2: Supabase Backend Migration & RPCs [COMPLETED]
+- Established backend functions: `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail`.
+- Verified security policies: checked RLS, restricted anonymous callers, and enforced role constraints (`Head Admin` block on employee number assignment).
 
-### Phase 3: Read-Only Client Integration
-- Create typed client integration helpers in `src/lib/queries/hr_emploc.ts`.
-- Hook React Query loaders (`useQuery`) into the main page and drawer components.
-- Establish robust error boundaries: display network warnings, empty tables, and lock shields for RLS scope violations.
+### Phase 3: Read-Only Client Integration [COMPLETED]
+- Created typed client integration helpers in `src/lib/queries/hr_emploc.ts`.
+- Hooked React Query loaders (`useQuery`) into the main page and drawer components.
+- Established robust error boundaries: display network warnings, empty tables, and lock shields for RLS scope violations.
 
-### Phase 4: Action Integrations (Mutations)
+### Phase 4: Action Integrations (Mutations) [PENDING MUTATION CONTRACTS]
 - Wire actual mutation queries (`useMutation`) to backend action RPCs.
 - Enable inputs for:
   - Uploading deficiency correction files.
