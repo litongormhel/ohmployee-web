@@ -19,6 +19,7 @@ import {
   type PlantillaEmployeeListItem,
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
+import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 
 // ---------------------------------------------------------------------------
 // Types
