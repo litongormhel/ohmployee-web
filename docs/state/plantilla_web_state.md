@@ -518,26 +518,43 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 
 ## 12. Proposed Implementation Plan
 
-### Phase 1: Route & Shared Shell Scaffolding
-- Replace the basic `ModuleEmptyState` scaffold in `src/app/(dashboard)/plantilla/page.tsx` with a high-fidelity layout.
-- Bind `AdminPageHeader`, `MetricCard` grids, and `AdminFilterBar` with the Employee/Store Segmented View Toggle.
-- Wire local mock datasets to verify column alignments and grid rendering in both Employee and Store modes.
+### Phase 1: Route & Shared Shell Scaffolding ✅ COMPLETE
+- `src/app/(dashboard)/plantilla/page.tsx` is fully implemented as a read-only admin page.
+- `AdminPageHeader` (title, subtitle, readOnly badge), 4x `MetricCard` KPI row, `AdminFilterBar` with Employee/Store segmented view toggle, and `DataState` (loading, empty, access_denied, error) are all wired.
+- Employee View and Store Staffing View share a single page with filtered, paginated dense tables.
+- No mock data; all queries go through Supabase RPCs only.
+- Employee table columns: Emp ID, Name (AH badge), Account/Store, Position, Assignment (Roving count), Type, Status (StatusBadge + SLA breach ⚠).
+- Store table columns: Store Code, Store Name, Account/Region, Budgeted, Active (B), Active (AH), Vacancies (SLA breach ⚠), SLA Status (StatusBadge).
+- Deactivation overlays applied via `deriveDeactivationOverlay`: pending-separation rows get dashed border + `bg-red-50/30 opacity-80`; inactive/terminated/suspended rows get `opacity-65 pointer-events-none` + strikethrough on ID and name.
+- Staffing risk derived via `deriveStaffingRisk` to drive vacancy SLA breach indicators.
+- Filters: search (apply-on-click), account ID, group ID (UI only — not yet in RPC contract), store ID (employee view), employment status (employee view), deployment type (employee view), staffing risk/SLA status (store view).
+- Validated: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
 
-### Phase 2: Database RPC & Security Migrations
-- Write migrations for backend contracts: `list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
-- Implement user-role caller context resolution via `get_web_current_user_context`.
-- Enforce strict SQL-level data masking for personal numbers, emails, addresses, salary rates, and Gov IDs for restricted roles.
-- Set up RLS security policies gating queries against user accounts and group scopes.
+### Phase 2: Database RPC & Security Migrations ✅ APPLIED REMOTELY
+- Migrations `20260607000002` and `20260607000003` exist and are applied remotely.
+- Backend contracts implemented: `list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
+- User-role caller context resolution via `get_web_current_user_context` is implemented.
+- Strict SQL-level data masking for personal numbers, emails, addresses, salary rates, and Gov IDs is enforced for restricted roles.
+- RLS security policies gating queries against user accounts and group scopes are set up.
+- Pending: `p_group_id` parameter not yet added to employee and store RPCs (group ID filter is present in the frontend UI only).
 
-### Phase 3: Client Integration & State Management ✅ QUERY CONTRACTS COMPLETE
+### Phase 3: Client Integration & State Management ✅ COMPLETE
 - `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers.
 - Exported RPC wrappers: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`.
 - Typed JSONB sub-types: `PlantillaCoveredStore`, `PlantillaGovernmentIds`, `PlantillaClearanceChecklistItem`, `PlantillaClearanceDocument`, `PlantillaMovementRequest`, `PlantillaAuditTimelineItem`.
 - Presentation-layer derivation helpers: `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk`.
 - Error class `PlantillaDataError` with `access_denied` / `retryable` kind discriminator.
-- Remaining: integrate React Query hooks (`useQuery`) into the main page directory and Detail Drawer; standardize full state boundary cards using `DataState` (Access Denied shields, Spinner loads, empty clipboards).
+- React Query `useQuery` hooks are wired in `page.tsx` for summary, employee list, and store staffing list.
+- All four `DataState` boundaries (loading, empty, access_denied, retryable error with retry callback) are active.
 
-### Phase 4: Action Mutations Integration
+### Phase 4: Detail Drawer
+- Implement the Plantilla Detail Drawer (`DetailDrawer`, 640px) for employee rows.
+- Render employment/allocation grid, roving coverage component (when `assignmentType === 'Roving'`), clearance panel (when `plantilla_status === 'Pending Separation'`), SLA warning block, and audit timeline.
+- Wire `getWebPlantillaDetail` via `useQuery` triggered by row selection.
+- Apply deactivation and transfer overlay banners inside the drawer header.
+- Store view drawer: selected store's detailed personnel list and capacity summary.
+
+### Phase 5: Action Mutations Integration
 - Hook up React Query mutations (`useMutation`) to backend action RPCs:
   - Submit personnel store transfer.
   - Request Additional Headcount (AH).

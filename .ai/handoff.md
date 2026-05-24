@@ -110,16 +110,20 @@
   6. **Additional Headcount (AH)**: Tracking of seasonal, temporary headcount slots with expiration calendars and visual warning countdown indicators.
   7. **Detail Drawer**: High-density 640px overlay featuring employment/allocation details, roving coverages, separation checklists, SLA breachers, and timelines.
   8. **SLA Breach Clocks**: 48h movement SLAs and 7-day store vacancy vacancy alarm clocks.
-- **Backend RPC Recommendations**: Mapped out SQL definitions for `list_web_plantilla_employees`, `list_web_plantilla_stores`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
+- **Backend RPC Status**: Migrations `20260607000002` and `20260607000003` exist and are applied remotely. Implemented contracts: `list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_summary`, and `get_web_plantilla_detail`.
 - **Query Contract Status**: `src/lib/queries/plantilla.ts` is fully implemented. Exports: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`, `PlantillaDataError`, and all typed structs. Presentation helpers `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk` are pure functions that accept normalized data and return overlay hint objects — no backend calls.
 - **RPC names wired**: `get_web_plantilla_summary`, `list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_detail`. All use `auth.uid()`-derived scopes server-side; no caller-controlled role/scope params are passed from the frontend.
 - **Masking contract**: backend returns pre-masked strings for `contact_number`, `email_address`, `residential_address`, `base_rate_masked`, and `government_ids` JSONB for restricted roles. The frontend never strips or applies masking itself.
+- **Page Shell Status (OHM2026_1103)**: `src/app/(dashboard)/plantilla/page.tsx` is fully implemented as a read-only dual-view shell. `AdminPageHeader`, 4x `MetricCard` (wired to `getPlantillaSummary`), `AdminFilterBar` (segmented Employee/Store toggle + per-view filter selects), and two inline dense tables (employee roster, store staffing) are all live. DataState handles all four boundary states. `deriveDeactivationOverlay` and `deriveStaffingRisk` are applied inline. Pagination is wired. `pnpm lint` and `pnpm build` are clean.
+- **Known gaps**:
+  - `groupId` filter is present in the UI but not yet passed to any RPC (the current RPC contract has no `p_group_id` param). Add it to backend once `list_web_plantilla_employees` and `list_web_plantilla_store_staffing` support it.
+  - Detail Drawer is not yet implemented (Phase 4). Eye-icon action column is intentionally omitted until the drawer exists.
+  - No action mutations yet (Phase 5).
 - **Next Phase Steps**:
-  1. Set up the client-side routes and dual-view segmented shells in `src/app/(dashboard)/plantilla/page.tsx` using the shared UI containers (`AdminPageHeader`, `MetricCard`, `AdminFilterBar`, and `DataState`).
-  2. Implement the backend SQL functions (`list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_summary`, `get_web_plantilla_detail`) including context resolution and PII masking.
-  3. Wire React Query `useQuery` hooks (consuming `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getPlantillaSummary`, `getWebPlantillaDetail`) into the page and Detail Drawer.
-  4. Use `deriveDeactivationOverlay` on each employee row for opacity/border/banner styling; use `deriveTransferOverlay` inside the Detail Drawer SLA block.
-  5. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 4.
+  1. Add `p_group_id` parameter to employee and store staffing RPCs; wire it in `listWebPlantillaEmployees` and `listWebPlantillaStoreStaffing` query params and the page filter state.
+  2. Implement the Plantilla Detail Drawer (`DetailDrawer`, 640px) — employment/allocation grid, roving coverage panel, clearance checklist panel (pending-separation only), SLA block, and audit timeline. Wire `getWebPlantillaDetail` via `useQuery` on row selection.
+  3. Use `deriveTransferOverlay` inside the Detail Drawer SLA block.
+  4. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 5.
 
 
 
