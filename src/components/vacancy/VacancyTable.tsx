@@ -4,14 +4,21 @@
 import {
   ClipboardList,
   Clock3,
+  Eye,
   FileText,
   LockKeyhole,
   MoreHorizontal,
+  RefreshCw,
   UserRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type {
+  VacancyDataErrorKind,
+  VacancyListItem,
+  VacancyStatus,
+} from "@/lib/queries/vacancy";
 
-export type VacancyStatus = "open" | "with_applicant" | "rejected" | "backout";
+export type { VacancyStatus } from "@/lib/queries/vacancy";
 
 const tableColumns = [
   "VCode",
@@ -35,13 +42,101 @@ const actionCapabilities = [
 type VacancyTableProps = {
   status: VacancyStatus;
   statusDescription: string;
+  rows: VacancyListItem[];
+  selectedId: string | null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  isLoading: boolean;
+  errorKind: VacancyDataErrorKind | null;
+  onSelect: (vacancy: VacancyListItem) => void;
+  onRetry: () => void;
+  onPageChange: (page: number) => void;
 };
 
 type VacancyDetailPanelProps = {
-  capabilities?: string[];
+  vacancy: VacancyListItem | null;
 };
 
-export function VacancyTable({ status, statusDescription }: VacancyTableProps) {
+function formatDate(value: string | null) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getScope(row: VacancyListItem) {
+  return [row.accountName, row.groupName, row.storeName].filter(Boolean).join(" / ");
+}
+
+function getAgingLabel(row: VacancyListItem) {
+  if (row.agingDays === null) {
+    return row.agingBucket ?? "--";
+  }
+
+  return `${row.agingDays}d${row.agingBucket ? ` / ${row.agingBucket}` : ""}`;
+}
+
+function getStatusLabel(row: VacancyListItem) {
+  return row.derivedStatus ?? row.vacancyStatus ?? row.pipelineStatus ?? "--";
+}
+
+function getApplicantLabel(row: VacancyListItem) {
+  if (row.activeApplicantCount > 0) {
+    return `${row.activeApplicantCount} active`;
+  }
+
+  if (row.confirmedOnboardCount > 0 || row.hasRecentHire) {
+    return `${row.confirmedOnboardCount} onboarded`;
+  }
+
+  return "None";
+}
+
+function getErrorCopy(kind: VacancyDataErrorKind | null) {
+  if (kind === "access_denied") {
+    return {
+      title: "Vacancy access blocked",
+      body: "Supabase denied this read request for the current user. The page is staying read-blocked instead of showing partial or unscoped records.",
+    };
+  }
+
+  return {
+    title: "Vacancy data unavailable",
+    body: "The vacancy RPC request failed. You can retry without changing filters.",
+  };
+}
+
+export function VacancyTable({
+  status,
+  statusDescription,
+  rows,
+  selectedId,
+  totalCount,
+  page,
+  pageSize,
+  isLoading,
+  errorKind,
+  onSelect,
+  onRetry,
+  onPageChange,
+}: VacancyTableProps) {
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastRecord = Math.min(totalCount, page * pageSize);
+  const errorCopy = getErrorCopy(errorKind);
+
   return (
     <section className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-3 py-2">
@@ -53,12 +148,12 @@ export function VacancyTable({ status, statusDescription }: VacancyTableProps) {
             <Badge className="font-mono text-[11px] text-gray-500">{status}</Badge>
           </div>
           <p className="mt-0.5 text-xs text-gray-500">
-            Read-only table frame awaiting scoped vacancy list data.
+            Read-only rows from the scoped vacancy list RPC.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
-          No refresh source configured
+          {isLoading ? "Loading vacancy queue" : `${totalCount} scoped records`}
         </div>
       </div>
 
@@ -78,38 +173,169 @@ export function VacancyTable({ status, statusDescription }: VacancyTableProps) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
-                <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-                  <div className="rounded-md border border-gray-200 bg-gray-50 p-2">
-                    <ClipboardList className="h-5 w-5 text-gray-400" aria-hidden="true" />
+            {isLoading ? (
+              <tr>
+                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                  <div className="mx-auto flex max-w-md flex-col items-center gap-2">
+                    <RefreshCw
+                      className="h-5 w-5 animate-spin text-blue-500"
+                      aria-hidden="true"
+                    />
+                    <div className="text-sm font-medium text-gray-700">
+                      Loading scoped vacancies
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Fetching {statusDescription.toLowerCase()} through
+                      list_web_vacancies.
+                    </div>
                   </div>
-                  <div className="text-sm font-medium text-gray-700">
-                    No vacancy records loaded
+                </td>
+              </tr>
+            ) : errorKind ? (
+              <tr>
+                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                  <div className="mx-auto flex max-w-md flex-col items-center gap-2">
+                    <div className="rounded-md border border-red-200 bg-red-50 p-2">
+                      <LockKeyhole
+                        className="h-5 w-5 text-red-500"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div className="text-sm font-medium text-gray-800">
+                      {errorCopy.title}
+                    </div>
+                    <div className="text-sm text-gray-500">{errorCopy.body}</div>
+                    {errorKind === "retryable" ? (
+                      <button
+                        className="mt-2 inline-flex h-8 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700"
+                        onClick={onRetry}
+                        type="button"
+                      >
+                        <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                        Retry
+                      </button>
+                    ) : null}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    This shell does not fetch Supabase data or render sample rows.
-                    Records will appear here after the approved list contract is
-                    implemented.
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                  <div className="mx-auto flex max-w-md flex-col items-center gap-2">
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-2">
+                      <ClipboardList
+                        className="h-5 w-5 text-gray-400"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div className="text-sm font-medium text-gray-700">
+                      No vacancies found
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      The backend returned an empty scoped result for this queue,
+                      search, and filter combination.
+                    </div>
                   </div>
-                </div>
-              </td>
-            </tr>
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr
+                  className={`border-b border-gray-100 ${
+                    selectedId === row.id ? "bg-blue-50" : "hover:bg-gray-50"
+                  }`}
+                  key={row.id}
+                >
+                  <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-gray-700">
+                    {row.vcode}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2">
+                    <div className="font-medium text-gray-900">
+                      {row.position_title ?? "--"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {row.employmentType ?? "Employment type unavailable"}
+                    </div>
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {row.department ?? "--"}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {getScope(row) || "--"}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2">
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge className="border-blue-200 bg-blue-50 text-blue-700">
+                        {getStatusLabel(row)}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {row.pipelineStatus ?? "Pipeline unavailable"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {getApplicantLabel(row)}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {formatDate(row.vacantDate)}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {getAgingLabel(row)}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-gray-600">
+                    {formatDate(row.lastActivityAt)}
+                  </td>
+                  <td className="border-b border-gray-100 px-3 py-2 text-right">
+                    <button
+                      aria-label={`Select vacancy ${row.vcode}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-white"
+                      disabled={!row.rowCapabilities.canViewDetail}
+                      onClick={() => onSelect(row)}
+                      type="button"
+                    >
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 text-xs text-gray-500">
-        <span>0 records</span>
-        <span>Pagination placeholder pending backend limit and offset contract</span>
+        <span>
+          {firstRecord}-{lastRecord} of {totalCount} records
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            className="h-8 rounded-md border border-gray-200 px-3 font-medium text-gray-600 disabled:text-gray-300"
+            disabled={page <= 1 || isLoading}
+            onClick={() => onPageChange(page - 1)}
+            type="button"
+          >
+            Previous
+          </button>
+          <span>
+            Page {page} of {pageCount}
+          </span>
+          <button
+            className="h-8 rounded-md border border-gray-200 px-3 font-medium text-gray-600 disabled:text-gray-300"
+            disabled={page >= pageCount || isLoading}
+            onClick={() => onPageChange(page + 1)}
+            type="button"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </section>
   );
 }
 
-export function VacancyDetailPanel({
-  capabilities = [],
-}: VacancyDetailPanelProps) {
+export function VacancyDetailPanel({ vacancy }: VacancyDetailPanelProps) {
+  const capabilities = vacancy?.rowCapabilities;
+
   return (
     <aside className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-3 py-2">
@@ -139,12 +365,23 @@ export function VacancyDetailPanel({
             <FileText className="mt-0.5 h-4 w-4 text-gray-400" aria-hidden="true" />
             <div>
               <div className="text-sm font-medium text-gray-700">
-                Select a vacancy from the table
+                {vacancy ? vacancy.vcode : "Select a vacancy from the table"}
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                The drawer opens from real list rows only. No placeholder vacancy
-                identity, request context, or timeline data is fabricated.
+                {vacancy
+                  ? `${vacancy.position_title ?? "Position unavailable"} / ${
+                      getScope(vacancy) || "Scope unavailable"
+                    }`
+                  : "The drawer opens from real list rows only. No placeholder vacancy identity, request context, or timeline data is fabricated."}
               </p>
+              {vacancy ? (
+                <div className="mt-3 grid gap-1 text-xs text-gray-500">
+                  <div>Status: {getStatusLabel(vacancy)}</div>
+                  <div>Aging: {getAgingLabel(vacancy)}</div>
+                  <div>HRCO: {vacancy.hrcoName ?? "--"}</div>
+                  <div>Target fill: {formatDate(vacancy.targetFillDate)}</div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -155,8 +392,9 @@ export function VacancyDetailPanel({
             Applicant Section
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Applicant summary and workflow controls are reserved for a future
-            detail contract and backend-authorized action RPCs.
+            {vacancy
+              ? `${getApplicantLabel(vacancy)}. Applicant workflow controls remain disabled until backend action RPCs are implemented.`
+              : "Applicant summary and workflow controls are reserved for a future detail contract and backend-authorized action RPCs."}
           </p>
         </section>
 
@@ -167,7 +405,12 @@ export function VacancyDetailPanel({
           </div>
           <div className="mt-3 grid gap-2">
             {actionCapabilities.map((action) => {
-              const isAvailable = capabilities.includes(action.key);
+              const isAvailable =
+                action.key === "vacancy.approve"
+                  ? capabilities?.canApprove === true
+                  : action.key === "vacancy.update_applicant_status"
+                    ? capabilities?.canUpdateApplicantStatus === true
+                    : capabilities?.canRequestClosure === true;
 
               return (
                 <button

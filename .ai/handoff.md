@@ -17,7 +17,7 @@
 - `src/components/DashboardAuthShell.tsx` now owns the lightweight client-side dashboard guard and current-user context load from `get_web_current_user_context`.
 - `src/lib/auth.ts` defines the RPC-backed current-user context, blocked-access states, and fail-closed module visibility helper.
 - `src/lib/modules.ts` includes stable module keys for future backend capability mapping.
-- Current module routes are placeholders only; do not add business logic until Supabase contracts and RLS are defined.
+- Most module routes are placeholders only; do not add business logic until Supabase contracts and RLS are defined. Vacancy is the first read-only RPC-backed module surface.
 - Root `/` redirects to `/dashboard` as the web app foundation entry point.
 
 ## Auth/RBAC Handoff
@@ -45,11 +45,15 @@
 ## Vacancy Web Handoff
 
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
-- Current Vacancy implementation is a client desktop admin shell with a compact header, KPI placeholders, status tabs, disabled search/filter controls, a dense read-only table shell, a no-records state, a right-side detail placeholder, applicant placeholder, and disabled capability-labeled action zone.
-- The Vacancy page does not call Supabase and no longer uses the empty `getVacancies(status)` placeholder from the shell UI.
-- Do not replace the Vacancy placeholder with real Supabase reads until a scoped list RPC/view is approved.
+- Current Vacancy implementation is a client desktop admin shell with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging filters, dense read-only table rows, pagination, loading/empty/error/blocked states, a right-side selected-row detail panel, applicant placeholder, and disabled capability-labeled action zone.
+- The Vacancy page calls only `get_web_vacancy_summary(...)` and `list_web_vacancies(...)` through `src/lib/queries/vacancy.ts`.
+- Vacancy list rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and selected-row detail panel.
+- Do not add raw table queries, caller-controlled role/scope parameters, fake data, CRUD, or mutations.
 - Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense table, detail drawer/panel, applicant placeholder, and capability-controlled action area.
 - Web must mirror Mobile vacancy business rules and status transitions, but present them in a dense admin-panel workflow rather than Mobile cards.
-- Required future backend contracts include scoped vacancy list, optional detail, optional KPI summary, and action RPCs that reuse Mobile vacancy rules for approval, applicant status updates, closure requests, and allowed vacancy/headcount creation.
-- Vacancy UI may use backend capability keys for presentation, but Supabase RPC/RLS must remain the authority for view, approve, applicant-status update, request-closure, and add-vacancy/headcount permissions. Current action buttons remain disabled because no selected record or action RPC contract exists yet.
-- See the `OHM2026_1075-IMPL-1` prompt in `docs/state/vacancy_web_state.md` for the next shell-only implementation brief.
+- `OHM2026_1077` adds the backend read-contract architecture for Vacancy Web. The recommended migration should create `public.list_web_vacancies(...)` for scoped dense-table rows and `public.get_web_vacancy_summary(...)` for scoped KPI/counts, with `public.get_web_vacancy_detail(p_vacancy_id uuid)` deferred until the detail drawer needs real fields.
+- The Vacancy Web list contract must reuse existing Mobile semantics from `vw_vacancy_list`, `vw_vacancy_detail`, `fn_is_active_vacancy_applicant_status`, `v_vacancy_pipeline_status`, `has_recent_hire`, and closure flags. It must not invent new Vacancy statuses, expose applicant contact fields, or expose employee/Plantilla-sensitive fields.
+- Read scope must be enforced in Supabase from `auth.uid()` and existing RBAC/scope helpers: Super Admin / Head Admin broad access; OM / ATL / TL / HRCO / Recruitment scoped access; Viewer scoped read-only as allowed.
+- Required future backend contracts include verification/availability of the scoped vacancy list RPC and KPI summary RPC in the target Supabase project, optional detail RPC, and later action RPCs that reuse Mobile vacancy rules for approval, applicant status updates, closure requests, and allowed vacancy/headcount creation.
+- Vacancy UI uses backend `row_capabilities` only for presentation hints. Supabase RPC/RLS must remain the authority for view, approve, applicant-status update, request-closure, and add-vacancy/headcount permissions. Current action buttons remain disabled because no action RPC contract exists yet.
+- See the `OHM2026_1077-IMPL-1` prompt in `docs/state/vacancy_web_state.md` for the exact Supabase migration implementation brief.
