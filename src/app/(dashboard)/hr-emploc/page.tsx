@@ -221,7 +221,7 @@ export default function HrEmplocPage() {
                   className={`rounded px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     queue === tab.value
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-gray-600 hover:bg-gray-150/70"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                   key={tab.value}
                   onClick={() => updateQueue(tab.value)}
@@ -363,7 +363,7 @@ export default function HrEmplocPage() {
         <div className="flex items-start gap-2 text-xs text-gray-550">
           <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
           <div>
-            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries are gated under server-authoritative RLS scopes using <code className="font-mono bg-gray-150 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Tagging deficiencies, correcting remarks, employee ID assignments, Plantilla transitions, and separation approvals remain read-only pending approved backend mutations.
+            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries are gated under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Tagging deficiencies, correcting remarks, employee ID assignments, Plantilla transitions, and separation approvals remain read-only pending approved backend mutations.
           </div>
         </div>
       </section>

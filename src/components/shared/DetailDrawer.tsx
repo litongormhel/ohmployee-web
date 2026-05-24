@@ -23,7 +23,7 @@ export function DetailDrawer({
   badge,
   actionSlot,
   children,
-  widthClass = "w-[460px]",
+  widthClass = "w-[var(--drawer-width-md)] max-w-full",
 }: DetailDrawerProps) {
   // ESC key handler
   useEffect(() => {
@@ -53,26 +53,27 @@ export function DetailDrawer({
     <>
       {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
+        className="fixed inset-0 z-40 bg-[var(--surface-overlay)] backdrop-blur-xs animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Slide-in drawer */}
+      {/* Slide-in drawer (animate-drawer-in plays on mount, fixing the
+          mounting glitch where the panel previously appeared without sliding) */}
       <aside
-        className={`fixed top-0 right-0 z-50 flex h-full ${widthClass} transform flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 translate-x-0`}
+        className={`fixed top-0 right-0 z-50 flex h-full ${widthClass} flex-col border-l border-border-default bg-surface-base shadow-2xl animate-drawer-in`}
         role="dialog"
         aria-modal="true"
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
           <div className="min-w-0 flex-1">
             {badge && <div className="mb-1">{badge}</div>}
-            <div className="text-base font-bold text-gray-900 truncate">
+            <div className="text-base font-bold text-text-primary truncate">
               {title}
             </div>
             {subtitle && (
-              <div className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500">
+              <div className="mt-1.5 flex items-center gap-1 text-[11px] text-text-secondary">
                 {subtitle}
               </div>
             )}
@@ -81,7 +82,7 @@ export function DetailDrawer({
             {actionSlot}
             <button
               aria-label="Close details"
-              className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors"
               onClick={onClose}
               type="button"
             >

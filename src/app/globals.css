@@ -1,26 +1,204 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * OHMployee Web Design Token System
+ * Authoritative blueprint: docs/state/web_design_tokens.md
+ *
+ * Semantic colors are declared as runtime CSS variables on :root so a single
+ * `prefers-color-scheme: dark` block can remap the entire surface. They are
+ * exposed to Tailwind through `@theme inline`, which keeps utilities pointing
+ * at the live `var(--...)` reference instead of inlining a frozen value.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+:root {
+  /* Core brand base */
+  --background: #f8fafc; /* Slate 50 - page background */
+  --foreground: #0f172a; /* Slate 900 - primary text */
+
+  /* Neutral surfaces */
+  --surface-base: #ffffff; /* cards, tables, drawer body */
+  --surface-header: #fafafa; /* sticky list headers */
+  --surface-muted: #f1f5f9; /* recessed metadata boxes */
+  --surface-hover: #f8fafc; /* row / control hover */
+  --surface-selected: #f0f9ff; /* active row selection (Sky 50) */
+  --surface-overlay: rgba(15, 23, 42, 0.4); /* drawer / modal backdrop */
+
+  /* Semantic text */
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #475569; /* Slate 600 */
+  --text-muted: #94a3b8; /* Slate 400 */
+  --text-inverted: #ffffff;
+
+  /* Borders */
+  --border-subtle: #f1f5f9; /* Slate 100 - in-drawer rules */
+  --border-default: #e2e8f0; /* Slate 200 - section dividers */
+  --border-strong: #cbd5e1; /* Slate 300 - emphasized edges */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b1220; /* deep slate page */
+    --foreground: #e2e8f0;
+
+    --surface-base: #111827; /* card / table base */
+    --surface-header: #0f172a; /* sticky header backplate */
+    --surface-muted: #1e293b; /* recessed boxes */
+    --surface-hover: #1e293b;
+    --surface-selected: #0c2433; /* dimmed sky selection */
+    --surface-overlay: rgba(2, 6, 23, 0.6);
+
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-inverted: #0f172a;
+
+    --border-subtle: #1e293b;
+    --border-default: #334155;
+    --border-strong: #475569;
+  }
+}
+
+@theme inline {
+  /* Page surfaces + semantic colors (resolve at runtime, dark-aware) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface-base: var(--surface-base);
+  --color-surface-header: var(--surface-header);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverted: var(--text-inverted);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+@theme {
+  /* Brand ramp (Sky) */
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+
+  /* Status semantic colors */
+  --color-status-success-bg: #ecfdf5;
+  --color-status-success-border: #a7f3d0;
+  --color-status-success-text: #047857;
+
+  --color-status-warning-bg: #fef3c7;
+  --color-status-warning-border: #fde68a;
+  --color-status-warning-text: #b45309;
+
+  --color-status-danger-bg: #fff1f2;
+  --color-status-danger-border: #fecdd3;
+  --color-status-danger-text: #be123c;
+
+  --color-status-info-bg: #f0f9ff;
+  --color-status-info-border: #bae6fd;
+  --color-status-info-text: #0369a1;
+
+  --color-status-neutral-bg: #f8fafc;
+  --color-status-neutral-border: #e2e8f0;
+  --color-status-neutral-text: #475569;
+
+  /* Border radii tiers */
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Animation timing + curves */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+  --animate-drawer-in: slideIn 300ms cubic-bezier(0, 0, 0.2, 1) forwards;
+  --animate-drawer-out: slideOut 250ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-fade-in: fadeIn 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/*
+ * Layout + motion constants used via arbitrary values
+ * (e.g. w-[var(--sidebar-width)], z-[var(--z-drawer)]).
+ * These do not map to a Tailwind utility namespace, so they remain plain
+ * custom properties on :root.
+ */
+:root {
+  /* Spacing scale */
+  --space-xxs: 0.125rem;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.25rem;
+  --space-2xl: 1.5rem;
+  --space-3xl: 2rem;
+
+  /* Layout dimensions */
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
+
+  /* Drawer widths */
+  --drawer-width-md: 460px; /* inspect drawers (Vacancy) */
+  --drawer-width-lg: 640px; /* form drawers (HR Emploc) */
+  --drawer-width-xl: 800px; /* command-center drawers */
+
+  /* Z-index layering */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-header: 20;
+  --z-sidebar: 30;
+  --z-backdrop: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-toast: 100;
+
+  /* Motion durations */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 300ms;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }

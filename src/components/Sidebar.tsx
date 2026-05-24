@@ -32,7 +32,7 @@ export function Sidebar({ visibleModules, moduleCapabilities }: SidebarProps) {
   };
 
   return (
-    <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-slate-950 text-white lg:flex lg:flex-col">
+    <aside className="hidden w-[var(--sidebar-width)] shrink-0 border-r border-slate-200 bg-slate-950 text-white lg:flex lg:flex-col">
       <div className="border-b border-white/10 px-6 py-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
           OHMployee Web

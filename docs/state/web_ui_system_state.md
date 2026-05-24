@@ -206,6 +206,8 @@ graph TD
 
 To maintain high-fidelity visual aesthetics (premium dashboard layouts), all extracted and refactored components must respect the following unified tokens:
 
+> **Token activation (OHM2026_1097):** the design token system is now live in `src/app/globals.css` (see `docs/state/web_design_tokens.md` §0). The shared primitives below have been refactored onto the semantic tokens (`surface-*`, `text-*`, `border-*`, `status-*`) and are dark-mode aware. The "Badge Variant Mapping" colors below describe the original light-mode intent; the live `StatusBadge` now resolves them through the `status-*` token variables. Sidebar width is aligned to `--sidebar-width` (240px), the `DetailDrawer` slide-in uses the `animate-drawer-in` entrance keyframe, and selected-row highlighting is standardized on `bg-blue-50` with `hover:bg-gray-50` across Vacancy and HR Emploc.
+
 ### Spacing & Layout Tokens
 - **Page Container Padding**: `p-4 sm:p-5 flex flex-col gap-4`
 - **Metric Grids**: `grid gap-2 sm:grid-cols-2 xl:grid-cols-4`

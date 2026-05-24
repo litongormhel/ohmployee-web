@@ -10,11 +10,15 @@ export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  success: "border-green-200 bg-green-50 text-green-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-red-200 bg-red-50 text-red-700",
-  info: "border-blue-200 bg-blue-50 text-blue-700",
-  neutral: "border-gray-200 bg-gray-50 text-gray-500",
+  success:
+    "border-status-success-border bg-status-success-bg text-status-success-text",
+  warning:
+    "border-status-warning-border bg-status-warning-bg text-status-warning-text",
+  danger:
+    "border-status-danger-border bg-status-danger-bg text-status-danger-text",
+  info: "border-status-info-border bg-status-info-bg text-status-info-text",
+  neutral:
+    "border-status-neutral-border bg-status-neutral-bg text-status-neutral-text",
 };
 
 export function StatusBadge({

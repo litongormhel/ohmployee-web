@@ -85,6 +85,19 @@
   1. Approve the backend transactional mutation RPC signatures on Supabase (tagging deficiencies, entering employee IDs, transitioning plantilla directories, separator approvals).
   2. Implement React Query mutations (`useMutation`) and cache invalidation triggers on the client.
 
+## Design Token System Handoff (OHM2026_1097)
+
+- **Source of truth**: tokens are defined in `src/app/globals.css`; the blueprint is `docs/state/web_design_tokens.md` (§0 documents the activation/implementation details).
+- **How tokens are exposed**:
+  - Semantic colors (`--surface-*`, `--text-*`, `--border-*`, `--background`, `--foreground`) live as runtime `:root` variables and are bridged to Tailwind via `@theme inline`, producing utilities like `bg-surface-base`, `text-text-primary`, `text-text-secondary`, `text-text-muted`, `border-border-default`, `border-border-subtle`, `bg-surface-hover`, `bg-surface-selected`.
+  - Static scales use plain `@theme`: `brand-50…700`, `status-{success,warning,danger,info,neutral}-{bg,border,text}`, `radius-*`, and `animate-drawer-in|drawer-out|fade-in`.
+  - Layout/motion constants are plain `:root` custom properties used through arbitrary values: `--sidebar-width` (240px), `--topbar-height`, `--drawer-width-md|lg|xl`, `--z-base…toast`, `--space-*`, `--duration-*`.
+- **Dark mode**: native via `@media (prefers-color-scheme: dark)` overriding the `:root` semantic variables. No theme toggle / class strategy is wired; add a `data-theme`/class override block in `globals.css` later if a manual switch is required.
+- **What was refactored**: shared primitives only (`AdminPageHeader`, `MetricCard`, `DataState`, `DetailDrawer`, `AdminFilterBar`, `StatusBadge`). Dense module tables keep literal classes except for the targeted consistency fixes.
+- **Fixes landed**: sidebar 288px→240px (`--sidebar-width`); `DetailDrawer` now slides in via `animate-drawer-in` (previously mounted at `translate-x-0` so the slide never played) and uses `--surface-overlay` + `animate-fade-in` backdrop; HR Emploc row selection/hover aligned to `bg-blue-50` / `hover:bg-gray-50`; invalid `gray-150`/`gray-850` classes replaced.
+- **Guardrails honored**: no module redesign, no Plantilla implementation, no new libraries, no mutations, no unrelated module refactors. Validated with `pnpm lint` and `pnpm build`.
+- **Follow-ups**: dense Vacancy/HR Emploc table bodies still use literal `gray-*`/`white` classes and will not fully invert under dark mode until a later, deliberate pass tokenizes them.
+
 ## Plantilla Web Handoff
 
 - **Target Architecture & Specification**: Fully documented in `docs/state/plantilla_web_state.md`.

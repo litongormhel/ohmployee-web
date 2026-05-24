@@ -89,7 +89,7 @@ export function HrEmplocTable({
   return (
     <section className="flex min-h-[440px] flex-col rounded-md border border-gray-200 bg-white">
       {/* Table Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-3 py-2 bg-gray-50/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-3 py-2">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-gray-900">
@@ -173,10 +173,10 @@ export function HrEmplocTable({
                       row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
                     } ${
                       selectedId === row.id
-                        ? "bg-blue-50/70"
+                        ? "bg-blue-50"
                         : isPendingDeletion
-                        ? "bg-red-50/20 hover:bg-red-50/30"
-                        : "hover:bg-gray-50/60"
+                        ? "bg-red-50 hover:bg-red-100"
+                        : "hover:bg-gray-50"
                     }`}
                     key={row.id}
                     onClick={() => {
@@ -336,7 +336,7 @@ export function HrEmplocTable({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 bg-gray-50/50 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 text-xs text-gray-500">
         <span>
           Showing {firstRecord}-{lastRecord} of {totalCount} compliance records
         </span>

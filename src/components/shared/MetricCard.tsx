@@ -38,19 +38,19 @@ export function MetricCard({
   const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : "RPC");
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md duration-200">
-      <div className="text-xs font-medium uppercase tracking-wider text-gray-500">
+    <div className="rounded-md border border-border-default bg-surface-base px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md duration-200">
+      <div className="text-xs font-medium uppercase tracking-wider text-text-secondary">
         {label}
       </div>
       <div className="mt-1 flex items-end justify-between gap-3">
-        <div className="text-2xl font-semibold text-gray-900">
+        <div className="text-2xl font-semibold text-text-primary">
           {isCurrentlyLoading ? "--" : value ?? 0}
         </div>
         <Badge
           className={
             isCurrentlyBlocked
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-gray-200 bg-gray-50 text-gray-500"
+              ? "border-status-danger-border bg-status-danger-bg text-status-danger-text"
+              : "border-border-default bg-surface-muted text-text-muted"
           }
         >
           {displayBadge}
@@ -60,7 +60,7 @@ export function MetricCard({
         {isCurrentlyError && !isCurrentlyBlocked ? (
           <span className="text-red-500">{errorText ?? "Retryable summary error"}</span>
         ) : (
-          <span className="text-gray-400">{isCurrentlyLoading && !isCurrentlyBlocked ? "Loading..." : displayHelper}</span>
+          <span className="text-text-muted">{isCurrentlyLoading && !isCurrentlyBlocked ? "Loading..." : displayHelper}</span>
         )}
       </div>
     </div>

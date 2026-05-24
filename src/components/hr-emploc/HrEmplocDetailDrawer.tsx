@@ -125,7 +125,7 @@ export function HrEmplocDetailDrawer({
     <DetailDrawer
       isOpen={!!hrEmplocId}
       onClose={onClose}
-      widthClass="w-[640px] max-w-full"
+      widthClass="w-[var(--drawer-width-lg)] max-w-full"
       badge={
         isLoading ? (
           <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
@@ -344,7 +344,7 @@ export function HrEmplocDetailDrawer({
               </div>
               <div className="text-sm">
                 <div className="text-xs text-gray-400">Baseline Request Date</div>
-                <div className="mt-0.5 font-medium text-gray-850">
+                <div className="mt-0.5 font-medium text-gray-800">
                   {formatDate(detail.dateRequested)}
                 </div>
               </div>
@@ -522,7 +522,7 @@ export function HrEmplocDetailDrawer({
                     {/* Timeline dot */}
                     <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
                     <div className="flex justify-between">
-                      <span className="font-semibold text-gray-850">{item.eventLabel}</span>
+                      <span className="font-semibold text-gray-800">{item.eventLabel}</span>
                       <span className="text-[10px] text-gray-400">
                         {formatDateTime(item.createdAt)}
                       </span>
@@ -590,13 +590,13 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
       <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 rounded-md bg-gray-150" />
-        <div className="h-16 rounded-md bg-gray-150" />
+        <div className="h-16 rounded-md bg-gray-100" />
+        <div className="h-16 rounded-md bg-gray-100" />
       </div>
-      <div className="h-32 rounded-md bg-gray-150" />
-      <div className="h-28 rounded-md bg-gray-150" />
-      <div className="h-44 rounded-md bg-gray-150" />
-      <div className="h-36 rounded-md bg-gray-150" />
+      <div className="h-32 rounded-md bg-gray-100" />
+      <div className="h-28 rounded-md bg-gray-100" />
+      <div className="h-44 rounded-md bg-gray-100" />
+      <div className="h-36 rounded-md bg-gray-100" />
     </div>
   );
 }

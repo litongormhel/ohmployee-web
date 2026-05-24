@@ -6,6 +6,20 @@ By centralizing these visual parameters, we eliminate styling divergence, enforc
 
 ---
 
+## 0. Activation Status (OHM2026_1097)
+
+The token system is **live** in `src/app/globals.css`. Implementation notes:
+
+- **Semantic colors are dark-mode aware.** Surface, text, and border tokens are declared as runtime CSS variables on `:root` and remapped under `@media (prefers-color-scheme: dark)`. They are exposed to Tailwind via `@theme inline` (e.g. `bg-surface-base`, `text-text-primary`, `text-text-secondary`, `text-text-muted`, `border-border-default`, `border-border-subtle`, `bg-surface-hover`, `bg-surface-selected`, `bg-[var(--surface-overlay)]`). Because they resolve at runtime, a single dark block re-themes all chrome.
+- **Static scales use plain `@theme`.** Brand ramp (`brand-50…700`), status colors (`status-{success,warning,danger,info,neutral}-{bg,border,text}`), radii (`radius-*`), and animations (`animate-drawer-in`, `animate-drawer-out`, `animate-fade-in`) generate utilities directly.
+- **Layout/motion constants are plain `:root` custom properties** consumed through arbitrary values, since they have no Tailwind utility namespace: `--sidebar-width` (240px), `--topbar-height`, `--drawer-width-md|lg|xl`, `--z-base…toast`, `--space-*`, `--duration-*`. Example usage: `w-[var(--sidebar-width)]`, `w-[var(--drawer-width-lg)]`.
+- **Status tokens are wired through `StatusBadge`**, so every semantic badge now reads from `status-*` variables rather than ad-hoc green/amber/red strings.
+- **Shared primitives** (`AdminPageHeader`, `MetricCard`, `DataState`, `DetailDrawer`, `AdminFilterBar`, `StatusBadge`) consume the semantic surface/text/border tokens and therefore respond to dark mode automatically.
+
+Dense feature tables (Vacancy, HR Emploc) intentionally keep their literal Tailwind row classes for now; only the shared chrome and the cross-module inconsistencies listed in OHM2026_1097 were tokenized to avoid risky module-wide churn.
+
+---
+
 ## 1. Tailwind CSS v4 Theme Token Blueprint
 
 This project leverages **Tailwind CSS v4** where the `@theme` directive inside the main stylesheet (`src/app/globals.css`) handles theme custom properties natively. Below is the official CSS configuration block to bind these design tokens as Tailwind utility classes:
