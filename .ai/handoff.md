@@ -45,10 +45,11 @@
 ## Vacancy Web Handoff
 
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
-- Current Vacancy implementation is a client tab/page shell plus a simple table over an intentionally empty `getVacancies(status)` placeholder.
+- Current Vacancy implementation is a client desktop admin shell with a compact header, KPI placeholders, status tabs, disabled search/filter controls, a dense read-only table shell, a no-records state, a right-side detail placeholder, applicant placeholder, and disabled capability-labeled action zone.
+- The Vacancy page does not call Supabase and no longer uses the empty `getVacancies(status)` placeholder from the shell UI.
 - Do not replace the Vacancy placeholder with real Supabase reads until a scoped list RPC/view is approved.
 - Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense table, detail drawer/panel, applicant placeholder, and capability-controlled action area.
 - Web must mirror Mobile vacancy business rules and status transitions, but present them in a dense admin-panel workflow rather than Mobile cards.
 - Required future backend contracts include scoped vacancy list, optional detail, optional KPI summary, and action RPCs that reuse Mobile vacancy rules for approval, applicant status updates, closure requests, and allowed vacancy/headcount creation.
-- Vacancy UI may use backend capability keys for presentation, but Supabase RPC/RLS must remain the authority for view, approve, applicant-status update, request-closure, and add-vacancy/headcount permissions.
+- Vacancy UI may use backend capability keys for presentation, but Supabase RPC/RLS must remain the authority for view, approve, applicant-status update, request-closure, and add-vacancy/headcount permissions. Current action buttons remain disabled because no selected record or action RPC contract exists yet.
 - See the `OHM2026_1075-IMPL-1` prompt in `docs/state/vacancy_web_state.md` for the next shell-only implementation brief.

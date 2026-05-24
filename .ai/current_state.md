@@ -47,3 +47,6 @@ OHMployee Web is a Next.js App Router project with a lightweight admin command s
 - Blank module pages intentionally avoid mocked records, charts, and CRUD actions.
 - The safe web current-user context RPC/view contract is documented in `docs/state/web_auth_rbac_state.md`; this repo has no local migration for it.
 - Frontend code may use module capabilities only for shell display metadata. Supabase RLS/RPC remains the authority for all actions and business data.
+- Vacancy Web Phase 1 shell is implemented as a desktop/admin-first UI only: compact page header, KPI placeholders, status tabs, disabled search/filter toolbar, dense table shell, no-records state, detail panel placeholder, applicant placeholder, and disabled capability-labeled action zone.
+- Vacancy Web does not fetch Supabase data, does not render fake rows, does not include sample employee/applicant names, and does not implement CRUD or mutations.
+- Remaining Vacancy backend gaps are the approved scoped list contract, detail contract, KPI summary contract, record-level capability hints, and action RPCs for approval, applicant updates, closure requests, and vacancy/headcount creation.

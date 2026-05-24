@@ -8,11 +8,12 @@ No code, fake data, CRUD flow, or Supabase query implementation is introduced by
 
 ## Current Vacancy Web Assessment
 
-- `src/app/(dashboard)/vacancy/page.tsx` currently renders a client-only Vacancy Management page with status tabs for `open`, `with_applicant`, `rejected`, and `backout`.
-- `src/components/vacancy/VacancyTable.tsx` renders a simple table with `vcode`, `position`, `department`, and `status`.
+- `src/app/(dashboard)/vacancy/page.tsx` now renders a client-only desktop Vacancy Management command-center shell with a compact page header, non-data KPI summary placeholders, status tabs for `open`, `with_applicant`, `rejected`, and `backout`, disabled search/filter controls, a dense table region, a read-only detail panel, and a backend-contract warning note.
+- `src/components/vacancy/VacancyTable.tsx` now renders an honest read-only table shell with operational columns, a no-records state, footer pagination placeholder, a selection-driven detail placeholder, an applicant section placeholder, and a capability-labeled action zone.
 - `src/lib/queries/vacancy.ts` defines a narrow `VacancyStatus`, `VacancyListItem`, and `getVacancies(status)` placeholder that always returns an empty array.
-- The module currently has no real Supabase query, RPC, view, RLS-backed data access, mutations, applicant actions, detail panel, search, filters, KPI summaries, or capability-aware action surfaces.
-- The existing table shell is useful as a foundation marker, but the final web experience should become a dense admin command center rather than a stretched Mobile vacancy card list.
+- The Vacancy page no longer calls the placeholder query from the shell UI. It intentionally avoids Supabase calls, list/detail queries, CRUD, mutations, mocked business records, sample employee names, or fabricated applicant data.
+- The module currently has no real Supabase query, RPC, view, RLS-backed data access, mutations, applicant actions, active search/filter behavior, KPI totals, or enabled workflow actions.
+- The current shell is a Phase 1 foundation marker for a dense admin command center rather than a stretched Mobile vacancy card list.
 
 ## Target Architecture
 
@@ -256,6 +257,7 @@ Do not hardcode role names into Vacancy components. Use backend capability keys 
 - Keep data placeholders empty and honest.
 - Add KPI row, filter/search bar structure, status tabs, dense table structure, detail drawer structure, applicant placeholder, and action area container.
 - No fake data and no real Supabase queries.
+- Implemented in the web shell as of `OHM2026_1076`: the UI is static/read-only, action controls remain disabled, and backend capability keys are displayed only as presentation placeholders until real module and record capabilities are passed from approved contracts.
 
 ### Phase 2: Read-Only List
 
