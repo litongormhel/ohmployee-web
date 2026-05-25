@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users } from "lucide-react";
+import { LockKeyhole, Users } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
@@ -529,6 +529,20 @@ export default function PlantillaPage() {
           </div>
         )}
       </div>
+
+      {/* Footer system boundaries notice */}
+      <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
+        <div className="flex items-start gap-2 text-xs text-gray-600">
+          <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
+          <div>
+            <span className="font-semibold text-gray-700">Read-Only Boundary:</span> Plantilla reads use{" "}
+            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">get_web_plantilla_summary</code>,{" "}
+            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">list_web_plantilla_employees</code>, and{" "}
+            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">list_web_plantilla_store_staffing</code>.
+            Employee transfers, AH slot management, separations, and other mutations remain disabled until backend action RPCs are approved.
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

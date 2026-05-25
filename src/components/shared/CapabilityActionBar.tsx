@@ -20,16 +20,16 @@ export function CapabilityActionBar({
   helperText = "Actions remain read-only. Availability indices display current RBAC permissions. Supabase final verification remains authoritative.",
 }: CapabilityActionBarProps) {
   return (
-    <div className="rounded-md border border-gray-100 bg-gray-50 p-4 space-y-3">
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
-        <Lock className="h-4 w-4 text-gray-400" aria-hidden="true" />
+    <div className="rounded-md border border-border-subtle bg-surface-muted p-4 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+        <Lock className="h-4 w-4 text-text-muted" aria-hidden="true" />
         <span>{title}</span>
       </div>
       <div className="grid gap-2">
         {actions.map((action) => (
           <button
             key={action.label}
-            className="flex w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-left text-xs font-medium text-gray-400 shadow-sm cursor-not-allowed hover:bg-gray-50 transition-colors"
+            className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-left text-xs font-medium text-text-muted shadow-sm cursor-not-allowed hover:bg-surface-hover transition-colors"
             disabled
             onClick={action.onClick}
             type="button"
@@ -39,7 +39,7 @@ export function CapabilityActionBar({
               className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border ${
                 action.isAvailable
                   ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-gray-100 text-gray-500"
+                  : "border-border-default bg-surface-muted text-text-secondary"
               }`}
             >
               {action.isAvailable ? "available" : "not exposed"}
@@ -48,7 +48,7 @@ export function CapabilityActionBar({
         ))}
       </div>
       {helperText && (
-        <p className="text-[10px] leading-relaxed text-gray-400">
+        <p className="text-[10px] leading-relaxed text-text-muted">
           {helperText}
         </p>
       )}

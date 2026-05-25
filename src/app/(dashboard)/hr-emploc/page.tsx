@@ -221,7 +221,7 @@ export default function HrEmplocPage() {
                   aria-selected={queue === tab.value}
                   className={`rounded px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     queue === tab.value
-                      ? "bg-blue-600 text-white shadow-sm"
+                      ? "bg-brand-600 text-white shadow-sm"
                       : "text-gray-600 hover:bg-gray-100"
                   }`}
                   key={tab.value}

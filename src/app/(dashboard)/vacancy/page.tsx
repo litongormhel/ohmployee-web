@@ -198,7 +198,7 @@ export default function VacancyPage() {
                 aria-selected={status === tab.value}
                 className={`rounded px-3 py-1.5 text-xs font-medium ${
                   status === tab.value
-                    ? "bg-blue-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
                 key={tab.value}
