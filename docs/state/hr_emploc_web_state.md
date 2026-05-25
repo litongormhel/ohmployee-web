@@ -386,12 +386,20 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Hooked React Query loaders (`useQuery`) into the main page and drawer components.
 - Established robust error boundaries: display network warnings, empty tables, and lock shields for RLS scope violations.
 
-### Phase 4: Action Integrations (Mutations) [PENDING MUTATION CONTRACTS]
-- Wire actual mutation queries (`useMutation`) to backend action RPCs.
-- Enable inputs for:
-  - Uploading deficiency correction files.
-  - Tagging corrections / entering remarks.
-  - Entering employee numbers (with Decoder/SuperAdmin visual gates).
-  - Activating plantilla movements.
-  - Submitting deletion/separation requests (Backout vs Duplicate Record).
-- Implement post-mutation cache invalidations (`queryClient.invalidateQueries`) to automatically refresh table queues and KPI metrics instantly.
+### Phase 4: Action Integrations (Mutations) [PARTIAL — Deficiency Tagging Wired]
+
+**Completed (OHM2026_1109):**
+- `tagWebHrEmplocDeficiency` RPC wrapper added to `src/lib/queries/hr_emploc.ts` calling `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id, p_deficiencies, p_remarks)`.
+- "Tag Deficiency (HR Compliance)" action in `HrEmplocDetailDrawer.tsx` is now enabled when `canTagDeficiency === true && !isPendingDeletion`.
+- Confirmation modal with issue checkboxes, per-issue notes, optional remarks textarea, submitting state, inline error display, and Cancel/Confirm actions.
+- On success: invalidates `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, and `["hr-emploc-summary"]`; modal closes.
+- Error handling: `42501` → access/session error message; `P0001` → backend validation message; generic → network fallback.
+- `HrEmplocDataErrorKind` extended with `invalid_state` for `P0001` backend precondition rejections.
+- Prerequisite: backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be deployed in the authoritative Supabase repo for the mutation to execute end-to-end.
+
+**Remaining:**
+- Correction review approval (`For Correction` → `Complete`).
+- Assign Employee Number (Encoder/SuperAdmin).
+- Move to Plantilla.
+- Request Deletion (Backout/Duplicate).
+- Review Deletion Request.

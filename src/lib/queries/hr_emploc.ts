@@ -116,7 +116,7 @@ export type HrEmplocSummary = {
   slaBreaches: number;      // Count where sla_breached = true
 };
 
-export type HrEmplocDataErrorKind = "access_denied" | "retryable";
+export type HrEmplocDataErrorKind = "access_denied" | "invalid_state" | "retryable";
 
 export class HrEmplocDataError extends Error {
   kind: HrEmplocDataErrorKind;
@@ -200,6 +200,10 @@ function getErrorKind(error: PostgrestError): HrEmplocDataErrorKind {
     error.code === "42501"
   ) {
     return "access_denied";
+  }
+
+  if (error.code === "P0001") {
+    return "invalid_state";
   }
 
   return "retryable";
@@ -399,6 +403,44 @@ export async function listWebHrEmplocs(params: HrEmplocListParams) {
     totalCount: getTotalCount(rows),
     page,
     pageSize,
+  };
+}
+
+export type TagDeficiencyParams = {
+  hrEmplocId: string;
+  deficiencies: Record<string, string>;
+  remarks?: string | null;
+};
+
+export type TagDeficiencyResult = {
+  ok: boolean;
+  hrEmplocId: string;
+  newHrStatus: string;
+  correctionReason: Record<string, unknown>;
+  taggedAt: string;
+};
+
+export async function tagWebHrEmplocDeficiency(
+  params: TagDeficiencyParams,
+): Promise<TagDeficiencyResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("tag_web_hr_emploc_deficiency", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_deficiencies: params.deficiencies,
+    p_remarks: params.remarks ?? null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+
+  const row = asObject(data);
+  return {
+    ok: asBoolean(row.ok),
+    hrEmplocId: asString(row.hr_emploc_id) ?? params.hrEmplocId,
+    newHrStatus: asString(row.new_hr_status) ?? "For Correction",
+    correctionReason: asObject(row.correction_reason),
+    taggedAt: asString(row.tagged_at) ?? new Date().toISOString(),
   };
 }
 

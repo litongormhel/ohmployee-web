@@ -17,7 +17,7 @@ export interface CapabilityActionBarProps {
 export function CapabilityActionBar({
   actions,
   title = "Capability-Aware Actions",
-  helperText = "Actions remain read-only. Availability indices display current RBAC permissions. Supabase final verification remains authoritative.",
+  helperText = "Available actions are enabled based on current RBAC permissions. Supabase RPC re-validates all writes server-side.",
 }: CapabilityActionBarProps) {
   return (
     <div className="rounded-md border border-border-subtle bg-surface-muted p-4 space-y-3">
@@ -26,11 +26,17 @@ export function CapabilityActionBar({
         <span>{title}</span>
       </div>
       <div className="grid gap-2">
-        {actions.map((action) => (
+        {actions.map((action) => {
+          const isEnabled = action.isAvailable && !!action.onClick;
+          return (
           <button
             key={action.label}
-            className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-left text-xs font-medium text-text-muted shadow-sm cursor-not-allowed hover:bg-surface-hover transition-colors"
-            disabled
+            className={`flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-left text-xs font-medium shadow-sm transition-colors ${
+              isEnabled
+                ? "text-text-primary cursor-pointer hover:bg-surface-hover"
+                : "text-text-muted cursor-not-allowed hover:bg-surface-hover"
+            }`}
+            disabled={!isEnabled}
             onClick={action.onClick}
             type="button"
           >
@@ -45,7 +51,8 @@ export function CapabilityActionBar({
               {action.isAvailable ? "available" : "not exposed"}
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
       {helperText && (
         <p className="text-[10px] leading-relaxed text-text-muted">

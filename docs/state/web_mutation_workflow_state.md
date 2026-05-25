@@ -150,19 +150,26 @@ Do not invalidate Vacancy or Plantilla query caches — this mutation has no eff
 Implementation must proceed strictly in this order. Each phase is independently verifiable and no later phase begins until the prior one is confirmed.
 
 1. **Backend RPC** — implement and apply `public.tag_web_hr_emploc_deficiency(...)` in the authoritative Supabase repo. Includes `SECURITY DEFINER`, locked `search_path`, `auth.uid()` identity, capability/scope/state checks, transactional status + `correction_reason` write, audit insert, grants. Validate with SQL tests across roles before any frontend change.
-2. **Frontend action contract** — add a typed `tagWebHrEmplocDeficiency(...)` wrapper in `src/lib/queries/hr_emploc.ts` mirroring the read-wrapper pattern, plus the `invalid_state` error kind. No UI change yet.
-3. **Disabled button becomes enabled** — gate the existing `Tag Deficiency` action in `HrEmplocDetailDrawer.tsx` on `canTagDeficiency && !isPendingDeletion`; keep all other actions disabled.
-4. **Confirmation modal** — add the deficiency-tagging modal (issue-type checkboxes + notes + remarks), wired to a `useMutation` calling the wrapper, with submitting/disabled states.
-5. **Success invalidation** — on success, invalidate the three query keys in §6, close the modal, and surface confirmation.
-6. **Audit / state-doc update** — confirm the audit event renders in the drawer timeline, then update this doc, `.ai/current_state.md`, and `.ai/handoff.md` with the final RPC name, envelope, and any field deltas.
+2. ✅ **Frontend action contract** — typed `tagWebHrEmplocDeficiency(...)` wrapper added to `src/lib/queries/hr_emploc.ts`. `TagDeficiencyParams` and `TagDeficiencyResult` types added. `HrEmplocDataErrorKind` extended with `invalid_state`; `getErrorKind` maps `P0001` → `invalid_state` and `42501` → `access_denied`.
+3. ✅ **Disabled button becomes enabled** — `CapabilityActionBar` updated to enable buttons when `isAvailable && !!onClick`. The "Tag Deficiency" action in `HrEmplocDetailDrawer.tsx` is gated on `canTagDeficiency && !isPendingDeletion`; all other actions remain disabled (no `onClick`).
+4. ✅ **Confirmation modal** — `TagDeficiencyModal` sub-component added in `HrEmplocDetailDrawer.tsx`. Contains issue-type checkboxes + per-issue note inputs + optional remarks textarea. Wired to `useMutation` calling `tagWebHrEmplocDeficiency`. Submit disabled until ≥1 issue selected. Inputs and submit locked during `isPending`. Inline error display for `access_denied`, `invalid_state`, and `retryable` kinds.
+5. ✅ **Success invalidation** — on success, invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, and `["hr-emploc-summary"]` via `queryClient.invalidateQueries`. Modal closes via `onSubmitted()`. No optimistic UI.
+6. ✅ **State-doc update** — this doc, `.ai/current_state.md`, and `.ai/handoff.md` updated. Audit event rendering in the drawer timeline depends on the backend RPC inserting the audit row; the frontend timeline already consumes `audit_logs_timeline` from `get_web_hr_emploc_detail`.
 
 ---
 
-## 8. Constraints (this pass)
+## 8. Implementation Status (OHM2026_1109)
 
-- No code implemented. No mutation wired. No Supabase object created or altered.
-- Existing read-only architecture, RLS-first authority, and shared UI system preserved.
-- No new roles, statuses, or workflow transitions invented; the action reuses the existing correction cycle.
+Frontend phases 2–5 are complete and validated (`pnpm lint` clean, `pnpm build` clean).
+
+**Files changed:**
+- `src/lib/queries/hr_emploc.ts` — added `invalid_state` error kind, `P0001` classifier, `TagDeficiencyParams`, `TagDeficiencyResult`, `tagWebHrEmplocDeficiency`
+- `src/components/shared/CapabilityActionBar.tsx` — enabled button when `isAvailable && !!onClick`
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` — `isTagModalOpen` state, canTag guard, wired `onClick`, `TagDeficiencyModal` sub-component
+
+**Remaining prerequisite:** Backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be implemented in the authoritative Supabase repo (Phase 1 above) before the mutation can execute end-to-end.
+
+**Next mutation:** HR Emploc correction review (`For Correction` → `For Review` → `Complete`) as specified in §2.
 
 ---
 

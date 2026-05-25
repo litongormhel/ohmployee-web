@@ -111,17 +111,18 @@
   - `formatDate` locale `en-PH` in Plantilla vs `en` in Vacancy/HR Emploc (intentional).
 - **Validated**: `pnpm lint` clean, `pnpm build` clean.
 
-## Web Mutation Workflow Handoff (OHM2026_1107)
+## Web Mutation Workflow Handoff (OHM2026_1107 → OHM2026_1109)
 
-- **Architecture doc**: `docs/state/web_mutation_workflow_state.md` — selects and specifies the first Web write action. No code, mutation, or Supabase object was created.
-- **Selected first mutation**: **HR Emploc deficiency tagging** (`Pending`/`For Review` → `For Correction`). Chosen over Vacancy closure, HR Emploc correction review, and Plantilla deactivation because it is the most reversible (returns via the existing correction cycle), has the lowest blast radius (single record annotation + status flip; no archival, no employee-no assignment, no plantilla move), has zero cross-module coupling, uses the least-privileged actor (`hrPersonnel`), and its read scaffold is already complete (`canTagDeficiency` normalized in `src/lib/queries/hr_emploc.ts`; checklist + disabled `Tag Deficiency` button in `HrEmplocDetailDrawer.tsx`).
-- **Deferred order**: correction review is the natural second mutation (closes the same loop, but is a forward gate that unlocks deployment); Vacancy closure (cross-pipeline) and Plantilla deactivation (highest blast radius — archives an active employee and reopens the vacancy on Backout) come later.
-- **Backend contract**: `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id uuid, p_deficiencies jsonb, p_remarks text default null)` — `SECURITY DEFINER`, locked `search_path`, identity from `auth.uid()` only, granted to `authenticated`. One transaction: capability + scope + record-state checks → write `correction_reason` + set `hr_status='For Correction'` → insert immutable audit event → existing `trg_notify_hr_emploc_correction_tagged` fires. Returns JSONB envelope `{ ok, hr_emploc_id, new_hr_status, correction_reason, tagged_at }`. No caller-controlled authority args; no raw/PII columns returned.
-- **Validation (server-side, fail closed)**: record in scope; caller is `hrPersonnel` with tag capability; `hr_status IN ('Pending','For Review')`; `status='Pending Emploc'`; not `Pending Deletion`; not `Complete`/`Transferred`/`Rejected`/`Moved to Plantilla`; `p_deficiencies` non-empty with valid `hr_emploc_issue_types` keys.
-- **Frontend states**: disabled → enabled (`canTagDeficiency && !isPendingDeletion`) → confirmation modal (issue checkboxes + notes + remarks) → submitting → success (invalidate) / error (modal stays open). Extend `HrEmplocDataError` kinds with `invalid_state`.
-- **Invalidation**: `["hr-emploc-detail", id]`, the HR Emploc list key (all queues), and the summary key only. No Vacancy/Plantilla invalidation. No optimistic UI for the first mutation.
-- **Phase order (strict)**: backend RPC → frontend typed wrapper + error kind → enable button → confirmation modal + `useMutation` → success invalidation → audit/doc update.
-- **Next step**: implement OHM2026_1107-IMPL-1 (backend RPC) per the exact prompt in `docs/state/web_mutation_workflow_state.md §9`, then OHM2026_1107-IMPL-2 (frontend wiring).
+- **Architecture doc**: `docs/state/web_mutation_workflow_state.md` — full spec and phase order for HR Emploc deficiency tagging as the first mutation.
+- **Selected first mutation**: **HR Emploc deficiency tagging** (`Pending`/`For Review` → `For Correction`). Most reversible, lowest blast radius, zero cross-module coupling, least-privileged actor (`hrPersonnel`).
+- **Deferred order**: correction review (natural second — closes the loop but is a forward gate); Vacancy closure (cross-pipeline); Plantilla deactivation (highest blast radius — archives an employee, reopens vacancy on Backout).
+- **Backend contract** (pending deployment): `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id uuid, p_deficiencies jsonb, p_remarks text default null)` — `SECURITY DEFINER`, locked `search_path`, identity from `auth.uid()` only, granted to `authenticated`. One transaction: capability + scope + record-state checks → write `correction_reason` + set `hr_status='For Correction'` → insert immutable audit event → existing `trg_notify_hr_emploc_correction_tagged` fires. Returns JSONB envelope `{ ok, hr_emploc_id, new_hr_status, correction_reason, tagged_at }`.
+- **Frontend wiring status (OHM2026_1109 — COMPLETE):**
+  - `src/lib/queries/hr_emploc.ts`: `tagWebHrEmplocDeficiency()` wrapper calls `supabase.rpc("tag_web_hr_emploc_deficiency", ...)`. `HrEmplocDataErrorKind` extended with `"invalid_state"`. `getErrorKind` maps `P0001` → `invalid_state`, `42501` → `access_denied`. `TagDeficiencyParams` and `TagDeficiencyResult` types exported.
+  - `src/components/shared/CapabilityActionBar.tsx`: button enabled when `isAvailable && !!action.onClick`; disabled otherwise (backward-compatible).
+  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isTagModalOpen` state; "Tag Deficiency" action has `onClick: () => setIsTagModalOpen(true)` gated on `canTagDeficiency && !isPendingDeletion`; `TagDeficiencyModal` sub-component with checkboxes, per-issue note inputs, remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
+- **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
+- **Next step**: deploy backend RPC `public.tag_web_hr_emploc_deficiency(...)` per `docs/state/web_mutation_workflow_state.md §4` and verify end-to-end. Then implement correction review (second mutation).
 
 ## Plantilla Web Handoff
 
