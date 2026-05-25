@@ -21,18 +21,24 @@ export type PlantillaStaffingSlaStatus =
   | "Over-staffed"
   | string;
 
+export type PlantillaStaffingRiskStatus =
+  | "Low"
+  | "Medium"
+  | "High"
+  | "Critical"
+  | string;
+
 // ---------------------------------------------------------------------------
 // Row capabilities
 // ---------------------------------------------------------------------------
 
 export type PlantillaRowCapabilities = {
   canViewDetail: boolean;
-  canInitiateTransfer: boolean;
-  canInitiateSeparation: boolean;
-  canApproveClearance: boolean;
-  canEditRovingStores: boolean;
-  canToggleSuspend: boolean;
-  canRequestAh: boolean;
+  canRequestDeactivation: boolean;
+  canReviewDeactivation: boolean;
+  canRequestDeletion: boolean;
+  canReviewDeletion: boolean;
+  canTransferEmployee: boolean;
   raw: Record<string, boolean>;
 };
 
@@ -47,6 +53,7 @@ export type PlantillaStoreRowCapabilities = {
 // ---------------------------------------------------------------------------
 
 export type PlantillaCoveredStore = {
+  stableKey: string;
   storeId: string;
   storeName: string;
   allocationPercent: number | null;
@@ -61,33 +68,36 @@ export type PlantillaGovernmentIds = {
 };
 
 export type PlantillaClearanceChecklistItem = {
+  stableKey: string;
   key: string;
   label: string;
   completed: boolean;
 };
 
 export type PlantillaClearanceDocument = {
+  stableKey: string;
   documentId: string;
   fileName: string;
-  fileUrl: string;
-  uploadedAt: string;
-  uploadedBy: string;
+  fileUrl: string | null;
+  uploadedAt: string | null;
+  uploadedBy: string | null;
 };
 
 export type PlantillaMovementRequest = {
   movementId: string;
   movementType: string;
   targetStoreName: string | null;
-  requestedAt: string;
+  requestedAt: string | null;
   requestedBy: string | null;
   status: string;
 };
 
 export type PlantillaAuditTimelineItem = {
+  stableKey: string;
   eventId: string;
   eventLabel: string;
   eventDescription: string | null;
-  createdAt: string;
+  createdAt: string | null;
   profileName: string | null;
 };
 
@@ -108,9 +118,10 @@ export type PlantillaMaskedFields = {
 // ---------------------------------------------------------------------------
 
 export type PlantillaStaffingRisk = {
-  slaStatus: PlantillaStaffingSlaStatus | null;
+  staffingRisk: PlantillaStaffingRiskStatus | null;
+  slaBadge: string | null;
   vacancySlaBreached: boolean;
-  vacanciesCount: number;
+  vacancyCount: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -166,11 +177,13 @@ export type PlantillaStoreStaffingRow = {
   storeName: string | null;
   accountName: string | null;
   region: string | null;
-  budgetedTarget: number;
-  activeBudgetedCount: number;
-  activeAdditionalCount: number;
-  vacanciesCount: number;
-  staffingSlaStatus: PlantillaStaffingSlaStatus | null;
+  requiredHeadcount: number;
+  activeHeadcount: number;
+  vacancyCount: number;
+  pipelineCount: number;
+  staffingGap: number;
+  staffingRisk: PlantillaStaffingRiskStatus | null;
+  slaBadge: string | null;
   vacancySlaBreached: boolean;
   rowCapabilities: PlantillaStoreRowCapabilities;
   totalCount: number;
@@ -288,11 +301,13 @@ const STORE_STAFFING_SORT_FIELDS = new Set([
   "store_code",
   "account_name",
   "region",
-  "budgeted_target",
-  "active_budgeted_count",
-  "active_additional_count",
-  "vacancies_count",
-  "staffing_sla_status",
+  "required_headcount",
+  "active_headcount",
+  "vacancy_count",
+  "pipeline_count",
+  "staffing_gap",
+  "staffing_risk",
+  "sla_badge",
 ]);
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -303,6 +318,20 @@ function asObject(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function asBadgeText(value: unknown): string | null {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  const obj = asObject(value);
+  return (
+    asString(obj.text) ??
+    asString(obj.label) ??
+    asString(obj.status) ??
+    asString(obj.value)
+  );
 }
 
 function asNumber(value: unknown): number | null {
@@ -320,8 +349,16 @@ function asBoolean(value: unknown): boolean {
   return value === true;
 }
 
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
 function asCount(value: unknown): number {
   return Math.max(0, Math.trunc(asNumber(value) ?? 0));
+}
+
+function asInteger(value: unknown): number {
+  return Math.trunc(asNumber(value) ?? 0);
 }
 
 function splitEmployeeName(value: unknown): Pick<
@@ -380,12 +417,11 @@ function normalizeEmployeeCapabilities(value: unknown): PlantillaRowCapabilities
 
   return {
     canViewDetail: raw.can_view_detail === true,
-    canInitiateTransfer: raw.can_initiate_transfer === true,
-    canInitiateSeparation: raw.can_initiate_separation === true,
-    canApproveClearance: raw.can_approve_clearance === true,
-    canEditRovingStores: raw.can_edit_roving_stores === true,
-    canToggleSuspend: raw.can_toggle_suspend === true,
-    canRequestAh: raw.can_request_ah === true,
+    canRequestDeactivation: raw.can_request_deactivation === true,
+    canReviewDeactivation: raw.can_review_deactivation === true,
+    canRequestDeletion: raw.can_request_deletion === true,
+    canReviewDeletion: raw.can_review_deletion === true,
+    canTransferEmployee: raw.can_transfer_employee === true,
     raw,
   };
 }
@@ -414,33 +450,51 @@ function normalizeGovernmentIds(value: unknown): PlantillaGovernmentIds {
   };
 }
 
-function normalizeCoveredStore(item: unknown): PlantillaCoveredStore {
+function normalizeCoveredStore(item: unknown, index: number): PlantillaCoveredStore {
   const obj = asObject(item);
+  const storeId = asString(obj.store_id ?? obj.storeId) ?? "";
+  const storeName = asString(obj.store_name ?? obj.storeName) ?? "Unknown Store";
   return {
-    storeId: asString(obj.store_id ?? obj.storeId) ?? "",
-    storeName: asString(obj.store_name ?? obj.storeName) ?? "Unknown Store",
+    stableKey: [
+      "covered-store",
+      storeId || "missing-id",
+      storeName,
+      asNumber(obj.allocation_percent ?? obj.allocationPercent) ?? "na",
+      index,
+    ].join(":"),
+    storeId,
+    storeName,
     allocationPercent: asNumber(obj.allocation_percent ?? obj.allocationPercent),
     isPrimary: asBoolean(obj.is_primary ?? obj.isPrimary),
   };
 }
 
-function normalizeClearanceChecklistItem(item: unknown): PlantillaClearanceChecklistItem {
+function normalizeClearanceChecklistItem(
+  item: unknown,
+  index: number,
+): PlantillaClearanceChecklistItem {
   const obj = asObject(item);
+  const key = asString(obj.key) ?? "";
+  const label = asString(obj.label) ?? "Checklist Item";
   return {
-    key: asString(obj.key) ?? "",
-    label: asString(obj.label) ?? "Checklist Item",
+    stableKey: ["clearance-item", key || "missing-key", label, index].join(":"),
+    key,
+    label,
     completed: asBoolean(obj.completed),
   };
 }
 
-function normalizeClearanceDocument(item: unknown): PlantillaClearanceDocument {
+function normalizeClearanceDocument(item: unknown, index: number): PlantillaClearanceDocument {
   const obj = asObject(item);
+  const documentId = asString(obj.document_id ?? obj.documentId) ?? "";
+  const fileName = asString(obj.file_name ?? obj.fileName) ?? "unnamed_file";
   return {
-    documentId: asString(obj.document_id ?? obj.documentId) ?? "",
-    fileName: asString(obj.file_name ?? obj.fileName) ?? "unnamed_file",
-    fileUrl: asString(obj.file_url ?? obj.fileUrl) ?? "",
-    uploadedAt: asString(obj.uploaded_at ?? obj.uploadedAt) ?? new Date().toISOString(),
-    uploadedBy: asString(obj.uploaded_by ?? obj.uploadedBy) ?? "Unknown User",
+    stableKey: ["clearance-doc", documentId || "missing-id", fileName, index].join(":"),
+    documentId,
+    fileName,
+    fileUrl: asString(obj.file_url ?? obj.fileUrl),
+    uploadedAt: asString(obj.uploaded_at ?? obj.uploadedAt),
+    uploadedBy: asString(obj.uploaded_by ?? obj.uploadedBy),
   };
 }
 
@@ -454,19 +508,29 @@ function normalizeMovementRequest(value: unknown): PlantillaMovementRequest | nu
     movementId,
     movementType: asString(obj.movement_type ?? obj.movementType) ?? "Transfer",
     targetStoreName: asString(obj.target_store_name ?? obj.targetStoreName),
-    requestedAt: asString(obj.requested_at ?? obj.requestedAt) ?? new Date().toISOString(),
+    requestedAt: asString(obj.requested_at ?? obj.requestedAt),
     requestedBy: asString(obj.requested_by ?? obj.requestedBy),
     status: asString(obj.status) ?? "Pending",
   };
 }
 
-function normalizeAuditTimelineItem(item: unknown): PlantillaAuditTimelineItem {
+function normalizeAuditTimelineItem(item: unknown, index: number): PlantillaAuditTimelineItem {
   const obj = asObject(item);
+  const eventId = asString(obj.event_id ?? obj.eventId) ?? "";
+  const eventLabel = asString(obj.event_label ?? obj.eventLabel) ?? "Event";
+  const createdAt = asString(obj.created_at ?? obj.createdAt);
   return {
-    eventId: asString(obj.event_id ?? obj.eventId) ?? "",
-    eventLabel: asString(obj.event_label ?? obj.eventLabel) ?? "Event",
+    stableKey: [
+      "audit-event",
+      eventId || "missing-id",
+      eventLabel,
+      createdAt ?? "missing-date",
+      index,
+    ].join(":"),
+    eventId,
+    eventLabel,
     eventDescription: asString(obj.event_description ?? obj.eventDescription),
-    createdAt: asString(obj.created_at ?? obj.createdAt) ?? new Date().toISOString(),
+    createdAt,
     profileName: asString(obj.profile_name ?? obj.profileName),
   };
 }
@@ -499,8 +563,11 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
 }
 
 function normalizeStoreStaffingRow(row: PlantillaRpcRow): PlantillaStoreStaffingRow | null {
-  const storeId = asString(row.store_id);
-  if (!storeId) return null;
+  const storeId =
+    asString(row.store_id) ??
+    asString(row.store_code) ??
+    asString(row.store_name) ??
+    "unknown-store";
 
   return {
     storeId,
@@ -508,11 +575,13 @@ function normalizeStoreStaffingRow(row: PlantillaRpcRow): PlantillaStoreStaffing
     storeName: asString(row.store_name),
     accountName: asString(row.account_name),
     region: asString(row.region),
-    budgetedTarget: asCount(row.budgeted_target),
-    activeBudgetedCount: asCount(row.active_budgeted_count),
-    activeAdditionalCount: asCount(row.active_additional_count),
-    vacanciesCount: asCount(row.vacancies_count),
-    staffingSlaStatus: asString(row.staffing_sla_status),
+    requiredHeadcount: asCount(row.required_headcount ?? row.budgeted_target),
+    activeHeadcount: asCount(row.active_headcount ?? row.active_budgeted_count),
+    vacancyCount: asCount(row.vacancy_count ?? row.vacancies_count),
+    pipelineCount: asCount(row.pipeline_count),
+    staffingGap: asInteger(row.staffing_gap),
+    staffingRisk: asString(row.staffing_risk ?? row.staffing_sla_status),
+    slaBadge: asBadgeText(row.sla_badge ?? row.staffing_sla_status),
     vacancySlaBreached: asBoolean(row.vacancy_sla_breached),
     rowCapabilities: normalizeStoreCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -520,20 +589,21 @@ function normalizeStoreStaffingRow(row: PlantillaRpcRow): PlantillaStoreStaffing
 }
 
 function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
-  const id = asString(row.id);
+  const id =
+    asString(row.id) ??
+    asString(row.employee_id) ??
+    asString(row.plantilla_id) ??
+    asString(row.plantillaId);
   if (!id) return null;
 
-  const rawCoveredStores = Array.isArray(row.covered_stores) ? row.covered_stores : [];
-  const coveredStores = rawCoveredStores.map(normalizeCoveredStore);
-
-  const rawChecklist = Array.isArray(row.clearance_checklist) ? row.clearance_checklist : [];
-  const clearanceChecklist = rawChecklist.map(normalizeClearanceChecklistItem);
-
-  const rawDocuments = Array.isArray(row.clearance_documents) ? row.clearance_documents : [];
-  const clearanceDocuments = rawDocuments.map(normalizeClearanceDocument);
-
-  const rawTimeline = Array.isArray(row.audit_timeline) ? row.audit_timeline : [];
-  const auditTimeline = rawTimeline.map(normalizeAuditTimelineItem);
+  const coveredStores = asArray(row.covered_stores).map(normalizeCoveredStore);
+  const clearanceChecklist = asArray(row.clearance_checklist).map(
+    normalizeClearanceChecklistItem,
+  );
+  const clearanceDocuments = asArray(row.clearance_documents).map(
+    normalizeClearanceDocument,
+  );
+  const auditTimeline = asArray(row.audit_timeline).map(normalizeAuditTimelineItem);
 
   const activeMovementRequest = normalizeMovementRequest(row.active_movement_req);
 
@@ -628,9 +698,10 @@ export function deriveTransferOverlay(
 
 export function deriveStaffingRisk(row: PlantillaStoreStaffingRow): PlantillaStaffingRisk {
   return {
-    slaStatus: row.staffingSlaStatus,
+    staffingRisk: row.staffingRisk,
+    slaBadge: row.slaBadge,
     vacancySlaBreached: row.vacancySlaBreached,
-    vacanciesCount: row.vacanciesCount,
+    vacancyCount: row.vacancyCount,
   };
 }
 

@@ -51,13 +51,17 @@ function plantillaStatusVariant(status: string | null | undefined): BadgeVariant
   }
 }
 
-function staffingSlaVariant(status: string | null | undefined): BadgeVariant {
+function staffingStatusVariant(status: string | null | undefined): BadgeVariant {
   switch ((status ?? "").toLowerCase()) {
     case "fully-staffed":
+    case "low":
       return "success";
     case "under-staffed":
+    case "critical":
+    case "high":
       return "danger";
     case "over-staffed":
+    case "medium":
       return "warning";
     default:
       return "neutral";
@@ -235,6 +239,7 @@ export default function PlantillaPage() {
     if (next !== view) {
       setView(next);
       setPage(1);
+      setSelectedPlantillaId(null);
     }
   }
 
@@ -734,27 +739,36 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
               Account / Region
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Budgeted
+              Required HC
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Active (B)
-            </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Active (AH)
+              Active HC
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
               Vacancies
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              SLA Status
+              Pipeline
+            </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+              Gap
+            </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+              Staffing Risk
+            </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+              SLA Badge
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-table-rule">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const risk = deriveStaffingRisk(row);
             return (
-              <tr key={row.storeId} className="transition-colors hover:bg-table-row-hover">
+              <tr
+                key={`${row.storeId}-${row.storeCode ?? row.storeName ?? index}`}
+                className="transition-colors hover:bg-table-row-hover"
+              >
                 <td className="px-3 py-2.5">
                   <span className="font-mono text-xs text-table-text bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
                     {row.storeCode ?? "—"}
@@ -774,20 +788,18 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   </div>
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.budgetedTarget}</td>
+                <td className="px-3 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.activeBudgetedCount}</td>
-
-                <td className="px-3 py-2.5 text-table-text-sub">{row.activeAdditionalCount}</td>
+                <td className="px-3 py-2.5 text-table-text-sub">{row.activeHeadcount}</td>
 
                 <td className="px-3 py-2.5 text-table-text-sub">
-                  {risk.vacanciesCount > 0 ? (
+                  {risk.vacancyCount > 0 ? (
                     <span
                       className={
                         risk.vacancySlaBreached ? "font-semibold text-status-danger-text" : ""
                       }
                     >
-                      {risk.vacanciesCount}
+                      {risk.vacancyCount}
                       {risk.vacancySlaBreached && (
                         <span className="ml-1 text-xs" title="Vacancy SLA breached (7 days+)">
                           ⚠
@@ -799,11 +811,26 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   )}
                 </td>
 
+                <td className="px-3 py-2.5 text-table-text-sub">{row.pipelineCount}</td>
+
+                <td className="px-3 py-2.5 text-table-text-sub">{row.staffingGap}</td>
+
                 <td className="px-3 py-2.5">
-                  {row.staffingSlaStatus ? (
+                  {risk.staffingRisk ? (
                     <StatusBadge
-                      variant={staffingSlaVariant(row.staffingSlaStatus)}
-                      text={row.staffingSlaStatus}
+                      variant={staffingStatusVariant(risk.staffingRisk)}
+                      text={risk.staffingRisk}
+                    />
+                  ) : (
+                    <span className="text-xs text-table-text-muted">—</span>
+                  )}
+                </td>
+
+                <td className="px-3 py-2.5">
+                  {risk.slaBadge ? (
+                    <StatusBadge
+                      variant={staffingStatusVariant(risk.slaBadge)}
+                      text={risk.slaBadge}
                     />
                   ) : (
                     <span className="text-xs text-table-text-muted">—</span>

@@ -225,7 +225,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                   </h3>
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
                     <span>{detail.activeApplicantCount} Active</span>
-                    <span>•</span>
+                    <span>&bull;</span>
                     <span>{detail.confirmedOnboardCount} Onboarded</span>
                   </div>
                 </div>
@@ -233,9 +233,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                 {/* Active Candidate cards */}
                 <div className="space-y-2">
                   {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
-                    detail.activeApplicantsList.map((candidate) => (
+                    detail.activeApplicantsList.map((candidate, index) => (
                       <div
-                        key={candidate.applicantId}
+                        key={candidate.applicantId || `candidate-${index}`}
                         className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50/50 p-2 text-xs hover:bg-gray-50 transition"
                       >
                         <div className="flex items-center gap-2">
@@ -321,8 +321,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                 </div>
                 <div className="relative pl-4 space-y-4 border-l-2 border-gray-100 ml-1.5 mt-2">
                   {detail.activityHistory && detail.activityHistory.length > 0 ? (
-                    detail.activityHistory.map((item) => (
-                      <div key={item.eventId} className="relative text-xs">
+                    detail.activityHistory.map((item, index) => (
+                      <div key={item.eventId || `activity-${index}`} className="relative text-xs">
                         {/* Timeline dot */}
                         <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
                         <div className="flex justify-between">

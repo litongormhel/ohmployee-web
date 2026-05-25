@@ -61,6 +61,9 @@ export default function VacancyPage() {
   const [search, setSearch] = useState("");
   const [agingBucket, setAgingBucket] = useState("");
   const [pipelineStatus, setPipelineStatus] = useState("");
+  const [urgency, setUrgency] = useState("");
+  const [vacantFrom, setVacantFrom] = useState("");
+  const [vacantTo, setVacantTo] = useState("");
   const [page, setPage] = useState(1);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
 
@@ -70,10 +73,13 @@ export default function VacancyPage() {
       search,
       agingBucket: agingBucket || undefined,
       pipelineStatus: pipelineStatus || undefined,
+      urgency: urgency || undefined,
+      vacantFrom: vacantFrom || undefined,
+      vacantTo: vacantTo || undefined,
       page,
       pageSize,
     }),
-    [agingBucket, page, pipelineStatus, search, status],
+    [agingBucket, page, pipelineStatus, search, status, urgency, vacantFrom, vacantTo],
   );
 
   const summaryQuery = useQuery({
@@ -83,6 +89,9 @@ export default function VacancyPage() {
       search,
       agingBucket,
       pipelineStatus,
+      urgency,
+      vacantFrom,
+      vacantTo,
     ],
     queryFn: () => getVacancySummary(queryParams),
     retry: false,
@@ -102,7 +111,6 @@ export default function VacancyPage() {
   const blocked = errorKind === "access_denied";
   const activeStatusDescription =
     statusTabs.find((tab) => tab.value === status)?.description ?? "Vacancy queue";
-
   const kpis = [
     {
       label: "Open Vacancies",
@@ -269,6 +277,48 @@ export default function VacancyPage() {
               <option value="61_120">61-120 days</option>
               <option value="gt121">121+ days</option>
             </select>
+            <select
+              aria-label="Urgency filter"
+              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              disabled={blocked}
+              onChange={(event) => {
+                setUrgency(event.target.value);
+                setPage(1);
+                setSelectedVacancyId(null);
+              }}
+              value={urgency}
+            >
+              <option value="">All urgency</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Normal">Normal</option>
+            </select>
+            <input
+              aria-label="Vacant date from"
+              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              disabled={blocked}
+              max={vacantTo || undefined}
+              onChange={(event) => {
+                setVacantFrom(event.target.value);
+                setPage(1);
+                setSelectedVacancyId(null);
+              }}
+              type="date"
+              value={vacantFrom}
+            />
+            <input
+              aria-label="Vacant date to"
+              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              disabled={blocked}
+              min={vacantFrom || undefined}
+              onChange={(event) => {
+                setVacantTo(event.target.value);
+                setPage(1);
+                setSelectedVacancyId(null);
+              }}
+              type="date"
+              value={vacantTo}
+            />
           </AdminFilterBar>
 
           <VacancyTable

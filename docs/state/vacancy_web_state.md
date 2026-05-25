@@ -9,9 +9,11 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 ## Current Vacancy Web Assessment
 
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
-- The query layer sends only queue/search/filter/sort/pagination arguments. It does not pass caller identity, role, profile, account, or group ids as authority.
-- `src/app/(dashboard)/vacancy/page.tsx` now uses React Query to load the read-only Vacancy summary and list RPCs, with status tabs, submitted search, pipeline/aging filters, pagination state, loading state, empty state, blocked state, and retryable error state.
+- The query layer sends only backend-authoritative queue/search/filter/sort/pagination arguments: `p_queue`, `p_search`, `p_filters`, `p_sort`, `p_sort_dir`, `p_limit`, and `p_offset`. It does not pass caller identity, role, profile, account, or group ids as authority.
+- `src/lib/queries/vacancy.ts` allowlists queue values, aging buckets, pipeline statuses, urgency levels, vacant date strings, and supported sort fields before constructing RPC payloads. Unsupported UI/client values are dropped instead of being forwarded to `p_filters`.
+- `src/app/(dashboard)/vacancy/page.tsx` now uses React Query to load the read-only Vacancy summary and list RPCs, with status tabs, submitted search, pipeline/aging/urgency/vacant-date filters, pagination state, loading state, empty state, blocked state, and retryable error state.
 - `src/components/vacancy/VacancyTable.tsx` now renders backend rows with `row_capabilities`, `total_count`, `aging_bucket`, and `pipeline_status`; table row selection is read-only and detail-panel content is limited to list-returned fields.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` hydrates exclusively from `get_web_vacancy_detail(p_vacancy_id uuid)` and tolerates partial/null JSON arrays by rendering empty candidate/history sections with stable fallback keys.
 - `OHM2026_1081` aligned the Vacancy frontend row contract with the RPC field name `position_title`; the query normalizer, table, and selected-row detail panel no longer consume a legacy `position`/camelCase frontend field.
 - Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
 - The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.

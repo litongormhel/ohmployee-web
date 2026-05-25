@@ -52,7 +52,8 @@ function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
-function formatEventDate(isoStr: string): string {
+function formatEventDate(isoStr: string | null | undefined): string {
+  if (!isoStr) return "Date unavailable";
   try {
     return new Intl.DateTimeFormat("en-PH", {
       dateStyle: "medium",
@@ -316,12 +317,10 @@ function DrawerBody({
         <EmploymentGrid data={data} />
       </SectionCard>
 
-      {/* Roving Coverage */}
-      {data.assignmentType === "Roving" && data.coveredStores.length > 0 && (
-        <SectionCard title="Roving Coverage Assignments">
-          <RovingCoverageSection stores={data.coveredStores} />
-        </SectionCard>
-      )}
+      {/* Assignment Coverage */}
+      <SectionCard title="Assignment Coverage">
+        <AssignmentCoverageSection data={data} />
+      </SectionCard>
 
       {/* AH slot notice */}
       {data.plantillaType === "AH" && (
@@ -336,8 +335,8 @@ function DrawerBody({
         </div>
       )}
 
-      {/* Clearance Panel — pending separation only, read-only */}
-      {data.clearanceChecklist.length > 0 && (
+      {/* Clearance Panel: pending separation only, read-only */}
+      {deactivation?.isPendingSeparation && data.clearanceChecklist.length > 0 && (
         <SectionCard title="Clearance & Offboarding Audit">
           <ClearancePanel
             status={data.clearanceStatus}
@@ -433,8 +432,33 @@ function EmploymentGrid({ data }: { data: PlantillaDetailItem }) {
 }
 
 // ---------------------------------------------------------------------------
-// Roving coverage
+// Assignment coverage
 // ---------------------------------------------------------------------------
+
+function AssignmentCoverageSection({ data }: { data: PlantillaDetailItem }) {
+  const isRoving = (data.assignmentType ?? "").toLowerCase() === "roving";
+
+  if (isRoving) {
+    if (data.coveredStores.length === 0) {
+      return (
+        <p className="text-xs text-text-muted">
+          Roving assignment returned without covered store rows.
+        </p>
+      );
+    }
+
+    return <RovingCoverageSection stores={data.coveredStores} />;
+  }
+
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-text-primary">
+        {data.primaryStoreName ?? "Primary store unavailable"}
+      </span>
+      <span className="text-text-muted">{data.assignmentType ?? "Stationary"}</span>
+    </div>
+  );
+}
 
 function RovingCoverageSection({
   stores,
@@ -445,7 +469,7 @@ function RovingCoverageSection({
     <ul className="space-y-1.5">
       {stores.map((store) => (
         <li
-          key={store.storeId}
+          key={store.stableKey}
           className="flex items-center justify-between text-xs"
         >
           <span className="text-text-primary">
@@ -491,7 +515,7 @@ function ClearancePanel({
 
       <ul className="space-y-1.5">
         {checklist.map((item) => (
-          <li key={item.key} className="flex items-center gap-2 text-xs">
+          <li key={item.stableKey} className="flex items-center gap-2 text-xs">
             <span
               className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${
                 item.completed
@@ -514,7 +538,7 @@ function ClearancePanel({
           </p>
           <ul className="space-y-1">
             {documents.map((doc) => (
-              <li key={doc.documentId} className="text-xs text-text-secondary">
+              <li key={doc.stableKey} className="text-xs text-text-secondary">
                 {doc.fileName}
                 <span className="ml-2 text-text-muted">
                   {formatDate(doc.uploadedAt)}
@@ -645,8 +669,8 @@ function AuditTimeline({
 }) {
   return (
     <ol className="space-y-3">
-      {events.map((event, idx) => (
-        <li key={event.eventId || idx} className="flex gap-3 text-xs">
+      {events.map((event) => (
+        <li key={event.stableKey} className="flex gap-3 text-xs">
           <span
             className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500"
             aria-hidden="true"
@@ -675,14 +699,10 @@ function AuditTimeline({
 
 function buildActionItems(caps: PlantillaRowCapabilities) {
   return [
-    { label: "Transfer Personnel", isAvailable: caps.canInitiateTransfer },
-    { label: "Initiate Separation", isAvailable: caps.canInitiateSeparation },
-    { label: "Approve Clearance", isAvailable: caps.canApproveClearance },
-    { label: "Adjust Roving Schedule", isAvailable: caps.canEditRovingStores },
-    { label: "Toggle Suspend", isAvailable: caps.canToggleSuspend },
-    {
-      label: "Request Additional Headcount",
-      isAvailable: caps.canRequestAh,
-    },
+    { label: "Request Deactivation", isAvailable: caps.canRequestDeactivation },
+    { label: "Review Deactivation", isAvailable: caps.canReviewDeactivation },
+    { label: "Request Deletion", isAvailable: caps.canRequestDeletion },
+    { label: "Review Deletion", isAvailable: caps.canReviewDeletion },
+    { label: "Transfer Employee", isAvailable: caps.canTransferEmployee },
   ];
 }

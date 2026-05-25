@@ -13,6 +13,20 @@ export type VacancyAgingBucket =
 
 export type VacancyPipelineStatus = "Open" | "Pipeline";
 
+type VacancySortField =
+  | "aging_days"
+  | "vacant_date"
+  | "target_fill_date"
+  | "urgency_level"
+  | "account_name"
+  | "group_name"
+  | "store_name"
+  | "position_title"
+  | "updated_at"
+  | "vcode";
+
+type VacancySortDirection = "asc" | "desc";
+
 export type VacancyRowCapabilities = {
   canViewDetail: boolean;
   canApprove: boolean;
@@ -144,6 +158,34 @@ export class VacancyDataError extends Error {
 type VacancyRpcRow = Record<string, unknown>;
 
 const MAX_PAGE_SIZE = 100;
+const supportedStatuses = new Set<VacancyStatus>([
+  "open",
+  "with_applicant",
+  "rejected",
+  "backout",
+]);
+const supportedAgingBuckets = new Set<VacancyAgingBucket>([
+  "advance",
+  "1_15",
+  "16_30",
+  "31_60",
+  "61_120",
+  "gt121",
+]);
+const supportedPipelineStatuses = new Set(["Open", "Pipeline"]);
+const supportedUrgencyLevels = new Set(["High", "Medium", "Normal"]);
+const supportedSortFields = new Set<VacancySortField>([
+  "aging_days",
+  "vacant_date",
+  "target_fill_date",
+  "urgency_level",
+  "account_name",
+  "group_name",
+  "store_name",
+  "position_title",
+  "updated_at",
+  "vcode",
+]);
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && !Array.isArray(value) && typeof value === "object"
@@ -153,6 +195,22 @@ function asObject(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function asTrimmedString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function asDateFilter(value: unknown) {
+  const date = asTrimmedString(value);
+
+  if (!date) {
+    return null;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
 function asNumber(value: unknown) {
@@ -190,6 +248,36 @@ function normalizeCapabilities(value: unknown): VacancyRowCapabilities {
     canRequestClosure: raw.can_request_closure === true,
     raw,
   };
+}
+
+function normalizeStatus(value: unknown): VacancyStatus {
+  return supportedStatuses.has(value as VacancyStatus)
+    ? (value as VacancyStatus)
+    : "open";
+}
+
+function normalizeAgingBucket(value: unknown) {
+  return supportedAgingBuckets.has(value as VacancyAgingBucket)
+    ? (value as VacancyAgingBucket)
+    : null;
+}
+
+function normalizePipelineStatus(value: unknown) {
+  return supportedPipelineStatuses.has(value as string) ? (value as string) : null;
+}
+
+function normalizeUrgency(value: unknown) {
+  return supportedUrgencyLevels.has(value as string) ? (value as string) : null;
+}
+
+function normalizeSortField(value: unknown): VacancySortField {
+  return supportedSortFields.has(value as VacancySortField)
+    ? (value as VacancySortField)
+    : "aging_days";
+}
+
+function normalizeSortDirection(value: unknown): VacancySortDirection {
+  return value === "asc" ? "asc" : "desc";
 }
 
 function getTotalCount(rows: VacancyListItem[]) {
@@ -352,15 +440,9 @@ function normalizeSummary(data: unknown): VacancySummary {
 }
 
 type VacancyRpcPayload = {
-  p_account_id: null;
-  p_aging_bucket: string | null;
-  p_group_id: null;
-  p_position: string | null;
+  p_queue: VacancyStatus;
   p_search: string | null;
-  p_status: VacancyStatus | null;
-  p_urgency: string | null;
-  p_vacant_from: string | null;
-  p_vacant_to: string | null;
+  p_filters: Record<string, unknown>;
 };
 
 function getVacancyRpcFilters(
@@ -369,22 +451,45 @@ function getVacancyRpcFilters(
     | "status"
     | "search"
     | "agingBucket"
-    | "position"
+    | "pipelineStatus"
     | "urgency"
     | "vacantFrom"
     | "vacantTo"
   >,
 ): VacancyRpcPayload {
+  const filters: Record<string, unknown> = {};
+  const agingBucket = normalizeAgingBucket(params.agingBucket);
+  const pipelineStatus = normalizePipelineStatus(
+    "pipelineStatus" in params ? params.pipelineStatus : undefined,
+  );
+  const urgency = normalizeUrgency(params.urgency);
+  const vacantFrom = asDateFilter(params.vacantFrom);
+  const vacantTo = asDateFilter(params.vacantTo);
+
+  if (agingBucket) {
+    filters.aging_buckets = [agingBucket];
+  }
+
+  if (pipelineStatus) {
+    filters.pipeline_status = pipelineStatus;
+  }
+
+  if (urgency) {
+    filters.urgency_levels = [urgency];
+  }
+
+  if (vacantFrom) {
+    filters.vacant_date_from = vacantFrom;
+  }
+
+  if (vacantTo) {
+    filters.vacant_date_to = vacantTo;
+  }
+
   return {
-    p_account_id: null,
-    p_aging_bucket: params.agingBucket || null,
-    p_group_id: null,
-    p_position: params.position?.trim() || null,
-    p_search: params.search?.trim() || null,
-    p_status: params.status || null,
-    p_urgency: params.urgency?.trim() || null,
-    p_vacant_from: params.vacantFrom || null,
-    p_vacant_to: params.vacantTo || null,
+    p_queue: normalizeStatus(params.status),
+    p_search: asTrimmedString(params.search),
+    p_filters: filters,
   };
 }
 
@@ -427,8 +532,8 @@ export async function listVacancies(params: VacancyListParams) {
     ...getVacancyRpcFilters(params),
     p_limit: pageSize,
     p_offset: offset,
-    p_sort_by: "aging_days",
-    p_sort_dir: "desc",
+    p_sort: normalizeSortField("aging_days"),
+    p_sort_dir: normalizeSortDirection("desc"),
   });
 
   if (error) {

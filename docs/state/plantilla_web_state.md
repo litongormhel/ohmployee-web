@@ -85,14 +85,16 @@ STR-D101   | Davao Hub         | Davao South / Mindanao     | 4 Slots    | 4 Fil
 1. **Store Code**: `store_code` (Rendered in monospace: `font-mono text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5`).
 2. **Store Name**: Display name of the store.
 3. **Account & Region**: The billing account and geographical region.
-4. **Budgeted Plantilla Target**: Total standard contracted slots allocated for this store.
-5. **Active Budgeted Staff**: Count of active employees deployed to budgeted slots.
-6. **Active Additional Headcount (AH)**: Count of active employees currently occupying temporary additional slots.
-7. **Vacancies**: `Budgeted Target - Active Budgeted Staff` (If negative, displays `0`).
-8. **Staffing SLA Status**: Displays staffing health badges:
-   - `Under-Staffed`: Active Budgeted < Budgeted Target (Flags `danger` if vacant for > 7 days).
-   - `Fully-Staffed`: Active Budgeted == Budgeted Target (Flags `success`).
-   - `Over-Staffed`: Active Budgeted > Budgeted Target (Flags `warning` indicating temporary overflow or unapproved placements).
+4. **Required Headcount**: Backend-returned required staffing target for the grouped store row.
+5. **Active Headcount**: Backend-returned active staffing count for the grouped store row.
+6. **Vacancies**: Backend-returned vacancy count for the grouped store row.
+7. **Pipeline Count**: Backend-returned active hiring/deployment pipeline count for the grouped store row.
+8. **Staffing Gap**: Backend-returned staffing gap. The frontend does not recompute or clamp this value, so negative values can represent over-staffing if returned by the RPC.
+9. **Staffing Risk**: Backend-returned staffing risk badge.
+10. **SLA Badge**: Backend-returned SLA badge:
+   - `Under-Staffed`: Rendered as danger.
+   - `Fully-Staffed`: Rendered as success.
+   - `Over-Staffed`: Rendered as warning.
 9. **Actions**: Desktop "Eye" icon to open the selected Store's detailed plantilla and list of assigned personnel in a Command-Center drawer.
 
 ---
@@ -416,11 +418,13 @@ RETURNS TABLE (
   store_name              text,
   account_name            text,
   region                  text,
-  budgeted_target         integer,
-  active_budgeted_count   integer,
-  active_additional_count integer,
-  vacancies_count         integer,
-  staffing_sla_status     text, -- 'Under-staffed', 'Fully-staffed', 'Over-staffed'
+  required_headcount      integer,
+  active_headcount        integer,
+  vacancy_count           integer,
+  pipeline_count          integer,
+  staffing_gap            integer,
+  staffing_risk           text,
+  sla_badge               text,
   vacancy_sla_breached    boolean,
   row_capabilities        jsonb,
   total_count             bigint
@@ -431,7 +435,7 @@ AS $$
 $$ LANGUAGE plpgsql;
 ```
 
-Supported store staffing sort fields are `store_name`, `store_code`, `account_name`, `region`, `budgeted_target`, `active_budgeted_count`, `active_additional_count`, `vacancies_count`, and `staffing_sla_status`.
+Supported store staffing sort fields are `store_name`, `store_code`, `account_name`, `region`, `required_headcount`, `active_headcount`, `vacancy_count`, `pipeline_count`, `staffing_gap`, `staffing_risk`, and `sla_badge`.
 
 ### C. Summary Count Metrics Contract
 ```sql
@@ -532,9 +536,9 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - Employee View and Store Staffing View share a single page with filtered, paginated dense tables.
 - No mock data; all queries go through Supabase RPCs only.
 - Employee table columns: Emp ID, Name (AH badge), Account/Store, Position, Assignment (Roving count), Type, Status (StatusBadge + SLA breach ⚠).
-- Store table columns: Store Code, Store Name, Account/Region, Budgeted, Active (B), Active (AH), Vacancies (SLA breach ⚠), SLA Status (StatusBadge).
+- Store table columns: Store Code, Store Name, Account/Region, Required HC, Active HC, Vacancies (SLA breach ⚠), Pipeline, Gap, Staffing Risk, SLA Badge.
 - Deactivation overlays applied via `deriveDeactivationOverlay`: pending-separation rows get dashed border + `bg-red-50/30 opacity-80`; inactive/terminated/suspended rows get `opacity-65 pointer-events-none` + strikethrough on ID and name.
-- Staffing risk derived via `deriveStaffingRisk` to drive vacancy SLA breach indicators.
+- Staffing risk derived via `deriveStaffingRisk` to drive backend-returned staffing risk, SLA badge, vacancy count, and vacancy SLA breach indicators.
 - Filters: search (apply-on-click), account ID, group ID, store ID (employee view), employment status (employee view), deployment type (employee view), staffing risk/SLA status (store view).
 - Validated: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
 
@@ -562,7 +566,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - `getWebPlantillaDetail` is called via `useQuery` (queryKey: `["plantilla", "detail", plantillaId]`), enabled only when a `plantillaId` is non-null.
 - All four DataState boundaries are active: loading, access_denied, not found (empty), and retryable error with retry callback.
 - Deactivation banners (separation-pending, deactivated) and transfer overlay banner are rendered at the top of the drawer body.
-- `CapabilityActionBar` maps `rowCapabilities` to read-only action visibility hints.
+- `CapabilityActionBar` maps backend `row_capabilities` only to read-only visibility hints for `can_request_deactivation`, `can_review_deactivation`, `can_request_deletion`, `can_review_deletion`, and `can_transfer_employee`. Stale frontend-only action assumptions such as generic separation approval, roving edit, suspend toggle, and AH request are not rendered in the employee detail drawer.
+- Detail JSONB arrays (`covered_stores`, `clearance_checklist`, `clearance_documents`, `audit_timeline`) tolerate null/partial payloads and use normalized stable keys so duplicate or partially missing items do not collide in React rendering.
+- Assignment coverage renders for both stationary and roving employees: stationary records show the primary store, while roving records show covered stores or an explicit empty roving payload state.
+- Clearance/offboarding audit rendering is restricted to pending-separation records with checklist rows.
+- Audit timeline rendering is null-safe; missing event timestamps render as unavailable instead of inventing client-side dates.
 - Row click wiring: employee table rows emit `onRowClick(row.id)`. Dimmed rows (inactive/terminated/suspended) keep `pointer-events-none` and cannot be clicked. Active and pending-separation rows are keyboard- and mouse-accessible (`role="button"`, `tabIndex=0`, Enter/Space support).
 - Drawer close clears `selectedPlantillaId` state in the page, closing the drawer.
 - Store view drawer: not yet implemented (Phase 4 partial — employee only).
