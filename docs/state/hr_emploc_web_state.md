@@ -180,8 +180,11 @@ The backend enforces strict transition pathways and timings. The frontend visual
 ```
 1. **Tagging Deficiency**: HR Personnel identifies blurry/missing files. They check deficiency tags (from `hr_emploc_issue_types`), add remarks, and set state to `For Correction` (this writes the `correction_reason` JSONB block).
 2. **Correction Notification**: A push trigger notifies the coordinator (`trg_notify_hr_emploc_correction_tagged`).
-3. **Resolution**: Coordinator uploads valid attachments to `hr_emploc_correction_attachments` and triggers an update RPC. The state moves to `For Review` and triggers `trg_notify_hr_emploc_correction_submitted` to alert the HR Personnel.
-4. **Finalization**: HR Personnel approves the submission. State moves to `Complete`.
+3. **Resolution**: Coordinator uploads valid attachments to `hr_emploc_correction_attachments` and triggers an update RPC. The state moves to `For Review` and triggers `trg_notify_hr_emploc_correction_submitted` to alert the HR Personnel. *(This upload step is an ops/Mobile RPC and is out of scope for the web mutation layer.)*
+4. **Finalization (Correction Review — second web mutation, architected OHM2026_1110)**: HR Personnel reviews the `For Review` resubmission via `review_web_hr_emploc_correction(...)`. Under the **strict all-deficiencies-resolved model**, the reviewer affirms each tagged deficiency:
+   - **Approve** (every deficiency resolved) → `hr_status = 'Complete'`, `correction_reason` cleared, record becomes eligible for employee-number assignment. `employee_no` is *not* touched here. This is a forward gate with no web-side re-open path, so approval requires a fully clean record.
+   - **Return** (residual deficiencies remain) → `hr_status = 'For Correction'`, `correction_reason` rewritten to the residual keys, HRCO re-notified. The loop repeats until clean.
+   See `docs/state/web_mutation_workflow_state.md` Part II (§10–§18) for the full backend-authoritative contract, approval-model comparison, and the exact implementation prompt.
 
 ---
 
@@ -397,8 +400,10 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - `HrEmplocDataErrorKind` extended with `invalid_state` for `P0001` backend precondition rejections.
 - Prerequisite: backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be deployed in the authoritative Supabase repo for the mutation to execute end-to-end.
 
+**Architected, backend pending (OHM2026_1110):**
+- Correction review (`For Review` → `Complete` on approve / `For Review` → `For Correction` on return). Backend-authoritative contract `review_web_hr_emploc_correction(p_hr_emploc_id, p_decision, p_resolved_keys, p_remarks)` and the strict all-deficiencies-resolved approval model are fully specified in `docs/state/web_mutation_workflow_state.md` Part II. Requires a new `can_review_correction` row capability (distinct from `can_review_deletion`). No implementation yet.
+
 **Remaining:**
-- Correction review approval (`For Correction` → `Complete`).
 - Assign Employee Number (Encoder/SuperAdmin).
 - Move to Plantilla.
 - Request Deletion (Backout/Duplicate).

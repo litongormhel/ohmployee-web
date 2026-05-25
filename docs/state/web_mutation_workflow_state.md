@@ -169,7 +169,7 @@ Frontend phases 2–5 are complete and validated (`pnpm lint` clean, `pnpm build
 
 **Remaining prerequisite:** Backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be implemented in the authoritative Supabase repo (Phase 1 above) before the mutation can execute end-to-end.
 
-**Next mutation:** HR Emploc correction review (`For Correction` → `For Review` → `Complete`) as specified in §2.
+**Next mutation:** HR Emploc correction review (`For Review` → `Complete` / `For Correction`) — now architected in **Part II (§10–§18)**. Backend implementation pending per OHM2026_1110-IMPL-1.
 
 ---
 
@@ -208,3 +208,218 @@ Validation:
 - Verify list queue movement (`Pending Review` → `For Correction`) and summary count deltas match the same scoped base query.
 
 After this RPC is verified, proceed to OHM2026_1107-IMPL-2 (frontend wrapper + modal + invalidation) per the phase order in §7.
+
+---
+
+# PART II — Second Mutation: HRCO Correction Review (OHM2026_1110)
+
+## 10. Scope & Position in the Loop
+
+The first mutation (Part I) **opens** the correction loop by sending a record `Pending`/`For Review` → `For Correction`. This second mutation **closes** that same loop. It is the *finalization* step described in `hr_emploc_web_state.md §6.4`: after the field coordinator (HRCO) uploads corrected documents, HR Personnel reviews the resubmission and decides its fate.
+
+### 10.1 Reconciling the loop states
+
+The canonical correction cycle has four states and three transitions; only the last transition is in scope here:
+
+```
+[Pending] / [For Review*]
+     │ (1) Tag Deficiency — Part I mutation (hrPersonnel)
+     ▼
+[For Correction] ──────────────────────────────────────────┐
+     │ (2) HRCO uploads corrected docs — OUT OF SCOPE        │
+     │     (separate ops/Mobile RPC; not a web mutation)     │
+     ▼                                                       │
+[For Review] ──── (3) THIS MUTATION (hrPersonnel) ───────────┤
+     │                                                       │
+     ├── approve ──▶ [Complete]   (all deficiencies resolved)│
+     └── return  ──▶ [For Correction] ──────────────────────┘   (residual deficiencies remain)
+```
+
+> The task brief labels this "For Correction → Complete". Precisely, the **reviewable** state is `For Review` — the state a record enters *after* the HRCO has resubmitted. `For Correction` records are still awaiting upload and are not yet reviewable. The end-to-end span is `For Correction` →(HRCO upload, out of scope)→ `For Review` →(this mutation)→ `Complete`. Transition (2) is performed by ops roles via an existing/Mobile RPC and is explicitly **not** wired as a web mutation here.
+
+### 10.2 Why this is the correct second mutation
+
+- It is the **natural inverse** of the first mutation and reuses the exact same surfaces: the `correction_reason` JSONB, the requirements checklist, the attachments list, and the audit timeline. No new read scaffold is required.
+- It is a **forward gate**: approving to `Complete` is the precondition that unlocks `Assign Employee No` and `Move to Plantilla`. It therefore carries more downstream consequence than tagging and must be modeled with stricter approval semantics (see §15).
+
+---
+
+## 11. Backend RPC / Action Contract
+
+```sql
+CREATE OR REPLACE FUNCTION public.review_web_hr_emploc_correction(
+  p_hr_emploc_id   uuid,
+  p_decision       text,                 -- 'approve' | 'return'
+  p_resolved_keys  text[]  DEFAULT NULL,  -- deficiency keys the reviewer affirms resolved
+  p_remarks        text    DEFAULT NULL   -- optional reviewer note (bounded length)
+)
+RETURNS jsonb                            -- result envelope, see below
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$ ... $$;
+```
+
+Result envelope (single JSONB row, no raw record leakage):
+
+```json
+{
+  "ok": true,
+  "hr_emploc_id": "uuid",
+  "decision": "approve",
+  "new_hr_status": "Complete",
+  "correction_reason": {},
+  "reviewed_at": "2026-05-25T09:00:00Z"
+}
+```
+
+On `return`, `new_hr_status = "For Correction"` and `correction_reason` carries the **residual** (still-deficient) keys only.
+
+Contract rules:
+
+- **Identity**: derived only from `auth.uid()`. No `profile_id`, `role_key`, `account_id`, or `group_id` accepted as authority arguments.
+- **Grants**: `EXECUTE` granted to `authenticated` only; revoked from `PUBLIC`/`anon`.
+- **`p_decision`** is a closed enum (`'approve' | 'return'`); any other value → `invalid_state`.
+- **`p_resolved_keys`** must be a subset of the keys currently present in `correction_reason`. Unknown keys are rejected (`invalid_state`). The browser asserts *which* deficiencies it considers resolved; the backend enforces the *completeness invariant*, never the quality judgment.
+- **Single transaction**: capability re-check → scope re-check → state precheck → decision branch (approve | return) → status write + `correction_reason` rewrite → audit insert → notification trigger. All-or-nothing.
+- **No business logic in the browser.** The frontend supplies only the record id, the decision, the resolved-key set, and an optional remark.
+
+---
+
+## 12. Validation Rules (enforced in the RPC, fail closed)
+
+Common preconditions (both decisions):
+
+1. Record exists and is visible under the caller's RLS scope (else `access_denied`).
+2. Caller holds the **correction-review capability** (`hrPersonnel`; `superAdmin` retains global override). All other roles rejected. Per the role matrix, `hrPersonnel` performs "correction approvals, complete documentation review".
+3. `hr_status = 'For Review'` (the only reviewable state). `Pending`, `For Correction`, `Complete`, `Transferred`, `Rejected`, `Moved to Plantilla` are all rejected with `invalid_state`.
+4. `status = 'Pending Emploc'` (record not deployed/transferred).
+5. **No active deletion request** — record must not be `Pending Deletion` (edit-lock overlay). Blocked otherwise.
+
+Decision-specific:
+
+- **`approve`** (strict model — see §15):
+  6a. Every key currently in `correction_reason` must appear in `p_resolved_keys`. If any tagged deficiency is unaffirmed → reject with `invalid_state` ("unresolved deficiencies remain"). Approval with outstanding deficiencies is impossible.
+  7a. *(Recommended)* at least one correction attachment exists in `hr_emploc_correction_attachments` for the record — proof that the HRCO actually resubmitted. A `For Review` record with zero attachments is suspect and should be returned, not approved.
+- **`return`**:
+  6b. `residual = (keys of correction_reason) − p_resolved_keys` must be **non-empty** (a fully-resolved set is an `approve`, not a `return`). If `p_resolved_keys` covers everything, reject and instruct to use `approve`.
+
+---
+
+## 13. Capability Gating
+
+- **Row gate**: a new `row_capabilities.can_review_correction` (normalized to `canReviewCorrection`) governs button visibility/enablement. This is **distinct** from `can_review_deletion` (which gates the deletion-request approval flow) and from `can_tag_deficiency` (Part I). The backend must add `can_review_correction` to the `get_web_hr_emploc_detail` capability payload for `hrPersonnel` on `For Review` records.
+- **Authority**: the RPC re-derives and re-checks capability server-side. Frontend gating is ergonomics only.
+- Buttons are enabled only when `detail.rowCapabilities.canReviewCorrection === true && hrStatus === 'For Review' && !isPendingDeletion`.
+
+---
+
+## 14. Audit Logging, Notification, Invalidation, Rollback
+
+### 14.1 Audit logging
+- One immutable audit event per call, inside the same transaction as the status change.
+- **approve** → `event_label = "Correction Approved"` (or "Compliance Completed"), description summarizing the resolved deficiency keys (no PII), actor from `auth.uid()`, `created_at = now()`.
+- **return** → `event_label = "Correction Returned"`, description listing the residual deficiency keys (no PII).
+- Never best-effort/after-the-fact; rolls back with the transaction on any failure.
+
+### 14.2 Notification
+- **return** re-fires the existing correction-notification rail (`trg_notify_hr_emploc_correction_tagged` or equivalent) so the HRCO is alerted that documents still need fixing. Do not re-implement notifications client-side.
+- **approve** may fire a "compliance complete" notification if such a trigger exists; otherwise no new rail is invented.
+
+### 14.3 Query invalidation (on success)
+Invalidate exactly the affected read surfaces:
+1. `["hr-emploc-detail", hrEmplocId]` — drawer reflects the new status and cleared/residual deficiencies.
+2. `["hr-emploc-list"]` — the row moves between queues (`Pending Review`→`Compliance Complete` on approve; `Pending Review`→`For Correction` on return).
+3. `["hr-emploc-summary"]` — `Total Processing` decrements; on approve `Ready to Deploy` increments; on return `Action Needed` increments.
+
+Do **not** invalidate Vacancy or Plantilla caches. No optimistic cache mutation; rely on refetch.
+
+### 14.4 Blocked states & rollback
+- **Blocked (pre-flight)**: `Pending Deletion`, any non-`For Review` `hr_status`, out-of-scope, or `status != 'Pending Emploc'` → action disabled in UI and rejected by the RPC.
+- **No optimistic UI.** The confirmation modal stays open until the RPC resolves.
+- **`return` is the in-loop safety valve**: a record reviewed too hastily can be returned instead of approved; this is fully reversible (re-enters the correction loop).
+- **`approve` (→ `Complete`) has no backward web path.** The Part I tagging RPC explicitly *rejects* `Complete` records, so a record cannot be re-tagged once Complete. Reopening a `Complete` record is **out of scope** and would require a separate privileged admin action. This irreversibility is the central reason the approval model must be strict (§15).
+- **Failure**: on any RPC error the transaction rolls back server-side; the UI surfaces the error kind and leaves the record untouched.
+
+---
+
+## 15. Approval Models Compared
+
+| Dimension | **Strict (all-deficiencies-resolved)** | Partial compliance (approve-with-exceptions) |
+| :--- | :--- | :--- |
+| Precondition to `Complete` | Every `correction_reason` key affirmed resolved | May approve with residual unresolved keys retained |
+| Effect on `correction_reason` | Cleared (`{}`/null) on approve | Residual kept as annotation on a `Complete` record |
+| Downstream risk | None — only fully-clean records graduate | Unresolved compliance gaps flow toward employee-no assignment, Plantilla, official directory |
+| Reviewer cognitive model | Binary: clean → approve, else → return | Tri-state: approve / approve-with-exceptions / return |
+| Reversibility need | Low — nothing dirty escapes the loop | High — needs a re-open path that does not exist |
+| Auditability | "Approved" implies "fully compliant" — unambiguous | "Approved" is ambiguous; must inspect residual to know true state |
+| Enterprise fit | Matches a compliance gate before deployment | Convenient but erodes the meaning of `Complete` |
+
+### Partial-fix handling under the strict model
+When the HRCO fixes *some* but not all deficiencies, the reviewer marks the good items resolved, leaves the rest, and chooses **Return**. The residual deficiencies become the new `correction_reason`; the record re-enters `For Correction`; the HRCO is re-notified. The loop repeats until the set is empty, at which point **Approve** becomes available. There is no "partially complete" terminal state.
+
+---
+
+## 16. Recommendation
+
+**Adopt the strict all-deficiencies-resolved model.** `Complete` is the deployment gate that unlocks `Assign Employee No` and `Move to Plantilla` — both of which lead toward the irreversible official-directory write. Allowing partial compliance to reach `Complete` would let unresolved gaps escape the only place they can be caught, while the system has **no web path to re-open a `Complete` record**. The strict model keeps `Complete` semantically honest ("all compliance requirements verified"), keeps every dirty record inside the reversible loop via `return`, and makes the audit trail unambiguous. Partial compliance trades a small reviewer convenience for a standing compliance and irreversibility risk and is rejected.
+
+---
+
+## 17. Required Frontend UI States (for the eventual implementation — not built in this pass)
+
+1. **Disabled (default)** — button hidden/disabled unless `canReviewCorrection && hrStatus === 'For Review' && !isPendingDeletion`.
+2. **Enabled** — record is `For Review` and caller is an authorized reviewer.
+3. **Review modal** — opens on click. Renders each `correction_reason` deficiency as a checklist row with a **Resolved / Still Deficient** toggle, the linked corrected attachment(s) for reference, and an optional reviewer remark.
+   - All rows toggled **Resolved** → primary action becomes **"Approve & Complete"**.
+   - Any row left **Still Deficient** → primary action switches to **"Return for Correction"**, carrying the still-deficient keys as the residual set.
+4. **Confirmation step** — approve: "All N requirements verified resolved. This record moves to **Complete** and becomes eligible for employee-number assignment." return: lists the keys being sent back + the optional note.
+5. **Submitting** — action shows a spinner; inputs disabled; no double-submit (`isPending`).
+6. **Success** — modal closes; toast/inline confirmation; detail + list + summary refetch. Record shows `Complete` (cleared deficiencies) or `For Correction` (residual).
+7. **Error** — modal stays open with an inline message mapped through the existing `HrEmplocDataError` kinds: `access_denied` → "You are not authorized…"; `invalid_state` → backend message (e.g. "unresolved deficiencies remain", "record can no longer be reviewed"); `retryable` → retry affordance.
+
+Error handling reuses the existing `getErrorKind` classifier (`42501`→`access_denied`, `P0001`→`invalid_state`) with no new error kinds required.
+
+---
+
+## 18. Exact Next Implementation Prompt
+
+ID: OHM2026_1110-IMPL-1
+
+Implement the backend-authoritative Supabase RPC for the OHMployee Web second mutation: HR Emploc correction review (`For Review` → `Complete` on approve, `For Review` → `For Correction` on return).
+
+Read only:
+- `docs/state/web_mutation_workflow_state.md` (Part II, §10–§17)
+- `docs/state/hr_emploc_web_state.md`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/current_state.md`
+- `.ai/handoff.md`
+- Existing Supabase HR Emploc migrations/views/RPCs only, especially `get_web_hr_emploc_detail`, `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, `hr_emploc_issue_types`, `hr_emploc_correction_attachments`, the HR Emploc audit log surface feeding `audit_logs_timeline`, the correction notification trigger(s), and the Part I RPC `tag_web_hr_emploc_deficiency`.
+- Existing RBAC/scope helpers only: `get_web_current_user_context`, `i_have_full_access`, `get_my_allowed_accounts`, `user_scopes`, the role permission matrix.
+
+Tasks:
+1. Add a migration in the authoritative Supabase repo; do not edit frontend code.
+2. Create `public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys text[] default null, p_remarks text default null)` as `SECURITY DEFINER` with `SET search_path = public`, granted to `authenticated`, revoked from `PUBLIC`/`anon`.
+3. Derive caller identity exclusively from `auth.uid()`. Accept no role/profile/account/group authority arguments.
+4. Enforce, in order, failing closed: record visible under caller RLS scope; caller is `hrPersonnel` (or `superAdmin`) with correction-review capability; `hr_status = 'For Review'`; `status = 'Pending Emploc'`; not `Pending Deletion`; `p_decision IN ('approve','return')`; `p_resolved_keys ⊆ keys(correction_reason)`.
+5. **Strict approval**: for `approve`, every key in `correction_reason` must be present in `p_resolved_keys` (else reject `invalid_state`); recommended — require ≥1 row in `hr_emploc_correction_attachments`. For `return`, the residual `keys(correction_reason) − p_resolved_keys` must be non-empty.
+6. In one transaction:
+   - `approve` → set `hr_status = 'Complete'`, clear `correction_reason` (`'{}'::jsonb` or null), do **not** touch `employee_no`, insert immutable audit event `Correction Approved` (resolved-key summary, no PII), fire compliance-complete notification only if such a trigger already exists.
+   - `return` → set `hr_status = 'For Correction'`, rewrite `correction_reason` to the residual keys, insert audit event `Correction Returned` (residual-key summary, no PII), re-fire the existing correction notification trigger to alert the HRCO.
+7. Return the JSONB envelope `{ ok, hr_emploc_id, decision, new_hr_status, correction_reason, reviewed_at }`; never return raw sensitive columns or contact PII.
+8. Add `can_review_correction` to the `get_web_hr_emploc_detail` row-capability payload (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep it distinct from `can_review_deletion` and `can_tag_deficiency`.
+9. Add validation SQL proving: unauthenticated blocked; non-`hrPersonnel` blocked; out-of-scope record blocked; non-`For Review` records rejected with a clear state error; `approve` with any unaffirmed deficiency rejected; `approve` with all resolved succeeds, clears `correction_reason`, leaves `employee_no` untouched, writes exactly one audit row; `return` with residual keys moves to `For Correction`, rewrites `correction_reason`, writes one audit row, re-fires notification.
+
+Constraints:
+- Do not edit frontend code in this prompt.
+- Do not weaken RLS or grants. Do not invent statuses or roles. Do not add caller-controlled authority arguments.
+- Do not assign employee numbers, move records to Plantilla, or touch Vacancy/Plantilla tables.
+- Preserve Supabase as the business authority and reuse the existing correction loop and notification trigger(s).
+- Enforce the **strict** model from §16 — no partial-compliance approvals.
+
+Validation:
+- Run the authoritative Supabase migration validation/test workflow.
+- Test as Super Admin, Head Admin, hrPersonnel (in/out of scope), Encoder, OM/HRCO, Viewer, and unauthenticated caller.
+- Verify queue movement (`Pending Review` → `Compliance Complete` on approve; `Pending Review` → `For Correction` on return) and summary count deltas match the same scoped base query.
+
+After this RPC is verified, proceed to OHM2026_1110-IMPL-2 (frontend wrapper + review modal + checklist resolution + invalidation), mirroring the Part I phase order in §7.

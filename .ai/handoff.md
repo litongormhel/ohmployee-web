@@ -122,7 +122,25 @@
   - `src/components/shared/CapabilityActionBar.tsx`: button enabled when `isAvailable && !!action.onClick`; disabled otherwise (backward-compatible).
   - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isTagModalOpen` state; "Tag Deficiency" action has `onClick: () => setIsTagModalOpen(true)` gated on `canTagDeficiency && !isPendingDeletion`; `TagDeficiencyModal` sub-component with checkboxes, per-issue note inputs, remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
-- **Next step**: deploy backend RPC `public.tag_web_hr_emploc_deficiency(...)` per `docs/state/web_mutation_workflow_state.md §4` and verify end-to-end. Then implement correction review (second mutation).
+- **Next step**: deploy backend RPC `public.tag_web_hr_emploc_deficiency(...)` per `docs/state/web_mutation_workflow_state.md §4` and verify end-to-end. Then implement correction review (second mutation, architected below).
+
+## Second Mutation — Correction Review Handoff (OHM2026_1110)
+
+- **Architecture doc**: `docs/state/web_mutation_workflow_state.md` **Part II (§10–§18)** — full backend-authoritative spec, approval-model comparison, state map, and the exact implementation prompt (OHM2026_1110-IMPL-1).
+- **What it is**: the inverse of the first mutation — it *closes* the correction loop. Reviewable state is `For Review` (the state a record reaches after the HRCO resubmits corrected docs). The intermediate HRCO upload step (`For Correction`→`For Review`) is an ops/Mobile RPC and is **out of scope** for the web layer.
+- **State transitions** (one RPC, `p_decision` discriminator):
+  - `approve`: `For Review` → `Complete` — only when **all** `correction_reason` deficiencies are affirmed resolved; clears `correction_reason`; does **not** touch `employee_no`; audit `Correction Approved`.
+  - `return`: `For Review` → `For Correction` — residual deficiencies kept as the new `correction_reason`; re-fires the HRCO correction notification; audit `Correction Returned`.
+- **Backend contract** (pending): `public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys text[] default null, p_remarks text default null)` — `SECURITY DEFINER`, locked `search_path`, identity from `auth.uid()` only, granted to `authenticated`. Returns `{ ok, hr_emploc_id, decision, new_hr_status, correction_reason, reviewed_at }`.
+- **Allowed roles**: `hrPersonnel` (and `superAdmin` global override). Re-checked server-side; frontend gating is ergonomics only.
+- **Capability flag**: add `can_review_correction` to `get_web_hr_emploc_detail` (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep distinct from `can_review_deletion` (deletion approvals) and `can_tag_deficiency` (Part I).
+- **Recommended model**: **strict all-deficiencies-resolved** (partial-compliance approval rejected). Rationale: `Complete` is an irreversible forward gate to employee-number assignment / Plantilla movement, and there is no web-side path to re-open a `Complete` record (the Part I tagging RPC rejects `Complete`). The `return` path is the in-loop safety valve for partial fixes.
+- **Blocked states**: non-`For Review` `hr_status`, `Pending Deletion`, `status != 'Pending Emploc'`, out-of-scope. No optimistic UI.
+- **Invalidation**: `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No Vacancy/Plantilla cache touch.
+- **Error mapping**: reuses existing `getErrorKind` (`42501`→`access_denied`, `P0001`→`invalid_state`); no new error kinds needed.
+- **Reviewer UI (future impl)**: review modal renders each `correction_reason` deficiency as a Resolved/Still-Deficient toggle with the linked attachment; all-resolved → "Approve & Complete"; any deficient → "Return for Correction" carrying residual keys. See §17.
+- **This pass produced docs only** — no migration, no frontend mutation code, no employee-number assignment, no Plantilla movement.
+- **Next step**: implement OHM2026_1110-IMPL-1 (backend RPC + `can_review_correction` capability) per §18, verify across roles, then OHM2026_1110-IMPL-2 (frontend wrapper + review modal + invalidation).
 
 ## Plantilla Web Handoff
 
