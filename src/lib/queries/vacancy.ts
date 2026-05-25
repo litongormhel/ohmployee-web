@@ -111,6 +111,10 @@ export type VacancyListParams = {
   search?: string;
   agingBucket?: string;
   pipelineStatus?: string;
+  position?: string;
+  urgency?: string;
+  vacantFrom?: string;
+  vacantTo?: string;
   page: number;
   pageSize: number;
 };
@@ -139,7 +143,6 @@ export class VacancyDataError extends Error {
 
 type VacancyRpcRow = Record<string, unknown>;
 
-const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -348,22 +351,61 @@ function normalizeSummary(data: unknown): VacancySummary {
   };
 }
 
-function getFilters(params: VacancyListParams) {
+type VacancyRpcPayload = {
+  p_account_id: null;
+  p_aging_bucket: string | null;
+  p_group_id: null;
+  p_position: string | null;
+  p_search: string | null;
+  p_status: VacancyStatus | null;
+  p_urgency: string | null;
+  p_vacant_from: string | null;
+  p_vacant_to: string | null;
+};
+
+function getVacancyRpcFilters(
+  params: Pick<
+    VacancyListParams,
+    | "status"
+    | "search"
+    | "agingBucket"
+    | "position"
+    | "urgency"
+    | "vacantFrom"
+    | "vacantTo"
+  >,
+): VacancyRpcPayload {
   return {
-    ...(params.agingBucket ? { aging_buckets: [params.agingBucket] } : {}),
+    p_account_id: null,
+    p_aging_bucket: params.agingBucket || null,
+    p_group_id: null,
+    p_position: params.position?.trim() || null,
+    p_search: params.search?.trim() || null,
+    p_status: params.status || null,
+    p_urgency: params.urgency?.trim() || null,
+    p_vacant_from: params.vacantFrom || null,
+    p_vacant_to: params.vacantTo || null,
   };
 }
 
-export async function getVacancySummary(params: Pick<VacancyListParams, "status" | "search" | "agingBucket" | "pipelineStatus">) {
+export async function getVacancySummary(
+  params: Pick<
+    VacancyListParams,
+    | "status"
+    | "search"
+    | "agingBucket"
+    | "pipelineStatus"
+    | "position"
+    | "urgency"
+    | "vacantFrom"
+    | "vacantTo"
+  >,
+) {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_web_vacancy_summary", {
-    p_search: params.search?.trim() || null,
-    p_filters: getFilters({
-      ...params,
-      page: 1,
-      pageSize: DEFAULT_PAGE_SIZE,
-    }),
-  });
+  const { data, error } = await supabase.rpc(
+    "get_web_vacancy_summary",
+    getVacancyRpcFilters(params),
+  );
 
   if (error) {
     throwVacancyError(error);
@@ -382,13 +424,11 @@ export async function listVacancies(params: VacancyListParams) {
   const offset = (page - 1) * pageSize;
 
   const { data, error } = await supabase.rpc("list_web_vacancies", {
-    p_queue: params.status,
-    p_search: params.search?.trim() || null,
-    p_filters: getFilters(params),
-    p_sort: "aging_days",
-    p_sort_dir: "desc",
+    ...getVacancyRpcFilters(params),
     p_limit: pageSize,
     p_offset: offset,
+    p_sort_by: "aging_days",
+    p_sort_dir: "desc",
   });
 
   if (error) {
