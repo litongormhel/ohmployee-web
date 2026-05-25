@@ -6,6 +6,7 @@ export type HrEmplocQueue = "pending" | "deficiency" | "complete" | "deletion_pe
 export type HrEmplocRowCapabilities = {
   canViewDetail: boolean;
   canTagDeficiency: boolean;      // For HR Personnel
+  canReviewCorrection: boolean;   // For HR Personnel — For Review records only
   canAssignEmployeeNo: boolean;   // For Encoder & Super Admin (Blocked for Head Admin)
   canMoveToPlantilla: boolean;    // For Encoder, Head Admin & Super Admin
   canRequestDeletion: boolean;    // For Ops roles (om, hrco, atl, tl)
@@ -174,6 +175,7 @@ function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
   return {
     canViewDetail: raw.can_view_detail === true || raw.can_view === true,
     canTagDeficiency: raw.can_tag_deficiency === true || raw.can_tag_correction === true,
+    canReviewCorrection: raw.can_review_correction === true || raw.can_approve_correction === true,
     canAssignEmployeeNo: raw.can_assign_employee_no === true,
     canMoveToPlantilla: raw.can_move_to_plantilla === true,
     canRequestDeletion: raw.can_request_deletion === true,
@@ -441,6 +443,48 @@ export async function tagWebHrEmplocDeficiency(
     newHrStatus: asString(row.new_hr_status) ?? "For Correction",
     correctionReason: asObject(row.correction_reason),
     taggedAt: asString(row.tagged_at) ?? new Date().toISOString(),
+  };
+}
+
+export type ReviewCorrectionParams = {
+  hrEmplocId: string;
+  decision: "approve" | "return";
+  resolvedKeys?: string[] | null;
+  remarks?: string | null;
+};
+
+export type ReviewCorrectionResult = {
+  ok: boolean;
+  hrEmplocId: string;
+  decision: string;
+  newHrStatus: string;
+  correctionReason: Record<string, unknown>;
+  reviewedAt: string;
+};
+
+export async function reviewWebHrEmplocCorrection(
+  params: ReviewCorrectionParams,
+): Promise<ReviewCorrectionResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("review_web_hr_emploc_correction", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_decision: params.decision,
+    p_resolved_keys: params.resolvedKeys ?? null,
+    p_remarks: params.remarks ?? null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+
+  const row = asObject(data);
+  return {
+    ok: asBoolean(row.ok),
+    hrEmplocId: asString(row.hr_emploc_id) ?? params.hrEmplocId,
+    decision: asString(row.decision) ?? params.decision,
+    newHrStatus: asString(row.new_hr_status) ?? (params.decision === "approve" ? "Complete" : "For Correction"),
+    correctionReason: asObject(row.correction_reason),
+    reviewedAt: asString(row.reviewed_at) ?? new Date().toISOString(),
   };
 }
 

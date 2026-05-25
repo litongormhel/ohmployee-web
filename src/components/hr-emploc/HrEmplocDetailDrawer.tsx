@@ -25,8 +25,10 @@ import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
 import {
   getWebHrEmplocDetail,
   tagWebHrEmplocDeficiency,
+  reviewWebHrEmplocCorrection,
   HrEmplocDataError,
   type TagDeficiencyParams,
+  type ReviewCorrectionParams,
 } from "@/lib/queries/hr_emploc";
 
 type HrEmplocDetailDrawerProps = {
@@ -84,6 +86,7 @@ export function HrEmplocDetailDrawer({
   onClose,
 }: HrEmplocDetailDrawerProps) {
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   const {
     data: detail,
@@ -566,6 +569,12 @@ export function HrEmplocDetailDrawer({
             const canTag =
               detail.rowCapabilities?.canTagDeficiency === true &&
               !isPendingDeletion;
+            const isForReview =
+              detail.hrStatus.toLowerCase().trim() === "for review";
+            const canReviewCorrection =
+              detail.rowCapabilities?.canReviewCorrection === true &&
+              isForReview &&
+              !isPendingDeletion;
             return (
               <CapabilityActionBar
                 actions={[
@@ -573,6 +582,11 @@ export function HrEmplocDetailDrawer({
                     label: "Tag Deficiency (HR Compliance)",
                     isAvailable: canTag,
                     onClick: canTag ? () => setIsTagModalOpen(true) : undefined,
+                  },
+                  {
+                    label: "Review Correction Resubmission (HR Compliance)",
+                    isAvailable: canReviewCorrection,
+                    onClick: canReviewCorrection ? () => setIsReviewModalOpen(true) : undefined,
                   },
                   {
                     label: "Assign Employee ID (Data Encoder Only)",
@@ -609,6 +623,16 @@ export function HrEmplocDetailDrawer({
               hrEmplocId={hrEmplocId}
               onClose={() => setIsTagModalOpen(false)}
               onSubmitted={() => setIsTagModalOpen(false)}
+            />
+          )}
+
+          {/* Review Correction Modal */}
+          {isReviewModalOpen && hrEmplocId && detail && (
+            <ReviewCorrectionModal
+              correctionReason={detail.correctionReason ?? {}}
+              hrEmplocId={hrEmplocId}
+              onClose={() => setIsReviewModalOpen(false)}
+              onSubmitted={() => setIsReviewModalOpen(false)}
             />
           )}
         </>
@@ -808,6 +832,266 @@ function TagDeficiencyModal({
           >
             {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isPending ? "Submitting…" : "Confirm Tag Deficiency"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Review Correction Modal ─────────────────────────────────────────────────
+
+type ReviewCorrectionModalProps = {
+  hrEmplocId: string;
+  correctionReason: Record<string, unknown>;
+  onClose: () => void;
+  onSubmitted: () => void;
+};
+
+function ReviewCorrectionModal({
+  hrEmplocId,
+  correctionReason,
+  onClose,
+  onSubmitted,
+}: ReviewCorrectionModalProps) {
+  const queryClient = useQueryClient();
+  const deficiencyKeys = Object.keys(correctionReason);
+
+  const [resolved, setResolved] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(deficiencyKeys.map((k) => [k, false])),
+  );
+  const [remarks, setRemarks] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const resolvedKeys = deficiencyKeys.filter((k) => resolved[k]);
+  const allResolved =
+    deficiencyKeys.length === 0 || deficiencyKeys.every((k) => resolved[k]);
+  const decision: "approve" | "return" = allResolved ? "approve" : "return";
+  const residualCount = deficiencyKeys.length - resolvedKeys.length;
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (params: ReviewCorrectionParams) =>
+      reviewWebHrEmplocCorrection(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      onSubmitted();
+    },
+    onError: (err) => {
+      if (err instanceof HrEmplocDataError) {
+        if (err.kind === "access_denied") {
+          setSubmitError(
+            "You are not authorized to review this correction. Your session may have expired.",
+          );
+        } else if (err.kind === "invalid_state") {
+          setSubmitError(err.message);
+        } else {
+          setSubmitError(
+            "A network error occurred. Please check your connection and try again.",
+          );
+        }
+      } else {
+        setSubmitError("An unexpected error occurred. Please try again.");
+      }
+    },
+  });
+
+  function getDeficiencyLabel(key: string): string {
+    return (
+      canonicalRequirements.find((r) => r.key === key)?.label ??
+      key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    );
+  }
+
+  function getDeficiencyNote(key: string): string | null {
+    const val = correctionReason[key];
+    return typeof val === "string" && val.trim() ? val : null;
+  }
+
+  function handleSubmit() {
+    setSubmitError(null);
+    mutate({
+      hrEmplocId,
+      decision,
+      resolvedKeys: resolvedKeys.length > 0 ? resolvedKeys : null,
+      remarks: remarks.trim() || null,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={isPending ? undefined : onClose}
+      />
+      {/* Modal panel */}
+      <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-lg border border-gray-200 shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">
+              Review Correction Resubmission
+            </h2>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Mark each tagged deficiency as resolved or still deficient to determine the review outcome.
+            </p>
+          </div>
+          <button
+            aria-label="Close"
+            className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition disabled:opacity-40"
+            disabled={isPending}
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+          {deficiencyKeys.length === 0 ? (
+            <div className="text-center py-5 border border-dashed border-gray-100 rounded-md text-xs text-gray-400">
+              No deficiency keys are tagged on this record.
+            </div>
+          ) : (
+            <>
+              <div className="text-[10px] font-semibold uppercase text-gray-400">
+                Tagged Deficiencies — mark each as resolved or still deficient
+              </div>
+              <div className="space-y-2">
+                {deficiencyKeys.map((key) => {
+                  const isResolved = resolved[key] ?? false;
+                  const note = getDeficiencyNote(key);
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-md border p-3 space-y-1.5 transition-colors ${
+                        isResolved
+                          ? "border-emerald-200 bg-emerald-50/40"
+                          : "border-amber-200 bg-amber-50/30"
+                      }`}
+                    >
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          checked={isResolved}
+                          className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+                          disabled={isPending}
+                          onChange={(e) =>
+                            setResolved((prev) => ({
+                              ...prev,
+                              [key]: e.target.checked,
+                            }))
+                          }
+                          type="checkbox"
+                        />
+                        <span
+                          className={`text-xs font-medium flex-1 ${
+                            isResolved ? "text-emerald-800" : "text-amber-800"
+                          }`}
+                        >
+                          {getDeficiencyLabel(key)}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border ${
+                            isResolved
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {isResolved ? "Resolved" : "Still Deficient"}
+                        </span>
+                      </label>
+                      {note && (
+                        <div className="pl-6 text-[11px] text-gray-500 leading-relaxed border-l border-amber-200/50 py-0.5">
+                          <span className="font-semibold">Tagged Note:</span> {note}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Decision preview */}
+          <div
+            className={`rounded-md border p-3 text-xs ${
+              allResolved
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+            }`}
+          >
+            {allResolved ? (
+              <>
+                <span className="font-bold">Decision: Approve &amp; Complete</span>
+                <span className="block mt-0.5 text-[11px]">
+                  All deficiencies affirmed resolved. This record will move to{" "}
+                  <span className="font-bold">Complete</span> and become eligible for employee number assignment.
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-bold">Decision: Return for Correction</span>
+                <span className="block mt-0.5 text-[11px]">
+                  {residualCount} remaining deficiency item{residualCount !== 1 ? "s" : ""} will be sent back to the coordinator.
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Remarks */}
+          <div className="pt-1 space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase text-gray-400">
+              Reviewer Remarks (Optional)
+            </div>
+            <textarea
+              className="w-full rounded border border-gray-200 px-2.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none"
+              disabled={isPending}
+              maxLength={1000}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Add reviewer notes for the coordinator…"
+              rows={3}
+              value={remarks}
+            />
+          </div>
+
+          {/* Inline error */}
+          {submitError && (
+            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+              <span>{submitError}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-2.5 border-t border-gray-100 px-5 py-3">
+          <button
+            className="rounded-md border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            disabled={isPending}
+            onClick={onClose}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              allResolved
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : "bg-amber-600 hover:bg-amber-700"
+            }`}
+            disabled={isPending}
+            onClick={handleSubmit}
+            type="button"
+          >
+            {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {isPending
+              ? "Submitting…"
+              : allResolved
+              ? "Approve & Complete"
+              : "Return for Correction"}
           </button>
         </div>
       </div>

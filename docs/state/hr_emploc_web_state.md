@@ -398,10 +398,10 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - On success: invalidates `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, and `["hr-emploc-summary"]`; modal closes.
 - Error handling: `42501` → access/session error message; `P0001` → backend validation message; generic → network fallback.
 - `HrEmplocDataErrorKind` extended with `invalid_state` for `P0001` backend precondition rejections.
-- Prerequisite: backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be deployed in the authoritative Supabase repo for the mutation to execute end-to-end.
+- Backend deployed: migration `20260607000004` applies `public.tag_web_hr_emploc_deficiency(...)` remotely. Mutation executes end-to-end.
 
-**Architected, backend pending (OHM2026_1110):**
-- Correction review (`For Review` → `Complete` on approve / `For Review` → `For Correction` on return). Backend-authoritative contract `review_web_hr_emploc_correction(p_hr_emploc_id, p_decision, p_resolved_keys, p_remarks)` and the strict all-deficiencies-resolved approval model are fully specified in `docs/state/web_mutation_workflow_state.md` Part II. Requires a new `can_review_correction` row capability (distinct from `can_review_deletion`). No implementation yet.
+**Frontend wired, backend pending (OHM2026_1110 / OHM2026_1112):**
+- Correction review (`For Review` → `Complete` on approve / `For Review` → `For Correction` on return). Backend-authoritative contract `review_web_hr_emploc_correction(p_hr_emploc_id, p_decision, p_resolved_keys, p_remarks)` and the strict all-deficiencies-resolved approval model are fully specified in `docs/state/web_mutation_workflow_state.md` Part II. `canReviewCorrection` row capability added to `HrEmplocRowCapabilities` (normalized from `can_review_correction | can_approve_correction`). `ReviewCorrectionModal` wired in `HrEmplocDetailDrawer.tsx` with per-deficiency toggles, auto-derived approve/return decision, decision-preview block, remarks textarea, inline error display, and invalidation of `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. Backend RPC `public.review_web_hr_emploc_correction(...)` applied remotely via migration `20260609000000`. Remaining gap: `can_review_correction` must be present in the `get_web_hr_emploc_detail` row capability payload (OHM2026_1110-IMPL-1).
 
 **Remaining:**
 - Assign Employee Number (Encoder/SuperAdmin).

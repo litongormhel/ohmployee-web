@@ -158,7 +158,7 @@ Implementation must proceed strictly in this order. Each phase is independently 
 
 ---
 
-## 8. Implementation Status (OHM2026_1109)
+## 8. Implementation Status (OHM2026_1109 → OHM2026_1112)
 
 Frontend phases 2–5 are complete and validated (`pnpm lint` clean, `pnpm build` clean).
 
@@ -167,9 +167,9 @@ Frontend phases 2–5 are complete and validated (`pnpm lint` clean, `pnpm build
 - `src/components/shared/CapabilityActionBar.tsx` — enabled button when `isAvailable && !!onClick`
 - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` — `isTagModalOpen` state, canTag guard, wired `onClick`, `TagDeficiencyModal` sub-component
 
-**Remaining prerequisite:** Backend RPC `public.tag_web_hr_emploc_deficiency(...)` must be implemented in the authoritative Supabase repo (Phase 1 above) before the mutation can execute end-to-end.
+**Backend deployed:** Migration `20260607000004` applies `public.tag_web_hr_emploc_deficiency(...)` remotely. The mutation executes end-to-end.
 
-**Next mutation:** HR Emploc correction review (`For Review` → `Complete` / `For Correction`) — now architected in **Part II (§10–§18)**. Backend implementation pending per OHM2026_1110-IMPL-1.
+**Next mutation:** HR Emploc correction review (`For Review` → `Complete` / `For Correction`) — architected in **Part II (§10–§18)**. Frontend wired (OHM2026_1112). Backend RPC applied remotely via migration `20260609000000`. Remaining gap: `can_review_correction` must be present in the `get_web_hr_emploc_detail` row capability payload.
 
 ---
 
@@ -366,7 +366,7 @@ When the HRCO fixes *some* but not all deficiencies, the reviewer marks the good
 
 ---
 
-## 17. Required Frontend UI States (for the eventual implementation — not built in this pass)
+## 17. Required Frontend UI States (OHM2026_1112 — implemented)
 
 1. **Disabled (default)** — button hidden/disabled unless `canReviewCorrection && hrStatus === 'For Review' && !isPendingDeletion`.
 2. **Enabled** — record is `For Review` and caller is an authorized reviewer.
@@ -422,4 +422,18 @@ Validation:
 - Test as Super Admin, Head Admin, hrPersonnel (in/out of scope), Encoder, OM/HRCO, Viewer, and unauthenticated caller.
 - Verify queue movement (`Pending Review` → `Compliance Complete` on approve; `Pending Review` → `For Correction` on return) and summary count deltas match the same scoped base query.
 
-After this RPC is verified, proceed to OHM2026_1110-IMPL-2 (frontend wrapper + review modal + checklist resolution + invalidation), mirroring the Part I phase order in §7.
+After this RPC is verified the mutation executes end-to-end. Frontend is already wired (OHM2026_1112).
+
+---
+
+## 19. Implementation Status (OHM2026_1112)
+
+Frontend phases for the second mutation are complete and validated (`pnpm lint` clean, `pnpm build` clean).
+
+**Files changed:**
+- `src/lib/queries/hr_emploc.ts` — added `canReviewCorrection` to `HrEmplocRowCapabilities`; normalized `can_review_correction | can_approve_correction`; added `ReviewCorrectionParams`, `ReviewCorrectionResult`, `reviewWebHrEmplocCorrection` RPC wrapper calling `public.review_web_hr_emploc_correction(p_hr_emploc_id, p_decision, p_resolved_keys, p_remarks)`.
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` — imported `reviewWebHrEmplocCorrection` and `ReviewCorrectionParams`; added `isReviewModalOpen` state; wired "Review Correction Resubmission (HR Compliance)" action enabled when `canReviewCorrection && isForReview && !isPendingDeletion`; added `ReviewCorrectionModal` sub-component with per-deficiency Resolved/Still-Deficient toggles, auto-derived decision (all resolved → approve; any residual → return), decision-preview block, optional remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
+
+**Error handling:** `42501` → access/session error; `P0001` → backend validation message; generic → network fallback. Reuses existing `HrEmplocDataError` kinds with no new kinds required.
+
+**Backend deployed:** Migration `20260609000000` applies `public.review_web_hr_emploc_correction(...)` remotely. **Remaining gap:** `can_review_correction` must be added to the `get_web_hr_emploc_detail` row capability payload before the mutation can execute end-to-end (per §13 / OHM2026_1110-IMPL-1).
