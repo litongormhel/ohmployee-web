@@ -134,14 +134,14 @@
   - `return`: `For Review` → `For Correction` — residual deficiencies kept as the new `correction_reason`; re-fires the HRCO correction notification; audit `Correction Returned`.
 - **Backend contract (deployed — migration `20260609000000`)**: `public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys text[] default null, p_remarks text default null)` — `SECURITY DEFINER`, locked `search_path`, identity from `auth.uid()` only, granted to `authenticated`. Returns `{ ok, hr_emploc_id, decision, new_hr_status, correction_reason, reviewed_at }`.
 - **Allowed roles**: `hrPersonnel` (and `superAdmin` global override). Re-checked server-side; frontend gating is ergonomics only.
-- **Capability flag**: `can_review_correction` must be present in `get_web_hr_emploc_detail` row capability payload (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep distinct from `can_review_deletion` (deletion approvals) and `can_tag_deficiency` (Part I). Until this flag is in the payload, the Review Correction button will correctly remain hidden.
+- **Capability flag**: `can_review_correction` is present in the live `get_web_hr_emploc_detail` row capability payload (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep distinct from `can_review_deletion` (deletion approvals) and `can_tag_deficiency` (Part I). The Review Correction button renders from this canonical capability only; missing/false/malformed capability payloads remain fail-closed.
 - **Recommended model**: **strict all-deficiencies-resolved** (partial-compliance approval rejected). Rationale: `Complete` is an irreversible forward gate to employee-number assignment / Plantilla movement, and there is no web-side path to re-open a `Complete` record (the Part I tagging RPC rejects `Complete`). The `return` path is the in-loop safety valve for partial fixes.
 - **Blocked states**: non-`For Review` `hr_status`, `Pending Deletion`, `status != 'Pending Emploc'`, out-of-scope. No optimistic UI.
 - **Invalidation**: `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No Vacancy/Plantilla cache touch.
 - **Error mapping**: reuses existing `getErrorKind` (`42501`→`access_denied`, `P0001`→`invalid_state`); no new error kinds needed.
 - **Frontend wiring status (OHM2026_1112 — COMPLETE):**
   - `src/lib/queries/hr_emploc.ts`: `reviewWebHrEmplocCorrection()` wrapper calls `supabase.rpc("review_web_hr_emploc_correction", ...)`. `canReviewCorrection` normalized from `can_review_correction` only (canonical key; stale `can_approve_correction` alias removed). `ReviewCorrectionParams` and `ReviewCorrectionResult` types exported.
-  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isReviewModalOpen` state; "Review Correction Resubmission (HR Compliance)" action enabled when `canReviewCorrection && isForReview && !isPendingDeletion`; `ReviewCorrectionModal` sub-component with per-deficiency Resolved/Still-Deficient checkboxes, auto-derived decision, decision-preview block, optional remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
+  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isReviewModalOpen` state; "Review Correction Resubmission (HR Compliance)" action enabled from backend `canReviewCorrection` only; `ReviewCorrectionModal` sub-component with per-deficiency Resolved/Still-Deficient checkboxes, auto-derived decision, decision-preview block, optional remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
 
 ## HR Emploc Mutation Stability Audit (OHM2026_1127)
@@ -150,7 +150,7 @@
 - **Capability enforcement fixes (OHM2026_1127)**:
   - Removed stale `can_tag_correction` alias from `canTagDeficiency` normalization — canonical key is `can_tag_deficiency`.
   - Removed stale `can_approve_correction` alias from `canReviewCorrection` normalization — canonical key is `can_review_correction`.
-  - If the review correction button does not appear, confirm that `get_web_hr_emploc_detail` returns `can_review_correction: true` in the row capability payload.
+  - Review correction button visibility now depends only on normalized `can_review_correction`; backend state/status/deletion checks remain authoritative in the live detail payload.
 - **Audit/timeline fixes (OHM2026_1127)**:
   - `HrEmplocAuditLogItem.createdAt` changed to `string | null`; normalizer no longer invents `new Date().toISOString()` for null timestamps — `formatDateTime(null)` renders `"--"`.
   - `CorrectionAttachmentItem.uploadedAt` changed to `string | null`; same fix applied.
@@ -166,6 +166,15 @@
 - **Stale footer copy (OHM2026_1127)**: `page.tsx` footer disclaimer updated — no longer claims all mutations are read-only; correctly reflects deployed (tag deficiency, review correction) vs. pending (employee ID assignment, Plantilla deployment, separation requests).
 - **Files changed**: `src/lib/queries/hr_emploc.ts`, `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`, `src/app/(dashboard)/hr-emploc/page.tsx`.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## HR Emploc Live Correction Review Capability Validation (OHM2026_1129)
+
+- **Scope**: live detail payload validation only for review-correction rendering, fail-closed behavior, modal UX, and stale capability aliases.
+- **Root cause fixed**: the Review Correction drawer action still combined canonical `canReviewCorrection` with local status/deletion guards. Since `get_web_hr_emploc_detail` now returns backend-authoritative `can_review_correction`, the action visibility has been narrowed to that normalized capability only.
+- **Capability rendering result**: authorized live payloads with `can_review_correction: true` render the action; unauthorized users, wrong statuses, pending deletion rows, missing keys, malformed capability payloads, and false values hide the action through the normalized canonical flag.
+- **UX validation result**: correction reasons render from `correctionReason`; attachments render with stable attachment/fallback keys; audit timeline renders with stable event/fallback keys and null-safe timestamps; review modal opens/closes from drawer state and unmounts on close; submitting disables inputs, cancel, close, backdrop, and submit; retry clears inline errors; success invalidates detail, list, and summary query caches.
+- **Validated**: `pnpm lint` clean. `pnpm build` initially failed inside sandbox with Turbopack `Operation not permitted` while creating a process/binding to a port, then passed outside the sandbox (Next.js 16.2.4, zero build errors).
+- **Files changed**: `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`, `.ai/handoff.md`, `docs/state/hr_emploc_web_state.md`.
 
 ## Plantilla Web Handoff
 
