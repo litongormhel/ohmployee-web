@@ -215,9 +215,10 @@ export type PlantillaDetailItem = {
 
 export type PlantillaEmployeeListParams = {
   accountId?: string;
+  groupId?: string;
   storeId?: string;
-  position?: string;
-  plantillaType?: string;
+  deployment?: string;
+  activeState?: string;
   status?: string;
   search?: string;
   page: number;
@@ -228,16 +229,19 @@ export type PlantillaEmployeeListParams = {
 
 export type PlantillaStoreStaffingListParams = {
   accountId?: string;
-  region?: string;
-  slaStatus?: string;
+  groupId?: string;
+  riskFilter?: string;
   search?: string;
   page: number;
   pageSize: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 };
 
 export type PlantillaSummaryParams = {
+  search?: string;
   accountId?: string;
-  storeId?: string;
+  groupId?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -609,8 +613,9 @@ export async function getPlantillaSummary(
 ): Promise<PlantillaSummary> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_plantilla_summary", {
+    p_search: params.search?.trim() || null,
     p_account_id: params.accountId ?? null,
-    p_store_id: params.storeId ?? null,
+    p_group_id: params.groupId ?? null,
   });
 
   if (error) {
@@ -628,12 +633,13 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
   );
 
   const { data, error } = await supabase.rpc("list_web_plantilla_employees", {
-    p_account_id: params.accountId ?? null,
-    p_store_id: params.storeId ?? null,
-    p_position: params.position ?? null,
-    p_plantilla_type: params.plantillaType ?? null,
-    p_status: params.status ?? null,
     p_search: params.search?.trim() || null,
+    p_account_id: params.accountId ?? null,
+    p_group_id: params.groupId ?? null,
+    p_store_id: params.storeId ?? null,
+    p_employment_status: params.status ?? null,
+    p_deployment: params.deployment ?? null,
+    p_active_state: params.activeState ?? null,
     p_limit: pageSize,
     p_offset: offset,
     p_sort_by: params.sortBy ?? "last_name",
@@ -664,12 +670,14 @@ export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffi
   );
 
   const { data, error } = await supabase.rpc("list_web_plantilla_store_staffing", {
-    p_account_id: params.accountId ?? null,
-    p_region: params.region ?? null,
-    p_sla_status: params.slaStatus ?? null,
     p_search: params.search?.trim() || null,
+    p_account_id: params.accountId ?? null,
+    p_group_id: params.groupId ?? null,
+    p_risk_filter: params.riskFilter ?? null,
     p_limit: pageSize,
     p_offset: offset,
+    p_sort_by: params.sortBy ?? "store_name",
+    p_sort_dir: params.sortDir ?? "asc",
   });
 
   if (error) {
@@ -691,7 +699,7 @@ export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffi
 export async function getWebPlantillaDetail(plantillaId: string): Promise<PlantillaDetailItem> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_plantilla_detail", {
-    p_plantilla_id: plantillaId,
+    p_employee_id: plantillaId,
   });
 
   if (error) {

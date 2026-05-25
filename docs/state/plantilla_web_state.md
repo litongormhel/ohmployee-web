@@ -359,12 +359,13 @@ To integrate seamlessly with the Supabase thin-client presentation model, we rec
 ### A. List Employees Contract
 ```sql
 CREATE OR REPLACE FUNCTION public.list_web_plantilla_employees(
-  p_account_id      uuid    DEFAULT NULL,
-  p_store_id        uuid    DEFAULT NULL,
-  p_position        text    DEFAULT NULL,
-  p_plantilla_type  text    DEFAULT NULL, -- 'budgeted', 'additional'
-  p_status          text    DEFAULT NULL, -- 'active', 'suspended', 'pending_separation', 'inactive'
   p_search          text    DEFAULT NULL, -- searches employee number or name
+  p_account_id      uuid    DEFAULT NULL,
+  p_group_id        uuid    DEFAULT NULL,
+  p_store_id        uuid    DEFAULT NULL,
+  p_employment_status text DEFAULT NULL, -- 'active', 'suspended', 'pending_separation', 'inactive'
+  p_deployment      text    DEFAULT NULL, -- 'budgeted', 'additional'
+  p_active_state    text    DEFAULT NULL,
   p_limit           integer DEFAULT 50,
   p_offset          integer DEFAULT 0,
   p_sort_by         text    DEFAULT 'last_name',
@@ -397,13 +398,15 @@ $$ LANGUAGE plpgsql;
 
 ### B. List Stores Contract
 ```sql
-CREATE OR REPLACE FUNCTION public.list_web_plantilla_stores(
-  p_account_id    uuid    DEFAULT NULL,
-  p_region        text    DEFAULT NULL,
-  p_sla_status    text    DEFAULT NULL, -- 'under-staffed', 'fully-staffed', 'over-staffed'
+CREATE OR REPLACE FUNCTION public.list_web_plantilla_store_staffing(
   p_search        text    DEFAULT NULL, -- searches store code or name
+  p_account_id    uuid    DEFAULT NULL,
+  p_group_id      uuid    DEFAULT NULL,
+  p_risk_filter   text    DEFAULT NULL, -- 'under-staffed', 'fully-staffed', 'over-staffed'
   p_limit         integer DEFAULT 50,
-  p_offset        integer DEFAULT 0
+  p_offset        integer DEFAULT 0,
+  p_sort_by       text    DEFAULT 'store_name',
+  p_sort_dir      text    DEFAULT 'asc'
 )
 RETURNS TABLE (
   store_id                uuid,
@@ -429,8 +432,9 @@ $$ LANGUAGE plpgsql;
 ### C. Summary Count Metrics Contract
 ```sql
 CREATE OR REPLACE FUNCTION public.get_web_plantilla_summary(
+  p_search        text DEFAULT NULL,
   p_account_id    uuid DEFAULT NULL,
-  p_store_id      uuid DEFAULT NULL
+  p_group_id      uuid DEFAULT NULL
 )
 RETURNS TABLE (
   total_active_roster     bigint, -- count of active employees
@@ -448,7 +452,7 @@ $$ LANGUAGE plpgsql;
 ### D. Detail Drawer Contract
 ```sql
 CREATE OR REPLACE FUNCTION public.get_web_plantilla_detail(
-  p_plantilla_id uuid
+  p_employee_id uuid
 )
 RETURNS TABLE (
   id                    uuid,
@@ -527,7 +531,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - Store table columns: Store Code, Store Name, Account/Region, Budgeted, Active (B), Active (AH), Vacancies (SLA breach ⚠), SLA Status (StatusBadge).
 - Deactivation overlays applied via `deriveDeactivationOverlay`: pending-separation rows get dashed border + `bg-red-50/30 opacity-80`; inactive/terminated/suspended rows get `opacity-65 pointer-events-none` + strikethrough on ID and name.
 - Staffing risk derived via `deriveStaffingRisk` to drive vacancy SLA breach indicators.
-- Filters: search (apply-on-click), account ID, group ID (UI only — not yet in RPC contract), store ID (employee view), employment status (employee view), deployment type (employee view), staffing risk/SLA status (store view).
+- Filters: search (apply-on-click), account ID, group ID, store ID (employee view), employment status (employee view), deployment type (employee view), staffing risk/SLA status (store view).
 - Validated: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
 
 ### Phase 2: Database RPC & Security Migrations ✅ APPLIED REMOTELY
@@ -536,7 +540,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - User-role caller context resolution via `get_web_current_user_context` is implemented.
 - Strict SQL-level data masking for personal numbers, emails, addresses, salary rates, and Gov IDs is enforced for restricted roles.
 - RLS security policies gating queries against user accounts and group scopes are set up.
-- Pending: `p_group_id` parameter not yet added to employee and store RPCs (group ID filter is present in the frontend UI only).
+- Group ID filtering is wired through deployed `p_group_id` parameters on summary, employee list, and store staffing RPCs.
 
 ### Phase 3: Client Integration & State Management ✅ COMPLETE
 - `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers.

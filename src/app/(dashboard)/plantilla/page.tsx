@@ -104,11 +104,11 @@ export default function PlantillaPage() {
   // Committed filter values (drive queries)
   const [search, setSearch] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [groupId, setGroupId] = useState("");
 
   // Pending (unsubmitted) filter values
   const [pendingSearch, setPendingSearch] = useState("");
   const [pendingAccountId, setPendingAccountId] = useState("");
-  // groupId is captured in the filter bar but not yet in the RPC contract
   const [pendingGroupId, setPendingGroupId] = useState("");
 
   // Employee-specific pending filters
@@ -132,24 +132,29 @@ export default function PlantillaPage() {
   // -------------------------------------------------------------------------
 
   const summaryQuery = useQuery({
-    queryKey: ["plantilla", "summary", accountId],
+    queryKey: ["plantilla", "summary", { search, accountId, groupId }],
     queryFn: () =>
-      getPlantillaSummary({ accountId: accountId || undefined }),
+      getPlantillaSummary({
+        search: search || undefined,
+        accountId: accountId || undefined,
+        groupId: groupId || undefined,
+      }),
   });
 
   const employeeQuery = useQuery({
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, storeId, status, plantillaType, page },
+      { search, accountId, groupId, storeId, status, plantillaType, page },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
         search: search || undefined,
         accountId: accountId || undefined,
+        groupId: groupId || undefined,
         storeId: storeId || undefined,
         status: status || undefined,
-        plantillaType: plantillaType || undefined,
+        deployment: plantillaType || undefined,
         page,
         pageSize: PAGE_SIZE,
       }),
@@ -157,12 +162,13 @@ export default function PlantillaPage() {
   });
 
   const storeQuery = useQuery({
-    queryKey: ["plantilla", "stores", { search, accountId, slaStatus, page }],
+    queryKey: ["plantilla", "stores", { search, accountId, groupId, slaStatus, page }],
     queryFn: () =>
       listWebPlantillaStoreStaffing({
         search: search || undefined,
         accountId: accountId || undefined,
-        slaStatus: slaStatus || undefined,
+        groupId: groupId || undefined,
+        riskFilter: slaStatus || undefined,
         page,
         pageSize: PAGE_SIZE,
       }),
@@ -199,6 +205,7 @@ export default function PlantillaPage() {
   function handleApply() {
     setSearch(pendingSearch);
     setAccountId(pendingAccountId);
+    setGroupId(pendingGroupId);
     setStoreId(pendingStoreId);
     setStatus(pendingStatus);
     setPlantillaType(pendingPlantillaType);
@@ -216,6 +223,7 @@ export default function PlantillaPage() {
     setPendingSlaStatus("");
     setSearch("");
     setAccountId("");
+    setGroupId("");
     setStoreId("");
     setStatus("");
     setPlantillaType("");
