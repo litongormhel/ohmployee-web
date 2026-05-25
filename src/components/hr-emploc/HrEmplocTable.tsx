@@ -87,23 +87,23 @@ export function HrEmplocTable({
   };
 
   return (
-    <section className="flex min-h-[440px] flex-col rounded-md border border-table-rule-section bg-table-row">
+    <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
       {/* Table Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-4 py-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-table-text">
+            <h2 className="text-base font-semibold text-table-text">
               {queueLabel}
             </h2>
             <Badge className="font-mono text-[10px] text-table-text-muted bg-surface-muted hover:bg-surface-muted border-none">
               {queue}
             </Badge>
           </div>
-          <p className="mt-0.5 text-xs text-table-text-muted">
+          <p className="mt-1 text-sm text-table-text-muted">
             Compact queue tracking compliant onboarding milestones.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-table-text-muted">
+        <div className="flex items-center gap-2 text-sm text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
           {isLoading ? "Loading compliance list" : `${totalCount} records scoped`}
         </div>
@@ -111,12 +111,12 @@ export function HrEmplocTable({
 
       {/* Main Table Container */}
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left text-sm">
+        <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
               {tableColumns.map((column, idx) => (
                 <th
-                  className={`border-b border-table-rule-section px-3 py-2 ${
+                  className={`border-b border-table-rule-section px-4 py-2.5 ${
                     column === "" ? "text-right" : ""
                   }`}
                   key={column || `actions-${idx}`}
@@ -186,7 +186,7 @@ export function HrEmplocTable({
                     }}
                   >
                     {/* Candidate Name */}
-                    <td className="border-b border-table-rule px-3 py-2">
+                    <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="font-semibold text-table-text flex items-center gap-1.5">
                         {isPendingDeletion && (
                           <AlertTriangle className="h-3.5 w-3.5 text-status-danger-text shrink-0" aria-hidden="true" />
@@ -198,14 +198,14 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Vacancy Code */}
-                    <td className="border-b border-table-rule px-3 py-2">
+                    <td className="border-b border-table-rule px-4 py-2.5">
                       <span className="font-mono text-xs text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 select-all">
                         {row.vcode}
                       </span>
                     </td>
 
                     {/* Account / Store */}
-                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       <div className="font-medium text-table-text truncate max-w-[180px]">
                         {row.accountName ?? "--"}
                       </div>
@@ -215,7 +215,7 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Assignment Type */}
-                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.assignmentType === "Roving" ? (
                         <div className="relative group inline-block">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-status-accent-bg text-status-accent-text border border-status-accent-border">
@@ -234,26 +234,26 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Position */}
-                    <td className="border-b border-table-rule px-3 py-2 text-table-text">
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text">
                       {row.positionTitle ?? "--"}
                     </td>
 
                     {/* HR Status */}
-                    <td className="border-b border-table-rule px-3 py-2">
+                    <td className="border-b border-table-rule px-4 py-2.5">
                       <StatusBadge variant={getHrStatusVariant(row.hrStatus)}>
                         {row.hrStatus}
                       </StatusBadge>
                     </td>
 
                     {/* Deployment Status */}
-                    <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       <span className="text-xs font-medium text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
                         {row.deploymentStatus}
                       </span>
                     </td>
 
                     {/* Employee Number */}
-                    <td className="border-b border-table-rule px-3 py-2">
+                    <td className="border-b border-table-rule px-4 py-2.5">
                       {row.employeeNo ? (
                         <Badge className="font-mono text-xs bg-status-success-bg text-status-success-text border-status-success-border">
                           {row.employeeNo}
@@ -264,7 +264,7 @@ export function HrEmplocTable({
                     </td>
 
                     {/* SLA Age */}
-                    <td className="border-b border-table-rule px-3 py-2">
+                    <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="flex flex-col items-start">
                         <span
                           className={`font-semibold ${
@@ -282,14 +282,14 @@ export function HrEmplocTable({
                     </td>
 
                     {/* Deficiency Summary */}
-                    <td className="border-b border-table-rule px-3 py-2 text-xs text-table-text-muted max-w-[150px] truncate">
+                    <td className="max-w-[190px] truncate border-b border-table-rule px-4 py-2.5 text-sm text-table-text-muted">
                       {row.deficiencySummary || (
                         <span className="text-table-text-muted italic">None</span>
                       )}
                     </td>
 
                     {/* Actions */}
-                    <td className="border-b border-table-rule px-3 py-2 text-right">
+                    <td className="border-b border-table-rule px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Capability hints */}
                         {row.rowCapabilities.canAssignEmployeeNo && (
@@ -336,7 +336,7 @@ export function HrEmplocTable({
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-3 py-2 text-xs text-table-text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
         <span>
           Showing {firstRecord}-{lastRecord} of {totalCount} compliance records
         </span>

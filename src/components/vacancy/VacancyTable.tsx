@@ -127,32 +127,32 @@ export function VacancyTable({
   const errorCopy = getErrorCopy(errorKind);
 
   return (
-    <section className="flex min-h-[440px] flex-col rounded-md border border-table-rule-section bg-table-row">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-3 py-2">
+    <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-4 py-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-table-text">
+            <h2 className="text-base font-semibold text-table-text">
               {statusDescription}
             </h2>
             <Badge className="font-mono text-[11px] text-table-text-muted">{status}</Badge>
           </div>
-          <p className="mt-0.5 text-xs text-table-text-muted">
+          <p className="mt-1 text-sm text-table-text-muted">
             Read-only rows from the scoped vacancy list RPC.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-table-text-muted">
+        <div className="flex items-center gap-2 text-sm text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
           {isLoading ? "Loading vacancy queue" : `${totalCount} scoped records`}
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[1060px] border-separate border-spacing-0 text-left text-sm">
+        <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
               {tableColumns.map((column) => (
                 <th
-                  className="border-b border-table-rule-section px-3 py-2"
+                  className="border-b border-table-rule-section px-4 py-2.5"
                   key={column || "actions"}
                   scope="col"
                 >
@@ -242,10 +242,10 @@ export function VacancyTable({
                     }
                   }}
                 >
-                  <td className="border-b border-table-rule px-3 py-2 font-mono text-xs text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
                     {row.vcode}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2">
+                  <td className="border-b border-table-rule px-4 py-2.5">
                     <div className="font-medium text-table-text">
                       {row.position_title ?? "--"}
                     </div>
@@ -253,13 +253,13 @@ export function VacancyTable({
                       {row.employmentType ?? "Employment type unavailable"}
                     </div>
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {row.department ?? "--"}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {getScope(row) || "--"}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2">
+                  <td className="border-b border-table-rule px-4 py-2.5">
                     <div className="flex flex-col items-start gap-1">
                       <Badge className="border-status-info-border bg-status-info-bg text-status-info-text">
                         {getStatusLabel(row)}
@@ -269,19 +269,19 @@ export function VacancyTable({
                       </span>
                     </div>
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {getApplicantLabel(row)}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {formatDate(row.vacantDate)}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {getAgingLabel(row)}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-table-text-sub">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                     {formatDate(row.lastActivityAt)}
                   </td>
-                  <td className="border-b border-table-rule px-3 py-2 text-right">
+                  <td className="border-b border-table-rule px-4 py-2.5 text-right">
                     <button
                       aria-label={`Select vacancy ${row.vcode}`}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition animate-duration-150"
@@ -302,7 +302,7 @@ export function VacancyTable({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-3 py-2 text-xs text-table-text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
         <span>
           {firstRecord}-{lastRecord} of {totalCount} records
         </span>
@@ -331,4 +331,3 @@ export function VacancyTable({
     </section>
   );
 }
-
