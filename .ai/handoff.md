@@ -45,9 +45,9 @@
 ## Vacancy Web Handoff
 
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
-- Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging/urgency/vacant-date filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
+- Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, account/group UUID filters, aging/urgency/vacant-date filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
 - The Vacancy page integrates `get_web_vacancy_summary(...)`, `list_web_vacancies(...)`, and `get_web_vacancy_detail(p_vacancy_id uuid)` queries through `src/lib/queries/vacancy.ts`.
-- Vacancy list/summary payloads use the deployed backend's flat individual-param contract (OHM2026_1071 fix). The frontend sends `p_status`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir` for the list RPC, and `p_status`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to` for the summary RPC. Tab queue values map to backend `p_status`: `open`→`Open`, `with_applicant`→`Pipeline`; `rejected`/`backout` pass `null` (no direct list-level filter support in the deployed RPC).
+- Vacancy list/summary payloads use the deployed backend's flat individual-param contract (OHM2026_1071/OHM2026_1130 fixes). The frontend sends `p_status`, `p_account_id`, `p_group_id`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir` for the list RPC, and `p_status`, `p_account_id`, `p_group_id`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to` for the summary RPC. Tab queue values map to backend `p_status`: `open`→`Open`, `with_applicant`→`Pipeline`; `rejected`/`backout` pass `null` (no direct list-level applicant-terminal-status filter support in the deployed RPC).
 - Vacancy list/detail rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and detail drawer.
 - Do not add raw table queries, caller-controlled role/scope parameters, fake data, CRUD, or mutations.
 - Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense full-width table, sliding right-side detail drawer, candidate summary listing (shielded PII), audit timeline, and capability-controlled action area.
@@ -222,3 +222,20 @@
 - **No backend changes made**: No Supabase schema, RPC, RLS, or migration was modified.
 - **Files changed**: `src/lib/queries/vacancy.ts`, `.ai/handoff.md`, `docs/state/vacancy_web_state.md`.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## Vacancy Live QA After Flat Param Fix (OHM2026_1130)
+
+- **Scope**: validated only the Vacancy query layer, `/vacancy` page, Vacancy table/drawer components, and relevant Vacancy state/handoff docs.
+- **Root causes found**:
+  - The deployed RPC supports `p_account_id` and `p_group_id`, but the page/query wrapper did not expose or send account/group filters.
+  - The page still showed a standalone Pipeline dropdown even though the deployed backend has no separate pipeline filter param; selecting it only changed the React Query key and did not affect RPC params.
+  - Detail rendering used presentation fallbacks that looked like real business values (`Open`, `Full-time`, `Replacement`, `advance`) and the activity normalizer invented a current timestamp for missing history dates.
+- **Frontend fixes**:
+  - Added account/group UUID filter inputs and flat `p_account_id` / `p_group_id` RPC params for both summary and list reads. Invalid UUID-shaped values normalize to `null` and do not leak unsupported values into the RPC call.
+  - Removed the unsupported Pipeline dropdown; queue status remains controlled by tabs (`open`→`Open`, `with_applicant`→`Pipeline`, `rejected`/`backout`→`null`).
+  - Detail drawer now renders missing backend fields as unavailable placeholders and no longer invents missing activity timestamps.
+- **Known backend limitations confirmed**:
+  - `rejected` and `backout` tabs cannot filter applicant terminal statuses through the deployed list RPC and intentionally show the scoped active vacancy list with `p_status = null`.
+  - `pendingReview` and `agingWatch` KPI cards may show `0` when the summary RPC does not return equivalent fields.
+  - Some list fields normalize to `null`/`0` when the deployed list RPC does not return them.
+- **Validation status**: `pnpm lint` clean. `pnpm build` initially failed inside the sandbox with the known Turbopack `Operation not permitted` port-binding error, then passed outside the sandbox (Next.js 16.2.4, zero build errors). Browser QA reached the local `/vacancy` route against `.env.local`, but the app redirected to Login because no authenticated Supabase browser session was available; no PostgREST function-not-found error was observed in the unauthenticated browser console.

@@ -74,7 +74,7 @@ export type ActivityHistoryItem = {
   eventId: string;
   eventLabel: string;
   eventDescription: string | null;
-  createdAt: string;
+  createdAt: string | null;
   profileName: string | null;
 };
 
@@ -124,7 +124,8 @@ export type VacancyListParams = {
   status: VacancyStatus;
   search?: string;
   agingBucket?: string;
-  pipelineStatus?: string;
+  accountId?: string;
+  groupId?: string;
   position?: string;
   urgency?: string;
   vacantFrom?: string;
@@ -204,6 +205,18 @@ function asDateFilter(value: unknown) {
   }
 
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+function asUuidFilter(value: unknown) {
+  const uuid = asTrimmedString(value);
+
+  if (!uuid) {
+    return null;
+  }
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)
+    ? uuid
+    : null;
 }
 
 function asNumber(value: unknown) {
@@ -345,7 +358,7 @@ function normalizeActivityHistory(item: unknown): ActivityHistoryItem {
     eventId: asString(obj.event_id ?? obj.id) ?? "",
     eventLabel: asString(obj.event_label ?? obj.label) ?? "Event",
     eventDescription: asString(obj.event_description ?? obj.description),
-    createdAt: asString(obj.created_at ?? obj.timestamp) ?? new Date().toISOString(),
+    createdAt: asString(obj.created_at ?? obj.timestamp),
     profileName: asString(obj.profile_name ?? obj.user_name),
   };
 }
@@ -441,10 +454,15 @@ function tabToRpcStatus(tab: VacancyStatus): string | null {
 }
 
 function getSummaryRpcParams(
-  params: Pick<VacancyListParams, "status" | "search" | "urgency" | "vacantFrom" | "vacantTo">,
+  params: Pick<
+    VacancyListParams,
+    "status" | "search" | "accountId" | "groupId" | "urgency" | "vacantFrom" | "vacantTo"
+  >,
 ) {
   return {
     p_status:      tabToRpcStatus(params.status),
+    p_account_id:  asUuidFilter(params.accountId),
+    p_group_id:    asUuidFilter(params.groupId),
     p_urgency:     normalizeUrgency(params.urgency) ?? null,
     p_search:      asTrimmedString(params.search) ?? null,
     p_vacant_from: asDateFilter(params.vacantFrom) ?? null,
@@ -455,6 +473,8 @@ function getSummaryRpcParams(
 function getListRpcParams(params: VacancyListParams, pageSize: number, offset: number) {
   return {
     p_status:       tabToRpcStatus(params.status),
+    p_account_id:   asUuidFilter(params.accountId),
+    p_group_id:     asUuidFilter(params.groupId),
     p_aging_bucket: normalizeAgingBucket(params.agingBucket) ?? null,
     p_urgency:      normalizeUrgency(params.urgency) ?? null,
     p_search:       asTrimmedString(params.search) ?? null,
@@ -473,7 +493,8 @@ export async function getVacancySummary(
     | "status"
     | "search"
     | "agingBucket"
-    | "pipelineStatus"
+    | "accountId"
+    | "groupId"
     | "position"
     | "urgency"
     | "vacantFrom"

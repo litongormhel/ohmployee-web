@@ -60,7 +60,8 @@ export default function VacancyPage() {
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [agingBucket, setAgingBucket] = useState("");
-  const [pipelineStatus, setPipelineStatus] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [groupId, setGroupId] = useState("");
   const [urgency, setUrgency] = useState("");
   const [vacantFrom, setVacantFrom] = useState("");
   const [vacantTo, setVacantTo] = useState("");
@@ -72,14 +73,15 @@ export default function VacancyPage() {
       status,
       search,
       agingBucket: agingBucket || undefined,
-      pipelineStatus: pipelineStatus || undefined,
+      accountId: accountId || undefined,
+      groupId: groupId || undefined,
       urgency: urgency || undefined,
       vacantFrom: vacantFrom || undefined,
       vacantTo: vacantTo || undefined,
       page,
       pageSize,
     }),
-    [agingBucket, page, pipelineStatus, search, status, urgency, vacantFrom, vacantTo],
+    [accountId, agingBucket, groupId, page, search, status, urgency, vacantFrom, vacantTo],
   );
 
   const summaryQuery = useQuery({
@@ -88,7 +90,8 @@ export default function VacancyPage() {
       status,
       search,
       agingBucket,
-      pipelineStatus,
+      accountId,
+      groupId,
       urgency,
       vacantFrom,
       vacantTo,
@@ -248,21 +251,30 @@ export default function VacancyPage() {
               </button>
             }
           >
-            <select
-              aria-label="Pipeline status filter"
+            <input
+              aria-label="Account ID filter"
               className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               onChange={(event) => {
-                setPipelineStatus(event.target.value);
+                setAccountId(event.target.value);
                 setPage(1);
                 setSelectedVacancyId(null);
               }}
-              value={pipelineStatus}
-            >
-              <option value="">All pipeline</option>
-              <option value="Open">Open</option>
-              <option value="Pipeline">Pipeline</option>
-            </select>
+              placeholder="Account UUID"
+              value={accountId}
+            />
+            <input
+              aria-label="Group ID filter"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              disabled={blocked}
+              onChange={(event) => {
+                setGroupId(event.target.value);
+                setPage(1);
+                setSelectedVacancyId(null);
+              }}
+              placeholder="Group UUID"
+              value={groupId}
+            />
             <select
               aria-label="Aging bucket filter"
               className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
