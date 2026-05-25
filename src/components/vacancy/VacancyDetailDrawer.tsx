@@ -399,7 +399,7 @@ function LoadingSkeleton() {
 function AccessDeniedState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-red-50 p-3 text-red-600">
+      <div className="rounded-full bg-red-50 p-3 text-red-600 shadow-xs border border-red-100">
         <ShieldAlert className="h-8 w-8" />
       </div>
       <h4 className="mt-4 text-sm font-bold text-gray-900">Access Denied</h4>
@@ -413,7 +413,7 @@ function AccessDeniedState() {
 function NotFoundState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-gray-50 p-3 text-gray-400">
+      <div className="rounded-full bg-gray-50 p-3 text-gray-400 border border-gray-100 shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
       <h4 className="mt-4 text-sm font-bold text-gray-900">Record Not Found</h4>
@@ -432,7 +432,7 @@ type ErrorStateProps = {
 function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+      <div className="rounded-full bg-amber-50 p-3 text-amber-600 border border-amber-100 shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
       <h4 className="mt-4 text-sm font-bold text-gray-900">Fetch Failed</h4>
@@ -440,7 +440,7 @@ function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
         {errorMsg}
       </p>
       <button
-        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition"
+        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
         onClick={onRetry}
         type="button"
       >

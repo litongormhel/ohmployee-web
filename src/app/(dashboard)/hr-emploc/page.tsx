@@ -212,6 +212,7 @@ export default function HrEmplocPage() {
         <div className="flex flex-col gap-2 border-b border-gray-100 pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div
+              aria-label="Compliance queue filter"
               className="inline-flex rounded-md border border-gray-200 bg-white p-1 shadow-xs"
               role="tablist"
             >
@@ -236,7 +237,7 @@ export default function HrEmplocPage() {
               Roster matches are evaluated under backend-authoritative Supabase RBAC scopes.
             </div>
           </div>
-          <p className="text-xs text-gray-550 italic pl-1">
+          <p className="text-xs text-gray-500 italic pl-1">
             {activeQueueDescription}
           </p>
         </div>
@@ -360,7 +361,7 @@ export default function HrEmplocPage() {
 
       {/* Footer System Boundaries Notice */}
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-start gap-2 text-xs text-gray-550">
+        <div className="flex items-start gap-2 text-xs text-gray-600">
           <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
           <div>
             <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries are gated under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Tagging deficiencies, correcting remarks, employee ID assignments, Plantilla transitions, and separation approvals remain read-only pending approved backend mutations.

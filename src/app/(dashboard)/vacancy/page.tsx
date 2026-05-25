@@ -189,6 +189,7 @@ export default function VacancyPage() {
       <section className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div
+            aria-label="Vacancy status filter"
             className="inline-flex rounded-md border border-gray-200 bg-white p-1"
             role="tablist"
           >
@@ -225,7 +226,7 @@ export default function VacancyPage() {
             applyLabel="Apply"
             extraActionsSlot={
               <button
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-500 hover:bg-gray-50 cursor-not-allowed transition-colors"
                 disabled
                 type="button"
               >

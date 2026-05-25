@@ -299,8 +299,14 @@ export default function PlantillaPage() {
   // -------------------------------------------------------------------------
 
   const viewToggle = (
-    <div className="flex items-center overflow-hidden rounded-md border border-border-default">
+    <div
+      aria-label="Plantilla view mode"
+      className="flex items-center overflow-hidden rounded-md border border-border-default"
+      role="tablist"
+    >
       <button
+        aria-selected={view === "employee"}
+        role="tab"
         type="button"
         className={`h-9 px-3 text-sm font-medium transition-colors ${
           view === "employee"
@@ -312,6 +318,8 @@ export default function PlantillaPage() {
         Employee View
       </button>
       <button
+        aria-selected={view === "store"}
+        role="tab"
         type="button"
         className={`h-9 border-l border-border-default px-3 text-sm font-medium transition-colors ${
           view === "store"
@@ -336,7 +344,7 @@ export default function PlantillaPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 p-4 text-gray-900 sm:p-5">
       <AdminPageHeader
         title="Plantilla Directory"
         subtitle="Manage active personnel, audit store capacities, and govern movements."
@@ -345,44 +353,51 @@ export default function PlantillaPage() {
       />
 
       {/* KPI summary row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section
+        aria-label="Plantilla summary metrics"
+        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <MetricCard
           label="Active Roster"
           value={summaryData?.totalActiveRoster}
-          helper="Total active deployed employees"
-          loading={summaryQuery.isLoading}
-          blocked={summaryBlocked}
-          error={!summaryBlocked && summaryQuery.isError}
-          badge="RPC"
+          helperText="Total active deployed employees"
+          isLoading={summaryQuery.isLoading}
+          isBlocked={summaryBlocked}
+          isError={!summaryBlocked && summaryQuery.isError}
+          errorText="Summary data failed to load"
+          badgeLabel="RPC"
         />
         <MetricCard
           label="Budgeted Slots"
           value={summaryData?.totalBudgetedSlots}
-          helper="Standard contracted allocations"
-          loading={summaryQuery.isLoading}
-          blocked={summaryBlocked}
-          error={!summaryBlocked && summaryQuery.isError}
-          badge="RPC"
+          helperText="Standard contracted allocations"
+          isLoading={summaryQuery.isLoading}
+          isBlocked={summaryBlocked}
+          isError={!summaryBlocked && summaryQuery.isError}
+          errorText="Summary data failed to load"
+          badgeLabel="RPC"
         />
         <MetricCard
           label="AH (Temp) Slots"
           value={summaryData?.totalAdditionalSlots}
-          helper="Active additional headcount slots"
-          loading={summaryQuery.isLoading}
-          blocked={summaryBlocked}
-          error={!summaryBlocked && summaryQuery.isError}
-          badge="RPC"
+          helperText="Active additional headcount slots"
+          isLoading={summaryQuery.isLoading}
+          isBlocked={summaryBlocked}
+          isError={!summaryBlocked && summaryQuery.isError}
+          errorText="Summary data failed to load"
+          badgeLabel="RPC"
         />
         <MetricCard
           label="Under-Staffed"
           value={summaryData?.understaffedStores}
-          helper="Stores below budgeted target"
-          loading={summaryQuery.isLoading}
-          blocked={summaryBlocked}
-          error={!summaryBlocked && summaryQuery.isError}
-          badge="RPC"
+          helperText="Stores below budgeted target"
+          isLoading={summaryQuery.isLoading}
+          isBlocked={summaryBlocked}
+          isError={!summaryBlocked && summaryQuery.isError}
+          errorText="Summary data failed to load"
+          badgeLabel="RPC"
         />
-      </div>
+      </section>
 
       {/* Filter bar */}
       <AdminFilterBar

@@ -98,6 +98,19 @@
 - **Guardrails honored**: no module redesign, no Plantilla implementation, no new libraries, no mutations, no unrelated module refactors. Validated with `pnpm lint` and `pnpm build`.
 - **Table interior tokenization (OHM2026_1098)**: All hardcoded `bg-white`, `bg-gray-*`, `border-gray-*`, `text-gray-*`, and selected/hover row classes in `VacancyTable.tsx` and `HrEmplocTable.tsx` have been replaced with dedicated table tokens (`table-header`, `table-row`, `table-row-hover`, `table-row-selected`, `table-rule`, `table-rule-section`, `table-text`, `table-text-sub`, `table-text-muted`, `mono-pill-surface`, `mono-pill-ink`, `mono-pill-ring`). Both tables are now dark-mode readable. Pending deletion row (`bg-red-50 hover:bg-red-100`) and status badge colors (emerald, blue, red) remain as literal classes since they are intentional semantic indicators. Validated via `pnpm lint` and `pnpm build` (clean).
 
+## Read Workflow Consistency Handoff (OHM2026_1105)
+
+- **Audit scope**: Vacancy, HR Emploc, and Plantilla read-only modules — loading states, empty states, access denied, retryable errors, row click, drawer close, keyboard accessibility, token usage, spacing, badge consistency, KPI consistency, filter bar consistency.
+- **Fixes applied**: 11 low-risk changes across 5 files. See `docs/state/web_ui_system_state.md §7` for the full table.
+- **Remaining intentional inconsistencies**:
+  - Drawer loading pattern: Vacancy/HR Emploc use custom pulse skeletons; Plantilla uses `DataState kind="loading"`. Skeletons are better for CLS; migrate Plantilla in a future pass.
+  - Inline drawer error states in Vacancy/HR Emploc vs shared `DataState` in Plantilla. `DataState` is the preferred forward direction.
+  - Tab active color `bg-blue-600` in Vacancy/HR Emploc vs `bg-brand-600` in Plantilla. Pending dedicated token migration pass for those two modules.
+  - `CapabilityActionBar` hardcoded gray classes — pending dedicated token migration pass.
+  - Plantilla missing footer boundary notice present in Vacancy/HR Emploc.
+  - `formatDate` locale `en-PH` in Plantilla vs `en` in Vacancy/HR Emploc (intentional).
+- **Validated**: `pnpm lint` clean, `pnpm build` clean.
+
 ## Plantilla Web Handoff
 
 - **Target Architecture & Specification**: Fully documented in `docs/state/plantilla_web_state.md`.

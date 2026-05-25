@@ -284,13 +284,48 @@ gantt
 - Update `src/app/(dashboard)/vacancy/page.tsx` and `src/components/vacancy/VacancyDetailDrawer.tsx` to consume the extracted shared library.
 - Verify that table row selections, loading skeletons, retry triggers, and access-denied RLS shields preserve their original behavior perfectly.
 
-### Phase 5: Reusability Proving
-- Scaffold `HR Emploc` and `Plantilla` routes.
-- Replace basic module empty states (`src/components/ModuleEmptyState.tsx`) with high-fidelity, shared-component shells containing custom headers, metrics, and filter boundaries.
+### Phase 5: Reusability Proving (Completed)
+- Scaffolded `HR Emploc` and `Plantilla` routes.
+- Replaced basic module empty states with high-fidelity, shared-component shells containing custom headers, metrics, and filter boundaries.
+
+### Phase 6: Read Workflow Consistency Audit (OHM2026_1105, Completed)
+- Audited all three modules (Vacancy, HR Emploc, Plantilla) for loading states, empty states, access denied, retryable errors, row click, drawer close, keyboard accessibility, token usage, spacing, badge consistency, KPI cards, and filter bars.
+- Applied low-risk consistency fixes (see §7).
 
 ---
 
-## 6. Exact Next Implementation Prompt
+## 7. Read Workflow Consistency Audit Results (OHM2026_1105)
+
+### Fixes Applied
+
+| File | Fix | Category |
+| --- | --- | --- |
+| `src/app/(dashboard)/plantilla/page.tsx` | Added `h-full min-h-[calc(100vh-7rem)] p-4 text-gray-900 sm:p-5` to root container | Spacing consistency |
+| `src/app/(dashboard)/plantilla/page.tsx` | Changed KPI grid to `<section aria-label="Plantilla summary metrics">` + `grid gap-2 sm:grid-cols-2 xl:grid-cols-4` | Spacing / ARIA |
+| `src/app/(dashboard)/plantilla/page.tsx` | Fixed MetricCard props: `helper`→`helperText`, `loading`→`isLoading`, `blocked`→`isBlocked`, `error`→`isError`, `badge`→`badgeLabel`, added `errorText` | Token/API consistency |
+| `src/app/(dashboard)/plantilla/page.tsx` | Added `role="tablist"`, `aria-label`, `role="tab"`, `aria-selected` to view toggle | Keyboard accessibility |
+| `src/app/(dashboard)/hr-emploc/page.tsx` | Fixed `text-gray-550` → `text-gray-500` (queue description) and `text-gray-600` (footer) | Token misuse (non-existent class) |
+| `src/app/(dashboard)/hr-emploc/page.tsx` | Added `aria-label="Compliance queue filter"` to tablist | Keyboard accessibility |
+| `src/app/(dashboard)/vacancy/page.tsx` | Added `aria-label="Vacancy status filter"` to tablist | Keyboard accessibility |
+| `src/app/(dashboard)/vacancy/page.tsx` | Added `cursor-not-allowed` to disabled Saved View button | Inconsistent button states |
+| `src/components/shared/DetailDrawer.tsx` | Added `aria-label` to `role="dialog"` aside (uses title if string, falls back to "Details panel") | Keyboard accessibility |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Added `shadow-xs border` to `AccessDeniedState`, `NotFoundState`, and `ErrorState` icon containers | Badge/state consistency |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Changed `ErrorState` retry button from `shadow-xs` to `shadow-sm` | Inconsistent button states |
+
+### Remaining Intentional Inconsistencies
+
+| Inconsistency | Location | Reason |
+| --- | --- | --- |
+| Drawer loading: custom pulse skeleton vs `DataState` spinner | Vacancy/HR Emploc use skeleton; Plantilla uses `DataState kind="loading"` | Skeleton provides better CLS prevention but changing Plantilla to match would require a new inline skeleton. Noted for future work. |
+| Drawer error states: inline sub-components vs `DataState` | Vacancy/HR Emploc define inline `AccessDeniedState`/`ErrorState`/`NotFoundState`; Plantilla uses `DataState` | `DataState` is the preferred pattern going forward. Existing inline states in Vacancy/HR Emploc match the `DataState` visual output and are not functionally different. |
+| Tab button active color: `bg-blue-600` vs `bg-brand-600` | Vacancy/HR Emploc use `bg-blue-600`; Plantilla uses `bg-brand-600` | Intentional — `brand-600` is the token-correct form. Vacancy/HR Emploc tabs predate the token system and remain hardcoded. Migrate in a dedicated tokenization pass. |
+| `formatDate` locale: `en` vs `en-PH` | Vacancy/HR Emploc use `en`; Plantilla uses `en-PH` | Intentional localization difference in Plantilla. |
+| `CapabilityActionBar` hardcoded grays | `border-gray-100 bg-gray-50` etc. | Shared component predates the token system. Migrate in a dedicated tokenization pass. |
+| Footer boundary notice absent in Plantilla | Vacancy and HR Emploc have a dashed info footer; Plantilla does not | Feature parity gap; not a read-workflow consistency issue. Add in a separate pass. |
+
+---
+
+## 8. Exact Next Implementation Prompt
 
 ```markdown
 ID: OHM2026_1087-IMPL-1

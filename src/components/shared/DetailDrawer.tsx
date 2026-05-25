@@ -64,6 +64,7 @@ export function DetailDrawer({
         className={`fixed top-0 right-0 z-50 flex h-full ${widthClass} flex-col border-l border-border-default bg-surface-base shadow-2xl animate-drawer-in`}
         role="dialog"
         aria-modal="true"
+        aria-label={typeof title === "string" ? title : "Details panel"}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
