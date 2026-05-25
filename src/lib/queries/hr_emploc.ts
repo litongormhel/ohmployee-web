@@ -47,7 +47,7 @@ export type CorrectionAttachmentItem = {
   fileName: string;
   fileUrl: string;
   fileSize?: number;
-  uploadedAt: string;
+  uploadedAt: string | null;
   uploadedBy: string;
 };
 
@@ -55,14 +55,14 @@ export type HrEmplocAuditLogItem = {
   eventId: string;
   eventLabel: string;
   eventDescription: string | null;
-  createdAt: string;
+  createdAt: string | null;
   profileName: string | null;
 };
 
 export type DeletionRequestItem = {
   requestId: string;
   requestedBy: string;
-  requestedAt: string;
+  requestedAt: string | null;
   deletionType: "backout" | "duplicate";
   reason: string;
   originalEmplocId?: string | null;
@@ -87,7 +87,7 @@ export type HrEmplocDetailItem = {
   opsRemarks: string | null;
   hrRemarks: string | null;
   requirementOverallStatus: string | null;
-  correctionReason: Record<string, unknown> | null;
+  correctionReason: Record<string, unknown>;
   uploadedAttachments: CorrectionAttachmentItem[];
   slaBreached: boolean;
   slaElapsedDays: number;
@@ -174,8 +174,8 @@ function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
 
   return {
     canViewDetail: raw.can_view_detail === true || raw.can_view === true,
-    canTagDeficiency: raw.can_tag_deficiency === true || raw.can_tag_correction === true,
-    canReviewCorrection: raw.can_review_correction === true || raw.can_approve_correction === true,
+    canTagDeficiency: raw.can_tag_deficiency === true,
+    canReviewCorrection: raw.can_review_correction === true,
     canAssignEmployeeNo: raw.can_assign_employee_no === true,
     canMoveToPlantilla: raw.can_move_to_plantilla === true,
     canRequestDeletion: raw.can_request_deletion === true,
@@ -261,7 +261,7 @@ function normalizeAttachment(item: unknown): CorrectionAttachmentItem {
     fileName: asString(obj.file_name ?? obj.fileName) ?? "unnamed_file",
     fileUrl: asString(obj.file_url ?? obj.fileUrl) ?? "",
     fileSize: asNumber(obj.file_size ?? obj.fileSize) ?? undefined,
-    uploadedAt: asString(obj.uploaded_at ?? obj.uploadedAt) ?? new Date().toISOString(),
+    uploadedAt: asString(obj.uploaded_at ?? obj.uploadedAt) ?? null,
     uploadedBy: asString(obj.uploaded_by ?? obj.uploadedBy) ?? "Unknown User",
   };
 }
@@ -272,7 +272,7 @@ function normalizeAuditLog(item: unknown): HrEmplocAuditLogItem {
     eventId: asString(obj.event_id ?? obj.eventId) ?? "",
     eventLabel: asString(obj.event_label ?? obj.eventLabel) ?? "Event",
     eventDescription: asString(obj.event_description ?? obj.eventDescription) ?? null,
-    createdAt: asString(obj.created_at ?? obj.createdAt) ?? new Date().toISOString(),
+    createdAt: asString(obj.created_at ?? obj.createdAt) ?? null,
     profileName: asString(obj.profile_name ?? obj.profileName) ?? null,
   };
 }
@@ -286,7 +286,7 @@ function normalizeDeletionRequest(item: unknown): DeletionRequestItem | null {
   return {
     requestId,
     requestedBy: asString(obj.requested_by ?? obj.requestedBy) ?? "Unknown",
-    requestedAt: asString(obj.requested_at ?? obj.requestedAt) ?? new Date().toISOString(),
+    requestedAt: asString(obj.requested_at ?? obj.requestedAt) ?? null,
     deletionType: (asString(obj.deletion_type ?? obj.deletionType) as "backout" | "duplicate") ?? "backout",
     reason: asString(obj.reason) ?? "",
     originalEmplocId: asString(obj.original_emploc_id ?? obj.originalEmplocId) ?? null,

@@ -316,9 +316,9 @@ export function HrEmplocDetailDrawer({
               <div className="mt-3 border-t border-gray-100 pt-3">
                 <div className="text-xs text-gray-400 mb-1.5">Roving Covered Stores</div>
                 <div className="grid gap-1.5">
-                  {detail.coveredStores.map((store) => (
+                  {detail.coveredStores.map((store, storeIdx) => (
                     <div
-                      key={store.storeId}
+                      key={store.storeId || `store-${storeIdx}`}
                       className="text-xs bg-gray-50 border border-gray-100 rounded p-2 flex items-start gap-2"
                     >
                       <MapPin className="h-3.5 w-3.5 text-purple-500 shrink-0 mt-0.5" />
@@ -468,9 +468,9 @@ export function HrEmplocDetailDrawer({
 
             {detail.uploadedAttachments.length > 0 ? (
               <div className="space-y-2">
-                {detail.uploadedAttachments.map((file) => (
+                {detail.uploadedAttachments.map((file, fileIdx) => (
                   <div
-                    key={file.attachmentId}
+                    key={file.attachmentId || `attachment-${fileIdx}`}
                     className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50/50 p-2.5 hover:bg-gray-50 transition"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -527,8 +527,8 @@ export function HrEmplocDetailDrawer({
             </div>
             <div className="relative pl-4 space-y-4 border-l-2 border-gray-100 ml-1.5 mt-2">
               {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
-                detail.auditLogsTimeline.map((item) => (
-                  <div key={item.eventId} className="relative text-xs">
+                detail.auditLogsTimeline.map((item, timelineIdx) => (
+                  <div key={item.eventId || `timeline-${timelineIdx}`} className="relative text-xs">
                     {/* Timeline dot */}
                     <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
                     <div className="flex justify-between">
@@ -629,7 +629,7 @@ export function HrEmplocDetailDrawer({
           {/* Review Correction Modal */}
           {isReviewModalOpen && hrEmplocId && detail && (
             <ReviewCorrectionModal
-              correctionReason={detail.correctionReason ?? {}}
+              correctionReason={detail.correctionReason}
               hrEmplocId={hrEmplocId}
               onClose={() => setIsReviewModalOpen(false)}
               onSubmitted={() => setIsReviewModalOpen(false)}

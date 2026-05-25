@@ -362,7 +362,7 @@ export default function HrEmplocPage() {
         <div className="flex items-start gap-2 text-xs text-gray-600">
           <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
           <div>
-            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries are gated under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Tagging deficiencies, correcting remarks, employee ID assignments, Plantilla transitions, and separation approvals remain read-only pending approved backend mutations.
+            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries, deficiency tagging, and correction reviews execute under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Employee ID assignment, Plantilla deployment, and separation requests are pending implementation.
           </div>
         </div>
       </section>
