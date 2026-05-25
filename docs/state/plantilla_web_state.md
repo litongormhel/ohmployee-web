@@ -368,7 +368,7 @@ CREATE OR REPLACE FUNCTION public.list_web_plantilla_employees(
   p_active_state    text    DEFAULT NULL,
   p_limit           integer DEFAULT 50,
   p_offset          integer DEFAULT 0,
-  p_sort_by         text    DEFAULT 'last_name',
+  p_sort_by         text    DEFAULT 'employee_name',
   p_sort_dir        text    DEFAULT 'asc'
 )
 RETURNS TABLE (
@@ -395,6 +395,8 @@ AS $$
 ...
 $$ LANGUAGE plpgsql;
 ```
+
+Supported employee sort fields are `employee_name`, `employee_no`, `account_name`, `primary_store_name`, `position_title`, `plantilla_type`, `plantilla_status`, `date_deployed`, and `created_at`.
 
 ### B. List Stores Contract
 ```sql
@@ -428,6 +430,8 @@ AS $$
 ...
 $$ LANGUAGE plpgsql;
 ```
+
+Supported store staffing sort fields are `store_name`, `store_code`, `account_name`, `region`, `budgeted_target`, `active_budgeted_count`, `active_additional_count`, `vacancies_count`, and `staffing_sla_status`.
 
 ### C. Summary Count Metrics Contract
 ```sql
@@ -545,6 +549,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 ### Phase 3: Client Integration & State Management ✅ COMPLETE
 - `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers.
 - Exported RPC wrappers: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`.
+- Employee list sorting defaults to backend-supported `employee_name`; stale `last_name` is not sent to the deployed RPC allowlist. Store staffing sorting defaults to backend-supported `store_name`.
 - Typed JSONB sub-types: `PlantillaCoveredStore`, `PlantillaGovernmentIds`, `PlantillaClearanceChecklistItem`, `PlantillaClearanceDocument`, `PlantillaMovementRequest`, `PlantillaAuditTimelineItem`.
 - Presentation-layer derivation helpers: `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk`.
 - Error class `PlantillaDataError` with `access_denied` / `retryable` kind discriminator.

@@ -268,6 +268,32 @@ type PlantillaRpcRow = Record<string, unknown>;
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
+const DEFAULT_EMPLOYEE_SORT_BY = "employee_name";
+const DEFAULT_STORE_STAFFING_SORT_BY = "store_name";
+
+const EMPLOYEE_SORT_FIELDS = new Set([
+  "employee_name",
+  "employee_no",
+  "account_name",
+  "primary_store_name",
+  "position_title",
+  "plantilla_type",
+  "plantilla_status",
+  "date_deployed",
+  "created_at",
+]);
+
+const STORE_STAFFING_SORT_FIELDS = new Set([
+  "store_name",
+  "store_code",
+  "account_name",
+  "region",
+  "budgeted_target",
+  "active_budgeted_count",
+  "active_additional_count",
+  "vacancies_count",
+  "staffing_sla_status",
+]);
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && !Array.isArray(value) && typeof value === "object"
@@ -296,6 +322,26 @@ function asBoolean(value: unknown): boolean {
 
 function asCount(value: unknown): number {
   return Math.max(0, Math.trunc(asNumber(value) ?? 0));
+}
+
+function splitEmployeeName(value: unknown): Pick<
+  PlantillaEmployeeListItem,
+  "firstName" | "lastName"
+> {
+  const name = asString(value);
+  if (!name) {
+    return { firstName: null, lastName: null };
+  }
+
+  const [last, ...rest] = name.split(",");
+  if (rest.length > 0) {
+    return {
+      firstName: asString(rest.join(",").trim()),
+      lastName: asString(last.trim()),
+    };
+  }
+
+  return { firstName: name, lastName: null };
 }
 
 function getErrorKind(error: PostgrestError): PlantillaDataErrorKind {
@@ -426,17 +472,19 @@ function normalizeAuditTimelineItem(item: unknown): PlantillaAuditTimelineItem {
 }
 
 function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListItem | null {
-  const id = asString(row.id);
+  const id = asString(row.id ?? row.plantilla_id ?? row.plantillaId);
   if (!id) return null;
+
+  const employeeName = splitEmployeeName(row.employee_name ?? row.employeeName);
 
   return {
     id,
     employeeNo: asString(row.employee_no) ?? "Uncoded",
-    firstName: asString(row.first_name),
-    lastName: asString(row.last_name),
+    firstName: asString(row.first_name) ?? employeeName.firstName,
+    lastName: asString(row.last_name) ?? employeeName.lastName,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
-    primaryStoreName: asString(row.primary_store_name),
+    primaryStoreName: asString(row.primary_store_name ?? row.store_name),
     assignmentType: asString(row.assignment_type),
     coveredStoresCount: asCount(row.covered_stores_count),
     plantillaType: asString(row.plantilla_type),
@@ -597,11 +645,21 @@ function clampPage(page: number, pageSize: number) {
 }
 
 function getEmployeeTotalCount(rows: PlantillaEmployeeListItem[]): number {
-  return rows[0]?.totalCount ?? 0;
+  const totalCount = rows[0]?.totalCount ?? 0;
+  return totalCount > 0 ? totalCount : rows.length;
 }
 
 function getStoreTotalCount(rows: PlantillaStoreStaffingRow[]): number {
-  return rows[0]?.totalCount ?? 0;
+  const totalCount = rows[0]?.totalCount ?? 0;
+  return totalCount > 0 ? totalCount : rows.length;
+}
+
+function getAllowedSortField(
+  sortBy: string | undefined,
+  allowedFields: Set<string>,
+  fallback: string,
+): string {
+  return sortBy && allowedFields.has(sortBy) ? sortBy : fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -642,7 +700,11 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
     p_active_state: params.activeState ?? null,
     p_limit: pageSize,
     p_offset: offset,
-    p_sort_by: params.sortBy ?? "last_name",
+    p_sort_by: getAllowedSortField(
+      params.sortBy,
+      EMPLOYEE_SORT_FIELDS,
+      DEFAULT_EMPLOYEE_SORT_BY,
+    ),
     p_sort_dir: params.sortDir ?? "asc",
   });
 
@@ -676,7 +738,11 @@ export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffi
     p_risk_filter: params.riskFilter ?? null,
     p_limit: pageSize,
     p_offset: offset,
-    p_sort_by: params.sortBy ?? "store_name",
+    p_sort_by: getAllowedSortField(
+      params.sortBy,
+      STORE_STAFFING_SORT_FIELDS,
+      DEFAULT_STORE_STAFFING_SORT_BY,
+    ),
     p_sort_dir: params.sortDir ?? "asc",
   });
 
