@@ -353,13 +353,16 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
 }
 
 export async function getWebHrEmplocSummary(
-  params: Pick<HrEmplocListParams, "accountId" | "groupId" | "position" | "search">
+  params: Pick<HrEmplocListParams, "queue" | "accountId" | "groupId" | "search">
 ) {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_hr_emploc_summary", {
+    p_queue: params.queue || null,
+    p_status: null,
+    p_deficiency: null,
+    p_sla_filter: null,
     p_account_id: params.accountId || null,
     p_group_id: params.groupId || null,
-    p_position: params.position || null,
     p_search: params.search?.trim() || null,
   });
 
@@ -381,10 +384,11 @@ export async function listWebHrEmplocs(params: HrEmplocListParams) {
 
   const { data, error } = await supabase.rpc("list_web_hr_emplocs", {
     p_queue: params.queue || null,
+    p_status: null,
+    p_deficiency: null,
+    p_sla_filter: null,
     p_account_id: params.accountId || null,
     p_group_id: params.groupId || null,
-    p_position: params.position || null,
-    p_assignment: params.assignment || null,
     p_search: params.search?.trim() || null,
     p_limit: pageSize,
     p_offset: offset,

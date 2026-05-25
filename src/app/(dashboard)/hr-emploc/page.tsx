@@ -76,23 +76,21 @@ export default function HrEmplocPage() {
       queue,
       accountId: accountId.trim() || undefined,
       groupId: groupId.trim() || undefined,
-      position: position.trim() || undefined,
-      assignment: assignment || undefined,
       search: search.trim() || undefined,
       page,
       pageSize,
     }),
-    [queue, accountId, groupId, position, assignment, search, page],
+    [queue, accountId, groupId, search, page],
   );
 
   const summaryParams = useMemo(
     () => ({
+      queue,
       accountId: accountId.trim() || undefined,
       groupId: groupId.trim() || undefined,
-      position: position.trim() || undefined,
       search: search.trim() || undefined,
     }),
-    [accountId, groupId, position, search],
+    [queue, accountId, groupId, search],
   );
 
   // Queries
@@ -267,7 +265,7 @@ export default function HrEmplocPage() {
             <select
               aria-label="Assignment type filter"
               className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors"
-              disabled={blocked}
+              disabled
               onChange={(event) => {
                 setAssignment(event.target.value as "Stationary" | "Roving" | "");
                 setPage(1);
@@ -286,7 +284,7 @@ export default function HrEmplocPage() {
               <input
                 aria-label="Position title filter"
                 className="h-9 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors w-[150px]"
-                disabled={blocked}
+                disabled
                 onChange={(event) => {
                   setPosition(event.target.value);
                   setPage(1);
