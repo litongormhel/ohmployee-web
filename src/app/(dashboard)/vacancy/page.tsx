@@ -162,7 +162,7 @@ export default function VacancyPage() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 p-4 text-gray-900 sm:p-5">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       <AdminPageHeader
         title="Vacancy Management"
         subtitle="Desktop vacancy command center backed by scoped Supabase summary and list RPCs."
@@ -178,7 +178,7 @@ export default function VacancyPage() {
 
       <section
         aria-label="Vacancy summary"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       >
         {kpis.map((item) => (
           <MetricCard
@@ -195,16 +195,17 @@ export default function VacancyPage() {
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 border-b border-gray-100 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div
             aria-label="Vacancy status filter"
-            className="inline-flex rounded-md border border-gray-200 bg-white p-1"
+            className="inline-flex rounded-md border border-gray-200 bg-white p-1 shadow-xs"
             role="tablist"
           >
             {statusTabs.map((tab) => (
               <button
                 aria-selected={status === tab.value}
-                className={`rounded px-3 py-1.5 text-xs font-medium ${
+                className={`rounded px-4 py-2 text-sm font-semibold transition-all duration-150 ${
                   status === tab.value
                     ? "bg-brand-600 text-white"
                     : "text-gray-600 hover:bg-gray-100"
@@ -218,9 +219,13 @@ export default function VacancyPage() {
               </button>
             ))}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-sm font-medium text-gray-500">
             Status, search, filters, and pagination are sent to Supabase RPCs.
           </div>
+          </div>
+          <p className="pl-1 text-sm text-gray-500">
+            {activeStatusDescription}
+          </p>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -234,7 +239,7 @@ export default function VacancyPage() {
             applyLabel="Apply"
             extraActionsSlot={
               <button
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-500 hover:bg-gray-50 cursor-not-allowed transition-colors"
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 cursor-not-allowed"
                 disabled
                 type="button"
               >
@@ -245,7 +250,7 @@ export default function VacancyPage() {
           >
             <select
               aria-label="Pipeline status filter"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               onChange={(event) => {
                 setPipelineStatus(event.target.value);
@@ -260,7 +265,7 @@ export default function VacancyPage() {
             </select>
             <select
               aria-label="Aging bucket filter"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               onChange={(event) => {
                 setAgingBucket(event.target.value);
@@ -279,7 +284,7 @@ export default function VacancyPage() {
             </select>
             <select
               aria-label="Urgency filter"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               onChange={(event) => {
                 setUrgency(event.target.value);
@@ -295,7 +300,7 @@ export default function VacancyPage() {
             </select>
             <input
               aria-label="Vacant date from"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               max={vacantTo || undefined}
               onChange={(event) => {
@@ -308,7 +313,7 @@ export default function VacancyPage() {
             />
             <input
               aria-label="Vacant date to"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
               min={vacantFrom || undefined}
               onChange={(event) => {

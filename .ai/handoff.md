@@ -112,6 +112,16 @@
   - `formatDate` locale `en-PH` in Plantilla vs `en` in Vacancy/HR Emploc (intentional).
 - **Validated**: `pnpm lint` clean, `pnpm build` clean.
 
+## Wide Admin Layout Standardization (OHM2026_1070)
+
+- **Scope completed**: HR Emploc reference layout, Vacancy, Plantilla, and scaffold-only modules (`Approvals`, `User Management`, `Team Directory`, `Notifications`, `Reports`, `Settings`) now share the maximized admin layout direction.
+- **Shared shell changes**: `DashboardAuthShell` no longer constrains dashboard content to `max-w-7xl`; the fixed compact sidebar remains unchanged while main content uses the full available desktop canvas with responsive page gutters.
+- **Shared UI changes**: `AdminPageHeader`, `MetricCard`, and `AdminFilterBar` use the larger admin typography/spacing scale. `ModuleEmptyState` now renders the same module header, KPI metric row, and full-width workspace shell instead of a narrow centered placeholder card.
+- **Module changes**: HR Emploc, Vacancy, and Plantilla page wrappers no longer add nested page padding; KPI grids use consistent gaps; tabs/segmented controls and filter controls are taller and more readable; dense tables use wider minimum desktop widths, larger body text, larger row/header padding, and full-width table containers.
+- **Backend/RBAC guardrails**: No Supabase schema, RPC, RLS, query contract, role visibility, or mutation logic changed. Placeholder modules still do not mock records or actions.
+- **State docs**: No `docs/state/*_web_state.md` update was needed because this batch changed layout presentation only, not stable module behavior.
+- **Validated**: `pnpm lint` clean. `pnpm build` initially failed in the sandbox with Turbopack `Operation not permitted` while creating a process/binding to a port, then passed outside the sandbox (Next.js 16.2.4, zero build errors).
+
 ## Web Mutation Workflow Handoff (OHM2026_1107 → OHM2026_1109 → OHM2026_1127)
 
 - **Architecture doc**: `docs/state/web_mutation_workflow_state.md` — full spec and phase order for HR Emploc deficiency tagging as the first mutation.

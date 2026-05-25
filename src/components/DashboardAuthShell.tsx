@@ -118,7 +118,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
           moduleCapabilities={currentUser.moduleCapabilities}
         />
         <main className="flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-7xl px-5 py-6 lg:px-8">
+          <div className="w-full px-4 py-5 sm:px-5 lg:px-6 2xl:px-8">
             {children}
           </div>
         </main>

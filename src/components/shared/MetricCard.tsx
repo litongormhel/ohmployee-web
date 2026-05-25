@@ -38,12 +38,12 @@ export function MetricCard({
   const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : "RPC");
 
   return (
-    <div className="rounded-md border border-border-default bg-surface-base px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md duration-200">
-      <div className="text-xs font-medium uppercase tracking-wider text-text-secondary">
+    <div className="rounded-md border border-border-default bg-surface-base px-4 py-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md">
+      <div className="text-xs font-semibold uppercase tracking-normal text-text-secondary">
         {label}
       </div>
-      <div className="mt-1 flex items-end justify-between gap-3">
-        <div className="text-2xl font-semibold text-text-primary">
+      <div className="mt-1.5 flex items-end justify-between gap-3">
+        <div className="text-3xl font-semibold leading-none text-text-primary">
           {isCurrentlyLoading ? "--" : value ?? 0}
         </div>
         <Badge
@@ -56,7 +56,7 @@ export function MetricCard({
           {displayBadge}
         </Badge>
       </div>
-      <div className="mt-1 text-xs">
+      <div className="mt-2 text-sm leading-5">
         {isCurrentlyError && !isCurrentlyBlocked ? (
           <span className="text-red-500">{errorText ?? "Retryable summary error"}</span>
         ) : (
