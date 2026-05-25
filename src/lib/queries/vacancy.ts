@@ -158,12 +158,6 @@ export class VacancyDataError extends Error {
 type VacancyRpcRow = Record<string, unknown>;
 
 const MAX_PAGE_SIZE = 100;
-const supportedStatuses = new Set<VacancyStatus>([
-  "open",
-  "with_applicant",
-  "rejected",
-  "backout",
-]);
 const supportedAgingBuckets = new Set<VacancyAgingBucket>([
   "advance",
   "1_15",
@@ -172,7 +166,6 @@ const supportedAgingBuckets = new Set<VacancyAgingBucket>([
   "61_120",
   "gt121",
 ]);
-const supportedPipelineStatuses = new Set(["Open", "Pipeline"]);
 const supportedUrgencyLevels = new Set(["High", "Medium", "Normal"]);
 const supportedSortFields = new Set<VacancySortField>([
   "aging_days",
@@ -250,20 +243,10 @@ function normalizeCapabilities(value: unknown): VacancyRowCapabilities {
   };
 }
 
-function normalizeStatus(value: unknown): VacancyStatus {
-  return supportedStatuses.has(value as VacancyStatus)
-    ? (value as VacancyStatus)
-    : "open";
-}
-
 function normalizeAgingBucket(value: unknown) {
   return supportedAgingBuckets.has(value as VacancyAgingBucket)
     ? (value as VacancyAgingBucket)
     : null;
-}
-
-function normalizePipelineStatus(value: unknown) {
-  return supportedPipelineStatuses.has(value as string) ? (value as string) : null;
 }
 
 function normalizeUrgency(value: unknown) {
@@ -304,6 +287,9 @@ function getErrorKind(error: PostgrestError): VacancyDataErrorKind {
 }
 
 function throwVacancyError(error: PostgrestError): never {
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[vacancy rpc error]", error.code, error.message, error.details, error.hint);
+  }
   throw new VacancyDataError(getErrorKind(error), error.message);
 }
 
@@ -335,7 +321,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     agingDays: asNumber(row.aging_days),
     agingBucket: asString(row.aging_bucket),
     targetFillDate: asString(row.target_fill_date),
-    urgencyLevel: asString(row.urgency_level),
+    urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
@@ -398,7 +384,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     agingDays: asNumber(row.aging_days),
     agingBucket: asString(row.aging_bucket),
     targetFillDate: asString(row.target_fill_date),
-    urgencyLevel: asString(row.urgency_level),
+    urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
@@ -425,7 +411,7 @@ function normalizeSummary(data: unknown): VacancySummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
   return {
-    open: asCount(row.open ?? row.open_count ?? row.open_vacancies),
+    open: asCount(row.total_open ?? row.open ?? row.open_count ?? row.open_vacancies),
     withApplicant: asCount(
       row.with_applicant ?? row.with_applicant_count ?? row.pipeline_count,
     ),
@@ -439,57 +425,45 @@ function normalizeSummary(data: unknown): VacancySummary {
   };
 }
 
-type VacancyRpcPayload = {
-  p_queue: VacancyStatus;
-  p_search: string | null;
-  p_filters: Record<string, unknown>;
-};
-
-function getVacancyRpcFilters(
-  params: Pick<
-    VacancyListParams,
-    | "status"
-    | "search"
-    | "agingBucket"
-    | "pipelineStatus"
-    | "urgency"
-    | "vacantFrom"
-    | "vacantTo"
-  >,
-): VacancyRpcPayload {
-  const filters: Record<string, unknown> = {};
-  const agingBucket = normalizeAgingBucket(params.agingBucket);
-  const pipelineStatus = normalizePipelineStatus(
-    "pipelineStatus" in params ? params.pipelineStatus : undefined,
-  );
-  const urgency = normalizeUrgency(params.urgency);
-  const vacantFrom = asDateFilter(params.vacantFrom);
-  const vacantTo = asDateFilter(params.vacantTo);
-
-  if (agingBucket) {
-    filters.aging_buckets = [agingBucket];
+// Maps the frontend queue tab to the p_status value understood by the deployed RPCs.
+// The backend filters on vacancy_status and pipeline_status (= derived_status from vw_vacancy_list).
+// derived_status values: 'Open' (no active applicants), 'Pipeline' (has active applicants),
+// 'Hired', 'Archived'. Rejected/backout tabs have no direct list-level status mapping;
+// null returns all scoped active rows for those tabs.
+function tabToRpcStatus(tab: VacancyStatus): string | null {
+  switch (tab) {
+    case "open":           return "Open";
+    case "with_applicant": return "Pipeline";
+    case "rejected":       return null;
+    case "backout":        return null;
+    default:               return null;
   }
+}
 
-  if (pipelineStatus) {
-    filters.pipeline_status = pipelineStatus;
-  }
-
-  if (urgency) {
-    filters.urgency_levels = [urgency];
-  }
-
-  if (vacantFrom) {
-    filters.vacant_date_from = vacantFrom;
-  }
-
-  if (vacantTo) {
-    filters.vacant_date_to = vacantTo;
-  }
-
+function getSummaryRpcParams(
+  params: Pick<VacancyListParams, "status" | "search" | "urgency" | "vacantFrom" | "vacantTo">,
+) {
   return {
-    p_queue: normalizeStatus(params.status),
-    p_search: asTrimmedString(params.search),
-    p_filters: filters,
+    p_status:      tabToRpcStatus(params.status),
+    p_urgency:     normalizeUrgency(params.urgency) ?? null,
+    p_search:      asTrimmedString(params.search) ?? null,
+    p_vacant_from: asDateFilter(params.vacantFrom) ?? null,
+    p_vacant_to:   asDateFilter(params.vacantTo) ?? null,
+  };
+}
+
+function getListRpcParams(params: VacancyListParams, pageSize: number, offset: number) {
+  return {
+    p_status:       tabToRpcStatus(params.status),
+    p_aging_bucket: normalizeAgingBucket(params.agingBucket) ?? null,
+    p_urgency:      normalizeUrgency(params.urgency) ?? null,
+    p_search:       asTrimmedString(params.search) ?? null,
+    p_vacant_from:  asDateFilter(params.vacantFrom) ?? null,
+    p_vacant_to:    asDateFilter(params.vacantTo) ?? null,
+    p_limit:        pageSize,
+    p_offset:       offset,
+    p_sort_by:      normalizeSortField("aging_days"),
+    p_sort_dir:     normalizeSortDirection("desc"),
   };
 }
 
@@ -509,7 +483,7 @@ export async function getVacancySummary(
   const supabase = createClient();
   const { data, error } = await supabase.rpc(
     "get_web_vacancy_summary",
-    getVacancyRpcFilters(params),
+    getSummaryRpcParams(params),
   );
 
   if (error) {
@@ -528,13 +502,7 @@ export async function listVacancies(params: VacancyListParams) {
   );
   const offset = (page - 1) * pageSize;
 
-  const { data, error } = await supabase.rpc("list_web_vacancies", {
-    ...getVacancyRpcFilters(params),
-    p_limit: pageSize,
-    p_offset: offset,
-    p_sort: normalizeSortField("aging_days"),
-    p_sort_dir: normalizeSortDirection("desc"),
-  });
+  const { data, error } = await supabase.rpc("list_web_vacancies", getListRpcParams(params, pageSize, offset));
 
   if (error) {
     throwVacancyError(error);

@@ -47,7 +47,7 @@
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
 - Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging/urgency/vacant-date filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
 - The Vacancy page integrates `get_web_vacancy_summary(...)`, `list_web_vacancies(...)`, and `get_web_vacancy_detail(p_vacancy_id uuid)` queries through `src/lib/queries/vacancy.ts`.
-- Vacancy list/summary payloads use the backend-authoritative `p_queue`, `p_search`, `p_filters`, `p_sort`, `p_sort_dir`, `p_limit`, and `p_offset` contract. The frontend allowlists queue values, aging buckets, pipeline statuses, urgency levels, vacant-date filters, and supported sort fields before sending RPC arguments; unsupported filters are dropped instead of leaking into `p_filters`.
+- Vacancy list/summary payloads use the deployed backend's flat individual-param contract (OHM2026_1071 fix). The frontend sends `p_status`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir` for the list RPC, and `p_status`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to` for the summary RPC. Tab queue values map to backend `p_status`: `open`→`Open`, `with_applicant`→`Pipeline`; `rejected`/`backout` pass `null` (no direct list-level filter support in the deployed RPC).
 - Vacancy list/detail rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and detail drawer.
 - Do not add raw table queries, caller-controlled role/scope parameters, fake data, CRUD, or mutations.
 - Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense full-width table, sliding right-side detail drawer, candidate summary listing (shielded PII), audit timeline, and capability-controlled action area.
@@ -212,3 +212,13 @@
 - **Next Phase Steps**:
   1. Keep Store Staffing backend hydration aligned with the deployed grouped metric contract before adding store-detail UX.
   2. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 5.
+
+## Vacancy RPC Param Fix (OHM2026_1071)
+
+- **Root cause**: `src/lib/queries/vacancy.ts` was sending `p_queue`/`p_filters` (JSONB) and `p_sort` to the deployed Supabase RPCs, but the deployed functions (`20260524130000_web_vacancy_list_summary_rpcs.sql`) expect flat individual params (`p_status`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir`). PostgREST rejected every call as no-function-found → `retryable` error banner on every load.
+- **Fix**: Replaced `VacancyRpcPayload` type and `getVacancyRpcFilters` function with two new builders matching the deployed signatures: `getSummaryRpcParams` and `getListRpcParams`. Removed dead helpers `normalizeStatus`, `normalizePipelineStatus`, `supportedStatuses`, `supportedPipelineStatuses`. Added `tabToRpcStatus` to map queue tabs → `p_status` values (`open`→`"Open"`, `with_applicant`→`"Pipeline"`, `rejected`/`backout`→`null`).
+- **Secondary normalizer fixes**: `normalizeSummary` now reads `row.total_open` (backend field) to populate `open`; `normalizeListRow` reads `row.urgency_level ?? row.urgency` to populate `urgencyLevel`. Dev-only `console.error` added in `throwVacancyError` to surface the real Supabase error message during development.
+- **Known gap**: The deployed `list_web_vacancies` does not return `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, or `last_activity_at`. These fields default to null/0 in the list rows. The summary `pendingReview` and `agingWatch` KPI fields also have no backend equivalent and display zero. The `rejected`/`backout` tabs cannot filter the list by applicant terminal status with the current backend RPC — they display all scoped active vacancies.
+- **No backend changes made**: No Supabase schema, RPC, RLS, or migration was modified.
+- **Files changed**: `src/lib/queries/vacancy.ts`, `.ai/handoff.md`, `docs/state/vacancy_web_state.md`.
+- **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
