@@ -115,15 +115,14 @@
 - **RPC names wired**: `get_web_plantilla_summary`, `list_web_plantilla_employees`, `list_web_plantilla_store_staffing`, `get_web_plantilla_detail`. All use `auth.uid()`-derived scopes server-side; no caller-controlled role/scope params are passed from the frontend.
 - **Masking contract**: backend returns pre-masked strings for `contact_number`, `email_address`, `residential_address`, `base_rate_masked`, and `government_ids` JSONB for restricted roles. The frontend never strips or applies masking itself.
 - **Page Shell Status (OHM2026_1103)**: `src/app/(dashboard)/plantilla/page.tsx` is fully implemented as a read-only dual-view shell. `AdminPageHeader`, 4x `MetricCard` (wired to `getPlantillaSummary`), `AdminFilterBar` (segmented Employee/Store toggle + per-view filter selects), and two inline dense tables (employee roster, store staffing) are all live. DataState handles all four boundary states. `deriveDeactivationOverlay` and `deriveStaffingRisk` are applied inline. Pagination is wired. `pnpm lint` and `pnpm build` are clean.
+- **Detail Drawer Status (OHM2026_1104)**: Fully implemented and wired in `src/components/plantilla/PlantillaDetailDrawer.tsx`. Employee rows in `page.tsx` emit `onRowClick(row.id)` to set `selectedPlantillaId` state; the drawer opens and fetches `getWebPlantillaDetail` via React Query. Dimmed rows (inactive/terminated/suspended) are non-clickable via `pointer-events-none`. Active and pending-separation rows are keyboard-accessible (`role="button"`, `tabIndex=0`, Enter/Space). Drawer close clears state. All DataState boundaries active. `deriveTransferOverlay` and `deriveDeactivationOverlay` applied to drawer body banners.
 - **Known gaps**:
   - `groupId` filter is present in the UI but not yet passed to any RPC (the current RPC contract has no `p_group_id` param). Add it to backend once `list_web_plantilla_employees` and `list_web_plantilla_store_staffing` support it.
-  - Detail Drawer is not yet implemented (Phase 4). Eye-icon action column is intentionally omitted until the drawer exists.
+  - Store staffing rows have no detail drawer yet (store-centric detail is not yet implemented).
   - No action mutations yet (Phase 5).
 - **Next Phase Steps**:
   1. Add `p_group_id` parameter to employee and store staffing RPCs; wire it in `listWebPlantillaEmployees` and `listWebPlantillaStoreStaffing` query params and the page filter state.
-  2. Implement the Plantilla Detail Drawer (`DetailDrawer`, 640px) — employment/allocation grid, roving coverage panel, clearance checklist panel (pending-separation only), SLA block, and audit timeline. Wire `getWebPlantillaDetail` via `useQuery` on row selection.
-  3. Use `deriveTransferOverlay` inside the Detail Drawer SLA block.
-  4. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 5.
+  2. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 5.
 
 
 

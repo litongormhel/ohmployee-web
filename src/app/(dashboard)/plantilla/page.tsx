@@ -99,6 +99,7 @@ const PAGE_SIZE = 25;
 export default function PlantillaPage() {
   const [view, setView] = useState<ViewMode>("employee");
   const [page, setPage] = useState(1);
+  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
 
   // Committed filter values (drive queries)
   const [search, setSearch] = useState("");
@@ -278,7 +279,7 @@ export default function PlantillaPage() {
           />
         );
       }
-      return <EmployeeTable rows={employeeRows} />;
+      return <EmployeeTable rows={employeeRows} onRowClick={setSelectedPlantillaId} />;
     }
 
     if (storeRows.length === 0) {
@@ -471,6 +472,12 @@ export default function PlantillaPage() {
         }
       />
 
+      {/* Detail drawer */}
+      <PlantillaDetailDrawer
+        plantillaId={selectedPlantillaId}
+        onClose={() => setSelectedPlantillaId(null)}
+      />
+
       {/* Table area */}
       <div className="overflow-hidden rounded-md border border-border-default bg-surface-base">
         {renderListContent()}
@@ -515,7 +522,13 @@ export default function PlantillaPage() {
 // Employee table
 // ---------------------------------------------------------------------------
 
-function EmployeeTable({ rows }: { rows: PlantillaEmployeeListItem[] }) {
+function EmployeeTable({
+  rows,
+  onRowClick,
+}: {
+  rows: PlantillaEmployeeListItem[];
+  onRowClick: (id: string) => void;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1120px] text-sm">
@@ -548,13 +561,15 @@ function EmployeeTable({ rows }: { rows: PlantillaEmployeeListItem[] }) {
           {rows.map((row) => {
             const overlay = deriveDeactivationOverlay(row.plantillaStatus);
 
+            const isClickable = !overlay.isDimmed;
+
             const rowClass = [
               "transition-colors",
               overlay.isPendingSeparation
-                ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80"
+                ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer"
                 : overlay.isDimmed
                   ? "pointer-events-none opacity-65"
-                  : "hover:bg-table-row-hover",
+                  : "hover:bg-table-row-hover cursor-pointer",
             ].join(" ");
 
             const dimText = overlay.isDimmed
@@ -567,7 +582,24 @@ function EmployeeTable({ rows }: { rows: PlantillaEmployeeListItem[] }) {
                 : (row.lastName ?? row.firstName ?? "—");
 
             return (
-              <tr key={row.id} className={rowClass}>
+              <tr
+                key={row.id}
+                className={rowClass}
+                onClick={isClickable ? () => onRowClick(row.id) : undefined}
+                onKeyDown={
+                  isClickable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onRowClick(row.id);
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={isClickable ? 0 : undefined}
+                role={isClickable ? "button" : undefined}
+                aria-label={isClickable ? `View details for ${displayName}` : undefined}
+              >
                 <td className="px-3 py-2.5">
                   <span
                     className={`font-mono text-xs bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 ${

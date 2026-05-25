@@ -547,12 +547,17 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - React Query `useQuery` hooks are wired in `page.tsx` for summary, employee list, and store staffing list.
 - All four `DataState` boundaries (loading, empty, access_denied, retryable error with retry callback) are active.
 
-### Phase 4: Detail Drawer
-- Implement the Plantilla Detail Drawer (`DetailDrawer`, 640px) for employee rows.
-- Render employment/allocation grid, roving coverage component (when `assignmentType === 'Roving'`), clearance panel (when `plantilla_status === 'Pending Separation'`), SLA warning block, and audit timeline.
-- Wire `getWebPlantillaDetail` via `useQuery` triggered by row selection.
-- Apply deactivation and transfer overlay banners inside the drawer header.
-- Store view drawer: selected store's detailed personnel list and capacity summary.
+### Phase 4: Detail Drawer ✅ COMPLETE
+- `src/components/plantilla/PlantillaDetailDrawer.tsx` is fully implemented.
+- Employment/allocation grid, roving coverage (when `assignmentType === 'Roving'`), clearance panel (when `plantilla_status === 'Pending Separation'`), SLA warning block, masked PII fields, and audit timeline are all rendered.
+- `getWebPlantillaDetail` is called via `useQuery` (queryKey: `["plantilla", "detail", plantillaId]`), enabled only when a `plantillaId` is non-null.
+- All four DataState boundaries are active: loading, access_denied, not found (empty), and retryable error with retry callback.
+- Deactivation banners (separation-pending, deactivated) and transfer overlay banner are rendered at the top of the drawer body.
+- `CapabilityActionBar` maps `rowCapabilities` to read-only action visibility hints.
+- Row click wiring: employee table rows emit `onRowClick(row.id)`. Dimmed rows (inactive/terminated/suspended) keep `pointer-events-none` and cannot be clicked. Active and pending-separation rows are keyboard- and mouse-accessible (`role="button"`, `tabIndex=0`, Enter/Space support).
+- Drawer close clears `selectedPlantillaId` state in the page, closing the drawer.
+- Store view drawer: not yet implemented (Phase 4 partial — employee only).
+- Validated: `pnpm lint` clean, `pnpm build` clean (zero errors, zero warnings).
 
 ### Phase 5: Action Mutations Integration
 - Hook up React Query mutations (`useMutation`) to backend action RPCs:
