@@ -350,15 +350,13 @@ function normalizeSummary(data: unknown): VacancySummary {
 
 function getFilters(params: VacancyListParams) {
   return {
-    ...(params.agingBucket ? { aging_bucket: params.agingBucket } : {}),
-    ...(params.pipelineStatus ? { pipeline_status: params.pipelineStatus } : {}),
+    ...(params.agingBucket ? { aging_buckets: [params.agingBucket] } : {}),
   };
 }
 
 export async function getVacancySummary(params: Pick<VacancyListParams, "status" | "search" | "agingBucket" | "pipelineStatus">) {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_vacancy_summary", {
-    p_queue: params.status,
     p_search: params.search?.trim() || null,
     p_filters: getFilters({
       ...params,
@@ -431,4 +429,3 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
 
   return normalized;
 }
-
