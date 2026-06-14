@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
   onClose: () => void;
+  isFreezeModeActive?: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -41,7 +42,7 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : "retryable";
 }
 
-export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerProps) {
+export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false }: VacancyDetailDrawerProps) {
   const {
     data: detail,
     isLoading,
@@ -359,10 +360,15 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
 
               {/* Capability-Aware Action Area */}
               <CapabilityActionBar
+                isReadOnlyEmergencyActive={isFreezeModeActive}
                 actions={[
                   {
                     label: "Approve Vacancy",
                     isAvailable: detail.rowCapabilities?.canApprove === true,
+                  },
+                  {
+                    label: "Add Applicant",
+                    isAvailable: detail.rowCapabilities?.canUpdateApplicantStatus === true,
                   },
                   {
                     label: "Update Applicant Status",

@@ -8,6 +8,7 @@ import {
   FileSearch,
   LockKeyhole,
   Plus,
+  ShieldOff,
 } from "lucide-react";
 import {
   VacancyTable,
@@ -20,6 +21,7 @@ import {
   listVacancies,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
+import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
@@ -83,6 +85,15 @@ export default function VacancyPage() {
     }),
     [accountId, agingBucket, groupId, page, search, status, urgency, vacantFrom, vacantTo],
   );
+
+  const freezeQuery = useQuery({
+    queryKey: ["freeze-mode-status"],
+    queryFn: getWebFreezeModeStatus,
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const isFreezeModeActive = freezeQuery.data?.isReadOnlyEmergencyActive === true;
 
   const summaryQuery = useQuery({
     queryKey: [
@@ -178,6 +189,29 @@ export default function VacancyPage() {
           icon: Plus,
         }}
       />
+
+      {isFreezeModeActive && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          <ShieldOff className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-semibold">Read-Only Emergency Mode Active</span>
+            <span className="text-xs text-red-700">
+              All write actions are temporarily disabled system-wide. Supabase backend will reject any mutation attempt.
+              {freezeQuery.data?.reason && (
+                <> Reason: {freezeQuery.data.reason}.</>
+              )}
+              {freezeQuery.data?.activatedByName && (
+                <> Activated by {freezeQuery.data.activatedByName}.</>
+              )}
+              {" "}Contact a Super Admin to deactivate this freeze from Freeze Modes.
+            </span>
+          </div>
+        </div>
+      )}
 
       <section
         aria-label="Vacancy summary"
@@ -357,6 +391,7 @@ export default function VacancyPage() {
         <VacancyDetailDrawer
           vacancyId={selectedVacancyId}
           onClose={() => setSelectedVacancyId(null)}
+          isFreezeModeActive={isFreezeModeActive}
         />
       </section>
 

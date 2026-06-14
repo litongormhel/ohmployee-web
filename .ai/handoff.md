@@ -271,3 +271,21 @@
 - **Duplicate MFR calculation removed**: there was no prior web-side MFR computation; guardrail comments added to the normalizer and type to prevent future web-side calculations that exclude HR Pipeline.
 - **State docs**: `docs/state/plantilla_web_state.md` store staffing section updated with MFR breakdown table.
 - **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## Read-Only Emergency Mode Enforcement — Vacancy Add Applicant (OHM2026_1132)
+
+- **Issue fixed**: Read-Only Emergency Mode (`read_only_emergency` governance control) was ACTIVE but OM could still add applicants and progress the Vacancy pipeline. The `applicants` RLS policies and SECURITY DEFINER RPCs (`create_applicant_and_link_to_vacancy`, `fn_update_applicant_status`) did not check freeze mode.
+- **Root cause**: Both `applicants_insert_ops_only` and `applicants_update_ops_recruitment` RLS policies lacked a freeze guard. SECURITY DEFINER RPCs bypass RLS entirely, creating a second gap.
+- **Backend migration**: `20260614000001_web_vacancy_applicant_freeze_enforcement.sql` (sibling Supabase repo):
+  - §1 Patched `applicants_insert_ops_only` WITH CHECK: adds `NOT fn_check_freeze_active('read_only_emergency')` guard.
+  - §2 Patched `applicants_update_ops_recruitment` USING: adds `NOT fn_check_freeze_active('read_only_emergency')` guard.
+  - §3 Added `BEFORE INSERT OR UPDATE` trigger `trg_applicants_read_only_check` on `public.applicants`. Fires even inside SECURITY DEFINER functions — the primary enforcement layer for `create_applicant_and_link_to_vacancy` and `fn_update_applicant_status`. Raises `P0001` with message "Read-Only Emergency Mode is active. Write actions are temporarily disabled."
+  - §4 Created `get_web_freeze_mode_status()` SECURITY DEFINER RPC (granted to `authenticated`; revoked from anon/public). Returns `{ is_read_only_emergency_active, activated_at, activated_by_name, reason }` JSONB.
+- **RBAC**: OM, HRCO, ATL, TL, Encoder, Recruitment, HA — all blocked from applicant writes when freeze is active (trigger fires regardless of role). SA can deactivate the freeze via `fn_update_freeze_mode` only; SA is NOT bypassing normal applicant writes while freeze is active.
+- **Web query layer**: `src/lib/queries/freeze.ts` — `getWebFreezeModeStatus()`, `FreezeModeStatus` type, `FreezeModeError` class. Polls `get_web_freeze_mode_status` with 30s stale-time.
+- **Vacancy page** (`src/app/(dashboard)/vacancy/page.tsx`): Fetches freeze status via React Query (`["freeze-mode-status"]` key, 30s stale-time). Renders a full-width red `role="alert"` banner above KPI cards when freeze is active, showing the freeze reason and activating user. Passes `isFreezeModeActive` to `VacancyDetailDrawer`.
+- **VacancyDetailDrawer** (`src/components/vacancy/VacancyDetailDrawer.tsx`): Accepts `isFreezeModeActive?: boolean` prop. Passes it to `CapabilityActionBar` as `isReadOnlyEmergencyActive`. Added "Add Applicant" as an explicit action item alongside "Update Applicant Status" (both gated by `canUpdateApplicantStatus`).
+- **CapabilityActionBar** (`src/components/shared/CapabilityActionBar.tsx`): New `isReadOnlyEmergencyActive?: boolean` prop. When active: renders a red in-bar `ShieldOff` banner ("Read-Only Emergency Mode is active. Write actions are temporarily disabled."), forces all buttons to `disabled`, and replaces badge labels with "read-only mode" (red styling).
+- **Enforcement principle**: Frontend is ergonomics only. Backend trigger + RLS is the authority. Supabase will reject any write regardless of frontend state.
+- **Smoke tests**: `docs/smoke-tests/vacancy_freeze_mode_enforcement.sql` — 9 targeted tests (T1–T9) covering trigger existence, RLS policy update, RPC existence, inactive/active state reads, OM Add Applicant blocked, Update Status blocked, direct INSERT blocked, and post-deactivation recovery.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).

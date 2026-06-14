@@ -23,6 +23,21 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 - Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
 - The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.
 
+## Read-Only Emergency Mode Enforcement (OHM2026_1132)
+
+- **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):
+  - `applicants_insert_ops_only` RLS now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table INSERT when freeze is active.
+  - `applicants_update_ops_recruitment` RLS USING now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table UPDATE when freeze is active.
+  - `trg_applicants_read_only_check` BEFORE trigger on `public.applicants` — primary enforcement layer, fires even inside SECURITY DEFINER functions (`create_applicant_and_link_to_vacancy`, `fn_update_applicant_status`). Raises P0001 "Read-Only Emergency Mode is active. Write actions are temporarily disabled."
+  - `get_web_freeze_mode_status()` RPC — authenticated read of current `read_only_emergency` state; granted to `authenticated`, revoked from anon.
+- **Frontend enforcement** (ergonomics only; backend is authoritative):
+  - `src/lib/queries/freeze.ts` — `getWebFreezeModeStatus()` wrapper, `FreezeModeStatus` type, 30s stale-time.
+  - `src/app/(dashboard)/vacancy/page.tsx` — fetches freeze status; renders full-width red banner with `role="alert"` when active, showing reason and activating user.
+  - `src/components/vacancy/VacancyDetailDrawer.tsx` — accepts `isFreezeModeActive?: boolean`; passes to CapabilityActionBar as `isReadOnlyEmergencyActive`.
+  - `src/components/shared/CapabilityActionBar.tsx` — `isReadOnlyEmergencyActive` prop; when true, shows ShieldOff in-bar banner, disables all action buttons, and shows "read-only mode" badge instead of "available".
+- **RBAC**: OM, HRCO, ATL, TL, Encoder, Recruitment, HA — all blocked from applicant writes by backend trigger. SA can only deactivate the freeze via `fn_update_freeze_mode`; SA write bypass is NOT architecturally documented for this module while freeze is active.
+- **Smoke tests**: `docs/smoke-tests/vacancy_freeze_mode_enforcement.sql` — T1–T9 covering trigger existence, policy updates, RPC existence, freeze state reads, OM Add Applicant blocked, Update Status blocked, direct INSERT blocked, and post-deactivation recovery.
+
 ## OHM2026_1077 Backend Assessment
 
 This architecture pass inspected the authoritative Supabase sibling repo at `/Users/armanjr/Projects/OHMployee/OHMployee` because this web repo has no local `supabase/migrations` directory.
