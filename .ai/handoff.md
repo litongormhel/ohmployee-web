@@ -239,3 +239,35 @@
   - `pendingReview` and `agingWatch` KPI cards may show `0` when the summary RPC does not return equivalent fields.
   - Some list fields normalize to `null`/`0` when the deployed list RPC does not return them.
 - **Validation status**: `pnpm lint` clean. `pnpm build` initially failed inside the sandbox with the known Turbopack `Operation not permitted` port-binding error, then passed outside the sandbox (Next.js 16.2.4, zero build errors). Browser QA reached the local `/vacancy` route against `.env.local`, but the app redirected to Login because no authenticated Supabase browser session was available; no PostgREST function-not-found error was observed in the unauthenticated browser console.
+
+## Dashboard Web Implementation (OHM2026_1133)
+
+- **Contracts wired**: `fn_dashboard_metrics()` and `fn_dashboard_operational_analytics()` — both new RPCs from OHM2026_1132 backend deployment.
+- **Query layer**: `src/lib/queries/dashboard.ts` — `getDashboardMetrics()`, `getDashboardOperationalAnalytics()`, `DashboardDataError` (access_denied / retryable).
+- **Dashboard page**: `src/app/(dashboard)/dashboard/page.tsx` replaced `ModuleEmptyState` with a full read-only admin page:
+  - **Operational KPI row** (5 cards): Open Vacancies, HR Emploc Pending, Active Plantilla, Under-Staffed Stores, Active SLA Breaches — all from `fn_dashboard_metrics()`.
+  - **Operational Analytics section**: Pipeline Total, Hires This Month, Separations This Month, Avg Fill Rate — from `fn_dashboard_operational_analytics()`.
+  - **Security Dashboard section** (RBAC-gated): Pending Approvals, Security Events — from `fn_dashboard_metrics()`. Fields are null from the backend when the caller's role lacks admin access. The frontend shows `DataState kind="access_denied"` when both security fields are null after a successful RPC call. No frontend role-key check is performed; backend is the sole authority.
+- **Normalizer behavior**: All fields use defensive normalizers (`asCount` defaults to 0, `asNullableCount` passes through null). Missing fields from a different backend deploy version return 0 / null without errors.
+- **State docs**: `docs/state/dashboard_state.md` created.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).
+- **Remaining gaps**: `fn_dashboard_metrics()` and `fn_dashboard_operational_analytics()` backend migrations must be deployed remotely. Exact return field names will be confirmed after backend deployment; normalizers are defensive.
+
+## Plantilla Store Staffing MFR Breakdown (OHM2026_1133)
+
+- **Backend contract update**: `list_web_plantilla_store_staffing()` now returns `onboard_count`, `hr_pipeline_count`, `open_headcount`, `required_headcount`, `fill_rate` (OHM2026_1132).
+- **MFR formula**: `Actual / (Actual + HR Pipeline + Vacancy)` = `fill_rate` from backend. The web layer does NOT compute MFR.
+- **Type changes** (`src/lib/queries/plantilla.ts`): `PlantillaStoreStaffingRow` gains four new canonical fields:
+  - `onboardCount` (Actual, from `onboard_count`)
+  - `hrPipelineCount` (HR Pipeline, from `hr_pipeline_count`)
+  - `openHeadcount` (Vacancy, from `open_headcount`)
+  - `fillRate` (MFR %, from `fill_rate`; null when backend does not return it)
+  - Legacy aliases `activeHeadcount`, `vacancyCount`, `pipelineCount` retained as pass-throughs to the new canonical fields to preserve `deriveStaffingRisk` backward compat.
+- **Normalizer update** (`normalizeStoreStaffingRow`): reads new field names first, falls back to legacy field names for older backend deploys.
+- **UI update** (`src/app/(dashboard)/plantilla/page.tsx`):
+  - `StoreTable` column headers changed: "Active HC" → "Actual", "Pipeline" → "HR Pipeline", "Vacancies" → "Vacancy", "Required HC" → "Required". "Gap" column removed. "MFR %" column added.
+  - MFR % rendered as `(fill_rate * 100).toFixed(1)%` with a tooltip showing the formula.
+  - `min-w-[1400px]` updated from `1280px` to accommodate the new column layout.
+- **Duplicate MFR calculation removed**: there was no prior web-side MFR computation; guardrail comments added to the normalizer and type to prevent future web-side calculations that exclude HR Pipeline.
+- **State docs**: `docs/state/plantilla_web_state.md` store staffing section updated with MFR breakdown table.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).

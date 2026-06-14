@@ -723,10 +723,15 @@ function EmployeeTable({
 // Store staffing table
 // ---------------------------------------------------------------------------
 
+function formatFillRate(fillRate: number | null): string {
+  if (fillRate === null) return "—";
+  return `${(fillRate * 100).toFixed(1)}%`;
+}
+
 function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1280px] text-left text-[0.9375rem]">
+      <table className="w-full min-w-[1400px] text-left text-[0.9375rem]">
         <thead>
           <tr className="border-b border-table-rule bg-table-header">
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
@@ -739,19 +744,22 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
               Account / Region
             </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Required HC
+              Actual
             </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Active HC
+              HR Pipeline
             </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Vacancies
+              Vacancy
             </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Pipeline
+              Required
             </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Gap
+            <th
+              className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted"
+              title="Actual / (Actual + HR Pipeline + Vacancy)"
+            >
+              MFR %
             </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Staffing Risk
@@ -788,10 +796,13 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   </div>
                 </td>
 
-                <td className="px-4 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
+                {/* Actual — onboard_count from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.onboardCount}</td>
 
-                <td className="px-4 py-2.5 text-table-text-sub">{row.activeHeadcount}</td>
+                {/* HR Pipeline — hr_pipeline_count from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.hrPipelineCount}</td>
 
+                {/* Vacancy — open_headcount from backend */}
                 <td className="px-4 py-2.5 text-table-text-sub">
                   {risk.vacancyCount > 0 ? (
                     <span
@@ -811,9 +822,16 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   )}
                 </td>
 
-                <td className="px-4 py-2.5 text-table-text-sub">{row.pipelineCount}</td>
+                {/* Required — required_headcount from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
 
-                <td className="px-4 py-2.5 text-table-text-sub">{row.staffingGap}</td>
+                {/* MFR % — fill_rate from backend; formula: Actual / (Actual + HR Pipeline + Vacancy) */}
+                <td
+                  className="px-4 py-2.5 text-table-text-sub tabular-nums"
+                  title="Actual / (Actual + HR Pipeline + Vacancy)"
+                >
+                  {formatFillRate(row.fillRate)}
+                </td>
 
                 <td className="px-4 py-2.5">
                   {risk.staffingRisk ? (
