@@ -213,8 +213,8 @@
   --color-table-row-danger: var(--table-row-danger);
   --color-table-row-danger-hover: var(--table-row-danger-hover);
 
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: var(--font-dm-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-dm-mono), "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 @theme {
