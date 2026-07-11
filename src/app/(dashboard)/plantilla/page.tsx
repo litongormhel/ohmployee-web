@@ -25,7 +25,7 @@ import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDra
 // Types
 // ---------------------------------------------------------------------------
 
-type ViewMode = "employee" | "store";
+type ViewMode = "employee" | "inactive" | "store";
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -149,7 +149,7 @@ export default function PlantillaPage() {
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, groupId, storeId, status, plantillaType, page },
+      { search, accountId, groupId, storeId, status, plantillaType, page, view },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
@@ -159,10 +159,11 @@ export default function PlantillaPage() {
         storeId: storeId || undefined,
         status: status || undefined,
         deployment: plantillaType || undefined,
+        activeState: view === "inactive" ? "inactive" : "active",
         page,
         pageSize: PAGE_SIZE,
       }),
-    enabled: view === "employee",
+    enabled: view === "employee" || view === "inactive",
   });
 
   const storeQuery = useQuery({
@@ -188,7 +189,7 @@ export default function PlantillaPage() {
     summaryQuery.error instanceof PlantillaDataError ? summaryQuery.error : null;
   const summaryBlocked = summaryError?.kind === "access_denied";
 
-  const activeListQuery = view === "employee" ? employeeQuery : storeQuery;
+  const activeListQuery = view === "store" ? storeQuery : employeeQuery;
   const listError =
     activeListQuery.error instanceof PlantillaDataError ? activeListQuery.error : null;
 
@@ -282,13 +283,17 @@ export default function PlantillaPage() {
       );
     }
 
-    if (view === "employee") {
+    if (view === "employee" || view === "inactive") {
       if (employeeRows.length === 0) {
         return (
           <DataState
             kind="empty"
-            title="No employee records found"
-            description="No active plantilla employees match the current filters."
+            title={view === "inactive" ? "No inactive records found" : "No employee records found"}
+            description={
+              view === "inactive"
+                ? "No inactive or terminated plantilla employees match the current filters."
+                : "No active plantilla employees match the current filters."
+            }
           />
         );
       }
@@ -329,6 +334,19 @@ export default function PlantillaPage() {
         onClick={() => switchView("employee")}
       >
         Employee View
+      </button>
+      <button
+        aria-selected={view === "inactive"}
+        role="tab"
+        type="button"
+        className={`h-9 border-l border-border-default px-3 text-sm font-medium transition-colors ${
+          view === "inactive"
+            ? "bg-brand-600 text-white"
+            : "bg-surface-base text-text-secondary hover:bg-surface-hover"
+        }`}
+        onClick={() => switchView("inactive")}
+      >
+        Inactive
       </button>
       <button
         aria-selected={view === "store"}
@@ -443,7 +461,7 @@ export default function PlantillaPage() {
               aria-label="Filter by group ID"
             />
 
-            {view === "employee" && (
+            {(view === "employee" || view === "inactive") && (
               <>
                 <input
                   type="text"
@@ -454,18 +472,20 @@ export default function PlantillaPage() {
                   aria-label="Filter by store ID"
                 />
 
-                <select
-                  value={pendingStatus}
-                  onChange={(e) => setPendingStatus(e.target.value)}
-                  className={selectClass}
-                  aria-label="Filter by employment status"
-                >
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                {view === "employee" && (
+                  <select
+                    value={pendingStatus}
+                    onChange={(e) => setPendingStatus(e.target.value)}
+                    className={selectClass}
+                    aria-label="Filter by employment status"
+                  >
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
                 <select
                   value={pendingPlantillaType}
@@ -603,20 +623,9 @@ function EmployeeTable({
           {rows.map((row) => {
             const overlay = deriveDeactivationOverlay(row.plantillaStatus);
 
-            const isClickable = !overlay.isDimmed;
-
-            const rowClass = [
-              "transition-colors",
-              overlay.isPendingSeparation
-                ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer"
-                : overlay.isDimmed
-                  ? "pointer-events-none opacity-65"
-                  : "hover:bg-table-row-hover cursor-pointer",
-            ].join(" ");
-
-            const dimText = overlay.isDimmed
-              ? "line-through decoration-gray-300 text-gray-400"
-              : "";
+            const rowClass = overlay.isPendingSeparation
+              ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer transition-colors"
+              : "transition-colors hover:bg-table-row-hover cursor-pointer";
 
             const displayName =
               row.lastName && row.firstName
@@ -627,34 +636,26 @@ function EmployeeTable({
               <tr
                 key={row.id}
                 className={rowClass}
-                onClick={isClickable ? () => onRowClick(row.id) : undefined}
-                onKeyDown={
-                  isClickable
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onRowClick(row.id);
-                        }
-                      }
-                    : undefined
-                }
-                tabIndex={isClickable ? 0 : undefined}
-                role={isClickable ? "button" : undefined}
-                aria-label={isClickable ? `View details for ${displayName}` : undefined}
+                onClick={() => onRowClick(row.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick(row.id);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View details for ${displayName}`}
               >
                 <td className="px-3 py-2.5">
-                  <span
-                    className={`font-mono text-xs bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 ${
-                      overlay.isDimmed ? "text-gray-400 line-through decoration-gray-300" : "text-table-text"
-                    }`}
-                  >
+                  <span className="font-mono text-xs bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 text-table-text">
                     {row.employeeNo}
                   </span>
                 </td>
 
                 <td className="px-3 py-2.5 font-medium text-table-text">
-                  <span className={dimText}>{displayName}</span>
-                  {!overlay.isDimmed && row.plantillaType === "AH" && (
+                  <span>{displayName}</span>
+                  {row.plantillaType === "AH" && (
                     <span className="ml-1.5 inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-status-warning-text">
                       AH
                     </span>
@@ -663,20 +664,16 @@ function EmployeeTable({
 
                 <td className="px-3 py-2.5 text-table-text-sub">
                   <div className="leading-tight">
-                    <div className={dimText}>{row.accountName ?? "—"}</div>
+                    <div>{row.accountName ?? "—"}</div>
                     {row.primaryStoreName && (
-                      <div className={`text-xs text-table-text-muted ${dimText}`}>
-                        {row.primaryStoreName}
-                      </div>
+                      <div className="text-xs text-table-text-muted">{row.primaryStoreName}</div>
                     )}
                   </div>
                 </td>
 
-                <td className={`px-3 py-2.5 text-table-text-sub ${dimText}`}>
-                  {row.positionTitle ?? "—"}
-                </td>
+                <td className="px-3 py-2.5 text-table-text-sub">{row.positionTitle ?? "—"}</td>
 
-                <td className={`px-3 py-2.5 text-table-text-sub ${dimText}`}>
+                <td className="px-3 py-2.5 text-table-text-sub">
                   {row.assignmentType === "Roving" && row.coveredStoresCount > 0 ? (
                     <span title={`Covers ${row.coveredStoresCount} store(s)`}>
                       Roving ({row.coveredStoresCount})
@@ -686,7 +683,7 @@ function EmployeeTable({
                   )}
                 </td>
 
-                <td className={`px-3 py-2.5 text-xs text-table-text-sub ${dimText}`}>
+                <td className="px-3 py-2.5 text-xs text-table-text-sub">
                   {row.plantillaType ?? "—"}
                 </td>
 
