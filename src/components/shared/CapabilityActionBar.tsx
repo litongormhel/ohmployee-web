@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, ShieldOff } from "lucide-react";
 
 export interface ActionItem {
   label: string;
@@ -12,12 +12,14 @@ export interface CapabilityActionBarProps {
   actions: ActionItem[];
   title?: string;
   helperText?: string;
+  isReadOnlyEmergencyActive?: boolean;
 }
 
 export function CapabilityActionBar({
   actions,
   title = "Capability-Aware Actions",
   helperText = "Available actions are enabled based on current RBAC permissions. Supabase RPC re-validates all writes server-side.",
+  isReadOnlyEmergencyActive = false,
 }: CapabilityActionBarProps) {
   return (
     <div className="rounded-md border border-border-subtle bg-surface-muted p-4 space-y-3">
@@ -25,32 +27,49 @@ export function CapabilityActionBar({
         <Lock className="h-4 w-4 text-text-muted" aria-hidden="true" />
         <span>{title}</span>
       </div>
+
+      {isReadOnlyEmergencyActive && (
+        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+          <ShieldOff className="h-4 w-4 shrink-0 mt-0.5 text-red-600" aria-hidden="true" />
+          <span className="font-medium">
+            Read-Only Emergency Mode is active. Write actions are temporarily disabled.
+          </span>
+        </div>
+      )}
+
       <div className="grid gap-2">
         {actions.map((action) => {
-          const isEnabled = action.isAvailable && !!action.onClick;
+          const isEnabled = !isReadOnlyEmergencyActive && action.isAvailable && !!action.onClick;
+          const badgeLabel = isReadOnlyEmergencyActive
+            ? "read-only mode"
+            : action.isAvailable
+            ? "available"
+            : "not exposed";
+          const badgeClass = isReadOnlyEmergencyActive
+            ? "border-red-200 bg-red-50 text-red-600"
+            : action.isAvailable
+            ? "border-green-200 bg-green-50 text-green-700"
+            : "border-border-default bg-surface-muted text-text-secondary";
+
           return (
-          <button
-            key={action.label}
-            className={`flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-left text-xs font-medium shadow-sm transition-colors ${
-              isEnabled
-                ? "text-text-primary cursor-pointer hover:bg-surface-hover"
-                : "text-text-muted cursor-not-allowed hover:bg-surface-hover"
-            }`}
-            disabled={!isEnabled}
-            onClick={action.onClick}
-            type="button"
-          >
-            <span>{action.label}</span>
-            <span
-              className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border ${
-                action.isAvailable
-                  ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-border-default bg-surface-muted text-text-secondary"
+            <button
+              key={action.label}
+              className={`flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-left text-xs font-medium shadow-sm transition-colors ${
+                isEnabled
+                  ? "text-text-primary cursor-pointer hover:bg-surface-hover"
+                  : "text-text-muted cursor-not-allowed hover:bg-surface-hover"
               }`}
+              disabled={!isEnabled}
+              onClick={action.onClick}
+              type="button"
             >
-              {action.isAvailable ? "available" : "not exposed"}
-            </span>
-          </button>
+              <span>{action.label}</span>
+              <span
+                className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border ${badgeClass}`}
+              >
+                {badgeLabel}
+              </span>
+            </button>
           );
         })}
       </div>

@@ -569,12 +569,8 @@ export function HrEmplocDetailDrawer({
             const canTag =
               detail.rowCapabilities?.canTagDeficiency === true &&
               !isPendingDeletion;
-            const isForReview =
-              detail.hrStatus.toLowerCase().trim() === "for review";
             const canReviewCorrection =
-              detail.rowCapabilities?.canReviewCorrection === true &&
-              isForReview &&
-              !isPendingDeletion;
+              detail.rowCapabilities?.canReviewCorrection === true;
             return (
               <CapabilityActionBar
                 actions={[

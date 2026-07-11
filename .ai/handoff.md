@@ -534,9 +534,9 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
 ## Vacancy Web Handoff
 
 - Vacancy Web architecture is documented in `docs/state/vacancy_web_state.md`.
-- Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, pipeline/aging/urgency/vacant-date filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
+- Current Vacancy implementation is a client desktop admin command center with a compact header, RPC-backed KPI cards, status tabs, submitted search, account/group UUID filters, aging/urgency/vacant-date filters, dense read-only table rows spanning full-screen width, pagination, loading/empty/error/blocked states, and a right-side sliding overlay drawer that renders complete vacancy detail contexts.
 - The Vacancy page integrates `get_web_vacancy_summary(...)`, `list_web_vacancies(...)`, and `get_web_vacancy_detail(p_vacancy_id uuid)` queries through `src/lib/queries/vacancy.ts`.
-- Vacancy list/summary payloads use the backend-authoritative `p_queue`, `p_search`, `p_filters`, `p_sort`, `p_sort_dir`, `p_limit`, and `p_offset` contract. The frontend allowlists queue values, aging buckets, pipeline statuses, urgency levels, vacant-date filters, and supported sort fields before sending RPC arguments; unsupported filters are dropped instead of leaking into `p_filters`.
+- Vacancy list/summary payloads use the deployed backend's flat individual-param contract (OHM2026_1071/OHM2026_1130 fixes). The frontend sends `p_status`, `p_account_id`, `p_group_id`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir` for the list RPC, and `p_status`, `p_account_id`, `p_group_id`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to` for the summary RPC. Tab queue values map to backend `p_status`: `open`→`Open`, `with_applicant`→`Pipeline`; `rejected`/`backout` pass `null` (no direct list-level applicant-terminal-status filter support in the deployed RPC).
 - Vacancy list/detail rows use the RPC field name `position_title` end-to-end in the frontend item contract, table, and detail drawer.
 - Do not add raw table queries, caller-controlled role/scope parameters, fake data, CRUD, or mutations.
 - Target UX is a desktop admin command center: KPI summary row, status tabs, filter/search toolbar, dense full-width table, sliding right-side detail drawer, candidate summary listing (shielded PII), audit timeline, and capability-controlled action area.
@@ -601,6 +601,16 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
   - `formatDate` locale `en-PH` in Plantilla vs `en` in Vacancy/HR Emploc (intentional).
 - **Validated**: `pnpm lint` clean, `pnpm build` clean.
 
+## Wide Admin Layout Standardization (OHM2026_1070)
+
+- **Scope completed**: HR Emploc reference layout, Vacancy, Plantilla, and scaffold-only modules (`Approvals`, `User Management`, `Team Directory`, `Notifications`, `Reports`, `Settings`) now share the maximized admin layout direction.
+- **Shared shell changes**: `DashboardAuthShell` no longer constrains dashboard content to `max-w-7xl`; the fixed compact sidebar remains unchanged while main content uses the full available desktop canvas with responsive page gutters.
+- **Shared UI changes**: `AdminPageHeader`, `MetricCard`, and `AdminFilterBar` use the larger admin typography/spacing scale. `ModuleEmptyState` now renders the same module header, KPI metric row, and full-width workspace shell instead of a narrow centered placeholder card.
+- **Module changes**: HR Emploc, Vacancy, and Plantilla page wrappers no longer add nested page padding; KPI grids use consistent gaps; tabs/segmented controls and filter controls are taller and more readable; dense tables use wider minimum desktop widths, larger body text, larger row/header padding, and full-width table containers.
+- **Backend/RBAC guardrails**: No Supabase schema, RPC, RLS, query contract, role visibility, or mutation logic changed. Placeholder modules still do not mock records or actions.
+- **State docs**: No `docs/state/*_web_state.md` update was needed because this batch changed layout presentation only, not stable module behavior.
+- **Validated**: `pnpm lint` clean. `pnpm build` initially failed in the sandbox with Turbopack `Operation not permitted` while creating a process/binding to a port, then passed outside the sandbox (Next.js 16.2.4, zero build errors).
+
 ## Web Mutation Workflow Handoff (OHM2026_1107 → OHM2026_1109 → OHM2026_1127)
 
 - **Architecture doc**: `docs/state/web_mutation_workflow_state.md` — full spec and phase order for HR Emploc deficiency tagging as the first mutation.
@@ -623,14 +633,14 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
   - `return`: `For Review` → `For Correction` — residual deficiencies kept as the new `correction_reason`; re-fires the HRCO correction notification; audit `Correction Returned`.
 - **Backend contract (deployed — migration `20260609000000`)**: `public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys text[] default null, p_remarks text default null)` — `SECURITY DEFINER`, locked `search_path`, identity from `auth.uid()` only, granted to `authenticated`. Returns `{ ok, hr_emploc_id, decision, new_hr_status, correction_reason, reviewed_at }`.
 - **Allowed roles**: `hrPersonnel` (and `superAdmin` global override). Re-checked server-side; frontend gating is ergonomics only.
-- **Capability flag**: `can_review_correction` must be present in `get_web_hr_emploc_detail` row capability payload (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep distinct from `can_review_deletion` (deletion approvals) and `can_tag_deficiency` (Part I). Until this flag is in the payload, the Review Correction button will correctly remain hidden.
+- **Capability flag**: `can_review_correction` is present in the live `get_web_hr_emploc_detail` row capability payload (true only for authorized reviewers on `For Review`, non-`Pending Deletion` records). Keep distinct from `can_review_deletion` (deletion approvals) and `can_tag_deficiency` (Part I). The Review Correction button renders from this canonical capability only; missing/false/malformed capability payloads remain fail-closed.
 - **Recommended model**: **strict all-deficiencies-resolved** (partial-compliance approval rejected). Rationale: `Complete` is an irreversible forward gate to employee-number assignment / Plantilla movement, and there is no web-side path to re-open a `Complete` record (the Part I tagging RPC rejects `Complete`). The `return` path is the in-loop safety valve for partial fixes.
 - **Blocked states**: non-`For Review` `hr_status`, `Pending Deletion`, `status != 'Pending Emploc'`, out-of-scope. No optimistic UI.
 - **Invalidation**: `["hr-emploc-detail", id]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No Vacancy/Plantilla cache touch.
 - **Error mapping**: reuses existing `getErrorKind` (`42501`→`access_denied`, `P0001`→`invalid_state`); no new error kinds needed.
 - **Frontend wiring status (OHM2026_1112 — COMPLETE):**
   - `src/lib/queries/hr_emploc.ts`: `reviewWebHrEmplocCorrection()` wrapper calls `supabase.rpc("review_web_hr_emploc_correction", ...)`. `canReviewCorrection` normalized from `can_review_correction` only (canonical key; stale `can_approve_correction` alias removed). `ReviewCorrectionParams` and `ReviewCorrectionResult` types exported.
-  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isReviewModalOpen` state; "Review Correction Resubmission (HR Compliance)" action enabled when `canReviewCorrection && isForReview && !isPendingDeletion`; `ReviewCorrectionModal` sub-component with per-deficiency Resolved/Still-Deficient checkboxes, auto-derived decision, decision-preview block, optional remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
+  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: `isReviewModalOpen` state; "Review Correction Resubmission (HR Compliance)" action enabled from backend `canReviewCorrection` only; `ReviewCorrectionModal` sub-component with per-deficiency Resolved/Still-Deficient checkboxes, auto-derived decision, decision-preview block, optional remarks textarea, submitting state, inline error display. On success: invalidates `["hr-emploc-detail", hrEmplocId]`, `["hr-emploc-list"]`, `["hr-emploc-summary"]`. No optimistic UI.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
 
 ## HR Emploc Mutation Stability Audit (OHM2026_1127)
@@ -639,7 +649,7 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
 - **Capability enforcement fixes (OHM2026_1127)**:
   - Removed stale `can_tag_correction` alias from `canTagDeficiency` normalization — canonical key is `can_tag_deficiency`.
   - Removed stale `can_approve_correction` alias from `canReviewCorrection` normalization — canonical key is `can_review_correction`.
-  - If the review correction button does not appear, confirm that `get_web_hr_emploc_detail` returns `can_review_correction: true` in the row capability payload.
+  - Review correction button visibility now depends only on normalized `can_review_correction`; backend state/status/deletion checks remain authoritative in the live detail payload.
 - **Audit/timeline fixes (OHM2026_1127)**:
   - `HrEmplocAuditLogItem.createdAt` changed to `string | null`; normalizer no longer invents `new Date().toISOString()` for null timestamps — `formatDateTime(null)` renders `"--"`.
   - `CorrectionAttachmentItem.uploadedAt` changed to `string | null`; same fix applied.
@@ -655,6 +665,15 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
 - **Stale footer copy (OHM2026_1127)**: `page.tsx` footer disclaimer updated — no longer claims all mutations are read-only; correctly reflects deployed (tag deficiency, review correction) vs. pending (employee ID assignment, Plantilla deployment, separation requests).
 - **Files changed**: `src/lib/queries/hr_emploc.ts`, `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`, `src/app/(dashboard)/hr-emploc/page.tsx`.
 - **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## HR Emploc Live Correction Review Capability Validation (OHM2026_1129)
+
+- **Scope**: live detail payload validation only for review-correction rendering, fail-closed behavior, modal UX, and stale capability aliases.
+- **Root cause fixed**: the Review Correction drawer action still combined canonical `canReviewCorrection` with local status/deletion guards. Since `get_web_hr_emploc_detail` now returns backend-authoritative `can_review_correction`, the action visibility has been narrowed to that normalized capability only.
+- **Capability rendering result**: authorized live payloads with `can_review_correction: true` render the action; unauthorized users, wrong statuses, pending deletion rows, missing keys, malformed capability payloads, and false values hide the action through the normalized canonical flag.
+- **UX validation result**: correction reasons render from `correctionReason`; attachments render with stable attachment/fallback keys; audit timeline renders with stable event/fallback keys and null-safe timestamps; review modal opens/closes from drawer state and unmounts on close; submitting disables inputs, cancel, close, backdrop, and submit; retry clears inline errors; success invalidates detail, list, and summary query caches.
+- **Validated**: `pnpm lint` clean. `pnpm build` initially failed inside sandbox with Turbopack `Operation not permitted` while creating a process/binding to a port, then passed outside the sandbox (Next.js 16.2.4, zero build errors).
+- **Files changed**: `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`, `.ai/handoff.md`, `docs/state/hr_emploc_web_state.md`.
 
 ## Plantilla Web Handoff
 
@@ -682,3 +701,80 @@ Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (
 - **Next Phase Steps**:
   1. Keep Store Staffing backend hydration aligned with the deployed grouped metric contract before adding store-detail UX.
   2. Wire operational mutations (transfers, AH requests, separations, clearance ticks) — Phase 5.
+
+## Vacancy RPC Param Fix (OHM2026_1071)
+
+- **Root cause**: `src/lib/queries/vacancy.ts` was sending `p_queue`/`p_filters` (JSONB) and `p_sort` to the deployed Supabase RPCs, but the deployed functions (`20260524130000_web_vacancy_list_summary_rpcs.sql`) expect flat individual params (`p_status`, `p_aging_bucket`, `p_urgency`, `p_search`, `p_vacant_from`, `p_vacant_to`, `p_limit`, `p_offset`, `p_sort_by`, `p_sort_dir`). PostgREST rejected every call as no-function-found → `retryable` error banner on every load.
+- **Fix**: Replaced `VacancyRpcPayload` type and `getVacancyRpcFilters` function with two new builders matching the deployed signatures: `getSummaryRpcParams` and `getListRpcParams`. Removed dead helpers `normalizeStatus`, `normalizePipelineStatus`, `supportedStatuses`, `supportedPipelineStatuses`. Added `tabToRpcStatus` to map queue tabs → `p_status` values (`open`→`"Open"`, `with_applicant`→`"Pipeline"`, `rejected`/`backout`→`null`).
+- **Secondary normalizer fixes**: `normalizeSummary` now reads `row.total_open` (backend field) to populate `open`; `normalizeListRow` reads `row.urgency_level ?? row.urgency` to populate `urgencyLevel`. Dev-only `console.error` added in `throwVacancyError` to surface the real Supabase error message during development.
+- **Known gap**: The deployed `list_web_vacancies` does not return `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, or `last_activity_at`. These fields default to null/0 in the list rows. The summary `pendingReview` and `agingWatch` KPI fields also have no backend equivalent and display zero. The `rejected`/`backout` tabs cannot filter the list by applicant terminal status with the current backend RPC — they display all scoped active vacancies.
+- **No backend changes made**: No Supabase schema, RPC, RLS, or migration was modified.
+- **Files changed**: `src/lib/queries/vacancy.ts`, `.ai/handoff.md`, `docs/state/vacancy_web_state.md`.
+- **Validated**: `pnpm lint` clean, `pnpm build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## Vacancy Live QA After Flat Param Fix (OHM2026_1130)
+
+- **Scope**: validated only the Vacancy query layer, `/vacancy` page, Vacancy table/drawer components, and relevant Vacancy state/handoff docs.
+- **Root causes found**:
+  - The deployed RPC supports `p_account_id` and `p_group_id`, but the page/query wrapper did not expose or send account/group filters.
+  - The page still showed a standalone Pipeline dropdown even though the deployed backend has no separate pipeline filter param; selecting it only changed the React Query key and did not affect RPC params.
+  - Detail rendering used presentation fallbacks that looked like real business values (`Open`, `Full-time`, `Replacement`, `advance`) and the activity normalizer invented a current timestamp for missing history dates.
+- **Frontend fixes**:
+  - Added account/group UUID filter inputs and flat `p_account_id` / `p_group_id` RPC params for both summary and list reads. Invalid UUID-shaped values normalize to `null` and do not leak unsupported values into the RPC call.
+  - Removed the unsupported Pipeline dropdown; queue status remains controlled by tabs (`open`→`Open`, `with_applicant`→`Pipeline`, `rejected`/`backout`→`null`).
+  - Detail drawer now renders missing backend fields as unavailable placeholders and no longer invents missing activity timestamps.
+- **Known backend limitations confirmed**:
+  - `rejected` and `backout` tabs cannot filter applicant terminal statuses through the deployed list RPC and intentionally show the scoped active vacancy list with `p_status = null`.
+  - `pendingReview` and `agingWatch` KPI cards may show `0` when the summary RPC does not return equivalent fields.
+  - Some list fields normalize to `null`/`0` when the deployed list RPC does not return them.
+- **Validation status**: `pnpm lint` clean. `pnpm build` initially failed inside the sandbox with the known Turbopack `Operation not permitted` port-binding error, then passed outside the sandbox (Next.js 16.2.4, zero build errors). Browser QA reached the local `/vacancy` route against `.env.local`, but the app redirected to Login because no authenticated Supabase browser session was available; no PostgREST function-not-found error was observed in the unauthenticated browser console.
+
+## Dashboard Web Implementation (OHM2026_1133)
+
+- **Contracts wired**: `fn_dashboard_metrics()` and `fn_dashboard_operational_analytics()` — both new RPCs from OHM2026_1132 backend deployment.
+- **Query layer**: `src/lib/queries/dashboard.ts` — `getDashboardMetrics()`, `getDashboardOperationalAnalytics()`, `DashboardDataError` (access_denied / retryable).
+- **Dashboard page**: `src/app/(dashboard)/dashboard/page.tsx` replaced `ModuleEmptyState` with a full read-only admin page:
+  - **Operational KPI row** (5 cards): Open Vacancies, HR Emploc Pending, Active Plantilla, Under-Staffed Stores, Active SLA Breaches — all from `fn_dashboard_metrics()`.
+  - **Operational Analytics section**: Pipeline Total, Hires This Month, Separations This Month, Avg Fill Rate — from `fn_dashboard_operational_analytics()`.
+  - **Security Dashboard section** (RBAC-gated): Pending Approvals, Security Events — from `fn_dashboard_metrics()`. Fields are null from the backend when the caller's role lacks admin access. The frontend shows `DataState kind="access_denied"` when both security fields are null after a successful RPC call. No frontend role-key check is performed; backend is the sole authority.
+- **Normalizer behavior**: All fields use defensive normalizers (`asCount` defaults to 0, `asNullableCount` passes through null). Missing fields from a different backend deploy version return 0 / null without errors.
+- **State docs**: `docs/state/dashboard_state.md` created.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).
+- **Remaining gaps**: `fn_dashboard_metrics()` and `fn_dashboard_operational_analytics()` backend migrations must be deployed remotely. Exact return field names will be confirmed after backend deployment; normalizers are defensive.
+
+## Plantilla Store Staffing MFR Breakdown (OHM2026_1133)
+
+- **Backend contract update**: `list_web_plantilla_store_staffing()` now returns `onboard_count`, `hr_pipeline_count`, `open_headcount`, `required_headcount`, `fill_rate` (OHM2026_1132).
+- **MFR formula**: `Actual / (Actual + HR Pipeline + Vacancy)` = `fill_rate` from backend. The web layer does NOT compute MFR.
+- **Type changes** (`src/lib/queries/plantilla.ts`): `PlantillaStoreStaffingRow` gains four new canonical fields:
+  - `onboardCount` (Actual, from `onboard_count`)
+  - `hrPipelineCount` (HR Pipeline, from `hr_pipeline_count`)
+  - `openHeadcount` (Vacancy, from `open_headcount`)
+  - `fillRate` (MFR %, from `fill_rate`; null when backend does not return it)
+  - Legacy aliases `activeHeadcount`, `vacancyCount`, `pipelineCount` retained as pass-throughs to the new canonical fields to preserve `deriveStaffingRisk` backward compat.
+- **Normalizer update** (`normalizeStoreStaffingRow`): reads new field names first, falls back to legacy field names for older backend deploys.
+- **UI update** (`src/app/(dashboard)/plantilla/page.tsx`):
+  - `StoreTable` column headers changed: "Active HC" → "Actual", "Pipeline" → "HR Pipeline", "Vacancies" → "Vacancy", "Required HC" → "Required". "Gap" column removed. "MFR %" column added.
+  - MFR % rendered as `(fill_rate * 100).toFixed(1)%` with a tooltip showing the formula.
+  - `min-w-[1400px]` updated from `1280px` to accommodate the new column layout.
+- **Duplicate MFR calculation removed**: there was no prior web-side MFR computation; guardrail comments added to the normalizer and type to prevent future web-side calculations that exclude HR Pipeline.
+- **State docs**: `docs/state/plantilla_web_state.md` store staffing section updated with MFR breakdown table.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).
+
+## Read-Only Emergency Mode Enforcement — Vacancy Add Applicant (OHM2026_1132)
+
+- **Issue fixed**: Read-Only Emergency Mode (`read_only_emergency` governance control) was ACTIVE but OM could still add applicants and progress the Vacancy pipeline. The `applicants` RLS policies and SECURITY DEFINER RPCs (`create_applicant_and_link_to_vacancy`, `fn_update_applicant_status`) did not check freeze mode.
+- **Root cause**: Both `applicants_insert_ops_only` and `applicants_update_ops_recruitment` RLS policies lacked a freeze guard. SECURITY DEFINER RPCs bypass RLS entirely, creating a second gap.
+- **Backend migration**: `20260614000001_web_vacancy_applicant_freeze_enforcement.sql` (sibling Supabase repo):
+  - §1 Patched `applicants_insert_ops_only` WITH CHECK: adds `NOT fn_check_freeze_active('read_only_emergency')` guard.
+  - §2 Patched `applicants_update_ops_recruitment` USING: adds `NOT fn_check_freeze_active('read_only_emergency')` guard.
+  - §3 Added `BEFORE INSERT OR UPDATE` trigger `trg_applicants_read_only_check` on `public.applicants`. Fires even inside SECURITY DEFINER functions — the primary enforcement layer for `create_applicant_and_link_to_vacancy` and `fn_update_applicant_status`. Raises `P0001` with message "Read-Only Emergency Mode is active. Write actions are temporarily disabled."
+  - §4 Created `get_web_freeze_mode_status()` SECURITY DEFINER RPC (granted to `authenticated`; revoked from anon/public). Returns `{ is_read_only_emergency_active, activated_at, activated_by_name, reason }` JSONB.
+- **RBAC**: OM, HRCO, ATL, TL, Encoder, Recruitment, HA — all blocked from applicant writes when freeze is active (trigger fires regardless of role). SA can deactivate the freeze via `fn_update_freeze_mode` only; SA is NOT bypassing normal applicant writes while freeze is active.
+- **Web query layer**: `src/lib/queries/freeze.ts` — `getWebFreezeModeStatus()`, `FreezeModeStatus` type, `FreezeModeError` class. Polls `get_web_freeze_mode_status` with 30s stale-time.
+- **Vacancy page** (`src/app/(dashboard)/vacancy/page.tsx`): Fetches freeze status via React Query (`["freeze-mode-status"]` key, 30s stale-time). Renders a full-width red `role="alert"` banner above KPI cards when freeze is active, showing the freeze reason and activating user. Passes `isFreezeModeActive` to `VacancyDetailDrawer`.
+- **VacancyDetailDrawer** (`src/components/vacancy/VacancyDetailDrawer.tsx`): Accepts `isFreezeModeActive?: boolean` prop. Passes it to `CapabilityActionBar` as `isReadOnlyEmergencyActive`. Added "Add Applicant" as an explicit action item alongside "Update Applicant Status" (both gated by `canUpdateApplicantStatus`).
+- **CapabilityActionBar** (`src/components/shared/CapabilityActionBar.tsx`): New `isReadOnlyEmergencyActive?: boolean` prop. When active: renders a red in-bar `ShieldOff` banner ("Read-Only Emergency Mode is active. Write actions are temporarily disabled."), forces all buttons to `disabled`, and replaces badge labels with "read-only mode" (red styling).
+- **Enforcement principle**: Frontend is ergonomics only. Backend trigger + RLS is the authority. Supabase will reject any write regardless of frontend state.
+- **Smoke tests**: `docs/smoke-tests/vacancy_freeze_mode_enforcement.sql` — 9 targeted tests (T1–T9) covering trigger existence, RLS policy update, RPC existence, inactive/active state reads, OM Add Applicant blocked, Update Status blocked, direct INSERT blocked, and post-deactivation recovery.
+- **Validated**: `npm run lint` clean, `npm run build` clean (Next.js 16.2.4, zero errors, zero warnings).

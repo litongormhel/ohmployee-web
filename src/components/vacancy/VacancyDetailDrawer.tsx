@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
   onClose: () => void;
+  isFreezeModeActive?: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -41,7 +42,7 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : "retryable";
 }
 
-export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerProps) {
+export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false }: VacancyDetailDrawerProps) {
   const {
     data: detail,
     isLoading,
@@ -120,7 +121,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                           : "border-gray-200 bg-gray-50 text-gray-700"
                       }
                     >
-                      {detail.derivedStatus ?? detail.vacancyStatus ?? "Open"}
+                      {detail.derivedStatus ?? detail.vacancyStatus ?? "--"}
                     </Badge>
                   </div>
                 </div>
@@ -153,7 +154,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                   <div>
                     <div className="text-xs text-gray-400">Employment Type</div>
                     <div className="mt-0.5 font-medium text-gray-800">
-                      {detail.employmentType ?? "Full-time"}
+                      {detail.employmentType ?? "--"}
                     </div>
                   </div>
                   <div>
@@ -202,7 +203,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                     <div className="text-xs text-gray-400">CENCOM Aging Bucket</div>
                     <div className="mt-0.5">
                       <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[10px]">
-                        {detail.agingBucket ?? "advance"}
+                        {detail.agingBucket ?? "--"}
                       </Badge>
                     </div>
                   </div>
@@ -277,13 +278,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
                   <div className="flex justify-between border-b border-gray-50 pb-1.5">
                     <span className="text-xs text-gray-400">Headcount Request ID</span>
                     <span className="font-mono text-xs text-gray-700 truncate max-w-[200px]">
-                      {detail.headcountRequestId ?? "Direct Vacancy"}
+                      {detail.headcountRequestId ?? "--"}
                     </span>
                   </div>
                   <div className="flex justify-between border-b border-gray-50 pb-1.5">
                     <span className="text-xs text-gray-400">Vacancy Stated Reason</span>
                     <span className="text-xs text-gray-800 font-medium">
-                      {detail.vacancyReason ?? "Replacement"}
+                      {detail.vacancyReason ?? "--"}
                     </span>
                   </div>
                   {detail.approvedByName && (
@@ -359,10 +360,15 @@ export function VacancyDetailDrawer({ vacancyId, onClose }: VacancyDetailDrawerP
 
               {/* Capability-Aware Action Area */}
               <CapabilityActionBar
+                isReadOnlyEmergencyActive={isFreezeModeActive}
                 actions={[
                   {
                     label: "Approve Vacancy",
                     isAvailable: detail.rowCapabilities?.canApprove === true,
+                  },
+                  {
+                    label: "Add Applicant",
+                    isAvailable: detail.rowCapabilities?.canUpdateApplicantStatus === true,
                   },
                   {
                     label: "Update Applicant Status",

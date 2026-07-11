@@ -69,33 +69,38 @@ EMP-001101 | Del Rosario, A.   | Davao South / Davao Hub    | Coordinator  | Sta
 ---
 
 ### B. Store-Centric View
-This view switches focus to store capacity metrics. Each row represents a specific store's staffing capacity and targets.
+This view switches focus to store capacity metrics. Each row represents a specific store's staffing capacity and MFR breakdown (OHM2026_1132 contract).
 
 ```
-[Store Plantilla Grid Viewport (Scrollable horizontally, min-width: 1120px)]
------------------------------------------------------------------------------------------------------------------------------
-Store Code | Store Name        | Account / Region           | Budgeted   | Active (B) | Active (AH) | Vacancies  | SLA Status
------------------------------------------------------------------------------------------------------------------------------
-STR-C042   | Cebu Mall         | Cebu Regional / Visayas    | 5 Slots    | 4 Filled   | 1 Active    | 1 Vacant   | Fully-Staffed
-STR-M099   | Manila Hub 1      | Manila Region / NCR        | 3 Slots    | 1 Filled   | 0 Active    | 2 Vacant   | Under-Staffed
-STR-D101   | Davao Hub         | Davao South / Mindanao     | 4 Slots    | 4 Filled   | 2 Active    | 0 Vacant   | Over-Staffed
+[Store Plantilla Grid Viewport (Scrollable horizontally, min-width: 1400px)]
+-----------------------------------------------------------------------------------------------------------------------------------
+Store Code | Store Name        | Account / Region           | Actual | HR Pipeline | Vacancy | Required | MFR %  | Risk      | SLA
+-----------------------------------------------------------------------------------------------------------------------------------
+STR-C042   | Cebu Mall         | Cebu Regional / Visayas    | 4      | 1           | 1       | 5        | 66.7%  | Medium    | Fully-Staffed
+STR-M099   | Manila Hub 1      | Manila Region / NCR        | 1      | 1           | 2       | 3        | 25.0%  | High      | Under-Staffed
+STR-D101   | Davao Hub         | Davao South / Mindanao     | 4      | 0           | 0       | 4        | 100.0% | Low       | Fully-Staffed
 ```
 
-#### Column Structure (Store View):
-1. **Store Code**: `store_code` (Rendered in monospace: `font-mono text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5`).
-2. **Store Name**: Display name of the store.
-3. **Account & Region**: The billing account and geographical region.
-4. **Required Headcount**: Backend-returned required staffing target for the grouped store row.
-5. **Active Headcount**: Backend-returned active staffing count for the grouped store row.
-6. **Vacancies**: Backend-returned vacancy count for the grouped store row.
-7. **Pipeline Count**: Backend-returned active hiring/deployment pipeline count for the grouped store row.
-8. **Staffing Gap**: Backend-returned staffing gap. The frontend does not recompute or clamp this value, so negative values can represent over-staffing if returned by the RPC.
-9. **Staffing Risk**: Backend-returned staffing risk badge.
-10. **SLA Badge**: Backend-returned SLA badge:
-   - `Under-Staffed`: Rendered as danger.
-   - `Fully-Staffed`: Rendered as success.
-   - `Over-Staffed`: Rendered as warning.
-9. **Actions**: Desktop "Eye" icon to open the selected Store's detailed plantilla and list of assigned personnel in a Command-Center drawer.
+#### MFR Breakdown Column Structure (Store View — OHM2026_1132):
+
+The store staffing table renders the MFR breakdown sourced from `list_web_plantilla_store_staffing()`. The formula is displayed as a column tooltip:
+
+**MFR % = Actual / (Actual + HR Pipeline + Vacancy)**
+
+| Column | Backend Field | Description |
+|--------|--------------|-------------|
+| Store Code | `store_code` | Monospaced store identifier |
+| Store Name | `store_name` | Display name |
+| Account / Region | `account_name`, `region` | Billing account and region |
+| **Actual** | `onboard_count` | Confirmed onboarded headcount |
+| **HR Pipeline** | `hr_pipeline_count` | In-progress hires/deployments |
+| **Vacancy** | `open_headcount` | Open unfilled slots (SLA warning if ≥ 7 days) |
+| **Required** | `required_headcount` | Contracted staffing target |
+| **MFR %** | `fill_rate` | Backend-computed; formula: Actual / (Actual + HR Pipeline + Vacancy) |
+| Staffing Risk | `staffing_risk` | Backend-returned risk level badge |
+| SLA Badge | `sla_badge` | Under/Fully/Over-staffed badge |
+
+**Guardrail**: The `fill_rate` is sourced from the backend only. The web layer does NOT compute MFR. Any future web-side MFR derivation must include HR Pipeline in the denominator — computing `Actual / Required` is incorrect and excluded by design.
 
 ---
 
@@ -536,7 +541,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - Employee View and Store Staffing View share a single page with filtered, paginated dense tables.
 - No mock data; all queries go through Supabase RPCs only.
 - Employee table columns: Emp ID, Name (AH badge), Account/Store, Position, Assignment (Roving count), Type, Status (StatusBadge + SLA breach ⚠).
-- Store table columns: Store Code, Store Name, Account/Region, Required HC, Active HC, Vacancies (SLA breach ⚠), Pipeline, Gap, Staffing Risk, SLA Badge.
+- Store table columns (OHM2026_1132): Store Code, Store Name, Account/Region, Actual (`onboard_count`), HR Pipeline (`hr_pipeline_count`), Vacancy (`open_headcount`, SLA breach ⚠), Required (`required_headcount`), MFR % (`fill_rate` from backend; formula tooltip: Actual / (Actual + HR Pipeline + Vacancy)), Staffing Risk, SLA Badge. Legacy "Gap" column removed; no web-side MFR computation.
 - Deactivation overlays applied via `deriveDeactivationOverlay`: pending-separation rows get dashed border + `bg-red-50/30 opacity-80`; inactive/terminated/suspended rows get `opacity-65 pointer-events-none` + strikethrough on ID and name.
 - Staffing risk derived via `deriveStaffingRisk` to drive backend-returned staffing risk, SLA badge, vacancy count, and vacancy SLA breach indicators.
 - Filters: search (apply-on-click), account ID, group ID, store ID (employee view), employment status (employee view), deployment type (employee view), staffing risk/SLA status (store view).

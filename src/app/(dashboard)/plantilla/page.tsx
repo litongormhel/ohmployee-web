@@ -326,7 +326,7 @@ export default function PlantillaPage() {
         aria-selected={view === "employee"}
         role="tab"
         type="button"
-        className={`h-9 px-3 text-sm font-medium transition-colors ${
+        className={`h-10 px-4 text-sm font-semibold transition-colors ${
           view === "employee"
             ? "bg-brand-600 text-white"
             : "bg-surface-base text-text-secondary hover:bg-surface-hover"
@@ -352,7 +352,7 @@ export default function PlantillaPage() {
         aria-selected={view === "store"}
         role="tab"
         type="button"
-        className={`h-9 border-l border-border-default px-3 text-sm font-medium transition-colors ${
+        className={`h-10 border-l border-border-default px-4 text-sm font-semibold transition-colors ${
           view === "store"
             ? "bg-brand-600 text-white"
             : "bg-surface-base text-text-secondary hover:bg-surface-hover"
@@ -365,17 +365,17 @@ export default function PlantillaPage() {
   );
 
   const selectClass =
-    "h-9 rounded-md border border-border-default bg-surface-muted px-2 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
+    "h-10 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
 
   const inputClass =
-    "h-9 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors w-32";
+    "h-10 w-36 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
 
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 p-4 text-gray-900 sm:p-5">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       <AdminPageHeader
         title="Plantilla Directory"
         subtitle="Manage active personnel, audit store capacities, and govern movements."
@@ -386,7 +386,7 @@ export default function PlantillaPage() {
       {/* KPI summary row */}
       <section
         aria-label="Plantilla summary metrics"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       >
         <MetricCard
           label="Active Roster"
@@ -527,11 +527,11 @@ export default function PlantillaPage() {
       />
 
       {/* Table area */}
-      <div className="overflow-hidden rounded-md border border-border-default bg-surface-base">
+      <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">
         {renderListContent()}
 
         {!isListLoading && !isListError && totalCount > 0 && (
-          <div className="flex items-center justify-between border-t border-border-default px-4 py-2 text-xs text-text-muted">
+          <div className="flex items-center justify-between border-t border-border-default px-4 py-3 text-sm text-text-muted">
             <span>
               {totalCount.toLocaleString()} record
               {totalCount !== 1 ? "s" : ""}
@@ -542,7 +542,7 @@ export default function PlantillaPage() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-7 rounded border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Previous
                 </button>
@@ -553,7 +553,7 @@ export default function PlantillaPage() {
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="h-7 rounded border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -593,28 +593,28 @@ function EmployeeTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1120px] text-sm">
+      <table className="w-full min-w-[1280px] text-left text-[0.9375rem]">
         <thead>
           <tr className="border-b border-table-rule bg-table-header">
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Emp ID
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Name
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Account / Store
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Position
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Assignment
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Type
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Status
             </th>
           </tr>
@@ -662,7 +662,7 @@ function EmployeeTable({
                   )}
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">
+                <td className="px-4 py-2.5 text-table-text-sub">
                   <div className="leading-tight">
                     <div>{row.accountName ?? "—"}</div>
                     {row.primaryStoreName && (
@@ -687,7 +687,7 @@ function EmployeeTable({
                   {row.plantillaType ?? "—"}
                 </td>
 
-                <td className="px-3 py-2.5">
+                <td className="px-4 py-2.5">
                   {row.plantillaStatus ? (
                     <span className="inline-flex items-center gap-1">
                       <StatusBadge
@@ -720,40 +720,48 @@ function EmployeeTable({
 // Store staffing table
 // ---------------------------------------------------------------------------
 
+function formatFillRate(fillRate: number | null): string {
+  if (fillRate === null) return "—";
+  return `${(fillRate * 100).toFixed(1)}%`;
+}
+
 function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1120px] text-sm">
+      <table className="w-full min-w-[1400px] text-left text-[0.9375rem]">
         <thead>
           <tr className="border-b border-table-rule bg-table-header">
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Store Code
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Store Name
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Account / Region
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Required HC
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Actual
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Active HC
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              HR Pipeline
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Vacancies
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Vacancy
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Pipeline
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Required
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
-              Gap
+            <th
+              className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted"
+              title="Actual / (Actual + HR Pipeline + Vacancy)"
+            >
+              MFR %
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Staffing Risk
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-table-text-muted">
+            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               SLA Badge
             </th>
           </tr>
@@ -766,17 +774,17 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                 key={`${row.storeId}-${row.storeCode ?? row.storeName ?? index}`}
                 className="transition-colors hover:bg-table-row-hover"
               >
-                <td className="px-3 py-2.5">
+                <td className="px-4 py-2.5">
                   <span className="font-mono text-xs text-table-text bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
                     {row.storeCode ?? "—"}
                   </span>
                 </td>
 
-                <td className="px-3 py-2.5 font-medium text-table-text">
+                <td className="px-4 py-2.5 font-medium text-table-text">
                   {row.storeName ?? "—"}
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">
+                <td className="px-4 py-2.5 text-table-text-sub">
                   <div className="leading-tight">
                     <div>{row.accountName ?? "—"}</div>
                     {row.region && (
@@ -785,11 +793,14 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   </div>
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
+                {/* Actual — onboard_count from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.onboardCount}</td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.activeHeadcount}</td>
+                {/* HR Pipeline — hr_pipeline_count from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.hrPipelineCount}</td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">
+                {/* Vacancy — open_headcount from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">
                   {risk.vacancyCount > 0 ? (
                     <span
                       className={
@@ -808,11 +819,18 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   )}
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.pipelineCount}</td>
+                {/* Required — required_headcount from backend */}
+                <td className="px-4 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.staffingGap}</td>
+                {/* MFR % — fill_rate from backend; formula: Actual / (Actual + HR Pipeline + Vacancy) */}
+                <td
+                  className="px-4 py-2.5 text-table-text-sub tabular-nums"
+                  title="Actual / (Actual + HR Pipeline + Vacancy)"
+                >
+                  {formatFillRate(row.fillRate)}
+                </td>
 
-                <td className="px-3 py-2.5">
+                <td className="px-4 py-2.5">
                   {risk.staffingRisk ? (
                     <StatusBadge
                       variant={staffingStatusVariant(risk.staffingRisk)}
@@ -823,7 +841,7 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   )}
                 </td>
 
-                <td className="px-3 py-2.5">
+                <td className="px-4 py-2.5">
                   {risk.slaBadge ? (
                     <StatusBadge
                       variant={staffingStatusVariant(risk.slaBadge)}

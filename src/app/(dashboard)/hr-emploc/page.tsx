@@ -175,7 +175,7 @@ export default function HrEmplocPage() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 p-4 text-gray-900 sm:p-5">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       {/* Page Header */}
       <AdminPageHeader
         title="HR Emploc Compliance"
@@ -187,7 +187,7 @@ export default function HrEmplocPage() {
       {/* KPI Cards Row (CLS Shift Guarded) */}
       <section
         aria-label="Compliance summary metrics"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       >
         {kpis.map((item) => (
           <MetricCard
@@ -217,7 +217,7 @@ export default function HrEmplocPage() {
               {queueTabs.map((tab) => (
                 <button
                   aria-selected={queue === tab.value}
-                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  className={`rounded px-4 py-2 text-sm font-semibold transition-all duration-150 ${
                     queue === tab.value
                       ? "bg-brand-600 text-white shadow-sm"
                       : "text-gray-600 hover:bg-gray-100"
@@ -231,11 +231,11 @@ export default function HrEmplocPage() {
                 </button>
               ))}
             </div>
-            <div className="text-xs text-gray-400 font-medium">
+            <div className="text-sm font-medium text-gray-500">
               Roster matches are evaluated under backend-authoritative Supabase RBAC scopes.
             </div>
           </div>
-          <p className="text-xs text-gray-500 italic pl-1">
+          <p className="pl-1 text-sm text-gray-500">
             {activeQueueDescription}
           </p>
         </div>
@@ -252,7 +252,7 @@ export default function HrEmplocPage() {
             applyLabel="Search & Filter"
             extraActionsSlot={
               <button
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-400 hover:bg-gray-50/50 cursor-not-allowed transition-colors"
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
                 disabled
                 type="button"
               >
@@ -264,7 +264,7 @@ export default function HrEmplocPage() {
             {/* Assignment filter */}
             <select
               aria-label="Assignment type filter"
-              className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors"
+              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
               disabled
               onChange={(event) => {
                 setAssignment(event.target.value as "Stationary" | "Roving" | "");
@@ -283,7 +283,7 @@ export default function HrEmplocPage() {
               <Briefcase className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <input
                 aria-label="Position title filter"
-                className="h-9 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors w-[150px]"
+                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
                 disabled
                 onChange={(event) => {
                   setPosition(event.target.value);
@@ -301,7 +301,7 @@ export default function HrEmplocPage() {
               <Building className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <input
                 aria-label="Account UUID filter"
-                className="h-9 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors w-[150px]"
+                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
                 disabled={blocked}
                 onChange={(event) => {
                   setAccountId(event.target.value);
@@ -319,7 +319,7 @@ export default function HrEmplocPage() {
               <Building className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <input
                 aria-label="Group UUID filter"
-                className="h-9 rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none focus:border-blue-300 transition-colors w-[150px]"
+                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
                 disabled={blocked}
                 onChange={(event) => {
                   setGroupId(event.target.value);

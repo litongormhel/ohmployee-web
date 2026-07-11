@@ -9,14 +9,34 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 ## Current Vacancy Web Assessment
 
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
-- The query layer sends only backend-authoritative queue/search/filter/sort/pagination arguments: `p_queue`, `p_search`, `p_filters`, `p_sort`, `p_sort_dir`, `p_limit`, and `p_offset`. It does not pass caller identity, role, profile, account, or group ids as authority.
-- `src/lib/queries/vacancy.ts` allowlists queue values, aging buckets, pipeline statuses, urgency levels, vacant date strings, and supported sort fields before constructing RPC payloads. Unsupported UI/client values are dropped instead of being forwarded to `p_filters`.
-- `src/app/(dashboard)/vacancy/page.tsx` now uses React Query to load the read-only Vacancy summary and list RPCs, with status tabs, submitted search, pipeline/aging/urgency/vacant-date filters, pagination state, loading state, empty state, blocked state, and retryable error state.
+- The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.
+- **Deployed `list_web_vacancies` params** (migration `20260524130000`): `p_status text`, `p_account_id uuid`, `p_group_id uuid`, `p_position text`, `p_urgency text`, `p_aging_bucket text`, `p_search text`, `p_vacant_from date`, `p_vacant_to date`, `p_limit integer`, `p_offset integer`, `p_sort_by text`, `p_sort_dir text`. Sort allowlist: `vcode`, `account_name`, `group_name`, `store_name`, `position_title`, `vacancy_status`, `pipeline_status`, `vacant_date`, `aging_days`, `target_fill_date`, `urgency`.
+- **Deployed `get_web_vacancy_summary` params** (migration `20260524130000`): `p_status text`, `p_account_id uuid`, `p_group_id uuid`, `p_position text`, `p_urgency text`, `p_search text`, `p_vacant_from date`, `p_vacant_to date`. Returns: `total_open`, `with_applicant`, `rejected`, `backout`, `aging_0_7`, `aging_8_14`, `aging_15_30`, `aging_31_plus`, `aging_unknown`, `critical_urgency`, `high_urgency`.
+- **Tab-to-status mapping**: `open`→`p_status="Open"`, `with_applicant`→`p_status="Pipeline"` (backend `derived_status` values). `rejected`/`backout` tabs pass `p_status=null`; the deployed list RPC has no applicant-terminal-status filter, so these tabs show all scoped active vacancies.
+- **Known field gaps in list RPC**: The deployed `list_web_vacancies` does not return `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, or `last_activity_at`. These normalize to null/0 in list rows.
+- `src/lib/queries/vacancy.ts` allowlists aging buckets, urgency levels, vacant date strings, account/group UUID strings, and supported sort fields before constructing RPC params. Unsupported values are dropped.
+- `OHM2026_1130` live QA alignment: Vacancy filters now expose deployed backend-supported account and group UUID filters and send them as flat `p_account_id` / `p_group_id` params to both summary and list RPCs. The previous Pipeline dropdown was removed because it did not map to a deployed standalone RPC filter; queue status remains controlled only by the primary tabs.
+- `src/app/(dashboard)/vacancy/page.tsx` now uses React Query to load the read-only Vacancy summary and list RPCs, with status tabs, submitted search, account/group UUID filters, aging/urgency/vacant-date filters, pagination state, loading state, empty state, blocked state, and retryable error state.
 - `src/components/vacancy/VacancyTable.tsx` now renders backend rows with `row_capabilities`, `total_count`, `aging_bucket`, and `pipeline_status`; table row selection is read-only and detail-panel content is limited to list-returned fields.
-- `src/components/vacancy/VacancyDetailDrawer.tsx` hydrates exclusively from `get_web_vacancy_detail(p_vacancy_id uuid)` and tolerates partial/null JSON arrays by rendering empty candidate/history sections with stable fallback keys.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` hydrates exclusively from `get_web_vacancy_detail(p_vacancy_id uuid)` and tolerates partial/null JSON arrays by rendering empty candidate/history sections with stable fallback keys. It renders missing detail fields as unavailable placeholders instead of inventing status, employment type, headcount origin, vacancy reason, aging bucket, or timeline timestamps.
 - `OHM2026_1081` aligned the Vacancy frontend row contract with the RPC field name `position_title`; the query normalizer, table, and selected-row detail panel no longer consume a legacy `position`/camelCase frontend field.
 - Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
 - The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.
+
+## Read-Only Emergency Mode Enforcement (OHM2026_1132)
+
+- **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):
+  - `applicants_insert_ops_only` RLS now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table INSERT when freeze is active.
+  - `applicants_update_ops_recruitment` RLS USING now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table UPDATE when freeze is active.
+  - `trg_applicants_read_only_check` BEFORE trigger on `public.applicants` — primary enforcement layer, fires even inside SECURITY DEFINER functions (`create_applicant_and_link_to_vacancy`, `fn_update_applicant_status`). Raises P0001 "Read-Only Emergency Mode is active. Write actions are temporarily disabled."
+  - `get_web_freeze_mode_status()` RPC — authenticated read of current `read_only_emergency` state; granted to `authenticated`, revoked from anon.
+- **Frontend enforcement** (ergonomics only; backend is authoritative):
+  - `src/lib/queries/freeze.ts` — `getWebFreezeModeStatus()` wrapper, `FreezeModeStatus` type, 30s stale-time.
+  - `src/app/(dashboard)/vacancy/page.tsx` — fetches freeze status; renders full-width red banner with `role="alert"` when active, showing reason and activating user.
+  - `src/components/vacancy/VacancyDetailDrawer.tsx` — accepts `isFreezeModeActive?: boolean`; passes to CapabilityActionBar as `isReadOnlyEmergencyActive`.
+  - `src/components/shared/CapabilityActionBar.tsx` — `isReadOnlyEmergencyActive` prop; when true, shows ShieldOff in-bar banner, disables all action buttons, and shows "read-only mode" badge instead of "available".
+- **RBAC**: OM, HRCO, ATL, TL, Encoder, Recruitment, HA — all blocked from applicant writes by backend trigger. SA can only deactivate the freeze via `fn_update_freeze_mode`; SA write bypass is NOT architecturally documented for this module while freeze is active.
+- **Smoke tests**: `docs/smoke-tests/vacancy_freeze_mode_enforcement.sql` — T1–T9 covering trigger existence, policy updates, RPC existence, freeze state reads, OM Add Applicant blocked, Update Status blocked, direct INSERT blocked, and post-deactivation recovery.
 
 ## OHM2026_1077 Backend Assessment
 
@@ -199,10 +219,15 @@ Frontend implementation now expects this canonical browser contract:
 
 ```ts
 supabase.rpc("list_web_vacancies", {
-  p_queue,
+  p_status,
+  p_account_id,
+  p_group_id,
+  p_aging_bucket,
+  p_urgency,
   p_search,
-  p_filters,
-  p_sort: "aging_days",
+  p_vacant_from,
+  p_vacant_to,
+  p_sort_by: "aging_days",
   p_sort_dir: "desc",
   p_limit,
   p_offset,
@@ -211,24 +236,28 @@ supabase.rpc("list_web_vacancies", {
 
 The current UI reads `row_capabilities`, `total_count`, `aging_bucket`, and `pipeline_status` directly from the returned rows. Permission/RLS/RPC authorization failures render a blocked state; other failures render a retryable error state.
 
-Vacancy Web needs a backend-approved list RPC before replacing the empty placeholder query. Prefer an RPC as the canonical browser contract, backed by a narrow `security_invoker` helper view only if useful inside the migration.
-
-Recommended canonical shape:
+Deployed canonical shape:
 
 ```sql
 select *
 from public.list_web_vacancies(
-  p_queue := 'open',
+  p_status := 'Open',
+  p_account_id := null,
+  p_group_id := null,
+  p_position := null,
+  p_urgency := null,
+  p_aging_bucket := null,
   p_search := null,
-  p_filters := '{}'::jsonb,
-  p_sort := 'aging_days',
+  p_vacant_from := null,
+  p_vacant_to := null,
+  p_sort_by := 'aging_days',
   p_sort_dir := 'desc',
   p_limit := 50,
   p_offset := 0
 );
 ```
 
-The exact function name may change to match the authoritative Supabase naming pattern, but the contract should:
+The contract should:
 
 - Derive caller identity from `auth.uid()`.
 - Apply existing Mobile RBAC and RLS scope.
@@ -282,27 +311,18 @@ Supported input contract:
 
 | Input | Type | Notes |
 | --- | --- | --- |
-| `p_queue` | `text` | One of `open`, `pipeline`, `with_applicant`, `hired`, `closure`, `rejected`, `backout`, `all`; map aliases to Mobile semantics. `with_applicant` should mean canonical active-applicant `Pipeline`. |
+| `p_status` | `text null` | Frontend maps tabs to backend `derived_status`: `open`→`Open`, `with_applicant`→`Pipeline`, `rejected`/`backout`→`null` because terminal applicant-status filtering is not deployed. |
+| `p_account_id` | `uuid null` | Optional narrowing within caller scope. Invalid UI values are dropped before the RPC call. |
+| `p_group_id` | `uuid null` | Optional narrowing within caller scope. Invalid UI values are dropped before the RPC call. |
+| `p_position` | `text null` | Deployed backend parameter; not currently exposed in the page UI. |
+| `p_urgency` | `text null` | Existing values only: `High`, `Medium`, `Normal`. |
+| `p_aging_bucket` | `text null` | `advance`, `1_15`, `16_30`, `31_60`, `61_120`, `gt121`. |
 | `p_search` | `text null` | Case-insensitive search across `vcode`, account, group, store/branch, area/city, and `position_title`. Do not search applicant names in the list unless explicitly approved. |
-| `p_filters` | `jsonb` | Filter object only; do not accept caller-controlled profile/role/scope authority. |
-| `p_sort` | `text` | Allowlist only. Recommended: `aging_days`, `vacant_date`, `target_fill_date`, `urgency_level`, `account_name`, `group_name`, `store_name`, `position_title`, `updated_at`, `vcode`. |
+| `p_vacant_from` / `p_vacant_to` | `date null` | Date range over `vacant_date`. Invalid UI values are dropped before the RPC call. |
+| `p_sort_by` | `text` | Allowlist only. Current page sends fixed `aging_days`. |
 | `p_sort_dir` | `text` | `asc` or `desc`, default `desc`. |
 | `p_limit` | `integer` | Default `50`, max `100`. |
 | `p_offset` | `integer` | Default `0`, never negative. |
-
-Recommended `p_filters` keys:
-
-| Key | Type | Notes |
-| --- | --- | --- |
-| `status` | `text[]` | Raw vacancy statuses only if the UI needs more than the queue. Must not introduce new statuses. |
-| `account_ids` | `uuid[]` | Optional narrowing within caller scope. Ignore or reject ids outside caller scope. |
-| `group_ids` | `uuid[]` | Optional narrowing within caller scope. Ignore or reject ids outside caller scope. |
-| `store_ids` | `uuid[]` | Optional narrowing within caller scope. |
-| `position_ids` | `uuid[]` | Optional narrowing within caller scope. |
-| `aging_buckets` | `text[]` | `advance`, `1_15`, `16_30`, `31_60`, `61_120`, `gt121`. |
-| `urgency_levels` | `text[]` | Existing values only. |
-| `vacant_date_from` / `vacant_date_to` | `date` | Date range over `vacant_date`. |
-| `target_fill_date_from` / `target_fill_date_to` | `date` | Date range over `target_fill_date`. |
 
 Pagination should use offset/limit for the first Web integration because it is simple for admin tables and works with a filtered count. Use deterministic secondary ordering, such as `ORDER BY <allowlisted sort>, vcode, vacancy_id`, so rows do not jump between pages. Consider keyset pagination only if the list grows large enough to make deep offsets expensive.
 
@@ -380,8 +400,14 @@ Recommended shape:
 ```sql
 select *
 from public.get_web_vacancy_summary(
+  p_status := null,
+  p_account_id := null,
+  p_group_id := null,
+  p_position := null,
+  p_urgency := null,
   p_search := null,
-  p_filters := '{}'::jsonb
+  p_vacant_from := null,
+  p_vacant_to := null
 );
 ```
 
@@ -500,7 +526,7 @@ Read only:
 
 Tasks:
 1. Add a migration in the authoritative Supabase repo; do not edit frontend code.
-2. Create a scoped Web vacancy list RPC, recommended `public.list_web_vacancies(p_queue text default 'open', p_search text default null, p_filters jsonb default '{}'::jsonb, p_sort text default 'aging_days', p_sort_dir text default 'desc', p_limit integer default 50, p_offset integer default 0)`.
+2. Create a scoped Web vacancy list RPC matching the deployed flat-param contract: `public.list_web_vacancies(p_status text default null, p_account_id uuid default null, p_group_id uuid default null, p_position text default null, p_urgency text default null, p_aging_bucket text default null, p_search text default null, p_vacant_from date default null, p_vacant_to date default null, p_limit integer default 50, p_offset integer default 0, p_sort_by text default 'aging_days', p_sort_dir text default 'desc')`.
 3. Derive caller identity only from `auth.uid()`. Do not accept caller-controlled profile, role, account scope, or group scope authority.
 4. Enforce `vacancy.view`/Mobile-equivalent read access and existing Mobile scope:
    - Super Admin / Head Admin broad access via existing full-access semantics.
@@ -518,15 +544,15 @@ Tasks:
    - nullable `penalty_exposure` only if an existing authoritative safe source exists, otherwise return `null`;
    - `hrco_user_id`, live-validated `hrco_name`, optional `last_activity_at`, `row_capabilities`, optional `total_count`.
 7. Implement filters/search:
-   - queue/status;
-   - account ids, group ids, store ids/search keyword, position ids;
+   - tab status via `p_status`;
+   - account id, group id, search keyword, optional position;
    - aging bucket, urgency, vacant date range, target fill date range.
 8. Implement allowlisted sorting and deterministic pagination:
    - allowed sorts: `aging_days`, `vacant_date`, `target_fill_date`, `urgency_level`, `account_name`, `group_name`, `store_name`, `position_title`, `updated_at`, `vcode`;
    - default `aging_days desc`;
    - clamp limit to max `100`;
    - secondary order by `vcode` and `vacancy_id`.
-9. Create a scoped KPI/count RPC, recommended `public.get_web_vacancy_summary(p_search text default null, p_filters jsonb default '{}'::jsonb)`, using the same base scope and filters as the list.
+9. Create a scoped KPI/count RPC matching the deployed flat-param contract: `public.get_web_vacancy_summary(p_status text default null, p_account_id uuid default null, p_group_id uuid default null, p_position text default null, p_urgency text default null, p_search text default null, p_vacant_from date default null, p_vacant_to date default null)`, using the same base scope and filters as the list.
 10. Summary should return scoped counts for open, pipeline/with applicant, optional hired-visible, pending closure, rejected/backout if safely derivable from applicant terminal statuses, oldest aging, aging bucket counts, urgency counts, and total filtered count.
 11. Add comments and validation SQL proving unauthenticated callers are blocked, scoped users cannot see out-of-scope vacancies, broad admins can see broad rows, Viewer receives read-only hints, and no employee/Plantilla-sensitive fields or applicant contact fields are exposed.
 12. Do not implement the detail RPC unless needed for the next frontend phase. If added, keep it read-only, scoped, and web-safe.

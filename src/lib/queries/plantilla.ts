@@ -178,9 +178,17 @@ export type PlantillaStoreStaffingRow = {
   accountName: string | null;
   region: string | null;
   requiredHeadcount: number;
-  activeHeadcount: number;
-  vacancyCount: number;
-  pipelineCount: number;
+  // MFR breakdown fields (OHM2026_1132 backend contract)
+  onboardCount: number;       // Actual: confirmed onboarded headcount
+  hrPipelineCount: number;    // HR Pipeline: in-progress hiring/deploying
+  openHeadcount: number;      // Vacancy: open unfilled slots
+  // fill_rate from backend only — do NOT recompute on the web layer.
+  // Formula: Actual / (Actual + HR Pipeline + Vacancy)
+  fillRate: number | null;
+  // Legacy aliases kept for backward compat with deriveStaffingRisk
+  activeHeadcount: number;    // alias → onboardCount
+  vacancyCount: number;       // alias → openHeadcount
+  pipelineCount: number;      // alias → hrPipelineCount
   staffingGap: number;
   staffingRisk: PlantillaStaffingRiskStatus | null;
   slaBadge: string | null;
@@ -569,16 +577,30 @@ function normalizeStoreStaffingRow(row: PlantillaRpcRow): PlantillaStoreStaffing
     asString(row.store_name) ??
     "unknown-store";
 
+  // OHM2026_1132: new field names from backend; fall back to legacy names for older deploys
+  const onboardCount = asCount(row.onboard_count ?? row.active_headcount ?? row.active_budgeted_count);
+  const hrPipelineCount = asCount(row.hr_pipeline_count ?? row.pipeline_count);
+  const openHeadcount = asCount(row.open_headcount ?? row.vacancy_count ?? row.vacancies_count);
+  const requiredHeadcount = asCount(row.required_headcount ?? row.budgeted_target);
+
   return {
     storeId,
     storeCode: asString(row.store_code),
     storeName: asString(row.store_name),
     accountName: asString(row.account_name),
     region: asString(row.region),
-    requiredHeadcount: asCount(row.required_headcount ?? row.budgeted_target),
-    activeHeadcount: asCount(row.active_headcount ?? row.active_budgeted_count),
-    vacancyCount: asCount(row.vacancy_count ?? row.vacancies_count),
-    pipelineCount: asCount(row.pipeline_count),
+    requiredHeadcount,
+    // MFR breakdown — canonical new fields
+    onboardCount,
+    hrPipelineCount,
+    openHeadcount,
+    // fill_rate is backend-computed; do NOT derive on the web layer.
+    // Formula: onboardCount / (onboardCount + hrPipelineCount + openHeadcount)
+    fillRate: asNumber(row.fill_rate),
+    // Legacy aliases so deriveStaffingRisk and existing renders keep working
+    activeHeadcount: onboardCount,
+    vacancyCount: openHeadcount,
+    pipelineCount: hrPipelineCount,
     staffingGap: asInteger(row.staffing_gap),
     staffingRisk: asString(row.staffing_risk ?? row.staffing_sla_status),
     slaBadge: asBadgeText(row.sla_badge ?? row.staffing_sla_status),

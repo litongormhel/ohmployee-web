@@ -1,9 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminTopbar } from "@/components/AdminTopbar";
 import { Sidebar } from "@/components/Sidebar";
+import { IdleWarningModal } from "@/components/IdleWarningModal";
+import { useIdleTimer } from "@/hooks/useIdleTimer";
 import {
   getVisibleModules,
   loadCurrentUserContext,
@@ -11,9 +13,104 @@ import {
   type WebCurrentUserContext,
 } from "@/lib/auth";
 import { getActiveModule } from "@/lib/modules";
+import { createClient } from "@/lib/supabase/client";
+
+// ── Idle timer inner shell ─────────────────────────────────────────────────────
+
+/**
+ * Inner component rendered only when a user is confirmed authenticated.
+ * Owns the idle timer and warning modal so they only run for authenticated sessions.
+ */
+function AuthenticatedShell({
+  currentUser,
+  children,
+}: {
+  currentUser: WebCurrentUserContext;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [idleWarningOpen, setIdleWarningOpen] = useState(false);
+
+  const visibleModules = useMemo(
+    () => getVisibleModules(currentUser),
+    [currentUser],
+  );
+  const activeModule = getActiveModule(pathname, visibleModules);
+  const canViewActiveModule = visibleModules.some(
+    (module) => module.key === activeModule.key,
+  );
+
+  useEffect(() => {
+    if (visibleModules.length > 0 && !canViewActiveModule) {
+      router.replace("/dashboard");
+    }
+  }, [canViewActiveModule, router, visibleModules.length]);
+
+  // Perform idle logout: sign out from Supabase then redirect to login.
+  // Do NOT use router.replace here before signOut — let signOut complete first.
+  const handleIdleLogout = useCallback(async () => {
+    setIdleWarningOpen(false);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.replace("/login");
+    }
+  }, [router]);
+
+  // Wire the idle timer. Only document-level user events reset the clock.
+  // React Query refetches, Supabase realtime, and API fetches must NOT
+  // call resetTimers — they are not user activity.
+  const { resetTimers } = useIdleTimer({
+    onWarn: () => setIdleWarningOpen(true),
+    onLogout: handleIdleLogout,
+  });
+
+  const handleStaySignedIn = useCallback(() => {
+    setIdleWarningOpen(false);
+    resetTimers();
+  }, [resetTimers]);
+
+  if (!canViewActiveModule) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 text-sm font-medium text-slate-600">
+        Loading secure workspace...
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <IdleWarningModal
+        isOpen={idleWarningOpen}
+        onStaySignedIn={handleStaySignedIn}
+        onSignOut={handleIdleLogout}
+      />
+      <div className="flex min-h-screen bg-slate-100">
+        <Sidebar
+          visibleModules={visibleModules}
+          moduleCapabilities={currentUser.moduleCapabilities}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AdminTopbar
+            visibleModules={visibleModules}
+            moduleCapabilities={currentUser.moduleCapabilities}
+          />
+          <main className="flex-1 overflow-auto">
+            <div className="w-full px-4 py-5 sm:px-5 lg:px-6 2xl:px-8">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── DashboardAuthShell ─────────────────────────────────────────────────────────
 
 export function DashboardAuthShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<WebCurrentUserContext | null>(
     null,
@@ -57,26 +154,6 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     };
   }, [router]);
 
-  const visibleModules = useMemo(
-    () => getVisibleModules(currentUser),
-    [currentUser],
-  );
-  const activeModule = getActiveModule(pathname, visibleModules);
-  const canViewActiveModule = visibleModules.some(
-    (module) => module.key === activeModule.key,
-  );
-
-  useEffect(() => {
-    if (
-      !isLoading &&
-      currentUser &&
-      visibleModules.length > 0 &&
-      !canViewActiveModule
-    ) {
-      router.replace("/dashboard");
-    }
-  }, [canViewActiveModule, currentUser, isLoading, router, visibleModules.length]);
-
   if (blockedAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
@@ -98,7 +175,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isLoading || !currentUser || !canViewActiveModule) {
+  if (isLoading || !currentUser) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 text-sm font-medium text-slate-600">
         Loading secure workspace...
@@ -106,23 +183,5 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     );
   }
 
-  return (
-    <div className="flex min-h-screen bg-slate-100">
-      <Sidebar
-        visibleModules={visibleModules}
-        moduleCapabilities={currentUser.moduleCapabilities}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AdminTopbar
-          visibleModules={visibleModules}
-          moduleCapabilities={currentUser.moduleCapabilities}
-        />
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-7xl px-5 py-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
+  return <AuthenticatedShell currentUser={currentUser}>{children}</AuthenticatedShell>;
 }
