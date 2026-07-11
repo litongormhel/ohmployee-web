@@ -1,5 +1,30 @@
 # AI Handoff
 
+## ohmployee-web — Git Status Audit + Mirror ai-finish.sh PROD Gate Script (ohm#8kfq3wzn)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, STAGING VERIFIED**
+
+### Summary of Changes
+
+1. **Git Status Audit (Part A)**:
+   - Audited the uncommitted repository state. Identified 9 files containing modifications or additions accumulated from prior tasks (`ohm#3k8h5wte`, `ohm#8vt3nkrq`, `ohm#6dq9wshl`, `OHM2026_1097`, `ohm#1cme8bzn`, `ohm#7bxk1nte`, `ohm#7k2m9xq4`).
+   - Staged and committed these changes in 8 distinct git commits corresponding to each task boundary.
+
+2. **Mirror PROD Gate Script (Part B)**:
+   - Designed and created a cross-platform, environment-aware Node script [finish.js](file:///D:/Projects/OHMployee-web/scripts/finish.js) to act as the git commit safety orchestrator.
+   - The script parses [.env](file:///D:/Projects/OHMployee-web/.env) to read the active `NEXT_PUBLIC_SUPABASE_URL` and matches the project reference:
+     - **STAGING** (`qqiiznmqxfoamqytjica`) target: proceeds to auto-stage in-scope files and commit automatically.
+     - **PRODUCTION** (`rwxelulyapjgaarlwkus`) or **UNRESOLVED** (ambiguous/missing env) target: halts the process, warns the user, and requires them to manually enter `CONFIRM-PROD` to proceed.
+   - Integrates with git to stage tracked changes and task-scoped untracked files declared in `OHM_SCOPE_FILES`.
+   - Wired `finish` script as a command shortcut inside `package.json` (`npm run finish` or `pnpm finish`).
+
+3. **Verification**:
+   - Verified Staging auto-commit behavior successfully (committed the orchestrator files automatically with `auto` prefix and parsed briefing metadata).
+   - Verified Production safety gate (blocked commit and aborted when `CONFIRM-PROD` was refused).
+   - Verified Unresolved safety gate (blocked commit and aborted when `.env` was missing/unparsed).
+
+---
+
 ## ohmployee-web — Fix HR Emploc row_capabilities Missing RBAC Fields (Blocking Workflow) (ohm#7bxk1nte)
 
 **Status: COMPLETE — STAGING DEPLOYED & VERIFIED**

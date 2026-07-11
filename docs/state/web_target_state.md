@@ -116,4 +116,26 @@ This section documents the read-only audit of the Plantilla module UI in the web
 
 *Note: HR Emploc `coveredStoresCount` on list rows is also omitted from `list_web_hr_emplocs` RPC projection (only returned by the detail RPC), resolving as 0 in list view.*
 
+---
+
+## 4. Git Workflow & Environment Safety Commit Gate (ohm#8kfq3wzn — 2026-07-11)
+
+To protect the shared production environment and streamline repository sync tasks across team boundaries, `ohmployee-web` implements a customized Git Commit gate.
+
+### A. Git Status Auditing
+- **Audited Commit Split**: The accumulated changes from prior sprint tasks have been audited and committed separately along task-boundary commits. The working directory is now synchronized with standard prompt IDs.
+
+### B. scripts/finish.js Orchestration Gate
+- **Location**: [finish.js](file:///D:/Projects/OHMployee-web/scripts/finish.js)
+- **Execution Shortcut**: Wired under `finish` script in `package.json` (`npm run finish` or `pnpm finish`).
+- **Environment Detection**:
+  - Automatically parses `.env` looking for `NEXT_PUBLIC_SUPABASE_URL`.
+  - Maps URL subdomains to Supabase Project Refs:
+    - `STAGING`: `qqiiznmqxfoamqytjica`
+    - `PRODUCTION`: `rwxelulyapjgaarlwkus`
+    - `UNRESOLVED`: fallback state for missing files, invalid URLs, or unrecognized subdomains.
+- **Safety Semantics**:
+  - **STAGING Target**: The script executes an automatic git commit. It auto-stages modifications/deletions and checks untracked files against the user-provided `OHM_SCOPE_FILES` list (Group A vs. Group B classification) to prevent accidental staging.
+  - **PRODUCTION / UNRESOLVED Target**: Auto-commit is blocked. The script halts, prints an environment warning, and requires the operator to manually type the confirmation phrase `CONFIRM-PROD` to allow the commit to proceed. Mismatching or empty inputs abort the commit.
+
 
