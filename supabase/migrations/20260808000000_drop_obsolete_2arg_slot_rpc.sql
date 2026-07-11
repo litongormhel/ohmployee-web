@@ -1,0 +1,72 @@
+-- ============================================================
+-- OHM2026_0009 — Drop Obsolete 2-arg fn_create_slots_from_hc_request Overload
+-- Migration: 20260808000000_drop_obsolete_2arg_slot_rpc.sql
+-- Depends on:
+--   20260807000000_plantilla_slots_legacy_vcode_link.sql
+--     (3-arg overload fn_create_slots_from_hc_request(uuid, integer, text[])
+--      is the only active production slot-creation RPC)
+-- ============================================================
+-- Scope: BACKEND CLEANUP ONLY — no schema, UI, or behavior change.
+--
+-- Background (OHM2026_0008 observation):
+--   Migration 20260807000000 introduced a 3-arg overload
+--   fn_create_slots_from_hc_request(uuid, integer, text[]) via
+--   CREATE OR REPLACE. Because the 3-arg signature differs from the
+--   existing 2-arg signature (uuid, integer), PostgreSQL treated it as
+--   a new function and left the 2-arg version live as an orphan.
+--
+--   The production call path in create_plantilla_slot_from_request passes
+--   three explicit arguments — (p_request_id, v_count, v_vcodes) — which
+--   PostgreSQL resolves unambiguously to the 3-arg overload. The 2-arg
+--   overload is never called in normal production flow and carries no
+--   legacy_vcode support.
+--
+-- What this migration does:
+--   Drops only the obsolete 2-arg overload:
+--     DROP FUNCTION public.fn_create_slots_from_hc_request(uuid, integer)
+--   The 3-arg overload is untouched.
+--
+-- This migration deliberately does NOT:
+--   • alter the 3-arg overload fn_create_slots_from_hc_request(uuid, integer, text[]),
+--   • alter create_plantilla_slot_from_request,
+--   • modify any table, column, index, or RLS policy,
+--   • change any existing behavior,
+--   • touch Vacancy / HR Emploc / Plantilla / Transfer / Import / MFR / CENCOM.
+--
+-- Safety:
+--   DROP FUNCTION IF EXISTS is used — the statement is a no-op if the
+--   2-arg overload has already been dropped, making this migration safe to
+--   re-apply or run in environments where the overload was never present.
+--
+-- Validation Queries (run manually after applying):
+--   V1 — Confirm 2-arg overload is gone:
+--     SELECT proname, pg_get_function_identity_arguments(p.oid) AS args
+--       FROM pg_proc p
+--       JOIN pg_namespace n ON n.oid = p.pronamespace
+--       WHERE n.nspname = 'public'
+--         AND p.proname = 'fn_create_slots_from_hc_request';
+--     -- Expect: exactly ONE row, args = 'p_request_id uuid, p_quantity integer, p_vcodes text[]'
+--
+--   V2 — Confirm 3-arg overload remains and is SECURITY DEFINER:
+--     SELECT p.proname,
+--            pg_get_function_identity_arguments(p.oid) AS args,
+--            p.prosecdef AS security_definer
+--       FROM pg_proc p
+--       JOIN pg_namespace n ON n.oid = p.pronamespace
+--       WHERE n.nspname = 'public'
+--         AND p.proname = 'fn_create_slots_from_hc_request';
+--     -- Expect: security_definer = true
+--
+--   V3 — Confirm create_plantilla_slot_from_request still references 3-arg call:
+--     SELECT prosrc FROM pg_proc
+--       WHERE proname = 'create_plantilla_slot_from_request';
+--     -- Expect: body contains 'fn_create_slots_from_hc_request(p_request_id, v_count, v_vcodes)'
+-- ============================================================
+
+
+-- ── Drop obsolete 2-arg overload ─────────────────────────────────────────────
+-- The 3-arg overload (uuid, integer, text[]) is the only active production
+-- RPC path. The 2-arg version (uuid, integer) is orphaned dead code left over
+-- from the CREATE OR REPLACE in 20260807000000 adding a new signature.
+
+DROP FUNCTION IF EXISTS public.fn_create_slots_from_hc_request(uuid, integer);

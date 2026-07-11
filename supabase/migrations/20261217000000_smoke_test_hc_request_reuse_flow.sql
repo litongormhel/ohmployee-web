@@ -1,0 +1,154 @@
+-- Migration: 20261217000000_smoke_test_hc_request_reuse_flow.sql
+-- Ticket: ohm#7p2xk9qa — Smoke test: HC request reuse flow, HR Processing unchanged
+--
+-- No DML — validation queries only. Run against staging/live before prod.
+--
+-- Scenario: store SM BAY already has active vacancy VCKG3_0002 (required_headcount=1).
+-- A second HC request for SM BAY is submitted, approved, then completed.
+-- Expected: zero HR Processing increase; one vacancy row; same VCODE; HC count increments.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SETUP (replace placeholders with real IDs before running)
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- :account_id  — the account UUID for SM BAY's account
+-- :store_id    — store UUID for SM BAY
+-- :req1_id     — UUID of first (already completed) HC request for SM BAY
+-- :req2_id     — UUID of second HC request for SM BAY (to be tested)
+-- :vcode       — e.g., 'VCKG3_0002'
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- S1 — Before second HC request: verify baseline state
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- S1a — Exactly one active vacancy for SM BAY:
+--   SELECT COUNT(*) FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false
+--     AND deleted_at IS NULL
+--     AND status IN ('Open','Pipeline');
+--   Expected: 1
+--
+-- S1b — Vacancy has required_headcount = 1:
+--   SELECT required_headcount FROM public.vacancies WHERE vcode = :vcode;
+--   Expected: 1
+--
+-- S1c — Capture current HR Processing slot count (before any HC request action):
+--   SELECT COUNT(*) FROM public.plantilla_slots ps
+--   JOIN public.vacancies v ON v.vcode = ps.legacy_vcode
+--   WHERE v.account_id = :account_id
+--     AND ps.slot_status = 'hr_processing';
+--   Record as :baseline_hr_processing
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- S2 — Submit second HC request for SM BAY (status = 'pending')
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- S2a — HR Processing must remain unchanged after submission:
+--   SELECT COUNT(*) FROM public.plantilla_slots ps
+--   JOIN public.vacancies v ON v.vcode = ps.legacy_vcode
+--   WHERE v.account_id = :account_id
+--     AND ps.slot_status = 'hr_processing';
+--   Expected: :baseline_hr_processing (no change)
+--
+-- S2b — Vacancy row count must remain 1:
+--   SELECT COUNT(*) FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false;
+--   Expected: 1
+--
+-- S2c — VCODE unchanged:
+--   SELECT vcode FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false;
+--   Expected: :vcode (e.g., 'VCKG3_0002')
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- S3 — Approve second HC request (status → 'approved_pending_vcode')
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- S3a — Still one vacancy row:
+--   SELECT COUNT(*) FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false;
+--   Expected: 1
+--
+-- S3b — HR Processing still unchanged:
+--   SELECT COUNT(*) FROM public.plantilla_slots ps
+--   JOIN public.vacancies v ON v.vcode = ps.legacy_vcode
+--   WHERE v.account_id = :account_id
+--     AND ps.slot_status = 'hr_processing';
+--   Expected: :baseline_hr_processing
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- S4 — Complete second HC request via create_plantilla_slot_from_request
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- S4a — RPC must return reused_vcode=true:
+--   SELECT public.create_plantilla_slot_from_request(:req2_id::uuid);
+--   Expected: ok=true, reused_vcode=true, vcodes=[':vcode']
+--
+-- S4b — Still exactly one vacancy row for SM BAY:
+--   SELECT COUNT(*) FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false;
+--   Expected: 1
+--
+-- S4c — VCODE unchanged (no new VCODE minted):
+--   SELECT vcode FROM public.vacancies
+--   WHERE account_id = :account_id
+--     AND (store_id = :store_id OR LOWER(TRIM(store_name)) = 'sm bay')
+--     AND is_archived = false;
+--   Expected: :vcode
+--
+-- S4d — required_headcount incremented to 2:
+--   SELECT required_headcount FROM public.vacancies WHERE vcode = :vcode;
+--   Expected: 2
+--
+-- S4e — HR Processing still unchanged after completion:
+--   SELECT COUNT(*) FROM public.plantilla_slots ps
+--   JOIN public.vacancies v ON v.vcode = ps.legacy_vcode
+--   WHERE v.account_id = :account_id
+--     AND ps.slot_status = 'hr_processing';
+--   Expected: :baseline_hr_processing (CRITICAL: must not increase)
+--
+-- S4f — Two 'open' slots now exist under the reused VCODE:
+--   SELECT slot_status, COUNT(*) FROM public.plantilla_slots
+--   WHERE legacy_vcode = :vcode
+--   GROUP BY slot_status;
+--   Expected: open → 2 (trigger created ordinal 2 slot on required_headcount update)
+--
+-- S4g — Second slot is linked to the second HC request:
+--   SELECT source_hc_request_id FROM public.plantilla_slots
+--   WHERE legacy_vcode = :vcode
+--   ORDER BY slot_ordinal;
+--   Expected: row 1: :req1_id (linked to first request), row 2: :req2_id
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- S5 — Flutter deduplication (UI smoke — verify query results)
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- S5a — fetchVacanciesForAccount returns exactly one row for SM BAY's account:
+--   SELECT vcode, store_name, required_headcount
+--   FROM public.vacancies
+--   WHERE LOWER(account) = LOWER('<account_name>')
+--     AND is_archived = false
+--     AND deleted_at IS NULL
+--     AND status IN ('Open','Pipeline');
+--   Expected: 1 row, vcode=:vcode, required_headcount=2
+--
+-- S5b — fetchHCRequestsForAccount returns no rows for SM BAY's account
+--       (second request is now 'completed', first was already 'completed'):
+--   SELECT id, status FROM public.headcount_requests
+--   WHERE LOWER(account_name_snapshot) = LOWER('<account_name>')
+--     AND status IN ('pending','under_review','approved_pending_vcode')
+--     AND is_archived != true;
+--   Expected: 0 rows
+--
+--   => _mergedVacancyItems() returns [vacancy(VCKG3_0002, HC=2)].
+--   => _filteredVacancies() renders one _VacancyCard with headcount=2. ✓

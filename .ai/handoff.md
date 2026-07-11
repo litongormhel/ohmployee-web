@@ -1,5 +1,128 @@
 # AI Handoff
 
+## ohmployee-web — Clean Up Stale Duplicate schema_migrations Rows (PROD) (ohm#9frm5ktz)
+
+**Status: COMPLETE — PROD TRACKING-TABLE MUTATION, GATED**
+
+### Summary of Changes
+
+Executed step 3 of the reconciliation plan from `ohm#3wpx7ldk` (`docs/state/web_target_state.md` § 6.D/E): removed the 2 repair-artifact duplicate rows in `supabase_migrations.schema_migrations` on PROD (`rwxelulyapjgaarlwkus`) left behind by `ohm#4qwz9tgk`'s `migration repair` runs.
+
+- **PROD Push Gate**: Fresh out-of-band passphrase was required and obtained from the user in this session before any write; no previously-stated value was accepted.
+- **Re-query before touching anything**: Queried PROD live for the 4 candidate rows — state matched `docs/state/web_target_state.md` § 6.D exactly, confirming no drift since the read-only investigation.
+- **Before state (4 rows)**:
+  | version | name |
+  | :--- | :--- |
+  | `20260711025531` | `20262606000010_fix_vw_vacancy_detail_missing_columns` |
+  | `20260711034157` | `20262606000020_add_hr_emploc_row_capabilities_fields` |
+  | `20262606000010` | `fix_vw_vacancy_detail_missing_columns` |
+  | `20262606000020` | `add_hr_emploc_row_capabilities_fields` |
+- **Action**: `DELETE FROM supabase_migrations.schema_migrations WHERE version IN ('20260711025531','20260711034157');` — the 2 stale auto-generated-timestamp rows only.
+- **After state (2 rows, verified)**:
+  | version | name |
+  | :--- | :--- |
+  | `20262606000010` | `fix_vw_vacancy_detail_missing_columns` |
+  | `20262606000020` | `add_hr_emploc_row_capabilities_fields` |
+
+### Not touched (by design)
+- No other `schema_migrations` rows.
+- No view/function definitions changed — tracking table only.
+- No `supabase db push`/`db pull` run.
+
+### Next suggested step
+Section 6 (Migration Gap Classification & Reconciliation Plan) is now fully resolved — both the 443-file backfill and this tracking cleanup are complete. Per § 5/§ 6.E item 4, the underlying mis-recording behavior for future MCP `apply_migration` calls is still unaddressed procedurally; consider a follow-up to always chain an MCP apply with an immediate `migration repair --status applied <real-version>`.
+
+---
+
+## ohmployee-web — Backfill 443 Missing Migration Files from Mobile Repo (ohm#6ynv2crx)
+
+**Status: COMPLETE — LOCAL FILE COPY ONLY, NO DATABASE COMMANDS RUN**
+
+### Summary of Changes
+
+Executed the bulk-copy step proposed (but not run) in `ohm#3wpx7ldk` (`docs/state/web_target_state.md` § 6).
+
+- **Re-verification before copying**: Re-ran the mobile-vs-web comparison rather than trusting the prior list. Confirmed unchanged: mobile repo (`D:/Projects/OHMployee/supabase/migrations/`) has 443 top-level `.sql` files (448 total entries minus 4 non-migration `.json` housekeeping files and the `_legacy_unversioned/` folder), web repo had 2. Confirmed zero filename collisions between the 443 and the 2 existing web-local files.
+- **Copy**: Copied all 443 `.sql` files verbatim (byte-for-byte, no content modification) from the mobile repo into `ohmployee-web/supabase/migrations/`.
+- **Verification**: `md5sum` checksum comparison of all 443 copied files against their mobile-repo source — **identical, zero mismatches**. Local file count in `ohmployee-web/supabase/migrations/` now 445 (2 pre-existing + 443 backfilled).
+- **Git status check**: `git status --short supabase/migrations/` shows exactly 443 new untracked (`??`) files, no modifications to any existing file in that directory (the 2 pre-existing web-specific migrations `20262606000010`/`20262606000020` are untouched).
+
+### Not touched (by design — file-copy-only prompt)
+- No `supabase db push`, `db pull`, `migration repair`, or any other CLI/MCP database command.
+- No changes to `schema_migrations` on any environment (the 2 duplicate repair-artifact rows flagged in § 6.D remain unaddressed — still needs its own PROD-gated prompt).
+- No commit made — files are staged as untracked only; committing is left to the finish.js gate per the prompt's instructions.
+- Full classification/verification detail: `docs/state/web_target_state.md` § 6 (now marked complete).
+
+### Next suggested step
+Per the original plan (§ 6.E), an optional read-only `supabase migration list --linked` run would confirm all 443 now show as "in sync" against PROD — not run in this prompt since it wasn't in scope, but safe to do next.
+
+---
+
+## ohmployee-web — Investigate & Reconcile ~400-Migration Local/PROD Gap (Read-Only) (ohm#3wpx7ldk)
+
+**Status: INVESTIGATION COMPLETE — READ-ONLY, NOTHING WRITTEN TO PROD/STAGING/TRACKING**
+
+### Summary of Findings
+
+Full-shape investigation of the ~400-migration gap flagged in `ohm#4qwz9tgk`, cross-referencing PROD's `supabase_migrations.schema_migrations` (447 rows, via MCP `list_migrations`) against both this repo's local `supabase/migrations/` (2 files) and the mobile repo's (`D:/Projects/OHMployee/supabase/migrations/`, 448 files).
+
+**Classification — clean split, no ambiguous cases:**
+- **443 migrations (category a)**: missing from web, present in mobile repo — version AND descriptive-name matched PROD's `schema_migrations` exactly for all 443, zero mismatches, zero filename collisions. Safe to bulk-copy verbatim.
+- **0 migrations (category b)**: no true orphans — nothing exists only as raw PROD history with no source-controlled file anywhere.
+- **0 migrations (category c)**: nothing needed individual/unclear review.
+- **2 already-local**: the `20262606000010`/`20262606000020` web-specific fixes already in this repo (confirmed via `diff` that mobile does NOT have these two — expected, they were authored directly in web repo).
+
+**New finding not previously known**: the `supabase migration repair --status applied <version> --linked` runs from `ohm#4qwz9tgk` did **not** clean up the original mis-recorded rows — they inserted new rows for the correct version instead. PROD's `schema_migrations` now has **4 rows** for what should be 2 migrations (`20260711025531`/`20262606000010` pair and `20260711034157`/`20262606000020` pair). Low risk as-is, but flagged for a future cleanup decision (needs its own PROD-gated prompt — deletion of tracking rows is a PROD mutation).
+
+**Also noted (not actionable)**: mobile repo's `supabase/migrations/_legacy_unversioned/` holds 54 pre-2026-05-20 files that predate PROD's earliest tracked migration — evidence of an earlier baseline/history reset on the mobile side, unrelated to this gap.
+
+### Proposed Reconciliation Plan (NOT EXECUTED)
+
+1. Bulk-copy the 443 verified `.sql` files from mobile repo into web repo's `supabase/migrations/` (local-file-only, low risk, safe to automate).
+2. Run `supabase migration list --linked` (read-only) afterward to confirm sync.
+3. Separately scoped, PROD-gated prompt: decide on deleting the 2 stale timestamp-keyed tracking rows.
+4. Procedural fix needed to prevent recurrence: any future MCP `apply_migration` will keep mis-recording versions the same way until followed by an immediate `migration repair`.
+
+### Tool Recommendation
+
+`supabase db pull` against PROD is **not recommended** — it would flatten 447 reviewable incremental migrations (including one with a `DROP VIEW ... CASCADE`) into a single undifferentiated current-state snapshot, obscuring history that's actually safe to reconstruct file-by-file. The surgical bulk-copy approach is safer and was verified to have zero content/name collisions.
+
+### Not Touched (by design — read-only prompt)
+- No `supabase db pull`, no migration repair commands, no file copying/writing, no PROD/staging schema changes of any kind.
+- Full details, classification table, and per-category risk assessment: `docs/state/web_target_state.md` § 6.
+
+---
+
+## ohmployee-web — CLI-Based PROD Push: HR Emploc row_capabilities Migration (ohm#4qwz9tgk)
+
+**Status: COMPLETE — PRODUCTION DEPLOYED (via MCP fallback after CLI blocker)**
+
+### Summary of Changes
+
+**Part A — Pre-flight diagnostic (critical finding, resolved):**
+- Queried `supabase_migrations.schema_migrations` on PROD directly and found migration `20262606000010` (applied earlier via MCP `apply_migration`) was recorded under an auto-generated timestamp version (`20260711025531`) instead of its real version key `20262606000010`. Confirmed root cause: MCP `apply_migration` does **not** write to `schema_migrations` the same way CLI push does.
+- Confirmed via `supabase migration list --linked` that this would have caused `supabase db push` to attempt to re-run both migration 010 (risky — its `DROP VIEW ... CASCADE` could cascade-drop objects added by later, unrelated migrations that depend on `vw_vacancy_detail`) and 020, not just 020.
+- Ran `supabase migration repair --status applied 20262606000010 --linked` to correct the tracking row. Re-verified via `supabase migration list --linked`: scope reduced to single-migration (020 only).
+
+**Bigger structural finding (reported, not fixed — separate task needed):**
+- Discovered this repo's local `supabase/migrations/` directory only contains 2 files, while PROD's `schema_migrations` table has ~400 applied migrations. Most of PROD's schema history was applied directly via MCP and never saved as local migration files. This means `supabase db push` cannot function safely in general for this project — it will always see hundreds of "remote-only" versions and abort. Confirmed live: `supabase db push --linked --yes` failed immediately and its own suggested fix was to mark ~400 production migration versions as "reverted," which was correctly refused as out-of-scope and unsafe. **Recommend a dedicated task to reconcile/backfill the local migrations directory against PROD's actual applied history before CLI `db push` is relied upon again.**
+
+**Part B — Push (executed via MCP fallback, not CLI, after CLI was confirmed blocked by the structural issue above):**
+- User explicitly authorized falling back to MCP `apply_migration` for migration `20262606000020_add_hr_emploc_row_capabilities_fields` only, after CLI `db push` proved unworkable.
+- PROD Push Gate: passphrase `DRACARYS` was requested; user confirmed reuse of the prior push's passphrase was intentional (flagged as a reuse of a value already stored in this file, user explicitly confirmed anyway).
+- Applied migration 020 to PROD (`rwxelulyapjgaarlwkus`) via `apply_migration`, updating `list_web_hr_emplocs` and `get_web_hr_emploc_detail` to return `can_tag_deficiency`, `can_assign_employee_no`, `can_review_deletion`, and `can_review_correction` in `row_capabilities`.
+- Repaired the resulting tracking mismatch the same way as 010 (`supabase migration repair --status applied 20262606000020 --linked`) so future `db push` attempts see it as applied.
+
+### Verification
+- Called `list_web_hr_emplocs` and `get_web_hr_emploc_detail` live on PROD under a simulated Super Admin session. Confirmed both RPCs return the new `row_capabilities` keys correctly (all `false` for the one existing "Transferred" status row on PROD, which is correct per the RPC's status-gated logic).
+
+### Not touched
+- `--include-all` flag: not used.
+- No other migrations, modules, or client code touched.
+- The ~400-migration local/remote drift: reported only, intentionally out of scope.
+
+---
+
 ## ohmployee-web — Git Status Audit + Mirror ai-finish.sh PROD Gate Script (ohm#8kfq3wzn)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, STAGING VERIFIED**
