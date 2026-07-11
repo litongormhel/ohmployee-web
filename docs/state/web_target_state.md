@@ -216,3 +216,10 @@ Direct query of `supabase_migrations.schema_migrations` on PROD shows **4 rows**
 - **The surgical approach (bulk file copy from mobile + targeted tracking-row cleanup, per plan above) is safer** because: (1) it preserves the real, already-reviewed incremental history rather than flattening it, (2) the version+name match was verified 100% clean with zero collisions, so there's no risk of the copy introducing content that diverges from what's actually applied on PROD, and (3) it doesn't touch `schema_migrations` at all for the 443 files (they're already correctly tracked under their real versions) — only the 2 repair-artifact rows need a deliberate, separately-gated cleanup.
 - **Net recommendation**: file-copy backfill (step 1 above) can be automated immediately with low risk since it's local-file-only; the `schema_migrations` cleanup (step 3) needs its own PROD-gated prompt.
 
+---
+
+## 7. Remote Synchronization & Tooling Ignore (ohm#2vbn6xkq — 2026-07-11)
+- **.gitignore updated**: Added `.claude/` and `supabase/.temp/` to ignore IDE/agent specific files and temporary Supabase files.
+- **Remote Sync**: Pushed local commits to `origin/main` (branch up to date).
+
+

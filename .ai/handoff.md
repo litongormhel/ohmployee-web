@@ -1,5 +1,34 @@
 # AI Handoff
 
+## ohmployee-web — Add .gitignore Entries + Push 12 Commits to origin/main (ohm#2vbn6xkq)
+
+**Status: COMPLETE — CONFIG UPDATED, COMMITTED VIA FINISH.JS, REMOTE SYNCED**
+
+### Summary of Changes
+
+Two small, low-risk cleanup steps:
+1. **.gitignore updated**: Added `.claude/` and `supabase/.temp/` as new entries to `.gitignore` under the `# tooling` section. Verified that `git status` no longer lists these directories as untracked.
+2. **Git Commit**: Committed the `.gitignore` change using the `finish.js` gate script. Since the target environment is Staging (`qqiiznmqxfoamqytjica`), the script auto-committed the staged modifications and `.ai` metadata updates.
+3. **Remote Push**: Verified that the current branch is `main` and tracked `origin/main` correctly. Ran `git push origin main` successfully. Checked `git status` to verify the local branch is now in sync with `origin/main` (0 ahead, 0 behind).
+4. **Documentation Sync**: Updated `.ai/briefing.md`, `.ai/handoff.md`, and `docs/state/web_target_state.md` to reflect the changes.
+
+### Commits Pushed
+- `(cleanup commit)` — `auto: ohm#2vbn6xkq — ohmployee-web — Add .gitignore Entries + Push 12 Commits to origin/main`
+- `b2369b8` — `docs: update shared briefing, handoff, and target state documentation`
+- `ad1ec5f` — `auto: ohm#5jhq8mwv — ohmployee-web — Commit 443 Backfilled Migration Files via finish.js Gate`
+- `938ba47` — `auto: ohm#8kfq3wzn — ohmployee-web — Git Status Audit + Mirror ai-finish.sh PROD Gate Script`
+- `80c6fef` — `auto: ohm#7bxk1nte — ohmployee-web — Fix HR Emploc row_capabilities Missing RBAC Fields (Blocking Workflow)`
+- `65ca3db` — `docs: update shared briefing, handoff, and target state documentation`
+- `214a1b0` — `auto: ohm#7k2m9xq4 — Scaffold docs/ui/ structure (Mobile + Web layout separation)`
+- `7a848da` — `auto: ohm#7bxk1nte — Fix HR Emploc row_capabilities Missing RBAC Fields (DB Migration)`
+- `bd3cb42` — `auto: ohm#1cme8bzn — Fix vw_vacancy_detail Missing Columns (DB Migration)`
+- `50a1f8c` — `auto: OHM2026_1097 — Design Token System Handoff (Font Setup)`
+- `fbc1275` — `auto: ohm#6dq9wshl — Fix Client-Side Field/Param Mismatches (Vacancy + HR Emploc)`
+- `01a52ab` — `auto: ohm#8vt3nkrq — Split Inactive Employees into Separate Tab/View — Plantilla`
+- `6f83790` — `auto: ohm#3k8h5wte — Establish Staging Environment (Env Split)`
+
+---
+
 ## ohmployee-web — Commit 443 Backfilled Migration Files via finish.js Gate (ohm#5jhq8mwv)
 
 **Status: COMPLETE — LOCAL COMMITTED ONLY, NO DATABASE COMMANDS RUN**
