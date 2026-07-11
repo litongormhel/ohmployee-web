@@ -215,6 +215,22 @@ function throwHrEmplocError(error: PostgrestError): never {
   throw new HrEmplocDataError(getErrorKind(error), error.message);
 }
 
+function summarizeDeficiency(value: unknown): string | null {
+  const obj = asObject(value);
+  const activeCount = asCount(obj.active_count);
+
+  if (activeCount <= 0) {
+    return null;
+  }
+
+  const issues = Array.isArray(obj.issues) ? obj.issues : [];
+  const labels = issues
+    .map((issue) => asString(asObject(issue).label))
+    .filter((label): label is string => label !== null);
+
+  return labels.length > 0 ? labels.join(", ") : `${activeCount} issue${activeCount > 1 ? "s" : ""}`;
+}
+
 function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
   const id = asString(row.id ?? row.hr_emploc_id);
 
@@ -235,11 +251,11 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     employeeNo: asString(row.employee_no ?? row.employeeNo),
     assignmentType: asString(row.assignment_type ?? row.assignmentType),
     coveredStoresCount: asCount(row.covered_stores_count ?? row.coveredStoresCount),
-    deficiencySummary: asString(row.deficiency_summary ?? row.deficiencySummary),
+    deficiencySummary: summarizeDeficiency(row.deficiency_summary ?? row.deficiencySummary),
     hiredDate: asString(row.hired_date ?? row.hiredDate),
     dateRequested: asString(row.date_requested ?? row.dateRequested),
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
-    slaElapsedDays: asCount(row.sla_elapsed_days ?? row.slaElapsedDays),
+    slaElapsedDays: asCount(row.aging_days ?? row.sla_elapsed_days ?? row.slaElapsedDays),
     rowCapabilities: normalizeCapabilities(row.row_capabilities ?? row.rowCapabilities),
     totalCount: asCount(row.total_count ?? row.totalCount),
   };
@@ -257,10 +273,10 @@ function normalizeCoveredStore(item: unknown): CoveredStoreItem {
 function normalizeAttachment(item: unknown): CorrectionAttachmentItem {
   const obj = asObject(item);
   return {
-    attachmentId: asString(obj.attachment_id ?? obj.attachmentId) ?? "",
-    fileName: asString(obj.file_name ?? obj.fileName) ?? "unnamed_file",
-    fileUrl: asString(obj.file_url ?? obj.fileUrl) ?? "",
-    fileSize: asNumber(obj.file_size ?? obj.fileSize) ?? undefined,
+    attachmentId: asString(obj.id ?? obj.attachment_id ?? obj.attachmentId) ?? "",
+    fileName: asString(obj.original_filename ?? obj.file_name ?? obj.fileName) ?? "unnamed_file",
+    fileUrl: asString(obj.storage_path ?? obj.file_url ?? obj.fileUrl) ?? "",
+    fileSize: asNumber(obj.size_bytes ?? obj.file_size ?? obj.fileSize) ?? undefined,
     uploadedAt: asString(obj.uploaded_at ?? obj.uploadedAt) ?? null,
     uploadedBy: asString(obj.uploaded_by ?? obj.uploadedBy) ?? "Unknown User",
   };
@@ -271,22 +287,22 @@ function normalizeAuditLog(item: unknown): HrEmplocAuditLogItem {
   return {
     eventId: asString(obj.event_id ?? obj.eventId) ?? "",
     eventLabel: asString(obj.event_label ?? obj.eventLabel) ?? "Event",
-    eventDescription: asString(obj.event_description ?? obj.eventDescription) ?? null,
+    eventDescription: asString(obj.remarks ?? obj.event_description ?? obj.eventDescription) ?? null,
     createdAt: asString(obj.created_at ?? obj.createdAt) ?? null,
-    profileName: asString(obj.profile_name ?? obj.profileName) ?? null,
+    profileName: asString(obj.actor_name ?? obj.profile_name ?? obj.profileName) ?? null,
   };
 }
 
 function normalizeDeletionRequest(item: unknown): DeletionRequestItem | null {
   if (!item) return null;
   const obj = asObject(item);
-  const requestId = asString(obj.request_id ?? obj.requestId);
+  const requestId = asString(obj.id ?? obj.request_id ?? obj.requestId);
   if (!requestId) return null;
 
   return {
     requestId,
     requestedBy: asString(obj.requested_by ?? obj.requestedBy) ?? "Unknown",
-    requestedAt: asString(obj.requested_at ?? obj.requestedAt) ?? null,
+    requestedAt: asString(obj.created_at ?? obj.requested_at ?? obj.requestedAt) ?? null,
     deletionType: (asString(obj.deletion_type ?? obj.deletionType) as "backout" | "duplicate") ?? "backout",
     reason: asString(obj.reason) ?? "",
     originalEmplocId: asString(obj.original_emploc_id ?? obj.originalEmplocId) ?? null,
@@ -304,13 +320,13 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
   const rawCovered = Array.isArray(row.covered_stores) ? row.covered_stores : [];
   const coveredStores = rawCovered.map(normalizeCoveredStore);
 
-  const rawAttachments = Array.isArray(row.uploaded_attachments) ? row.uploaded_attachments : [];
+  const rawAttachments = Array.isArray(row.correction_attachments) ? row.correction_attachments : [];
   const uploadedAttachments = rawAttachments.map(normalizeAttachment);
 
-  const rawTimeline = Array.isArray(row.audit_logs_timeline) ? row.audit_logs_timeline : [];
+  const rawTimeline = Array.isArray(row.timeline) ? row.timeline : [];
   const auditLogsTimeline = rawTimeline.map(normalizeAuditLog);
 
-  const activeDeletionRequest = normalizeDeletionRequest(row.active_deletion_request);
+  const activeDeletionRequest = normalizeDeletionRequest(row.deletion_request);
 
   return {
     id,
@@ -333,7 +349,7 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
     correctionReason: asObject(row.correction_reason ?? row.correctionReason),
     uploadedAttachments,
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
-    slaElapsedDays: asCount(row.sla_elapsed_days ?? row.slaElapsedDays),
+    slaElapsedDays: asCount(row.aging_days ?? row.sla_elapsed_days ?? row.slaElapsedDays),
     auditLogsTimeline,
     activeDeletionRequest,
     rowCapabilities: normalizeCapabilities(row.row_capabilities ?? row.rowCapabilities),
@@ -344,11 +360,11 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
   return {
-    totalPending: asCount(row.total_pending ?? row.totalPending ?? row.total_processing),
-    actionNeeded: asCount(row.action_needed ?? row.actionNeeded ?? row.action_needed_count),
-    readyToDeploy: asCount(row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count),
-    pendingDeletion: asCount(row.pending_deletion ?? row.pendingDeletion ?? row.pending_deletion_count),
-    slaBreaches: asCount(row.sla_breaches ?? row.slaBreaches ?? row.sla_breached_count),
+    totalPending: asCount(row.pending_count ?? row.total_pending ?? row.totalPending ?? row.total_processing),
+    actionNeeded: asCount(row.correction_count ?? row.action_needed ?? row.actionNeeded ?? row.action_needed_count),
+    readyToDeploy: asCount(row.ready_count ?? row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count),
+    pendingDeletion: asCount(row.pending_deletion_count ?? row.pending_deletion ?? row.pendingDeletion),
+    slaBreaches: asCount(row.sla_breached_count ?? row.sla_breaches ?? row.slaBreaches),
   };
 }
 

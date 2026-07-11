@@ -17,12 +17,13 @@ type VacancySortField =
   | "aging_days"
   | "vacant_date"
   | "target_fill_date"
-  | "urgency_level"
+  | "urgency"
   | "account_name"
   | "group_name"
   | "store_name"
   | "position_title"
-  | "updated_at"
+  | "vacancy_status"
+  | "pipeline_status"
   | "vcode";
 
 type VacancySortDirection = "asc" | "desc";
@@ -172,18 +173,18 @@ const supportedAgingBuckets = new Set<VacancyAgingBucket>([
   "61_120",
   "gt121",
 ]);
-const supportedPipelineStatuses = new Set(["Open", "Pipeline"]);
 const supportedUrgencyLevels = new Set(["High", "Medium", "Normal"]);
 const supportedSortFields = new Set<VacancySortField>([
   "aging_days",
   "vacant_date",
   "target_fill_date",
-  "urgency_level",
+  "urgency",
   "account_name",
   "group_name",
   "store_name",
   "position_title",
-  "updated_at",
+  "vacancy_status",
+  "pipeline_status",
   "vcode",
 ]);
 
@@ -245,7 +246,7 @@ function normalizeCapabilities(value: unknown): VacancyRowCapabilities {
     canViewDetail: raw.can_view_detail === true,
     canApprove: raw.can_approve === true,
     canUpdateApplicantStatus: raw.can_update_applicant_status === true,
-    canRequestClosure: raw.can_request_closure === true,
+    canRequestClosure: raw.can_request_closure_hint === true || raw.can_request_closure === true,
     raw,
   };
 }
@@ -260,10 +261,6 @@ function normalizeAgingBucket(value: unknown) {
   return supportedAgingBuckets.has(value as VacancyAgingBucket)
     ? (value as VacancyAgingBucket)
     : null;
-}
-
-function normalizePipelineStatus(value: unknown) {
-  return supportedPipelineStatuses.has(value as string) ? (value as string) : null;
 }
 
 function normalizeUrgency(value: unknown) {
@@ -335,7 +332,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     agingDays: asNumber(row.aging_days),
     agingBucket: asString(row.aging_bucket),
     targetFillDate: asString(row.target_fill_date),
-    urgencyLevel: asString(row.urgency_level),
+    urgencyLevel: asString(row.urgency ?? row.urgency_level),
     hrcoName: asString(row.hrco_name),
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
@@ -424,86 +421,65 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
 function normalizeSummary(data: unknown): VacancySummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
+  const open = asCount(row.total_open ?? row.open ?? row.open_count ?? row.open_vacancies);
+  const withApplicant = asCount(
+    row.with_applicant ?? row.withApplicant ?? row.with_applicant_count ?? row.pipeline_count,
+  );
+  const rejected = asCount(row.rejected ?? row.rejected_count);
+  const backout = asCount(row.backout ?? row.backout_count);
+  // No single "pending review" counter is exposed by get_web_vacancy_summary; left at 0.
+  const pendingReview = asCount(
+    row.pending_review ?? row.pending_review_count ?? row.pending_approval_count,
+  );
+  // No single "aging watch" counter is exposed; derive it from the aging buckets that are.
+  const agingWatch =
+    asCount(row.aging_watch ?? row.aging_watch_count ?? row.aging_count) ||
+    asCount(row.aging_31_plus) + asCount(row.aging_unknown);
+
   return {
-    open: asCount(row.open ?? row.open_count ?? row.open_vacancies),
-    withApplicant: asCount(
-      row.with_applicant ?? row.with_applicant_count ?? row.pipeline_count,
-    ),
-    rejected: asCount(row.rejected ?? row.rejected_count),
-    backout: asCount(row.backout ?? row.backout_count),
-    pendingReview: asCount(
-      row.pending_review ?? row.pending_review_count ?? row.pending_approval_count,
-    ),
-    agingWatch: asCount(row.aging_watch ?? row.aging_watch_count ?? row.aging_count),
-    total: asCount(row.total ?? row.total_count),
+    open,
+    withApplicant,
+    rejected,
+    backout,
+    pendingReview,
+    agingWatch,
+    total: asCount(row.total ?? row.total_count) || open + withApplicant + rejected + backout,
   };
 }
 
 type VacancyRpcPayload = {
-  p_queue: VacancyStatus;
+  p_status: string | null;
+  p_account_id: string | null;
+  p_group_id: string | null;
+  p_position: string | null;
+  p_urgency: string | null;
   p_search: string | null;
-  p_filters: Record<string, unknown>;
+  p_vacant_from: string | null;
+  p_vacant_to: string | null;
 };
 
 function getVacancyRpcFilters(
   params: Pick<
     VacancyListParams,
-    | "status"
-    | "search"
-    | "agingBucket"
-    | "pipelineStatus"
-    | "urgency"
-    | "vacantFrom"
-    | "vacantTo"
+    "status" | "search" | "position" | "urgency" | "vacantFrom" | "vacantTo"
   >,
 ): VacancyRpcPayload {
-  const filters: Record<string, unknown> = {};
-  const agingBucket = normalizeAgingBucket(params.agingBucket);
-  const pipelineStatus = normalizePipelineStatus(
-    "pipelineStatus" in params ? params.pipelineStatus : undefined,
-  );
-  const urgency = normalizeUrgency(params.urgency);
-  const vacantFrom = asDateFilter(params.vacantFrom);
-  const vacantTo = asDateFilter(params.vacantTo);
-
-  if (agingBucket) {
-    filters.aging_buckets = [agingBucket];
-  }
-
-  if (pipelineStatus) {
-    filters.pipeline_status = pipelineStatus;
-  }
-
-  if (urgency) {
-    filters.urgency_levels = [urgency];
-  }
-
-  if (vacantFrom) {
-    filters.vacant_date_from = vacantFrom;
-  }
-
-  if (vacantTo) {
-    filters.vacant_date_to = vacantTo;
-  }
-
   return {
-    p_queue: normalizeStatus(params.status),
+    p_status: normalizeStatus(params.status),
+    p_account_id: null,
+    p_group_id: null,
+    p_position: asTrimmedString(params.position),
+    p_urgency: normalizeUrgency(params.urgency),
     p_search: asTrimmedString(params.search),
-    p_filters: filters,
+    p_vacant_from: asDateFilter(params.vacantFrom),
+    p_vacant_to: asDateFilter(params.vacantTo),
   };
 }
 
 export async function getVacancySummary(
   params: Pick<
     VacancyListParams,
-    | "status"
-    | "search"
-    | "agingBucket"
-    | "pipelineStatus"
-    | "position"
-    | "urgency"
-    | "vacantFrom"
-    | "vacantTo"
+    "status" | "search" | "position" | "urgency" | "vacantFrom" | "vacantTo"
   >,
 ) {
   const supabase = createClient();
@@ -530,9 +506,10 @@ export async function listVacancies(params: VacancyListParams) {
 
   const { data, error } = await supabase.rpc("list_web_vacancies", {
     ...getVacancyRpcFilters(params),
+    p_aging_bucket: normalizeAgingBucket(params.agingBucket),
     p_limit: pageSize,
     p_offset: offset,
-    p_sort: normalizeSortField("aging_days"),
+    p_sort_by: normalizeSortField("aging_days"),
     p_sort_dir: normalizeSortDirection("desc"),
   });
 
