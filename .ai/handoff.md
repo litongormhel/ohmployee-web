@@ -1,5 +1,301 @@
 # AI Handoff
 
+## ohmployee-web — Fix HR Emploc row_capabilities Missing RBAC Fields (Blocking Workflow) (ohm#7bxk1nte)
+
+**Status: COMPLETE — STAGING DEPLOYED & VERIFIED**
+
+### Summary of Changes
+
+Fixed the `row_capabilities` structural gap blocking HR Emploc admin workflows on STAGING:
+1. **Migration Version**:
+   - Created and applied DB migration version `20262606000020_add_hr_emploc_row_capabilities_fields.sql` to STAGING (`qqiiznmqxfoamqytjica`) only.
+2. **RPC and View Logic Updates**:
+   - Updated `list_web_hr_emplocs` and `get_web_hr_emploc_detail` to compute and return the missing keys (`can_tag_deficiency`, `can_assign_employee_no`, `can_review_deletion`) in the `row_capabilities` JSONB payload.
+   - Also projected `can_review_correction` to `list_web_hr_emplocs` for consistency.
+   - Refactored `is_pending_deletion` and capabilities like `can_withdraw_deletion_request`, `can_approve_deletion`, `can_reject_deletion`, and `can_review_deletion` to check for active deletion requests in the `hr_emploc_deletion_requests` table using `EXISTS (...)` rather than looking for `hr_status = 'Pending Deletion'` in the table (which is prevented by check constraints).
+3. **Verification**:
+   - Simulated different roles (`HR Personnel`, `Encoder`, `Head Admin`, `Super Admin`) across different workflow states (Pending, Complete, Pending Deletion) inside a transaction.
+   - Confirmed the RPCs return correct capability bits for all roles and lock-states (e.g. `Head Admin` is blocked from `can_assign_employee_no` but can review deletions; `Encoder` can assign IDs when Complete and review deletions; `HR Personnel` can tag deficiencies).
+4. **Client-Side Validation**:
+   - Confirmed client-side normalizers map these new fields cleanly.
+   - Ran `pnpm build` locally under staging environment. Build completed successfully with zero type or bundling errors.
+
+**PROD not touched — awaiting separate push prompt with passphrase gate**
+
+---
+
+## ohmployee-web — PROD Push: vw_vacancy_detail store_branch/province + source_channel Fix (ohm#5tmy2rzk)
+
+**Status: COMPLETE — PRODUCTION DEPLOYED**
+
+### Summary of Changes
+
+Applied the staging-verified migration `20262606000010_fix_vw_vacancy_detail_missing_columns` to the PRODUCTION database (`rwxelulyapjgaarlwkus`):
+1. **Passphrase Authorization**:
+   - Honored the mandatory PROD Push Gate. Requested and received the out-of-band passphrase (`DRACARYS`) before applying the migration.
+2. **`vw_vacancy_detail` View Update**:
+   - Added `province` and `store_branch` to the view projection `public.vw_vacancy_detail` on PRODUCTION.
+   - Re-applied select grants to `authenticated` and `service_role`.
+3. **`get_web_vacancy_detail` RPC Fix**:
+   - Fixed the runtime compiling error `column a.source_channel does not exist` by re-mapping it to the existing `a.applicant_source` column on PRODUCTION.
+   - Re-applied execute grants to `authenticated` and `service_role`.
+4. **Post-Apply Verification**:
+   - Verified execution on the PRODUCTION database. Called `get_web_vacancy_detail` with active vacancy ID `0775ccc6-a5ce-4f02-8af3-0d3bbad3e121` under a simulated authenticated user session.
+   - Confirmed the RPC compiles and returns the correct payload, including resolving `province` ("Laguna"), `store_branch` (`null`), and the candidate's `source_channel` ("manual") inside the `pipeline_summary` array.
+
+---
+
+## ohmployee-web — Deep Investigation: Vacancy Aging/Pipeline + HR Emploc row_capabilities Gaps (ohm#9plk4jzc)
+
+**Status: INVESTIGATION COMPLETE — READ-ONLY**
+
+### Summary of Findings
+
+#### 1. Vacancy Aging-Bucket Taxonomy Mismatch
+- **Root Cause**: Taxonomy disagreement. The database RPCs (`list_web_vacancies`, `get_web_vacancy_summary`, and `get_web_vacancy_detail`) hardcode a simplified 5-bucket system (`0_7`, `8_14`, `15_30`, `31_plus`, `unknown`). Meanwhile, the UI dropdown and client query expect a 6-bucket system (`advance`, `1_15`, `16_30`, `31_60`, `61_120`, `gt121`). When the client sends the UI-selected value, the RPC does a direct string match and silently returns zero rows.
+- **Fix Path**: RPC change + DB Migration (to update the RPC definitions to compute `aging_bucket` via the existing canonical DB function `public.fn_cencom_td_aging_bucket`).
+- **Risk Level**: Functionally broken (medium risk).
+
+#### 2. Missing Pipeline-Status Parameter
+- **Root Cause**: Missing DB capability. The client dropdown filter "Pipeline status" in the UI does nothing because the database list and summary RPCs do not accept an independent parameter to filter by `derived_status` (they only have `p_status`, which is bound to the list tab's selected state).
+- **Fix Path**: RPC change + DB Migration (extend RPC parameters with `p_pipeline_status` / `p_derived_status` and apply filter) + Client wiring.
+- **Risk Level**: Functionally broken / dead UI control (medium risk).
+
+#### 3. Columns with no Backing RPC Field
+- **Root Cause**: Missing DB projections & dead UI columns.
+  - `department` / `business_unit`: Does not exist anywhere in the database schema.
+  - `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`: Exist in views `vw_vacancy_list`/`vw_vacancy_detail` but are omitted from the RPC output.
+  - `derivedStatus`: Omitted from RPC output (only `pipeline_status` is returned).
+  - `last_activity_at`: Does not exist in the database (could map to `latest_hire_at` or `updated_at`).
+  - `pending_review` summary count: Omitted from summary RPC output.
+- **Fix Path**: RPC change + DB Migration (project view-backing columns and calculate pending closure counts) + Client update (clean up normalizers, map `derivedStatus` properly, drop `department`).
+- **Risk Level**: Cosmetic / Minor functionally broken (low risk).
+
+#### 4. HR Emploc row_capabilities Structural Gap
+- **Root Cause**: RBAC / permission-shape mismatch. The web client hides/disables crucial administrative action buttons ("Tag Deficiency", "Enter Employee ID", "Review Deletion") because it expects `can_tag_deficiency`, `can_assign_employee_no`, and `can_review_deletion` flags inside the `row_capabilities` JSON object returned by the RPCs. However, the database does not compute or return these keys.
+- **Fix Path**: RPC change + DB Migration (compute and return these keys in `list_web_hr_emplocs` and `get_web_hr_emploc_detail`) + Client cleanup.
+- **Risk Level**: Blocking a real user workflow (high risk).
+
+---
+
+## ohmployee-web — Fix vw_vacancy_detail Missing store_branch/province Columns (DB Migration) (ohm#1cme8bzn)
+
+**Status: COMPLETE — STAGING ONLY**
+
+### Summary of Changes
+
+Fixed the database view `vw_vacancy_detail` and function `get_web_vacancy_detail` on STAGING to resolve the runtime crash:
+1. **`vw_vacancy_detail` View Update**:
+   - Added `province` and `store_branch` to the view projection `public.vw_vacancy_detail`, matching `vw_vacancy_list`.
+   - Re-applied select grants to `authenticated` and `service_role`.
+2. **`get_web_vacancy_detail` RPC Fix**:
+   - Fixed the runtime compilation error `column a.source_channel does not exist` by re-mapping `a.source_channel` to the existing table column `a.applicant_source`.
+   - Re-applied execute grants to `authenticated` and `service_role`.
+3. **Migration Version**:
+   - Created and applied DB migration version `20262606000010_fix_vw_vacancy_detail_missing_columns` to STAGING (`qqiiznmqxfoamqytjica`) only.
+4. **Verification**:
+   - Verified that `get_web_vacancy_detail('f0690db0-825a-443d-9688-fb94106ad268')` executes successfully and returns the expected columns, including `province` ("Kalinga") and `store_branch` (`null`).
+
+**PROD not touched — awaiting manual confirmation gate**
+
+---
+
+## Remove misplaced Mobile UI docs from Web repo (ohm#4t8w1z6p)
+
+**Status: COMPLETE**
+
+### Summary of Changes
+
+1. **Deleted Mobile UI Layout Documents**:
+   - Removed the directory `docs/ui/mobile/` and its 4 misplaced markdown layout specification files:
+     - `vacancy_layout.md`
+     - `plantilla_layout.md`
+     - `hr_emploc_layout.md`
+     - `dashboard_layout.md`
+   - Mobile layout documentation now lives exclusively in the separate Mobile repository (`D:/Projects/OHMployee/docs/ui/mobile/`).
+   
+2. **Preserved Web UI Layout Documents**:
+   - `docs/ui/web/*` layout documents remain untouched under the correct location in this repository.
+
+3. **Confirmed State File Links**:
+   - Confirmed each remaining `docs/ui/web/*_layout.md` file's "Linked state file" path.
+   - Updated [dashboard_layout.md](file:///d:/Projects/ohmployee-web/docs/ui/web/dashboard_layout.md) to point to the correct, existing [web_foundation_state.md](file:///d:/Projects/ohmployee-web/docs/state/web_foundation_state.md) state file path since `docs/state/dashboard_state.md` does not exist.
+   - Verified that `vacancy_layout.md`, `plantilla_layout.md`, and `hr_emploc_layout.md` correctly point to existing state files under `docs/state/` (`vacancy_web_state.md`, `plantilla_web_state.md`, and `hr_emploc_web_state.md` respectively).
+
+4. **Shared Documentation Integrity**:
+   - Did not modify `docs/architecture/` or `docs/state/` content (except for validating the link paths), preserving this repo as the single source of truth for shared documentation.
+
+---
+
+## Fix Client-Side Field/Param Mismatches (Vacancy + HR Emploc) (ohm#6dq9wshl)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, STAGING VERIFIED**
+
+### Summary of Changes
+
+Fixed the client-side RPC parameter and field-normalization mismatches confirmed by `ohm#2fh6xrqw` (root cause: commit `f1f965c` refactored client payloads without matching deployed DB signatures). All fixes are in [vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts) and [hr_emploc.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/hr_emploc.ts) only. No DB migration. Verified live against staging (`qqiiznmqxfoamqytjica`) by re-reading `pg_proc` signatures/definitions and executing each RPC with a simulated authenticated session (`set_config('request.jwt.claims', ...)`).
+
+1. **`vacancy.ts` — parameter shape**:
+   - `getVacancyRpcFilters` rewritten from the wrapped `{ p_queue, p_search, p_filters }` payload to the flat parameter set the deployed `get_web_vacancy_summary` / `list_web_vacancies` actually accept: `p_status, p_account_id, p_group_id, p_position, p_urgency, p_search, p_vacant_from, p_vacant_to` (+ `p_aging_bucket, p_limit, p_offset, p_sort_by, p_sort_dir` for the list RPC only — the summary RPC has no `p_aging_bucket` parameter).
+   - Renamed `p_sort` → `p_sort_by` in `listVacancies`.
+   - `VacancySortField`/`supportedSortFields` corrected to the DB's real sort whitelist (`urgency` instead of `urgency_level`, dropped nonexistent `updated_at`, added `vacancy_status`/`pipeline_status`).
+   - Removed `normalizePipelineStatus`/`supportedPipelineStatuses` — the deployed RPCs have no `p_pipeline_status` parameter; `p_status` alone matches either `vacancy_status` or `pipeline_status` server-side, so the client's "Pipeline status" dropdown filter (Open/Pipeline) in `vacancy/page.tsx` cannot currently be forwarded to the RPC at all. **Flagged, not fixed — needs a follow-up decision on whether the dropdown should be removed or the RPC needs a dedicated param.**
+
+2. **`vacancy.ts` — field normalization** (`normalizeListRow`, `normalizeCapabilities`, `normalizeSummary`):
+   - `urgencyLevel` now reads `row.urgency` (was `row.urgency_level`).
+   - `canRequestClosure` now reads `row.row_capabilities.can_request_closure_hint` (was `can_request_closure`).
+   - `normalizeSummary` rewritten against the live `RETURNS TABLE(total_open, with_applicant, rejected, backout, aging_0_7, aging_8_14, aging_15_30, aging_31_plus, aging_unknown, critical_urgency, high_urgency)`: `open`←`total_open`, `withApplicant`←`with_applicant`, `rejected`/`backout` unchanged (already matched), `agingWatch` derived as `aging_31_plus + aging_unknown` (no single "aging watch" counter exists server-side), `total` derived as the sum of the four status buckets. **`pendingReview` has no backing column anywhere in the RPC output — left at 0, flagged, not fabricated.**
+   - Additional discovered mismatches in `list_web_vacancies`' actual output vs. `VacancyListItem` — **no backing RPC columns exist for**: `department`, `derivedStatus`, `activeApplicantCount`, `confirmedOnboardCount`, `hasRecentHire`, `hasPendingClosure`, `closureRequestStatus`, `lastActivityAt`, `canApprove`, `canUpdateApplicantStatus`. These fields will continue to render as null/false/0. Flagged, not fixed (would require DB projection changes).
+   - **Discovered but not fixed**: the client's aging-bucket filter vocabulary (`advance/1_15/16_30/31_60/61_120/gt121`, used by the `agingBucket` dropdown in `vacancy/page.tsx`) does not match the DB's actual bucket taxonomy (`0_7/8_14/15_30/31_plus/unknown`), so the aging-bucket filter will silently return zero rows whenever applied. This is a business-logic/taxonomy gap, not a simple rename, and needs its own follow-up (touches `page.tsx` UI options too).
+   - `normalizeDetailRow`/`getVacancyDetail` intentionally left untouched — `get_web_vacancy_detail` still throws at runtime (`store_branch`/`province` bug, separate DB migration prompt) so its output can't be live-verified right now.
+
+3. **`hr_emploc.ts` — field normalization**:
+   - `normalizeSummary`: `totalPending`←`pending_count`, `actionNeeded`←`correction_count`, `readyToDeploy`←`ready_count` (as specified). `pendingDeletion`/`slaBreaches` were already correctly falling back to `pending_deletion_count`/`sla_breached_count` — no change needed there.
+   - `normalizeListRow`/`normalizeDetailRow`: `slaElapsedDays` now reads `row.aging_days` (was `sla_elapsed_days`, which doesn't exist).
+   - `normalizeDetailRow`: `uploadedAttachments` now sourced from `row.correction_attachments` (was `row.uploaded_attachments`); `auditLogsTimeline` now sourced from `row.timeline` (was `row.audit_logs_timeline`); `activeDeletionRequest` now sourced from `row.deletion_request` (was `row.active_deletion_request`).
+   - **Additional mismatches found and fixed** (same class, not explicitly named in the prompt but discovered by re-deriving the full field list from the live RPC definitions):
+     - `normalizeAttachment`: DB attachment shape is `{id, original_filename, mime_type, size_bytes, uploaded_by, uploaded_at, storage_path}`, not `{attachment_id, file_name, file_url, file_size, ...}`. Fixed `attachmentId`←`id`, `fileName`←`original_filename`, `fileUrl`←`storage_path`, `fileSize`←`size_bytes`.
+     - `normalizeAuditLog`: DB timeline event shape has `remarks`/`actor_name`, not `event_description`/`profile_name`. Fixed `eventDescription`←`remarks`, `profileName`←`actor_name`.
+     - `normalizeDeletionRequest`: DB deletion-request object shape has `id`/`created_at`, not `request_id`/`requested_at`. Fixed `requestId`←`id`, `requestedAt`←`created_at`.
+     - `deficiencySummary`: type was declared `string | null` but the DB returns a jsonb object `{active_count, issues: [{code, comment, label}]}`, so `asString()` on it always evaluated to `null`. Added `summarizeDeficiency()` to join issue labels into a display string (rendered directly in `HrEmplocTable.tsx`).
+   - **Discovered but not fixed**: `HrEmplocRowCapabilities` (`canTagDeficiency`, `canAssignEmployeeNo`, `canReviewDeletion`) has no matching keys in the DB's actual `row_capabilities` (`can_view_detail, can_request_deletion, can_withdraw_deletion_request, can_approve_deletion, can_reject_deletion, can_approve_correction, can_revert_correction, can_review_correction, can_submit_correction, can_move_to_plantilla`). These three capabilities will always resolve to `false`. Structural mismatch, not a rename — flagged for a follow-up decision rather than guessed at.
+     `coveredStoresCount` on the list row also has no backing column in `list_web_hr_emplocs` (only the detail RPC returns `covered_stores`) — flagged, not fixed.
+
+### Verification
+- `pnpm build` (staging env) — compiles clean, typechecks clean, static generation succeeds for all 17 routes including `/vacancy` and `/hr-emploc`.
+- Live staging RPC calls (via Supabase MCP, simulated authenticated session):
+  - `get_web_vacancy_summary()` → `{total_open:3, with_applicant:2, rejected:0, backout:2, aging_0_7:5, ...}` — succeeds, matches new normalizer.
+  - `list_web_vacancies(p_limit:=3, p_sort_by:='aging_days', p_sort_dir:='desc')` → rows returned with `urgency`, `row_capabilities.can_request_closure_hint` present — succeeds, matches new normalizer.
+  - `get_web_hr_emploc_summary()` → `{pending_count:1, correction_count:0, review_count:0, ready_count:0, ...}` — succeeds, matches new normalizer.
+  - `list_web_hr_emplocs(p_limit:=3)` → rows returned with `aging_days`, `deficiency_summary` object, `row_capabilities` present — succeeds, matches new normalizer.
+- No in-browser smoke test performed (per prompt — user performs UI smoke test manually).
+
+### Still Outstanding (separate prompts)
+- `get_web_vacancy_detail` `store_branch`/`province` DB bug — server-side/DB migration, explicitly out of scope here.
+- Aging-bucket filter taxonomy mismatch (vacancy) — needs a decision + `page.tsx` UI change.
+- Pipeline-status filter has no backing RPC param (vacancy) — needs a decision + possible DB change.
+- HR Emploc `row_capabilities` structural mismatch (3 capabilities with no DB analog) — needs a decision on what the correct capability model should be.
+
+---
+
+## Scaffold docs/ui/ structure (Mobile + Web layout separation) (ohm#7k2m9xq4)
+
+**Status: COMPLETE**
+
+### Summary of Changes
+
+1. **Scaffolded Layout Documentation Folder Structure**:
+   - Created the folder structure:
+     - `docs/ui/mobile/`
+     - `docs/ui/web/`
+   - Generated standard TBD layout spec templates for all modules present (`vacancy`, `plantilla`, `hr_emploc`, `dashboard`) under both platforms.
+
+2. **Files Created/Modified**:
+   - **Created**:
+     - [vacancy_layout.md (mobile)](file:///d:/Projects/ohmployee-web/docs/ui/mobile/vacancy_layout.md)
+     - [vacancy_layout.md (web)](file:///d:/Projects/ohmployee-web/docs/ui/web/vacancy_layout.md)
+     - [plantilla_layout.md (mobile)](file:///d:/Projects/ohmployee-web/docs/ui/mobile/plantilla_layout.md)
+     - [plantilla_layout.md (web)](file:///d:/Projects/ohmployee-web/docs/ui/web/plantilla_layout.md)
+     - [hr_emploc_layout.md (mobile)](file:///d:/Projects/ohmployee-web/docs/ui/mobile/hr_emploc_layout.md)
+     - [hr_emploc_layout.md (web)](file:///d:/Projects/ohmployee-web/docs/ui/web/hr_emploc_layout.md)
+     - [dashboard_layout.md (mobile)](file:///d:/Projects/ohmployee-web/docs/ui/mobile/dashboard_layout.md)
+     - [dashboard_layout.md (web)](file:///d:/Projects/ohmployee-web/docs/ui/web/dashboard_layout.md)
+   - **Modified**:
+     - [.ai/briefing.md](file:///d:/Projects/ohmployee-web/.ai/briefing.md)
+     - [.ai/handoff.md](file:///d:/Projects/ohmployee-web/.ai/handoff.md)
+
+3. **Content Extraction Audit**:
+   - Audited all existing state documentation under `docs/state/*_state.md`.
+   - Found no embedded mobile UI/UX layout notes or layout specifications inside the state files (references to Mobile were only related to matching backend RPC interfaces/behaviors). Therefore, no content extraction or file stripping of existing state docs was required.
+
+---
+
+## Diagnose Vacancy RPC Failure (PROD) (ohm#2fh6xrqw)
+
+**Status: DIAGNOSIS COMPLETE — READ-ONLY INVESTIGATION**
+
+### Findings & Root Cause
+
+1. **RPC Parameter Signature Mismatch**:
+   - The query code in [vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts) (updated in commit `f1f965c`) was rewritten to pass query filters in a wrapped shape:
+     - `list_web_vacancies` calls: `{ p_queue, p_search, p_filters, p_limit, p_offset, p_sort, p_sort_dir }`
+     - `get_web_vacancy_summary` calls: `{ p_queue, p_search, p_filters }`
+   - However, the deployed database functions on both Staging (`qqiiznmqxfoamqytjica`) and PROD (`rwxelulyapjgaarlwkus`) still expect the old flat filter parameters:
+     - `list_web_vacancies` expects: `(p_status, p_account_id, p_group_id, p_position, p_urgency, p_aging_bucket, p_search, p_vacant_from, p_vacant_to, p_limit, p_offset, p_sort_by, p_sort_dir)`
+     - `get_web_vacancy_summary` expects: `(p_status, p_account_id, p_group_id, p_position, p_urgency, p_search, p_vacant_from, p_vacant_to)`
+   - This signature mismatch causes the calls to fail with Postgres error `42883: function does not exist`, which is caught and thrown as a `"retryable"` error in the UI.
+
+2. **Database View Column Mismatch in `get_web_vacancy_detail`**:
+   - Calling the detail RPC `get_web_vacancy_detail(p_vacancy_id)` on PROD throws a database runtime exception: `ERROR: 42703: column vd.store_branch does not exist`.
+   - The SQL definition of `get_web_vacancy_detail` references `vd.store_branch` and `vd.province` from `public.vw_vacancy_detail vd`, but these columns are omitted from the SELECT clause of the `vw_vacancy_detail` view in the database (even though they are present in `vw_vacancy_list`).
+
+3. **Field Normalization Mismatches**:
+   - Multiple columns returned by database functions do not match what is read in [vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts):
+     - `urgencyLevel` is read as `row.urgency_level` but returned as `urgency`.
+     - `rowCapabilities` reads `can_request_closure` but DB returns `can_request_closure_hint`.
+     - `activeApplicantsList` reads `row.active_applicants_list` but DB returns `pipeline_summary`.
+     - Summary KPI normalizer reads `open` from `row.open_count`/`row.open` but DB returns `total_open`.
+     - Several list/detail operational columns (e.g., `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`) are missing from the SQL projections.
+
+4. **Wider Impact (Other Modules)**:
+   - A quick audit of [hr_emploc.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/hr_emploc.ts) queries shows the same class of normalization mismatches. For example:
+     - `normalizeSummary` reads `total_pending`, `action_needed`, and `ready_to_deploy` but the database returns `pending_count`, `correction_count`, and `ready_count`.
+     - `normalizeDetailRow` reads `uploaded_attachments` and `audit_logs_timeline` but the database returns `correction_attachments` and `timeline`.
+     - `normalizeListRow` reads `sla_elapsed_days` but the database returns `aging_days`.
+
+### Proposed Fix Plan
+
+1. **Option A: Align Frontend Code (Recommended)**
+   Update the query file [vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts) to:
+   - Flatten parameters in `getVacancyRpcFilters` to match the current database signature.
+   - Map `p_sort` parameter to `p_sort_by`.
+   - Correct the field name maps in the normalization layer (e.g., read `row.urgency` instead of `row.urgency_level`, read `total_open` instead of `open`, etc.).
+   - Adjust `get_web_vacancy_detail` query fields to read from `pipeline_summary` instead of `active_applicants_list`.
+   
+2. **Option B: Align Database Functions via Migration**
+   Deploy a migration to:
+   - Update `list_web_vacancies` and `get_web_vacancy_summary` functions to accept the `{ p_queue, p_filters }` schema design.
+   - Fix `get_web_vacancy_detail` function by joining/reading `store_branch` and `province` from `public.vacancies v_raw` instead of `vd.store_branch` / `vd.province`, or update `public.vw_vacancy_detail` to select these columns.
+
+3. **Spot-check and Fix HR Emploc Normalization**:
+   Apply similar alignment changes in [hr_emploc.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/hr_emploc.ts) to resolve hidden bugs in badge counts and attachment/timeline displays.
+
+---
+
+## Split Inactive Employees into Separate Tab/View — Plantilla (ohm#8vt3nkrq)
+
+**Status: COMPLETE — WEB ONLY, NO MIGRATIONS**
+
+Mirrors the *structural* pattern of mobile's Active/Vacancy/Inactive tab split (data filtering, status logic) — web stays table-based, no card redesign.
+
+**RPC-level change needed: NONE.** `list_web_plantilla_employees` already accepts `p_active_state` (`'active' | 'inactive' | 'all' | null`), computed server-side from `plantilla.status`/`deactivated_at`/`date_of_separation` against the same inactive-status vocabulary mobile uses (`inactive, deactivated, resigned, separated, endo, terminated`). Only client-side wiring was needed — `PlantillaEmployeeListParams.activeState` already existed in `plantilla.ts` but `page.tsx` wasn't passing it.
+
+**Blocking bug found and fixed in the same pass (pre-existing, not introduced by this task):** `normalizeEmployeeListRow` in `src/lib/queries/plantilla.ts` read RPC field names (`plantilla_status`, `assignment_type`, `covered_stores_count`, `date_deployed`) that do not exist on the actual deployed `list_web_plantilla_employees` function (confirmed via `pg_get_function_result` on both staging `qqiiznmqxfoamqytjica` and prod `rwxelulyapjgaarlwkus` — real columns are `status`, `deployment_type`, `roving_store_count`, `date_hired`). This meant the Status badge was always blank and the dimming logic never fired in production prior to this fix. Fixed with `??` fallbacks to the real column names (`row.plantilla_status ?? row.status`, etc.) — no RPC/migration touched. `plantillaType` (Budgeted/AH) and `baseRateMasked`/`slaBreached` still have no backing RPC column at all (not part of this task's visible table columns — left as pre-existing gaps, flagged, not fixed).
+
+**Changes in `src/app/(dashboard)/plantilla/page.tsx`:**
+- `ViewMode` extended to `"employee" | "inactive" | "store"`; third toggle button "Inactive" added next to "Employee View" / "Store Staffing".
+- `employeeQuery` now passes `activeState: view === "inactive" ? "inactive" : "active"` and is `enabled` for both `employee` and `inactive` views (reuses the same query/table, just a different `activeState` + cache key) — no separate query hook needed.
+- Filter bar: Store ID + Deployment Type filters now show for both Employee and Inactive views; the employment-Status dropdown (`STATUS_OPTIONS`) is Employee-view-only (redundant inside a view that's already status-partitioned).
+- `EmployeeTable`: removed all `opacity-65` / `pointer-events-none` / `line-through` dimming (the `isDimmed` branch of `deriveDeactivationOverlay`) — dead now that inactive rows never reach the Employee view. Rows are unconditionally clickable/keyboard-navigable in both views, matching mobile's confirmed behavior (Inactive tab keeps tap-to-detail, per `plantilla_state.md` ohm#a3d9k7q2 — no card visual, since web stays table-based). The `isPendingSeparation` dashed-red-border banner treatment was kept (not part of the "dimming" being removed — it's a still-active-but-flagged state, not disabled).
+
+**Verified:**
+- `pnpm build` — clean, 0 type errors.
+- Row-count parity confirmed via direct SQL against staging (`qqiiznmqxfoamqytjica`), replicating the RPC's own `is_active`/`is_inactive` predicate over all of `public.plantilla` (excluding `source_headcount_request_id IS NOT NULL` rows, same as the RPC's base filter): **376 active + 3448 inactive = 3824 total**, exact partition, no loss/duplication.
+- Live in-browser click-through **not done this session** — no test login credentials are checked into either repo (confirmed via repo-wide search), and the dev server on :3000 required auth past the login screen. Verification relied on `pnpm build` + direct DB-level partition-count confirmation instead.
+
+**Not touched:** Store Staffing view, card layouts, RPC/migrations, `plantillaType`/`baseRateMasked`/`slaBreached` field gaps (flagged only).
+
+---
+
+## Plantilla UI Current-State Audit (ohm#5r9k2vqp)
+
+- **Audit Purpose**: Assess existing Plantilla module UI, queries, and styling to scope a future mobile card-parity redesign.
+- **Current Display Pattern**: Table-based dense rows in `src/app/(dashboard)/plantilla/page.tsx` (`EmployeeTable` and `StoreTable`), not cards.
+- **Tab Structure**: Toggles between "Employee View" and "Store Staffing". There is no Active / Vacancy / Inactive tab structure (Vacancy has its own module, and Inactive personnel are styled as dimmed/strikethrough rows in the employee table).
+- **Multi-store Handling**: Handled in detail drawer (`PlantillaDetailDrawer.tsx` roving stores list) but not in list view (rendered only as a roving count badge, no store-chip navigation).
+- **RPC Support**: `get_web_plantilla_detail` exposes employee metadata, status, type, roving covered stores array, and capabilities. However, `list_web_plantilla_employees` only exposes `covered_stores_count` (integer), not the full store list. To support store chips in the list, list RPC updates would be required. No dedicated avatar URL field exists (initials derived from first/last name).
+- **Design Tokens**: Exposes theme variables via Tailwind v4, but currently uses default system fallbacks for font-sans/font-mono instead of DM Sans/DM Mono.
+
 ## Current Workflow
 
 - Keep Next.js App Router route files in `src/app/**`.
