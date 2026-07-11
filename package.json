@@ -8,7 +8,8 @@
     "build": "node scripts/switch-env.js staging && next build",
     "build:prod": "node scripts/switch-env.js prod && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "finish": "node scripts/finish.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
