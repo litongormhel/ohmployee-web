@@ -157,6 +157,8 @@ Full-shape investigation of the gap identified in Section 5, cross-referenced ag
 
 **UPDATE (ohm#6ynv2crx — 2026-07-11): Category-(a) backfill COMPLETE.** The 443 category-(a) files (Section B below) were bulk-copied verbatim from the mobile repo into `ohmployee-web/supabase/migrations/`. Re-verification at copy time reconfirmed the same 443/0/0 split (no drift since this investigation). Byte-for-byte checksum comparison confirmed all 443 copies are identical to source; local file count is now 445 (2 pre-existing web-specific + 443 backfilled). Local migration history is now aligned with PROD's `schema_migrations` for these versions.
 
+**UPDATE (ohm#5jhq8mwv — 2026-07-11): Backfill committed.** The 443 newly backfilled migration files are now committed (git-tracked) under the `finish.js` gate script, ensuring a clean staging environment and repository baseline alignment going forward.
+
 **UPDATE (ohm#9frm5ktz — 2026-07-11): Repair-artifact tracking cleanup COMPLETE.** The 2 stale timestamp-keyed rows (`20260711025531`, `20260711034157`) flagged in Section D were deleted from PROD's `supabase_migrations.schema_migrations` under the PROD Push Gate (fresh passphrase confirmed). Re-query before the delete matched Section D's recorded state exactly (no drift). Post-delete verification confirms exactly 2 rows remain for these migrations (`20262606000010`, `20262606000020`), both correctly keyed. **Both halves of this section's reconciliation plan (backfill + tracking cleanup) are now complete — no outstanding work in Section 6.**
 
 ### A. Numeric breakdown

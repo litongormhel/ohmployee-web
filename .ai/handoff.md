@@ -1,5 +1,21 @@
 # AI Handoff
 
+## ohmployee-web — Commit 443 Backfilled Migration Files via finish.js Gate (ohm#5jhq8mwv)
+
+**Status: COMPLETE — LOCAL COMMITTED ONLY, NO DATABASE COMMANDS RUN**
+
+### Summary of Changes
+
+Committed the 443 untracked migration files (added in `ohm#6ynv2crx`) under `supabase/migrations/` using the `finish.js` gate script.
+
+- **Active Env Verification**: Confirmed environment resolved to `STAGING` (ref `qqiiznmqxfoamqytjica.supabase.co`) from `.env` before running.
+- **finish.js safety gate**: Scoped the commit to exactly the 443 untracked migration files under `supabase/migrations/` by setting `OHM_SCOPE_FILES` to the colon-separated list of all 443 migration file paths.
+- **Commit creation**: Run `npm run finish` which triggered auto-commit on STAGING without human interaction or requiring `CONFIRM-PROD`.
+- **Git status verification**: Confirmed git status is clean of any untracked or modified migration files.
+- **Not touched**: No database commands were executed (no db push, db pull, or apply_migration). No manual file content changes were made.
+
+---
+
 ## ohmployee-web — Clean Up Stale Duplicate schema_migrations Rows (PROD) (ohm#9frm5ktz)
 
 **Status: COMPLETE — PROD TRACKING-TABLE MUTATION, GATED**
