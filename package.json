@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/switch-env.js staging && next dev",
+    "dev": "next dev",
     "dev:prod": "node scripts/switch-env.js prod && next dev",
     "build": "node scripts/switch-env.js staging && next build",
     "build:prod": "node scripts/switch-env.js prod && next build",
