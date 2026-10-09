@@ -4,7 +4,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BriefcaseBusiness,
   FileSearch,
   LockKeyhole,
   ShieldOff,
@@ -21,32 +20,30 @@ import {
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
-import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
-const statusTabs: Array<{ value: VacancyStatus; label: string; description: string }> = [
+const statusTabs: Array<{ value: VacancyStatus; label: string }> = [
   {
     value: "open",
     label: "Open",
-    description: "Unfilled vacancy queue",
   },
   {
-    value: "with_applicant",
-    label: "With Applicant",
-    description: "Vacancies with applicant activity",
+    value: "pipeline",
+    label: "Pipeline",
   },
   {
-    value: "rejected",
-    label: "Rejected",
-    description: "Rejected vacancy movement",
+    value: "hired",
+    label: "Hired",
   },
   {
-    value: "backout",
-    label: "Backout",
-    description: "Backout tracking queue",
+    value: "closure",
+    label: "Closure",
+  },
+  {
+    value: "failed_backout",
+    label: "Failed / Backout",
   },
 ];
 
@@ -94,10 +91,24 @@ export default function VacancyPage() {
 
   const isFreezeModeActive = freezeQuery.data?.isReadOnlyEmergencyActive === true;
 
+  const summaryParams = useMemo(
+    () => ({
+      search,
+      agingBucket: agingBucket || undefined,
+      accountId: accountId || undefined,
+      groupId: groupId || undefined,
+      urgency: urgency || undefined,
+      vacantFrom: vacantFrom || undefined,
+      vacantTo: vacantTo || undefined,
+      page: 1,
+      pageSize: 1,
+    }),
+    [accountId, agingBucket, groupId, search, urgency, vacantFrom, vacantTo],
+  );
+
   const summaryQuery = useQuery({
     queryKey: [
       "vacancy-summary",
-      status,
       search,
       agingBucket,
       accountId,
@@ -106,7 +117,7 @@ export default function VacancyPage() {
       vacantFrom,
       vacantTo,
     ],
-    queryFn: () => getVacancySummary(queryParams),
+    queryFn: () => getVacancySummary(summaryParams),
     retry: false,
   });
 
@@ -122,8 +133,23 @@ export default function VacancyPage() {
   const summaryErrorKind = getErrorKind(summaryQuery.error);
   const errorKind = listErrorKind ?? summaryErrorKind;
   const blocked = errorKind === "access_denied";
-  const activeStatusDescription =
-    statusTabs.find((tab) => tab.value === status)?.description ?? "Vacancy queue";
+
+  const tabCounts: Record<VacancyStatus, number> = useMemo(() => {
+    const summary = summaryQuery.data;
+    return {
+      open: summary?.open ?? 0,
+      pipeline: summary?.pipeline ?? 0,
+      hired: summary?.hired ?? 0,
+      closure: summary?.closure ?? 0,
+      failed_backout: summary?.failedBackout ?? 0,
+      with_applicant: summary?.pipeline ?? 0,
+      rejected: summary?.rejected ?? 0,
+      backout: summary?.backout ?? 0,
+    };
+  }, [summaryQuery.data]);
+
+  const activeTabLabel =
+    statusTabs.find((tab) => tab.value === status)?.label ?? "Open";
 
   const currentUser = useCurrentUser();
 
@@ -188,29 +214,6 @@ export default function VacancyPage() {
     return accounts.filter((a) => a.groupId === groupId);
   }, [accounts, groupId]);
 
-  const kpis = [
-    {
-      label: "Open Vacancies",
-      value: summaryQuery.data?.open,
-      helper: "Active unfilled positions",
-    },
-    {
-      label: "With Applicant",
-      value: summaryQuery.data?.withApplicant,
-      helper: "Active candidate pipeline",
-    },
-    {
-      label: "Pending Review",
-      value: summaryQuery.data?.pendingReview,
-      helper: "Awaiting candidate review",
-    },
-    {
-      label: "Aging Watch",
-      value: summaryQuery.data?.agingWatch,
-      helper: "Open over 30 days",
-    },
-  ];
-
   function updateStatus(nextStatus: VacancyStatus) {
     setStatus(nextStatus);
     setPage(1);
@@ -257,13 +260,7 @@ export default function VacancyPage() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
-      <AdminPageHeader
-        title="Vacancy Management"
-        subtitle="Monitor unfilled store vacancies, applicant pipeline, and aging requisitions."
-        icon={BriefcaseBusiness}
-      />
-
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
       {isFreezeModeActive && (
         <div
           role="alert"
@@ -287,192 +284,178 @@ export default function VacancyPage() {
         </div>
       )}
 
-      <section
-        aria-label="Vacancy summary"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {kpis.map((item) => (
-          <MetricCard
-            key={item.label}
-            label={item.label}
-            value={item.value}
-            helperText={item.helper}
-            isLoading={summaryQuery.isLoading}
-            isBlocked={blocked}
-            isError={summaryQuery.isError}
-            errorText="Retryable summary error"
-          />
-        ))}
-      </section>
-
-      <section className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex flex-col gap-2 border-b border-gray-100 pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-          <div
-            aria-label="Vacancy status filter"
-            className="inline-flex rounded-md border border-gray-200 bg-white p-1 shadow-xs"
-            role="tablist"
-          >
-            {statusTabs.map((tab) => (
+      {/* Unified workbench card: Status tabs & Filter toolbar */}
+      <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-card p-3 shadow-xs">
+        {/* Status Tabs Navigation */}
+        <div
+          aria-label="Vacancy status filter"
+          className="flex flex-wrap items-center gap-2"
+          role="tablist"
+        >
+          {statusTabs.map((tab) => {
+            const isActive = status === tab.value;
+            const count = tabCounts[tab.value];
+            return (
               <button
-                aria-selected={status === tab.value}
-                className={`rounded px-4 py-2 text-sm font-semibold transition-all duration-150 ${
-                  status === tab.value
-                    ? "bg-brand-600 text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
                 key={tab.value}
+                aria-selected={isActive}
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                }`}
                 onClick={() => updateStatus(tab.value)}
                 role="tab"
                 type="button"
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "border border-gray-200/80 bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {summaryQuery.isLoading ? "–" : count}
+                </span>
               </button>
-            ))}
-          </div>
-          <div className="text-sm font-medium text-gray-500">
-            Real-time store requisitions and candidate pipeline.
-          </div>
-          </div>
-          <p className="pl-1 text-sm text-gray-500">
-            {activeStatusDescription}
-          </p>
+            );
+          })}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <AdminFilterBar
-            searchPlaceholder="Search code, position, outlet, applicant, HRCO..."
-            searchVal={searchDraft}
-            onSearchChange={setSearchDraft}
-            onSearchSubmit={applySearch}
+        {/* Filter Bar Controls */}
+        <AdminFilterBar
+          searchPlaceholder="Search code, position, outlet, applicant, HRCO..."
+          searchVal={searchDraft}
+          onSearchChange={setSearchDraft}
+          onSearchSubmit={applySearch}
+          disabled={blocked}
+          showApplyButton={true}
+          applyLabel="Apply"
+          extraActionsSlot={
+            <button
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 cursor-not-allowed"
+              disabled
+              type="button"
+            >
+              <FileSearch className="h-4 w-4" aria-hidden="true" />
+              Saved View
+            </button>
+          }
+        >
+          <select
+            aria-label="Account filter"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
             disabled={blocked}
-            showApplyButton={true}
-            applyLabel="Apply"
-            extraActionsSlot={
-              <button
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 cursor-not-allowed"
-                disabled
-                type="button"
-              >
-                <FileSearch className="h-4 w-4" aria-hidden="true" />
-                Saved View
-              </button>
-            }
+            onChange={(event) => handleAccountChange(event.target.value)}
+            value={accountId}
           >
-            <select
-              aria-label="Account filter"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              onChange={(event) => handleAccountChange(event.target.value)}
-              value={accountId}
-            >
-              <option value="">All accounts</option>
-              {filteredAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Group filter"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              onChange={(event) => handleGroupChange(event.target.value)}
-              value={groupId}
-            >
-              <option value="">All groups</option>
-              {uniqueGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Aging bucket filter"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              onChange={(event) => {
-                setAgingBucket(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              value={agingBucket}
-            >
-              <option value="">All aging</option>
-              <option value="advance">Advance</option>
-              <option value="1_15">1-15 days</option>
-              <option value="16_30">16-30 days</option>
-              <option value="31_60">31-60 days</option>
-              <option value="61_120">61-120 days</option>
-              <option value="gt121">121+ days</option>
-            </select>
-            <select
-              aria-label="Urgency filter"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              onChange={(event) => {
-                setUrgency(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              value={urgency}
-            >
-              <option value="">All urgency</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Normal">Normal</option>
-            </select>
-            <input
-              aria-label="Vacant date from"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              max={vacantTo || undefined}
-              onChange={(event) => {
-                setVacantFrom(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              type="date"
-              value={vacantFrom}
-            />
-            <input
-              aria-label="Vacant date to"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-              disabled={blocked}
-              min={vacantFrom || undefined}
-              onChange={(event) => {
-                setVacantTo(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              type="date"
-              value={vacantTo}
-            />
-          </AdminFilterBar>
-
-          <VacancyTable
-            errorKind={listErrorKind}
-            isLoading={listQuery.isLoading}
-            onPageChange={updatePage}
-            onRetry={retryVacancyReads}
-            onSelect={selectVacancy}
-            onAddApplicant={selectVacancy}
-            page={page}
-            pageSize={pageSize}
-            rows={rows}
-            selectedId={selectedVacancyId}
-            status={status}
-            statusDescription={activeStatusDescription}
-            totalCount={totalCount}
+            <option value="">All accounts</option>
+            {filteredAccounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Group filter"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+            disabled={blocked}
+            onChange={(event) => handleGroupChange(event.target.value)}
+            value={groupId}
+          >
+            <option value="">All groups</option>
+            {uniqueGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Aging bucket filter"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+            disabled={blocked}
+            onChange={(event) => {
+              setAgingBucket(event.target.value);
+              setPage(1);
+              setSelectedVacancyId(null);
+            }}
+            value={agingBucket}
+          >
+            <option value="">All aging</option>
+            <option value="advance">Advance</option>
+            <option value="1_15">1-15 days</option>
+            <option value="16_30">16-30 days</option>
+            <option value="31_60">31-60 days</option>
+            <option value="61_120">61-120 days</option>
+            <option value="gt121">121+ days</option>
+          </select>
+          <select
+            aria-label="Urgency filter"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+            disabled={blocked}
+            onChange={(event) => {
+              setUrgency(event.target.value);
+              setPage(1);
+              setSelectedVacancyId(null);
+            }}
+            value={urgency}
+          >
+            <option value="">All urgency</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Normal">Normal</option>
+          </select>
+          <input
+            aria-label="Vacant date from"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+            disabled={blocked}
+            max={vacantTo || undefined}
+            onChange={(event) => {
+              setVacantFrom(event.target.value);
+              setPage(1);
+              setSelectedVacancyId(null);
+            }}
+            type="date"
+            value={vacantFrom}
           />
-        </div>
+          <input
+            aria-label="Vacant date to"
+            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
+            disabled={blocked}
+            min={vacantFrom || undefined}
+            onChange={(event) => {
+              setVacantTo(event.target.value);
+              setPage(1);
+              setSelectedVacancyId(null);
+            }}
+            type="date"
+            value={vacantTo}
+          />
+        </AdminFilterBar>
+      </div>
 
-        <VacancyDetailDrawer
-          vacancyId={selectedVacancyId}
-          onClose={() => setSelectedVacancyId(null)}
-          isFreezeModeActive={isFreezeModeActive}
-        />
-      </section>
+      <VacancyTable
+        errorKind={listErrorKind}
+        isLoading={listQuery.isLoading}
+        onPageChange={updatePage}
+        onRetry={retryVacancyReads}
+        onSelect={selectVacancy}
+        onAddApplicant={selectVacancy}
+        page={page}
+        pageSize={pageSize}
+        rows={rows}
+        selectedId={selectedVacancyId}
+        status={status}
+        statusDescription={activeTabLabel}
+        totalCount={totalCount}
+      />
+
+      <VacancyDetailDrawer
+        vacancyId={selectedVacancyId}
+        onClose={() => setSelectedVacancyId(null)}
+        isFreezeModeActive={isFreezeModeActive}
+      />
 
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
         <div className="flex items-start gap-2 text-sm text-gray-600">

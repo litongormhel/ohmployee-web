@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w19d610a**: Streamline Vacancy Header and Consolidate Status Tabs with Embedded Counts
 - **ohm#w17b408e**: Refine Vacancy Table: Clean Status, Inline Add Applicant, Location Subtitles, and Polished Badges
 - **ohm#w16a307d**: Align Vacancy Management Table Columns with Official CSV Schema
 - **ohm#w15f206c**: Polish and Clean Up Vacancy Management UI in ohmployee_web

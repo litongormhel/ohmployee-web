@@ -1,7 +1,15 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
-export type VacancyStatus = "open" | "with_applicant" | "rejected" | "backout";
+export type VacancyStatus =
+  | "open"
+  | "pipeline"
+  | "hired"
+  | "closure"
+  | "failed_backout"
+  | "with_applicant"
+  | "rejected"
+  | "backout";
 
 export type VacancyAgingBucket =
   | "advance"
@@ -158,7 +166,7 @@ export type VacancyDetailItem = {
 };
 
 export type VacancyListParams = {
-  status: VacancyStatus;
+  status?: VacancyStatus;
   search?: string;
   agingBucket?: string;
   accountId?: string;
@@ -173,6 +181,10 @@ export type VacancyListParams = {
 
 export type VacancySummary = {
   open: number;
+  pipeline: number;
+  hired: number;
+  closure: number;
+  failedBackout: number;
   withApplicant: number;
   rejected: number;
   backout: number;
@@ -598,11 +610,16 @@ function normalizeSummary(data: unknown): VacancySummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
   const open = asCount(row.total_open ?? row.open ?? row.open_count ?? row.open_vacancies);
-  const withApplicant = asCount(
-    row.with_applicant ?? row.withApplicant ?? row.with_applicant_count ?? row.pipeline_count,
+  const pipeline = asCount(
+    row.pipeline ?? row.with_applicant ?? row.withApplicant ?? row.with_applicant_count ?? row.pipeline_count,
   );
   const rejected = asCount(row.rejected ?? row.rejected_count);
   const backout = asCount(row.backout ?? row.backout_count);
+  const failedBackout =
+    asCount(row.failed_backout ?? row.failedBackout) || rejected + backout;
+  const hired = asCount(row.hired ?? row.hired_count);
+  const closure = asCount(row.closure ?? row.closure_count);
+
   // No single "pending review" counter is exposed by get_web_vacancy_summary; left at 0.
   const pendingReview = asCount(
     row.pending_review ?? row.pending_review_count ?? row.pending_approval_count,
@@ -614,12 +631,16 @@ function normalizeSummary(data: unknown): VacancySummary {
 
   return {
     open,
-    withApplicant,
+    pipeline,
+    hired,
+    closure,
+    failedBackout,
+    withApplicant: pipeline,
     rejected,
     backout,
     pendingReview,
     agingWatch,
-    total: asCount(row.total ?? row.total_count) || open + withApplicant + rejected + backout,
+    total: asCount(row.total ?? row.total_count) || open + pipeline + hired + closure + failedBackout,
   };
 }
 
@@ -628,10 +649,15 @@ function normalizeSummary(data: unknown): VacancySummary {
 // derived_status values: 'Open' (no active applicants), 'Pipeline' (has active applicants),
 // 'Hired', 'Archived'. Rejected/backout tabs have no direct list-level status mapping;
 // null returns all scoped active rows for those tabs.
-function tabToRpcStatus(tab: VacancyStatus): string | null {
+function tabToRpcStatus(tab?: VacancyStatus): string | null {
+  if (!tab) return null;
   switch (tab) {
     case "open":           return "Open";
+    case "pipeline":       return "Pipeline";
     case "with_applicant": return "Pipeline";
+    case "hired":          return "Hired";
+    case "closure":        return "Closed";
+    case "failed_backout": return null;
     case "rejected":       return null;
     case "backout":        return null;
     default:               return null;
@@ -639,13 +665,15 @@ function tabToRpcStatus(tab: VacancyStatus): string | null {
 }
 
 function getSummaryRpcParams(
-  params: Pick<
-    VacancyListParams,
-    "status" | "search" | "accountId" | "groupId" | "urgency" | "vacantFrom" | "vacantTo"
+  params: Partial<
+    Pick<
+      VacancyListParams,
+      "status" | "search" | "accountId" | "groupId" | "urgency" | "vacantFrom" | "vacantTo"
+    >
   >,
 ) {
   return {
-    p_status:      tabToRpcStatus(params.status),
+    p_status:      params.status ? tabToRpcStatus(params.status) : null,
     p_account_id:  asUuidFilter(params.accountId),
     p_group_id:    asUuidFilter(params.groupId),
     p_urgency:     normalizeUrgency(params.urgency) ?? null,
@@ -673,30 +701,85 @@ function getListRpcParams(params: VacancyListParams, pageSize: number, offset: n
 }
 
 export async function getVacancySummary(
-  params: Pick<
-    VacancyListParams,
-    | "status"
-    | "search"
-    | "agingBucket"
-    | "accountId"
-    | "groupId"
-    | "position"
-    | "urgency"
-    | "vacantFrom"
-    | "vacantTo"
+  params: Partial<
+    Pick<
+      VacancyListParams,
+      | "status"
+      | "search"
+      | "agingBucket"
+      | "accountId"
+      | "groupId"
+      | "position"
+      | "urgency"
+      | "vacantFrom"
+      | "vacantTo"
+    >
   >,
 ) {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc(
+  const summaryRpcParams = getSummaryRpcParams(params);
+
+  const summaryPromise = supabase.rpc(
     "get_web_vacancy_summary",
-    getSummaryRpcParams(params),
+    summaryRpcParams,
   );
 
-  if (error) {
-    throwVacancyError(error);
+  let hiredQuery = supabase
+    .from("vacancies")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "Filled")
+    .is("deleted_at", null);
+
+  if (summaryRpcParams.p_account_id) {
+    hiredQuery = hiredQuery.eq("account_id", summaryRpcParams.p_account_id);
+  }
+  if (summaryRpcParams.p_group_id) {
+    hiredQuery = hiredQuery.eq("group_id", summaryRpcParams.p_group_id);
   }
 
-  return normalizeSummary(data);
+  let closureQuery = supabase
+    .from("vacancies")
+    .select("id", { count: "exact", head: true })
+    .or("has_pending_closure.eq.true,status.eq.Closed")
+    .is("deleted_at", null);
+
+  if (summaryRpcParams.p_account_id) {
+    closureQuery = closureQuery.eq("account_id", summaryRpcParams.p_account_id);
+  }
+  if (summaryRpcParams.p_group_id) {
+    closureQuery = closureQuery.eq("group_id", summaryRpcParams.p_group_id);
+  }
+
+  const [summaryRes, hiredRes, closureRes] = await Promise.allSettled([
+    summaryPromise,
+    hiredQuery,
+    closureQuery,
+  ]);
+
+  if (summaryRes.status === "rejected") {
+    throw new VacancyDataError("retryable", String(summaryRes.reason));
+  }
+  if (summaryRes.value.error) {
+    throwVacancyError(summaryRes.value.error);
+  }
+
+  const baseSummary = normalizeSummary(summaryRes.value.data);
+
+  const hiredCount =
+    hiredRes.status === "fulfilled" && hiredRes.value.count !== null
+      ? hiredRes.value.count
+      : 0;
+
+  const closureCount =
+    closureRes.status === "fulfilled" && closureRes.value.count !== null
+      ? closureRes.value.count
+      : 0;
+
+  return {
+    ...baseSummary,
+    hired: hiredCount,
+    closure: closureCount,
+  };
 }
 
 export async function listVacancies(params: VacancyListParams) {

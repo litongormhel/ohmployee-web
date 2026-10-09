@@ -81,8 +81,9 @@ function getVacancyStatusVariant(status: string): BadgeVariant {
   if (norm === "open") return "info";
   if (norm === "pipeline" || norm === "with_applicant" || norm === "with applicant") return "info";
   if (norm === "hired" || norm === "filled" || norm === "complete" || norm === "completed") return "success";
-  if (norm === "rejected") return "danger";
+  if (norm === "rejected" || norm === "failed" || norm === "failed_backout" || norm === "failed / backout") return "danger";
   if (norm === "backout") return "warning";
+  if (norm === "closure" || norm === "closed") return "neutral";
   return "neutral";
 }
 
@@ -128,7 +129,9 @@ export function VacancyTable({
             <h2 className="text-base font-semibold text-table-text">
               {statusDescription}
             </h2>
-            <Badge className="font-mono text-[11px] text-table-text-muted">{status}</Badge>
+            <Badge className="font-mono text-[11px] text-table-text-muted">
+              {status === "failed_backout" ? "failed / backout" : status}
+            </Badge>
           </div>
           <p className="mt-1 text-sm text-table-text-muted">
             Active store requisitions matching current filter criteria.
