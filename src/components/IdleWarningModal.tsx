@@ -36,6 +36,14 @@ export function IdleWarningModal({
   const [secondsLeft, setSecondsLeft] = useState(WARNING_COUNTDOWN_SECONDS);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) {
+      setSecondsLeft(WARNING_COUNTDOWN_SECONDS);
+    }
+  }
+
   // Reset and start the visual countdown whenever the modal opens.
   useEffect(() => {
     if (!isOpen) {
@@ -44,12 +52,10 @@ export function IdleWarningModal({
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      setSecondsLeft(WARNING_COUNTDOWN_SECONDS);
       return;
     }
 
     // Start fresh countdown.
-    setSecondsLeft(WARNING_COUNTDOWN_SECONDS);
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
