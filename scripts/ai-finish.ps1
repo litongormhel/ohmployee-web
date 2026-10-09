@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w13d904a" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w14e105b" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/components/approvals/:src/components/approvals/ActiveQueueReviewPane.tsx:src/components/approvals/HeadcountAmendmentApprovalCard.tsx:src/components/approvals/HeadcountStandardApprovalCard.tsx:src/components/approvals/RequestCategoryNavigation.tsx:src/lib/queries/requests.ts:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "src/components/cencom/:src/components/cencom/CencomGroupTable.tsx:src/components/cencom/CencomDeploymentCard.tsx:src/lib/queries/cencom.ts:scripts/ai-finish.ps1"
 }
 
 Write-Host "======================================================"
