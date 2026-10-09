@@ -11,7 +11,7 @@ $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/lib/queries/quota.ts:src/components/modals/ReviseHeadcountQuotaModal.tsx:src/components/modals/RequestHeadcountAdjustmentModal.tsx:src/components/plantilla/StoreStaffingDrawer.tsx:docs/audit/:scripts/ai-finish.ps1:docs/audit/baseline_audit_architecture_theme_modules_2026-10-09.md:docs/audit/adr001_plantilla_account_gate_2026-07-11.md:docs/audit/web_mobile_parity_2026-07-11.md"
+    $env:OHM_SCOPE_FILES = "src/components/modals/:src/lib/queries/quota.ts:src/components/modals/ReviseHeadcountQuotaModal.tsx:src/components/modals/RequestHeadcountAdjustmentModal.tsx:src/components/plantilla/StoreStaffingDrawer.tsx:docs/audit/:scripts/ai-finish.ps1:docs/audit/baseline_audit_architecture_theme_modules_2026-10-09.md:docs/audit/adr001_plantilla_account_gate_2026-07-11.md:docs/audit/web_mobile_parity_2026-07-11.md"
 }
 
 Write-Host "======================================================"
