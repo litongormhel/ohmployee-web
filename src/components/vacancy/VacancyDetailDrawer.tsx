@@ -1,6 +1,7 @@
 // components/vacancy/VacancyDetailDrawer.tsx
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -20,6 +21,13 @@ import {
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  isOpsAmendmentRole,
+  isQuotaOverrideRole,
+  useCurrentUser,
+} from "@/lib/auth";
+import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
+import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
 
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
@@ -43,6 +51,14 @@ function getErrorKind(error: unknown) {
 }
 
 export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false }: VacancyDetailDrawerProps) {
+  const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
+  const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
+
+  const currentUser = useCurrentUser();
+  const userRole = currentUser?.roleKey ?? currentUser?.roleName;
+  const canReviseQuota = isQuotaOverrideRole(userRole);
+  const canRequestAdjustment = isOpsAmendmentRole(userRole);
+
   const {
     data: detail,
     isLoading,
@@ -363,6 +379,16 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 isReadOnlyEmergencyActive={isFreezeModeActive}
                 actions={[
                   {
+                    label: "Adjust Quota",
+                    isAvailable: canReviseQuota,
+                    onClick: () => setIsReviseQuotaModalOpen(true),
+                  },
+                  {
+                    label: "Request HC Adjustment",
+                    isAvailable: canRequestAdjustment,
+                    onClick: () => setIsRequestAdjustmentModalOpen(true),
+                  },
+                  {
                     label: "Approve Vacancy",
                     isAvailable: detail.rowCapabilities?.canApprove === true,
                   },
@@ -380,6 +406,31 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   },
                 ]}
               />
+
+              {/* Headcount Quota Modals */}
+              {isReviseQuotaModalOpen && (
+                <ReviseHeadcountQuotaModal
+                  isOpen={isReviseQuotaModalOpen}
+                  onClose={() => setIsReviseQuotaModalOpen(false)}
+                  vcode={detail.vcode}
+                  storeName={detail.storeName}
+                  positionTitle={detail.position_title}
+                  onSuccess={() => refetch()}
+                />
+              )}
+
+              {isRequestAdjustmentModalOpen && (
+                <RequestHeadcountAdjustmentModal
+                  isOpen={isRequestAdjustmentModalOpen}
+                  onClose={() => setIsRequestAdjustmentModalOpen(false)}
+                  vcode={detail.vcode}
+                  storeName={detail.storeName}
+                  positionTitle={detail.position_title}
+                  accountId={detail.accountId}
+                  storeId={detail.storeId}
+                  onSuccess={() => refetch()}
+                />
+              )}
             </>
           )}
       </DetailDrawer>

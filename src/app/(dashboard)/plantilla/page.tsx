@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { LockKeyhole, Users, ArrowLeft, Building, Share2, ChevronRight } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { loadCurrentUserContext } from "@/lib/auth";
+import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -23,6 +23,7 @@ import {
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
+import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
 
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,7 @@ export default function PlantillaPage() {
   const [view, setView] = useState<ViewMode>("employee");
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
+  const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
 
   // Search parameters and router
   const searchParams = useSearchParams();
@@ -159,6 +161,9 @@ export default function PlantillaPage() {
   });
 
   const currentUser = userContextQuery.data?.currentUser;
+  const userRole = currentUser?.roleKey ?? currentUser?.roleName;
+  const canReviseQuota = isQuotaOverrideRole(userRole);
+  const canRequestAdjustment = isOpsAmendmentRole(userRole);
 
   const allowedAccountsQuery = useQuery({
     queryKey: ["plantilla", "allowed-accounts", currentUser?.accountScope],
@@ -400,6 +405,7 @@ export default function PlantillaPage() {
       setView(next);
       setPage(1);
       setSelectedPlantillaId(null);
+      setSelectedStoreRow(null);
     }
   }
 
@@ -468,7 +474,7 @@ export default function PlantillaPage() {
         />
       );
     }
-    return <StoreTable rows={storeRows} />;
+    return <StoreTable rows={storeRows} onRowClick={setSelectedStoreRow} />;
   }
 
   // -------------------------------------------------------------------------
@@ -988,6 +994,14 @@ export default function PlantillaPage() {
             onClose={() => setSelectedPlantillaId(null)}
           />
 
+          {/* Store Staffing drawer */}
+          <StoreStaffingDrawer
+            storeRow={selectedStoreRow}
+            onClose={() => setSelectedStoreRow(null)}
+            canReviseQuota={canReviseQuota}
+            canRequestAdjustment={canRequestAdjustment}
+          />
+
           {/* Table area */}
           <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">
             {renderListContent()}
@@ -1189,7 +1203,13 @@ function formatFillRate(fillRate: number | null): string {
   return `${(fillRate * 100).toFixed(1)}%`;
 }
 
-function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
+function StoreTable({
+  rows,
+  onRowClick,
+}: {
+  rows: PlantillaStoreStaffingRow[];
+  onRowClick?: (row: PlantillaStoreStaffingRow) => void;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1400px] text-left text-[0.9375rem]">
@@ -1228,6 +1248,9 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               SLA Badge
             </th>
+            <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-table-rule">
@@ -1236,7 +1259,17 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
             return (
               <tr
                 key={`${row.storeId}-${row.storeCode ?? row.storeName ?? index}`}
-                className="transition-colors hover:bg-table-row-hover"
+                className="transition-colors hover:bg-table-row-hover cursor-pointer"
+                onClick={() => onRowClick?.(row)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick?.(row);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View staffing details for ${row.storeName ?? "store"}`}
               >
                 <td className="px-4 py-2.5">
                   <span className="font-mono text-xs text-table-text bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
@@ -1314,6 +1347,19 @@ function StoreTable({ rows }: { rows: PlantillaStoreStaffingRow[] }) {
                   ) : (
                     <span className="text-xs text-table-text-muted">—</span>
                   )}
+                </td>
+
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRowClick?.(row);
+                    }}
+                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-base px-2.5 py-1 text-xs font-medium text-text-primary hover:bg-surface-hover shadow-xs transition-colors"
+                  >
+                    Manage Quota
+                  </button>
                 </td>
               </tr>
             );

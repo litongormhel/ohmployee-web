@@ -1,6 +1,7 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { webModules, type WebModule } from "@/lib/modules";
 
@@ -332,3 +333,48 @@ export function getVisibleModules(
     (module) => currentUser.moduleAccess[module.key]?.visible === true,
   );
 }
+
+/**
+ * Hook to retrieve the current user context from React Query cache / loader.
+ */
+export function useCurrentUser() {
+  const { data } = useQuery({
+    queryKey: ["currentUserContext"],
+    queryFn: () => loadCurrentUserContext(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return data?.currentUser ?? null;
+}
+
+/**
+ * Super Admin, Head Admin, and Encoder are permitted to perform direct quota overrides.
+ */
+export function isQuotaOverrideRole(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    normalized === "super_admin" ||
+    normalized === "head_admin" ||
+    normalized === "encoder"
+  );
+}
+
+/**
+ * Operations roles (OM, TL, ATL, HRCO) and Admins (Super Admin, Head Admin)
+ * are permitted to submit quota amendment requests.
+ */
+export function isOpsAmendmentRole(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    normalized === "super_admin" ||
+    normalized === "head_admin" ||
+    normalized === "operations_manager" ||
+    normalized === "operations" ||
+    normalized === "atl" ||
+    normalized === "tl" ||
+    normalized === "hrco"
+  );
+}
+

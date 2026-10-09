@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w12c803f**: Implement Headcount Quota Revision and Ops Amendment Modals in ohmployee_web
 - **ohm#w11b702e**: Enforce Global Light Mode Default Across ohmployee_web
 - **ohm#w10a482b**: Baseline Audit of ohmployee_web Architecture, Theme, and Core Modules
 - **ohm#9m2v5jqk**: Plantilla Web — Implement Account-First Selection Gate

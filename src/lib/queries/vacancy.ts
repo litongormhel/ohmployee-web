@@ -82,8 +82,11 @@ export type ActivityHistoryItem = {
 export type VacancyDetailItem = {
   vacancyId: string;
   vcode: string;
+  accountId: string | null;
   accountName: string | null;
+  groupId: string | null;
   groupName: string | null;
+  storeId: string | null;
   storeName: string | null;
   position_title: string | null;
   department: string | null;
@@ -381,8 +384,11 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
   return {
     vacancyId: id,
     vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
+    accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
+    groupId: asString(row.group_id),
     groupName: asString(row.group_name),
+    storeId: asString(row.store_id),
     storeName: asString(row.store_name ?? row.store),
     position_title: asString(row.position_title),
     department: asString(row.department ?? row.business_unit),
