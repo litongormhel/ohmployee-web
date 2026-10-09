@@ -341,7 +341,7 @@ export default function VacancyPage() {
 
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <AdminFilterBar
-            searchPlaceholder="Search code, position title, department, scope"
+            searchPlaceholder="Search code, position, outlet, applicant, HRCO..."
             searchVal={searchDraft}
             onSearchChange={setSearchDraft}
             onSearchSubmit={applySearch}

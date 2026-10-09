@@ -59,6 +59,10 @@ export type VacancyListItem = {
   targetFillDate: string | null;
   urgencyLevel: string | null;
   hrcoName: string | null;
+  applicantName: string | null;
+  hasPenalty: boolean;
+  penaltyExposure: number;
+  penaltyAmount: number | null;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   totalCount: number;
@@ -67,8 +71,14 @@ export type VacancyListItem = {
 export type ActiveApplicantItem = {
   applicantId: string;
   displayName: string;
+  lastName: string | null;
+  firstName: string | null;
+  contactNumber: string | null;
   statusLabel: string;
+  onboardDate: string | null;
   updatedAt: string | null;
+  recruiterName: string | null;
+  deployedByName: string | null;
 };
 
 export type ActivityHistoryItem = {
@@ -107,6 +117,21 @@ export type VacancyDetailItem = {
   hrcoName: string | null;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
+
+  // Supplementary fields from official sheet schema
+  contactNumber: string | null;
+  onboardDate: string | null;
+  relieverOnDuty: string | null;
+  hasReliever: boolean;
+  hrcoRemarks: string | null;
+  recruiterName: string | null;
+  deployedByName: string | null;
+  hasPenalty: boolean;
+  penaltyExposure: number;
+  penaltyAmount: number | null;
+  applicantLastName: string | null;
+  applicantFirstName: string | null;
+  applicantName: string | null;
 
   // Detail-specific fields
   requestedById: string | null;
@@ -318,6 +343,27 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     return null;
   }
 
+  const applicantLastName = asString(row.applicant_last_name ?? row.last_name);
+  const applicantFirstName = asString(row.applicant_first_name ?? row.first_name);
+  const rawApplicantName = asString(
+    row.applicant_name ??
+    row.applicant_full_name ??
+    row.full_name ??
+    row.candidate_name,
+  );
+  const applicantName = rawApplicantName
+    ? rawApplicantName
+    : applicantLastName && applicantFirstName
+    ? `${applicantLastName}, ${applicantFirstName}`
+    : applicantLastName || applicantFirstName || null;
+
+  const penaltyAmount = asNumber(row.penalty_amount ?? row.penalty_exposure);
+  const hasPenalty =
+    asBoolean(row.has_penalty ?? row.with_penalty) ||
+    (penaltyAmount !== null && penaltyAmount > 0);
+  const penaltyExposure =
+    asNumber(row.penalty_exposure ?? row.penalty_amount) ?? (hasPenalty ? 1 : 0);
+
   return {
     id,
     vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
@@ -341,6 +387,10 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     targetFillDate: asString(row.target_fill_date),
     urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
+    applicantName,
+    hasPenalty,
+    penaltyExposure,
+    penaltyAmount,
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -349,11 +399,24 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
 
 function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
   const obj = asObject(item);
+  const lastName = asString(obj.last_name ?? obj.applicant_last_name);
+  const firstName = asString(obj.first_name ?? obj.applicant_first_name);
+  let displayName = asString(obj.display_name ?? obj.full_name ?? obj.name);
+  if (!displayName && (lastName || firstName)) {
+    displayName = [firstName, lastName].filter(Boolean).join(" ");
+  }
+
   return {
-    applicantId: asString(obj.applicant_id) ?? "",
-    displayName: asString(obj.display_name) ?? "Anonymous",
-    statusLabel: asString(obj.status_label) ?? "New",
-    updatedAt: asString(obj.updated_at),
+    applicantId: asString(obj.applicant_id ?? obj.id) ?? "",
+    displayName: displayName ?? "Anonymous",
+    lastName,
+    firstName,
+    contactNumber: asString(obj.contact_number ?? obj.mobile_number ?? obj.phone),
+    statusLabel: asString(obj.status_label ?? obj.status) ?? "New",
+    onboardDate: asString(obj.onboard_date ?? obj.hired_date),
+    updatedAt: asString(obj.updated_at ?? obj.created_at),
+    recruiterName: asString(obj.recruiter_name ?? obj.recruited_by_name),
+    deployedByName: asString(obj.deployed_by_name ?? obj.deployed_by),
   };
 }
 
@@ -375,11 +438,76 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     return null;
   }
 
-  const rawApplicants = Array.isArray(row.active_applicants_list) ? row.active_applicants_list : [];
+  const rawApplicants = Array.isArray(row.active_applicants_list)
+    ? row.active_applicants_list
+    : Array.isArray(row.pipeline_summary)
+    ? row.pipeline_summary
+    : [];
   const activeApplicantsList = rawApplicants.map(normalizeActiveApplicant);
 
   const rawHistory = Array.isArray(row.activity_history) ? row.activity_history : [];
   const activityHistory = rawHistory.map(normalizeActivityHistory);
+
+  const primaryApplicant = activeApplicantsList[0];
+  const applicantLastName = asString(row.applicant_last_name ?? row.last_name) ?? primaryApplicant?.lastName ?? null;
+  const applicantFirstName = asString(row.applicant_first_name ?? row.first_name) ?? primaryApplicant?.firstName ?? null;
+  const rawApplicantName = asString(
+    row.applicant_name ??
+    row.applicant_full_name ??
+    row.full_name ??
+    row.candidate_name,
+  );
+  const applicantName = rawApplicantName
+    ? rawApplicantName
+    : applicantLastName && applicantFirstName
+    ? `${applicantLastName}, ${applicantFirstName}`
+    : applicantLastName || applicantFirstName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous" ? primaryApplicant.displayName : null);
+
+  const contactNumber = asString(
+    row.contact_number ??
+    row.applicant_contact_number ??
+    row.hrco_mobile ??
+    primaryApplicant?.contactNumber,
+  );
+
+  const penaltyAmount = asNumber(row.penalty_amount ?? row.penalty_exposure);
+  const hasPenalty =
+    asBoolean(row.has_penalty ?? row.with_penalty) ||
+    (penaltyAmount !== null && penaltyAmount > 0);
+  const penaltyExposure =
+    asNumber(row.penalty_exposure ?? row.penalty_amount) ?? (hasPenalty ? 1 : 0);
+
+  const relieverOnDuty = asString(row.reliever_name ?? row.reliever);
+  const hasReliever = asBoolean(row.has_reliever) || !!relieverOnDuty;
+
+  const hrcoRemarks = asString(
+    row.hrco_remarks ??
+    row.remarks ??
+    row.notes ??
+    row.vacancy_remarks,
+  );
+
+  const recruiterName = asString(
+    row.recruiter_name ??
+    row.recruited_by_name ??
+    row.assigned_encoder_name ??
+    primaryApplicant?.recruiterName,
+  );
+
+  const deployedByName = asString(
+    row.deployed_by_name ??
+    row.deployed_by ??
+    row.endorsed_by_name ??
+    row.triggered_by_name ??
+    primaryApplicant?.deployedByName,
+  );
+
+  const onboardDate = asString(
+    row.onboard_date ??
+    row.hired_date ??
+    row.target_fill_date ??
+    primaryApplicant?.onboardDate,
+  );
 
   return {
     vacancyId: id,
@@ -409,6 +537,21 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     hrcoName: asString(row.hrco_name),
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
+
+    // Supplementary fields from official sheet schema
+    contactNumber,
+    onboardDate,
+    relieverOnDuty,
+    hasReliever,
+    hrcoRemarks,
+    recruiterName,
+    deployedByName,
+    hasPenalty,
+    penaltyExposure,
+    penaltyAmount,
+    applicantLastName,
+    applicantFirstName,
+    applicantName,
 
     // Detail-specific fields
     requestedById: asString(row.requested_by_id),

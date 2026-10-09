@@ -7,6 +7,8 @@ import {
   Eye,
   LockKeyhole,
   RefreshCw,
+  User,
+  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -18,16 +20,16 @@ import type {
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
 const tableColumns = [
-  "VCode",
-  "Position",
-  "Department",
-  "Scope",
-  "Status",
-  "Applicant",
-  "Requested",
-  "Aging",
-  "Last Activity",
-  "",
+  "VCODE",
+  "POSITION",
+  "ACCOUNT / GROUP",
+  "OUTLET NAME",
+  "HRCO",
+  "STATUS",
+  "APPLICANT",
+  "AGING",
+  "PENALTY",
+  "ACTIONS",
 ];
 
 
@@ -46,28 +48,6 @@ type VacancyTableProps = {
   onPageChange: (page: number) => void;
 };
 
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
-
-function getScope(row: VacancyListItem) {
-  return [row.accountName, row.groupName, row.storeName].filter(Boolean).join(" / ") || "—";
-}
 
 function formatAgingBucket(bucket: string): string {
   switch (bucket) {
@@ -90,32 +70,8 @@ function formatAgingBucket(bucket: string): string {
   }
 }
 
-function getAgingLabel(row: VacancyListItem) {
-  if (row.agingDays !== null && row.agingDays !== undefined) {
-    return `${row.agingDays} ${row.agingDays === 1 ? "day" : "days"}`;
-  }
-
-  if (row.agingBucket) {
-    return formatAgingBucket(row.agingBucket);
-  }
-
-  return "—";
-}
-
 function getStatusLabel(row: VacancyListItem) {
   return row.derivedStatus ?? row.vacancyStatus ?? row.pipelineStatus ?? "—";
-}
-
-function getApplicantLabel(row: VacancyListItem) {
-  if (row.activeApplicantCount > 0) {
-    return `${row.activeApplicantCount} active`;
-  }
-
-  if (row.confirmedOnboardCount > 0 || row.hasRecentHire) {
-    return `${row.confirmedOnboardCount} onboarded`;
-  }
-
-  return "None";
 }
 
 function getErrorCopy(kind: VacancyDataErrorKind | null) {
@@ -251,77 +207,177 @@ export function VacancyTable({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
-                <tr
-                  className={`border-b border-table-rule transition-colors ${
-                    row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
-                  } ${
-                    selectedId === row.id ? "bg-table-row-selected" : "hover:bg-table-row-hover"
-                  }`}
-                  key={row.id}
-                  onClick={() => {
-                    if (row.rowCapabilities.canViewDetail) {
-                      onSelect(row);
-                    }
-                  }}
-                >
-                  <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
-                    {row.vcode}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5">
-                    <div className="font-medium text-table-text">
-                      {row.position_title ?? "—"}
-                    </div>
-                    <div className="text-xs text-table-text-muted">
-                      {row.employmentType || "Stationary"}
-                    </div>
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {row.department ?? "—"}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {getScope(row)}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5">
-                    <div className="flex flex-col items-start gap-1">
-                      <Badge className="border-status-info-border bg-status-info-bg text-status-info-text">
-                        {getStatusLabel(row)}
-                      </Badge>
-                      {row.pipelineStatus && (
-                        <span className="text-xs text-table-text-muted">
-                          {row.pipelineStatus}
+              rows.map((row) => {
+                const statusKey = (row.derivedStatus ?? row.vacancyStatus ?? "").toLowerCase();
+                return (
+                  <tr
+                    className={`border-b border-table-rule transition-colors ${
+                      row.rowCapabilities.canViewDetail ? "cursor-pointer" : "cursor-not-allowed"
+                    } ${
+                      selectedId === row.id ? "bg-table-row-selected" : "hover:bg-table-row-hover"
+                    }`}
+                    key={row.id}
+                    onClick={() => {
+                      if (row.rowCapabilities.canViewDetail) {
+                        onSelect(row);
+                      }
+                    }}
+                  >
+                    {/* 1. VCODE */}
+                    <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm font-semibold text-table-text-sub">
+                      {row.vcode}
+                    </td>
+
+                    {/* 2. POSITION */}
+                    <td className="border-b border-table-rule px-4 py-2.5">
+                      <div className="font-medium text-table-text">
+                        {row.position_title ?? "—"}
+                      </div>
+                      <div className="text-xs text-table-text-muted">
+                        {row.employmentType || "Stationary"}
+                      </div>
+                    </td>
+
+                    {/* 3. ACCOUNT / GROUP */}
+                    <td className="border-b border-table-rule px-4 py-2.5">
+                      <div className="font-medium text-table-text">
+                        {row.accountName ?? "—"}
+                      </div>
+                      <div className="text-xs text-table-text-muted">
+                        {row.groupName ?? "—"}
+                      </div>
+                    </td>
+
+                    {/* 4. OUTLET NAME */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub font-medium">
+                      {row.storeName ?? "—"}
+                    </td>
+
+                    {/* 5. HRCO */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                      {row.hrcoName ? (
+                        <div className="flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5 shrink-0 text-table-text-muted" aria-hidden="true" />
+                          <span>{row.hrcoName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-table-text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* 6. STATUS */}
+                    <td className="border-b border-table-rule px-4 py-2.5">
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge
+                          className={
+                            statusKey === "open"
+                              ? "border-blue-200 bg-blue-50 text-blue-700"
+                              : statusKey === "pipeline" || statusKey === "with_applicant"
+                              ? "border-purple-200 bg-purple-50 text-purple-700"
+                              : statusKey === "hired" || statusKey === "filled"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-status-info-border bg-status-info-bg text-status-info-text"
+                          }
+                        >
+                          {getStatusLabel(row)}
+                        </Badge>
+                        {row.pipelineStatus && row.pipelineStatus !== row.derivedStatus && (
+                          <span className="text-[11px] text-table-text-muted">
+                            {row.pipelineStatus}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* 7. APPLICANT */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                      {row.applicantName ? (
+                        <div>
+                          <div className="font-medium text-table-text">
+                            {row.applicantName}
+                          </div>
+                          {row.activeApplicantCount > 0 && (
+                            <div className="text-[11px] text-table-text-muted">
+                              {row.activeApplicantCount} in pipeline
+                            </div>
+                          )}
+                        </div>
+                      ) : row.activeApplicantCount > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+                          <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          <span>{row.activeApplicantCount} applicant{row.activeApplicantCount === 1 ? "" : "s"}</span>
+                        </span>
+                      ) : row.confirmedOnboardCount > 0 || row.hasRecentHire ? (
+                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <span>{row.confirmedOnboardCount} onboarded</span>
+                        </span>
+                      ) : (
+                        <span className="text-table-text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* 8. AGING */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                      {row.agingDays !== null && row.agingDays !== undefined ? (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ${
+                            row.agingDays <= 15
+                              ? "border border-emerald-200 bg-emerald-50 font-medium text-emerald-700"
+                              : row.agingDays <= 30
+                              ? "border border-amber-200 bg-amber-50 font-medium text-amber-700"
+                              : "border border-rose-200 bg-rose-50 font-bold text-rose-700"
+                          }`}
+                        >
+                          {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
+                        </span>
+                      ) : row.agingBucket === "advance" ? (
+                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                          Advance
+                        </span>
+                      ) : row.agingBucket ? (
+                        <span className="inline-flex items-center rounded-full border border-table-rule bg-table-row px-2.5 py-0.5 text-xs text-table-text-muted">
+                          {formatAgingBucket(row.agingBucket)}
+                        </span>
+                      ) : (
+                        <span className="text-table-text-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* 9. PENALTY */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                      {row.hasPenalty || (row.penaltyAmount !== null && row.penaltyAmount > 0) || row.penaltyExposure > 0 ? (
+                        <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                          {row.penaltyAmount !== null && row.penaltyAmount > 0
+                            ? `₱${row.penaltyAmount.toLocaleString()}`
+                            : row.penaltyExposure > 0
+                            ? `₱${row.penaltyExposure.toLocaleString()}`
+                            : "Penalty Active"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
+                          None
                         </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {getApplicantLabel(row)}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {formatDate(row.vacantDate)}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {getAgingLabel(row)}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {formatDate(row.lastActivityAt)}
-                  </td>
-                  <td className="border-b border-table-rule px-4 py-2.5 text-right">
-                    <button
-                      aria-label={`Select vacancy ${row.vcode}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition animate-duration-150"
-                      disabled={!row.rowCapabilities.canViewDetail}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(row);
-                      }}
-                      type="button"
-                    >
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+
+                    {/* 10. ACTIONS */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-right">
+                      <button
+                        aria-label={`Select vacancy ${row.vcode}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition animate-duration-150"
+                        disabled={!row.rowCapabilities.canViewDetail}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(row);
+                        }}
+                        type="button"
+                      >
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

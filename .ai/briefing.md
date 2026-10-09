@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w16a307d**: Align Vacancy Management Table Columns with Official CSV Schema
 - **ohm#w15f206c**: Polish and Clean Up Vacancy Management UI in ohmployee_web
 - **ohm#w14e105b**: Implement CENCOM Module and Group Performance Views with Slot Authority Coherence
 - **ohm#w13d904a**: Implement Request Center Hub and Headcount Quota Amendment Approvals in ohmployee_web
