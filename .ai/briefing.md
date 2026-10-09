@@ -1,6 +1,10 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w10a482b**: Baseline Audit of ohmployee_web Architecture, Theme, and Core Modules
+- **ohm#9m2v5jqk**: Plantilla Web — Implement Account-First Selection Gate
+- **ohm#4t8w2xhp**: ADR-001 Compliance Check — Plantilla Account-First Flow (Read-Only)
+- **ohm#7k3n9dqm**: Web-Mobile UX Parity Audit — All Modules (Read-Only)
 - **ohm#2vbn6xkq**: ohmployee-web — Add .gitignore Entries + Push 12 Commits to origin/main
 - **ohm#5jhq8mwv**: ohmployee-web — Commit 443 Backfilled Migration Files via finish.js Gate
 - **ohm#9frm5ktz**: ohmployee-web — Clean Up Stale Duplicate schema_migrations Rows (PROD)

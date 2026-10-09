@@ -81,7 +81,6 @@ export default function DashboardPage() {
           isBlocked={metricsBlocked}
           isError={!metricsBlocked && metricsQuery.isError}
           errorText="Dashboard metrics unavailable"
-          badgeLabel="RPC"
         />
         <MetricCard
           label="HR Emploc Pending"
@@ -91,7 +90,6 @@ export default function DashboardPage() {
           isBlocked={metricsBlocked}
           isError={!metricsBlocked && metricsQuery.isError}
           errorText="Dashboard metrics unavailable"
-          badgeLabel="RPC"
         />
         <MetricCard
           label="Active Plantilla"
@@ -101,7 +99,6 @@ export default function DashboardPage() {
           isBlocked={metricsBlocked}
           isError={!metricsBlocked && metricsQuery.isError}
           errorText="Dashboard metrics unavailable"
-          badgeLabel="RPC"
         />
         <MetricCard
           label="Under-Staffed Stores"
@@ -111,7 +108,6 @@ export default function DashboardPage() {
           isBlocked={metricsBlocked}
           isError={!metricsBlocked && metricsQuery.isError}
           errorText="Dashboard metrics unavailable"
-          badgeLabel="RPC"
         />
         <MetricCard
           label="Active SLA Breaches"
@@ -121,7 +117,6 @@ export default function DashboardPage() {
           isBlocked={metricsBlocked}
           isError={!metricsBlocked && metricsQuery.isError}
           errorText="Dashboard metrics unavailable"
-          badgeLabel="RPC"
         />
       </section>
 

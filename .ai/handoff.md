@@ -1,5 +1,131 @@
 # AI Handoff
 
+## Baseline Audit of ohmployee_web Architecture, Theme, and Core Modules (ohm#w10a482b)
+
+**Status: COMPLETE — READ-ONLY BASELINE AUDIT & IMPLEMENTATION ROADMAP**
+
+### Summary of Changes
+
+Conducted a comprehensive baseline architecture, theme, and module audit of `ohmployee_web` to establish the architectural foundation for mirroring recent mobile capabilities across:
+1. Global Light Mode default enforcement.
+2. Headcount Quota Revision (`Adjust Quota` and `Request HC Adjustment` actions, commitment safety floor formula $\max(1, occupied + hr\_processing + pipeline)$).
+3. Request Center menu label streamlining (dropped "Request"/"Requests" suffixes across all 8 modules) and live pending count badges.
+4. CENCOM slot-authority metric alignment (formula: $actual \ge required \implies vacant = 0, required = actual, mfr = 1.0$) and group performance views.
+
+**Deliverables created:**
+- `docs/audit/baseline_audit_architecture_theme_modules_2026-10-09.md`: Comprehensive audit report covering framework discovery, Tailwind v4 styling tokens, Supabase client/auth patterns, light theme enforcement instructions, and step-by-step module implementation plans.
+- `scripts/ai-finish.ps1`: End-of-task orchestrator script for PowerShell environments in `ohmployee-web`, managing scope file declarations and invoking `finish.js`.
+
+---
+
+## Plantilla Web — Account-First Gate, Scope Parsing Fix, Unified KPI Summary, & Group Filters (ohm#9m2v5jqk)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, STAGING DEPLOYED & VERIFIED**
+
+### Summary of Changes
+
+Implemented the account-first entry flow for the Plantilla web module in compliance with audit `ohm#7k3n9dqm` (P1 gap) and ADR-001 coverage architecture locks (`ohm#4t8w2xhp`), resolved a critical authentication scope parsing bug, disabled dark mode app-wide, unified page layouts to always show summary cards, and added a group selection dropdown on the account selector.
+
+- **Unified Summary Cards Layout**: Refactored Plantilla layout to render the KPI summary cards (**Required / Actual / HR Process / Vacant**) at the top of the page across both the Account Selection view and Roster directories.
+  - The `AdminPageHeader` ("Plantilla Directory" title/subtitle block) is gated behind `accountId` resolution, removing the redundant header details on the Account Selection dashboard.
+  - When no account is selected (`!accountId`), `summaryQuery` executes with `accountId := null`, returning the aggregate cross-account (global) summary metrics for all authorized accounts.
+  - Selecting an account or group automatically recalculates and updates these cards in real-time.
+  - Derived total `required` count dynamically as `Actual + HR Process + Vacant`.
+- **Group Select Dropdown on Selection View**: Added a `<select>` dropdown beside the "Search accounts..." input on the Account Selection dashboard.
+  - Dynamically populates with unique groups (`uniqueGroups` via `useMemo` of `allowedAccountsQuery` data) associated with the user's allowed billing accounts.
+  - Filters the cards grid by group and updates the global summary metrics at the top to reflect only the selected group's counts.
+- **Dark Mode Removal**: Completely deleted the `@media (prefers-color-scheme: dark)` styling block in `globals.css` to lock the user interface to light mode.
+- **User Context Scope Parsing Fix**: Resolved a critical pre-existing bug in `src/lib/auth.ts` where `loadCurrentUserContext` attempted to read flat non-existent properties (`group_scope_mode`, `group_scope_ids`, `account_scope_mode`, `account_scope_ids`) directly from `rpcRow`. Because the database RPC `get_web_current_user_context` returns `group_scope` and `account_scope` as nested JSONB objects, the client resolved the scope mode as `"none"`, incorrectly locking out all accounts (including Super Admin). Refactored to cleanly extract the mode and list mapping from the raw JSONB objects while resolving all TypeScript/eslint typecasting constraints.
+- **Gated Queries**: Modified React Query hooks (`employeeQuery`, `storeQuery`) to be conditionally enabled only when `accountId` is resolved (`enabled: !!accountId`).
+- **URL Hydration & Deep-linking**: Integrated Next.js `useSearchParams` on mount to check for pre-existing `accountId` parameters in the URL, executing search queries immediately and avoiding redundant selection screens.
+- **Auto-select / Auto-fire Scoped Roles**: Added logic to bypass selection screen for scoped role users (OM, HRCO, etc.) who are authorized for exactly one billing account in `get_web_current_user_context()`. The single account is auto-selected and fired automatically.
+- **Fail Closed**: If the user's authorized account list is empty or unresolved, the queries remain disabled.
+- **Mobile-Parity Account Selector Dashboard**: Built a curated grid-based selection interface (2/3 columns depending on screen size) for broad-access and multi-account users. Cards feature:
+  - Account group name prefixes (`Group [Name] • `).
+  - Left icon block (gated by `is_pool_account` column value): Network/branches icon (`Share2`) in a light purple container for pools; store icon (`Building`) in a light blue container for regular accounts.
+  - Interactive chevrons (`ChevronRight`) and dynamic status badges: `POOL` (purple) for pool accounts, and `WARNING` (amber) if the Manpower Fill Rate (MFR) drops below 80%.
+  - Real-time personnel stats: `HC [Actual]/[Required] • Vacant [Vacant] • Pipeline [Pipeline]` details.
+  - Manpower Fill Rate (MFR) Bar: Renders a horizontal orange progress bar showing fill rate percentages.
+  - Parallel Client summaries: Uses React Query `useQueries` to fetch individual summaries for all allowed accounts in parallel, resolving metrics dynamic client-side.
+  - Real-time client-side search/filter on account name.
+- **Back Control Navigation**: Added a back-control link for multi-account users to reset selection, clearing states and URL query parameters to return to the selection list.
+- **Dual-View Consistency**: Ensured gating logic and selector screens apply uniformly to both the Employee-centric and Store-centric views.
+- **Clean Compilation**: Verified Next.js build passes cleanly (`Compiled successfully`) and ESLint checks verify zero warnings/errors in the modified Plantilla files.
+
+### Files Changed
+- `src/app/globals.css` — Removed prefers-color-scheme dark media query to enforce light mode app-wide.
+- `src/lib/auth.ts` — Refactored user context scope mapping to parse JSONB `group_scope` and `account_scope` columns correctly.
+- `src/lib/queries/plantilla.ts` — Redefined `PlantillaSummary` and updated `normalizeSummary` to map Required, Actual, HR Process, and Vacant metrics.
+- `src/app/(dashboard)/plantilla/page.tsx` — Implemented entry-flow gate logic, URL params, auto-fire checks, selector layout, back control, unified summary cards headers, and dynamic group filter.
+
+---
+
+## ADR-001 Compliance Check — Plantilla Account-First Flow (ohm#4t8w2xhp)
+
+**Status: COMPLETE — READ-ONLY COMPLIANCE VERDICT, NO CODE CHANGES**
+
+### Summary of Changes
+
+Conducted a thorough compliance check of the proposed client-side account-first flow for the Plantilla module against ADR-001 (Plantilla Slot as Single Source of Truth). Verified security boundaries, RLS/RPC integration, and Regression Guard Protocol concerns.
+
+**Deliverable created:** `docs/audit/adr001_plantilla_account_gate_2026-07-11.md`
+
+### Findings
+- **Verdict:** CONDITIONAL PASS.
+- **Conditions:**
+  1. Auto-select and auto-fire for single-account scoped roles.
+  2. Implement gating consistently across both Employee-centric and Store-centric views.
+  3. Wire search/list React Query hooks using `enabled: !!accountId`.
+  4. Ensure compatibility with URL query parameters for deep-linking.
+  5. Retain backend security / RLS as the absolute authority.
+- **Scope:** Purely client-side gating change. No backend migrations, RPC contract revisions, or database schema modifications.
+
+---
+
+## Web-Mobile UX Parity Audit — All Modules (Read-Only) (ohm#7k3n9dqm)
+
+**Status: COMPLETE — READ-ONLY AUDIT, NO CODE CHANGES**
+
+### Summary of Changes
+
+Full read-only navigation/entry-flow audit across all in-scope web modules vs. their mobile counterparts, using the selection-first progressive-disclosure pattern as the reference target.
+
+**Deliverable created:** `docs/audit/web_mobile_parity_2026-07-11.md`
+
+### Audit Findings
+
+| Module | Gap? | ADR-001 | Priority |
+|--------|------|---------|----------|
+| Dashboard | **No** — aggregate surface, backend scopes via `auth.uid()` | ⚠️ Yes (no change needed) | N/A |
+| Vacancy | **Partial** — full list loads on mount; account selector is optional text input, not a gating step | ⚠️ Yes | P2 |
+| HR Emploc | **Partial** — full queue loads on mount; lower priority (workflow queue, not directory) | No | P3 |
+| Plantilla | **YES (confirmed reference case)** — full roster loads on mount; mobile requires account selection first | ⚠️ Yes | P1 |
+| CENCOM | **Cannot assess** — scaffold stub only, no state document | ⚠️ Yes | P4 |
+| Approvals | **Cannot assess** — scaffold stub only, no state document | No | P5 |
+
+### Key Decisions / Flags
+
+- **Plantilla (P1):** The account-first entry change is confirmed-as-approved in the prompt but NOT YET implemented in code — `plantilla/page.tsx` still fires both `summaryQuery` and `employeeQuery` on mount with no `enabled` guard on `accountId`. Separate implementation prompt required.
+- **5 Regression Guard Protocol flags** raised (RGP-001 through RGP-005) covering: roster auto-fire for scoped roles, KPI summary inconsistency when list is gated, broad-access admin workflow disruption on Vacancy, store-view consistency with employee-view gate, and detail drawer open/close state during page restructuring.
+- **4 ADR-001 compliance audit scope entries** defined: Plantilla, Vacancy, CENCOM, Dashboard (no-change noted).
+- **CENCOM and Approvals** are scaffold stubs with no state documents — parity cannot be assessed until `cencom_web_state.md` and `approvals_web_state.md` are created.
+
+### Files Changed
+
+- `docs/audit/web_mobile_parity_2026-07-11.md` — **[NEW]** Full audit report.
+- `.ai/briefing.md` — prepended `ohm#7k3n9dqm` to Last Completed Tasks.
+- `.ai/handoff.md` — prepended this entry.
+- No `docs/state/<module>_state.md` files modified (audit only, no behavior change).
+
+### Not Changed
+
+- No source code modified.
+- No migrations run.
+- No RPC calls that write.
+- No module state documents updated (read-only audit pass).
+
+---
+
 ## ohmployee-web — Add .gitignore Entries + Push 12 Commits to origin/main (ohm#2vbn6xkq)
 
 **Status: COMPLETE — CONFIG UPDATED, COMMITTED VIA FINISH.JS, REMOTE SYNCED**

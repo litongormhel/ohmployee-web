@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { LockKeyhole, Users } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import { LockKeyhole, Users, ArrowLeft, Building, Share2, ChevronRight } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { loadCurrentUserContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
@@ -20,6 +23,7 @@ import {
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +76,8 @@ function staffingStatusVariant(status: string | null | undefined): BadgeVariant 
 // Filter option constants
 // ---------------------------------------------------------------------------
 
+
+
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "active", label: "Active" },
@@ -105,6 +111,17 @@ export default function PlantillaPage() {
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
 
+  // Search parameters and router
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Hydration state
+  const [isHydrated, setIsHydrated] = useState(false);
+  // Search query specifically for the account selector list
+  const [accountSearch, setAccountSearch] = useState("");
+  const [selectorGroupId, setSelectorGroupId] = useState("");
+
   // Committed filter values (drive queries)
   const [search, setSearch] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -132,17 +149,117 @@ export default function PlantillaPage() {
   const [slaStatus, setSlaStatus] = useState("");
 
   // -------------------------------------------------------------------------
-  // Queries
+  // User Context and Account Lists
+  // -------------------------------------------------------------------------
+
+  const userContextQuery = useQuery({
+    queryKey: ["currentUserContext"],
+    queryFn: () => loadCurrentUserContext(),
+    staleTime: Infinity,
+  });
+
+  const currentUser = userContextQuery.data?.currentUser;
+
+  const allowedAccountsQuery = useQuery({
+    queryKey: ["plantilla", "allowed-accounts", currentUser?.accountScope],
+    queryFn: async () => {
+      if (!currentUser) return [];
+      const { mode, ids } = currentUser.accountScope;
+      if (mode === "none") return [];
+
+      const supabase = createClient();
+      let query = supabase
+        .from("accounts")
+        .select(`
+          id,
+          account_name,
+          group_id,
+          is_pool_account,
+          groups (
+            group_name
+          )
+        `)
+        .eq("is_active", true);
+
+      if (mode === "scoped" && ids.length > 0) {
+        query = query.in("id", ids);
+      }
+
+      const { data, error } = await query.order("account_name");
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        name: row.account_name as string,
+        groupId: row.group_id as string | null,
+        groupName: Array.isArray(row.groups)
+          ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
+          : row.groups && typeof row.groups === "object"
+          ? ((row.groups as unknown as Record<string, unknown>).group_name as string | null)
+          : null,
+        isPoolAccount: !!row.is_pool_account,
+      }));
+    },
+    enabled: !!currentUser,
+  });
+
+  const allowedAccountIds = allowedAccountsQuery.data?.map((a) => a.id) ?? [];
+
+
+  const accountSummaries = useQueries({
+    queries: allowedAccountIds.map((accId) => ({
+      queryKey: ["plantilla", "summary-account", accId],
+      queryFn: () => getPlantillaSummary({ accountId: accId }),
+      staleTime: 30000,
+      enabled: allowedAccountIds.length > 0,
+    })),
+  });
+
+  const uniqueGroups = useMemo(() => {
+    const accounts = allowedAccountsQuery.data ?? [];
+    const map = new Map<string, string>();
+    for (const a of accounts) {
+      if (a.groupId && a.groupName) {
+        map.set(a.groupId, a.groupName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [allowedAccountsQuery.data]);
+
+  // Deep-linking hydration and auto-select/auto-fire logic
+  useEffect(() => {
+    if (!userContextQuery.data) return;
+
+    const urlAccountId = searchParams.get("accountId");
+    const user = userContextQuery.data.currentUser;
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (urlAccountId) {
+      setAccountId(urlAccountId);
+      setPendingAccountId(urlAccountId);
+    } else if (user) {
+      const { accountScope } = user;
+      if (accountScope.mode === "scoped" && accountScope.ids.length === 1) {
+        setAccountId(accountScope.ids[0]);
+        setPendingAccountId(accountScope.ids[0]);
+      }
+    }
+    setIsHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [userContextQuery.data, searchParams]);
+
+  // -------------------------------------------------------------------------
+  // Queries (Gated behind accountId)
   // -------------------------------------------------------------------------
 
   const summaryQuery = useQuery({
-    queryKey: ["plantilla", "summary", { search, accountId, groupId }],
+    queryKey: ["plantilla", "summary", { search, accountId, groupId, selectorGroupId }],
     queryFn: () =>
       getPlantillaSummary({
-        search: search || undefined,
+        search: accountId ? (search || undefined) : undefined,
         accountId: accountId || undefined,
-        groupId: groupId || undefined,
+        groupId: accountId ? (groupId || undefined) : (selectorGroupId || undefined),
       }),
+    enabled: isHydrated && !!currentUser,
   });
 
   const employeeQuery = useQuery({
@@ -163,7 +280,7 @@ export default function PlantillaPage() {
         page,
         pageSize: PAGE_SIZE,
       }),
-    enabled: view === "employee" || view === "inactive",
+    enabled: (view === "employee" || view === "inactive") && !!accountId,
   });
 
   const storeQuery = useQuery({
@@ -177,7 +294,7 @@ export default function PlantillaPage() {
         page,
         pageSize: PAGE_SIZE,
       }),
-    enabled: view === "store",
+    enabled: view === "store" && !!accountId,
   });
 
   // -------------------------------------------------------------------------
@@ -207,6 +324,37 @@ export default function PlantillaPage() {
   // Handlers
   // -------------------------------------------------------------------------
 
+
+  function getAccountSummary(accId: string) {
+    const queryIndex = allowedAccountIds.indexOf(accId);
+    if (queryIndex !== -1) {
+      const q = accountSummaries[queryIndex];
+      if (q && q.data) {
+        return q.data;
+      }
+    }
+    return { required: 0, actual: 0, hrProcess: 0, vacant: 0 };
+  }
+
+  function handleSelectAccount(accId: string) {
+    setAccountId(accId);
+    setPendingAccountId(accId);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("accountId", accId);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleBackToSelection() {
+    setAccountId("");
+    setPendingAccountId("");
+    handleReset();
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("accountId");
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   function handleApply() {
     setSearch(pendingSearch);
     setAccountId(pendingAccountId);
@@ -220,20 +368,31 @@ export default function PlantillaPage() {
 
   function handleReset() {
     setPendingSearch("");
-    setPendingAccountId("");
     setPendingGroupId("");
     setPendingStoreId("");
     setPendingStatus("");
     setPendingPlantillaType("");
     setPendingSlaStatus("");
     setSearch("");
-    setAccountId("");
     setGroupId("");
     setStoreId("");
     setStatus("");
     setPlantillaType("");
     setSlaStatus("");
     setPage(1);
+
+    const user = userContextQuery.data?.currentUser;
+    const isSingleScoped =
+      user?.accountScope.mode === "scoped" && user?.accountScope.ids.length === 1;
+
+    if (isSingleScoped) {
+      const singleId = user.accountScope.ids[0];
+      setAccountId(singleId);
+      setPendingAccountId(singleId);
+    } else {
+      setAccountId("");
+      setPendingAccountId("");
+    }
   }
 
   function switchView(next: ViewMode) {
@@ -364,24 +523,327 @@ export default function PlantillaPage() {
     </div>
   );
 
-  const selectClass =
-    "h-10 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
 
   const inputClass =
     "h-10 w-36 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
 
   // -------------------------------------------------------------------------
-  // Render
+  // Render Selection Screen / Main Roster
   // -------------------------------------------------------------------------
+
+  if (userContextQuery.isLoading || !isHydrated) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <DataState
+          kind="loading"
+          title="Loading User Workspace"
+          description="Resolving your authorization profile and scopes..."
+        />
+      </div>
+    );
+  }
+
+  function renderAccountSelectionContent() {
+    const isSummariesLoading = accountSummaries.some((q) => q.isLoading);
+    if (allowedAccountsQuery.isLoading || isSummariesLoading) {
+      return (
+        <DataState
+          kind="loading"
+          title="Loading Accounts"
+          description="Fetching your authorized accounts and staffing metrics..."
+        />
+      );
+    }
+
+    if (allowedAccountsQuery.isError) {
+      return (
+        <DataState
+          kind="error"
+          title="Failed to Load Accounts"
+          description="An error occurred while fetching your authorized billing accounts."
+          onRetry={() => {
+            allowedAccountsQuery.refetch();
+            accountSummaries.forEach((q) => q.refetch());
+          }}
+        />
+      );
+    }
+
+    const accounts = allowedAccountsQuery.data ?? [];
+    if (accounts.length === 0) {
+      return (
+        <DataState
+          kind="access_denied"
+          title="No Authorized Accounts"
+          description="Your user profile does not have any active billing account scopes assigned. Access remains restricted."
+        />
+      );
+    }
+
+    const filteredAccounts = accounts.filter((a) => {
+      const matchesSearch = a.name.toLowerCase().includes(accountSearch.toLowerCase());
+      const matchesGroup = !selectorGroupId || a.groupId === selectorGroupId;
+      return matchesSearch && matchesGroup;
+    });
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-xs">
+            <input
+              type="text"
+              placeholder="Search accounts..."
+              value={accountSearch}
+              onChange={(e) => setAccountSearch(e.target.value)}
+              className="h-10 w-full rounded-md border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
+            />
+          </div>
+          {uniqueGroups.length > 0 && (
+            <select
+              value={selectorGroupId}
+              onChange={(e) => setSelectorGroupId(e.target.value)}
+              className="h-10 rounded-md border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
+              aria-label="Filter accounts by group"
+            >
+              <option value="">All Groups</option>
+              {uniqueGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {(accountSearch || selectorGroupId) && (
+            <button
+              type="button"
+              onClick={() => {
+                setAccountSearch("");
+                setSelectorGroupId("");
+              }}
+              className="text-sm font-semibold text-brand-600 hover:text-brand-700 px-2"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        {filteredAccounts.length === 0 ? (
+          <DataState
+            kind="empty"
+            title="No accounts match search"
+            description="Try searching with a different term."
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {(() => {
+              const sortedAccounts = filteredAccounts
+                .map((account) => {
+                  const summary = getAccountSummary(account.id);
+                  const actual = summary.actual;
+                  const vacant = summary.vacant;
+                  const hrProcess = summary.hrProcess;
+                  const required = actual + vacant;
+                  const fillRate = required > 0 ? Math.round((actual / required) * 100) : 0;
+
+                  return {
+                    ...account,
+                    actual,
+                    vacant,
+                    hrProcess,
+                    required,
+                    fillRate,
+                  };
+                })
+                .sort((a, b) => {
+                  // 1. Moses HQ pinned at the top
+                  const isAMoses = a.name.trim().toLowerCase() === "moses hq";
+                  const isBMoses = b.name.trim().toLowerCase() === "moses hq";
+                  if (isAMoses && !isBMoses) return -1;
+                  if (!isAMoses && isBMoses) return 1;
+
+                  // 2. 0% fill rate at the bottom
+                  const isAFillRateZero = a.fillRate === 0;
+                  const isBFillRateZero = b.fillRate === 0;
+                  if (isAFillRateZero && !isBFillRateZero) return 1;
+                  if (!isAFillRateZero && isBFillRateZero) return -1;
+
+                  // 3. Sort by problematic account (fill rate ascending)
+                  if (a.fillRate !== b.fillRate) {
+                    return a.fillRate - b.fillRate;
+                  }
+
+                  // 4. Stable alphabetical sort by name
+                  return a.name.localeCompare(b.name);
+                });
+
+              return sortedAccounts.map((account) => {
+                // Dynamic progress bar colors:
+                // 100%+ = Green (emerald)
+                // 95% - 99.99% = Yellow (amber)
+                // Below 95% = Red
+                const getProgressColors = (rate: number) => {
+                  if (rate >= 100) {
+                    return {
+                      bar: "bg-emerald-500",
+                      text: "text-emerald-700",
+                    };
+                  }
+                  if (rate >= 95) {
+                    return {
+                      bar: "bg-amber-500",
+                      text: "text-amber-700",
+                    };
+                  }
+                  return {
+                    bar: "bg-red-500",
+                    text: "text-red-700",
+                  };
+                };
+
+                const colors = getProgressColors(account.fillRate);
+
+                return (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => handleSelectAccount(account.id)}
+                    className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                  >
+                    {/* Left Icon Container */}
+                    <div
+                      className={`shrink-0 rounded-lg p-2.5 ${
+                        account.isPoolAccount
+                          ? "bg-purple-50 text-purple-600"
+                          : "bg-brand-50/60 text-brand-600"
+                      }`}
+                    >
+                      {account.isPoolAccount ? (
+                        <Share2 className="h-5 w-5" />
+                      ) : (
+                        <Building className="h-5 w-5" />
+                      )}
+                    </div>
+
+                    {/* Middle Content Section */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-text-primary truncate">
+                            {!account.isPoolAccount && account.groupName && (
+                              <span className="text-text-secondary font-normal text-sm mr-1">
+                                {account.groupName.trim().toLowerCase().startsWith("group")
+                                  ? account.groupName
+                                  : `Group ${account.groupName}`}{" "}
+                                •
+                              </span>
+                            )}
+                            {account.name}
+                          </h3>
+                          {account.isPoolAccount && (
+                            <p className="text-[10px] font-bold text-purple-600/80 tracking-wider mt-0.5 uppercase">
+                              Workforce Pool Inside Plantilla
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badge container */}
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          {account.isPoolAccount ? (
+                            <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 uppercase">
+                              Pool
+                            </span>
+                          ) : (
+                            account.fillRate < 80 && (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase">
+                                Warning
+                              </span>
+                            )
+                          )}
+                          <ChevronRight className="h-4 w-4 text-text-secondary/60 transition-transform group-hover:translate-x-0.5 shrink-0" />
+                        </div>
+                      </div>
+
+                      {/* Personnel Stats Row */}
+                      <div className="mt-2.5 text-xs text-text-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>
+                          HC <strong className="text-text-primary font-bold">{account.actual}</strong>/
+                          <strong className="text-text-primary font-bold">{account.required}</strong>
+                        </span>
+                        <span className="text-text-secondary/40">•</span>
+                        <span>
+                          Vacant <strong className="text-text-primary font-bold">{account.vacant}</strong>
+                        </span>
+                        {!account.isPoolAccount && (
+                          <>
+                            <span className="text-text-secondary/40">•</span>
+                            <span>
+                              Pipeline <strong className="text-text-primary font-bold">{account.hrProcess}</strong>
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Progress Bar (MFR) */}
+                      {!account.isPoolAccount && (
+                        <div className="mt-3.5 flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider shrink-0 w-8">
+                            MFR
+                          </span>
+                          <div className="relative flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${colors.bar}`}
+                              style={{ width: `${Math.min(100, account.fillRate)}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-semibold shrink-0 w-8 text-right font-mono ${colors.text}`}>
+                            {account.fillRate}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+
+
+  const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name;
+  const pageSubtitle = selectedAccountName
+    ? `Managing roster allocations, capacity targets, and offboarding for ${selectedAccountName}.`
+    : "Select a billing account to audit roster allocations, capacity targets, and offboarding workflows.";
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
-      <AdminPageHeader
-        title="Plantilla Directory"
-        subtitle="Manage active personnel, audit store capacities, and govern movements."
-        icon={Users}
-        readOnly
-      />
+      {accountId &&
+        (currentUser?.accountScope.mode === "all" ||
+          (currentUser?.accountScope.mode === "scoped" &&
+            currentUser?.accountScope.ids.length > 1)) && (
+          <div className="flex">
+            <button
+              type="button"
+              onClick={handleBackToSelection}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Account Selection
+            </button>
+          </div>
+        )}
+
+      {accountId && (
+        <AdminPageHeader
+          title="Plantilla Directory"
+          subtitle={pageSubtitle}
+          icon={Users}
+          readOnly
+        />
+      )}
 
       {/* KPI summary row */}
       <section
@@ -389,179 +851,181 @@ export default function PlantillaPage() {
         className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       >
         <MetricCard
-          label="Active Roster"
-          value={summaryData?.totalActiveRoster}
+          label="Required"
+          value={summaryData?.required}
+          helperText="Total required headcount (Actual + HR Process + Vacant)"
+          isLoading={summaryQuery.isLoading}
+          isBlocked={summaryBlocked}
+          isError={!summaryBlocked && summaryQuery.isError}
+          errorText="Summary data failed to load"
+        />
+        <MetricCard
+          label="Actual"
+          value={summaryData?.actual}
           helperText="Total active deployed employees"
           isLoading={summaryQuery.isLoading}
           isBlocked={summaryBlocked}
           isError={!summaryBlocked && summaryQuery.isError}
           errorText="Summary data failed to load"
-          badgeLabel="RPC"
         />
         <MetricCard
-          label="Budgeted Slots"
-          value={summaryData?.totalBudgetedSlots}
-          helperText="Standard contracted allocations"
+          label="HR Process"
+          value={summaryData?.hrProcess}
+          helperText="Onboarding pipeline candidates"
           isLoading={summaryQuery.isLoading}
           isBlocked={summaryBlocked}
           isError={!summaryBlocked && summaryQuery.isError}
           errorText="Summary data failed to load"
-          badgeLabel="RPC"
         />
         <MetricCard
-          label="AH (Temp) Slots"
-          value={summaryData?.totalAdditionalSlots}
-          helperText="Active additional headcount slots"
+          label="Vacant"
+          value={summaryData?.vacant}
+          helperText="Approved open vacancy slots"
           isLoading={summaryQuery.isLoading}
           isBlocked={summaryBlocked}
           isError={!summaryBlocked && summaryQuery.isError}
           errorText="Summary data failed to load"
-          badgeLabel="RPC"
-        />
-        <MetricCard
-          label="Under-Staffed"
-          value={summaryData?.understaffedStores}
-          helperText="Stores below budgeted target"
-          isLoading={summaryQuery.isLoading}
-          isBlocked={summaryBlocked}
-          isError={!summaryBlocked && summaryQuery.isError}
-          errorText="Summary data failed to load"
-          badgeLabel="RPC"
         />
       </section>
 
-      {/* Filter bar */}
-      <AdminFilterBar
-        searchPlaceholder="Search by employee, store, or VCode..."
-        searchVal={pendingSearch}
-        onSearchChange={setPendingSearch}
-        onApply={handleApply}
-        onReset={handleReset}
-        showResetButton
-        resetLabel="Reset"
-        filterSlot={
-          <div className="flex flex-wrap items-center gap-2">
-            {viewToggle}
+      {!accountId ? (
+        renderAccountSelectionContent()
+      ) : (
+        <>
+          {/* Filter bar */}
+          <AdminFilterBar
+            searchPlaceholder="Search by employee, store, or VCode..."
+            searchVal={pendingSearch}
+            onSearchChange={setPendingSearch}
+            onApply={handleApply}
+            onReset={handleReset}
+            showResetButton
+            resetLabel="Reset"
+            filterSlot={
+              <div className="flex flex-wrap items-center gap-2">
+                {viewToggle}
 
-            <input
-              type="text"
-              placeholder="Account ID"
-              value={pendingAccountId}
-              onChange={(e) => setPendingAccountId(e.target.value)}
-              className={inputClass}
-              aria-label="Filter by account ID"
-            />
-
-            <input
-              type="text"
-              placeholder="Group ID"
-              value={pendingGroupId}
-              onChange={(e) => setPendingGroupId(e.target.value)}
-              className={inputClass}
-              aria-label="Filter by group ID"
-            />
-
-            {(view === "employee" || view === "inactive") && (
-              <>
                 <input
                   type="text"
-                  placeholder="Store ID"
-                  value={pendingStoreId}
-                  onChange={(e) => setPendingStoreId(e.target.value)}
+                  placeholder="Account ID"
+                  value={pendingAccountId}
+                  onChange={(e) => setPendingAccountId(e.target.value)}
                   className={inputClass}
-                  aria-label="Filter by store ID"
+                  aria-label="Filter by account ID"
                 />
 
-                {view === "employee" && (
+                <input
+                  type="text"
+                  placeholder="Group ID"
+                  value={pendingGroupId}
+                  onChange={(e) => setPendingGroupId(e.target.value)}
+                  className={inputClass}
+                  aria-label="Filter by group ID"
+                />
+
+                {(view === "employee" || view === "inactive") && (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Store ID"
+                      value={pendingStoreId}
+                      onChange={(e) => setPendingStoreId(e.target.value)}
+                      className={inputClass}
+                      aria-label="Filter by store ID"
+                    />
+
+                    <select
+                      value={pendingStatus}
+                      onChange={(e) => setPendingStatus(e.target.value)}
+                      className={inputClass}
+                      aria-label="Filter by employment status"
+                    >
+                      <option value="">All Statuses</option>
+                      {STATUS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={pendingPlantillaType}
+                      onChange={(e) => setPendingPlantillaType(e.target.value)}
+                      className={inputClass}
+                      aria-label="Filter by plantilla type"
+                    >
+                      <option value="">All Types</option>
+                      {DEPLOYMENT_TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {view === "store" && (
                   <select
-                    value={pendingStatus}
-                    onChange={(e) => setPendingStatus(e.target.value)}
-                    className={selectClass}
-                    aria-label="Filter by employment status"
+                    value={pendingSlaStatus}
+                    onChange={(e) => setPendingSlaStatus(e.target.value)}
+                    className={inputClass}
+                    aria-label="Filter by staffing risk"
                   >
-                    {STATUS_OPTIONS.map((o) => (
+                    {STAFFING_RISK_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
                     ))}
                   </select>
                 )}
+              </div>
+            }
+          />
 
-                <select
-                  value={pendingPlantillaType}
-                  onChange={(e) => setPendingPlantillaType(e.target.value)}
-                  className={selectClass}
-                  aria-label="Filter by deployment type"
-                >
-                  {DEPLOYMENT_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
+          {/* Detail drawer */}
+          <PlantillaDetailDrawer
+            plantillaId={selectedPlantillaId}
+            onClose={() => setSelectedPlantillaId(null)}
+          />
 
-            {view === "store" && (
-              <select
-                value={pendingSlaStatus}
-                onChange={(e) => setPendingSlaStatus(e.target.value)}
-                className={selectClass}
-                aria-label="Filter by staffing risk"
-              >
-                {STAFFING_RISK_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        }
-      />
+          {/* Table area */}
+          <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">
+            {renderListContent()}
 
-      {/* Detail drawer */}
-      <PlantillaDetailDrawer
-        plantillaId={selectedPlantillaId}
-        onClose={() => setSelectedPlantillaId(null)}
-      />
-
-      {/* Table area */}
-      <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">
-        {renderListContent()}
-
-        {!isListLoading && !isListError && totalCount > 0 && (
-          <div className="flex items-center justify-between border-t border-border-default px-4 py-3 text-sm text-text-muted">
-            <span>
-              {totalCount.toLocaleString()} record
-              {totalCount !== 1 ? "s" : ""}
-            </span>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Previous
-                </button>
+            {!isListLoading && !isListError && totalCount > 0 && (
+              <div className="flex items-center justify-between border-t border-border-default px-4 py-3 text-sm text-text-muted">
                 <span>
-                  {page} / {totalPages}
+                  {totalCount.toLocaleString()} record
+                  {totalCount !== 1 ? "s" : ""}
                 </span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Next
-                </button>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      {page} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Footer system boundaries notice */}
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">

@@ -556,13 +556,20 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 - Group ID filtering is wired through deployed `p_group_id` parameters on summary, employee list, and store staffing RPCs.
 
 ### Phase 3: Client Integration & State Management ✅ COMPLETE
-- `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers.
-- Exported RPC wrappers: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`.
+- `src/lib/queries/plantilla.ts` is implemented with full TypeScript types, RPC wrappers, and normalizers. Added `getPlantillaAccountStatusCounts` to fetch active status counts for authorized accounts.
+- Exported RPC wrappers: `getPlantillaSummary`, `listWebPlantillaEmployees`, `listWebPlantillaStoreStaffing`, `getWebPlantillaDetail`, `getPlantillaAccountStatusCounts`.
 - Employee list sorting defaults to backend-supported `employee_name`; stale `last_name` is not sent to the deployed RPC allowlist. Store staffing sorting defaults to backend-supported `store_name`.
 - Typed JSONB sub-types: `PlantillaCoveredStore`, `PlantillaGovernmentIds`, `PlantillaClearanceChecklistItem`, `PlantillaClearanceDocument`, `PlantillaMovementRequest`, `PlantillaAuditTimelineItem`.
 - Presentation-layer derivation helpers: `deriveDeactivationOverlay`, `deriveTransferOverlay`, `deriveStaffingRisk`.
 - Error class `PlantillaDataError` with `access_denied` / `retryable` kind discriminator.
 - React Query `useQuery` hooks are wired in `page.tsx` for summary, employee list, and store staffing list.
+- **Account-First Selection Gate (ADR-001 Compliance):**
+  - **Query Gating:** All three listing/summary queries (`summaryQuery`, `employeeQuery`, `storeQuery`) are gated using `enabled: !!accountId`.
+  - **Auto-Fire/Auto-Select:** Users with scoped roles (e.g. HRCO, OM, Encoder) having exactly one authorized account automatically bypass the selection screen. The single account is resolved and selected on mount.
+  - **URL Deep-linking:** If the page is entered with an `accountId` URL query parameter, the state is hydrated and queries execute immediately.
+  - **Fail Closed:** If the account scope is empty or unresolved, the queries remain disabled.
+  - **Account Selector UI:** Multi-account or broad-access users are presented with a selection dashboard displaying a grid of account cards showing placement status counts (Active, Transfer, Separation, Suspended) aggregated via `get_plantilla_account_status_counts` RPC.
+  - **Back Navigation:** Multi-account users can reset selection via a "← Back to Account Selection" button which clears the URL query parameter and filters.
 - All four `DataState` boundaries (loading, empty, access_denied, retryable error with retry callback) are active.
 
 ### Phase 4: Detail Drawer ✅ COMPLETE

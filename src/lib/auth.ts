@@ -55,10 +55,8 @@ type WebCurrentUserContextRpcRow = {
   email?: string | null;
   role_key?: string | null;
   role_name?: string | null;
-  group_scope_mode?: string | null;
-  group_scope_ids?: unknown;
-  account_scope_mode?: string | null;
-  account_scope_ids?: unknown;
+  group_scope?: unknown;
+  account_scope?: unknown;
   access_status?: string | null;
   status?: string | null;
   allowed_module_keys?: unknown;
@@ -69,7 +67,6 @@ type WebCurrentUserContextRpcRow = {
 const DASHBOARD_MODULE_KEY = "dashboard";
 const KNOWN_MODULE_KEYS = new Set(webModules.map((module) => module.key));
 const SAFE_MINIMAL_MODULE_KEYS = new Set([DASHBOARD_MODULE_KEY]);
-const VALID_SCOPE_MODES = new Set<WebScopeMode>(["all", "scoped", "none"]);
 
 function buildModuleAccess(allowedModuleKeys: string[]) {
   const visibleModuleKeys =
@@ -122,11 +119,6 @@ function normalizeStringArray(value: unknown) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-function normalizeScopeMode(value: string | null | undefined): WebScopeMode {
-  return value && VALID_SCOPE_MODES.has(value as WebScopeMode)
-    ? (value as WebScopeMode)
-    : "none";
-}
 
 function normalizeCapabilities(value: unknown) {
   if (!value || Array.isArray(value) || typeof value !== "object") {
@@ -262,6 +254,46 @@ export async function loadCurrentUserContext() {
     };
   }
 
+  const rawGroupScope = (rpcRow.group_scope && typeof rpcRow.group_scope === "object"
+    ? rpcRow.group_scope
+    : {}) as Record<string, unknown>;
+  const groupMode = rawGroupScope.mode as string | undefined;
+  const groupScopeMode: WebScopeMode =
+    groupMode === "global" || groupMode === "all"
+      ? "all"
+      : groupMode === "scoped"
+      ? "scoped"
+      : "none";
+  const groupScopeIds = Array.isArray(rawGroupScope.groups)
+    ? (rawGroupScope.groups
+        .map((g) => (g && typeof g === "object" ? (g as Record<string, unknown>).group_id : ""))
+        .filter((id): id is string => typeof id === "string" && id.length > 0))
+    : [];
+
+  const rawAccountScope = (rpcRow.account_scope && typeof rpcRow.account_scope === "object"
+    ? rpcRow.account_scope
+    : {}) as Record<string, unknown>;
+  const accountMode = rawAccountScope.mode as string | undefined;
+  const accountScopeMode: WebScopeMode =
+    accountMode === "global" || accountMode === "all"
+      ? "all"
+      : accountMode === "scoped" ||
+        accountMode === "account" ||
+        accountMode === "group_all_accounts"
+      ? "scoped"
+      : "none";
+  const accountScopeIds = Array.isArray(rawAccountScope.accounts)
+    ? (rawAccountScope.accounts
+        .map((a) => {
+          if (a && typeof a === "object") {
+            const acc = a as Record<string, unknown>;
+            return (acc.account_id ?? acc.id) as string;
+          }
+          return "";
+        })
+        .filter((id): id is string => typeof id === "string" && id.length > 0))
+    : [];
+
   return {
     currentUser: {
       authUserId: rpcRow.auth_user_id ?? user.id,
@@ -271,12 +303,12 @@ export async function loadCurrentUserContext() {
       roleKey: rpcRow.role_key ?? null,
       roleName: rpcRow.role_name ?? null,
       groupScope: {
-        mode: normalizeScopeMode(rpcRow.group_scope_mode),
-        ids: normalizeStringArray(rpcRow.group_scope_ids) ?? [],
+        mode: groupScopeMode,
+        ids: groupScopeIds,
       },
       accountScope: {
-        mode: normalizeScopeMode(rpcRow.account_scope_mode),
-        ids: normalizeStringArray(rpcRow.account_scope_ids) ?? [],
+        mode: accountScopeMode,
+        ids: accountScopeIds,
       },
       allowedModuleKeys,
       moduleCapabilities,

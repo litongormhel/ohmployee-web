@@ -198,11 +198,10 @@ export type PlantillaStoreStaffingRow = {
 };
 
 export type PlantillaSummary = {
-  totalActiveRoster: number;
-  totalBudgetedSlots: number;
-  totalAdditionalSlots: number;
-  understaffedStores: number;
-  slaBreachesCount: number;
+  required: number;
+  actual: number;
+  hrProcess: number;
+  vacant: number;
 };
 
 export type PlantillaDetailItem = {
@@ -369,20 +368,46 @@ function asInteger(value: unknown): number {
   return Math.trunc(asNumber(value) ?? 0);
 }
 
-function splitEmployeeName(value: unknown): Pick<
-  PlantillaEmployeeListItem,
-  "firstName" | "lastName"
-> {
-  const name = asString(value);
+function parseAndFormatName(
+  firstName: string | null,
+  lastName: string | null,
+  middleName: string | null,
+  fullName: string | null
+): { firstName: string | null; lastName: string | null } {
+  if (firstName && lastName) {
+    const fName = middleName ? `${firstName} ${middleName}` : firstName;
+    return {
+      firstName: fName,
+      lastName: lastName,
+    };
+  }
+
+  const name = fullName ? fullName.trim() : "";
   if (!name) {
     return { firstName: null, lastName: null };
   }
 
-  const [last, ...rest] = name.split(",");
-  if (rest.length > 0) {
+  if (name.toLowerCase().includes("vacant")) {
+    return { firstName: name, lastName: null };
+  }
+
+  const commaIndex = name.indexOf(",");
+  if (commaIndex !== -1) {
+    const lastPart = name.substring(0, commaIndex).trim();
+    const firstPart = name.substring(commaIndex + 1).trim();
     return {
-      firstName: asString(rest.join(",").trim()),
-      lastName: asString(last.trim()),
+      firstName: firstPart || null,
+      lastName: lastPart || null,
+    };
+  }
+
+  const parts = name.split(/\s+/);
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    const firstParts = parts.slice(0, parts.length - 1);
+    return {
+      firstName: firstParts.join(" "),
+      lastName: lastPart,
     };
   }
 
@@ -547,17 +572,22 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
   const id = asString(row.id ?? row.plantilla_id ?? row.plantillaId);
   if (!id) return null;
 
-  const employeeName = splitEmployeeName(row.employee_name ?? row.employeeName);
+  const nameObj = parseAndFormatName(
+    asString(row.first_name),
+    asString(row.last_name),
+    asString(row.middle_name),
+    asString(row.employee_name ?? row.employeeName)
+  );
 
   return {
     id,
     employeeNo: asString(row.employee_no) ?? "Uncoded",
-    firstName: asString(row.first_name) ?? employeeName.firstName,
-    lastName: asString(row.last_name) ?? employeeName.lastName,
+    firstName: nameObj.firstName,
+    lastName: nameObj.lastName,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
     primaryStoreName: asString(row.primary_store_name ?? row.store_name),
-    assignmentType: asString(row.assignment_type ?? row.deployment_type),
+    assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (asCount(row.covered_stores_count ?? row.roving_store_count) > 1 ? "Roving" : "Stationary"),
     coveredStoresCount: asCount(row.covered_stores_count ?? row.roving_store_count),
     plantillaType: asString(row.plantilla_type),
     plantillaStatus: asString(row.plantilla_status ?? row.status),
@@ -637,15 +667,22 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     governmentIds: normalizeGovernmentIds(row.government_ids),
   };
 
+  const nameObj = parseAndFormatName(
+    asString(row.first_name),
+    asString(row.last_name),
+    asString(row.middle_name),
+    asString(row.employee_name ?? row.employeeName ?? row.employeeNameSnapshot ?? row.employee_name_snapshot)
+  );
+
   return {
     id,
     employeeNo: asString(row.employee_no) ?? "Uncoded",
-    firstName: asString(row.first_name),
-    lastName: asString(row.last_name),
+    firstName: nameObj.firstName,
+    lastName: nameObj.lastName,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
     primaryStoreName: asString(row.primary_store_name),
-    assignmentType: asString(row.assignment_type),
+    assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (coveredStores.length > 1 ? "Roving" : "Stationary"),
     coveredStores,
     plantillaType: asString(row.plantilla_type),
     plantillaStatus: asString(row.plantilla_status),
@@ -666,12 +703,16 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
 function normalizeSummary(data: unknown): PlantillaSummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
+  const actual = asCount(row.active_employees);
+  const hrProcess = asCount(row.onboarding_pipeline_count);
+  const vacant = asCount(row.open_headcount_count);
+  const required = actual + hrProcess + vacant;
+
   return {
-    totalActiveRoster: asCount(row.total_active_roster),
-    totalBudgetedSlots: asCount(row.total_budgeted_slots),
-    totalAdditionalSlots: asCount(row.total_additional_slots),
-    understaffedStores: asCount(row.understaffed_stores),
-    slaBreachesCount: asCount(row.sla_breaches_count),
+    required,
+    actual,
+    hrProcess,
+    vacant,
   };
 }
 
@@ -877,3 +918,32 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
 
   return normalized;
 }
+
+export type PlantillaAccountStatusCount = {
+  accountId: string;
+  status: string;
+  rowCount: number;
+};
+
+export async function getPlantillaAccountStatusCounts(
+  accountIds: string[],
+): Promise<PlantillaAccountStatusCount[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_plantilla_account_status_counts", {
+    p_account_ids: accountIds,
+  });
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  return asArray(data).map((row) => {
+    const obj = asObject(row);
+    return {
+      accountId: asString(obj.account_id) ?? "",
+      status: asString(obj.status) ?? "",
+      rowCount: asCount(obj.row_count),
+    };
+  });
+}
+
