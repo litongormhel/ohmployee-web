@@ -8,9 +8,10 @@ import {
   LockKeyhole,
   RefreshCw,
   User,
-  Users,
+  UserPlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import type {
   VacancyDataErrorKind,
   VacancyListItem,
@@ -44,6 +45,7 @@ type VacancyTableProps = {
   isLoading: boolean;
   errorKind: VacancyDataErrorKind | null;
   onSelect: (vacancy: VacancyListItem) => void;
+  onAddApplicant?: (vacancy: VacancyListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
 };
@@ -74,6 +76,16 @@ function getStatusLabel(row: VacancyListItem) {
   return row.derivedStatus ?? row.vacancyStatus ?? row.pipelineStatus ?? "—";
 }
 
+function getVacancyStatusVariant(status: string): BadgeVariant {
+  const norm = status.toLowerCase().trim();
+  if (norm === "open") return "info";
+  if (norm === "pipeline" || norm === "with_applicant" || norm === "with applicant") return "info";
+  if (norm === "hired" || norm === "filled" || norm === "complete" || norm === "completed") return "success";
+  if (norm === "rejected") return "danger";
+  if (norm === "backout") return "warning";
+  return "neutral";
+}
+
 function getErrorCopy(kind: VacancyDataErrorKind | null) {
   if (kind === "access_denied") {
     return {
@@ -99,6 +111,7 @@ export function VacancyTable({
   isLoading,
   errorKind,
   onSelect,
+  onAddApplicant,
   onRetry,
   onPageChange,
 }: VacancyTableProps) {
@@ -244,75 +257,83 @@ export function VacancyTable({
                         {row.accountName ?? "—"}
                       </div>
                       <div className="text-xs text-table-text-muted">
-                        {row.groupName ?? "—"}
+                        {row.groupName || "General / Direct"}
                       </div>
                     </td>
 
                     {/* 4. OUTLET NAME */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub font-medium">
-                      {row.storeName ?? "—"}
+                    <td className="border-b border-table-rule px-4 py-2.5">
+                      <div className="font-medium text-table-text">
+                        {row.storeName ?? "—"}
+                      </div>
+                      {row.storeLocation ? (
+                        <div className="text-xs text-table-text-muted">
+                          {row.storeLocation}
+                        </div>
+                      ) : null}
                     </td>
 
                     {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.hrcoName ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 font-medium text-table-text">
                           <User className="h-3.5 w-3.5 shrink-0 text-table-text-muted" aria-hidden="true" />
                           <span>{row.hrcoName}</span>
                         </div>
                       ) : (
-                        <span className="text-table-text-muted">—</span>
+                        <span className="inline-flex items-center rounded-md border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
+                          Unassigned
+                        </span>
                       )}
                     </td>
 
                     {/* 6. STATUS */}
                     <td className="border-b border-table-rule px-4 py-2.5">
-                      <div className="flex flex-col items-start gap-1">
-                        <Badge
-                          className={
-                            statusKey === "open"
-                              ? "border-blue-200 bg-blue-50 text-blue-700"
-                              : statusKey === "pipeline" || statusKey === "with_applicant"
-                              ? "border-purple-200 bg-purple-50 text-purple-700"
-                              : statusKey === "hired" || statusKey === "filled"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-status-info-border bg-status-info-bg text-status-info-text"
-                          }
-                        >
-                          {getStatusLabel(row)}
-                        </Badge>
-                        {row.pipelineStatus && row.pipelineStatus !== row.derivedStatus && (
-                          <span className="text-[11px] text-table-text-muted">
-                            {row.pipelineStatus}
-                          </span>
-                        )}
-                      </div>
+                      <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
+                        {getStatusLabel(row)}
+                      </StatusBadge>
                     </td>
 
                     {/* 7. APPLICANT */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.applicantName ? (
-                        <div>
+                        <div className="flex flex-col gap-0.5">
                           <div className="font-medium text-table-text">
                             {row.applicantName}
                           </div>
-                          {row.activeApplicantCount > 0 && (
-                            <div className="text-[11px] text-table-text-muted">
-                              {row.activeApplicantCount} in pipeline
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {row.confirmedOnboardCount > 0 || row.hasRecentHire ? (
+                              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                Onboarded
+                              </span>
+                            ) : row.activeApplicantCount > 1 ? (
+                              <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                                {row.activeApplicantCount} in pipeline
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                                In Pipeline
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ) : row.activeApplicantCount > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-                          <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>{row.activeApplicantCount} applicant{row.activeApplicantCount === 1 ? "" : "s"}</span>
-                        </span>
-                      ) : row.confirmedOnboardCount > 0 || row.hasRecentHire ? (
-                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          <span>{row.confirmedOnboardCount} onboarded</span>
-                        </span>
                       ) : (
-                        <span className="text-table-text-muted">—</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onAddApplicant) {
+                              onAddApplicant(row);
+                            } else {
+                              onSelect(row);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
+                          aria-label={`Add applicant for vacancy ${row.vcode}`}
+                        >
+                          <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span>+ Add Applicant</span>
+                        </button>
                       )}
                     </td>
 
@@ -320,22 +341,22 @@ export function VacancyTable({
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.agingDays !== null && row.agingDays !== undefined ? (
                         <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ${
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
                             row.agingDays <= 15
-                              ? "border border-emerald-200 bg-emerald-50 font-medium text-emerald-700"
+                              ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
                               : row.agingDays <= 30
-                              ? "border border-amber-200 bg-amber-50 font-medium text-amber-700"
-                              : "border border-rose-200 bg-rose-50 font-bold text-rose-700"
+                              ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
+                              : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
                           }`}
                         >
                           {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
                         </span>
                       ) : row.agingBucket === "advance" ? (
-                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                        <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                           Advance
                         </span>
                       ) : row.agingBucket ? (
-                        <span className="inline-flex items-center rounded-full border border-table-rule bg-table-row px-2.5 py-0.5 text-xs text-table-text-muted">
+                        <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
                           {formatAgingBucket(row.agingBucket)}
                         </span>
                       ) : (
@@ -346,7 +367,7 @@ export function VacancyTable({
                     {/* 9. PENALTY */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.hasPenalty || (row.penaltyAmount !== null && row.penaltyAmount > 0) || row.penaltyExposure > 0 ? (
-                        <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                        <span className="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
                           {row.penaltyAmount !== null && row.penaltyAmount > 0
                             ? `₱${row.penaltyAmount.toLocaleString()}`
                             : row.penaltyExposure > 0
@@ -354,8 +375,8 @@ export function VacancyTable({
                             : "Penalty Active"}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
-                          None
+                        <span className="inline-flex items-center rounded-md border border-table-rule bg-table-header px-2 py-0.5 text-xs font-medium text-table-text-muted">
+                          No Penalty
                         </span>
                       )}
                     </td>

@@ -39,9 +39,13 @@ export type VacancyRowCapabilities = {
 export type VacancyListItem = {
   id: string;
   vcode: string;
+  accountId: string | null;
   accountName: string | null;
+  groupId: string | null;
   groupName: string | null;
+  storeId: string | null;
   storeName: string | null;
+  storeLocation: string | null;
   position_title: string | null;
   department: string | null;
   employmentType: string | null;
@@ -132,6 +136,10 @@ export type VacancyDetailItem = {
   applicantLastName: string | null;
   applicantFirstName: string | null;
   applicantName: string | null;
+  storeLocation: string | null;
+  areaCity: string | null;
+  areaProvince: string | null;
+  storeBranch: string | null;
 
   // Detail-specific fields
   requestedById: string | null;
@@ -364,12 +372,23 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const penaltyExposure =
     asNumber(row.penalty_exposure ?? row.penalty_amount) ?? (hasPenalty ? 1 : 0);
 
+  const areaCity = asString(row.area_city ?? row.city);
+  const areaProvince = asString(
+    row.area_province ?? row.area_name ?? row.province ?? row.region,
+  );
+  const storeLocation =
+    [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
+
   return {
     id,
     vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
+    accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
+    groupId: asString(row.group_id),
     groupName: asString(row.group_name),
+    storeId: asString(row.store_id),
     storeName: asString(row.store_name ?? row.store),
+    storeLocation,
     position_title: asString(row.position_title),
     department: asString(row.department ?? row.business_unit),
     employmentType: asString(row.employment_type),
@@ -552,6 +571,10 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     applicantLastName,
     applicantFirstName,
     applicantName,
+    storeLocation: [asString(row.area_city), asString(row.area_province ?? row.area_name ?? row.province)].filter(Boolean).join(" • ") || null,
+    areaCity: asString(row.area_city),
+    areaProvince: asString(row.area_province ?? row.area_name ?? row.province),
+    storeBranch: asString(row.store_branch),
 
     // Detail-specific fields
     requestedById: asString(row.requested_by_id),
@@ -695,6 +718,82 @@ export async function listVacancies(params: VacancyListParams) {
     .map((row) => normalizeListRow(asObject(row)))
     .filter((row): row is VacancyListItem => row !== null);
 
+  // Enrich missing store locations via stores table lookup
+  const missingStoreIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => !r.storeLocation && r.storeId)
+        .map((r) => r.storeId as string),
+    ),
+  );
+
+  if (missingStoreIds.length > 0) {
+    try {
+      const { data: storesData } = await supabase
+        .from("stores")
+        .select("id, store_name, area_city, area_province, province")
+        .in("id", missingStoreIds);
+
+      if (storesData && storesData.length > 0) {
+        const storeLocationMap = new Map<string, string>();
+        for (const s of storesData) {
+          const loc = [s.area_city, s.area_province || s.province]
+            .filter(Boolean)
+            .join(" • ");
+          if (loc) {
+            storeLocationMap.set(s.id, loc);
+          }
+        }
+
+        for (const row of rows) {
+          if (row.storeId && storeLocationMap.has(row.storeId)) {
+            row.storeLocation = storeLocationMap.get(row.storeId) ?? null;
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback if stores lookup fails
+    }
+  }
+
+  // Secondary fallback by store_name for rows where storeId was missing
+  const missingStoreNames = Array.from(
+    new Set(
+      rows
+        .filter((r) => !r.storeLocation && r.storeName)
+        .map((r) => r.storeName as string),
+    ),
+  );
+
+  if (missingStoreNames.length > 0) {
+    try {
+      const { data: storesByName } = await supabase
+        .from("stores")
+        .select("store_name, area_city, area_province, province")
+        .in("store_name", missingStoreNames);
+
+      if (storesByName && storesByName.length > 0) {
+        const nameLocationMap = new Map<string, string>();
+        for (const s of storesByName) {
+          const loc = [s.area_city, s.area_province || s.province]
+            .filter(Boolean)
+            .join(" • ");
+          if (loc && s.store_name) {
+            nameLocationMap.set(s.store_name, loc);
+          }
+        }
+
+        for (const row of rows) {
+          if (!row.storeLocation && row.storeName && nameLocationMap.has(row.storeName)) {
+            row.storeLocation = nameLocationMap.get(row.storeName) ?? null;
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   return {
     data: rows,
     totalCount: getTotalCount(rows),
@@ -721,6 +820,33 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
   const normalized = normalizeDetailRow(asObject(row));
   if (!normalized) {
     throw new VacancyDataError("retryable", "Failed to normalize vacancy detail record");
+  }
+
+  if (!normalized.storeLocation && (normalized.storeId || normalized.storeName)) {
+    try {
+      let storeQuery = supabase
+        .from("stores")
+        .select("area_city, area_province, province");
+
+      if (normalized.storeId) {
+        storeQuery = storeQuery.eq("id", normalized.storeId);
+      } else if (normalized.storeName) {
+        storeQuery = storeQuery.eq("store_name", normalized.storeName);
+      }
+
+      const { data: storeRow } = await storeQuery.limit(1).maybeSingle();
+      if (storeRow) {
+        normalized.areaCity = normalized.areaCity || storeRow.area_city || null;
+        normalized.areaProvince =
+          normalized.areaProvince || storeRow.area_province || storeRow.province || null;
+        normalized.storeLocation =
+          [storeRow.area_city, storeRow.area_province || storeRow.province]
+            .filter(Boolean)
+            .join(" • ") || null;
+      }
+    } catch {
+      // Graceful fallback
+    }
   }
 
   return normalized;

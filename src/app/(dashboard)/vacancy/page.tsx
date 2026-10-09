@@ -456,6 +456,7 @@ export default function VacancyPage() {
             onPageChange={updatePage}
             onRetry={retryVacancyReads}
             onSelect={selectVacancy}
+            onAddApplicant={selectVacancy}
             page={page}
             pageSize={pageSize}
             rows={rows}

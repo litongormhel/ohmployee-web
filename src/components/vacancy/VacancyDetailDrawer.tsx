@@ -109,7 +109,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
           <>
             <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
             <span className="truncate">
-              {[detail.accountName, detail.groupName, detail.storeName]
+              {[detail.accountName, detail.groupName || "General / Direct", detail.storeName]
                 .filter(Boolean)
                 .join(" / ") || "Global Account"}
             </span>
@@ -170,13 +170,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Penalty Status</span>
                   {detail.hasPenalty || (detail.penaltyAmount !== null && detail.penaltyAmount > 0) || detail.penaltyExposure > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
                       <AlertTriangle className="h-3 w-3" />
                       Penalty Active
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-600">
-                      No Penalty Exposure
+                    <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-600">
+                      No Penalty
                     </span>
                   )}
                 </div>
@@ -215,8 +215,22 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   </div>
                   <div>
                     <div className="text-xs text-gray-400">Slot Age (Aging)</div>
-                    <div className="mt-0.5 font-bold text-gray-900">
-                      {detail.agingDays !== null ? `${detail.agingDays} Days` : "--"}
+                    <div className="mt-0.5">
+                      {detail.agingDays !== null ? (
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
+                            detail.agingDays <= 15
+                              ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
+                              : detail.agingDays <= 30
+                              ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
+                              : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
+                          }`}
+                        >
+                          {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-800">--</span>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -249,11 +263,16 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <div className="mt-0.5 font-medium text-gray-800">
                       {detail.storeName ?? "--"}
                     </div>
+                    {detail.storeLocation && (
+                      <div className="text-xs text-gray-500">
+                        {detail.storeLocation}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-xs text-gray-400">Account / Group</div>
                     <div className="mt-0.5 font-medium text-gray-800">
-                      {[detail.accountName, detail.groupName].filter(Boolean).join(" / ") || "--"}
+                      {[detail.accountName, detail.groupName || "General / Direct"].filter(Boolean).join(" / ") || "--"}
                     </div>
                   </div>
                   <div>
