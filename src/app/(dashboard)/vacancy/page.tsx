@@ -7,7 +7,6 @@ import {
   BriefcaseBusiness,
   FileSearch,
   LockKeyhole,
-  Plus,
   ShieldOff,
 } from "lucide-react";
 import {
@@ -25,6 +24,8 @@ import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
+import { useCurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 
 const statusTabs: Array<{ value: VacancyStatus; label: string; description: string }> = [
   {
@@ -49,8 +50,6 @@ const statusTabs: Array<{ value: VacancyStatus; label: string; description: stri
   },
 ];
 
-const vacancyCapabilities: string[] = [];
-const canAddVacancy = vacancyCapabilities.includes("vacancy.add");
 const pageSize = 25;
 
 function getErrorKind(error: unknown) {
@@ -125,26 +124,90 @@ export default function VacancyPage() {
   const blocked = errorKind === "access_denied";
   const activeStatusDescription =
     statusTabs.find((tab) => tab.value === status)?.description ?? "Vacancy queue";
+
+  const currentUser = useCurrentUser();
+
+  const accountsQuery = useQuery({
+    queryKey: ["vacancy-accounts", currentUser?.accountScope],
+    queryFn: async () => {
+      if (!currentUser) return [];
+      const { mode, ids } = currentUser.accountScope;
+      if (mode === "none") return [];
+
+      const supabase = createClient();
+      let query = supabase
+        .from("accounts")
+        .select(`
+          id,
+          account_name,
+          group_id,
+          groups (
+            group_name
+          )
+        `)
+        .eq("is_active", true);
+
+      if (mode === "scoped" && ids.length > 0) {
+        query = query.in("id", ids);
+      }
+
+      const { data, error } = await query.order("account_name");
+      if (error) {
+        console.error("Error fetching accounts:", error);
+        return [];
+      }
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        name: row.account_name as string,
+        groupId: row.group_id as string | null,
+        groupName: Array.isArray(row.groups)
+          ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
+          : row.groups && typeof row.groups === "object"
+          ? ((row.groups as unknown as Record<string, unknown>).group_name as string | null)
+          : null,
+      }));
+    },
+    enabled: !!currentUser,
+    staleTime: 60_000,
+  });
+
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+
+  const uniqueGroups = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of accounts) {
+      if (a.groupId && a.groupName) {
+        map.set(a.groupId, a.groupName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [accounts]);
+
+  const filteredAccounts = useMemo(() => {
+    if (!groupId) return accounts;
+    return accounts.filter((a) => a.groupId === groupId);
+  }, [accounts, groupId]);
+
   const kpis = [
     {
       label: "Open Vacancies",
       value: summaryQuery.data?.open,
-      helper: "Scoped open queue",
+      helper: "Active unfilled positions",
     },
     {
       label: "With Applicant",
       value: summaryQuery.data?.withApplicant,
-      helper: "Backend pipeline status",
+      helper: "Active candidate pipeline",
     },
     {
       label: "Pending Review",
       value: summaryQuery.data?.pendingReview,
-      helper: "Backend review count",
+      helper: "Awaiting candidate review",
     },
     {
       label: "Aging Watch",
       value: summaryQuery.data?.agingWatch,
-      helper: "Backend aging bucket",
+      helper: "Open over 30 days",
     },
   ];
 
@@ -152,6 +215,24 @@ export default function VacancyPage() {
     setStatus(nextStatus);
     setPage(1);
     setSelectedVacancyId(null);
+  }
+
+  function handleAccountChange(newAccountId: string) {
+    setAccountId(newAccountId);
+    setPage(1);
+    setSelectedVacancyId(null);
+  }
+
+  function handleGroupChange(newGroupId: string) {
+    setGroupId(newGroupId);
+    setPage(1);
+    setSelectedVacancyId(null);
+    if (newGroupId && accountId) {
+      const match = accounts.find((a) => a.id === accountId);
+      if (match && match.groupId !== newGroupId) {
+        setAccountId("");
+      }
+    }
   }
 
   function applySearch(event: FormEvent<HTMLFormElement>) {
@@ -179,15 +260,8 @@ export default function VacancyPage() {
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       <AdminPageHeader
         title="Vacancy Management"
-        subtitle="Desktop vacancy command center backed by scoped Supabase summary and list RPCs."
+        subtitle="Monitor unfilled store vacancies, applicant pipeline, and aging requisitions."
         icon={BriefcaseBusiness}
-        readOnly={true}
-        primaryAction={{
-          label: "Add Vacancy",
-          onClick: () => {},
-          disabled: !canAddVacancy,
-          icon: Plus,
-        }}
       />
 
       {isFreezeModeActive && (
@@ -257,7 +331,7 @@ export default function VacancyPage() {
             ))}
           </div>
           <div className="text-sm font-medium text-gray-500">
-            Status, search, filters, and pagination are sent to Supabase RPCs.
+            Real-time store requisitions and candidate pipeline.
           </div>
           </div>
           <p className="pl-1 text-sm text-gray-500">
@@ -285,30 +359,34 @@ export default function VacancyPage() {
               </button>
             }
           >
-            <input
-              aria-label="Account ID filter"
+            <select
+              aria-label="Account filter"
               className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
-              onChange={(event) => {
-                setAccountId(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              placeholder="Account UUID"
+              onChange={(event) => handleAccountChange(event.target.value)}
               value={accountId}
-            />
-            <input
-              aria-label="Group ID filter"
+            >
+              <option value="">All accounts</option>
+              {filteredAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Group filter"
               className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
               disabled={blocked}
-              onChange={(event) => {
-                setGroupId(event.target.value);
-                setPage(1);
-                setSelectedVacancyId(null);
-              }}
-              placeholder="Group UUID"
+              onChange={(event) => handleGroupChange(event.target.value)}
               value={groupId}
-            />
+            >
+              <option value="">All groups</option>
+              {uniqueGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
             <select
               aria-label="Aging bucket filter"
               className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
@@ -399,9 +477,7 @@ export default function VacancyPage() {
         <div className="flex items-start gap-2 text-sm text-gray-600">
           <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400" aria-hidden="true" />
           <div>
-            Vacancy reads use get_web_vacancy_summary and list_web_vacancies.
-            Applicant workflow, approvals, closure, add-vacancy, and other
-            mutations remain disabled until backend action RPCs are approved.
+            Vacancy requisitions and headcount quotas are managed through Plantilla. Applicant status updates and quota amendments reflect automatically.
           </div>
         </div>
       </section>

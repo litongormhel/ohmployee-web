@@ -35,7 +35,7 @@ export function MetricCard({
   const isCurrentlyLoading = loading ?? isLoading;
   const isCurrentlyBlocked = blocked ?? isBlocked;
   const isCurrentlyError = error ?? isError;
-  const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : "RPC");
+  const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : undefined);
 
   return (
     <div className="rounded-md border border-border-default bg-surface-base px-4 py-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md">
@@ -46,15 +46,17 @@ export function MetricCard({
         <div className="text-3xl font-semibold leading-none text-text-primary">
           {isCurrentlyLoading ? "--" : value ?? 0}
         </div>
-        <Badge
-          className={
-            isCurrentlyBlocked
-              ? "border-status-danger-border bg-status-danger-bg text-status-danger-text"
-              : "border-border-default bg-surface-muted text-text-muted"
-          }
-        >
-          {displayBadge}
-        </Badge>
+        {displayBadge ? (
+          <Badge
+            className={
+              isCurrentlyBlocked
+                ? "border-status-danger-border bg-status-danger-bg text-status-danger-text"
+                : "border-border-default bg-surface-muted text-text-muted"
+            }
+          >
+            {displayBadge}
+          </Badge>
+        ) : null}
       </div>
       <div className="mt-2 text-sm leading-5">
         {isCurrentlyError && !isCurrentlyBlocked ? (

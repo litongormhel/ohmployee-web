@@ -49,7 +49,7 @@ type VacancyTableProps = {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "--";
+    return "—";
   }
 
   const date = new Date(value);
@@ -66,19 +66,44 @@ function formatDate(value: string | null) {
 }
 
 function getScope(row: VacancyListItem) {
-  return [row.accountName, row.groupName, row.storeName].filter(Boolean).join(" / ");
+  return [row.accountName, row.groupName, row.storeName].filter(Boolean).join(" / ") || "—";
+}
+
+function formatAgingBucket(bucket: string): string {
+  switch (bucket) {
+    case "advance":
+      return "Advance";
+    case "1_15":
+      return "1–15 days";
+    case "16_30":
+      return "16–30 days";
+    case "31_60":
+      return "31–60 days";
+    case "61_120":
+      return "61–120 days";
+    case "gt121":
+      return "121+ days";
+    case "31_plus":
+      return "31+ days";
+    default:
+      return bucket.replace(/_/g, " ");
+  }
 }
 
 function getAgingLabel(row: VacancyListItem) {
-  if (row.agingDays === null) {
-    return row.agingBucket ?? "--";
+  if (row.agingDays !== null && row.agingDays !== undefined) {
+    return `${row.agingDays} ${row.agingDays === 1 ? "day" : "days"}`;
   }
 
-  return `${row.agingDays}d${row.agingBucket ? ` / ${row.agingBucket}` : ""}`;
+  if (row.agingBucket) {
+    return formatAgingBucket(row.agingBucket);
+  }
+
+  return "—";
 }
 
 function getStatusLabel(row: VacancyListItem) {
-  return row.derivedStatus ?? row.vacancyStatus ?? row.pipelineStatus ?? "--";
+  return row.derivedStatus ?? row.vacancyStatus ?? row.pipelineStatus ?? "—";
 }
 
 function getApplicantLabel(row: VacancyListItem) {
@@ -96,14 +121,14 @@ function getApplicantLabel(row: VacancyListItem) {
 function getErrorCopy(kind: VacancyDataErrorKind | null) {
   if (kind === "access_denied") {
     return {
-      title: "Vacancy access blocked",
-      body: "Supabase denied this read request for the current user. The page is staying read-blocked instead of showing partial or unscoped records.",
+      title: "Access Restricted",
+      body: "You do not have permission to view vacancies for this scope. Please contact your administrator if you need access.",
     };
   }
 
   return {
-    title: "Vacancy data unavailable",
-    body: "The vacancy RPC request failed. You can retry without changing filters.",
+    title: "Unable to Load Vacancies",
+    body: "Could not retrieve vacancy records. Please retry or adjust filters.",
   };
 }
 
@@ -137,12 +162,12 @@ export function VacancyTable({
             <Badge className="font-mono text-[11px] text-table-text-muted">{status}</Badge>
           </div>
           <p className="mt-1 text-sm text-table-text-muted">
-            Read-only rows from the scoped vacancy list RPC.
+            Active store requisitions matching current filter criteria.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
-          {isLoading ? "Loading vacancy queue" : `${totalCount} scoped records`}
+          {isLoading ? "Loading vacancy queue" : `${totalCount} records`}
         </div>
       </div>
 
@@ -171,11 +196,10 @@ export function VacancyTable({
                       aria-hidden="true"
                     />
                     <div className="text-sm font-medium text-table-text-sub">
-                      Loading scoped vacancies
+                      Loading vacancies
                     </div>
                     <div className="text-sm text-table-text-muted">
-                      Fetching {statusDescription.toLowerCase()} through
-                      list_web_vacancies.
+                      Fetching {statusDescription.toLowerCase()} requisitions...
                     </div>
                   </div>
                 </td>
@@ -221,8 +245,7 @@ export function VacancyTable({
                       No vacancies found
                     </div>
                     <div className="text-sm text-table-text-muted">
-                      The backend returned an empty scoped result for this queue,
-                      search, and filter combination.
+                      No requisitions found matching the current queue and filter criteria.
                     </div>
                   </div>
                 </td>
@@ -247,26 +270,28 @@ export function VacancyTable({
                   </td>
                   <td className="border-b border-table-rule px-4 py-2.5">
                     <div className="font-medium text-table-text">
-                      {row.position_title ?? "--"}
+                      {row.position_title ?? "—"}
                     </div>
                     <div className="text-xs text-table-text-muted">
-                      {row.employmentType ?? "Employment type unavailable"}
+                      {row.employmentType || "Stationary"}
                     </div>
                   </td>
                   <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {row.department ?? "--"}
+                    {row.department ?? "—"}
                   </td>
                   <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {getScope(row) || "--"}
+                    {getScope(row)}
                   </td>
                   <td className="border-b border-table-rule px-4 py-2.5">
                     <div className="flex flex-col items-start gap-1">
                       <Badge className="border-status-info-border bg-status-info-bg text-status-info-text">
                         {getStatusLabel(row)}
                       </Badge>
-                      <span className="text-xs text-table-text-muted">
-                        {row.pipelineStatus ?? "Pipeline unavailable"}
-                      </span>
+                      {row.pipelineStatus && (
+                        <span className="text-xs text-table-text-muted">
+                          {row.pipelineStatus}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">

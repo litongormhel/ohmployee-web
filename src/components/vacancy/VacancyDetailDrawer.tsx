@@ -118,7 +118,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
           ) : errorKind === "access_denied" ? (
             <AccessDeniedState />
           ) : isError ? (
-            <ErrorState errorMsg={error instanceof Error ? error.message : "RPC fetch failure"} onRetry={refetch} />
+            <ErrorState errorMsg={error instanceof Error ? error.message : "Unable to load vacancy details"} onRetry={refetch} />
           ) : !detail ? (
             <NotFoundState />
           ) : (
@@ -461,7 +461,7 @@ function AccessDeniedState() {
       </div>
       <h4 className="mt-4 text-sm font-bold text-gray-900">Access Denied</h4>
       <p className="mt-1 text-xs text-gray-500 max-w-xs">
-        Supabase RLS policies blocked this detail read. You are not authorized to view vacancies outside your scoped account/group boundary.
+        You do not have permission to view this vacancy record. Access is restricted to your assigned scope.
       </p>
     </div>
   );
@@ -492,7 +492,7 @@ function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
       <div className="rounded-full bg-amber-50 p-3 text-amber-600 border border-amber-100 shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Fetch Failed</h4>
+      <h4 className="mt-4 text-sm font-bold text-gray-900">Unable to Load Details</h4>
       <p className="mt-1 text-xs text-gray-500 max-w-xs">
         {errorMsg}
       </p>
@@ -502,7 +502,7 @@ function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
         type="button"
       >
         <RefreshCw className="h-3 w-3" />
-        Retry Query
+        Retry
       </button>
     </div>
   );
