@@ -530,3 +530,322 @@ export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmploc
 
   return normalized;
 }
+
+// ─── Slot Availability Checker (ADR-001) ────────────────────────────────────
+
+export async function fetchAvailableSlotsForVcode(vcode: string): Promise<number> {
+  const cleanVcode = vcode.trim();
+  if (!cleanVcode) return 1;
+
+  const supabase = createClient();
+
+  // 1. Try checking plantilla_slots for stationary/roving slots
+  try {
+    const { data: slotRows, error: slotError } = await supabase
+      .from("plantilla_slots")
+      .select("id, slot_status")
+      .eq("legacy_vcode", cleanVcode);
+
+    if (!slotError && Array.isArray(slotRows) && slotRows.length > 0) {
+      let available = 0;
+      const hrProcessingSlotIds: string[] = [];
+
+      for (const r of slotRows) {
+        const status = (asString(r.slot_status) ?? "").toLowerCase();
+        const id = asString(r.id);
+        if (status === "open") {
+          available++;
+        } else if (status === "hr_processing" && id) {
+          hrProcessingSlotIds.push(id);
+        }
+      }
+
+      if (hrProcessingSlotIds.length > 0) {
+        const { data: reservedRows } = await supabase
+          .from("hr_emploc")
+          .select("slot_id")
+          .in("slot_id", hrProcessingSlotIds)
+          .is("deleted_at", null)
+          .is("moved_to_plantilla_at", null);
+
+        if (Array.isArray(reservedRows)) {
+          const uniqueReserved = new Set(
+            reservedRows.map((row) => asString(row.slot_id)).filter(Boolean)
+          );
+          available += uniqueReserved.size;
+        }
+      }
+
+      return available;
+    }
+  } catch {
+    // Continue to pool check
+  }
+
+  // 2. Try checking workforce_pool_slots for pool vacancies
+  try {
+    const { data: poolRows, error: poolError } = await supabase
+      .from("workforce_pool_slots")
+      .select("id, status")
+      .eq("vcode", cleanVcode)
+      .eq("is_active", true)
+      .is("deleted_at", null);
+
+    if (!poolError && Array.isArray(poolRows) && poolRows.length > 0) {
+      let available = 0;
+      const hrProcessingPoolIds: string[] = [];
+
+      for (const r of poolRows) {
+        const status = (asString(r.status) ?? "").toLowerCase();
+        const id = asString(r.id);
+        if (status === "open") {
+          available++;
+        } else if (status === "hr_processing" && id) {
+          hrProcessingPoolIds.push(id);
+        }
+      }
+
+      if (hrProcessingPoolIds.length > 0) {
+        const { data: reservedPoolRows } = await supabase
+          .from("hr_emploc")
+          .select("pool_slot_id")
+          .in("pool_slot_id", hrProcessingPoolIds)
+          .is("deleted_at", null)
+          .is("moved_to_plantilla_at", null);
+
+        if (Array.isArray(reservedPoolRows)) {
+          const uniqueReservedPool = new Set(
+            reservedPoolRows.map((row) => asString(row.pool_slot_id)).filter(Boolean)
+          );
+          available += uniqueReservedPool.size;
+        }
+      }
+
+      return available;
+    }
+  } catch {
+    // Fallback
+  }
+
+  return 1;
+}
+
+// ─── Lifecycle Mutation Actions ──────────────────────────────────────────────
+
+export type AssignEmployeeNoParams = {
+  hrEmplocId: string;
+  employeeNo: string;
+};
+
+export async function assignHrEmplocNumber(params: AssignEmployeeNoParams): Promise<void> {
+  const normalizedEmployeeNo = params.employeeNo.trim();
+  if (!normalizedEmployeeNo) {
+    throw new HrEmplocDataError("invalid_state", "Employee number is required.");
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("assign_hr_emploc_number", {
+    p_id: params.hrEmplocId,
+    p_employee_no: normalizedEmployeeNo,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export type MoveToPlantillaParams = {
+  hrEmplocId: string;
+  vcode?: string;
+};
+
+export async function moveToPlantilla(params: MoveToPlantillaParams): Promise<void> {
+  if (params.vcode?.trim()) {
+    const availableSlots = await fetchAvailableSlotsForVcode(params.vcode.trim());
+    if (availableSlots <= 0) {
+      throw new HrEmplocDataError(
+        "invalid_state",
+        "No available slot capacity found for VCode " + params.vcode.trim() + "."
+      );
+    }
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("move_to_plantilla", {
+    p_id: params.hrEmplocId,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export type BulkMoveResultItem = {
+  hrEmplocId: string;
+  plantillaId: string | null;
+  result: "moved" | "skipped";
+  error: string | null;
+};
+
+export async function bulkMoveReadyToPlantilla(): Promise<BulkMoveResultItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("bulk_move_ready_to_plantilla");
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((r) => {
+    const obj = asObject(r);
+    return {
+      hrEmplocId: asString(obj.hr_emploc_id) ?? "",
+      plantillaId: asString(obj.plantilla_id),
+      result: (asString(obj.result) ?? "skipped") as "moved" | "skipped",
+      error: asString(obj.error),
+    };
+  });
+}
+
+export type RequestEmplocDeletionParams = {
+  hrEmplocId: string;
+  reason: string;
+  deletionType: "backout" | "duplicate";
+  originalEmplocId?: string | null;
+};
+
+export async function requestEmplocDeletion(params: RequestEmplocDeletionParams): Promise<void> {
+  const normalizedReason = params.reason.trim();
+  if (!normalizedReason) {
+    throw new HrEmplocDataError("invalid_state", "A reason or remarks for deletion is required.");
+  }
+
+  // Canonical database values: 'Backout' | 'Duplicate Record'
+  const dbDeletionType = params.deletionType === "duplicate" ? "Duplicate Record" : "Backout";
+
+  if (params.deletionType === "duplicate" && !params.originalEmplocId?.trim()) {
+    throw new HrEmplocDataError(
+      "invalid_state",
+      "Original Emploc ID is required when flagging a duplicate record."
+    );
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("fn_request_emploc_deletion", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_reason: normalizedReason,
+    p_deletion_type: dbDeletionType,
+    p_original_emploc_id: params.originalEmplocId?.trim() || null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export type WithdrawEmplocDeletionParams = {
+  requestId: string;
+  reason?: string | null;
+};
+
+export async function withdrawEmplocDeletionRequest(
+  params: WithdrawEmplocDeletionParams
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("fn_withdraw_emploc_deletion_request", {
+    p_request_id: params.requestId,
+    p_reason: params.reason?.trim() || null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+// ─── React Query Mutation Hooks ──────────────────────────────────────────────
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+export function useAssignEmployeeNo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: AssignEmployeeNoParams) => assignHrEmplocNumber(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+    },
+  });
+}
+
+export function useMoveToPlantilla() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: MoveToPlantillaParams) => moveToPlantilla(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+export function useBulkMoveToPlantilla() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => bulkMoveReadyToPlantilla(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+export function useRequestEmplocDeletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RequestEmplocDeletionParams) => requestEmplocDeletion(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+    },
+  });
+}
+
+export function useWithdrawEmplocDeletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: WithdrawEmplocDeletionParams) =>
+      withdrawEmplocDeletionRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
+    },
+  });
+}
+

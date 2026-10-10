@@ -26,10 +26,14 @@ import {
   getWebHrEmplocDetail,
   tagWebHrEmplocDeficiency,
   reviewWebHrEmplocCorrection,
+  useWithdrawEmplocDeletion,
   HrEmplocDataError,
   type TagDeficiencyParams,
   type ReviewCorrectionParams,
 } from "@/lib/queries/hr_emploc";
+import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
+import { DeployToPlantillaModal } from "@/components/hr-emploc/DeployToPlantillaModal";
+import { RequestEmplocDeletionModal } from "@/components/hr-emploc/RequestEmplocDeletionModal";
 
 type HrEmplocDetailDrawerProps = {
   hrEmplocId: string | null;
@@ -87,6 +91,12 @@ export function HrEmplocDetailDrawer({
 }: HrEmplocDetailDrawerProps) {
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
+  const [isRequestDeletionModalOpen, setIsRequestDeletionModalOpen] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+
+  const withdrawMutation = useWithdrawEmplocDeletion();
 
   const {
     data: detail,
@@ -225,6 +235,41 @@ export function HrEmplocDetailDrawer({
                   <div className="border-t border-red-200/50 pt-1.5">
                     <span className="font-semibold">Reason:</span>{" "}
                     <span className="italic">&quot;{detail.activeDeletionRequest.reason}&quot;</span>
+                  </div>
+
+                  {/* Withdraw Pending Deletion Trigger */}
+                  <div className="pt-2 flex items-center justify-between">
+                    {withdrawError && (
+                      <span className="text-[11px] text-red-700 font-medium">
+                        {withdrawError}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={withdrawMutation.isPending}
+                      onClick={() => {
+                        setWithdrawError(null);
+                        withdrawMutation.mutate(
+                          {
+                            requestId: detail.activeDeletionRequest!.requestId,
+                            reason: "Withdrawn by operator from web compliance drawer",
+                          },
+                          {
+                            onError: (err) => {
+                              setWithdrawError(
+                                err instanceof Error ? err.message : "Failed to withdraw request."
+                              );
+                            },
+                          }
+                        );
+                      }}
+                      className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-red-300 rounded text-xs font-semibold text-red-700 hover:bg-red-50 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {withdrawMutation.isPending && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {withdrawMutation.isPending ? "Withdrawing..." : "Withdraw Deletion Request"}
+                    </button>
                   </div>
                 </div>
               )}
@@ -571,6 +616,16 @@ export function HrEmplocDetailDrawer({
               !isPendingDeletion;
             const canReviewCorrection =
               detail.rowCapabilities?.canReviewCorrection === true;
+            const canAssign =
+              detail.rowCapabilities?.canAssignEmployeeNo === true &&
+              !isPendingDeletion;
+            const canMove =
+              detail.rowCapabilities?.canMoveToPlantilla === true &&
+              !isPendingDeletion;
+            const canRequestDeletion =
+              detail.rowCapabilities?.canRequestDeletion === true &&
+              !isPendingDeletion;
+
             return (
               <CapabilityActionBar
                 actions={[
@@ -586,21 +641,18 @@ export function HrEmplocDetailDrawer({
                   },
                   {
                     label: "Assign Employee ID (Data Encoder Only)",
-                    isAvailable:
-                      detail.rowCapabilities?.canAssignEmployeeNo === true &&
-                      !isPendingDeletion,
+                    isAvailable: canAssign,
+                    onClick: canAssign ? () => setIsAssignModalOpen(true) : undefined,
                   },
                   {
                     label: "Deploy to Plantilla Directory",
-                    isAvailable:
-                      detail.rowCapabilities?.canMoveToPlantilla === true &&
-                      !isPendingDeletion,
+                    isAvailable: canMove,
+                    onClick: canMove ? () => setIsDeployModalOpen(true) : undefined,
                   },
                   {
                     label: "Request Placement Separation / Deletion",
-                    isAvailable:
-                      detail.rowCapabilities?.canRequestDeletion === true &&
-                      !isPendingDeletion,
+                    isAvailable: canRequestDeletion,
+                    onClick: canRequestDeletion ? () => setIsRequestDeletionModalOpen(true) : undefined,
                   },
                   {
                     label: "Review Deletion Request",
@@ -629,6 +681,44 @@ export function HrEmplocDetailDrawer({
               hrEmplocId={hrEmplocId}
               onClose={() => setIsReviewModalOpen(false)}
               onSubmitted={() => setIsReviewModalOpen(false)}
+            />
+          )}
+
+          {/* Assign Employee No Modal */}
+          {isAssignModalOpen && hrEmplocId && detail && (
+            <AssignEmployeeNoModal
+              hrEmplocId={hrEmplocId}
+              candidateName={detail.applicantName}
+              vcode={detail.vcode}
+              currentEmployeeNo={detail.employeeNo}
+              onClose={() => setIsAssignModalOpen(false)}
+              onSuccess={() => setIsAssignModalOpen(false)}
+            />
+          )}
+
+          {/* Deploy to Plantilla Modal */}
+          {isDeployModalOpen && hrEmplocId && detail && (
+            <DeployToPlantillaModal
+              hrEmplocId={hrEmplocId}
+              candidateName={detail.applicantName}
+              vcode={detail.vcode}
+              positionTitle={detail.positionTitle}
+              storeName={detail.storeName}
+              accountName={detail.accountName}
+              employeeNo={detail.employeeNo}
+              onClose={() => setIsDeployModalOpen(false)}
+              onSuccess={() => setIsDeployModalOpen(false)}
+            />
+          )}
+
+          {/* Request Emploc Deletion Modal */}
+          {isRequestDeletionModalOpen && hrEmplocId && detail && (
+            <RequestEmplocDeletionModal
+              hrEmplocId={hrEmplocId}
+              candidateName={detail.applicantName}
+              vcode={detail.vcode}
+              onClose={() => setIsRequestDeletionModalOpen(false)}
+              onSuccess={() => setIsRequestDeletionModalOpen(false)}
             />
           )}
         </>

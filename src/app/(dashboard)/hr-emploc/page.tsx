@@ -9,6 +9,9 @@ import {
   LockKeyhole,
   Building,
   Briefcase,
+  Send,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import {
   HrEmplocTable,
@@ -18,8 +21,10 @@ import { HrEmplocDetailDrawer } from "@/components/hr-emploc/HrEmplocDetailDrawe
 import {
   getWebHrEmplocSummary,
   listWebHrEmplocs,
+  useBulkMoveToPlantilla,
   HrEmplocDataError,
   type HrEmplocListItem,
+  type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -174,6 +179,31 @@ export default function HrEmplocPage() {
     setSelectedId(null);
   }
 
+  const bulkMoveMutation = useBulkMoveToPlantilla();
+  const [bulkResultModal, setBulkResultModal] = useState<{
+    isOpen: boolean;
+    moved: number;
+    skipped: number;
+    results: BulkMoveResultItem[];
+  } | null>(null);
+
+  function handleBulkMove() {
+    if (confirm("Move all ready records to Plantilla? This will deploy all compliance-complete candidates with assigned employee numbers to their respective store slots.")) {
+      bulkMoveMutation.mutate(undefined, {
+        onSuccess: (results) => {
+          const moved = results.filter((r) => r.result === "moved").length;
+          const skipped = results.filter((r) => r.result === "skipped").length;
+          setBulkResultModal({
+            isOpen: true,
+            moved,
+            skipped,
+            results,
+          });
+        },
+      });
+    }
+  }
+
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       {/* Page Header */}
@@ -251,14 +281,31 @@ export default function HrEmplocPage() {
             showApplyButton={true}
             applyLabel="Search & Filter"
             extraActionsSlot={
-              <button
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
-                disabled
-                type="button"
-              >
-                <FileSearch className="h-4 w-4" aria-hidden="true" />
-                Saved View
-              </button>
+              <div className="flex items-center gap-2">
+                {queue === "complete" && (
+                  <button
+                    className="inline-flex h-10 items-center gap-1.5 rounded-md bg-emerald-700 px-3.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={bulkMoveMutation.isPending || rows.length === 0}
+                    onClick={handleBulkMove}
+                    type="button"
+                  >
+                    {bulkMoveMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
+                  </button>
+                )}
+                <button
+                  className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
+                  disabled
+                  type="button"
+                >
+                  <FileSearch className="h-4 w-4" aria-hidden="true" />
+                  Saved View
+                </button>
+              </div>
             }
           >
             {/* Assignment filter */}
@@ -362,10 +409,71 @@ export default function HrEmplocPage() {
         <div className="flex items-start gap-2 text-xs text-gray-600">
           <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
           <div>
-            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries, deficiency tagging, and correction reviews execute under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata. Employee ID assignment, Plantilla deployment, and separation requests are pending implementation.
+            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries, deficiency tagging, correction reviews, employee ID assignments, Plantilla deployments, and separation requests execute under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata.
           </div>
         </div>
       </section>
+
+      {/* Bulk Move Summary Dialog */}
+      {bulkResultModal?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            onClick={() => setBulkResultModal(null)}
+          />
+          <div className="relative z-10 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5 bg-emerald-50/50">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-gray-900">Bulk Deploy Summary</h3>
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-gray-600">
+                Bulk move process completed for ready compliance records:
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-center">
+                  <span className="text-[10px] uppercase font-semibold text-emerald-700 block">Moved</span>
+                  <span className="text-xl font-bold text-emerald-900">{bulkResultModal.moved}</span>
+                </div>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center">
+                  <span className="text-[10px] uppercase font-semibold text-amber-700 block">Skipped / Capacity</span>
+                  <span className="text-xl font-bold text-amber-900">{bulkResultModal.skipped}</span>
+                </div>
+              </div>
+              {bulkResultModal.results.length > 0 && (
+                <div className="max-h-40 overflow-y-auto space-y-1 rounded border border-gray-100 p-2 text-[11px]">
+                  {bulkResultModal.results.map((r, idx) => (
+                    <div
+                      key={r.hrEmplocId || `res-${idx}`}
+                      className="flex justify-between items-center py-0.5 border-b border-gray-50 last:border-none"
+                    >
+                      <span className="font-mono text-gray-600 truncate max-w-[200px]">{r.hrEmplocId}</span>
+                      <span
+                        className={`font-semibold capitalize ${
+                          r.result === "moved" ? "text-emerald-700" : "text-amber-700"
+                        }`}
+                      >
+                        {r.result} {r.error ? `(${r.error})` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end border-t border-gray-100 px-5 py-3 bg-gray-50/50">
+              <button
+                type="button"
+                onClick={() => setBulkResultModal(null)}
+                className="rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
