@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 export type VacancyStatus =
@@ -193,7 +194,12 @@ export type VacancySummary = {
   total: number;
 };
 
-export type VacancyDataErrorKind = "access_denied" | "retryable";
+export type VacancyDataErrorKind =
+  | "access_denied"
+  | "retryable"
+  | "validation"
+  | "not_found"
+  | "generic";
 
 export class VacancyDataError extends Error {
   kind: VacancyDataErrorKind;
@@ -934,3 +940,148 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
 
   return normalized;
 }
+
+export type EndorseApplicantParams = {
+  vcode: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
+  contactNumber: string;
+  targetOnboardDate?: string | null;
+  recruiterName?: string | null;
+  recruiterId?: string | null;
+  hrcoRemarks?: string | null;
+  status?: string;
+};
+
+export type EndorseApplicantResult = {
+  id: string;
+  vcode: string;
+  fullName: string;
+  status: string;
+};
+
+export async function endorseApplicant(
+  params: EndorseApplicantParams,
+): Promise<EndorseApplicantResult> {
+  const supabase = createClient();
+  const vcode = params.vcode.trim();
+  const firstName = params.firstName.trim();
+  const lastName = params.lastName.trim();
+  const middleName = params.middleName?.trim() || null;
+  const fullName = middleName
+    ? `${lastName}, ${firstName} ${middleName}`
+    : `${lastName}, ${firstName}`;
+  
+  // Normalize contact number: must be 11 digits starting with 09
+  const cleanContact = params.contactNumber.replace(/[^0-9]/g, "");
+  const normalizedContact =
+    cleanContact.length === 10 && cleanContact.startsWith("9")
+      ? `0${cleanContact}`
+      : cleanContact;
+
+  if (!vcode) {
+    throw new VacancyDataError("validation", "Target VCode is required.");
+  }
+  if (!firstName || !lastName) {
+    throw new VacancyDataError("validation", "First Name and Last Name are required.");
+  }
+  if (!normalizedContact || !/^09[0-9]{9}$/.test(normalizedContact)) {
+    throw new VacancyDataError(
+      "validation",
+      "Contact number must be 11 digits starting with 09 (e.g. 09171234567).",
+    );
+  }
+
+  // 1. Verify vacancy exists and get its status
+  const { data: vac, error: vacError } = await supabase
+    .from("vacancies")
+    .select("id, vcode, status, deleted_at, is_archived, has_pending_closure")
+    .eq("vcode", vcode)
+    .maybeSingle();
+
+  if (vacError) {
+    throw new VacancyDataError("generic", vacError.message);
+  }
+  if (!vac) {
+    throw new VacancyDataError("not_found", `Vacancy with VCode ${vcode} not found.`);
+  }
+  if (vac.deleted_at || vac.is_archived) {
+    throw new VacancyDataError("validation", `Vacancy ${vcode} is archived or inactive.`);
+  }
+  if (vac.has_pending_closure) {
+    throw new VacancyDataError("validation", `Vacancy ${vcode} is locked pending closure.`);
+  }
+
+  // 2. Insert applicant record (matching mobile VacancyService.addApplicant direct insert)
+  const applicantInsertPayload: Record<string, unknown> = {
+    vacancy_vcode: vcode,
+    first_name: firstName,
+    last_name: lastName,
+    middle_name: middleName,
+    full_name: fullName,
+    contact_number: normalizedContact,
+    status: params.status || "New",
+    remarks: params.hrcoRemarks?.trim() || null,
+  };
+
+  if (params.targetOnboardDate) {
+    applicantInsertPayload.interview_date = params.targetOnboardDate;
+  }
+  if (params.recruiterName) {
+    applicantInsertPayload.recruited_by_name = params.recruiterName.trim();
+  }
+  if (params.recruiterId) {
+    applicantInsertPayload.recruited_by_user_id = params.recruiterId;
+  }
+
+  const { data: insertedApp, error: insertError } = await supabase
+    .from("applicants")
+    .insert(applicantInsertPayload)
+    .select("id, vacancy_vcode, full_name, status")
+    .single();
+
+  if (insertError) {
+    if (insertError.code === "42501") {
+      throw new VacancyDataError("access_denied", "You do not have permission to add applicants.");
+    }
+    throw new VacancyDataError("generic", insertError.message);
+  }
+
+  // 3. Status transition: Update vacancy status to 'Pipeline' / 'with_applicant' if it is 'Open'
+  if (vac.status === "Open" || vac.status === "open") {
+    const { error: updateVacError } = await supabase
+      .from("vacancies")
+      .update({
+        status: "Pipeline",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("vcode", vcode);
+
+    if (updateVacError) {
+      console.warn("Failed to transition vacancy status to Pipeline:", updateVacError.message);
+    }
+  }
+
+  return {
+    id: insertedApp.id,
+    vcode: insertedApp.vacancy_vcode,
+    fullName: insertedApp.full_name,
+    status: insertedApp.status ?? "New",
+  };
+}
+
+export function useEndorseApplicant() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: EndorseApplicantParams) => endorseApplicant(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-detail", variables.vcode] });
+    },
+  });
+}
+

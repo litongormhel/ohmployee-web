@@ -14,6 +14,10 @@ import {
 } from "@/components/vacancy/VacancyTable";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import {
+  AddApplicantModal,
+  type VacancyContextSummary,
+} from "@/components/vacancy/AddApplicantModal";
+import {
   VacancyDataError,
   getVacancySummary,
   listVacancies,
@@ -65,6 +69,9 @@ export default function VacancyPage() {
   const [vacantTo, setVacantTo] = useState("");
   const [page, setPage] = useState(1);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
+  const [endorseTargetVacancy, setEndorseTargetVacancy] = useState<VacancyContextSummary | null>(null);
+  const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
 
   const queryParams = useMemo(
     () => ({
@@ -249,6 +256,27 @@ export default function VacancyPage() {
     setSelectedVacancyId(row.id);
   }
 
+  function handleOpenAddApplicant(row: VacancyListItem) {
+    setEndorseTargetVacancy({
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+      storeName: row.storeName,
+      accountName: row.accountName,
+      groupName: row.groupName,
+      hrcoName: row.hrcoName,
+    });
+    setIsAddApplicantModalOpen(true);
+  }
+
+  function handleCandidateEndorsed(candidateName: string) {
+    setSuccessToast({
+      message: `Applicant "${candidateName}" endorsed successfully into vacancy ${endorseTargetVacancy?.vcode}. Requisition moved to Pipeline.`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(candidateName) ? null : prev));
+    }, 6000);
+  }
+
   function retryVacancyReads() {
     void summaryQuery.refetch();
     void listQuery.refetch();
@@ -281,6 +309,29 @@ export default function VacancyPage() {
               {" "}Contact a Super Admin to deactivate this freeze from Freeze Modes.
             </span>
           </div>
+        </div>
+      )}
+
+      {successToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">
+              ✓
+            </span>
+            <span className="font-medium text-xs sm:text-sm">{successToast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition-colors"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -441,7 +492,7 @@ export default function VacancyPage() {
         onPageChange={updatePage}
         onRetry={retryVacancyReads}
         onSelect={selectVacancy}
-        onAddApplicant={selectVacancy}
+        onAddApplicant={handleOpenAddApplicant}
         page={page}
         pageSize={pageSize}
         rows={rows}
@@ -456,6 +507,18 @@ export default function VacancyPage() {
         onClose={() => setSelectedVacancyId(null)}
         isFreezeModeActive={isFreezeModeActive}
       />
+
+      {isAddApplicantModalOpen && endorseTargetVacancy && (
+        <AddApplicantModal
+          isOpen={isAddApplicantModalOpen}
+          onClose={() => {
+            setIsAddApplicantModalOpen(false);
+            setEndorseTargetVacancy(null);
+          }}
+          vacancy={endorseTargetVacancy}
+          onSuccess={handleCandidateEndorsed}
+        />
+      )}
 
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
         <div className="flex items-start gap-2 text-sm text-gray-600">

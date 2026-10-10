@@ -32,6 +32,7 @@ import {
 } from "@/lib/auth";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
+import { AddApplicantModal } from "@/components/vacancy/AddApplicantModal";
 
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
@@ -57,6 +58,7 @@ function getErrorKind(error: unknown) {
 export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false }: VacancyDetailDrawerProps) {
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
+  const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
 
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
@@ -549,6 +551,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   {
                     label: "Add Applicant",
                     isAvailable: detail.rowCapabilities?.canUpdateApplicantStatus === true,
+                    onClick: () => setIsAddApplicantModalOpen(true),
                   },
                   {
                     label: "Update Applicant Status",
@@ -560,6 +563,23 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   },
                 ]}
               />
+
+              {/* Add Applicant Modal */}
+              {isAddApplicantModalOpen && (
+                <AddApplicantModal
+                  isOpen={isAddApplicantModalOpen}
+                  onClose={() => setIsAddApplicantModalOpen(false)}
+                  vacancy={{
+                    vcode: detail.vcode,
+                    positionTitle: detail.position_title,
+                    storeName: detail.storeName,
+                    accountName: detail.accountName,
+                    groupName: detail.groupName,
+                    hrcoName: detail.hrcoName,
+                  }}
+                  onSuccess={() => refetch()}
+                />
+              )}
 
               {/* Headcount Quota Modals */}
               {isReviseQuotaModalOpen && (
