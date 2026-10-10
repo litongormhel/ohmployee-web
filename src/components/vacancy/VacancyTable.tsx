@@ -16,6 +16,7 @@ import {
   TrendingUp,
   User,
   UserMinus,
+  UserPlus,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -156,6 +157,7 @@ export function VacancyTable({
   isLoading,
   errorKind,
   onSelect,
+  onAddApplicant,
   onAdvancePipeline,
   onMarkHired,
   onFailBackout,
@@ -383,7 +385,26 @@ export function VacancyTable({
                         {/* 7. APPLICANT */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                           {status === "open" ? (
-                            <span className="text-table-text-muted">—</span>
+                            !row.applicantName ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onAddApplicant) {
+                                    onAddApplicant(row);
+                                  } else {
+                                    onSelect(row);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
+                                aria-label={`Add applicant for vacancy ${row.vcode}`}
+                              >
+                                <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <span>+ Add Applicant</span>
+                              </button>
+                            ) : (
+                              <span className="text-table-text-muted">—</span>
+                            )
                           ) : status === "pipeline" ? (
                             /* Pipeline Tab: Query and display Candidate Full Name, contact number, and current stage badge */
                             <div className="flex flex-col gap-1">
