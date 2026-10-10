@@ -4,7 +4,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ClipboardCheck,
   FileSearch,
   LockKeyhole,
   Building,
@@ -26,35 +25,24 @@ import {
   type HrEmplocListItem,
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
-import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 
-const queueTabs: Array<{ value: HrEmplocQueue; label: string; description: string }> = [
+const queueTabs: Array<{ value: HrEmplocQueue; label: string }> = [
   {
     value: "pending",
-    label: "Pending Review",
-    description: "Confirmed onboard recruits awaiting initial document audit or correction re-check.",
+    label: "Pending",
   },
   {
-    value: "deficiency",
-    label: "For Correction",
-    description: "Recruits sent back to field coordinators with active document deficiencies.",
+    value: "correction",
+    label: "Correction",
   },
   {
-    value: "complete",
-    label: "Compliance Complete",
-    description: "Compliance validation completed. Ready for employee ID assignment and Plantilla deploy.",
+    value: "review",
+    label: "Review",
   },
   {
-    value: "deletion_pending",
-    label: "Pending Deletion",
-    description: "Recruits with separation or duplicate separation requests pending admin review.",
-  },
-  {
-    value: "all",
-    label: "All / History",
-    description: "Auditable global history of all employee compliance allocations.",
+    value: "ready",
+    label: "Ready",
   },
 ];
 
@@ -74,6 +62,56 @@ export default function HrEmplocPage() {
   const [groupId, setGroupId] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bulkResultModal, setBulkResultModal] = useState<{
+    isOpen: boolean;
+    moved: number;
+    skipped: number;
+    results: BulkMoveResultItem[];
+  } | null>(null);
+
+  const bulkMoveMutation = useBulkMoveToPlantilla();
+
+  function updateQueue(nextQueue: HrEmplocQueue) {
+    setQueue(nextQueue);
+    setPage(1);
+    setSelectedId(null);
+  }
+
+  function applySearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSearch(searchDraft.trim());
+    setPage(1);
+    setSelectedId(null);
+  }
+
+  function selectRow(row: HrEmplocListItem) {
+    setSelectedId(row.id);
+  }
+
+  function updatePage(nextPage: number) {
+    setPage(nextPage);
+    setSelectedId(null);
+  }
+
+  function retryQueryReads() {
+    void summaryQuery.refetch();
+    void listQuery.refetch();
+  }
+
+  async function handleBulkMove() {
+    if (window.confirm("Deploy all ready candidates into Plantilla slots?")) {
+      const results = await bulkMoveMutation.mutateAsync();
+      const moved = results.filter((r) => r.result === "moved").length;
+      const skipped = results.filter((r) => r.result === "skipped").length;
+      setBulkResultModal({
+        isOpen: true,
+        moved,
+        skipped,
+        results,
+      });
+      retryQueryReads();
+    }
+  }
 
   // Group filter parameters
   const listParams = useMemo(
@@ -121,193 +159,98 @@ export default function HrEmplocPage() {
 
   const activeQueueLabel =
     queueTabs.find((tab) => tab.value === queue)?.label ?? "Compliance Queue";
-  const activeQueueDescription =
-    queueTabs.find((tab) => tab.value === queue)?.description ?? "Employee placements in compliance.";
-
-  // Metric summaries
-  const kpis = [
-    {
-      label: "Total Processing",
-      value: summaryQuery.data?.totalPending,
-      helper: "Pending initial review or audit",
-      badge: "Pending",
-    },
-    {
-      label: "Action Needed",
-      value: summaryQuery.data?.actionNeeded,
-      helper: "Deficiency tags sent to field",
-      badge: "Correction",
-    },
-    {
-      label: "Ready to Deploy",
-      value: summaryQuery.data?.readyToDeploy,
-      helper: "Compliance met, awaiting ID",
-      badge: "Complete",
-    },
-    {
-      label: "SLA Breach Watch",
-      value: summaryQuery.data?.slaBreaches,
-      helper: " Lagging past 3-day window",
-      badge: "Aging Watch",
-    },
-  ];
-
-  function updateQueue(nextQueue: HrEmplocQueue) {
-    setQueue(nextQueue);
-    setPage(1);
-    setSelectedId(null);
-  }
-
-  function applySearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSearch(searchDraft.trim());
-    setPage(1);
-    setSelectedId(null);
-  }
-
-  function selectRow(row: HrEmplocListItem) {
-    setSelectedId(row.id);
-  }
-
-  function retryQueryReads() {
-    void summaryQuery.refetch();
-    void listQuery.refetch();
-  }
-
-  function updatePage(nextPage: number) {
-    setPage(nextPage);
-    setSelectedId(null);
-  }
-
-  const bulkMoveMutation = useBulkMoveToPlantilla();
-  const [bulkResultModal, setBulkResultModal] = useState<{
-    isOpen: boolean;
-    moved: number;
-    skipped: number;
-    results: BulkMoveResultItem[];
-  } | null>(null);
-
-  function handleBulkMove() {
-    if (confirm("Move all ready records to Plantilla? This will deploy all compliance-complete candidates with assigned employee numbers to their respective store slots.")) {
-      bulkMoveMutation.mutate(undefined, {
-        onSuccess: (results) => {
-          const moved = results.filter((r) => r.result === "moved").length;
-          const skipped = results.filter((r) => r.result === "skipped").length;
-          setBulkResultModal({
-            isOpen: true,
-            moved,
-            skipped,
-            results,
-          });
-        },
-      });
-    }
-  }
+  const tabCounts: Record<HrEmplocQueue, number> = useMemo(() => {
+    const summary = summaryQuery.data;
+    return {
+      pending: summary?.pending ?? 0,
+      correction: summary?.correction ?? 0,
+      review: summary?.review ?? 0,
+      ready: summary?.ready ?? 0,
+      deficiency: summary?.correction ?? 0,
+      complete: summary?.ready ?? 0,
+      deletion_pending: summary?.pendingDeletion ?? 0,
+      all: 0,
+    };
+  }, [summaryQuery.data]);
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
-      {/* Page Header */}
-      <AdminPageHeader
-        title="HR Emploc Compliance"
-        subtitle="Operational onboarding compliance control panel backed by scoped Supabase summary and roster RPCs."
-        icon={ClipboardCheck}
-        readOnly={true}
-      />
-
-      {/* KPI Cards Row (CLS Shift Guarded) */}
-      <section
-        aria-label="Compliance summary metrics"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {kpis.map((item) => (
-          <MetricCard
-            key={item.label}
-            label={item.label}
-            value={item.value}
-            helperText={item.helper}
-            isLoading={summaryQuery.isLoading}
-            isBlocked={blocked}
-            badgeLabel={item.badge}
-            isError={summaryQuery.isError}
-            errorText="Summary data failed to load"
-          />
-        ))}
-      </section>
-
-      {/* Queue Status Tabs & Filters Bar */}
-      <section className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+      {/* Unified workbench card: Status tabs & Filter toolbar */}
+      <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-card p-3 shadow-xs">
         {/* Status Tabs Navigation */}
-        <div className="flex flex-col gap-2 border-b border-gray-100 pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div
-              aria-label="Compliance queue filter"
-              className="inline-flex rounded-md border border-gray-200 bg-white p-1 shadow-xs"
-              role="tablist"
-            >
-              {queueTabs.map((tab) => (
-                <button
-                  aria-selected={queue === tab.value}
-                  className={`rounded px-4 py-2 text-sm font-semibold transition-all duration-150 ${
-                    queue === tab.value
-                      ? "bg-brand-600 text-white shadow-sm"
-                      : "text-gray-600 hover:bg-gray-100"
+        <div
+          aria-label="HR Emploc queue filter"
+          className="flex flex-wrap items-center gap-2"
+          role="tablist"
+        >
+          {queueTabs.map((tab) => {
+            const isActive = queue === tab.value;
+            const count = tabCounts[tab.value];
+            return (
+              <button
+                key={tab.value}
+                aria-selected={isActive}
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+                onClick={() => updateQueue(tab.value)}
+                role="tab"
+                type="button"
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "border border-gray-200/80 bg-gray-100 text-gray-600"
                   }`}
-                  key={tab.value}
-                  onClick={() => updateQueue(tab.value)}
-                  role="tab"
-                  type="button"
                 >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <div className="text-sm font-medium text-gray-500">
-              Roster matches are evaluated under backend-authoritative Supabase RBAC scopes.
-            </div>
-          </div>
-          <p className="pl-1 text-sm text-gray-500">
-            {activeQueueDescription}
-          </p>
+                  {summaryQuery.isLoading ? "–" : count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Filter Bar Controls */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <AdminFilterBar
-            searchPlaceholder="Search candidate name, VCode, deficiencies..."
-            searchVal={searchDraft}
-            onSearchChange={setSearchDraft}
-            onSearchSubmit={applySearch}
-            disabled={blocked}
-            showApplyButton={true}
-            applyLabel="Search & Filter"
-            extraActionsSlot={
-              <div className="flex items-center gap-2">
-                {queue === "complete" && (
-                  <button
-                    className="inline-flex h-10 items-center gap-1.5 rounded-md bg-emerald-700 px-3.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={bulkMoveMutation.isPending || rows.length === 0}
-                    onClick={handleBulkMove}
-                    type="button"
-                  >
-                    {bulkMoveMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
-                  </button>
-                )}
+        <AdminFilterBar
+          searchPlaceholder="Search candidate name, VCode, deficiencies..."
+          searchVal={searchDraft}
+          onSearchChange={setSearchDraft}
+          onSearchSubmit={applySearch}
+          disabled={blocked}
+          showApplyButton={true}
+          applyLabel="Search & Filter"
+          extraActionsSlot={
+            <div className="flex items-center gap-2">
+              {queue === "ready" && (
                 <button
-                  className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
-                  disabled
+                  className="inline-flex h-10 items-center gap-1.5 rounded-md bg-emerald-700 px-3.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={bulkMoveMutation.isPending || rows.length === 0}
+                  onClick={handleBulkMove}
                   type="button"
                 >
-                  <FileSearch className="h-4 w-4" aria-hidden="true" />
-                  Saved View
+                  {bulkMoveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
                 </button>
-              </div>
-            }
-          >
+              )}
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
+                disabled
+                type="button"
+              >
+                <FileSearch className="h-4 w-4" aria-hidden="true" />
+                Saved View
+              </button>
+            </div>
+          }
+        >
             {/* Assignment filter */}
             <select
               aria-label="Assignment type filter"
@@ -379,30 +322,29 @@ export default function HrEmplocPage() {
               />
             </div>
           </AdminFilterBar>
-
-          {/* Roster Grid Component */}
-          <HrEmplocTable
-            errorKind={listErrorKind}
-            isLoading={listQuery.isLoading}
-            onPageChange={updatePage}
-            onRetry={retryQueryReads}
-            onSelect={selectRow}
-            page={page}
-            pageSize={pageSize}
-            rows={rows}
-            selectedId={selectedId}
-            queue={queue}
-            queueLabel={activeQueueLabel}
-            totalCount={totalCount}
-          />
         </div>
+
+        {/* Roster Grid Component */}
+        <HrEmplocTable
+          errorKind={listErrorKind}
+          isLoading={listQuery.isLoading}
+          onPageChange={updatePage}
+          onRetry={retryQueryReads}
+          onSelect={selectRow}
+          page={page}
+          pageSize={pageSize}
+          rows={rows}
+          selectedId={selectedId}
+          queue={queue}
+          queueLabel={activeQueueLabel}
+          totalCount={totalCount}
+        />
 
         {/* Selected Details Aside Inspector */}
         <HrEmplocDetailDrawer
           hrEmplocId={selectedId}
           onClose={() => setSelectedId(null)}
         />
-      </section>
 
       {/* Footer System Boundaries Notice */}
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">

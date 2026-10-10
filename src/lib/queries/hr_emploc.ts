@@ -1,7 +1,15 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
-export type HrEmplocQueue = "pending" | "deficiency" | "complete" | "deletion_pending" | "all";
+export type HrEmplocQueue =
+  | "pending"
+  | "correction"
+  | "review"
+  | "ready"
+  | "deficiency"
+  | "complete"
+  | "deletion_pending"
+  | "all";
 
 export type HrEmplocRowCapabilities = {
   canViewDetail: boolean;
@@ -110,9 +118,13 @@ export type HrEmplocListParams = {
 };
 
 export type HrEmplocSummary = {
-  totalPending: number;     // hr_status IN ('Pending', 'For Review')
-  actionNeeded: number;     // hr_status = 'For Correction'
-  readyToDeploy: number;    // hr_status = 'Complete' AND employee_no IS NULL
+  pending: number;          // hr_status = 'Pending'
+  correction: number;       // hr_status = 'For Correction'
+  review: number;           // hr_status = 'For Review'
+  ready: number;            // hr_status = 'Complete'
+  totalPending: number;     // legacy alias
+  actionNeeded: number;     // legacy alias
+  readyToDeploy: number;    // legacy alias
   pendingDeletion: number;  // hr_status = 'Pending Deletion'
   slaBreaches: number;      // Count where sla_breached = true
 };
@@ -359,10 +371,19 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
 function normalizeSummary(data: unknown): HrEmplocSummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
+  const pending = asCount(row.pending_count ?? row.pending ?? row.total_pending ?? row.totalPending ?? row.total_processing);
+  const correction = asCount(row.correction_count ?? row.correction ?? row.action_needed ?? row.actionNeeded ?? row.action_needed_count);
+  const review = asCount(row.review_count ?? row.review);
+  const ready = asCount(row.ready_count ?? row.ready ?? row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count);
+
   return {
-    totalPending: asCount(row.pending_count ?? row.total_pending ?? row.totalPending ?? row.total_processing),
-    actionNeeded: asCount(row.correction_count ?? row.action_needed ?? row.actionNeeded ?? row.action_needed_count),
-    readyToDeploy: asCount(row.ready_count ?? row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count),
+    pending,
+    correction,
+    review,
+    ready,
+    totalPending: pending,
+    actionNeeded: correction,
+    readyToDeploy: ready,
     pendingDeletion: asCount(row.pending_deletion_count ?? row.pending_deletion ?? row.pendingDeletion),
     slaBreaches: asCount(row.sla_breached_count ?? row.sla_breaches ?? row.slaBreaches),
   };
