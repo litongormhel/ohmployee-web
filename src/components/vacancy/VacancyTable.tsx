@@ -4,17 +4,20 @@
 import {
   Archive,
   Calendar,
+  Check,
   CheckCircle2,
   ClipboardList,
   Clock3,
   Eye,
   LockKeyhole,
+  Phone,
   RefreshCw,
   RotateCcw,
   TrendingUp,
   User,
   UserMinus,
   UserPlus,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
@@ -57,6 +60,7 @@ type VacancyTableProps = {
   onFailBackout?: (vacancy: VacancyListItem) => void;
   onReopenVacancy?: (vacancy: VacancyListItem) => void;
   onRequestClosure?: (vacancy: VacancyListItem) => void;
+  onReviewClosure?: (vacancy: VacancyListItem, decision: "Approved" | "Rejected") => void;
   onEditHiredDate?: (vacancy: VacancyListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
@@ -130,6 +134,7 @@ export function VacancyTable({
   onFailBackout,
   onReopenVacancy,
   onRequestClosure,
+  onReviewClosure,
   onEditHiredDate,
   onRetry,
   onPageChange,
@@ -317,44 +322,108 @@ export function VacancyTable({
 
                     {/* 7. APPLICANT */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      {row.applicantName ? (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="font-medium text-table-text">
-                            {row.applicantName}
+                      {status === "open" ? (
+                        row.applicantName ? (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="font-medium text-table-text">{row.applicantName}</div>
+                            {row.contactNumber && (
+                              <span className="font-mono text-[11px] text-table-text-muted">
+                                {row.contactNumber}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            {row.confirmedOnboardCount > 0 || row.hasRecentHire ? (
-                              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                Onboarded
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onAddApplicant) {
+                                onAddApplicant(row);
+                              } else {
+                                onSelect(row);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
+                            aria-label={`Add applicant for vacancy ${row.vcode}`}
+                          >
+                            <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>+ Add Applicant</span>
+                          </button>
+                        )
+                      ) : status === "pipeline" ? (
+                        /* Pipeline Tab: Never show "+ Add Applicant". Query and display Candidate Full Name, contact number, and current stage badge */
+                        <div className="flex flex-col gap-1">
+                          <div className="font-semibold text-table-text">
+                            {row.applicantName || "Assigned Candidate"}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                              {row.stageBadge || (row.activeApplicantCount > 1 ? `${row.activeApplicantCount} in pipeline` : "In Pipeline")}
+                            </span>
+                            {row.contactNumber && (
+                              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
+                                <Phone className="h-2.5 w-2.5" />
+                                {row.contactNumber}
                               </span>
-                            ) : row.activeApplicantCount > 1 ? (
-                              <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                                {row.activeApplicantCount} in pipeline
+                            )}
+                          </div>
+                        </div>
+                      ) : status === "hired" ? (
+                        /* Hired Tab: Never show "+ Add Applicant". Display Hired Worker Name, Onboard Date, and Position */
+                        <div className="flex flex-col gap-0.5">
+                          <div className="font-semibold text-table-text">
+                            {row.applicantName || "Hired Worker"}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
+                            {row.hiredDate && (
+                              <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
+                                Onboard: {row.hiredDate}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                                In Pipeline
+                            )}
+                            {row.position_title && (
+                              <span className="text-[11px] text-slate-600">
+                                {row.position_title}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : status === "closure" ? (
+                        /* Closure Tab: Never show "+ Add Applicant". Display Closure Reason and Requester */
+                        <div className="flex flex-col gap-0.5">
+                          <div className="font-medium text-rose-900">
+                            {row.closureReason || "Requested for Deletion"}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-table-text-muted">
+                            <span>By:</span>
+                            <span className="font-medium text-table-text-sub">
+                              {row.closureRequestedBy || "Operations"}
+                            </span>
+                            {row.closureRequestedAt && (
+                              <span className="text-gray-400">
+                                • {new Date(row.closureRequestedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : status === "failed_backout" ? (
+                        /* Failed / Backout Tab: Never show "+ Add Applicant". Display Candidate Full Name, Dropout / Failure Reason, and Date */
+                        <div className="flex flex-col gap-1">
+                          <div className="font-semibold text-table-text">
+                            {row.applicantName || "Candidate"}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                              {row.dropoutReason || "Failed / Backout"}
+                            </span>
+                            {row.dropoutDate && (
+                              <span className="text-[11px] text-table-text-muted font-mono">
+                                {row.dropoutDate}
                               </span>
                             )}
                           </div>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onAddApplicant) {
-                              onAddApplicant(row);
-                            } else {
-                              onSelect(row);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
-                          aria-label={`Add applicant for vacancy ${row.vcode}`}
-                        >
-                          <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          <span>+ Add Applicant</span>
-                        </button>
+                        row.applicantName || "—"
                       )}
                     </td>
 
@@ -481,19 +550,51 @@ export function VacancyTable({
                           </button>
                         )}
 
-                        {status === "closure" && onRequestClosure && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRequestClosure(row);
-                            }}
-                            className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 hover:bg-slate-200 transition shadow-xs"
-                            title={`Request closure for ${row.vcode}`}
-                          >
-                            <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span className="hidden sm:inline">Close</span>
-                          </button>
+                        {status === "closure" && (
+                          <div className="flex items-center gap-1">
+                            {onReviewClosure && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReviewClosure(row, "Approved");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
+                                  title={`Approve closure request for ${row.vcode}`}
+                                >
+                                  <Check className="h-3 w-3" aria-hidden="true" />
+                                  <span className="hidden sm:inline">Approve</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReviewClosure(row, "Rejected");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs"
+                                  title={`Reject closure request for ${row.vcode}`}
+                                >
+                                  <X className="h-3 w-3" aria-hidden="true" />
+                                  <span className="hidden sm:inline">Reject</span>
+                                </button>
+                              </>
+                            )}
+                            {onRequestClosure && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRequestClosure(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 hover:bg-slate-200 transition shadow-xs"
+                                title={`Review closure details for ${row.vcode}`}
+                              >
+                                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span className="hidden sm:inline">Review</span>
+                              </button>
+                            )}
+                          </div>
                         )}
 
                         {status === "failed_backout" && onReopenVacancy && (

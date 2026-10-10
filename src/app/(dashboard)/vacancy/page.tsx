@@ -29,6 +29,7 @@ import {
   getVacancySummary,
   listVacancies,
   useApproveAllClosureRequests,
+  useReviewClosureRequest,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
@@ -127,6 +128,7 @@ export default function VacancyPage() {
   const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
 
   const approveAllClosuresMutation = useApproveAllClosureRequests();
+  const reviewClosureMutation = useReviewClosureRequest();
 
   const queryParams = useMemo(
     () => ({
@@ -383,6 +385,33 @@ export default function VacancyPage() {
       storeName: row.storeName,
     });
     setIsClosureModalOpen(true);
+  }
+
+  function handleReviewClosure(row: VacancyListItem, decision: "Approved" | "Rejected") {
+    if (!row.closureRequestId) {
+      // If closure request ID is not present, open closure details modal
+      handleRequestClosure(row);
+      return;
+    }
+    const actionLabel = decision === "Approved" ? "approve and close" : "reject closure request for";
+    if (window.confirm(`Are you sure you want to ${actionLabel} ${row.vcode}?`)) {
+      reviewClosureMutation.mutate(
+        {
+          requestId: row.closureRequestId,
+          status: decision,
+          reviewedBy: currentUser?.displayName || "Operations Admin",
+          vcode: row.vcode,
+        },
+        {
+          onSuccess: () => {
+            setSuccessToast({
+              message: `Closure request for ${row.vcode} ${decision.toLowerCase()} successfully.`,
+            });
+            retryVacancyReads();
+          },
+        },
+      );
+    }
   }
 
   function handleEditHiredDate(row: VacancyListItem) {
@@ -652,6 +681,7 @@ export default function VacancyPage() {
         onFailBackout={handleFailBackout}
         onReopenVacancy={handleReopenVacancy}
         onRequestClosure={handleRequestClosure}
+        onReviewClosure={handleReviewClosure}
         onEditHiredDate={handleEditHiredDate}
         page={page}
         pageSize={pageSize}
