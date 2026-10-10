@@ -30,6 +30,19 @@ import type {
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
 function getTableColumns(status: VacancyStatus): string[] {
+  if (status === "open") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "APPLICANT",
+      "AGING",
+      "PENALTY",
+      "ACTIONS",
+    ];
+  }
   if (status === "closure") {
     return [
       "VCODE",
@@ -365,22 +378,24 @@ export function VacancyTable({
                       </>
                     ) : (
                       <>
-                        {/* 6. STATUS */}
-                        <td className="border-b border-table-rule px-4 py-2.5">
-                          {status === "pipeline" ? (
-                            <StatusBadge variant="info">
-                              {row.stageBadge || "In Pipeline"}
-                            </StatusBadge>
-                          ) : status === "failed_backout" ? (
-                            <StatusBadge variant="danger">
-                              {row.dropoutReason || "Failed / Backout"}
-                            </StatusBadge>
-                          ) : (
-                            <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
-                              {getStatusLabel(row)}
-                            </StatusBadge>
-                          )}
-                        </td>
+                        {/* 6. STATUS (omitted for open tab as it is redundant) */}
+                        {status !== "open" && (
+                          <td className="border-b border-table-rule px-4 py-2.5">
+                            {status === "pipeline" ? (
+                              <StatusBadge variant="info">
+                                {row.stageBadge || "In Pipeline"}
+                              </StatusBadge>
+                            ) : status === "failed_backout" ? (
+                              <StatusBadge variant="danger">
+                                {row.dropoutReason || "Failed / Backout"}
+                              </StatusBadge>
+                            ) : (
+                              <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
+                                {getStatusLabel(row)}
+                              </StatusBadge>
+                            )}
+                          </td>
+                        )}
 
                         {/* 7. APPLICANT */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
