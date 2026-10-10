@@ -2,6 +2,9 @@
 
 OHMployee Web is a Next.js App Router project with a lightweight admin command shell, authentication page, and scaffold-only module routes.
 
+## Recent Updates
+- **ohm#w29m720d**: Implemented Full-Fidelity "More" Settings & Governance Hub on Web (`/more`). Delivered query layer `src/lib/queries/more.ts` (polling active `temp_permission_overrides`, edit lock controls, live request queues, data archival recovery snapshots), top Profile Identity and Temporary Access cards, 6 structured responsive sections organizing 26 feature tiles with role gating, and three governance modals: `EditLockControlModal.tsx`, `TempPermissionModal.tsx`, and `DataArchivalCenterModal.tsx`. Verified cleanly with 0 errors via `npm run lint` and `npm run build`.
+
 ## Foundation
 
 - App Router root remains in `src/app`.

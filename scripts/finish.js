@@ -84,7 +84,7 @@ function main() {
     console.log('  Checking untracked files against OHM_SCOPE_FILES:');
     for (const f of untrackedFiles) {
       const normFile = f.replace(/^\.\//, '');
-      const isMatch = scopeFiles.some(s => s === normFile);
+      const isMatch = scopeFiles.some(s => s === normFile || normFile.startsWith(s.replace(/\/$/, '') + '/'));
       if (isMatch) {
         console.log(`    [GROUP A -- in-scope] ${f} (will be staged)`);
         filesToStage.push(f);

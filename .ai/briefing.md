@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w29m720d**: Implement Full-Fidelity "More" Settings & Governance Hub on Web
 - **ohm#w20e711b**: Fix Infinite "Loading Secure Workspace" Loop on Vercel Deployment
 - **ohm#w19d610a**: Streamline Vacancy Header and Consolidate Status Tabs with Embedded Counts
 - **ohm#w17b408e**: Refine Vacancy Table: Clean Status, Inline Add Applicant, Location Subtitles, and Polished Badges
