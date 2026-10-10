@@ -16,7 +16,6 @@ import {
   TrendingUp,
   User,
   UserMinus,
-  UserPlus,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -29,18 +28,47 @@ import type {
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
-const tableColumns = [
-  "VCODE",
-  "POSITION",
-  "ACCOUNT / GROUP",
-  "OUTLET NAME",
-  "HRCO",
-  "STATUS",
-  "APPLICANT",
-  "AGING",
-  "PENALTY",
-  "ACTIONS",
-];
+function getTableColumns(status: VacancyStatus): string[] {
+  if (status === "closure") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "REASON FOR DELETION",
+      "REQUESTED BY",
+      "AGING",
+      "PENALTY",
+      "ACTIONS",
+    ];
+  }
+  if (status === "failed_backout") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "STATUS",
+      "APPLICANT",
+      "PENALTY",
+      "ACTIONS",
+    ];
+  }
+  return [
+    "VCODE",
+    "POSITION",
+    "ACCOUNT / GROUP",
+    "OUTLET NAME",
+    "HRCO",
+    "STATUS",
+    "APPLICANT",
+    "AGING",
+    "PENALTY",
+    "ACTIONS",
+  ];
+}
 
 
 type VacancyTableProps = {
@@ -128,7 +156,6 @@ export function VacancyTable({
   isLoading,
   errorKind,
   onSelect,
-  onAddApplicant,
   onAdvancePipeline,
   onMarkHired,
   onFailBackout,
@@ -143,6 +170,7 @@ export function VacancyTable({
   const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastRecord = Math.min(totalCount, page * pageSize);
   const errorCopy = getErrorCopy(errorKind);
+  const activeColumns = getTableColumns(status);
 
   return (
     <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
@@ -170,7 +198,7 @@ export function VacancyTable({
         <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
-              {tableColumns.map((column) => (
+              {activeColumns.map((column) => (
                 <th
                   className="border-b border-table-rule-section px-4 py-2.5"
                   key={column || "actions"}
@@ -184,7 +212,7 @@ export function VacancyTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={activeColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
                     <RefreshCw
                       className="h-5 w-5 animate-spin text-blue-500"
@@ -201,7 +229,7 @@ export function VacancyTable({
               </tr>
             ) : errorKind ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={activeColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
                     <div className="rounded-md border border-status-danger-border bg-status-danger-bg p-2">
                       <LockKeyhole
@@ -228,7 +256,7 @@ export function VacancyTable({
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={activeColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
                     <div className="rounded-md border border-table-rule-section bg-table-header p-2">
                       <ClipboardList
@@ -313,146 +341,135 @@ export function VacancyTable({
                       )}
                     </td>
 
-                    {/* 6. STATUS */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
-                      <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
-                        {getStatusLabel(row)}
-                      </StatusBadge>
-                    </td>
+                    {/* When status is closure: Render REASON FOR DELETION and REQUESTED BY, omit STATUS and APPLICANT */}
+                    {status === "closure" ? (
+                      <>
+                        {/* 6. REASON FOR DELETION */}
+                        <td className="border-b border-table-rule px-4 py-2.5 font-medium text-rose-900">
+                          {row.closureReason || "Requested for Deletion"}
+                        </td>
 
-                    {/* 7. APPLICANT */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      {status === "open" ? (
-                        row.applicantName ? (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="font-medium text-table-text">{row.applicantName}</div>
-                            {row.contactNumber && (
-                              <span className="font-mono text-[11px] text-table-text-muted">
-                                {row.contactNumber}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onAddApplicant) {
-                                onAddApplicant(row);
-                              } else {
-                                onSelect(row);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
-                            aria-label={`Add applicant for vacancy ${row.vcode}`}
-                          >
-                            <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span>+ Add Applicant</span>
-                          </button>
-                        )
-                      ) : status === "pipeline" ? (
-                        /* Pipeline Tab: Never show "+ Add Applicant". Query and display Candidate Full Name, contact number, and current stage badge */
-                        <div className="flex flex-col gap-1">
-                          <div className="font-semibold text-table-text">
-                            {row.applicantName || "Assigned Candidate"}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                              {row.stageBadge || (row.activeApplicantCount > 1 ? `${row.activeApplicantCount} in pipeline` : "In Pipeline")}
+                        {/* 7. REQUESTED BY */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-xs text-table-text-muted">
+                          <span className="font-medium text-table-text-sub">
+                            {row.closureRequestedBy || "Operations"}
+                          </span>
+                          {row.closureRequestedAt && (
+                            <span className="text-gray-400">
+                              {" "}• {new Date(row.closureRequestedAt).toLocaleDateString()}
                             </span>
-                            {row.contactNumber && (
-                              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
-                                <Phone className="h-2.5 w-2.5" />
-                                {row.contactNumber}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : status === "hired" ? (
-                        /* Hired Tab: Never show "+ Add Applicant". Display Hired Worker Name, Onboard Date, and Position */
-                        <div className="flex flex-col gap-0.5">
-                          <div className="font-semibold text-table-text">
-                            {row.applicantName || "Hired Worker"}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
-                            {row.hiredDate && (
-                              <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
-                                Onboard: {row.hiredDate}
-                              </span>
-                            )}
-                            {row.position_title && (
-                              <span className="text-[11px] text-slate-600">
-                                {row.position_title}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : status === "closure" ? (
-                        /* Closure Tab: Never show "+ Add Applicant". Display Closure Reason and Requester */
-                        <div className="flex flex-col gap-0.5">
-                          <div className="font-medium text-rose-900">
-                            {row.closureReason || "Requested for Deletion"}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-table-text-muted">
-                            <span>By:</span>
-                            <span className="font-medium text-table-text-sub">
-                              {row.closureRequestedBy || "Operations"}
-                            </span>
-                            {row.closureRequestedAt && (
-                              <span className="text-gray-400">
-                                • {new Date(row.closureRequestedAt).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : status === "failed_backout" ? (
-                        /* Failed / Backout Tab: Never show "+ Add Applicant". Display Candidate Full Name, Dropout / Failure Reason, and Date */
-                        <div className="flex flex-col gap-1">
-                          <div className="font-semibold text-table-text">
-                            {row.applicantName || "Candidate"}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        {/* 6. STATUS */}
+                        <td className="border-b border-table-rule px-4 py-2.5">
+                          {status === "pipeline" ? (
+                            <StatusBadge variant="info">
+                              {row.stageBadge || "In Pipeline"}
+                            </StatusBadge>
+                          ) : status === "failed_backout" ? (
+                            <StatusBadge variant="danger">
                               {row.dropoutReason || "Failed / Backout"}
-                            </span>
-                            {row.dropoutDate && (
-                              <span className="text-[11px] text-table-text-muted font-mono">
-                                {row.dropoutDate}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        row.applicantName || "—"
-                      )}
-                    </td>
+                            </StatusBadge>
+                          ) : (
+                            <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
+                              {getStatusLabel(row)}
+                            </StatusBadge>
+                          )}
+                        </td>
 
-                    {/* 8. AGING */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      {row.agingDays !== null && row.agingDays !== undefined ? (
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
-                            row.agingDays <= 15
-                              ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
-                              : row.agingDays <= 30
-                              ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
-                              : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
-                          }`}
-                        >
-                          {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
-                        </span>
-                      ) : row.agingBucket === "advance" ? (
-                        <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                          Advance
-                        </span>
-                      ) : row.agingBucket ? (
-                        <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
-                          {formatAgingBucket(row.agingBucket)}
-                        </span>
-                      ) : (
-                        <span className="text-table-text-muted">—</span>
-                      )}
-                    </td>
+                        {/* 7. APPLICANT */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          {status === "open" ? (
+                            <span className="text-table-text-muted">—</span>
+                          ) : status === "pipeline" ? (
+                            /* Pipeline Tab: Query and display Candidate Full Name, contact number, and current stage badge */
+                            <div className="flex flex-col gap-1">
+                              <div className="font-semibold text-table-text">
+                                {row.applicantName || "Assigned Candidate"}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                                  {row.stageBadge || (row.activeApplicantCount > 1 ? `${row.activeApplicantCount} in pipeline` : "In Pipeline")}
+                                </span>
+                                {row.contactNumber && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
+                                    <Phone className="h-2.5 w-2.5" />
+                                    {row.contactNumber}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : status === "hired" ? (
+                            /* Hired Tab: Display Hired Worker Name, Onboard Date, and Position */
+                            <div className="flex flex-col gap-0.5">
+                              <div className="font-semibold text-table-text">
+                                {row.applicantName || "Hired Worker"}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
+                                {row.hiredDate && (
+                                  <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
+                                    Onboard: {row.hiredDate}
+                                  </span>
+                                )}
+                                {row.position_title && (
+                                  <span className="text-[11px] text-slate-600">
+                                    {row.position_title}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : status === "failed_backout" ? (
+                            /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
+                            <div className="flex flex-col gap-1">
+                              <div className="font-semibold text-table-text">
+                                {row.applicantName || "Candidate"}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {row.dropoutDate && (
+                                  <span className="text-[11px] text-table-text-muted font-mono">
+                                    {row.dropoutDate}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            row.applicantName || "—"
+                          )}
+                        </td>
+                      </>
+                    )}
+
+                    {/* 8. AGING (omitted completely for failed_backout tab) */}
+                    {status !== "failed_backout" && (
+                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                        {row.agingDays !== null && row.agingDays !== undefined ? (
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
+                              row.agingDays <= 15
+                                ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
+                                : row.agingDays <= 30
+                                ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
+                                : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
+                            }`}
+                          >
+                            {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
+                          </span>
+                        ) : row.agingBucket === "advance" ? (
+                          <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            Advance
+                          </span>
+                        ) : row.agingBucket ? (
+                          <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
+                            {formatAgingBucket(row.agingBucket)}
+                          </span>
+                        ) : (
+                          <span className="text-table-text-muted">—</span>
+                        )}
+                      </td>
+                    )}
 
                     {/* 9. PENALTY */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
@@ -474,20 +491,7 @@ export function VacancyTable({
                     {/* 10. ACTIONS */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {status === "open" && onAddApplicant && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddApplicant(row);
-                            }}
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs"
-                            title={`Endorse applicant for ${row.vcode}`}
-                          >
-                            <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span className="hidden sm:inline">Endorse</span>
-                          </button>
-                        )}
+                        {/* Open tab: No Endorse button - drawer only */}
 
                         {status === "pipeline" && (
                           <>

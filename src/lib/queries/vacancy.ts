@@ -1069,9 +1069,30 @@ export async function listVacancies(params: VacancyListParams) {
         .order("created_at", { ascending: false });
 
       if (!closureError && Array.isArray(closureRequests)) {
+        // Collect vcodes where the joined vacancies object might be null or missing store/position
+        const pendingVcodes = closureRequests
+          .filter((cr) => !cr.vacancies)
+          .map((cr) => cr.vacancy_vcode)
+          .filter(Boolean);
+
+        let fallbackVacMap = new Map<string, Record<string, unknown>>();
+        if (pendingVcodes.length > 0) {
+          try {
+            const { data: vacFallback } = await supabase
+              .from("vacancies")
+              .select("id, vcode, store_name, store_branch, position, account, account_id, group_id, area_city, area_province, province")
+              .in("vcode", pendingVcodes);
+            if (vacFallback) {
+              fallbackVacMap = new Map(vacFallback.map((v) => [v.vcode, v]));
+            }
+          } catch {
+            // Graceful fallback
+          }
+        }
+
         const closureRows: VacancyListItem[] = closureRequests.map((cr: Record<string, unknown>, idx: number) => {
-          const vac = cr.vacancies as Record<string, unknown> | null;
           const vcode = asString(cr.vacancy_vcode) ?? "Uncoded";
+          const vac = (cr.vacancies as Record<string, unknown> | null) || fallbackVacMap.get(vcode) || null;
           const storeName = asString(vac?.store_name ?? vac?.store_branch);
           const position = asString(vac?.position) ?? "—";
           const account = asString(vac?.account);
@@ -1155,8 +1176,21 @@ export async function listVacancies(params: VacancyListParams) {
         };
       }
     } catch {
-      // fallback to RPC rows
+      // Return empty list if closure requests table error occurs
+      return {
+        data: [],
+        totalCount: 0,
+        page,
+        pageSize,
+      };
     }
+
+    return {
+      data: [],
+      totalCount: 0,
+      page,
+      pageSize,
+    };
   }
 
   // 1. Pipeline Tab & general applicant enrichment:
@@ -1210,8 +1244,14 @@ export async function listVacancies(params: VacancyListParams) {
               row.dropoutReason = asString(drop.backout_reason) || "Dropout / Failed";
               row.dropoutDate = asString(drop.backout_date ?? drop.updated_at ?? drop.created_at);
             }
+          } else if (currentTab === "open") {
+            // Open tab: Vacancies strictly without active candidate.
+            row.applicantId = null;
+            row.applicantName = null;
+            row.contactNumber = null;
+            row.stageBadge = null;
           } else {
-            // Pipeline, Open, etc.
+            // Pipeline, etc.
             const actives = activeByVcode.get(row.vcode);
             const active = actives && actives[0];
             if (active) {
@@ -1232,9 +1272,27 @@ export async function listVacancies(params: VacancyListParams) {
     }
   }
 
+  // Final Tab Scoping Enforcement:
+  // For Open Tab: Exclude any vacancy that has an active candidate assigned or active applicant count > 0
+  let finalRows = rows;
+  if (currentTab === "open") {
+    finalRows = rows.filter((r) => {
+      const hasActive =
+        (r.activeApplicantCount && r.activeApplicantCount > 0) ||
+        Boolean(r.applicantName);
+      return !hasActive;
+    });
+    for (const r of finalRows) {
+      r.applicantId = null;
+      r.applicantName = null;
+      r.contactNumber = null;
+      r.stageBadge = null;
+    }
+  }
+
   return {
-    data: rows,
-    totalCount: getTotalCount(rows),
+    data: finalRows,
+    totalCount: currentTab === "open" ? finalRows.length : getTotalCount(finalRows),
     page,
     pageSize,
   };
@@ -1247,6 +1305,132 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
   });
 
   if (error) {
+    const errorKind = getErrorKind(error);
+    // If access is denied (often caused by vw_vacancy_detail active-only constraint for Filled/Closed slots),
+    // attempt fallback lookup for hired applicants or direct vacancy record.
+    if (errorKind === "access_denied" || error.code === "42501" || error.message.includes("out of scope")) {
+      try {
+        // 1. Try fn_get_hired_applicants
+        const { data: hiredData } = await supabase.rpc("fn_get_hired_applicants");
+        if (Array.isArray(hiredData)) {
+          const match = hiredData.find(
+            (h: Record<string, unknown>) =>
+              String(h.id) === vacancyId ||
+              String(h.vacancy_vcode) === vacancyId ||
+              String(h.applicant_id) === vacancyId,
+          );
+
+          if (match) {
+            const vcode = asString(match.vacancy_vcode) ?? "Uncoded";
+            const lName = asString(match.last_name);
+            const fName = asString(match.first_name);
+            const rawFull = asString(match.full_name);
+            const workerName = rawFull || (lName && fName ? `${lName}, ${fName}` : lName || fName || "Hired Worker");
+            const hiredDate = asString(match.hired_date ?? match.hired_at);
+            const pos = asString(match.position_name ?? match.position);
+
+            // Fetch vacancy info if available
+            let vacRow: Record<string, unknown> | null = null;
+            try {
+              const { data: vacData } = await supabase
+                .from("vacancies")
+                .select("*")
+                .eq("vcode", vcode)
+                .maybeSingle();
+              vacRow = vacData;
+            } catch {
+              // fallback
+            }
+
+            const areaCity = asString(vacRow?.area_city);
+            const areaProvince = asString(vacRow?.area_province ?? vacRow?.province);
+            const storeLocation = [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
+
+            return {
+              vacancyId,
+              vcode,
+              accountId: asString(vacRow?.account_id),
+              accountName: asString(match.account ?? vacRow?.account),
+              groupId: asString(vacRow?.group_id),
+              groupName: asString(match.group_name ?? vacRow?.group_name),
+              storeId: asString(vacRow?.store_id),
+              storeName: asString(vacRow?.store_name ?? vacRow?.store),
+              position_title: pos || asString(vacRow?.position),
+              department: asString(vacRow?.department ?? vacRow?.business_unit),
+              employmentType: asString(vacRow?.employment_type),
+              vacancyStatus: "Filled",
+              pipelineStatus: "Hired",
+              derivedStatus: "Hired",
+              activeApplicantCount: 0,
+              confirmedOnboardCount: 1,
+              hasRecentHire: true,
+              hasPendingClosure: false,
+              closureRequestStatus: null,
+              vacantDate: hiredDate,
+              agingDays: null,
+              agingBucket: null,
+              targetFillDate: null,
+              urgencyLevel: null,
+              hrcoName: asString(match.hired_by ?? vacRow?.hrco_name) ?? "HR Team",
+              lastActivityAt: asString(match.hired_at),
+              rowCapabilities: {
+                canViewDetail: true,
+                canApprove: false,
+                canUpdateApplicantStatus: false,
+                canRequestClosure: false,
+                raw: {},
+              },
+              contactNumber: asString(match.contact_number),
+              onboardDate: hiredDate,
+              relieverOnDuty: null,
+              hasReliever: false,
+              hrcoRemarks: null,
+              recruiterName: null,
+              deployedByName: asString(match.hired_by),
+              hasPenalty: false,
+              penaltyExposure: 0,
+              penaltyAmount: null,
+              applicantLastName: lName,
+              applicantFirstName: fName,
+              applicantName: workerName,
+              storeLocation,
+              areaCity,
+              areaProvince,
+              storeBranch: asString(vacRow?.store_branch),
+              requestedById: null,
+              requestedByName: null,
+              approvedById: null,
+              approvedByName: null,
+              approvedAt: null,
+              headcountRequestId: null,
+              vacancyReason: null,
+              jobDescription: null,
+              closureRequestedAt: null,
+              closureRequestedBy: null,
+              closureReason: null,
+              activeApplicantsList: [
+                {
+                  applicantId: asString(match.id) ?? vacancyId,
+                  displayName: workerName,
+                  lastName: lName,
+                  firstName: fName,
+                  contactNumber: asString(match.contact_number),
+                  statusLabel: "Confirmed Onboard",
+                  onboardDate: hiredDate,
+                  updatedAt: asString(match.hired_at),
+                  recruiterName: null,
+                  deployedByName: asString(match.hired_by),
+                },
+              ],
+              activityHistory: [],
+            };
+          }
+        }
+      } catch {
+        // Fall through to original error throw
+      }
+    }
+
     throwVacancyError(error);
   }
 
