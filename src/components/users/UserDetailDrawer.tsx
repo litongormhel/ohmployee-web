@@ -745,28 +745,35 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               ) : (
                 <div className="space-y-3">
                   {auditLogs.map((log) => {
-                    const dateStr = new Date(log.timestamp).toLocaleString();
+                    const date = new Date(log.timestamp);
+                    const formattedDate = !isNaN(date.getTime())
+                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+                          date.getDate(),
+                        ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
+                          date.getMinutes(),
+                        ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`
+                      : log.timestamp;
+
                     return (
                       <div
                         key={log.id}
-                        className="rounded-lg border border-border-default bg-surface-base p-3.5 space-y-2 shadow-xs"
+                        className="rounded-xl border border-border-default bg-surface-base p-4 space-y-2.5 shadow-xs"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
                             {log.action}
                           </span>
-                          <span className="text-[11px] text-text-muted">{dateStr}</span>
+                          <span className="text-xs font-semibold text-text-muted">
+                            {formattedDate}
+                          </span>
                         </div>
-                        <div className="text-xs text-text-secondary">
-                          <span className="font-semibold text-text-primary">{log.actorName}</span> (
-                          {log.actorRole})
+                        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                          <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                          <span>
+                            By: <strong className="text-text-primary">{log.actorName || "System"}</strong> (
+                            {log.actorRole || "None"})
+                          </span>
                         </div>
-                        {(log.oldData || log.newData) && (
-                          <div className="rounded bg-surface-muted p-2 text-[10px] font-mono text-text-secondary overflow-x-auto max-h-24">
-                            {log.newData && <div>New: {JSON.stringify(log.newData)}</div>}
-                            {log.oldData && <div>Old: {JSON.stringify(log.oldData)}</div>}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
