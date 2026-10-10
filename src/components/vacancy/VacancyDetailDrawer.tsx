@@ -33,6 +33,12 @@ import {
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
 import { AddApplicantModal } from "@/components/vacancy/AddApplicantModal";
+import { AdvancePipelineModal } from "@/components/vacancy/AdvancePipelineModal";
+import { MarkHiredModal } from "@/components/vacancy/MarkHiredModal";
+import { FailBackoutModal } from "@/components/vacancy/FailBackoutModal";
+import { ReopenVacancyModal } from "@/components/vacancy/ReopenVacancyModal";
+import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyClosureModal";
+import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
 
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
@@ -59,6 +65,24 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
+  const [isAdvancePipelineModalOpen, setIsAdvancePipelineModalOpen] = useState(false);
+  const [isMarkHiredModalOpen, setIsMarkHiredModalOpen] = useState(false);
+  const [isFailBackoutModalOpen, setIsFailBackoutModalOpen] = useState(false);
+  const [isReopenVacancyModalOpen, setIsReopenVacancyModalOpen] = useState(false);
+  const [isRequestClosureModalOpen, setIsRequestClosureModalOpen] = useState(false);
+  const [isEditHiredDateModalOpen, setIsEditHiredDateModalOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<{
+    id: string;
+    fullName: string;
+    lastName?: string | null;
+    firstName?: string | null;
+    middleName?: string | null;
+    contactNumber?: string | null;
+    status: string;
+    vcode: string;
+    positionTitle?: string | null;
+    hiredDate?: string | null;
+  } | null>(null);
 
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
@@ -417,6 +441,92 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             Updated {formatDate(candidate.updatedAt)}
                           </div>
                         </div>
+
+                        {/* Quick action buttons for this candidate */}
+                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-gray-100">
+                          {candidate.statusLabel.toLowerCase() !== "hired" && candidate.statusLabel.toLowerCase() !== "confirmed" ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate({
+                                    id: candidate.applicantId,
+                                    fullName: candidate.displayName,
+                                    lastName: candidate.lastName,
+                                    firstName: candidate.firstName,
+                                    contactNumber: candidate.contactNumber,
+                                    status: candidate.statusLabel,
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsAdvancePipelineModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
+                              >
+                                Update Stage
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate({
+                                    id: candidate.applicantId,
+                                    fullName: candidate.displayName,
+                                    lastName: candidate.lastName,
+                                    firstName: candidate.firstName,
+                                    contactNumber: candidate.contactNumber,
+                                    status: candidate.statusLabel,
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsMarkHiredModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                              >
+                                Mark Hired
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate({
+                                    id: candidate.applicantId,
+                                    fullName: candidate.displayName,
+                                    lastName: candidate.lastName,
+                                    firstName: candidate.firstName,
+                                    contactNumber: candidate.contactNumber,
+                                    status: candidate.statusLabel,
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsFailBackoutModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
+                              >
+                                Drop / Backout
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCandidate({
+                                  id: candidate.applicantId,
+                                  fullName: candidate.displayName,
+                                  lastName: candidate.lastName,
+                                  firstName: candidate.firstName,
+                                  contactNumber: candidate.contactNumber,
+                                  status: candidate.statusLabel,
+                                  vcode: detail.vcode,
+                                  positionTitle: detail.position_title,
+                                  hiredDate: candidate.onboardDate,
+                                });
+                                setIsEditHiredDateModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                            >
+                              Edit Hired Date
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))
                   ) : detail.applicantName ? (
@@ -550,16 +660,113 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   },
                   {
                     label: "Add Applicant",
-                    isAvailable: detail.rowCapabilities?.canUpdateApplicantStatus === true,
+                    isAvailable:
+                      detail.rowCapabilities?.canUpdateApplicantStatus === true ||
+                      detail.derivedStatus?.toLowerCase() === "open" ||
+                      detail.activeApplicantCount === 0,
                     onClick: () => setIsAddApplicantModalOpen(true),
                   },
                   {
-                    label: "Update Applicant Status",
-                    isAvailable: detail.rowCapabilities?.canUpdateApplicantStatus === true,
+                    label: "Update Stage",
+                    isAvailable:
+                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                      detail.derivedStatus?.toLowerCase() !== "hired" &&
+                      detail.derivedStatus?.toLowerCase() !== "closed",
+                    onClick: () => {
+                      if (detail.activeApplicantsList?.[0]) {
+                        setSelectedCandidate({
+                          id: detail.activeApplicantsList[0].applicantId,
+                          fullName: detail.activeApplicantsList[0].displayName,
+                          lastName: detail.activeApplicantsList[0].lastName,
+                          firstName: detail.activeApplicantsList[0].firstName,
+                          contactNumber: detail.activeApplicantsList[0].contactNumber,
+                          status: detail.activeApplicantsList[0].statusLabel,
+                          vcode: detail.vcode,
+                          positionTitle: detail.position_title,
+                        });
+                      }
+                      setIsAdvancePipelineModalOpen(true);
+                    },
+                  },
+                  {
+                    label: "Mark Hired",
+                    isAvailable:
+                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                      detail.derivedStatus?.toLowerCase() !== "hired" &&
+                      detail.derivedStatus?.toLowerCase() !== "closed",
+                    onClick: () => {
+                      if (detail.activeApplicantsList?.[0]) {
+                        setSelectedCandidate({
+                          id: detail.activeApplicantsList[0].applicantId,
+                          fullName: detail.activeApplicantsList[0].displayName,
+                          lastName: detail.activeApplicantsList[0].lastName,
+                          firstName: detail.activeApplicantsList[0].firstName,
+                          contactNumber: detail.activeApplicantsList[0].contactNumber,
+                          status: detail.activeApplicantsList[0].statusLabel,
+                          vcode: detail.vcode,
+                          positionTitle: detail.position_title,
+                        });
+                      }
+                      setIsMarkHiredModalOpen(true);
+                    },
+                  },
+                  {
+                    label: "Drop / Backout",
+                    isAvailable:
+                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                      detail.derivedStatus?.toLowerCase() !== "hired" &&
+                      detail.derivedStatus?.toLowerCase() !== "closed",
+                    onClick: () => {
+                      if (detail.activeApplicantsList?.[0]) {
+                        setSelectedCandidate({
+                          id: detail.activeApplicantsList[0].applicantId,
+                          fullName: detail.activeApplicantsList[0].displayName,
+                          lastName: detail.activeApplicantsList[0].lastName,
+                          firstName: detail.activeApplicantsList[0].firstName,
+                          contactNumber: detail.activeApplicantsList[0].contactNumber,
+                          status: detail.activeApplicantsList[0].statusLabel,
+                          vcode: detail.vcode,
+                          positionTitle: detail.position_title,
+                        });
+                      }
+                      setIsFailBackoutModalOpen(true);
+                    },
+                  },
+                  {
+                    label: "Edit Hired Date",
+                    isAvailable:
+                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                      (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
+                    onClick: () => {
+                      if (detail.activeApplicantsList?.[0]) {
+                        setSelectedCandidate({
+                          id: detail.activeApplicantsList[0].applicantId,
+                          fullName: detail.activeApplicantsList[0].displayName,
+                          lastName: detail.activeApplicantsList[0].lastName,
+                          firstName: detail.activeApplicantsList[0].firstName,
+                          contactNumber: detail.activeApplicantsList[0].contactNumber,
+                          status: detail.activeApplicantsList[0].statusLabel,
+                          vcode: detail.vcode,
+                          positionTitle: detail.position_title,
+                          hiredDate: detail.activeApplicantsList[0].onboardDate,
+                        });
+                      }
+                      setIsEditHiredDateModalOpen(true);
+                    },
+                  },
+                  {
+                    label: "Reopen Slot",
+                    isAvailable:
+                      detail.derivedStatus?.toLowerCase() === "failed_backout" ||
+                      detail.derivedStatus?.toLowerCase() === "rejected" ||
+                      detail.derivedStatus?.toLowerCase() === "backout" ||
+                      detail.derivedStatus?.toLowerCase() === "closed",
+                    onClick: () => setIsReopenVacancyModalOpen(true),
                   },
                   {
                     label: "Request Closure",
-                    isAvailable: detail.rowCapabilities?.canRequestClosure === true,
+                    isAvailable: !detail.hasPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed",
+                    onClick: () => setIsRequestClosureModalOpen(true),
                   },
                 ]}
               />
@@ -578,6 +785,143 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     hrcoName: detail.hrcoName,
                   }}
                   onSuccess={() => refetch()}
+                />
+              )}
+
+              {/* Advance Pipeline Modal */}
+              {isAdvancePipelineModalOpen && (
+                <AdvancePipelineModal
+                  isOpen={isAdvancePipelineModalOpen}
+                  onClose={() => {
+                    setIsAdvancePipelineModalOpen(false);
+                    setSelectedCandidate(null);
+                  }}
+                  applicant={
+                    selectedCandidate || {
+                      id: detail.vacancyId,
+                      fullName: detail.applicantName || "Candidate",
+                      contactNumber: detail.contactNumber,
+                      status: detail.pipelineStatus || "pipeline",
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    }
+                  }
+                  onSuccess={() => {
+                    setIsAdvancePipelineModalOpen(false);
+                    setSelectedCandidate(null);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Mark Hired Modal */}
+              {isMarkHiredModalOpen && (
+                <MarkHiredModal
+                  isOpen={isMarkHiredModalOpen}
+                  onClose={() => {
+                    setIsMarkHiredModalOpen(false);
+                    setSelectedCandidate(null);
+                  }}
+                  applicant={
+                    selectedCandidate || {
+                      id: detail.vacancyId,
+                      fullName: detail.applicantName || "Candidate",
+                      lastName: detail.applicantLastName,
+                      firstName: detail.applicantFirstName,
+                      contactNumber: detail.contactNumber,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    }
+                  }
+                  onSuccess={() => {
+                    setIsMarkHiredModalOpen(false);
+                    setSelectedCandidate(null);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Fail / Backout Modal */}
+              {isFailBackoutModalOpen && (
+                <FailBackoutModal
+                  isOpen={isFailBackoutModalOpen}
+                  onClose={() => {
+                    setIsFailBackoutModalOpen(false);
+                    setSelectedCandidate(null);
+                  }}
+                  applicant={
+                    selectedCandidate || {
+                      id: detail.vacancyId,
+                      fullName: detail.applicantName || "Candidate",
+                      status: detail.pipelineStatus || "pipeline",
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    }
+                  }
+                  onSuccess={() => {
+                    setIsFailBackoutModalOpen(false);
+                    setSelectedCandidate(null);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Edit Hired Date Modal */}
+              {isEditHiredDateModalOpen && (
+                <EditHiredDateModal
+                  isOpen={isEditHiredDateModalOpen}
+                  onClose={() => {
+                    setIsEditHiredDateModalOpen(false);
+                    setSelectedCandidate(null);
+                  }}
+                  applicant={
+                    selectedCandidate || {
+                      id: detail.vacancyId,
+                      fullName: detail.applicantName || "Candidate",
+                      vcode: detail.vcode,
+                      hiredDate: detail.onboardDate,
+                    }
+                  }
+                  onSuccess={() => {
+                    setIsEditHiredDateModalOpen(false);
+                    setSelectedCandidate(null);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Reopen Vacancy Modal */}
+              {isReopenVacancyModalOpen && (
+                <ReopenVacancyModal
+                  isOpen={isReopenVacancyModalOpen}
+                  onClose={() => setIsReopenVacancyModalOpen(false)}
+                  vacancy={{
+                    vcode: detail.vcode,
+                    positionTitle: detail.position_title,
+                    storeName: detail.storeName,
+                    accountName: detail.accountName,
+                  }}
+                  onSuccess={() => {
+                    setIsReopenVacancyModalOpen(false);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Request Vacancy Closure Modal */}
+              {isRequestClosureModalOpen && (
+                <RequestVacancyClosureModal
+                  isOpen={isRequestClosureModalOpen}
+                  onClose={() => setIsRequestClosureModalOpen(false)}
+                  vacancy={{
+                    vcode: detail.vcode,
+                    positionTitle: detail.position_title,
+                    storeName: detail.storeName,
+                  }}
+                  onSuccess={() => {
+                    setIsRequestClosureModalOpen(false);
+                    refetch();
+                  }}
                 />
               )}
 

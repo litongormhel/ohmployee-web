@@ -72,7 +72,10 @@ export type VacancyListItem = {
   targetFillDate: string | null;
   urgencyLevel: string | null;
   hrcoName: string | null;
+  applicantId?: string | null;
   applicantName: string | null;
+  contactNumber?: string | null;
+  hiredDate?: string | null;
   hasPenalty: boolean;
   penaltyExposure: number;
   penaltyAmount: number | null;
@@ -397,6 +400,15 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const storeLocation =
     [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
 
+  const applicantId = asString(row.applicant_id ?? row.applicantId ?? row.primary_applicant_id);
+  const contactNumber = asString(
+    row.contact_number ??
+    row.applicant_contact_number ??
+    row.applicant_mobile ??
+    row.mobile_number,
+  );
+  const hiredDate = asString(row.hired_date ?? row.onboard_date);
+
   return {
     id,
     vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
@@ -424,7 +436,10 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     targetFillDate: asString(row.target_fill_date),
     urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
+    applicantId,
     applicantName,
+    contactNumber,
+    hiredDate,
     hasPenalty,
     penaltyExposure,
     penaltyAmount,
@@ -883,6 +898,57 @@ export async function listVacancies(params: VacancyListParams) {
     }
   }
 
+  // Enrich missing applicant IDs and contact details from applicants table
+  const vcodesNeedingApplicants = Array.from(
+    new Set(
+      rows
+        .filter((r) => !r.applicantId && (r.applicantName || r.activeApplicantCount > 0))
+        .map((r) => r.vcode)
+        .filter(Boolean),
+    ),
+  );
+
+  if (vcodesNeedingApplicants.length > 0) {
+    try {
+      const { data: applicantsData } = await supabase
+        .from("applicants")
+        .select("id, vcode, first_name, last_name, contact_number, status, hired_date")
+        .in("vcode", vcodesNeedingApplicants)
+        .order("created_at", { ascending: false });
+
+      if (applicantsData && applicantsData.length > 0) {
+        const applicantMap = new Map<string, {
+          id: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          contact_number?: string | null;
+          status?: string | null;
+          hired_date?: string | null;
+        }>();
+
+        for (const app of applicantsData) {
+          if (!applicantMap.has(app.vcode)) {
+            applicantMap.set(app.vcode, app);
+          }
+        }
+
+        for (const row of rows) {
+          if (!row.applicantId && applicantMap.has(row.vcode)) {
+            const app = applicantMap.get(row.vcode)!;
+            row.applicantId = app.id;
+            row.contactNumber = row.contactNumber || app.contact_number || null;
+            row.hiredDate = row.hiredDate || app.hired_date || null;
+            if (!row.applicantName && (app.first_name || app.last_name)) {
+              row.applicantName = [app.last_name, app.first_name].filter(Boolean).join(", ");
+            }
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback if applicants lookup fails
+    }
+  }
+
   return {
     data: rows,
     totalCount: getTotalCount(rows),
@@ -1083,5 +1149,536 @@ export function useEndorseApplicant() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-detail", variables.vcode] });
     },
   });
+}
+
+// ── 1. Advance Pipeline / Update Applicant Status ─────────────
+export type UpdateApplicantPipelineParams = {
+  applicantId: string;
+  newStatus?: string | null;
+  recruitmentRemarks?: string | null;
+  opsRemarks?: string | null;
+  followUpDate?: string | null;
+  reasonId?: string | null;
+  reasonType?: string | null;
+  vcode?: string;
+};
+
+export async function updateApplicantPipeline(
+  params: UpdateApplicantPipelineParams,
+) {
+  const supabase = createClient();
+
+  const rpcParams: Record<string, unknown> = {
+    p_applicant_id: params.applicantId,
+    p_new_status: params.newStatus ?? null,
+    p_recruitment_remarks: params.recruitmentRemarks ?? null,
+    p_ops_remarks: params.opsRemarks ?? null,
+    p_follow_up_date: params.followUpDate ?? null,
+    p_reason_id: params.reasonId ?? null,
+    p_reason_type: params.reasonType ?? null,
+  };
+
+  const { data, error } = await supabase.rpc(
+    "fn_update_applicant_pipeline",
+    rpcParams,
+  );
+
+  if (error) {
+    // Fallback: direct table update if RPC fails
+    console.warn("fn_update_applicant_pipeline error, attempting fallback update:", error.message);
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (params.newStatus) updates.status = params.newStatus;
+    if (params.recruitmentRemarks !== undefined) updates.recruitment_remarks = params.recruitmentRemarks;
+    if (params.opsRemarks !== undefined) updates.ops_remarks = params.opsRemarks;
+    if (params.followUpDate !== undefined) updates.follow_up_date = params.followUpDate;
+    if (params.newStatus === "backout" || params.newStatus === "Backout") {
+      updates.is_archived = true;
+      updates.backout_date = new Date().toISOString().substring(0, 10);
+    }
+
+    const { error: fallbackError } = await supabase
+      .from("applicants")
+      .update(updates)
+      .eq("id", params.applicantId);
+
+    if (fallbackError) {
+      throw new VacancyDataError("generic", fallbackError.message);
+    }
+    return { success: true };
+  }
+
+  return data;
+}
+
+export function useUpdateApplicantPipeline() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateApplicantPipelineParams) =>
+      updateApplicantPipeline(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      if (variables.vcode) {
+        queryClient.invalidateQueries({
+          queryKey: ["vacancy-detail", variables.vcode],
+        });
+      }
+    },
+  });
+}
+
+// ── 2. Confirm Applicant Onboard / Mark Hired ─────────────────
+export type ConfirmApplicantOnboardParams = {
+  applicantId: string;
+  lastName: string;
+  firstName: string;
+  middleName?: string | null;
+  fullName: string;
+  contactNumber: string;
+  hiredByUserId?: string | null;
+  hiredDate: string; // YYYY-MM-DD
+  endorsedByDeployerId?: string | null;
+  endorsedByName?: string | null;
+  remarks?: string | null;
+  rovingAssignmentId?: string | null;
+  vacancyRequirementId?: string | null;
+  vcode?: string;
+};
+
+export async function confirmApplicantOnboard(
+  params: ConfirmApplicantOnboardParams,
+) {
+  const supabase = createClient();
+
+  // Normalize contact number
+  const cleanContact = params.contactNumber.replace(/[^0-9]/g, "");
+  const normalizedContact =
+    cleanContact.length === 10 && cleanContact.startsWith("9")
+      ? `0${cleanContact}`
+      : cleanContact;
+
+  const rpcParams: Record<string, unknown> = {
+    p_applicant_id: params.applicantId,
+    p_last_name: params.lastName,
+    p_first_name: params.firstName,
+    p_middle_name: params.middleName || null,
+    p_full_name: params.fullName,
+    p_contact_number: normalizedContact,
+    p_remarks: params.remarks || null,
+    p_roving_assignment_id: params.rovingAssignmentId || null,
+    p_hired_by_user_id: params.hiredByUserId,
+    p_hired_date: params.hiredDate,
+    p_endorsed_by_deployer_id: params.endorsedByDeployerId || null,
+    p_endorsed_by_name: params.endorsedByName || null,
+  };
+
+  if (params.vacancyRequirementId) {
+    rpcParams.p_vacancy_requirement_id = params.vacancyRequirementId;
+  }
+
+  const { data, error } = await supabase.rpc(
+    "confirm_applicant_onboard",
+    rpcParams,
+  );
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export function useConfirmApplicantOnboard() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ConfirmApplicantOnboardParams) =>
+      confirmApplicantOnboard(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hired-applicants"] });
+      if (variables.vcode) {
+        queryClient.invalidateQueries({
+          queryKey: ["vacancy-detail", variables.vcode],
+        });
+      }
+    },
+  });
+}
+
+// ── 3. Fail / Backout Applicant ──────────────────────────────
+export type FailBackoutParams = {
+  applicantId: string;
+  reason: string;
+  reasonId?: string | null;
+  status: "Backout" | "Failed" | "Rejected";
+  vcode: string;
+};
+
+export async function failBackoutApplicant(params: FailBackoutParams) {
+  const supabase = createClient();
+  const statusCode =
+    params.status.toLowerCase() === "backout" ? "backout" : "rejected";
+
+  const { error } = await supabase
+    .from("applicants")
+    .update({
+      status: params.status,
+      backout_reason: params.reason,
+      backout_date: new Date().toISOString().substring(0, 10),
+      is_archived: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.applicantId);
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  // Also record in applicant_status_history if available
+  try {
+    await supabase.rpc("fn_update_applicant_pipeline", {
+      p_applicant_id: params.applicantId,
+      p_new_status: statusCode,
+      p_reason_id: params.reasonId || null,
+      p_reason_type: statusCode,
+    });
+  } catch {
+    // Non-fatal if history logging fails
+  }
+
+  // If this vacancy now has 0 remaining active pipeline candidates, return vacancy status to 'Open'
+  const { data: remainingActive } = await supabase
+    .from("applicants")
+    .select("id")
+    .eq("vacancy_vcode", params.vcode)
+    .or("is_archived.is.null,is_archived.eq.false")
+    .neq("id", params.applicantId);
+
+  if (!remainingActive || remainingActive.length === 0) {
+    await supabase
+      .from("vacancies")
+      .update({
+        status: "Open",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("vcode", params.vcode);
+  }
+
+  return { success: true };
+}
+
+export function useFailBackoutApplicant() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: FailBackoutParams) => failBackoutApplicant(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({
+        queryKey: ["vacancy-detail", variables.vcode],
+      });
+    },
+  });
+}
+
+// ── 4. Reopen Vacancy Modal / Recycling to Open Queue ────────
+export type ReopenVacancyParams = {
+  vcode: string;
+  reason?: string;
+  vacantDate?: string;
+};
+
+export async function reopenVacancy(params: ReopenVacancyParams) {
+  const supabase = createClient();
+  const vcode = params.vcode.trim();
+
+  // Reset status to Open and clear pending closure flags
+  const updatePayload: Record<string, unknown> = {
+    status: "Open",
+    is_archived: false,
+    has_pending_closure: false,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (params.vacantDate) {
+    updatePayload.vacant_date = params.vacantDate;
+  }
+
+  const { data, error } = await supabase
+    .from("vacancies")
+    .update(updatePayload)
+    .eq("vcode", vcode)
+    .select()
+    .single();
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export function useReopenVacancy() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ReopenVacancyParams) => reopenVacancy(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({
+        queryKey: ["vacancy-detail", variables.vcode],
+      });
+    },
+  });
+}
+
+// ── 5. Vacancy Closure Management ────────────────────────────
+export type RequestVacancyClosureParams = {
+  vcode: string;
+  reason: string;
+  details?: string;
+  requestedBy: string;
+  requestedByRole?: string;
+  requestedByUserId?: string | null;
+};
+
+export async function requestVacancyClosure(
+  params: RequestVacancyClosureParams,
+) {
+  const supabase = createClient();
+
+  try {
+    const { data, error } = await supabase.rpc(
+      "rpc_submit_vacancy_closure_request",
+      {
+        p_vacancy_vcode: params.vcode,
+        p_reason: params.reason,
+        p_details: params.details || null,
+        p_requested_by: params.requestedBy,
+        p_requested_by_role: params.requestedByRole || "Ops",
+        p_requested_by_user_id: params.requestedByUserId || null,
+      },
+    );
+    if (error) throw error;
+    return data;
+  } catch {
+    // Fallback: direct table insert
+    const { data, error: insertError } = await supabase
+      .from("vacancy_closure_requests")
+      .insert({
+        vacancy_vcode: params.vcode,
+        reason: params.reason,
+        details: params.details || null,
+        requested_by: params.requestedBy,
+        requested_by_user_id: params.requestedByUserId || null,
+        status: "Pending",
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      throw new VacancyDataError("generic", insertError.message);
+    }
+    return data;
+  }
+}
+
+export function useRequestVacancyClosure() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RequestVacancyClosureParams) =>
+      requestVacancyClosure(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({
+        queryKey: ["vacancy-detail", variables.vcode],
+      });
+    },
+  });
+}
+
+export type ReviewClosureRequestParams = {
+  requestId: string;
+  status: "Approved" | "Rejected";
+  reviewedBy: string;
+  remarks?: string;
+  vcode?: string;
+};
+
+export async function reviewClosureRequest(
+  params: ReviewClosureRequestParams,
+) {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("vacancy_closure_requests")
+    .update({
+      status: params.status,
+      reviewed_by: params.reviewedBy,
+      reviewed_at: new Date().toISOString(),
+      reviewer_remarks: params.remarks || null,
+    })
+    .eq("id", params.requestId);
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  return { success: true };
+}
+
+export function useReviewClosureRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ReviewClosureRequestParams) =>
+      reviewClosureRequest(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      if (variables.vcode) {
+        queryClient.invalidateQueries({
+          queryKey: ["vacancy-detail", variables.vcode],
+        });
+      }
+    },
+  });
+}
+
+export async function approveAllClosureRequests(requestIds?: string[]) {
+  const supabase = createClient();
+  const rpcParams: Record<string, unknown> = {};
+  if (requestIds && requestIds.length > 0) {
+    rpcParams.p_request_ids = requestIds;
+  }
+
+  const { data, error } = await supabase.rpc(
+    "approve_all_vacancy_closure_requests",
+    rpcParams,
+  );
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export function useApproveAllClosureRequests() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestIds?: string[]) =>
+      approveAllClosureRequests(requestIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+    },
+  });
+}
+
+// ── 6. Update Hired Applicant Date ───────────────────────────
+export type UpdateHiredDateParams = {
+  applicantId: string;
+  hiredDate: string; // YYYY-MM-DD
+};
+
+export async function updateHiredApplicantDate(params: UpdateHiredDateParams) {
+  const supabase = createClient();
+  const hiredDate = new Date(params.hiredDate);
+  const visibleUntil = new Date(
+    hiredDate.getFullYear(),
+    hiredDate.getMonth(),
+    hiredDate.getDate() + 15,
+  ).toISOString();
+
+  const { error } = await supabase
+    .from("applicants")
+    .update({
+      hired_date: params.hiredDate,
+      hired_visible_until: visibleUntil,
+    })
+    .eq("id", params.applicantId);
+
+  if (error) {
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  return { success: true };
+}
+
+export function useUpdateHiredApplicantDate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateHiredDateParams) =>
+      updateHiredApplicantDate(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hired-applicants"] });
+    },
+  });
+}
+
+// ── 7. Fetch Reasons (Backout / Rejection) ───────────────────
+export async function fetchBackoutReasons(): Promise<Array<{ id: string; reason: string }>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("backout_reasons")
+    .select("id, reason")
+    .eq("is_active", true)
+    .order("reason");
+
+  if (error) {
+    console.warn("fetchBackoutReasons error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function fetchRejectedReasons(): Promise<Array<{ id: string; reason: string }>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("rejected_reasons")
+    .select("id, reason")
+    .eq("is_active", true)
+    .order("reason");
+
+  if (error) {
+    console.warn("fetchRejectedReasons error:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function fetchHiredApplicantsList(vcode?: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_hired_applicants", {
+    p_vcode: vcode || null,
+  });
+
+  if (error) {
+    console.warn("fetchHiredApplicants error:", error.message);
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
 }
 

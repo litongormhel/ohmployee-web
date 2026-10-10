@@ -4,6 +4,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Archive,
   FileSearch,
   LockKeyhole,
   ShieldOff,
@@ -17,10 +18,17 @@ import {
   AddApplicantModal,
   type VacancyContextSummary,
 } from "@/components/vacancy/AddApplicantModal";
+import { AdvancePipelineModal } from "@/components/vacancy/AdvancePipelineModal";
+import { MarkHiredModal } from "@/components/vacancy/MarkHiredModal";
+import { FailBackoutModal } from "@/components/vacancy/FailBackoutModal";
+import { ReopenVacancyModal } from "@/components/vacancy/ReopenVacancyModal";
+import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyClosureModal";
+import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
 import {
   VacancyDataError,
   getVacancySummary,
   listVacancies,
+  useApproveAllClosureRequests,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
@@ -71,7 +79,54 @@ export default function VacancyPage() {
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [endorseTargetVacancy, setEndorseTargetVacancy] = useState<VacancyContextSummary | null>(null);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
+  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
+  const [advanceTargetCandidate, setAdvanceTargetCandidate] = useState<{
+    id: string;
+    fullName: string;
+    contactNumber?: string | null;
+    status: string;
+    vcode: string;
+    positionTitle?: string | null;
+  } | null>(null);
+  const [isMarkHiredModalOpen, setIsMarkHiredModalOpen] = useState(false);
+  const [markHiredTargetCandidate, setMarkHiredTargetCandidate] = useState<{
+    id: string;
+    fullName: string;
+    contactNumber?: string | null;
+    vcode: string;
+    positionTitle?: string | null;
+  } | null>(null);
+  const [isFailBackoutModalOpen, setIsFailBackoutModalOpen] = useState(false);
+  const [failBackoutTargetCandidate, setFailBackoutTargetCandidate] = useState<{
+    id: string;
+    fullName: string;
+    status: string;
+    vcode: string;
+    positionTitle?: string | null;
+  } | null>(null);
+  const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [reopenTargetVacancy, setReopenTargetVacancy] = useState<{
+    vcode: string;
+    positionTitle?: string | null;
+    storeName?: string | null;
+    accountName?: string | null;
+  } | null>(null);
+  const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
+  const [closureTargetVacancy, setClosureTargetVacancy] = useState<{
+    vcode: string;
+    positionTitle?: string | null;
+    storeName?: string | null;
+  } | null>(null);
+  const [isEditHiredDateModalOpen, setIsEditHiredDateModalOpen] = useState(false);
+  const [editHiredDateTargetCandidate, setEditHiredDateTargetCandidate] = useState<{
+    id: string;
+    fullName: string;
+    vcode: string;
+    hiredDate?: string | null;
+  } | null>(null);
   const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
+
+  const approveAllClosuresMutation = useApproveAllClosureRequests();
 
   const queryParams = useMemo(
     () => ({
@@ -275,6 +330,69 @@ export default function VacancyPage() {
     setTimeout(() => {
       setSuccessToast((prev) => (prev?.message.includes(candidateName) ? null : prev));
     }, 6000);
+  }
+
+  function handleAdvancePipeline(row: VacancyListItem) {
+    setAdvanceTargetCandidate({
+      id: row.applicantId || row.id,
+      fullName: row.applicantName || "Candidate",
+      contactNumber: row.contactNumber,
+      status: (typeof row.pipelineStatus === "string" ? row.pipelineStatus : null) || "pipeline",
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+    });
+    setIsAdvanceModalOpen(true);
+  }
+
+  function handleMarkHired(row: VacancyListItem) {
+    setMarkHiredTargetCandidate({
+      id: row.applicantId || row.id,
+      fullName: row.applicantName || "Candidate",
+      contactNumber: row.contactNumber,
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+    });
+    setIsMarkHiredModalOpen(true);
+  }
+
+  function handleFailBackout(row: VacancyListItem) {
+    setFailBackoutTargetCandidate({
+      id: row.applicantId || row.id,
+      fullName: row.applicantName || "Candidate",
+      status: (typeof row.pipelineStatus === "string" ? row.pipelineStatus : null) || "pipeline",
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+    });
+    setIsFailBackoutModalOpen(true);
+  }
+
+  function handleReopenVacancy(row: VacancyListItem) {
+    setReopenTargetVacancy({
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+      storeName: row.storeName,
+      accountName: row.accountName,
+    });
+    setIsReopenModalOpen(true);
+  }
+
+  function handleRequestClosure(row: VacancyListItem) {
+    setClosureTargetVacancy({
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+      storeName: row.storeName,
+    });
+    setIsClosureModalOpen(true);
+  }
+
+  function handleEditHiredDate(row: VacancyListItem) {
+    setEditHiredDateTargetCandidate({
+      id: row.applicantId || row.id,
+      fullName: row.applicantName || "Candidate",
+      vcode: row.vcode,
+      hiredDate: row.hiredDate,
+    });
+    setIsEditHiredDateModalOpen(true);
   }
 
   function retryVacancyReads() {
@@ -486,6 +604,42 @@ export default function VacancyPage() {
         </AdminFilterBar>
       </div>
 
+      {status === "closure" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700">
+          <div className="flex items-center gap-2">
+            <Archive className="h-4 w-4 text-slate-500" />
+            <span>
+              <strong>Closure Queue:</strong> Requisitions flagged for cessation or slot cancellation.
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={approveAllClosuresMutation.isPending || rows.length === 0}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Are you sure you want to approve all pending vacancy closure requests? This will close matching requisitions.",
+                )
+              ) {
+                approveAllClosuresMutation.mutate(undefined, {
+                  onSuccess: () => {
+                    setSuccessToast({
+                      message: "All pending closure requests approved successfully.",
+                    });
+                    retryVacancyReads();
+                  },
+                });
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition shadow-xs"
+          >
+            {approveAllClosuresMutation.isPending
+              ? "Approving..."
+              : "Approve All Pending Closures"}
+          </button>
+        </div>
+      )}
+
       <VacancyTable
         errorKind={listErrorKind}
         isLoading={listQuery.isLoading}
@@ -493,6 +647,12 @@ export default function VacancyPage() {
         onRetry={retryVacancyReads}
         onSelect={selectVacancy}
         onAddApplicant={handleOpenAddApplicant}
+        onAdvancePipeline={handleAdvancePipeline}
+        onMarkHired={handleMarkHired}
+        onFailBackout={handleFailBackout}
+        onReopenVacancy={handleReopenVacancy}
+        onRequestClosure={handleRequestClosure}
+        onEditHiredDate={handleEditHiredDate}
         page={page}
         pageSize={pageSize}
         rows={rows}
@@ -517,6 +677,120 @@ export default function VacancyPage() {
           }}
           vacancy={endorseTargetVacancy}
           onSuccess={handleCandidateEndorsed}
+        />
+      )}
+
+      {isAdvanceModalOpen && advanceTargetCandidate && (
+        <AdvancePipelineModal
+          isOpen={isAdvanceModalOpen}
+          onClose={() => {
+            setIsAdvanceModalOpen(false);
+            setAdvanceTargetCandidate(null);
+          }}
+          applicant={advanceTargetCandidate}
+          onSuccess={() => {
+            setIsAdvanceModalOpen(false);
+            setAdvanceTargetCandidate(null);
+            setSuccessToast({
+              message: `Applicant pipeline stage advanced successfully.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isMarkHiredModalOpen && markHiredTargetCandidate && (
+        <MarkHiredModal
+          isOpen={isMarkHiredModalOpen}
+          onClose={() => {
+            setIsMarkHiredModalOpen(false);
+            setMarkHiredTargetCandidate(null);
+          }}
+          applicant={markHiredTargetCandidate}
+          onSuccess={(workerName) => {
+            setIsMarkHiredModalOpen(false);
+            setMarkHiredTargetCandidate(null);
+            setSuccessToast({
+              message: `Candidate ${workerName} marked as hired and deployed successfully! Requisition moved to Hired queue.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isFailBackoutModalOpen && failBackoutTargetCandidate && (
+        <FailBackoutModal
+          isOpen={isFailBackoutModalOpen}
+          onClose={() => {
+            setIsFailBackoutModalOpen(false);
+            setFailBackoutTargetCandidate(null);
+          }}
+          applicant={failBackoutTargetCandidate}
+          onSuccess={() => {
+            setIsFailBackoutModalOpen(false);
+            setFailBackoutTargetCandidate(null);
+            setSuccessToast({
+              message: `Applicant status updated. Vacancy slot returned to Open pooling queue.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isReopenModalOpen && reopenTargetVacancy && (
+        <ReopenVacancyModal
+          isOpen={isReopenModalOpen}
+          onClose={() => {
+            setIsReopenModalOpen(false);
+            setReopenTargetVacancy(null);
+          }}
+          vacancy={reopenTargetVacancy}
+          onSuccess={() => {
+            setIsReopenModalOpen(false);
+            setReopenTargetVacancy(null);
+            setSuccessToast({
+              message: `Vacancy slot ${reopenTargetVacancy.vcode} reopened successfully into the Open queue.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isClosureModalOpen && closureTargetVacancy && (
+        <RequestVacancyClosureModal
+          isOpen={isClosureModalOpen}
+          onClose={() => {
+            setIsClosureModalOpen(false);
+            setClosureTargetVacancy(null);
+          }}
+          vacancy={closureTargetVacancy}
+          onSuccess={() => {
+            setIsClosureModalOpen(false);
+            setClosureTargetVacancy(null);
+            setSuccessToast({
+              message: `Closure request submitted for vacancy ${closureTargetVacancy.vcode}. Moved to Closure review queue.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isEditHiredDateModalOpen && editHiredDateTargetCandidate && (
+        <EditHiredDateModal
+          isOpen={isEditHiredDateModalOpen}
+          onClose={() => {
+            setIsEditHiredDateModalOpen(false);
+            setEditHiredDateTargetCandidate(null);
+          }}
+          applicant={editHiredDateTargetCandidate}
+          onSuccess={() => {
+            setIsEditHiredDateModalOpen(false);
+            setEditHiredDateTargetCandidate(null);
+            setSuccessToast({
+              message: `Hired date updated successfully. 15-day display window recalibrated.`,
+            });
+            retryVacancyReads();
+          }}
         />
       )}
 
