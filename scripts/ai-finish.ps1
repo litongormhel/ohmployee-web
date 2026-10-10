@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w29m720d" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w31e922b" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "docs/audit/more_module_mobile_web_parity_audit.md:src/lib/queries/more.ts:src/components/more/EditLockControlModal.tsx:src/components/more/TempPermissionModal.tsx:src/components/more/DataArchivalCenterModal.tsx:src/components/more:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "docs/audit/hr_emploc_mobile_web_parity_audit.md:src/components/hr-emploc/AssignEmployeeNoModal.tsx:src/components/hr-emploc/DeployToPlantillaModal.tsx:src/components/hr-emploc/RequestEmplocDeletionModal.tsx:scripts/ai-finish.ps1"
 }
 
 Write-Host "======================================================"
