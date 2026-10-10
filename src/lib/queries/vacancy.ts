@@ -907,26 +907,106 @@ export async function listVacancies(params: VacancyListParams) {
     }
   }
 
-  // Enrich missing hrcoName via vacancies table lookup (e.g. when vw_vacancy_list returns null due to strict role mismatch)
-  const rowsMissingHrco = rows.filter((r) => !r.hrcoName && r.vcode);
+  // Enrich missing hrcoName via vacancies table lookup and account-level fallback
+  const rowsMissingHrco = rows.filter((r) => !r.hrcoName);
   if (rowsMissingHrco.length > 0) {
     try {
-      const vcodesMissingHrco = Array.from(new Set(rowsMissingHrco.map((r) => r.vcode)));
-      const { data: vacHrcoData } = await supabase
-        .from("vacancies")
-        .select("vcode, hrco_name")
-        .in("vcode", vcodesMissingHrco);
+      const vcodesMissingHrco = Array.from(
+        new Set(rowsMissingHrco.map((r) => r.vcode).filter(Boolean)),
+      );
+      if (vcodesMissingHrco.length > 0) {
+        const { data: vacHrcoData } = await supabase
+          .from("vacancies")
+          .select("vcode, hrco_name, account_id, account")
+          .in("vcode", vcodesMissingHrco);
 
-      if (vacHrcoData && vacHrcoData.length > 0) {
-        const hrcoMap = new Map<string, string>();
-        for (const v of vacHrcoData) {
-          if (v.vcode && v.hrco_name) {
-            hrcoMap.set(v.vcode, v.hrco_name);
+        if (vacHrcoData && vacHrcoData.length > 0) {
+          const hrcoMap = new Map<string, string>();
+          for (const v of vacHrcoData) {
+            if (v.vcode && v.hrco_name) {
+              hrcoMap.set(v.vcode, v.hrco_name);
+            }
+          }
+          for (const row of rows) {
+            if (!row.hrcoName && hrcoMap.has(row.vcode)) {
+              row.hrcoName = hrcoMap.get(row.vcode) ?? null;
+            }
           }
         }
+      }
+
+      // Secondary fallback: if still missing hrcoName, resolve via account HRCO assignment
+      const stillMissing = rows.filter((r) => !r.hrcoName);
+      if (stillMissing.length > 0) {
+        const accountIds = Array.from(
+          new Set(stillMissing.map((r) => r.accountId).filter(Boolean) as string[]),
+        );
+        const accountNames = Array.from(
+          new Set(stillMissing.map((r) => r.accountName).filter(Boolean) as string[]),
+        );
+
+        let acctQuery = supabase
+          .from("accounts")
+          .select("id, account_name, hrco_user_id, users_profile!accounts_hrco_user_id_fkey(full_name)");
+
+        if (accountIds.length > 0) {
+          acctQuery = acctQuery.in("id", accountIds);
+        } else if (accountNames.length > 0) {
+          acctQuery = acctQuery.in("account_name", accountNames);
+        }
+
+        const { data: acctsData, error: acctErr } = await acctQuery;
+
+        // If join fails due to relationship name, query accounts and users_profile separately
+        const acctHrcoMap = new Map<string, string>();
+        if (!acctErr && acctsData) {
+          for (const a of acctsData as Array<Record<string, unknown>>) {
+            const profile = a.users_profile as Record<string, unknown> | null;
+            const hrcoFullName = asString(profile?.full_name);
+            if (hrcoFullName) {
+              if (a.id) acctHrcoMap.set(String(a.id), hrcoFullName);
+              if (a.account_name) acctHrcoMap.set(String(a.account_name).toLowerCase().trim(), hrcoFullName);
+            }
+          }
+        } else {
+          // Manual fallback: select accounts then users_profile
+          const { data: rawAccounts } = await supabase
+            .from("accounts")
+            .select("id, account_name, hrco_user_id")
+            .in("account_name", accountNames.length > 0 ? accountNames : ["ACTISERVE"]);
+
+          if (rawAccounts && rawAccounts.length > 0) {
+            const hrcoUserIds = Array.from(
+              new Set(rawAccounts.map((a) => a.hrco_user_id).filter(Boolean)),
+            );
+            if (hrcoUserIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from("users_profile")
+                .select("id, full_name")
+                .in("id", hrcoUserIds);
+
+              if (profiles) {
+                const profileMap = new Map(profiles.map((p) => [p.id, p.full_name]));
+                for (const a of rawAccounts) {
+                  const name = a.hrco_user_id ? profileMap.get(a.hrco_user_id) : null;
+                  if (name) {
+                    if (a.id) acctHrcoMap.set(String(a.id), name);
+                    if (a.account_name) acctHrcoMap.set(String(a.account_name).toLowerCase().trim(), name);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Apply account HRCO name to remaining rows
         for (const row of rows) {
-          if (!row.hrcoName && hrcoMap.has(row.vcode)) {
-            row.hrcoName = hrcoMap.get(row.vcode) ?? null;
+          if (!row.hrcoName) {
+            const nameByAcctId = row.accountId ? acctHrcoMap.get(row.accountId) : null;
+            const nameByAcctName = row.accountName
+              ? acctHrcoMap.get(row.accountName.toLowerCase().trim())
+              : null;
+            row.hrcoName = nameByAcctId || nameByAcctName || row.hrcoName || null;
           }
         }
       }
@@ -1487,12 +1567,34 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
       const { data: storeRow } = await storeQuery.limit(1).maybeSingle();
       if (storeRow) {
         normalized.areaCity = normalized.areaCity || storeRow.area_city || null;
-        normalized.areaProvince =
-          normalized.areaProvince || storeRow.area_province || storeRow.province || null;
         normalized.storeLocation =
           [storeRow.area_city, storeRow.area_province || storeRow.province]
             .filter(Boolean)
             .join(" • ") || null;
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  if (!normalized.hrcoName && (normalized.accountId || normalized.accountName)) {
+    try {
+      const { data: rawAccount } = await supabase
+        .from("accounts")
+        .select("id, account_name, hrco_user_id")
+        .eq(normalized.accountId ? "id" : "account_name", normalized.accountId || normalized.accountName)
+        .maybeSingle();
+
+      if (rawAccount?.hrco_user_id) {
+        const { data: prof } = await supabase
+          .from("users_profile")
+          .select("full_name")
+          .eq("id", rawAccount.hrco_user_id)
+          .maybeSingle();
+
+        if (prof?.full_name) {
+          normalized.hrcoName = prof.full_name;
+        }
       }
     } catch {
       // Graceful fallback
