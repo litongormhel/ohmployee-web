@@ -907,6 +907,34 @@ export async function listVacancies(params: VacancyListParams) {
     }
   }
 
+  // Enrich missing hrcoName via vacancies table lookup (e.g. when vw_vacancy_list returns null due to strict role mismatch)
+  const rowsMissingHrco = rows.filter((r) => !r.hrcoName && r.vcode);
+  if (rowsMissingHrco.length > 0) {
+    try {
+      const vcodesMissingHrco = Array.from(new Set(rowsMissingHrco.map((r) => r.vcode)));
+      const { data: vacHrcoData } = await supabase
+        .from("vacancies")
+        .select("vcode, hrco_name")
+        .in("vcode", vcodesMissingHrco);
+
+      if (vacHrcoData && vacHrcoData.length > 0) {
+        const hrcoMap = new Map<string, string>();
+        for (const v of vacHrcoData) {
+          if (v.vcode && v.hrco_name) {
+            hrcoMap.set(v.vcode, v.hrco_name);
+          }
+        }
+        for (const row of rows) {
+          if (!row.hrcoName && hrcoMap.has(row.vcode)) {
+            row.hrcoName = hrcoMap.get(row.vcode) ?? null;
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   // Enrich applicant details based on tab context
   const currentTab = params.status;
 
