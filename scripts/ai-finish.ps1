@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w21f812c" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w22a913d" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/components/vacancy/AddApplicantModal.tsx:src/components/modals/AddApplicantModal.tsx:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "src/components/vacancy/AddApplicantModal.tsx:src/components/modals/AddApplicantModal.tsx:src/components/vacancy/AdvancePipelineModal.tsx:src/components/vacancy/MarkHiredModal.tsx:src/components/vacancy/FailBackoutModal.tsx:src/components/vacancy/ReopenVacancyModal.tsx:src/components/vacancy/RequestVacancyClosureModal.tsx:src/components/vacancy/EditHiredDateModal.tsx:scripts/ai-finish.ps1"
 }
 
 Write-Host "======================================================"
