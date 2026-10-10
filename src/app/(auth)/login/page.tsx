@@ -17,11 +17,20 @@ export default function LoginPage() {
     let isMounted = true
 
     async function redirectAuthenticatedUser() {
-      const supabase = createClient()
-      const { data } = await supabase.auth.getSession()
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase.auth.getSession()
 
-      if (isMounted && data.session) {
-        router.replace('/dashboard')
+        if (error) {
+          console.warn("[login] Error fetching session:", error)
+          return
+        }
+
+        if (isMounted && data?.session) {
+          router.replace('/dashboard')
+        }
+      } catch (err) {
+        console.warn("[login] Error during session check:", err)
       }
     }
 

@@ -185,141 +185,181 @@ function getBlockedAccess(status: string | null | undefined): WebBlockedAccess {
   }
 }
 
-export async function loadCurrentUserContext() {
-  const supabase = createClient();
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.getSession();
+export async function loadCurrentUserContext(): Promise<{
+  currentUser: WebCurrentUserContext | null;
+  blockedAccess?: WebBlockedAccess | null;
+  error?: unknown;
+}> {
+  try {
+    const supabase = createClient();
 
-  if (sessionError || !sessionData.session) {
-    return { currentUser: null, error: sessionError };
-  }
+    console.info("[auth] Checking Supabase session...");
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (sessionError) {
+      console.warn("[auth] Supabase session retrieval error:", sessionError);
+      return { currentUser: null, error: sessionError, blockedAccess: null };
+    }
 
-  if (userError || !userData.user) {
-    await supabase.auth.signOut();
-    return { currentUser: null, error: userError };
-  }
+    if (!sessionData?.session) {
+      console.info("[auth] No active session found. User is unauthenticated.");
+      return { currentUser: null, error: null, blockedAccess: null };
+    }
 
-  const user = userData.user;
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "get_web_current_user_context",
-  );
+    console.info("[auth] Active session verified for user id:", sessionData.session.user.id);
+    const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (rpcError) {
+    if (userError || !userData?.user) {
+      console.warn("[auth] getUser failed despite active session:", userError);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Ignore sign-out failure
+      }
+      return { currentUser: null, error: userError, blockedAccess: null };
+    }
+
+    const user = userData.user;
+    console.info("[auth] Invoking get_web_current_user_context RPC for:", user.id);
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "get_web_current_user_context",
+    );
+
+    if (rpcError) {
+      console.error("[auth] get_web_current_user_context RPC error:", rpcError);
+      return {
+        currentUser: null,
+        blockedAccess: getBlockedAccess("rpc_failure"),
+        error: rpcError,
+      };
+    }
+
+    const rpcRow = getRpcRow(rpcData);
+
+    if (!rpcRow) {
+      console.error("[auth] get_web_current_user_context returned empty/unrecognized response:", rpcData);
+      return {
+        currentUser: null,
+        blockedAccess: getBlockedAccess("rpc_failure"),
+        error: null,
+      };
+    }
+
+    const accessStatus = rpcRow.access_status ?? rpcRow.status;
+
+    if (accessStatus !== "allowed") {
+      console.warn("[auth] User access status is not 'allowed':", accessStatus);
+      return {
+        currentUser: null,
+        blockedAccess: getBlockedAccess(accessStatus),
+        error: null,
+      };
+    }
+
+    const allowedModuleKeys = normalizeStringArray(rpcRow.allowed_module_keys);
+    const moduleCapabilities = normalizeCapabilities(
+      rpcRow.module_capabilities ?? rpcRow.capabilities,
+    );
+
+    if (
+      (rpcRow.auth_user_id && rpcRow.auth_user_id !== user.id) ||
+      !allowedModuleKeys ||
+      !moduleCapabilities ||
+      allowedModuleKeys.some((moduleKey) => !KNOWN_MODULE_KEYS.has(moduleKey)) ||
+      Object.keys(moduleCapabilities).some(
+        (moduleKey) => !KNOWN_MODULE_KEYS.has(moduleKey),
+      )
+    ) {
+      console.error("[auth] RPC validation failed: row payload mismatch or unrecognized modules", {
+        rpcUserId: rpcRow.auth_user_id,
+        authUserId: user.id,
+        allowedModuleKeys,
+      });
+      return {
+        currentUser: null,
+        blockedAccess: getBlockedAccess("rpc_failure"),
+        error: null,
+      };
+    }
+
+    const rawGroupScope = (rpcRow.group_scope && typeof rpcRow.group_scope === "object"
+      ? rpcRow.group_scope
+      : {}) as Record<string, unknown>;
+    const groupMode = rawGroupScope.mode as string | undefined;
+    const groupScopeMode: WebScopeMode =
+      groupMode === "global" || groupMode === "all"
+        ? "all"
+        : groupMode === "scoped"
+        ? "scoped"
+        : "none";
+    const groupScopeIds = Array.isArray(rawGroupScope.groups)
+      ? (rawGroupScope.groups
+          .map((g) => (g && typeof g === "object" ? (g as Record<string, unknown>).group_id : ""))
+          .filter((id): id is string => typeof id === "string" && id.length > 0))
+      : [];
+
+    const rawAccountScope = (rpcRow.account_scope && typeof rpcRow.account_scope === "object"
+      ? rpcRow.account_scope
+      : {}) as Record<string, unknown>;
+    const accountMode = rawAccountScope.mode as string | undefined;
+    const accountScopeMode: WebScopeMode =
+      accountMode === "global" || accountMode === "all"
+        ? "all"
+        : accountMode === "scoped" ||
+          accountMode === "account" ||
+          accountMode === "group_all_accounts"
+        ? "scoped"
+        : "none";
+    const accountScopeIds = Array.isArray(rawAccountScope.accounts)
+      ? (rawAccountScope.accounts
+          .map((a) => {
+            if (a && typeof a === "object") {
+              const acc = a as Record<string, unknown>;
+              return (acc.account_id ?? acc.id) as string;
+            }
+            return "";
+          })
+          .filter((id): id is string => typeof id === "string" && id.length > 0))
+      : [];
+
+    console.info(
+      `[auth] Workspace context loaded successfully. Role: ${rpcRow.role_name || rpcRow.role_key || "unknown"}, Modules: [${allowedModuleKeys.join(", ")}]`
+    );
+
+    return {
+      currentUser: {
+        authUserId: rpcRow.auth_user_id ?? user.id,
+        profileId: rpcRow.profile_id ?? null,
+        displayName: rpcRow.full_name ?? rpcRow.display_name ?? getDisplayName(user),
+        email: rpcRow.email ?? user.email ?? null,
+        roleKey: rpcRow.role_key ?? null,
+        roleName: rpcRow.role_name ?? null,
+        groupScope: {
+          mode: groupScopeMode,
+          ids: groupScopeIds,
+        },
+        accountScope: {
+          mode: accountScopeMode,
+          ids: accountScopeIds,
+        },
+        allowedModuleKeys,
+        moduleCapabilities,
+        moduleAccess: buildModuleAccess(allowedModuleKeys),
+        accessStatus: "allowed",
+        source: "get_web_current_user_context",
+      } satisfies WebCurrentUserContext,
+      error: null,
+      blockedAccess: null,
+    };
+  } catch (err) {
+    console.error("[auth] Unexpected failure during loadCurrentUserContext:", err);
     return {
       currentUser: null,
       blockedAccess: getBlockedAccess("rpc_failure"),
-      error: rpcError,
+      error: err,
     };
   }
-
-  const rpcRow = getRpcRow(rpcData);
-
-  if (!rpcRow) {
-    return {
-      currentUser: null,
-      blockedAccess: getBlockedAccess("rpc_failure"),
-      error: null,
-    };
-  }
-
-  const accessStatus = rpcRow.access_status ?? rpcRow.status;
-
-  if (accessStatus !== "allowed") {
-    return {
-      currentUser: null,
-      blockedAccess: getBlockedAccess(accessStatus),
-      error: null,
-    };
-  }
-
-  const allowedModuleKeys = normalizeStringArray(rpcRow.allowed_module_keys);
-  const moduleCapabilities = normalizeCapabilities(
-    rpcRow.module_capabilities ?? rpcRow.capabilities,
-  );
-
-  if (
-    (rpcRow.auth_user_id && rpcRow.auth_user_id !== user.id) ||
-    !allowedModuleKeys ||
-    !moduleCapabilities ||
-    allowedModuleKeys.some((moduleKey) => !KNOWN_MODULE_KEYS.has(moduleKey)) ||
-    Object.keys(moduleCapabilities).some(
-      (moduleKey) => !KNOWN_MODULE_KEYS.has(moduleKey),
-    )
-  ) {
-    return {
-      currentUser: null,
-      blockedAccess: getBlockedAccess("rpc_failure"),
-      error: null,
-    };
-  }
-
-  const rawGroupScope = (rpcRow.group_scope && typeof rpcRow.group_scope === "object"
-    ? rpcRow.group_scope
-    : {}) as Record<string, unknown>;
-  const groupMode = rawGroupScope.mode as string | undefined;
-  const groupScopeMode: WebScopeMode =
-    groupMode === "global" || groupMode === "all"
-      ? "all"
-      : groupMode === "scoped"
-      ? "scoped"
-      : "none";
-  const groupScopeIds = Array.isArray(rawGroupScope.groups)
-    ? (rawGroupScope.groups
-        .map((g) => (g && typeof g === "object" ? (g as Record<string, unknown>).group_id : ""))
-        .filter((id): id is string => typeof id === "string" && id.length > 0))
-    : [];
-
-  const rawAccountScope = (rpcRow.account_scope && typeof rpcRow.account_scope === "object"
-    ? rpcRow.account_scope
-    : {}) as Record<string, unknown>;
-  const accountMode = rawAccountScope.mode as string | undefined;
-  const accountScopeMode: WebScopeMode =
-    accountMode === "global" || accountMode === "all"
-      ? "all"
-      : accountMode === "scoped" ||
-        accountMode === "account" ||
-        accountMode === "group_all_accounts"
-      ? "scoped"
-      : "none";
-  const accountScopeIds = Array.isArray(rawAccountScope.accounts)
-    ? (rawAccountScope.accounts
-        .map((a) => {
-          if (a && typeof a === "object") {
-            const acc = a as Record<string, unknown>;
-            return (acc.account_id ?? acc.id) as string;
-          }
-          return "";
-        })
-        .filter((id): id is string => typeof id === "string" && id.length > 0))
-    : [];
-
-  return {
-    currentUser: {
-      authUserId: rpcRow.auth_user_id ?? user.id,
-      profileId: rpcRow.profile_id ?? null,
-      displayName: rpcRow.full_name ?? rpcRow.display_name ?? getDisplayName(user),
-      email: rpcRow.email ?? user.email ?? null,
-      roleKey: rpcRow.role_key ?? null,
-      roleName: rpcRow.role_name ?? null,
-      groupScope: {
-        mode: groupScopeMode,
-        ids: groupScopeIds,
-      },
-      accountScope: {
-        mode: accountScopeMode,
-        ids: accountScopeIds,
-      },
-      allowedModuleKeys,
-      moduleCapabilities,
-      moduleAccess: buildModuleAccess(allowedModuleKeys),
-      accessStatus: "allowed",
-      source: "get_web_current_user_context",
-    } satisfies WebCurrentUserContext,
-    error: null,
-    blockedAccess: null,
-  };
 }
 
 export function getVisibleModules(
