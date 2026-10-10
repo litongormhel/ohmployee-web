@@ -8,7 +8,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DataState } from "@/components/shared/DataState";
 import type {
   HrEmplocDataErrorKind,
@@ -24,11 +23,8 @@ const tableColumns = [
   "Account / Store",
   "Assignment",
   "Position",
-  "HR Status",
-  "Deployment",
   "Employee No",
   "SLA Age",
-  "Deficiencies",
   "",
 ];
 
@@ -47,15 +43,14 @@ type HrEmplocTableProps = {
   onPageChange: (page: number) => void;
 };
 
-
-
-function getHrStatusVariant(status: string): "info" | "success" | "warning" | "danger" | "neutral" {
-  const norm = status.toLowerCase().trim();
-  if (norm === "pending" || norm === "for review" || norm === "for_review") return "info";
-  if (norm === "for correction" || norm === "for_correction" || norm === "correction") return "warning";
-  if (norm === "complete" || norm === "completed") return "success";
-  if (norm === "pending deletion" || norm === "pending_deletion" || norm === "deletion") return "danger";
-  return "neutral";
+function getSlaColorClass(days: number): string {
+  if (days <= 30) {
+    return "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700";
+  }
+  if (days <= 60) {
+    return "border border-amber-200/80 bg-amber-50 font-medium text-amber-700";
+  }
+  return "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700";
 }
 
 export function HrEmplocTable({
@@ -111,7 +106,7 @@ export function HrEmplocTable({
 
       {/* Main Table Container */}
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
+        <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
               {tableColumns.map((column, idx) => (
@@ -164,8 +159,6 @@ export function HrEmplocTable({
                 const isPendingDeletion =
                   row.hrStatus.toLowerCase().trim() === "pending deletion" ||
                   row.hrStatus.toLowerCase().trim() === "pending_deletion";
-
-                const isSlaBreached = row.slaBreached;
 
                 return (
                   <tr
@@ -238,20 +231,6 @@ export function HrEmplocTable({
                       {row.positionTitle ?? "--"}
                     </td>
 
-                    {/* HR Status */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
-                      <StatusBadge variant={getHrStatusVariant(row.hrStatus)}>
-                        {row.hrStatus}
-                      </StatusBadge>
-                    </td>
-
-                    {/* Deployment Status */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      <span className="text-xs font-medium text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
-                        {row.deploymentStatus}
-                      </span>
-                    </td>
-
                     {/* Employee Number */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       {row.employeeNo ? (
@@ -259,33 +238,17 @@ export function HrEmplocTable({
                           {row.employeeNo}
                         </Badge>
                       ) : (
-                        <span className="text-xs text-table-text-muted italic">Unassigned</span>
+                        <span className="text-table-text-muted">—</span>
                       )}
                     </td>
 
-                    {/* SLA Age */}
+                    {/* SLA Age — color-coded: ≤30d green, 31-60d amber, >60d red */}
                     <td className="border-b border-table-rule px-4 py-2.5">
-                      <div className="flex flex-col items-start">
-                        <span
-                          className={`font-semibold ${
-                            isSlaBreached ? "text-status-danger-text" : "text-table-text-sub"
-                          }`}
-                        >
-                          {row.slaElapsedDays} Days
-                        </span>
-                        {isSlaBreached && (
-                          <span className="inline-flex text-[9px] font-bold text-status-danger-text bg-status-danger-bg border border-status-danger-border rounded px-1 mt-0.5 uppercase tracking-wide">
-                            Breach
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Deficiency Summary */}
-                    <td className="max-w-[190px] truncate border-b border-table-rule px-4 py-2.5 text-sm text-table-text-muted">
-                      {row.deficiencySummary || (
-                        <span className="text-table-text-muted italic">None</span>
-                      )}
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${getSlaColorClass(row.slaElapsedDays)}`}
+                      >
+                        {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
+                      </span>
                     </td>
 
                     {/* Actions */}
