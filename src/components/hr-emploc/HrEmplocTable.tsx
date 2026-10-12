@@ -41,6 +41,7 @@ type HrEmplocTableProps = {
   onSelect: (row: HrEmplocListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
+  onAssignEmployeeNo?: (row: HrEmplocListItem) => void;
 };
 
 function getSlaColorClass(days: number): string {
@@ -66,6 +67,7 @@ export function HrEmplocTable({
   onSelect,
   onRetry,
   onPageChange,
+  onAssignEmployeeNo,
 }: HrEmplocTableProps) {
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -237,6 +239,18 @@ export function HrEmplocTable({
                         <Badge className="font-mono text-xs bg-status-success-bg text-status-success-text border-status-success-border">
                           {row.employeeNo}
                         </Badge>
+                      ) : onAssignEmployeeNo && row.rowCapabilities.canAssignEmployeeNo ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAssignEmployeeNo(row);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
+                          aria-label={`Assign employee number for ${row.applicantName}`}
+                        >
+                          <span>+ Add Emploc</span>
+                        </button>
                       ) : (
                         <span className="text-table-text-muted">—</span>
                       )}

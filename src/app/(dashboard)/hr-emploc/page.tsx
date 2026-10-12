@@ -26,6 +26,7 @@ import {
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
+import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
 
 const queueTabs: Array<{ value: HrEmplocQueue; label: string }> = [
   {
@@ -68,6 +69,7 @@ export default function HrEmplocPage() {
     skipped: number;
     results: BulkMoveResultItem[];
   } | null>(null);
+  const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
 
   const bulkMoveMutation = useBulkMoveToPlantilla();
 
@@ -331,6 +333,7 @@ export default function HrEmplocPage() {
           onPageChange={updatePage}
           onRetry={retryQueryReads}
           onSelect={selectRow}
+          onAssignEmployeeNo={(row) => setAssignTarget(row)}
           page={page}
           pageSize={pageSize}
           rows={rows}
@@ -345,6 +348,21 @@ export default function HrEmplocPage() {
           hrEmplocId={selectedId}
           onClose={() => setSelectedId(null)}
         />
+
+        {/* Inline Assign Employee No Modal (opened from table row) */}
+        {assignTarget && (
+          <AssignEmployeeNoModal
+            hrEmplocId={assignTarget.id}
+            candidateName={assignTarget.applicantName}
+            vcode={assignTarget.vcode}
+            currentEmployeeNo={assignTarget.employeeNo}
+            onClose={() => setAssignTarget(null)}
+            onSuccess={() => {
+              setAssignTarget(null);
+              retryQueryReads();
+            }}
+          />
+        )}
 
       {/* Footer System Boundaries Notice */}
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
