@@ -20,6 +20,7 @@ import type { BadgeVariant } from "@/components/ui/StatusBadge";
 import { InitiateSeparationModal } from "@/components/plantilla/InitiateSeparationModal";
 import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
 import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
+import { TransferPersonnelModal } from "@/components/plantilla/TransferPersonnelModal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -154,6 +155,7 @@ export function PlantillaDetailDrawer({
   const [isSeparationModalOpen, setIsSeparationModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDeactivationModalOpen, setIsDeactivationModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   return (
     <>
@@ -179,6 +181,7 @@ export function PlantillaDetailDrawer({
           onMarkSeparation={() => setIsSeparationModalOpen(true)}
           onUpdateStatus={() => setIsStatusModalOpen(true)}
           onRequestDeactivation={() => setIsDeactivationModalOpen(true)}
+          onTransferEmployee={() => setIsTransferModalOpen(true)}
         />
       </DetailDrawer>
 
@@ -225,6 +228,26 @@ export function PlantillaDetailDrawer({
           }}
         />
       )}
+
+      {data && isTransferModalOpen && (
+        <TransferPersonnelModal
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          positionTitle={data.positionTitle}
+          accountId={data.accountId}
+          accountName={data.accountName}
+          currentStoreId={data.storeId}
+          currentStoreName={data.primaryStoreName}
+          currentProvince={data.province}
+          currentIslandGroup={data.islandGroup}
+          onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -250,6 +273,7 @@ function DrawerBody({
   onMarkSeparation,
   onUpdateStatus,
   onRequestDeactivation,
+  onTransferEmployee,
 }: {
   isLoading: boolean;
   isAccessDenied: boolean;
@@ -264,6 +288,7 @@ function DrawerBody({
   onMarkSeparation: () => void;
   onUpdateStatus: () => void;
   onRequestDeactivation: () => void;
+  onTransferEmployee: () => void;
 }) {
   if (isLoading) {
     return (
@@ -450,6 +475,7 @@ function DrawerBody({
             onMarkSeparation,
             onUpdateStatus,
             onRequestDeactivation,
+            onTransferEmployee,
           },
         )}
       />
@@ -776,6 +802,7 @@ interface ActionHandlers {
   onMarkSeparation: () => void;
   onUpdateStatus: () => void;
   onRequestDeactivation: () => void;
+  onTransferEmployee: () => void;
 }
 
 function buildActionItems(
@@ -800,6 +827,10 @@ function buildActionItems(
   const canRequestDeact =
     isAuthorized && (caps.canRequestDeactivation || isInactive || status === "floating" || status === "rejected deactivation") && !isPendingDeactivation;
 
+  // Transfer Employee: Available for active/deployable employees for authorized roles (caps.canTransferEmployee defaults or authorized)
+  const canTransfer =
+    isAuthorized && !isInactive && (caps.canTransferEmployee !== false);
+
   return [
     {
       label: "Mark Separation",
@@ -822,7 +853,8 @@ function buildActionItems(
     },
     {
       label: "Transfer Employee",
-      isAvailable: caps.canTransferEmployee && isAuthorized,
+      isAvailable: canTransfer,
+      onClick: canTransfer ? handlers.onTransferEmployee : undefined,
     },
   ];
 }

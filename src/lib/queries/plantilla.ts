@@ -229,6 +229,10 @@ export type PlantillaDetailItem = {
   slaBreached: boolean;
   activeMovementRequest: PlantillaMovementRequest | null;
   auditTimeline: PlantillaAuditTimelineItem[];
+  accountId?: string | null;
+  storeId?: string | null;
+  province?: string | null;
+  islandGroup?: string | null;
   rowCapabilities: PlantillaRowCapabilities;
 };
 
@@ -701,6 +705,10 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     slaBreached: asBoolean(row.sla_breached),
     activeMovementRequest,
     auditTimeline,
+    accountId: asString(row.account_id ?? row.accountId),
+    storeId: asString(row.store_id ?? row.storeId),
+    province: asString(row.province ?? row.area_province ?? row.area),
+    islandGroup: asString(row.island_group ?? row.islandGroup),
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
   };
 }
@@ -988,6 +996,37 @@ export interface CreateDeactivationRequestParams {
   remarks: string;
 }
 
+export type TransferReasonType =
+  | "Store Initiated"
+  | "Employee Requested"
+  | "Operational Need"
+  | "Annual Inventory"
+  | "Store Closed Temporarily"
+  | string;
+
+export interface TransferPersonnelParams {
+  plantillaId: string;
+  targetStoreId: string;
+  reason?: TransferReasonType | string | null;
+  effectiveDate?: string | null; // YYYY-MM-DD
+  targetPositionId?: string | null;
+}
+
+export interface DestinationStoreItem {
+  id: string;
+  storeName: string;
+  vcode: string | null;
+  accountId: string | null;
+  accountName?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  areaCity: string | null;
+  province: string | null;
+  areaProvince: string | null;
+  islandGroup: string | null;
+  isActive: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Supabase RPC Calls for Plantilla Mutations
 // ---------------------------------------------------------------------------
@@ -1086,6 +1125,140 @@ export async function createDeactivationRequest(params: CreateDeactivationReques
   return data;
 }
 
+export function deriveIslandGroup(provinceOrRegion: string | null | undefined): "Luzon" | "Visayas" | "Mindanao" | null {
+  if (!provinceOrRegion) return null;
+  const p = provinceOrRegion.trim().toLowerCase();
+
+  const luzonList = [
+    "metro manila", "ncr", "national capital region", "manila", "quezon city",
+    "caloocan", "las piñas", "las pinas", "makati", "malabon", "mandaluyong",
+    "marikina", "muntinlupa", "navotas", "parañaque", "paranaque",
+    "pasay", "pasig", "pateros", "san juan", "taguig", "valenzuela",
+    "car", "cordillera", "cordillera administrative region",
+    "abra", "apayao", "benguet", "ifugao", "kalinga", "mountain province",
+    "baguio", "baguio city",
+    "region i", "ilocos region", "ilocos norte", "ilocos sur", "la union", "pangasinan",
+    "region ii", "cagayan valley", "batanes", "cagayan", "isabela", "nueva vizcaya", "quirino",
+    "region iii", "central luzon", "aurora", "bataan", "bulacan", "nueva ecija", "pampanga", "tarlac", "zambales",
+    "region iv-a", "calabarzon", "batangas", "cavite", "laguna", "quezon", "rizal",
+    "region iv-b", "mimaropa", "marinduque", "occidental mindoro", "oriental mindoro", "palawan", "romblon",
+    "region v", "bicol region", "albay", "camarines norte", "camarines sur", "catanduanes", "masbate", "sorsogon",
+    "luzon",
+  ];
+
+  const visayasList = [
+    "region vi", "western visayas", "aklan", "antique", "capiz", "guimaras", "iloilo", "negros occidental",
+    "region vii", "central visayas", "bohol", "cebu", "negros oriental", "siquijor",
+    "region viii", "eastern visayas", "biliran", "eastern samar", "leyte", "northern samar", "samar", "southern leyte",
+    "visayas",
+  ];
+
+  const mindanaoList = [
+    "region ix", "zamboanga peninsula", "zamboanga del norte", "zamboanga del sur", "zamboanga sibugay",
+    "region x", "northern mindanao", "bukidnon", "camiguin", "lanao del norte", "misamis occidental", "misamis oriental",
+    "region xi", "davao region", "compostela valley", "davao de oro", "davao del norte", "davao del sur", "davao occidental", "davao oriental",
+    "region xii", "soccsksargen", "cotabato", "north cotabato", "sarangani", "south cotabato", "sultan kudarat",
+    "region xiii", "caraga", "agusan del norte", "agusan del sur", "dinagat islands", "surigao del norte", "surigao del sur",
+    "barmm", "bangsamoro", "basilan", "lanao del sur", "maguindanao", "sulu", "tawi-tawi", "maguindanao del norte", "maguindanao del sur",
+    "mindanao",
+  ];
+
+  if (luzonList.some((item) => p.includes(item))) return "Luzon";
+  if (visayasList.some((item) => p.includes(item))) return "Visayas";
+  if (mindanaoList.some((item) => p.includes(item))) return "Mindanao";
+
+  return null;
+}
+
+export async function fetchDestinationStores(accountId?: string | null): Promise<DestinationStoreItem[]> {
+  const supabase = createClient();
+
+  let query = supabase
+    .from("stores")
+    .select(`
+      id,
+      store_name,
+      vcode,
+      account_id,
+      group_id,
+      area_city,
+      province,
+      area_province,
+      island_group,
+      is_active,
+      accounts (
+        account_name
+      ),
+      groups (
+        group_name
+      )
+    `)
+    .eq("is_active", true);
+
+  if (accountId) {
+    query = query.eq("account_id", accountId);
+  }
+
+  const { data, error } = await query.order("store_name", { ascending: true });
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  return asArray(data).map((row) => {
+    const obj = asObject(row);
+    const accountsObj = asObject(obj.accounts);
+    const groupsObj = asObject(obj.groups);
+
+    const prov = asString(obj.province) ?? asString(obj.area_province);
+    const derivedIg = asString(obj.island_group) ?? deriveIslandGroup(prov);
+
+    return {
+      id: asString(obj.id) ?? "",
+      storeName: asString(obj.store_name) ?? "Unnamed Store",
+      vcode: asString(obj.vcode),
+      accountId: asString(obj.account_id),
+      accountName: asString(accountsObj.account_name),
+      groupId: asString(obj.group_id),
+      groupName: asString(groupsObj.group_name),
+      areaCity: asString(obj.area_city),
+      province: asString(obj.province),
+      areaProvince: asString(obj.area_province),
+      islandGroup: derivedIg,
+      isActive: asBoolean(obj.is_active),
+    };
+  });
+}
+
+export async function transferPlantillaPersonnel(params: TransferPersonnelParams) {
+  const supabase = createClient();
+
+  const effectiveRemarks = [
+    params.reason ? `Reason: ${params.reason}` : null,
+    params.effectiveDate ? `Effective Date: ${params.effectiveDate}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const rpcParams: Record<string, unknown> = {
+    p_plantilla_id: params.plantillaId,
+    p_target_store_id: params.targetStoreId,
+    p_remarks: effectiveRemarks || null,
+  };
+
+  if (params.targetPositionId) {
+    rpcParams.p_target_position_id = params.targetPositionId;
+  }
+
+  const { data, error } = await supabase.rpc("plantilla_transfer", rpcParams);
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Standardized Cache Invalidation Helper
 // ---------------------------------------------------------------------------
@@ -1138,6 +1311,18 @@ export function useCreateDeactivationRequest() {
   return useMutation({
     mutationFn: (params: CreateDeactivationRequestParams) =>
       createDeactivationRequest(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}
+
+export function useTransferPersonnel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: TransferPersonnelParams) =>
+      transferPlantillaPersonnel(params),
     onSuccess: (_, variables) => {
       invalidatePlantillaCaches(queryClient, variables.plantillaId);
     },
