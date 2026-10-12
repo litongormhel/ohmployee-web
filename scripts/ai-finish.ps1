@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w44s235c" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w46p437b" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/components/settings:src/lib/queries/settings.ts:docs/audit/settings_diagnostics_mobile_web_parity_audit.md:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "src/components/plantilla:src/lib/queries/plantilla.ts:docs/audit/plantilla_management_mobile_web_parity_audit.md:scripts/ai-finish.ps1"
 }
 
 Write-Host "======================================================"
