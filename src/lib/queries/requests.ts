@@ -1482,3 +1482,224 @@ export function useRejectDeactivation() {
   });
 }
 
+// ─── 8. Account Group Transfers ───────────────────────────────────────────────
+
+export interface AccountGroupTransferSimulationSnapshot {
+  affected_stores?: number;
+  affected_plantilla_count?: number;
+  affected_vacancies_count?: number;
+  affected_hr_emploc_count?: number;
+  users_gaining_visibility?: number;
+  users_losing_visibility?: number;
+  has_coverage_conflict?: boolean;
+  warnings?: string[];
+  warning_count?: number;
+  coverage_group_conflicts?: Array<{
+    employee_name: string;
+    store_name: string;
+    home_group_name: string;
+    conflict_type?: string;
+  }>;
+  current_group_id?: string;
+  current_group_name?: string;
+  current_group_code?: string;
+  destination_group_id?: string;
+  destination_group_name?: string;
+  destination_group_code?: string;
+  [key: string]: unknown;
+}
+
+export interface AccountGroupTransferItem {
+  id: string;
+  requestNumber: string;
+  accountId: string;
+  accountName: string;
+  fromGroupId: string;
+  fromGroupName: string;
+  fromGroupCode: string;
+  toGroupId: string;
+  toGroupName: string;
+  toGroupCode: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  simulationSnapshot: AccountGroupTransferSimulationSnapshot;
+  requestedBy: string;
+  requestedByName: string;
+  requestedAt: string;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchPendingAccountGroupTransfers(): Promise<AccountGroupTransferItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("account_group_transfer_requests")
+    .select(`
+      *,
+      accounts:account_id(account_name),
+      from_groups:from_group_id(group_name, group_code),
+      to_groups:to_group_id(group_name, group_code)
+    `)
+    .ilike("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Head Admin or Super Admin role required to view account group transfers."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  const rows = (data || []) as Array<{
+    id: string;
+    request_number: string;
+    account_id: string;
+    from_group_id: string;
+    to_group_id: string;
+    reason: string;
+    status: string;
+    simulation_snapshot: unknown;
+    requested_by: string;
+    requested_by_name: string;
+    requested_at: string;
+    reviewed_by?: string | null;
+    reviewed_by_name?: string | null;
+    reviewed_at?: string | null;
+    rejection_reason?: string | null;
+    created_at: string;
+    updated_at: string;
+    accounts?: { account_name?: string | null } | null;
+    from_groups?: { group_name?: string | null; group_code?: string | null } | null;
+    to_groups?: { group_name?: string | null; group_code?: string | null } | null;
+  }>;
+
+  return rows.map((r) => {
+    const rawSnapshot = r.simulation_snapshot;
+    const simulationSnapshot: AccountGroupTransferSimulationSnapshot =
+      rawSnapshot && typeof rawSnapshot === "object"
+        ? (rawSnapshot as AccountGroupTransferSimulationSnapshot)
+        : {};
+
+    return {
+      id: r.id,
+      requestNumber: r.request_number,
+      accountId: r.account_id,
+      accountName: r.accounts?.account_name || "—",
+      fromGroupId: r.from_group_id,
+      fromGroupName: r.from_groups?.group_name || "—",
+      fromGroupCode: r.from_groups?.group_code || "—",
+      toGroupId: r.to_group_id,
+      toGroupName: r.to_groups?.group_name || "—",
+      toGroupCode: r.to_groups?.group_code || "—",
+      reason: r.reason || "—",
+      status: (r.status?.toLowerCase() as "pending" | "approved" | "rejected") || "pending",
+      simulationSnapshot,
+      requestedBy: r.requested_by,
+      requestedByName: r.requested_by_name || "Requester",
+      requestedAt: r.requested_at || r.created_at,
+      reviewedBy: r.reviewed_by ?? null,
+      reviewedByName: r.reviewed_by_name ?? null,
+      reviewedAt: r.reviewed_at ?? null,
+      rejectionReason: r.rejection_reason ?? null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    };
+  });
+}
+
+export async function approveAccountGroupTransfer(requestId: string): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("approve_account_group_transfer_request", {
+    p_request_id: requestId,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Super Admins can approve account group transfer requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+export async function rejectAccountGroupTransfer({
+  requestId,
+  reason,
+}: {
+  requestId: string;
+  reason: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  const { error } = await supabase.rpc("reject_account_group_transfer_request", {
+    p_request_id: requestId,
+    p_reason: trimmed,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Super Admins can reject account group transfer requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+export function usePendingAccountGroupTransfers() {
+  return useQuery({
+    queryKey: ["account-group-transfers"],
+    queryFn: () => fetchPendingAccountGroupTransfers(),
+  });
+}
+
+export function useApproveAccountGroupTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestId: string) => approveAccountGroupTransfer(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-group-transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
+export function useRejectAccountGroupTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { requestId: string; reason: string }) =>
+      rejectAccountGroupTransfer(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-group-transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
+

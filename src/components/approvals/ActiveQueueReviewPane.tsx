@@ -18,6 +18,7 @@ import { HeadcountAmendmentApprovalCard } from "@/components/approvals/Headcount
 import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
 import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
 import { NewStoreApprovalCard } from "@/components/approvals/NewStoreApprovalCard";
+import { StoreTransferApprovalCard } from "@/components/approvals/StoreTransferApprovalCard";
 import { VacancyClosureApprovalCard } from "@/components/approvals/VacancyClosureApprovalCard";
 import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
 import {
@@ -27,6 +28,7 @@ import {
   usePendingVacancyClosureRequests,
   usePendingApplicantMovements,
   usePendingDeactivationRequests,
+  usePendingAccountGroupTransfers,
   useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
@@ -62,6 +64,7 @@ export function ActiveQueueReviewPane({
   const [movementSearchQuery, setMovementSearchQuery] = useState("");
   const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "TRANSFER" | "SWAP">("all");
   const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
+  const [transferSearchQuery, setTransferSearchQuery] = useState("");
 
   // Bulk actions state
   const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
@@ -118,6 +121,14 @@ export function ActiveQueueReviewPane({
     refetch: refetchDeactivations,
     isRefetching: isDeactRefetching,
   } = usePendingDeactivationRequests();
+
+  const {
+    data: transferRequests = [],
+    isLoading: isTransferLoading,
+    isError: isTransferError,
+    refetch: refetchTransfers,
+    isRefetching: isTransferRefetching,
+  } = usePendingAccountGroupTransfers();
 
   const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
@@ -256,6 +267,23 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [deactivationRequests, deactivationSearchQuery]);
+
+  const filteredTransferRequests = useMemo(() => {
+    if (!transferSearchQuery.trim()) return transferRequests;
+    const q = transferSearchQuery.toLowerCase();
+    return transferRequests.filter((req) => {
+      return (
+        req.accountName.toLowerCase().includes(q) ||
+        req.requestNumber.toLowerCase().includes(q) ||
+        req.fromGroupName.toLowerCase().includes(q) ||
+        req.fromGroupCode.toLowerCase().includes(q) ||
+        req.toGroupName.toLowerCase().includes(q) ||
+        req.toGroupCode.toLowerCase().includes(q) ||
+        req.requestedByName.toLowerCase().includes(q) ||
+        req.reason.toLowerCase().includes(q)
+      );
+    });
+  }, [transferRequests, transferSearchQuery]);
 
   const quotaCount = useMemo(
     () => requests.filter((r) => r.isQuotaAmendment).length,
@@ -1045,7 +1073,102 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // ── 7. Other Categories (Fallback Pane) ──────────────────────────────────
+  // ── 7. Account Group Transfers Category ────────────────────────────────
+  if (selectedCategory === "account_group_transfers") {
+    const livePendingCount = counts.account_group_transfers ?? transferRequests.length;
+
+    return (
+      <div className="flex h-full flex-col">
+        {/* Header Toolbar */}
+        <div className="flex flex-col gap-3 border-b border-border-default pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-text-primary">
+                {currentCategoryConfig.label}
+              </h2>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
+                {livePendingCount} pending
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-text-secondary">
+              {currentCategoryConfig.description}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => refetchTransfers()}
+              disabled={isTransferRefetching}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
+              title="Refresh Queue"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isTransferRefetching ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />
+              <span>Refresh</span>
+            </button>
+
+            {/* Client-side Search */}
+            <div className="relative w-full sm:w-64">
+              <Search
+                className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                placeholder="Search account, group, AGT-#..."
+                value={transferSearchQuery}
+                onChange={(e) => setTransferSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isTransferLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Account Group Transfers"
+              description="Fetching live account group reassignments and simulation snapshots..."
+            />
+          ) : isTransferError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending account group transfers."
+              onRetry={() => refetchTransfers()}
+            />
+          ) : filteredTransferRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                transferSearchQuery
+                  ? "No Matching Account Group Transfers"
+                  : "No Pending Account Group Transfers"
+              }
+              description={
+                transferSearchQuery
+                  ? `No requests match "${transferSearchQuery}". Clear your search query to see all items.`
+                  : "All organizational account group reassignments have been processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredTransferRequests.map((req) => (
+                <StoreTransferApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 8. Other Categories (Fallback Pane) ──────────────────────────────────
   const count = counts[selectedCategory] ?? 0;
   const linkInfo = CATEGORY_LINKS[selectedCategory];
 

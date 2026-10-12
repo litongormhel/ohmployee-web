@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w38s629c**: Implement In-Place Review Cards for Account Group Transfers in Approvals
 - **ohm#w36a427a**: Implement In-Place Review Cards for Applicant Movements and Account Deactivations in Approvals
 - **ohm#w35a326f**: Implement In-Place Review Cards for New Stores and Vacancy Closures in Approvals
 - **ohm#w33e124d**: Implement HR Emploc Bulk XLSX Import and Reconciliation Wizard on Web
