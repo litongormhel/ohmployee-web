@@ -427,3 +427,20 @@ export function isHeadOrSuperAdmin(roleKeyOrName?: string | null): boolean {
   return normalized === "super_admin" || normalized === "head_admin";
 }
 
+/**
+ * Head Admin, Super Admin, and HRCO/Operations roles authorized for plantilla personnel lifecycle actions.
+ */
+export function isPlantillaLifecycleRole(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    normalized === "super_admin" ||
+    normalized === "head_admin" ||
+    normalized === "hrco" ||
+    normalized === "operations_manager" ||
+    normalized === "operations" ||
+    normalized === "atl" ||
+    normalized === "tl"
+  );
+}
+

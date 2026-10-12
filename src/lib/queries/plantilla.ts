@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,8 @@ export type PlantillaRowCapabilities = {
   canRequestDeletion: boolean;
   canReviewDeletion: boolean;
   canTransferEmployee: boolean;
+  canSeparate?: boolean;
+  canUpdateStatus?: boolean;
   raw: Record<string, boolean>;
 };
 
@@ -455,6 +458,8 @@ function normalizeEmployeeCapabilities(value: unknown): PlantillaRowCapabilities
     canRequestDeletion: raw.can_request_deletion === true,
     canReviewDeletion: raw.can_review_deletion === true,
     canTransferEmployee: raw.can_transfer_employee === true,
+    canSeparate: raw.can_separate === true || raw.can_resign === true || raw.can_endo === true,
+    canUpdateStatus: raw.can_update_status === true || raw.can_separate === true,
     raw,
   };
 }
@@ -947,3 +952,194 @@ export async function getPlantillaAccountStatusCounts(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Lifecycle Action Mutation Types & Contracts
+// ---------------------------------------------------------------------------
+
+export type SeparationStatusType =
+  | "Resigned"
+  | "Endo"
+  | "End of Contract"
+  | "Terminated"
+  | "AWOL"
+  | "Others";
+
+export interface UpdateSeparationParams {
+  plantillaId: string;
+  separationStatus: SeparationStatusType | string;
+  effectiveDate: string; // YYYY-MM-DD
+  remarks?: string | null;
+  openVacancy?: boolean;
+}
+
+export type EmploymentStatusTarget = "Active" | "On Leave" | "Floating";
+
+export interface UpdateEmploymentStatusParams {
+  plantillaId: string;
+  targetStatus: EmploymentStatusTarget;
+  reason?: string | null;
+  remarks?: string | null;
+  expectedReturnDate?: string | null;
+}
+
+export interface CreateDeactivationRequestParams {
+  plantillaId: string;
+  reason?: string | null;
+  remarks: string;
+}
+
+// ---------------------------------------------------------------------------
+// Supabase RPC Calls for Plantilla Mutations
+// ---------------------------------------------------------------------------
+
+export async function updatePlantillaSeparation(params: UpdateSeparationParams) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("plantilla_update_separation", {
+    p_plantilla_id: params.plantillaId,
+    p_separation_status: params.separationStatus,
+    p_effective_date: params.effectiveDate,
+    p_remarks: params.remarks?.trim() || null,
+    p_open_vacancy: params.openVacancy ?? true,
+  });
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  return data;
+}
+
+export async function updatePlantillaEmploymentStatus(params: UpdateEmploymentStatusParams) {
+  const supabase = createClient();
+
+  if (params.targetStatus === "On Leave") {
+    // Optional leave reason / return date formatted into remarks if supported
+    const { data, error } = await supabase.rpc("set_plantilla_on_leave", {
+      p_plantilla_id: params.plantillaId,
+    });
+    if (error) {
+      throwPlantillaError(error);
+    }
+    return data;
+  }
+
+  if (params.targetStatus === "Active") {
+    const { data, error } = await supabase.rpc("set_plantilla_active", {
+      p_plantilla_id: params.plantillaId,
+    });
+    if (error) {
+      throwPlantillaError(error);
+    }
+    return data;
+  }
+
+  if (params.targetStatus === "Floating") {
+    const remarks = [
+      params.reason ? `Reason: ${params.reason}` : null,
+      params.remarks?.trim() ? `Remarks: ${params.remarks.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const { data, error } = await supabase.rpc("set_plantilla_floating", {
+      p_plantilla_id: params.plantillaId,
+      p_remarks: remarks || null,
+    });
+    if (error) {
+      throwPlantillaError(error);
+    }
+    return data;
+  }
+
+  throw new PlantillaDataError("retryable", `Unsupported employment status target: ${params.targetStatus}`);
+}
+
+export async function createDeactivationRequest(params: CreateDeactivationRequestParams) {
+  const supabase = createClient();
+
+  // Try authoritative create_deactivation_request
+  const { data, error } = await supabase.rpc("create_deactivation_request", {
+    p_plantilla_id: params.plantillaId,
+  });
+
+  if (error) {
+    // Fallback: plantilla_request_deactivation
+    const combinedRemarks = [
+      params.reason ? `Reason: ${params.reason}` : null,
+      params.remarks?.trim() ? `Justification: ${params.remarks.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const { data: fallbackData, error: fallbackError } = await supabase.rpc("plantilla_request_deactivation", {
+      p_plantilla_id: params.plantillaId,
+      p_reason: combinedRemarks || null,
+    });
+
+    if (fallbackError) {
+      throwPlantillaError(fallbackError);
+    }
+
+    return fallbackData;
+  }
+
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Standardized Cache Invalidation Helper
+// ---------------------------------------------------------------------------
+
+function invalidatePlantillaCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  plantillaId?: string,
+) {
+  queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+  if (plantillaId) {
+    queryClient.invalidateQueries({ queryKey: ["plantilla", "detail", plantillaId] });
+  }
+  queryClient.invalidateQueries({ queryKey: ["plantilla-detail"] });
+  queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+  queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
+  queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+}
+
+// ---------------------------------------------------------------------------
+// React Query Mutation Hooks
+// ---------------------------------------------------------------------------
+
+export function useUpdateSeparationStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateSeparationParams) => updatePlantillaSeparation(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}
+
+export function useUpdateEmploymentStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateEmploymentStatusParams) =>
+      updatePlantillaEmploymentStatus(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}
+
+export function useCreateDeactivationRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: CreateDeactivationRequestParams) =>
+      createDeactivationRequest(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}

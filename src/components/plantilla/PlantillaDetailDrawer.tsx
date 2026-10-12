@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRightLeft, Clock } from "lucide-react";
 import {
@@ -11,11 +11,15 @@ import {
   type PlantillaDetailItem,
   type PlantillaRowCapabilities,
 } from "@/lib/queries/plantilla";
+import { useCurrentUser, isPlantillaLifecycleRole } from "@/lib/auth";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
-import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
+import { CapabilityActionBar, type ActionItem } from "@/components/shared/CapabilityActionBar";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
+import { InitiateSeparationModal } from "@/components/plantilla/InitiateSeparationModal";
+import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
+import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -143,27 +147,85 @@ export function PlantillaDetailDrawer({
     </span>
   ) : undefined;
 
+  const currentUser = useCurrentUser();
+  const isAuthorized = isPlantillaLifecycleRole(currentUser?.roleKey);
+
+  // Modal open states
+  const [isSeparationModalOpen, setIsSeparationModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isDeactivationModalOpen, setIsDeactivationModalOpen] = useState(false);
+
   return (
-    <DetailDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={data ? displayName : "Loading employee record…"}
-      subtitle={subtitle}
-      badge={headerBadge}
-      widthClass="w-[var(--drawer-width-lg)] max-w-full"
-    >
-      <DrawerBody
-        isLoading={detailQuery.isLoading}
-        isAccessDenied={isAccessDenied}
-        isNotFound={isNotFound}
-        isRetryable={isRetryable}
-        data={data}
-        queryError={queryError}
-        onRetry={() => detailQuery.refetch()}
-        deactivation={deactivation}
-        transferOverlay={transferOverlay}
-      />
-    </DetailDrawer>
+    <>
+      <DetailDrawer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={data ? displayName : "Loading employee record…"}
+        subtitle={subtitle}
+        badge={headerBadge}
+        widthClass="w-[var(--drawer-width-lg)] max-w-full"
+      >
+        <DrawerBody
+          isLoading={detailQuery.isLoading}
+          isAccessDenied={isAccessDenied}
+          isNotFound={isNotFound}
+          isRetryable={isRetryable}
+          data={data}
+          queryError={queryError}
+          onRetry={() => detailQuery.refetch()}
+          deactivation={deactivation}
+          transferOverlay={transferOverlay}
+          isAuthorized={isAuthorized}
+          onMarkSeparation={() => setIsSeparationModalOpen(true)}
+          onUpdateStatus={() => setIsStatusModalOpen(true)}
+          onRequestDeactivation={() => setIsDeactivationModalOpen(true)}
+        />
+      </DetailDrawer>
+
+      {/* Lifecycle Action Modals */}
+      {data && isSeparationModalOpen && (
+        <InitiateSeparationModal
+          isOpen={isSeparationModalOpen}
+          onClose={() => setIsSeparationModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          positionTitle={data.positionTitle}
+          storeName={data.primaryStoreName}
+          onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
+
+      {data && isStatusModalOpen && (
+        <UpdateEmploymentStatusModal
+          isOpen={isStatusModalOpen}
+          onClose={() => setIsStatusModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          currentStatus={data.plantillaStatus}
+          onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
+
+      {data && isDeactivationModalOpen && (
+        <RequestDeactivationModal
+          isOpen={isDeactivationModalOpen}
+          onClose={() => setIsDeactivationModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          currentStatus={data.plantillaStatus}
+          onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -184,6 +246,10 @@ function DrawerBody({
   onRetry,
   deactivation,
   transferOverlay,
+  isAuthorized,
+  onMarkSeparation,
+  onUpdateStatus,
+  onRequestDeactivation,
 }: {
   isLoading: boolean;
   isAccessDenied: boolean;
@@ -194,6 +260,10 @@ function DrawerBody({
   onRetry: () => void;
   deactivation: DeactivationOverlay | null;
   transferOverlay: TransferOverlay | null;
+  isAuthorized: boolean;
+  onMarkSeparation: () => void;
+  onUpdateStatus: () => void;
+  onRequestDeactivation: () => void;
 }) {
   if (isLoading) {
     return (
@@ -370,9 +440,18 @@ function DrawerBody({
 
       {/* Capability-Aware Action Bar */}
       <CapabilityActionBar
-        title="Capability-Aware Actions"
-        helperText="Actions remain read-only. Availability reflects current RBAC permissions. Supabase final verification remains authoritative."
-        actions={buildActionItems(data.rowCapabilities)}
+        title="Capability-Aware Personnel Actions"
+        helperText="Available actions are enabled based on your authorized role (Head Admin, Super Admin, HRCO/Ops). Write actions execute authoritative Supabase RPCs with ADR-001 slot sync."
+        actions={buildActionItems(
+          data.rowCapabilities,
+          data.plantillaStatus,
+          isAuthorized,
+          {
+            onMarkSeparation,
+            onUpdateStatus,
+            onRequestDeactivation,
+          },
+        )}
       />
     </>
   );
@@ -693,16 +772,57 @@ function AuditTimeline({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Capability action items
-// ---------------------------------------------------------------------------
+interface ActionHandlers {
+  onMarkSeparation: () => void;
+  onUpdateStatus: () => void;
+  onRequestDeactivation: () => void;
+}
 
-function buildActionItems(caps: PlantillaRowCapabilities) {
+function buildActionItems(
+  caps: PlantillaRowCapabilities,
+  plantillaStatus: string | null | undefined,
+  isAuthorized: boolean,
+  handlers: ActionHandlers,
+): ActionItem[] {
+  const status = (plantillaStatus ?? "").trim().toLowerCase();
+  const isInactive = status === "inactive" || status === "terminated" || status === "deactivated";
+  const isPendingDeactivation = status === "pending deactivation" || status === "pending_deactivation";
+
+  // Mark Separation: Available for Active / On Leave employees for authorized roles
+  const canSeparate =
+    isAuthorized && !isInactive && (caps.canSeparate !== false);
+
+  // Update Status: Available for Active / On Leave / Floating employees
+  const canUpdateStatus =
+    isAuthorized && !isInactive;
+
+  // Request Deactivation: Available for Inactive / Floating / Pending Separation employees or caps.canRequestDeactivation
+  const canRequestDeact =
+    isAuthorized && (caps.canRequestDeactivation || isInactive || status === "floating" || status === "rejected deactivation") && !isPendingDeactivation;
+
   return [
-    { label: "Request Deactivation", isAvailable: caps.canRequestDeactivation },
-    { label: "Review Deactivation", isAvailable: caps.canReviewDeactivation },
-    { label: "Request Deletion", isAvailable: caps.canRequestDeletion },
-    { label: "Review Deletion", isAvailable: caps.canReviewDeletion },
-    { label: "Transfer Employee", isAvailable: caps.canTransferEmployee },
+    {
+      label: "Mark Separation",
+      isAvailable: canSeparate,
+      onClick: canSeparate ? handlers.onMarkSeparation : undefined,
+    },
+    {
+      label: "Update Status",
+      isAvailable: canUpdateStatus,
+      onClick: canUpdateStatus ? handlers.onUpdateStatus : undefined,
+    },
+    {
+      label: "Request Deactivation",
+      isAvailable: canRequestDeact,
+      onClick: canRequestDeact ? handlers.onRequestDeactivation : undefined,
+    },
+    {
+      label: "Review Deactivation",
+      isAvailable: caps.canReviewDeactivation && isAuthorized,
+    },
+    {
+      label: "Transfer Employee",
+      isAvailable: caps.canTransferEmployee && isAuthorized,
+    },
   ];
 }
