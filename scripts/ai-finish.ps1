@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w32e023c" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w33e124d" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/components/approvals/HrEmplocDeletionReviewCard.tsx:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "src/app/(dashboard)/hr-emploc/import:src/components/hr-emploc/import:src/lib/queries/hr_emploc_import.ts:src/lib/utils:scripts/ai-finish.ps1"
 }
 
 Write-Host "======================================================"

@@ -378,7 +378,7 @@ export default function MorePage() {
         title: "Import HR Emploc",
         description: "Bulk upload HR Emploc records via XLSX with admin staging",
         icon: FileText,
-        href: "/hr-emploc",
+        href: "/hr-emploc/import",
         section: "data_control",
         rolesAllowed: ["super_admin", "head_admin", "encoder"],
       },

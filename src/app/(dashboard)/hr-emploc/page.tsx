@@ -3,6 +3,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   FileSearch,
   LockKeyhole,
@@ -11,6 +12,7 @@ import {
   Send,
   Loader2,
   CheckCircle2,
+  UploadCloud,
 } from "lucide-react";
 import {
   HrEmplocTable,
@@ -242,6 +244,13 @@ export default function HrEmplocPage() {
                   <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
                 </button>
               )}
+              <Link
+                href="/hr-emploc/import"
+                className="inline-flex h-10 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition"
+              >
+                <UploadCloud className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                <span>Import XLSX</span>
+              </Link>
               <button
                 className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
                 disabled
