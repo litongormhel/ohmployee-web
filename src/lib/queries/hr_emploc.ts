@@ -785,7 +785,7 @@ export async function withdrawEmplocDeletionRequest(
 
 // ─── React Query Mutation Hooks ──────────────────────────────────────────────
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useAssignEmployeeNo() {
   const queryClient = useQueryClient();
@@ -870,3 +870,188 @@ export function useWithdrawEmplocDeletion() {
   });
 }
 
+// ─── Approvals Center: Deletion Review Queue ─────────────────────────────────
+
+export type EmplocDeletionRequestItem = {
+  /** `hr_emploc_deletion_requests.id` */
+  id: string;
+  hrEmplocId: string;
+  /** Employee display name from hr_emploc */
+  applicantName: string;
+  /** Employee number from hr_emploc */
+  employeeNo: string | null;
+  /** Store name from hr_emploc */
+  storeName: string | null;
+  /** Position title from hr_emploc */
+  positionTitle: string | null;
+  /** VCode from hr_emploc */
+  vcode: string;
+  /** 'Backout' | 'Duplicate Record' */
+  deletionType: string;
+  /** Requester's display name */
+  requestedByName: string | null;
+  /** ISO timestamp of the request */
+  requestedAt: string | null;
+  /** Current status — should be 'Pending' for this queue */
+  status: string;
+  /** Reason / remarks from requester */
+  reason: string | null;
+  /** Original emploc ID when deletion_type = 'Duplicate Record' */
+  originalEmplocId: string | null;
+};
+
+/**
+ * Fetches pending HR Emploc deletion requests joined with hr_emploc data.
+ * Queries `hr_emploc_deletion_requests` joined with `hr_emploc` for name,
+ * store, position, and employee_no context needed by reviewers.
+ */
+export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("hr_emploc_deletion_requests")
+    .select(`
+      id,
+      hr_emploc_id,
+      deletion_type,
+      reason,
+      original_emploc_id,
+      status,
+      requested_by,
+      created_at,
+      hr_emploc (
+        applicant_name,
+        employee_no,
+        store_name,
+        position_title,
+        vcode
+      )
+    `)
+    .ilike("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new HrEmplocDataError("access_denied", "Unauthorized: Scoped access restricted.");
+    }
+    throw new HrEmplocDataError("retryable", error.message);
+  }
+
+  return (data ?? []).map((row): EmplocDeletionRequestItem => {
+    const emploc = asObject(
+      Array.isArray(row.hr_emploc) ? row.hr_emploc[0] : row.hr_emploc
+    );
+    return {
+      id: asString(row.id) ?? "",
+      hrEmplocId: asString(row.hr_emploc_id) ?? "",
+      applicantName: asString(emploc.applicant_name) ?? "Anonymous",
+      employeeNo: asString(emploc.employee_no),
+      storeName: asString(emploc.store_name),
+      positionTitle: asString(emploc.position_title),
+      vcode: asString(emploc.vcode) ?? "Uncoded",
+      deletionType: asString(row.deletion_type) ?? "Backout",
+      requestedByName: asString(row.requested_by),
+      requestedAt: asString(row.created_at),
+      status: asString(row.status) ?? "Pending",
+      reason: asString(row.reason),
+      originalEmplocId: asString(row.original_emploc_id),
+    };
+  });
+}
+
+export type ApproveEmplocDeletionParams = {
+  requestId: string;
+  reopenVacancy: boolean;
+  notes?: string | null;
+};
+
+/**
+ * Approves an emploc deletion request via RPC.
+ * `p_reopen_vacancy` controls whether the linked vacancy slot is reopened
+ * (defaults true for Backout, false for Duplicate Record).
+ */
+export async function approveEmplocDeletion(
+  params: ApproveEmplocDeletionParams
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("fn_approve_emploc_deletion_request", {
+    p_request_id: params.requestId,
+    p_reviewer_remarks: params.notes?.trim() || null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export type RejectEmplocDeletionParams = {
+  requestId: string;
+  rejectionReason: string;
+};
+
+/**
+ * Rejects an emploc deletion request via RPC.
+ * `p_reviewer_remarks` is required — validated client-side before calling.
+ */
+export async function rejectEmplocDeletion(
+  params: RejectEmplocDeletionParams
+): Promise<void> {
+  const trimmedReason = params.rejectionReason.trim();
+  if (!trimmedReason) {
+    throw new HrEmplocDataError("invalid_state", "A rejection reason is required.");
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("fn_reject_emploc_deletion_request", {
+    p_request_id: params.requestId,
+    p_reviewer_remarks: trimmedReason,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+
+export function useEmplocDeletionRequests() {
+  return useQuery({
+    queryKey: ["emploc_deletion_requests"],
+    queryFn: () => fetchEmplocDeletionRequests(),
+  });
+}
+
+export function useApproveEmplocDeletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ApproveEmplocDeletionParams) => approveEmplocDeletion(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emploc_deletion_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+    },
+  });
+}
+
+export function useRejectEmplocDeletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RejectEmplocDeletionParams) => rejectEmplocDeletion(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emploc_deletion_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+    },
+  });
+}

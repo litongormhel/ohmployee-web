@@ -12,12 +12,14 @@ import {
 import { DataState } from "@/components/shared/DataState";
 import { HeadcountAmendmentApprovalCard } from "@/components/approvals/HeadcountAmendmentApprovalCard";
 import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
+import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
 import {
   REQUEST_CATEGORIES,
   usePendingHeadcountRequests,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
+import { useEmplocDeletionRequests } from "@/lib/queries/hr_emploc";
 
 interface ActiveQueueReviewPaneProps {
   selectedCategory: RequestCategoryKey;
@@ -28,7 +30,6 @@ interface ActiveQueueReviewPaneProps {
 const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: string }>> = {
   coverage: { href: "/cencom", label: "Open CENCOM Module" },
   vacancy_closures: { href: "/vacancy", label: "Open Vacancy Module" },
-  hr_emploc_deletions: { href: "/hr-emploc", label: "Open HR Emploc Module" },
   deactivations: { href: "/plantilla", label: "Open Plantilla Module" },
 };
 
@@ -39,6 +40,7 @@ export function ActiveQueueReviewPane({
 }: ActiveQueueReviewPaneProps) {
   const [filterType, setFilterType] = useState<"all" | "amendment" | "standard">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletionSearchQuery, setDeletionSearchQuery] = useState("");
 
   const {
     data: requests = [],
@@ -47,6 +49,14 @@ export function ActiveQueueReviewPane({
     refetch,
     isRefetching,
   } = usePendingHeadcountRequests();
+
+  const {
+    data: deletionRequests = [],
+    isLoading: isDeletionLoading,
+    isError: isDeletionError,
+    refetch: refetchDeletions,
+    isRefetching: isDeletionRefetching,
+  } = useEmplocDeletionRequests();
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -83,6 +93,20 @@ export function ActiveQueueReviewPane({
     });
   }, [requests, filterType, searchQuery]);
 
+  const filteredDeletionRequests = useMemo(() => {
+    if (!deletionSearchQuery.trim()) return deletionRequests;
+    const q = deletionSearchQuery.toLowerCase();
+    return deletionRequests.filter(
+      (req) =>
+        req.applicantName.toLowerCase().includes(q) ||
+        req.vcode.toLowerCase().includes(q) ||
+        req.storeName?.toLowerCase().includes(q) ||
+        req.positionTitle?.toLowerCase().includes(q) ||
+        req.requestedByName?.toLowerCase().includes(q) ||
+        req.employeeNo?.toLowerCase().includes(q)
+    );
+  }, [deletionRequests, deletionSearchQuery]);
+
   const quotaCount = useMemo(
     () => requests.filter((r) => r.isQuotaAmendment).length,
     [requests]
@@ -91,6 +115,96 @@ export function ActiveQueueReviewPane({
     () => requests.filter((r) => !r.isQuotaAmendment).length,
     [requests]
   );
+
+  // ── HR Emploc Deletions Queue ────────────────────────────────────────────
+  if (selectedCategory === "hr_emploc_deletions") {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">
+                  HR Emploc Deletion Queue
+                </h2>
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-amber-800">
+                  {deletionRequests.length} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Review employee locator Backout and Duplicate Record deletion requests awaiting administrative approval.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refetchDeletions()}
+              disabled={isDeletionRefetching || isDeletionLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isDeletionRefetching ? "animate-spin text-brand-600" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="mt-4">
+            <div className="relative min-w-[240px] max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search employee, VCode, store..."
+                value={deletionSearchQuery}
+                onChange={(e) => setDeletionSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isDeletionLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Deletion Requests"
+              description="Fetching pending HR Emploc deletion requests..."
+            />
+          ) : isDeletionError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending deletion requests."
+              onRetry={() => refetchDeletions()}
+            />
+          ) : filteredDeletionRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                deletionSearchQuery
+                  ? "No Matching Requests"
+                  : "No Pending Deletion Requests"
+              }
+              description={
+                deletionSearchQuery
+                  ? `No requests match "${deletionSearchQuery}". Clear your search to see all items.`
+                  : "All HR Emploc deletion requests have been reviewed and processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredDeletionRequests.map((req) => (
+                <HrEmplocDeletionReviewCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // If Headcount queue is selected
   if (selectedCategory === "headcount") {
