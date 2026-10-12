@@ -161,14 +161,25 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
-    // 3. Coverage
-    countItem(
-      "coverage",
-      supabase
-        .from("coverage_requests")
-        .select("id", { count: "exact", head: true })
-        .or("status.ilike.pending,status.ilike.draft")
-    ),
+    // 3. Coverage & Reliever Endorsements
+    (async () => {
+      try {
+        const [covRes, relieverRes] = await Promise.all([
+          supabase
+            .from("coverage_requests")
+            .select("id", { count: "exact", head: true })
+            .or("status.ilike.pending,status.ilike.draft"),
+          supabase
+            .from("v_workforce_assignment_request_queue")
+            .select("request_id", { count: "exact", head: true })
+            .in("status", ["Pending", "pending", "For Review", "for review"]),
+        ]);
+        const total = (covRes.count ?? 0) + (relieverRes.count ?? 0);
+        return { key: "coverage" as RequestCategoryKey, count: total };
+      } catch {
+        return { key: "coverage" as RequestCategoryKey, count: 0 };
+      }
+    })(),
 
     // 4. Vacancy Closures
     countItem(
@@ -1698,6 +1709,468 @@ export function useRejectAccountGroupTransfer() {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
+// ============================================================================
+// 9. Reliever Endorsements & Coverage Requests
+// ============================================================================
+
+export type RelieverEndorsementItem = {
+  requestId: string;
+  employeeId: string;
+  employeeNumber: string | null;
+  employeeName: string | null;
+  poolType: string | null;
+  requestedAccount: string | null;
+  requestedStore: string | null;
+  requestedGroup: string | null;
+  priority: string;
+  startDate: string | null;
+  endDate: string | null;
+  reason: string | null;
+  status: string;
+  requestedBy: string | null;
+  rejectionReason: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  convertedAssignmentId: string | null;
+  createdAt: string;
+  requestAgeDays: number | null;
+  escalationLevel: string | null;
+  notifyTargetRole: string | null;
+};
+
+export type CoverageGroupRequestItem = {
+  id: string;
+  requestType: string;
+  status: string;
+  accountId: string | null;
+  accountName: string | null;
+  positionId: string | null;
+  employmentType: string | null;
+  targetCoverageGroupId: string | null;
+  targetCoverageGroupName: string | null;
+  targetCoverageGroupCode: string | null;
+  sourceCoverageGroupId: string | null;
+  destinationCoverageGroupId: string | null;
+  payload: Record<string, unknown>;
+  reason: string | null;
+  requestedBy: string;
+  requestedByName: string;
+  requestedByRole: string | null;
+  requestedAt: string;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  rejectedBy: string | null;
+  rejectedByName: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  reviewerRemarks: string | null;
+  executionSummary: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+/**
+ * Fetches pending Reliever Endorsement requests from v_workforce_assignment_request_queue.
+ */
+export async function fetchPendingRelieverEndorsements(): Promise<RelieverEndorsementItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("v_workforce_assignment_request_queue")
+    .select(`
+      request_id,
+      employee_id,
+      employee_number,
+      employee_name,
+      pool_type,
+      requested_account,
+      requested_store,
+      requested_group,
+      priority,
+      start_date,
+      end_date,
+      reason,
+      status,
+      requested_by,
+      rejection_reason,
+      reviewed_by,
+      reviewed_at,
+      converted_assignment_id,
+      created_at,
+      request_age_days,
+      escalation_level,
+      notify_target_role
+    `)
+    .in("status", ["Pending", "pending", "For Review", "for review"])
+    .order("request_age_days", { ascending: false })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return (data ?? []).map((row) => ({
+    requestId: row.request_id,
+    employeeId: row.employee_id,
+    employeeNumber: row.employee_number ?? null,
+    employeeName: row.employee_name ?? null,
+    poolType: row.pool_type ?? null,
+    requestedAccount: row.requested_account ?? null,
+    requestedStore: row.requested_store ?? null,
+    requestedGroup: row.requested_group ?? null,
+    priority: row.priority ?? "Normal",
+    startDate: row.start_date ?? null,
+    endDate: row.end_date ?? null,
+    reason: row.reason ?? null,
+    status: row.status ?? "Pending",
+    requestedBy: row.requested_by ?? null,
+    rejectionReason: row.rejection_reason ?? null,
+    reviewedBy: row.reviewed_by ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    convertedAssignmentId: row.converted_assignment_id ?? null,
+    createdAt: row.created_at,
+    requestAgeDays: row.request_age_days !== null ? Number(row.request_age_days) : null,
+    escalationLevel: row.escalation_level ?? null,
+    notifyTargetRole: row.notify_target_role ?? null,
+  }));
+}
+
+/**
+ * Fetches pending Coverage Requests (roving coverage structures) joined with accounts and coverage groups.
+ */
+export async function fetchPendingCoverageRequests(): Promise<CoverageGroupRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("coverage_requests")
+    .select(`
+      id,
+      request_type,
+      status,
+      account_id,
+      position_id,
+      employment_type,
+      target_coverage_group_id,
+      source_coverage_group_id,
+      destination_coverage_group_id,
+      payload,
+      reason,
+      requested_by,
+      requested_by_name,
+      requested_by_role,
+      requested_at,
+      approved_by,
+      approved_by_name,
+      approved_at,
+      rejected_by,
+      rejected_by_name,
+      rejected_at,
+      rejection_reason,
+      reviewer_remarks,
+      execution_summary,
+      created_at,
+      accounts:account_id (
+        account_name
+      ),
+      target_coverage_group:target_coverage_group_id (
+        name,
+        code
+      )
+    `)
+    .or("status.ilike.pending,status.ilike.draft")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  type RawCoverageRow = {
+    id: string;
+    request_type: string;
+    status: string;
+    account_id: string | null;
+    position_id: string | null;
+    employment_type: string | null;
+    target_coverage_group_id: string | null;
+    source_coverage_group_id: string | null;
+    destination_coverage_group_id: string | null;
+    payload: Record<string, unknown> | null;
+    reason: string | null;
+    requested_by: string;
+    requested_by_name: string;
+    requested_by_role: string | null;
+    requested_at: string;
+    approved_by: string | null;
+    approved_by_name: string | null;
+    approved_at: string | null;
+    rejected_by: string | null;
+    rejected_by_name: string | null;
+    rejected_at: string | null;
+    rejection_reason: string | null;
+    reviewer_remarks: string | null;
+    execution_summary: Record<string, unknown> | null;
+    created_at: string;
+    accounts?: { account_name?: string } | null;
+    target_coverage_group?: { name?: string; code?: string } | null;
+  };
+
+  return ((data as unknown as RawCoverageRow[]) ?? []).map((row) => ({
+    id: row.id,
+    requestType: row.request_type,
+    status: row.status,
+    accountId: row.account_id ?? null,
+    accountName: row.accounts?.account_name ?? null,
+    positionId: row.position_id ?? null,
+    employmentType: row.employment_type ?? null,
+    targetCoverageGroupId: row.target_coverage_group_id ?? null,
+    targetCoverageGroupName: row.target_coverage_group?.name ?? null,
+    targetCoverageGroupCode: row.target_coverage_group?.code ?? null,
+    sourceCoverageGroupId: row.source_coverage_group_id ?? null,
+    destinationCoverageGroupId: row.destination_coverage_group_id ?? null,
+    payload: row.payload ?? {},
+    reason: row.reason ?? null,
+    requestedBy: row.requested_by,
+    requestedByName: row.requested_by_name,
+    requestedByRole: row.requested_by_role ?? null,
+    requestedAt: row.requested_at,
+    approvedBy: row.approved_by ?? null,
+    approvedByName: row.approved_by_name ?? null,
+    approvedAt: row.approved_at ?? null,
+    rejectedBy: row.rejected_by ?? null,
+    rejectedByName: row.rejected_by_name ?? null,
+    rejectedAt: row.rejected_at ?? null,
+    rejectionReason: row.rejection_reason ?? null,
+    reviewerRemarks: row.reviewer_remarks ?? null,
+    executionSummary: row.execution_summary ?? null,
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Approves a Reliever Coverage request.
+ * Invokes approve_reliever_coverage_request(p_request_id, p_assigned_employee_id, p_notes).
+ */
+export async function approveRelieverCoverageRequest({
+  requestId,
+  assignedEmployeeId,
+  notes,
+}: {
+  requestId: string;
+  assignedEmployeeId?: string;
+  notes?: string;
+}): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("approve_reliever_coverage_request", {
+    p_request_id: requestId,
+    p_assigned_employee_id: assignedEmployeeId || null,
+    p_notes: notes?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Data Team, Head Admin, or Super Admin can approve reliever coverage requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+/**
+ * Rejects a Reliever Coverage request.
+ * Invokes reject_reliever_coverage_request(p_request_id, p_rejection_reason).
+ */
+export async function rejectRelieverCoverageRequest({
+  requestId,
+  reason,
+}: {
+  requestId: string;
+  reason: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  const { error } = await supabase.rpc("reject_reliever_coverage_request", {
+    p_request_id: requestId,
+    p_rejection_reason: trimmed,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Data Team, Head Admin, or Super Admin can reject reliever coverage requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+/**
+ * Approves a Coverage Request (roving coverage structure).
+ * Invokes approve_coverage_request(p_coverage_request_id, p_reviewer_remarks).
+ */
+export async function approveCoverageRequest({
+  coverageRequestId,
+  reviewerRemarks,
+}: {
+  coverageRequestId: string;
+  reviewerRemarks?: string;
+}): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("approve_coverage_request", {
+    p_coverage_request_id: coverageRequestId,
+    p_reviewer_remarks: reviewerRemarks?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Head Admin or Super Admin can approve coverage structure requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+/**
+ * Rejects a Coverage Request (roving coverage structure).
+ * Invokes reject_coverage_request(p_coverage_request_id, p_rejection_reason, p_reviewer_remarks).
+ */
+export async function rejectCoverageRequest({
+  coverageRequestId,
+  rejectionReason,
+  reviewerRemarks,
+}: {
+  coverageRequestId: string;
+  rejectionReason: string;
+  reviewerRemarks?: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const trimmed = rejectionReason.trim();
+  if (!trimmed) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  const { error } = await supabase.rpc("reject_coverage_request", {
+    p_coverage_request_id: coverageRequestId,
+    p_rejection_reason: trimmed,
+    p_reviewer_remarks: reviewerRemarks?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Head Admin or Super Admin can reject coverage structure requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+export function usePendingRelieverEndorsements() {
+  return useQuery({
+    queryKey: ["reliever-endorsements"],
+    queryFn: () => fetchPendingRelieverEndorsements(),
+  });
+}
+
+export function usePendingCoverageRequests() {
+  return useQuery({
+    queryKey: ["coverage-group-requests"],
+    queryFn: () => fetchPendingCoverageRequests(),
+  });
+}
+
+export function useApproveRelieverCoverage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      requestId: string;
+      assignedEmployeeId?: string;
+      notes?: string;
+    }) => approveRelieverCoverageRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["reliever-endorsements"] });
+      queryClient.invalidateQueries({ queryKey: ["workforce-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export function useRejectRelieverCoverage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { requestId: string; reason: string }) =>
+      rejectRelieverCoverageRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["reliever-endorsements"] });
+      queryClient.invalidateQueries({ queryKey: ["workforce-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export function useApproveCoverageRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      coverageRequestId: string;
+      reviewerRemarks?: string;
+    }) => approveCoverageRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
+    },
+  });
+}
+
+export function useRejectCoverageRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      coverageRequestId: string;
+      rejectionReason: string;
+      reviewerRemarks?: string;
+    }) => rejectCoverageRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
     },
   });
 }

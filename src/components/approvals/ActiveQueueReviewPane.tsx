@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import { ApplicantMovementApprovalCard } from "@/components/approvals/ApplicantMovementApprovalCard";
+import { CoverageGroupApprovalCard } from "@/components/approvals/CoverageGroupApprovalCard";
 import { DeactivationApprovalCard } from "@/components/approvals/DeactivationApprovalCard";
 import { HeadcountAmendmentApprovalCard } from "@/components/approvals/HeadcountAmendmentApprovalCard";
 import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
 import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
 import { NewStoreApprovalCard } from "@/components/approvals/NewStoreApprovalCard";
+import { RelieverCoverageApprovalCard } from "@/components/approvals/RelieverCoverageApprovalCard";
 import { StoreTransferApprovalCard } from "@/components/approvals/StoreTransferApprovalCard";
 import { VacancyClosureApprovalCard } from "@/components/approvals/VacancyClosureApprovalCard";
 import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
@@ -29,6 +31,8 @@ import {
   usePendingApplicantMovements,
   usePendingDeactivationRequests,
   usePendingAccountGroupTransfers,
+  usePendingRelieverEndorsements,
+  usePendingCoverageRequests,
   useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
@@ -65,6 +69,10 @@ export function ActiveQueueReviewPane({
   const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "TRANSFER" | "SWAP">("all");
   const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
+  const [coverageSubTab, setCoverageSubTab] = useState<"reliever" | "roving">("reliever");
+  const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
+  const [rovingSearchQuery, setRovingSearchQuery] = useState("");
+  const [relieverPriorityFilter, setRelieverPriorityFilter] = useState<"all" | "Urgent" | "High" | "Normal">("all");
 
   // Bulk actions state
   const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
@@ -129,6 +137,22 @@ export function ActiveQueueReviewPane({
     refetch: refetchTransfers,
     isRefetching: isTransferRefetching,
   } = usePendingAccountGroupTransfers();
+
+  const {
+    data: relieverRequests = [],
+    isLoading: isRelieverLoading,
+    isError: isRelieverError,
+    refetch: refetchRelievers,
+    isRefetching: isRelieverRefetching,
+  } = usePendingRelieverEndorsements();
+
+  const {
+    data: rovingRequests = [],
+    isLoading: isRovingLoading,
+    isError: isRovingError,
+    refetch: refetchRoving,
+    isRefetching: isRovingRefetching,
+  } = usePendingCoverageRequests();
 
   const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
@@ -284,6 +308,44 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [transferRequests, transferSearchQuery]);
+
+  const filteredRelieverRequests = useMemo(() => {
+    return relieverRequests.filter((req) => {
+      if (
+        relieverPriorityFilter !== "all" &&
+        req.priority.toLowerCase() !== relieverPriorityFilter.toLowerCase()
+      ) {
+        return false;
+      }
+      if (!relieverSearchQuery.trim()) return true;
+      const q = relieverSearchQuery.toLowerCase();
+      return (
+        (req.employeeName?.toLowerCase().includes(q) ?? false) ||
+        (req.employeeNumber?.toLowerCase().includes(q) ?? false) ||
+        (req.requestedStore?.toLowerCase().includes(q) ?? false) ||
+        (req.requestedAccount?.toLowerCase().includes(q) ?? false) ||
+        (req.requestedGroup?.toLowerCase().includes(q) ?? false) ||
+        (req.requestedBy?.toLowerCase().includes(q) ?? false) ||
+        (req.reason?.toLowerCase().includes(q) ?? false) ||
+        (req.poolType?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [relieverRequests, relieverPriorityFilter, relieverSearchQuery]);
+
+  const filteredRovingRequests = useMemo(() => {
+    if (!rovingSearchQuery.trim()) return rovingRequests;
+    const q = rovingSearchQuery.toLowerCase();
+    return rovingRequests.filter((req) => {
+      return (
+        req.requestType.toLowerCase().includes(q) ||
+        (req.accountName?.toLowerCase().includes(q) ?? false) ||
+        (req.targetCoverageGroupName?.toLowerCase().includes(q) ?? false) ||
+        (req.targetCoverageGroupCode?.toLowerCase().includes(q) ?? false) ||
+        req.requestedByName.toLowerCase().includes(q) ||
+        (req.reason?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [rovingRequests, rovingSearchQuery]);
 
   const quotaCount = useMemo(
     () => requests.filter((r) => r.isQuotaAmendment).length,
@@ -1168,7 +1230,241 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // ── 8. Other Categories (Fallback Pane) ──────────────────────────────────
+  // ── 8. Coverage & Reliever Endorsements Review Queue ─────────────────────
+  if (selectedCategory === "coverage") {
+    const totalCoverageCount = counts.coverage ?? (relieverRequests.length + rovingRequests.length);
+    const isCoverageBusy =
+      isRelieverLoading || isRovingLoading || isRelieverRefetching || isRovingRefetching;
+
+    const handleRefreshCoverage = () => {
+      refetchRelievers();
+      refetchRoving();
+    };
+
+    return (
+      <div className="flex h-full flex-col">
+        {/* Header */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-text-primary">
+                Reliever Endorsements & Coverage Requests
+              </h2>
+              {totalCoverageCount > 0 && (
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
+                  {totalCoverageCount} pending
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRefreshCoverage}
+              disabled={isCoverageBusy}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
+              title="Refresh Queue"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isCoverageBusy ? "animate-spin" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+          <p className="mt-0.5 text-xs text-text-secondary">
+            Operational review queue for temporary reliever pool deployments and CENCOM roving coverage group structures
+          </p>
+
+          {/* Sub-Tab Segmented Switcher */}
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
+            <button
+              type="button"
+              onClick={() => setCoverageSubTab("reliever")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                coverageSubTab === "reliever"
+                  ? "bg-brand-600 text-white shadow-2xs"
+                  : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
+              }`}
+            >
+              <span>Reliever Deployments</span>
+              <span
+                className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
+                  coverageSubTab === "reliever"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {relieverRequests.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCoverageSubTab("roving")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                coverageSubTab === "roving"
+                  ? "bg-brand-600 text-white shadow-2xs"
+                  : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
+              }`}
+            >
+              <span>Roving Coverage Groups</span>
+              <span
+                className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
+                  coverageSubTab === "roving"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {rovingRequests.length}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Toolbar: Search and Filters */}
+        <div className="my-4 flex flex-wrap items-center gap-3">
+          {coverageSubTab === "reliever" ? (
+            <>
+              <div className="relative min-w-[240px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  type="text"
+                  placeholder="Search by reliever name, ID, store, account, or requester..."
+                  value={relieverSearchQuery}
+                  onChange={(e) => setRelieverSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
+                />
+                {relieverSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setRelieverSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Priority Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
+                  Priority:
+                </span>
+                {(["all", "Urgent", "High", "Normal"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setRelieverPriorityFilter(p)}
+                    className={`rounded-md px-2.5 py-1 text-2xs font-semibold capitalize transition ${
+                      relieverPriorityFilter === p
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="relative min-w-[240px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="text"
+                placeholder="Search by group name, code, operation type, account, or requester..."
+                value={rovingSearchQuery}
+                onChange={(e) => setRovingSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
+              />
+              {rovingSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setRovingSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Content Stream */}
+        <div className="flex-1 overflow-y-auto pr-1">
+          {coverageSubTab === "reliever" ? (
+            isRelieverLoading ? (
+              <DataState
+                kind="loading"
+                title="Loading Reliever Deployments"
+                description="Fetching pending reliever endorsement requests from workforce pool..."
+              />
+            ) : isRelieverError ? (
+              <DataState
+                kind="error"
+                title="Failed to Load Reliever Deployments"
+                description="An error occurred while fetching pending reliever endorsement requests."
+                onRetry={() => refetchRelievers()}
+              />
+            ) : filteredRelieverRequests.length === 0 ? (
+              <DataState
+                kind="empty"
+                title={
+                  relieverSearchQuery || relieverPriorityFilter !== "all"
+                    ? "No Matching Reliever Endorsements"
+                    : "No Pending Reliever Endorsements"
+                }
+                description={
+                  relieverSearchQuery || relieverPriorityFilter !== "all"
+                    ? "No requests match your current search and priority filters. Try clearing filters to see all pending items."
+                    : "All workforce pool reliever endorsements have been processed."
+                }
+              />
+            ) : (
+              <div className="space-y-4">
+                {filteredRelieverRequests.map((req) => (
+                  <RelieverCoverageApprovalCard key={req.requestId} request={req} />
+                ))}
+              </div>
+            )
+          ) : isRovingLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Roving Coverage Groups"
+              description="Fetching pending coverage group structural requests..."
+            />
+          ) : isRovingError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Coverage Requests"
+              description="An error occurred while fetching pending coverage requests."
+              onRetry={() => refetchRoving()}
+            />
+          ) : filteredRovingRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                rovingSearchQuery
+                  ? "No Matching Coverage Group Requests"
+                  : "No Pending Coverage Group Requests"
+              }
+              description={
+                rovingSearchQuery
+                  ? `No requests match "${rovingSearchQuery}". Clear your search query to see all items.`
+                  : "All CENCOM roving coverage group structural requests have been processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredRovingRequests.map((req) => (
+                <CoverageGroupApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 9. Other Categories (Fallback Pane) ──────────────────────────────────
   const count = counts[selectedCategory] ?? 0;
   const linkInfo = CATEGORY_LINKS[selectedCategory];
 
@@ -1211,12 +1507,12 @@ export function ActiveQueueReviewPane({
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          {linkInfo && (
+          {Boolean(linkInfo) && (
             <Link
-              href={linkInfo.href}
+              href={(linkInfo as { href: string; label: string }).href}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-brand-300 bg-brand-50 px-4 text-xs font-semibold text-brand-700 shadow-2xs hover:bg-brand-100 transition"
             >
-              <span>{linkInfo.label}</span>
+              <span>{(linkInfo as { href: string; label: string }).label}</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
