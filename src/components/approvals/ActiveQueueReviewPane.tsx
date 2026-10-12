@@ -5,17 +5,25 @@ import Link from "next/link";
 import {
   ArrowRight,
   Building2,
+  CheckCheck,
   RefreshCw,
   Search,
   Users,
+  X,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import { HeadcountAmendmentApprovalCard } from "@/components/approvals/HeadcountAmendmentApprovalCard";
 import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
 import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
+import { NewStoreApprovalCard } from "@/components/approvals/NewStoreApprovalCard";
+import { VacancyClosureApprovalCard } from "@/components/approvals/VacancyClosureApprovalCard";
+import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
 import {
   REQUEST_CATEGORIES,
   usePendingHeadcountRequests,
+  usePendingNewStoreRequests,
+  usePendingVacancyClosureRequests,
+  useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
@@ -29,7 +37,6 @@ interface ActiveQueueReviewPaneProps {
 
 const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: string }>> = {
   coverage: { href: "/cencom", label: "Open CENCOM Module" },
-  vacancy_closures: { href: "/vacancy", label: "Open Vacancy Module" },
   deactivations: { href: "/plantilla", label: "Open Plantilla Module" },
 };
 
@@ -38,10 +45,26 @@ export function ActiveQueueReviewPane({
   onSelectCategory,
   counts,
 }: ActiveQueueReviewPaneProps) {
+  const currentUser = useCurrentUser();
+  const canBulkApproveClosures = isHeadOrSuperAdmin(
+    currentUser?.roleKey || currentUser?.roleName
+  );
+
+  // Search & Filter state
   const [filterType, setFilterType] = useState<"all" | "amendment" | "standard">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [deletionSearchQuery, setDeletionSearchQuery] = useState("");
+  const [newStoreSearchQuery, setNewStoreSearchQuery] = useState("");
+  const [vacancyClosureSearchQuery, setVacancyClosureSearchQuery] = useState("");
 
+  // Bulk actions state
+  const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
+  const [approveAllFeedback, setApproveAllFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Queries
   const {
     data: requests = [],
     isLoading,
@@ -57,6 +80,24 @@ export function ActiveQueueReviewPane({
     refetch: refetchDeletions,
     isRefetching: isDeletionRefetching,
   } = useEmplocDeletionRequests();
+
+  const {
+    data: newStoreRequests = [],
+    isLoading: isNewStoreLoading,
+    isError: isNewStoreError,
+    refetch: refetchNewStores,
+    isRefetching: isNewStoreRefetching,
+  } = usePendingNewStoreRequests();
+
+  const {
+    data: closureRequests = [],
+    isLoading: isClosureLoading,
+    isError: isClosureError,
+    refetch: refetchClosures,
+    isRefetching: isClosureRefetching,
+  } = usePendingVacancyClosureRequests();
+
+  const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -107,6 +148,37 @@ export function ActiveQueueReviewPane({
     );
   }, [deletionRequests, deletionSearchQuery]);
 
+  const filteredNewStoreRequests = useMemo(() => {
+    if (!newStoreSearchQuery.trim()) return newStoreRequests;
+    const q = newStoreSearchQuery.toLowerCase();
+    return newStoreRequests.filter(
+      (req) =>
+        req.storeName.toLowerCase().includes(q) ||
+        req.accountName.toLowerCase().includes(q) ||
+        req.city.toLowerCase().includes(q) ||
+        req.province.toLowerCase().includes(q) ||
+        req.requestedByName?.toLowerCase().includes(q) ||
+        req.groupName?.toLowerCase().includes(q) ||
+        req.reason.toLowerCase().includes(q)
+    );
+  }, [newStoreRequests, newStoreSearchQuery]);
+
+  const filteredClosureRequests = useMemo(() => {
+    if (!vacancyClosureSearchQuery.trim()) return closureRequests;
+    const q = vacancyClosureSearchQuery.toLowerCase();
+    return closureRequests.filter(
+      (req) =>
+        req.vacancyVcode.toLowerCase().includes(q) ||
+        req.position?.toLowerCase().includes(q) ||
+        req.storeName?.toLowerCase().includes(q) ||
+        req.storeBranch?.toLowerCase().includes(q) ||
+        req.account?.toLowerCase().includes(q) ||
+        req.requestedBy.toLowerCase().includes(q) ||
+        req.reason.toLowerCase().includes(q) ||
+        req.details?.toLowerCase().includes(q)
+    );
+  }, [closureRequests, vacancyClosureSearchQuery]);
+
   const quotaCount = useMemo(
     () => requests.filter((r) => r.isQuotaAmendment).length,
     [requests]
@@ -116,7 +188,321 @@ export function ActiveQueueReviewPane({
     [requests]
   );
 
-  // ── HR Emploc Deletions Queue ────────────────────────────────────────────
+  const handleConfirmApproveAllClosures = async () => {
+    setApproveAllFeedback(null);
+    try {
+      const res = await approveAllClosuresMutation.mutateAsync();
+      setApproveAllFeedback({
+        type: "success",
+        message: `Approved ${res.approved_count} pending vacancy closure${
+          res.approved_count === 1 ? "" : "s"
+        }${res.skipped_count > 0 ? ` (${res.skipped_count} skipped)` : ""}.`,
+      });
+      setIsApproveAllClosuresOpen(false);
+    } catch (err: unknown) {
+      setApproveAllFeedback({
+        type: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to approve all closure requests.",
+      });
+    }
+  };
+
+  // ── 1. New Store Requests Queue ──────────────────────────────────────────
+  if (selectedCategory === "new_stores") {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">
+                  New Store Requests Queue
+                </h2>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-emerald-800">
+                  {newStoreRequests.length} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Review store registry additions and branch onboarding requests awaiting administrative verification.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refetchNewStores()}
+              disabled={isNewStoreRefetching || isNewStoreLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isNewStoreRefetching ? "animate-spin text-brand-600" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="mt-4">
+            <div className="relative min-w-[240px] max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search store name, account, location, requester..."
+                value={newStoreSearchQuery}
+                onChange={(e) => setNewStoreSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isNewStoreLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading New Store Requests"
+              description="Fetching pending new store addition requests..."
+            />
+          ) : isNewStoreError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending new store requests."
+              onRetry={() => refetchNewStores()}
+            />
+          ) : filteredNewStoreRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                newStoreSearchQuery
+                  ? "No Matching Requests"
+                  : "No Pending Store Requests"
+              }
+              description={
+                newStoreSearchQuery
+                  ? `No requests match "${newStoreSearchQuery}". Clear your search query to see all items.`
+                  : "All new store addition requests have been reviewed and processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredNewStoreRequests.map((req) => (
+                <NewStoreApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 2. Vacancy Closures Queue ─────────────────────────────────────────────
+  if (selectedCategory === "vacancy_closures") {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">
+                  Vacancy Closures Queue
+                </h2>
+                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-indigo-800">
+                  {closureRequests.length} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Review position requisition retirement and closed-slot clearance requests awaiting administrative action.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {canBulkApproveClosures && (
+                <button
+                  type="button"
+                  onClick={() => setIsApproveAllClosuresOpen(true)}
+                  disabled={
+                    closureRequests.length === 0 ||
+                    approveAllClosuresMutation.isPending
+                  }
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                >
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  <span>Approve All Pending Closures</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => refetchClosures()}
+                disabled={isClosureRefetching || isClosureLoading}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${
+                    isClosureRefetching ? "animate-spin text-brand-600" : ""
+                  }`}
+                />
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback Banner */}
+          {approveAllFeedback && (
+            <div
+              className={`mt-3 flex items-start gap-2 rounded-md p-2.5 text-xs ${
+                approveAllFeedback.type === "success"
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border border-rose-200 bg-rose-50 text-rose-800"
+              }`}
+            >
+              <div className="flex-1">{approveAllFeedback.message}</div>
+              <button
+                type="button"
+                onClick={() => setApproveAllFeedback(null)}
+                className="text-text-muted hover:text-text-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="mt-4">
+            <div className="relative min-w-[240px] max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search VCode, store, position, requester..."
+                value={vacancyClosureSearchQuery}
+                onChange={(e) => setVacancyClosureSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isClosureLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Vacancy Closures"
+              description="Fetching pending vacancy closure requests..."
+            />
+          ) : isClosureError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending vacancy closure requests."
+              onRetry={() => refetchClosures()}
+            />
+          ) : filteredClosureRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                vacancyClosureSearchQuery
+                  ? "No Matching Requests"
+                  : "No Pending Vacancy Closures"
+              }
+              description={
+                vacancyClosureSearchQuery
+                  ? `No requests match "${vacancyClosureSearchQuery}". Clear your search query to see all items.`
+                  : "All vacancy closure requests have been reviewed and processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredClosureRequests.map((req) => (
+                <VacancyClosureApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Approve All Confirmation Modal */}
+        {isApproveAllClosuresOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <CheckCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-text-primary">
+                      Approve All Pending Closures
+                    </h3>
+                    <p className="text-xs text-text-secondary">
+                      Bulk approval of all active closure requisitions
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsApproveAllClosuresOpen(false)}
+                  disabled={approveAllClosuresMutation.isPending}
+                  className="text-text-muted hover:text-text-primary"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-2">
+                <p className="text-text-primary font-medium">
+                  Are you sure you want to approve all{" "}
+                  <span className="font-bold text-emerald-700">
+                    {closureRequests.length}
+                  </span>{" "}
+                  pending vacancy closure requests?
+                </p>
+                <p className="text-text-secondary">
+                  This action will permanently close and archive each corresponding vacancy and reconcile active plantilla slots per ADR-001.
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsApproveAllClosuresOpen(false)}
+                  disabled={approveAllClosuresMutation.isPending}
+                  className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmApproveAllClosures}
+                  disabled={approveAllClosuresMutation.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                >
+                  {approveAllClosuresMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Processing Bulk Approval...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck className="h-3.5 w-3.5" />
+                      <span>Confirm Bulk Approval</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 3. HR Emploc Deletions Queue ─────────────────────────────────────────
   if (selectedCategory === "hr_emploc_deletions") {
     return (
       <div className="flex h-full flex-col">
@@ -206,7 +592,7 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // If Headcount queue is selected
+  // ── 4. Headcount Approvals Queue ─────────────────────────────────────────
   if (selectedCategory === "headcount") {
     return (
       <div className="flex h-full flex-col">
@@ -350,7 +736,7 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // Non-Headcount Category View
+  // ── 5. Other Categories (Fallback Pane) ──────────────────────────────────
   const count = counts[selectedCategory] ?? 0;
   const linkInfo = CATEGORY_LINKS[selectedCategory];
 

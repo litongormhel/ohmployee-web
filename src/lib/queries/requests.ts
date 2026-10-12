@@ -467,3 +467,408 @@ export function useRejectHeadcountRequest() {
     },
   });
 }
+
+// ─── New Store Requests ──────────────────────────────────────────────────────
+
+export type NewStoreRequestItem = {
+  id: string;
+  storeName: string;
+  province: string;
+  city: string;
+  accountId: string;
+  accountName: string;
+  groupId: string | null;
+  groupName: string | null;
+  position: string | null;
+  requestedHc: number | null;
+  reason: string;
+  status: string;
+  requestedBy: string;
+  requestedByName: string;
+  requestedAt: string;
+  reviewedBy: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  createdAt: string;
+};
+
+export type ApproveNewStoreParams = {
+  requestId: string;
+};
+
+export type RejectNewStoreParams = {
+  requestId: string;
+  reason: string;
+};
+
+interface NewStoreDbRow {
+  id: string;
+  store_name: string;
+  province: string;
+  city: string;
+  account_id: string;
+  account_name: string;
+  group_id: string | null;
+  position: string | null;
+  requested_hc: number | null;
+  reason: string;
+  status: string;
+  requested_by: string;
+  requested_by_name: string;
+  requested_at: string;
+  reviewed_by: string | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  review_reason: string | null;
+  created_at: string;
+  groups?: {
+    group_name: string | null;
+  } | null;
+}
+
+export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("new_store_requests")
+    .select(`
+      id,
+      store_name,
+      province,
+      city,
+      account_id,
+      account_name,
+      group_id,
+      position,
+      requested_hc,
+      reason,
+      status,
+      requested_by,
+      requested_by_name,
+      requested_at,
+      reviewed_by,
+      reviewed_by_name,
+      reviewed_at,
+      review_reason,
+      created_at,
+      groups:group_id (
+        group_name
+      )
+    `)
+    .ilike("status", "pending")
+    .eq("is_archived", false)
+    .order("requested_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return ((data as unknown as NewStoreDbRow[]) ?? []).map((row: NewStoreDbRow) => ({
+    id: row.id,
+    storeName: row.store_name,
+    province: row.province,
+    city: row.city,
+    accountId: row.account_id,
+    accountName: row.account_name,
+    groupId: row.group_id ?? null,
+    groupName: row.groups?.group_name ?? null,
+    position: row.position ?? null,
+    requestedHc: row.requested_hc ?? null,
+    reason: row.reason,
+    status: row.status,
+    requestedBy: row.requested_by,
+    requestedByName: row.requested_by_name,
+    requestedAt: row.requested_at,
+    reviewedBy: row.reviewed_by ?? null,
+    reviewedByName: row.reviewed_by_name ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    reviewReason: row.review_reason ?? null,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParams) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("approve_new_store_request", {
+    p_request_id: requestId,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only Head Admin or Super Admin may approve new store requests."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "New store request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStoreParams) {
+  const supabase = createClient();
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  const { data, error } = await supabase.rpc("reject_new_store_request", {
+    p_request_id: requestId,
+    p_reason: trimmedReason,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only Head Admin or Super Admin may reject new store requests."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "New store request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export function usePendingNewStoreRequests() {
+  return useQuery({
+    queryKey: ["pending-new-store-requests"],
+    queryFn: () => fetchPendingNewStoreRequests(),
+  });
+}
+
+export function useApproveNewStoreRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ApproveNewStoreParams) => approveNewStoreRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export function useRejectNewStoreRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RejectNewStoreParams) => rejectNewStoreRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+    },
+  });
+}
+
+// ─── Vacancy Closures ────────────────────────────────────────────────────────
+
+export type VacancyClosureRequestItem = {
+  id: string;
+  vacancyVcode: string;
+  reason: string;
+  details: string | null;
+  requestedBy: string;
+  requestedByUserId: string | null;
+  status: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewerRemarks: string | null;
+  createdAt: string;
+  storeName: string | null;
+  storeBranch: string | null;
+  position: string | null;
+  account: string | null;
+};
+
+export type ReviewVacancyClosureParams = {
+  requestId: string;
+  status: "Approved" | "Rejected";
+  reviewedBy: string;
+  remarks?: string;
+};
+
+interface VacancyClosureDbRow {
+  id: string;
+  vacancy_vcode: string;
+  reason: string;
+  details: string | null;
+  requested_by: string;
+  requested_by_user_id: string | null;
+  status: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  reviewer_remarks: string | null;
+  created_at: string;
+  vacancies?: {
+    store_name: string | null;
+    store_branch: string | null;
+    position: string | null;
+    account: string | null;
+  } | null;
+}
+
+export async function fetchPendingVacancyClosureRequests(): Promise<VacancyClosureRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("vacancy_closure_requests")
+    .select(`
+      id,
+      vacancy_vcode,
+      reason,
+      details,
+      requested_by,
+      requested_by_user_id,
+      status,
+      reviewed_by,
+      reviewed_at,
+      reviewer_remarks,
+      created_at,
+      vacancies:vacancy_vcode (
+        store_name,
+        store_branch,
+        position,
+        account
+      )
+    `)
+    .ilike("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return ((data as unknown as VacancyClosureDbRow[]) ?? []).map((row: VacancyClosureDbRow) => {
+    const vac = row.vacancies;
+    return {
+      id: row.id,
+      vacancyVcode: row.vacancy_vcode,
+      reason: row.reason,
+      details: row.details ?? null,
+      requestedBy: row.requested_by,
+      requestedByUserId: row.requested_by_user_id ?? null,
+      status: row.status,
+      reviewedBy: row.reviewed_by ?? null,
+      reviewedAt: row.reviewed_at ?? null,
+      reviewerRemarks: row.reviewer_remarks ?? null,
+      createdAt: row.created_at,
+      storeName: vac?.store_name ?? null,
+      storeBranch: vac?.store_branch ?? null,
+      position: vac?.position ?? null,
+      account: vac?.account ?? null,
+    };
+  });
+}
+
+export async function reviewVacancyClosureRequest({
+  requestId,
+  status,
+  reviewedBy,
+  remarks,
+}: ReviewVacancyClosureParams) {
+  const supabase = createClient();
+  const trimmedRemarks = remarks?.trim() || null;
+
+  const { data, error } = await supabase.rpc("review_vacancy_closure_request", {
+    p_request_id: requestId,
+    p_status: status,
+    p_reviewed_by: reviewedBy,
+    p_remarks: trimmedRemarks,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Insufficient permissions to review closure request."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023" || error.code === "23514") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "Vacancy closure request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export async function approveAllVacancyClosureRequests() {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("approve_all_vacancy_closure_requests");
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only Super Admin, Head Admin, or Encoder can bulk approve closure requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data as { approved_count: number; skipped_count: number };
+}
+
+export function usePendingVacancyClosureRequests() {
+  return useQuery({
+    queryKey: ["pending-vacancy-closure-requests"],
+    queryFn: () => fetchPendingVacancyClosureRequests(),
+  });
+}
+
+export function useReviewVacancyClosureRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ReviewVacancyClosureParams) => reviewVacancyClosureRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["quota-details"] });
+    },
+  });
+}
+
+export function useApproveAllVacancyClosures() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => approveAllVacancyClosureRequests(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["quota-details"] });
+    },
+  });
+}

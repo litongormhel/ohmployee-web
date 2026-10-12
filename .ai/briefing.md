@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w35a326f**: Implement In-Place Review Cards for New Stores and Vacancy Closures in Approvals
 - **ohm#w33e124d**: Implement HR Emploc Bulk XLSX Import and Reconciliation Wizard on Web
 - **ohm#w32e023c**: Integrate HR Emploc Deletion Review Queue in Approvals Center
 - **ohm#w31e922b**: Wire HR Emploc Lifecycle Action Mutations and Modals on Web

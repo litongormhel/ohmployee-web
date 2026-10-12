@@ -418,3 +418,12 @@ export function isOpsAmendmentRole(roleKeyOrName?: string | null): boolean {
   );
 }
 
+/**
+ * Super Admin and Head Admin roles for high-privilege governance actions.
+ */
+export function isHeadOrSuperAdmin(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return normalized === "super_admin" || normalized === "head_admin";
+}
+
