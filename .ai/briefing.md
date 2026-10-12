@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w32e023c**: Integrate HR Emploc Deletion Review Queue in Approvals Center
 - **ohm#w31e922b**: Wire HR Emploc Lifecycle Action Mutations and Modals on Web
 - **ohm#w29m720d**: Implement Full-Fidelity "More" Settings & Governance Hub on Web
 - **ohm#w20e711b**: Fix Infinite "Loading Secure Workspace" Loop on Vercel Deployment
