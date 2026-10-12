@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
+import { ApplicantMovementApprovalCard } from "@/components/approvals/ApplicantMovementApprovalCard";
+import { DeactivationApprovalCard } from "@/components/approvals/DeactivationApprovalCard";
 import { HeadcountAmendmentApprovalCard } from "@/components/approvals/HeadcountAmendmentApprovalCard";
 import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
 import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
@@ -23,6 +25,8 @@ import {
   usePendingHeadcountRequests,
   usePendingNewStoreRequests,
   usePendingVacancyClosureRequests,
+  usePendingApplicantMovements,
+  usePendingDeactivationRequests,
   useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
@@ -37,7 +41,6 @@ interface ActiveQueueReviewPaneProps {
 
 const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: string }>> = {
   coverage: { href: "/cencom", label: "Open CENCOM Module" },
-  deactivations: { href: "/plantilla", label: "Open Plantilla Module" },
 };
 
 export function ActiveQueueReviewPane({
@@ -56,6 +59,9 @@ export function ActiveQueueReviewPane({
   const [deletionSearchQuery, setDeletionSearchQuery] = useState("");
   const [newStoreSearchQuery, setNewStoreSearchQuery] = useState("");
   const [vacancyClosureSearchQuery, setVacancyClosureSearchQuery] = useState("");
+  const [movementSearchQuery, setMovementSearchQuery] = useState("");
+  const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "TRANSFER" | "SWAP">("all");
+  const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
 
   // Bulk actions state
   const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
@@ -96,6 +102,22 @@ export function ActiveQueueReviewPane({
     refetch: refetchClosures,
     isRefetching: isClosureRefetching,
   } = usePendingVacancyClosureRequests();
+
+  const {
+    data: movementRequests = [],
+    isLoading: isMovementLoading,
+    isError: isMovementError,
+    refetch: refetchMovements,
+    isRefetching: isMovementRefetching,
+  } = usePendingApplicantMovements();
+
+  const {
+    data: deactivationRequests = [],
+    isLoading: isDeactLoading,
+    isError: isDeactError,
+    refetch: refetchDeactivations,
+    isRefetching: isDeactRefetching,
+  } = usePendingDeactivationRequests();
 
   const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
@@ -179,6 +201,62 @@ export function ActiveQueueReviewPane({
     );
   }, [closureRequests, vacancyClosureSearchQuery]);
 
+  const filteredMovementRequests = useMemo(() => {
+    return movementRequests.filter((req) => {
+      if (movementTypeFilter !== "all" && req.movementType !== movementTypeFilter) {
+        return false;
+      }
+      if (!movementSearchQuery.trim()) return true;
+      const q = movementSearchQuery.toLowerCase();
+      const matchSource =
+        req.sourceApplicantName.toLowerCase().includes(q) ||
+        req.sourceVacancyVcode.toLowerCase().includes(q) ||
+        req.sourceStoreName?.toLowerCase().includes(q) ||
+        req.sourcePosition?.toLowerCase().includes(q) ||
+        req.sourceAccountName?.toLowerCase().includes(q);
+      const matchTarget =
+        req.targetApplicantName?.toLowerCase().includes(q) ||
+        req.targetVacancyVcode.toLowerCase().includes(q) ||
+        req.targetStoreName?.toLowerCase().includes(q) ||
+        req.targetPosition?.toLowerCase().includes(q) ||
+        req.targetAccountName?.toLowerCase().includes(q);
+      const matchMeta =
+        req.requestNumber.toLowerCase().includes(q) ||
+        req.requestedByName.toLowerCase().includes(q) ||
+        req.reason.toLowerCase().includes(q) ||
+        req.remarks?.toLowerCase().includes(q);
+
+      return matchSource || matchTarget || matchMeta;
+    });
+  }, [movementRequests, movementTypeFilter, movementSearchQuery]);
+
+  const transferCount = useMemo(
+    () => movementRequests.filter((r) => r.movementType === "TRANSFER").length,
+    [movementRequests]
+  );
+  const swapCount = useMemo(
+    () => movementRequests.filter((r) => r.movementType === "SWAP").length,
+    [movementRequests]
+  );
+
+  const filteredDeactivationRequests = useMemo(() => {
+    if (!deactivationSearchQuery.trim()) return deactivationRequests;
+    const q = deactivationSearchQuery.toLowerCase();
+    return deactivationRequests.filter((req) => {
+      return (
+        req.employeeName.toLowerCase().includes(q) ||
+        req.employeeNo?.toLowerCase().includes(q) ||
+        req.storeName?.toLowerCase().includes(q) ||
+        req.positionTitle?.toLowerCase().includes(q) ||
+        req.accountName.toLowerCase().includes(q) ||
+        req.groupName?.toLowerCase().includes(q) ||
+        req.requestedByName.toLowerCase().includes(q) ||
+        req.separationStatus.toLowerCase().includes(q) ||
+        req.remarks?.toLowerCase().includes(q)
+      );
+    });
+  }, [deactivationRequests, deactivationSearchQuery]);
+
   const quotaCount = useMemo(
     () => requests.filter((r) => r.isQuotaAmendment).length,
     [requests]
@@ -209,6 +287,7 @@ export function ActiveQueueReviewPane({
       });
     }
   };
+
 
   // ── 1. New Store Requests Queue ──────────────────────────────────────────
   if (selectedCategory === "new_stores") {
@@ -736,9 +815,240 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // ── 5. Other Categories (Fallback Pane) ──────────────────────────────────
+  // ── 5. Applicant Movement Requests (AMR) Queue ───────────────────────────
+  if (selectedCategory === "applicant_movements") {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">
+                  Applicant Movement Approvals
+                </h2>
+                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-indigo-800">
+                  {movementRequests.length} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Review candidate transfer and slot swap requests awaiting administrative clearance and execution.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refetchMovements()}
+              disabled={isMovementRefetching || isMovementLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isMovementRefetching ? "animate-spin text-brand-600" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Filters & Search */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setMovementTypeFilter("all")}
+                className={`rounded-md px-3 py-1 font-medium transition ${
+                  movementTypeFilter === "all"
+                    ? "bg-white text-text-primary shadow-2xs font-semibold"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                All ({movementRequests.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMovementTypeFilter("TRANSFER")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                  movementTypeFilter === "TRANSFER"
+                    ? "bg-white text-text-primary shadow-2xs font-semibold"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                <span>Transfers</span>
+                {transferCount > 0 && (
+                  <span className="rounded-full bg-blue-100 px-1.5 text-[10px] font-mono font-semibold text-blue-700">
+                    {transferCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMovementTypeFilter("SWAP")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                  movementTypeFilter === "SWAP"
+                    ? "bg-white text-text-primary shadow-2xs font-semibold"
+                    : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                <span>Swaps</span>
+                {swapCount > 0 && (
+                  <span className="rounded-full bg-purple-100 px-1.5 text-[10px] font-mono font-semibold text-purple-700">
+                    {swapCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative min-w-[240px] flex-1 max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search applicant, VCode, store, position..."
+                value={movementSearchQuery}
+                onChange={(e) => setMovementSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isMovementLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Applicant Movement Requests"
+              description="Fetching live pending candidate transfer and swap requisitions..."
+            />
+          ) : isMovementError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending applicant movements."
+              onRetry={() => refetchMovements()}
+            />
+          ) : filteredMovementRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                movementSearchQuery
+                  ? "No Matching Movement Requests"
+                  : movementTypeFilter !== "all"
+                    ? `No Pending ${movementTypeFilter === "TRANSFER" ? "Transfers" : "Swaps"}`
+                    : "No Pending Movement Requests"
+              }
+              description={
+                movementSearchQuery
+                  ? `No requests match "${movementSearchQuery}". Clear your search query to see all items.`
+                  : "All applicant transfer and swap requests have been reviewed and resolved."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredMovementRequests.map((req) => (
+                <ApplicantMovementApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 6. Account Deactivations Queue ───────────────────────────────────────
+  if (selectedCategory === "deactivations") {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-text-primary">
+                  Account Deactivations Queue
+                </h2>
+                <span className="rounded-full bg-rose-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-rose-800">
+                  {deactivationRequests.length} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Review employee separation clearance and plantilla deactivation requests awaiting administrative action.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refetchDeactivations()}
+              disabled={isDeactRefetching || isDeactLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isDeactRefetching ? "animate-spin text-brand-600" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative min-w-[240px] flex-1 max-w-sm">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search employee, ID, store, position, account..."
+                value={deactivationSearchQuery}
+                onChange={(e) => setDeactivationSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 space-y-4">
+          {isDeactLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Deactivation Requests"
+              description="Fetching live employee deactivation and separation clearance requests..."
+            />
+          ) : isDeactError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching pending deactivation requests."
+              onRetry={() => refetchDeactivations()}
+            />
+          ) : filteredDeactivationRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                deactivationSearchQuery
+                  ? "No Matching Deactivation Requests"
+                  : "No Pending Deactivation Requests"
+              }
+              description={
+                deactivationSearchQuery
+                  ? `No requests match "${deactivationSearchQuery}". Clear your search query to see all items.`
+                  : "All employee separation clearances and deactivation requests have been processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredDeactivationRequests.map((req) => (
+                <DeactivationApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 7. Other Categories (Fallback Pane) ──────────────────────────────────
   const count = counts[selectedCategory] ?? 0;
   const linkInfo = CATEGORY_LINKS[selectedCategory];
+
 
   return (
     <div className="flex h-full flex-col">

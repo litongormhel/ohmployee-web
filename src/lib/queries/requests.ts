@@ -872,3 +872,613 @@ export function useApproveAllVacancyClosures() {
     },
   });
 }
+
+// ─── Applicant Movement Requests (AMR) ───────────────────────────────────────
+
+export type ApplicantMovementType = "TRANSFER" | "SWAP";
+export type ApplicantMovementStatus = "pending" | "approved" | "rejected" | "withdrawn";
+
+export interface ApplicantMovementRequestItem {
+  id: string;
+  requestNumber: string;
+  movementType: ApplicantMovementType;
+  status: ApplicantMovementStatus;
+  approvalStage: string | null;
+  // Source info
+  sourceApplicantId: string;
+  sourceApplicantName: string;
+  sourceApplicantStatus: string | null;
+  sourceVacancyVcode: string;
+  sourceStoreName: string | null;
+  sourcePosition: string | null;
+  sourceAccountName: string | null;
+  // Target info
+  targetVacancyVcode: string;
+  targetStoreName: string | null;
+  targetPosition: string | null;
+  targetAccountName: string | null;
+  // SWAP target applicant
+  targetApplicantId: string | null;
+  targetApplicantName: string | null;
+  targetApplicantStatus: string | null;
+  // Metadata & Justification
+  reason: string;
+  remarks: string | null;
+  requestedBy: string;
+  requestedByName: string;
+  requestedByRole: string;
+  requestedAt: string;
+  createdAt: string;
+  effectiveDate: string | null;
+  hasActiveReservation: boolean;
+  executionError: string | null;
+}
+
+export type ApproveApplicantMovementParams = {
+  requestId: string;
+  note?: string;
+};
+
+export type RejectApplicantMovementParams = {
+  requestId: string;
+  reason: string;
+};
+
+interface AmrDbRow {
+  id: string;
+  request_number: string;
+  movement_type: string;
+  status: string;
+  approval_stage: string | null;
+  source_applicant_id: string;
+  source_applicant_name: string;
+  source_applicant_status: string | null;
+  source_vacancy_vcode: string;
+  source_account_name: string | null;
+  target_applicant_id: string | null;
+  target_applicant_name: string | null;
+  target_applicant_status: string | null;
+  target_vacancy_vcode: string;
+  target_account_name: string | null;
+  reason: string;
+  remarks: string | null;
+  requested_by: string;
+  requested_by_name: string;
+  requested_by_role: string;
+  requested_at: string;
+  created_at: string;
+  reservation_reserved_at: string | null;
+  has_active_reservation: boolean | null;
+  execution_error: string | null;
+}
+
+export async function fetchPendingApplicantMovementRequests(): Promise<ApplicantMovementRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("vw_amr_list")
+    .select(`
+      id,
+      request_number,
+      movement_type,
+      status,
+      approval_stage,
+      source_applicant_id,
+      source_applicant_name,
+      source_applicant_status,
+      source_vacancy_vcode,
+      source_account_name,
+      target_applicant_id,
+      target_applicant_name,
+      target_applicant_status,
+      target_vacancy_vcode,
+      target_account_name,
+      reason,
+      remarks,
+      requested_by,
+      requested_by_name,
+      requested_by_role,
+      requested_at,
+      created_at,
+      reservation_reserved_at,
+      has_active_reservation,
+      execution_error
+    `)
+    .ilike("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  const rows = (data as unknown as AmrDbRow[]) ?? [];
+  if (rows.length === 0) return [];
+
+  // Extract unique vcodes to resolve store and position metadata
+  const vcodes = Array.from(
+    new Set(
+      rows
+        .flatMap((r) => [r.source_vacancy_vcode, r.target_vacancy_vcode])
+        .filter((v): v is string => Boolean(v && v.trim()))
+    )
+  );
+
+  let vacancyMap: Record<string, { storeName: string | null; position: string | null; account: string | null }> = {};
+  if (vcodes.length > 0) {
+    try {
+      const { data: vData } = await supabase
+        .from("vacancies")
+        .select("vcode, store_name, position, account")
+        .in("vcode", vcodes);
+
+      if (vData) {
+        vacancyMap = vData.reduce(
+          (acc, v) => {
+            acc[v.vcode] = {
+              storeName: v.store_name ?? null,
+              position: v.position ?? null,
+              account: v.account ?? null,
+            };
+            return acc;
+          },
+          {} as Record<string, { storeName: string | null; position: string | null; account: string | null }>
+        );
+      }
+    } catch {
+      // Non-blocking metadata enrichment
+    }
+  }
+
+  return rows.map((r) => {
+    const srcVac = vacancyMap[r.source_vacancy_vcode];
+    const tgtVac = vacancyMap[r.target_vacancy_vcode];
+
+    return {
+      id: r.id,
+      requestNumber: r.request_number,
+      movementType: (r.movement_type === "SWAP" ? "SWAP" : "TRANSFER") as ApplicantMovementType,
+      status: (r.status.toLowerCase() as ApplicantMovementStatus) || "pending",
+      approvalStage: r.approval_stage ?? null,
+      sourceApplicantId: r.source_applicant_id,
+      sourceApplicantName: r.source_applicant_name || "—",
+      sourceApplicantStatus: r.source_applicant_status ?? null,
+      sourceVacancyVcode: r.source_vacancy_vcode,
+      sourceStoreName: srcVac?.storeName ?? null,
+      sourcePosition: srcVac?.position ?? null,
+      sourceAccountName: srcVac?.account ?? r.source_account_name ?? null,
+      targetVacancyVcode: r.target_vacancy_vcode,
+      targetStoreName: tgtVac?.storeName ?? null,
+      targetPosition: tgtVac?.position ?? null,
+      targetAccountName: tgtVac?.account ?? r.target_account_name ?? null,
+      targetApplicantId: r.target_applicant_id ?? null,
+      targetApplicantName: r.target_applicant_name ?? null,
+      targetApplicantStatus: r.target_applicant_status ?? null,
+      reason: r.reason || "Operational Requirement",
+      remarks: r.remarks ?? null,
+      requestedBy: r.requested_by,
+      requestedByName: r.requested_by_name || "—",
+      requestedByRole: r.requested_by_role || "Requester",
+      requestedAt: r.requested_at || r.created_at,
+      createdAt: r.created_at,
+      effectiveDate: r.reservation_reserved_at || r.requested_at || r.created_at,
+      hasActiveReservation: Boolean(r.has_active_reservation),
+      executionError: r.execution_error ?? null,
+    };
+  });
+}
+
+export async function approveApplicantMovementRequest({
+  requestId,
+  note,
+}: ApproveApplicantMovementParams) {
+  const supabase = createClient();
+  const trimmedNote = note?.trim() || null;
+
+  const { data, error } = await supabase.rpc("approve_applicant_movement_request", {
+    p_request_id: requestId,
+    p_note: trimmedNote,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only authorized approvers can approve applicant movements."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "Applicant movement request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export async function rejectApplicantMovementRequest({
+  requestId,
+  reason,
+}: RejectApplicantMovementParams) {
+  const supabase = createClient();
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  const { data, error } = await supabase.rpc("reject_applicant_movement_request", {
+    p_request_id: requestId,
+    p_reason: trimmedReason,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only authorized approvers can reject applicant movements."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "Applicant movement request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export function usePendingApplicantMovements() {
+  return useQuery({
+    queryKey: ["applicant-movement-requests"],
+    queryFn: () => fetchPendingApplicantMovementRequests(),
+  });
+}
+
+export function useApproveApplicantMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ApproveApplicantMovementParams) =>
+      approveApplicantMovementRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["applicant-movement-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+    },
+  });
+}
+
+export function useRejectApplicantMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RejectApplicantMovementParams) =>
+      rejectApplicantMovementRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["applicant-movement-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+// ─── Account Deactivations ───────────────────────────────────────────────────
+
+export interface DeactivationRequestItem {
+  id: string;
+  plantillaId: string;
+  employeeName: string;
+  employeeNo: string | null;
+  accountName: string;
+  accountId: string;
+  groupName: string | null;
+  groupId: string | null;
+  status: string;
+  batchId: string | null;
+  resubmitCount: number;
+  createdAt: string;
+  requestedAt: string;
+  requestedByName: string;
+  requestedByProfileId: string;
+  // Enriched from plantilla
+  storeName: string | null;
+  positionTitle: string | null;
+  separationStatus: string;
+  remarks: string | null;
+}
+
+export type CompleteDeactivationParams = {
+  requestId: string;
+  plantillaId: string;
+  remarks?: string;
+};
+
+export type RejectDeactivationParams = {
+  requestId: string;
+  plantillaId: string;
+  reason: string;
+  remarks?: string;
+};
+
+interface DeactivationDbRow {
+  id: string;
+  plantilla_id: string;
+  employee_name: string;
+  employee_no: string | null;
+  account_name: string;
+  account_id: string;
+  group_name: string | null;
+  group_id: string | null;
+  status: string;
+  batch_id: string | null;
+  resubmit_count: number;
+  created_at: string;
+  requestor_display_name: string | null;
+  requestor_profile_id: string;
+}
+
+export async function fetchPendingDeactivationRequests(): Promise<DeactivationRequestItem[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("v_deactivation_requests")
+    .select(`
+      id,
+      plantilla_id,
+      employee_name,
+      employee_no,
+      account_name,
+      account_id,
+      group_name,
+      group_id,
+      status,
+      batch_id,
+      resubmit_count,
+      created_at,
+      requestor_display_name,
+      requestor_profile_id
+    `)
+    .ilike("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  const rows = (data as unknown as DeactivationDbRow[]) ?? [];
+  if (rows.length === 0) return [];
+
+  // Batch-fetch plantilla metadata for store, position, separation status, remarks
+  const plantillaIds = Array.from(
+    new Set(rows.map((r) => r.plantilla_id).filter((id): id is string => Boolean(id)))
+  );
+
+  let plantillaMap: Record<
+    string,
+    { storeName: string | null; position: string | null; separationStatus: string; remarks: string | null }
+  > = {};
+
+  if (plantillaIds.length > 0) {
+    try {
+      const { data: pData } = await supabase
+        .from("plantilla")
+        .select("id, store_name, position, separation_status, remarks")
+        .in("id", plantillaIds);
+
+      if (pData) {
+        plantillaMap = pData.reduce(
+          (acc, p) => {
+            acc[p.id] = {
+              storeName: p.store_name ?? null,
+              position: p.position ?? null,
+              separationStatus: p.separation_status ?? "Resigned",
+              remarks: p.remarks ?? null,
+            };
+            return acc;
+          },
+          {} as Record<
+            string,
+            { storeName: string | null; position: string | null; separationStatus: string; remarks: string | null }
+          >
+        );
+      }
+    } catch {
+      // Non-blocking enrichment
+    }
+  }
+
+  return rows.map((r) => {
+    const meta = plantillaMap[r.plantilla_id];
+    return {
+      id: r.id,
+      plantillaId: r.plantilla_id,
+      employeeName: r.employee_name || "—",
+      employeeNo: r.employee_no ?? null,
+      accountName: r.account_name || "—",
+      accountId: r.account_id,
+      groupName: r.group_name ?? null,
+      groupId: r.group_id ?? null,
+      status: r.status,
+      batchId: r.batch_id ?? null,
+      resubmitCount: r.resubmit_count ?? 0,
+      createdAt: r.created_at,
+      requestedAt: r.created_at,
+      requestedByName: r.requestor_display_name || "Requester",
+      requestedByProfileId: r.requestor_profile_id,
+      storeName: meta?.storeName ?? null,
+      positionTitle: meta?.position ?? null,
+      separationStatus: meta?.separationStatus ?? "Resigned",
+      remarks: meta?.remarks ?? null,
+    };
+  });
+}
+
+export async function completeEmployeeDeactivation({
+  requestId,
+  plantillaId,
+  remarks,
+}: CompleteDeactivationParams) {
+  const supabase = createClient();
+  const trimmedRemarks = remarks?.trim() || null;
+
+  // 1. Execute primary authoritative v2 batch RPC
+  const { data: batchData, error: batchError } = await supabase.rpc(
+    "approve_deactivation_requests_batch",
+    {
+      p_request_ids: [requestId],
+    }
+  );
+
+  if (batchError) {
+    // 2. Fallback to complete_employee_deactivation RPC
+    const { data: singleData, error: singleError } = await supabase.rpc(
+      "complete_employee_deactivation",
+      {
+        p_plantilla_id: plantillaId,
+        p_remarks: trimmedRemarks,
+      }
+    );
+
+    if (singleError) {
+      if (singleError.code === "42501" || batchError.code === "42501") {
+        throw new RequestDataError(
+          "unauthorized",
+          "Unauthorized: Only Backoffice and Super Admin roles may approve deactivations."
+        );
+      }
+      throw new RequestDataError("generic", singleError.message || batchError.message);
+    }
+    return singleData;
+  }
+
+  // Best-effort remarks recording on plantilla
+  if (trimmedRemarks) {
+    try {
+      await supabase.rpc("complete_employee_deactivation", {
+        p_plantilla_id: plantillaId,
+        p_remarks: trimmedRemarks,
+      });
+    } catch {
+      // Ignored non-fatal error
+    }
+  }
+
+  return batchData;
+}
+
+export async function rejectEmployeeDeactivation({
+  requestId,
+  plantillaId,
+  reason,
+  remarks,
+}: RejectDeactivationParams) {
+  const supabase = createClient();
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+  const combinedRemarks = [trimmedReason, remarks?.trim()].filter(Boolean).join(" - ");
+
+  // 1. Execute primary authoritative v2 batch RPC
+  const { data: batchData, error: batchError } = await supabase.rpc(
+    "reject_deactivation_requests_batch",
+    {
+      p_request_ids: [requestId],
+    }
+  );
+
+  if (batchError) {
+    // 2. Fallback: plantilla_update_separation
+    const today = new Date().toISOString().split("T")[0];
+    const { data: sepData, error: sepError } = await supabase.rpc(
+      "plantilla_update_separation",
+      {
+        p_plantilla_id: plantillaId,
+        p_separation_status: "Resigned",
+        p_effective_date: today,
+        p_remarks: combinedRemarks,
+        p_open_vacancy: true,
+      }
+    );
+
+    if (sepError) {
+      if (sepError.code === "42501" || batchError.code === "42501") {
+        throw new RequestDataError(
+          "unauthorized",
+          "Unauthorized: Only Backoffice and Super Admin roles may reject deactivations."
+        );
+      }
+      throw new RequestDataError("generic", sepError.message || batchError.message);
+    }
+    return sepData;
+  }
+
+  // Also update separation status and remarks on plantilla
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.rpc("plantilla_update_separation", {
+      p_plantilla_id: plantillaId,
+      p_separation_status: "Resigned",
+      p_effective_date: today,
+      p_remarks: combinedRemarks,
+      p_open_vacancy: true,
+    });
+  } catch {
+    // Ignored non-fatal error
+  }
+
+  return batchData;
+}
+
+export function usePendingDeactivationRequests() {
+  return useQuery({
+    queryKey: ["deactivation-requests"],
+    queryFn: () => fetchPendingDeactivationRequests(),
+  });
+}
+
+export function useCompleteDeactivation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: CompleteDeactivationParams) =>
+      completeEmployeeDeactivation(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["deactivation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
+export function useRejectDeactivation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RejectDeactivationParams) =>
+      rejectEmployeeDeactivation(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["deactivation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
