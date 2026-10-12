@@ -24,6 +24,7 @@ import {
 } from "@/lib/queries/plantilla";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
+import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
 
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,7 @@ export default function PlantillaPage() {
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   // Search parameters and router
   const searchParams = useSearchParams();
@@ -1000,6 +1002,13 @@ export default function PlantillaPage() {
             onClose={() => setSelectedStoreRow(null)}
             canReviseQuota={canReviseQuota}
             canRequestAdjustment={canRequestAdjustment}
+            onInspectSlot={(slotId) => setSelectedSlotId(slotId)}
+          />
+
+          {/* ADR-001 Slot Inspector & Audit Timeline Drawer */}
+          <SlotDetailDrawer
+            slotId={selectedSlotId}
+            onClose={() => setSelectedSlotId(null)}
           />
 
           {/* Table area */}

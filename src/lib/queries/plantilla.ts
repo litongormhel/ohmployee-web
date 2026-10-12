@@ -1,10 +1,75 @@
 import type { PostgrestError } from "@supabase/supabase-js";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 // ---------------------------------------------------------------------------
 // Primitive types
 // ---------------------------------------------------------------------------
+
+export type PlantillaSlotStatus =
+  | "open"
+  | "pipeline"
+  | "hr_processing"
+  | "occupied"
+  | "closed"
+  | string;
+
+export interface PlantillaSlotOccupant {
+  id: string;
+  employeeNo: string | null;
+  employeeName: string | null;
+  position: string | null;
+  deploymentType: string | null;
+  status: string | null;
+}
+
+export interface PlantillaSlotCandidate {
+  id: string;
+  name: string | null;
+  status: string | null;
+  contactNumber?: string | null;
+  email?: string | null;
+}
+
+export interface PlantillaSlotItem {
+  id: string;
+  storeId: string | null;
+  storeName: string | null;
+  storeCode: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  position: string;
+  employmentType: string;
+  isRoving: boolean;
+  slotStatus: PlantillaSlotStatus;
+  slotOrdinal: number;
+  legacyVcode: string | null;
+  sourceHcRequestId: string | null;
+  currentOccupantPlantillaId: string | null;
+  occupant: PlantillaSlotOccupant | null;
+  candidate: PlantillaSlotCandidate | null;
+  requiredHeadcountQuota?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+  closureReasonCode: string | null;
+}
+
+export interface PlantillaSlotHistoryEvent {
+  id: string;
+  slotId: string;
+  accountId: string | null;
+  actionType: string;
+  oldValue: string | null;
+  newValue: string | null;
+  reasonCode: string | null;
+  performedBy: string | null;
+  performerName: string | null;
+  remarks: string | null;
+  createdAt: string;
+}
 
 export type PlantillaPlantillaType = "Budgeted" | "AH" | string;
 
@@ -1328,3 +1393,507 @@ export function useTransferPersonnel() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// ADR-001 Slot Inspector & Audit Timeline Queries
+// ---------------------------------------------------------------------------
+
+export async function fetchPlantillaSlotDetail(slotId: string): Promise<PlantillaSlotItem> {
+  if (!slotId) {
+    throw new PlantillaDataError("retryable", "Missing slotId parameter");
+  }
+
+  const supabase = createClient();
+
+  // 1. Fetch slot row
+  const { data: slotRow, error: slotError } = await supabase
+    .from("plantilla_slots")
+    .select(`
+      id,
+      store_id,
+      account_id,
+      group_id,
+      position,
+      employment_type,
+      is_roving,
+      slot_status,
+      slot_ordinal,
+      legacy_vcode,
+      source_hc_request_id,
+      current_occupant_plantilla_id,
+      created_at,
+      updated_at,
+      closed_at,
+      closure_reason_code
+    `)
+    .eq("id", slotId)
+    .maybeSingle();
+
+  if (slotError) {
+    throwPlantillaError(slotError);
+  }
+
+  if (!slotRow) {
+    throw new PlantillaDataError("retryable", "Slot not found");
+  }
+
+  const slotObj = asObject(slotRow);
+  const storeId = asString(slotObj.store_id);
+  const accountId = asString(slotObj.account_id);
+  const groupId = asString(slotObj.group_id);
+  const occupantPlantillaId = asString(slotObj.current_occupant_plantilla_id);
+  const legacyVcode = asString(slotObj.legacy_vcode);
+  const slotStatus = asString(slotObj.slot_status) ?? "open";
+
+  // 2. Concurrently enrich store, account, group, occupant, applicant, and quota
+  let storeName: string | null = null;
+  let storeCode: string | null = null;
+  let accountName: string | null = null;
+  let groupName: string | null = null;
+  let occupant: PlantillaSlotOccupant | null = null;
+  let candidate: PlantillaSlotCandidate | null = null;
+  let requiredHeadcountQuota: number | null = null;
+
+  const enrichmentPromises: Promise<void>[] = [];
+
+  // Store lookup
+  if (storeId) {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const { data: sData } = await supabase
+            .from("stores")
+            .select("store_name, vcode")
+            .eq("id", storeId)
+            .maybeSingle();
+          if (sData) {
+            storeName = asString(sData.store_name);
+            storeCode = asString(sData.vcode);
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  // Account lookup
+  if (accountId) {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const { data: aData } = await supabase
+            .from("accounts")
+            .select("account_name")
+            .eq("id", accountId)
+            .maybeSingle();
+          if (aData) {
+            accountName = asString(aData.account_name);
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  // Group lookup
+  if (groupId) {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const { data: gData } = await supabase
+            .from("groups")
+            .select("group_name")
+            .eq("id", groupId)
+            .maybeSingle();
+          if (gData) {
+            groupName = asString(gData.group_name);
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  // Occupant lookup (if occupied)
+  if (occupantPlantillaId) {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const { data: pData } = await supabase
+            .from("plantilla")
+            .select("id, employee_no, employee_name, position, deployment_type, status")
+            .eq("id", occupantPlantillaId)
+            .maybeSingle();
+          if (pData) {
+            occupant = {
+              id: asString(pData.id) ?? occupantPlantillaId,
+              employeeNo: asString(pData.employee_no),
+              employeeName: asString(pData.employee_name),
+              position: asString(pData.position),
+              deploymentType: asString(pData.deployment_type),
+              status: asString(pData.status),
+            };
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  // Pipeline candidate lookup (if pipeline or hr_processing)
+  if (slotStatus === "pipeline" || slotStatus === "hr_processing") {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          // First check applicants linked by slot_id
+          const { data: appData } = await supabase
+            .from("applicants")
+            .select("id, full_name, first_name, last_name, status, contact_number, email_address")
+            .eq("slot_id", slotId)
+            .maybeSingle();
+
+          if (appData) {
+            const rawName = asString(appData.full_name) ||
+              [asString(appData.first_name), asString(appData.last_name)].filter(Boolean).join(" ");
+            candidate = {
+              id: asString(appData.id) ?? "",
+              name: rawName || "Active Candidate",
+              status: asString(appData.status),
+              contactNumber: asString(appData.contact_number),
+              email: asString(appData.email_address),
+            };
+          } else if (legacyVcode) {
+            // Fallback for VCode binding if slot_id is empty
+            const { data: vApp } = await supabase
+              .from("applicants")
+              .select("id, full_name, first_name, last_name, status, contact_number, email_address")
+              .eq("vacancy_vcode", legacyVcode)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (vApp) {
+              const rawName = asString(vApp.full_name) ||
+                [asString(vApp.first_name), asString(vApp.last_name)].filter(Boolean).join(" ");
+              candidate = {
+                id: asString(vApp.id) ?? "",
+                name: rawName || "Active Candidate",
+                status: asString(vApp.status),
+                contactNumber: asString(vApp.contact_number),
+                email: asString(vApp.email_address),
+              };
+            }
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  // Vacancy Quota lookup
+  if (legacyVcode) {
+    enrichmentPromises.push(
+      (async () => {
+        try {
+          const { data: vData } = await supabase
+            .from("vacancies")
+            .select("required_headcount")
+            .eq("vcode", legacyVcode)
+            .maybeSingle();
+          if (vData) {
+            requiredHeadcountQuota = Math.round(Number(vData.required_headcount ?? 1)) || 1;
+          }
+        } catch {
+          // non-blocking
+        }
+      })()
+    );
+  }
+
+  await Promise.all(enrichmentPromises);
+
+  return {
+    id: asString(slotObj.id) ?? slotId,
+    storeId,
+    storeName,
+    storeCode,
+    accountId,
+    accountName,
+    groupId,
+    groupName,
+    position: asString(slotObj.position) ?? "General Staff",
+    employmentType: asString(slotObj.employment_type) ?? "Stationary",
+    isRoving: asBoolean(slotObj.is_roving),
+    slotStatus,
+    slotOrdinal: Math.round(Number(slotObj.slot_ordinal ?? 1)) || 1,
+    legacyVcode,
+    sourceHcRequestId: asString(slotObj.source_hc_request_id),
+    currentOccupantPlantillaId: occupantPlantillaId,
+    occupant,
+    candidate,
+    requiredHeadcountQuota,
+    createdAt: asString(slotObj.created_at) ?? new Date().toISOString(),
+    updatedAt: asString(slotObj.updated_at) ?? new Date().toISOString(),
+    closedAt: asString(slotObj.closed_at),
+    closureReasonCode: asString(slotObj.closure_reason_code),
+  };
+}
+
+export async function fetchSlotHistory(slotId: string): Promise<PlantillaSlotHistoryEvent[]> {
+  if (!slotId) return [];
+
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("slot_history")
+    .select(`
+      id,
+      slot_id,
+      account_id,
+      action_type,
+      old_value,
+      new_value,
+      reason_code,
+      performed_by,
+      remarks,
+      created_at
+    `)
+    .eq("slot_id", slotId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  const events = asArray(data).map((row) => {
+    const obj = asObject(row);
+    return {
+      id: asString(obj.id) ?? "",
+      slotId: asString(obj.slot_id) ?? slotId,
+      accountId: asString(obj.account_id),
+      actionType: asString(obj.action_type) ?? "status_change",
+      oldValue: asString(obj.old_value),
+      newValue: asString(obj.new_value),
+      reasonCode: asString(obj.reason_code),
+      performedBy: asString(obj.performed_by),
+      performerName: null as string | null,
+      remarks: asString(obj.remarks),
+      createdAt: asString(obj.created_at) ?? new Date().toISOString(),
+    };
+  });
+
+  // Resolve performer names where performed_by is available
+  const performerIds = Array.from(
+    new Set(events.map((e) => e.performedBy).filter((id): id is string => Boolean(id)))
+  );
+
+  if (performerIds.length > 0) {
+    try {
+      const { data: profiles } = await supabase
+        .from("users_profile")
+        .select("id, full_name")
+        .in("id", performerIds);
+
+      if (Array.isArray(profiles)) {
+        const profileMap = new Map<string, string>();
+        for (const p of profiles) {
+          if (p.id && p.full_name) {
+            profileMap.set(p.id, p.full_name);
+          }
+        }
+        for (const ev of events) {
+          if (ev.performedBy && profileMap.has(ev.performedBy)) {
+            ev.performerName = profileMap.get(ev.performedBy) ?? null;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking performer name resolution
+    }
+  }
+
+  return events;
+}
+
+export function usePlantillaSlotDetail(slotId: string | null) {
+  return useQuery({
+    queryKey: ["plantilla-slot-detail", slotId],
+    queryFn: () => fetchPlantillaSlotDetail(slotId!),
+    enabled: Boolean(slotId),
+    retry: false,
+  });
+}
+
+export function useSlotHistory(slotId: string | null) {
+  return useQuery({
+    queryKey: ["slot-history", slotId],
+    queryFn: () => fetchSlotHistory(slotId!),
+    enabled: Boolean(slotId),
+    retry: false,
+  });
+}
+
+export async function fetchStorePlantillaSlots(storeId: string): Promise<PlantillaSlotItem[]> {
+  if (!storeId) return [];
+
+  const supabase = createClient();
+
+  const { data: slotRows, error: slotError } = await supabase
+    .from("plantilla_slots")
+    .select(`
+      id,
+      store_id,
+      account_id,
+      group_id,
+      position,
+      employment_type,
+      is_roving,
+      slot_status,
+      slot_ordinal,
+      legacy_vcode,
+      source_hc_request_id,
+      current_occupant_plantilla_id,
+      created_at,
+      updated_at,
+      closed_at,
+      closure_reason_code
+    `)
+    .eq("store_id", storeId)
+    .order("legacy_vcode", { ascending: true })
+    .order("slot_ordinal", { ascending: true });
+
+  if (slotError) {
+    throwPlantillaError(slotError);
+  }
+
+  const slots = asArray(slotRows).map((r) => asObject(r));
+  if (slots.length === 0) return [];
+
+  const occupantIds = slots
+    .map((s) => asString(s.current_occupant_plantilla_id))
+    .filter((id): id is string => Boolean(id));
+
+  const slotIds = slots.map((s) => asString(s.id)).filter((id): id is string => Boolean(id));
+  const vcodes = Array.from(new Set(slots.map((s) => asString(s.legacy_vcode)).filter((v): v is string => Boolean(v))));
+
+  // Fetch occupants in batch
+  const occupantMap = new Map<string, PlantillaSlotOccupant>();
+  if (occupantIds.length > 0) {
+    try {
+      const { data: occupants } = await supabase
+        .from("plantilla")
+        .select("id, employee_no, employee_name, position, deployment_type, status")
+        .in("id", occupantIds);
+
+      for (const occ of occupants ?? []) {
+        if (occ.id) {
+          occupantMap.set(occ.id, {
+            id: occ.id,
+            employeeNo: asString(occ.employee_no),
+            employeeName: asString(occ.employee_name),
+            position: asString(occ.position),
+            deploymentType: asString(occ.deployment_type),
+            status: asString(occ.status),
+          });
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  // Fetch candidate bindings in batch
+  const candidateMap = new Map<string, PlantillaSlotCandidate>();
+  if (slotIds.length > 0) {
+    try {
+      const { data: applicants } = await supabase
+        .from("applicants")
+        .select("id, slot_id, vacancy_vcode, full_name, first_name, last_name, status, contact_number, email_address")
+        .in("slot_id", slotIds);
+
+      for (const app of applicants ?? []) {
+        if (app.slot_id) {
+          const rawName = asString(app.full_name) ||
+            [asString(app.first_name), asString(app.last_name)].filter(Boolean).join(" ");
+          candidateMap.set(app.slot_id, {
+            id: asString(app.id) ?? "",
+            name: rawName || "Candidate",
+            status: asString(app.status),
+            contactNumber: asString(app.contact_number),
+            email: asString(app.email_address),
+          });
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  // Fetch quotas in batch
+  const quotaMap = new Map<string, number>();
+  if (vcodes.length > 0) {
+    try {
+      const { data: vacs } = await supabase
+        .from("vacancies")
+        .select("vcode, required_headcount")
+        .in("vcode", vcodes);
+
+      for (const v of vacs ?? []) {
+        if (v.vcode) {
+          quotaMap.set(v.vcode, Math.round(Number(v.required_headcount ?? 1)) || 1);
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  return slots.map((s) => {
+    const slotObj = asObject(s);
+    const sid = asString(slotObj.id) ?? "";
+    const occId = asString(slotObj.current_occupant_plantilla_id);
+    const vcode = asString(slotObj.legacy_vcode);
+
+    return {
+      id: sid,
+      storeId: asString(slotObj.store_id),
+      storeName: null,
+      storeCode: null,
+      accountId: asString(slotObj.account_id),
+      accountName: null,
+      groupId: asString(slotObj.group_id),
+      groupName: null,
+      position: asString(slotObj.position) ?? "General Staff",
+      employmentType: asString(slotObj.employment_type) ?? "Stationary",
+      isRoving: asBoolean(slotObj.is_roving),
+      slotStatus: asString(slotObj.slot_status) ?? "open",
+      slotOrdinal: Math.round(Number(slotObj.slot_ordinal ?? 1)) || 1,
+      legacyVcode: vcode,
+      sourceHcRequestId: asString(slotObj.source_hc_request_id),
+      currentOccupantPlantillaId: occId,
+      occupant: occId ? occupantMap.get(occId) ?? null : null,
+      candidate: candidateMap.get(sid) ?? null,
+      requiredHeadcountQuota: vcode ? quotaMap.get(vcode) ?? null : null,
+      createdAt: asString(slotObj.created_at) ?? new Date().toISOString(),
+      updatedAt: asString(slotObj.updated_at) ?? new Date().toISOString(),
+      closedAt: asString(slotObj.closed_at),
+      closureReasonCode: asString(slotObj.closure_reason_code),
+    };
+  });
+}
+
+export function useStorePlantillaSlots(storeId: string | null) {
+  return useQuery({
+    queryKey: ["store-plantilla-slots", storeId],
+    queryFn: () => fetchStorePlantillaSlots(storeId!),
+    enabled: Boolean(storeId),
+    retry: false,
+  });
+}
+
+
