@@ -1,6 +1,8 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w48p639d**: Implement ADR-001 Slot Inspector and Audit Timeline Drawer in Plantilla
+- **ohm#w47p538c**: Implement Personnel Store Transfer Modal in Plantilla Management
 - **ohm#w46p437b**: Implement Plantilla Personnel Lifecycle Action Modals on Web
 - **ohm#w44s235c**: Implement Full App Settings, Profile Security, and Diagnostics Module on Web
 - **ohm#w42t033a**: Implement Full-Fidelity Team Directory Module on Web
