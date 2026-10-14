@@ -146,21 +146,25 @@ export function getBroadAccessScopeLabel(user: TeamDirectoryUser): string | null
 }
 
 export function getUserScopeSummary(user: TeamDirectoryUser): string {
+  if (!user) return "No scope assigned";
   const accessLabel = getBroadAccessScopeLabel(user);
   if (accessLabel) return accessLabel;
 
+  const groups = user.groupNames || [];
+  const accounts = user.accountNames || [];
+
   const groupSummary =
-    user.groupNames.length === 1
-      ? user.groupNames[0]
-      : user.groupNames.length > 1
-      ? `${user.groupNames.length} Groups`
+    groups.length === 1
+      ? groups[0]
+      : groups.length > 1
+      ? `${groups.length} Groups`
       : null;
 
   const accountSummary =
-    user.accountNames.length === 1
-      ? user.accountNames[0]
-      : user.accountNames.length > 1
-      ? `${user.accountNames.length} Accounts`
+    accounts.length === 1
+      ? accounts[0]
+      : accounts.length > 1
+      ? `${accounts.length} Accounts`
       : null;
 
   if (!groupSummary && !accountSummary) {
@@ -172,14 +176,18 @@ export function getUserScopeSummary(user: TeamDirectoryUser): string {
 }
 
 export function getDisplayGroupNames(user: TeamDirectoryUser): string[] {
-  if (user.groupNames.length > 0) return user.groupNames;
+  if (!user) return [];
+  const groups = user.groupNames || [];
+  if (groups.length > 0) return groups;
   const accessLabel = getBroadAccessScopeLabel(user);
   return accessLabel ? [accessLabel] : [];
 }
 
 export function getDisplayAccountNames(user: TeamDirectoryUser): string[] {
-  if (user.accountNames.length > 0) return user.accountNames;
-  const role = user.roleName.toLowerCase().trim();
+  if (!user) return [];
+  const accounts = user.accountNames || [];
+  if (accounts.length > 0) return accounts;
+  const role = (user.roleName || "").toLowerCase().trim();
   if (user.roleLevel === 100 || role.includes("super admin")) {
     return ["Global Access"];
   }
@@ -194,6 +202,7 @@ export function getDisplayAccountNames(user: TeamDirectoryUser): string[] {
 // ---------------------------------------------------------------------------
 
 function getRoleKey(user: TeamDirectoryUser): string | null {
+  if (!user || !user.roleName) return null;
   const normalized = user.roleName.trim().toLowerCase();
   if (user.roleLevel === 100 || normalized === "super admin") {
     return "super_admin";
@@ -248,14 +257,15 @@ function getDirectReportRoleKey(user: TeamDirectoryUser): string | null {
 }
 
 function sharesScope(user: TeamDirectoryUser, other: TeamDirectoryUser): boolean {
+  if (!user || !other) return false;
   if (getBroadAccessScopeLabel(user) || getBroadAccessScopeLabel(other)) {
     return true;
   }
 
-  const userGroups = new Set(user.groupNames.map((g) => g.toLowerCase().trim()));
-  const otherGroups = new Set(other.groupNames.map((g) => g.toLowerCase().trim()));
-  const userAccounts = new Set(user.accountNames.map((a) => a.toLowerCase().trim()));
-  const otherAccounts = new Set(other.accountNames.map((a) => a.toLowerCase().trim()));
+  const userGroups = new Set((user.groupNames || []).map((g) => (g ? g.toLowerCase().trim() : "")).filter(Boolean));
+  const otherGroups = new Set((other.groupNames || []).map((g) => (g ? g.toLowerCase().trim() : "")).filter(Boolean));
+  const userAccounts = new Set((user.accountNames || []).map((a) => (a ? a.toLowerCase().trim() : "")).filter(Boolean));
+  const otherAccounts = new Set((other.accountNames || []).map((a) => (a ? a.toLowerCase().trim() : "")).filter(Boolean));
 
   if (userGroups.size === 0 && userAccounts.size === 0) return false;
   if (otherGroups.size === 0 && otherAccounts.size === 0) return false;
@@ -273,21 +283,38 @@ export function getReportingStructure(
   user: TeamDirectoryUser,
   allUsers: TeamDirectoryUser[]
 ): ReportingStructure {
-  const userById = new Map<string, TeamDirectoryUser>();
-  for (const person of allUsers) {
-    if (person.authUserId) {
-      userById.set(person.authUserId, person);
-    }
+  if (!user) {
+    return { reportsTo: [], directReports: [] };
   }
 
-  const explicitManager = user.reportsToAuthUserId
-    ? userById.get(user.reportsToAuthUserId) ?? null
-    : null;
+  const safeUsers = Array.isArray(allUsers)
+    ? allUsers.filter((p): p is TeamDirectoryUser => Boolean(p && p.authUserId))
+    : [];
 
-  const explicitReports = user.directReportAuthUserIds
+  const userById = new Map<string, TeamDirectoryUser>();
+  for (const person of safeUsers) {
+    userById.set(person.authUserId, person);
+  }
+
+  // Prevent self-reporting circularity (user reporting to self)
+  const explicitManager =
+    user.reportsToAuthUserId && user.reportsToAuthUserId !== user.authUserId
+      ? userById.get(user.reportsToAuthUserId) ?? null
+      : null;
+
+  const rawDirectReportIds = Array.isArray(user.directReportAuthUserIds)
+    ? user.directReportAuthUserIds
+    : [];
+
+  // Filter out self-reference and mutual 2-node circularity where manager is also listed as report
+  const explicitReports = rawDirectReportIds
     .map((id) => userById.get(id))
     .filter((person): person is TeamDirectoryUser =>
-      Boolean(person && person.authUserId !== user.authUserId)
+      Boolean(
+        person &&
+        person.authUserId !== user.authUserId &&
+        (!explicitManager || person.authUserId !== explicitManager.authUserId)
+      )
     );
 
   const fallbackManagerKey = getManagerRoleKey(user);
@@ -295,7 +322,7 @@ export function getReportingStructure(
 
   const reportsTo = explicitManager
     ? [explicitManager]
-    : allUsers.filter(
+    : safeUsers.filter(
         (person) =>
           person.authUserId !== user.authUserId &&
           fallbackManagerKey !== null &&
@@ -306,7 +333,7 @@ export function getReportingStructure(
   const directReports =
     explicitReports.length > 0
       ? explicitReports
-      : allUsers.filter(
+      : safeUsers.filter(
           (person) =>
             person.authUserId !== user.authUserId &&
             fallbackReportKey !== null &&
@@ -330,13 +357,14 @@ export function getReportingStructure(
 export function calculateTeamDirectorySummary(
   users: TeamDirectoryUser[]
 ): TeamDirectorySummary {
-  const totalMembers = users.length;
+  const safeUsers = Array.isArray(users) ? users.filter(Boolean) : [];
+  const totalMembers = safeUsers.length;
   let opsLeadershipCount = 0;
   let hrcoCount = 0;
   const uniqueScopes = new Set<string>();
 
-  for (const user of users) {
-    const role = user.roleName.toLowerCase().trim();
+  for (const user of safeUsers) {
+    const role = (user.roleName || "").toLowerCase().trim();
     if (
       role === "om" ||
       role.includes("operations manager") ||
@@ -344,7 +372,7 @@ export function calculateTeamDirectorySummary(
       role.includes("team leader") ||
       role === "atl" ||
       role.includes("assistant team leader") ||
-      (user.roleLevel !== null && user.roleLevel >= 35 && user.roleLevel <= 70)
+      (user.roleLevel !== null && user.roleLevel !== undefined && user.roleLevel >= 35 && user.roleLevel <= 70)
     ) {
       opsLeadershipCount++;
     } else if (
@@ -355,8 +383,8 @@ export function calculateTeamDirectorySummary(
       hrcoCount++;
     }
 
-    user.groupNames.forEach((g) => uniqueScopes.add(`g:${g.toLowerCase().trim()}`));
-    user.accountNames.forEach((a) => uniqueScopes.add(`a:${a.toLowerCase().trim()}`));
+    (user.groupNames || []).forEach((g) => g && uniqueScopes.add(`g:${g.toLowerCase().trim()}`));
+    (user.accountNames || []).forEach((a) => a && uniqueScopes.add(`a:${a.toLowerCase().trim()}`));
   }
 
   return {

@@ -27,12 +27,12 @@ function pct(value: number | null): string {
 export default function DashboardPage() {
   const metricsQuery = useQuery({
     queryKey: ["dashboard", "metrics"],
-    queryFn: getDashboardMetrics,
+    queryFn: () => getDashboardMetrics(),
   });
 
   const analyticsQuery = useQuery({
     queryKey: ["dashboard", "operational-analytics"],
-    queryFn: getDashboardOperationalAnalytics,
+    queryFn: () => getDashboardOperationalAnalytics(),
   });
 
   const metrics = metricsQuery.data;

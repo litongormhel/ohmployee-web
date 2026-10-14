@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 // ---------------------------------------------------------------------------
@@ -72,6 +73,11 @@ function asNullableCount(value: unknown): number | null {
   return n === null ? null : Math.max(0, Math.trunc(n));
 }
 
+function asNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  return asNumber(value);
+}
+
 function asObject(value: unknown): DashboardRpcRow {
   return value && !Array.isArray(value) && typeof value === "object"
     ? (value as DashboardRpcRow)
@@ -127,7 +133,7 @@ function normalizeOperationalAnalytics(data: unknown): DashboardOperationalAnaly
     pipelineTotal: asCount(row.pipeline_total),
     hiresThisMonth: asCount(row.hires_this_month),
     separationsThisMonth: asCount(row.separations_this_month),
-    avgFillRate: asNullableCount(row.avg_fill_rate),
+    avgFillRate: asNullableNumber(row.avg_fill_rate),
   };
 }
 
@@ -135,9 +141,22 @@ function normalizeOperationalAnalytics(data: unknown): DashboardOperationalAnaly
 // Public RPC wrappers
 // ---------------------------------------------------------------------------
 
-export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+export type DashboardFilterParams = {
+  accountId?: string | null;
+  groupId?: string | null;
+};
+
+export async function getDashboardMetrics(
+  params?: DashboardFilterParams
+): Promise<DashboardMetrics> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("fn_dashboard_metrics");
+  const rpcArgs = params
+    ? {
+        p_account_id: params.accountId ?? null,
+        p_group_id: params.groupId ?? null,
+      }
+    : undefined;
+  const { data, error } = await supabase.rpc("fn_dashboard_metrics", rpcArgs);
 
   if (error) {
     throwDashboardError(error);
@@ -146,9 +165,17 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   return normalizeMetrics(data);
 }
 
-export async function getDashboardOperationalAnalytics(): Promise<DashboardOperationalAnalytics> {
+export async function getDashboardOperationalAnalytics(
+  params?: DashboardFilterParams
+): Promise<DashboardOperationalAnalytics> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("fn_dashboard_operational_analytics");
+  const rpcArgs = params
+    ? {
+        p_account_id: params.accountId ?? null,
+        p_group_id: params.groupId ?? null,
+      }
+    : undefined;
+  const { data, error } = await supabase.rpc("fn_dashboard_operational_analytics", rpcArgs);
 
   if (error) {
     throwDashboardError(error);
@@ -156,3 +183,31 @@ export async function getDashboardOperationalAnalytics(): Promise<DashboardOpera
 
   return normalizeOperationalAnalytics(data);
 }
+
+// ---------------------------------------------------------------------------
+// React Query hooks
+// ---------------------------------------------------------------------------
+
+export function useDashboardMetrics(
+  params?: DashboardFilterParams
+): UseQueryResult<DashboardMetrics, DashboardDataError> {
+  return useQuery({
+    queryKey: ["dashboard", "metrics", params?.accountId ?? null, params?.groupId ?? null],
+    queryFn: () => getDashboardMetrics(params),
+  });
+}
+
+export function useDashboardOperationalAnalytics(
+  params?: DashboardFilterParams
+): UseQueryResult<DashboardOperationalAnalytics, DashboardDataError> {
+  return useQuery({
+    queryKey: [
+      "dashboard",
+      "operational-analytics",
+      params?.accountId ?? null,
+      params?.groupId ?? null,
+    ],
+    queryFn: () => getDashboardOperationalAnalytics(params),
+  });
+}
+

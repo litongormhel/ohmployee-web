@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { LockKeyhole, Users, ArrowLeft, Building, Share2, ChevronRight } from "lucide-react";
+import { LockKeyhole, Users, ArrowLeft, Building, Share2, ChevronRight, UserPlus } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,7 @@ import {
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
 import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
+import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,7 @@ export default function PlantillaPage() {
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
 
   // Search parameters and router
   const searchParams = useSearchParams();
@@ -913,6 +915,17 @@ export default function PlantillaPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {viewToggle}
 
+                {canRequestAdjustment && accountId && (
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestHeadcountOpen(true)}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>Request Headcount</span>
+                  </button>
+                )}
+
                 <input
                   type="text"
                   placeholder="Account ID"
@@ -1003,6 +1016,8 @@ export default function PlantillaPage() {
             canReviseQuota={canReviseQuota}
             canRequestAdjustment={canRequestAdjustment}
             onInspectSlot={(slotId) => setSelectedSlotId(slotId)}
+            accountId={accountId}
+            accountName={selectedAccountName}
           />
 
           {/* ADR-001 Slot Inspector & Audit Timeline Drawer */}
@@ -1010,6 +1025,20 @@ export default function PlantillaPage() {
             slotId={selectedSlotId}
             onClose={() => setSelectedSlotId(null)}
           />
+
+          {/* Request Headcount Modal (New Demand Requisition) */}
+          {isRequestHeadcountOpen && (
+            <RequestHeadcountModal
+              isOpen={isRequestHeadcountOpen}
+              onClose={() => setIsRequestHeadcountOpen(false)}
+              accountId={accountId}
+              accountName={selectedAccountName}
+              onSuccess={() => {
+                activeListQuery.refetch();
+                summaryQuery.refetch();
+              }}
+            />
+          )}
 
           {/* Table area */}
           <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">

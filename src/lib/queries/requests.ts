@@ -479,6 +479,89 @@ export function useRejectHeadcountRequest() {
   });
 }
 
+export interface SubmitHeadcountRequestInput {
+  account_id: string;
+  account_name?: string;
+  position_id: string;
+  position_name?: string;
+  workforce_type: "stationary" | "roving" | "floating";
+  employment_type: "Stationary" | "Roving" | "Floating";
+  request_type:
+    | "Additional Headcount"
+    | "Replacement"
+    | "Reliever"
+    | "Commando"
+    | "HC Reduction";
+  headcount_needed: number;
+  reason: string;
+  vacant_date?: string | null;
+  target_fill_date?: string | null;
+  urgency?: "Low" | "Medium" | "High" | "Critical";
+  store_id?: string | null;
+  store_name?: string | null;
+  area_province?: string | null;
+  area_city?: string | null;
+  store_ids?: string[];
+  source_new_store_request_id?: string | null;
+  coverage_group_id?: string | null;
+}
+
+export interface SubmitHeadcountRequestResult {
+  ok: boolean;
+  request_id: string;
+  status: string;
+  workforce_type?: string;
+  store_count?: number;
+  island_group?: string | null;
+  error?: string;
+  message?: string;
+}
+
+export async function submitHeadcountRequest(
+  input: SubmitHeadcountRequestInput
+): Promise<SubmitHeadcountRequestResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("submit_headcount_request", {
+    p_input: input,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Operations roles and Admins may submit headcount requests."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  if (!data?.ok) {
+    throw new RequestDataError(
+      "validation",
+      data?.message || data?.error || "Submission rejected."
+    );
+  }
+
+  return data as SubmitHeadcountRequestResult;
+}
+
+export function useSubmitHeadcountRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SubmitHeadcountRequestInput) => submitHeadcountRequest(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+    },
+  });
+}
+
 // ─── New Store Requests ──────────────────────────────────────────────────────
 
 export type NewStoreRequestItem = {

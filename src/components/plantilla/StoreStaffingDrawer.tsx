@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Building2, MapPin, RefreshCw, Sliders, UsersRound, Layers, ChevronRight, User } from "lucide-react";
+import { AlertCircle, Building2, MapPin, Plus, RefreshCw, Sliders, UsersRound, Layers, ChevronRight, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/queries/quota";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
+import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 
 export interface StoreStaffingDrawerProps {
   storeRow: PlantillaStoreStaffingRow | null;
@@ -23,6 +24,8 @@ export interface StoreStaffingDrawerProps {
   canReviseQuota: boolean;
   canRequestAdjustment: boolean;
   onInspectSlot?: (slotId: string) => void;
+  accountId?: string | null;
+  accountName?: string | null;
 }
 
 function formatFillRate(fillRate: number | null): string {
@@ -73,10 +76,13 @@ export function StoreStaffingDrawer({
   canReviseQuota,
   canRequestAdjustment,
   onInspectSlot,
+  accountId,
+  accountName,
 }: StoreStaffingDrawerProps) {
   const [activeTab, setActiveTab] = useState<"quotas" | "slots">("slots");
   const [selectedVacancyForRevise, setSelectedVacancyForRevise] = useState<StoreVacancyItem | null>(null);
   const [selectedVacancyForRequest, setSelectedVacancyForRequest] = useState<StoreVacancyItem | null>(null);
+  const [isNewHeadcountModalOpen, setIsNewHeadcountModalOpen] = useState(false);
 
   const {
     data: vacancies,
@@ -313,15 +319,27 @@ export function StoreStaffingDrawer({
                   <Sliders className="h-4 w-4 text-text-muted" />
                   <span>Position Quotas & VCodes</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => refetchVacancies()}
-                  className="text-[11px] text-text-muted hover:text-text-primary inline-flex items-center gap-1 transition-colors"
-                  title="Refresh position quotas"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  {canRequestAdjustment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsNewHeadcountModalOpen(true)}
+                      className="inline-flex items-center gap-1 rounded bg-brand-50 border border-brand-200 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition-colors shadow-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Request Headcount</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => refetchVacancies()}
+                    className="text-[11px] text-text-muted hover:text-text-primary inline-flex items-center gap-1 transition-colors"
+                    title="Refresh position quotas"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Refresh
+                  </button>
+                </div>
               </div>
 
               {isVacanciesLoading ? (
@@ -341,6 +359,16 @@ export function StoreStaffingDrawer({
                   <p className="mt-1 text-[11px] text-text-muted">
                     No active vacancy positions are registered under this store code.
                   </p>
+                  {canRequestAdjustment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsNewHeadcountModalOpen(true)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors shadow-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Request Headcount</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -438,6 +466,22 @@ export function StoreStaffingDrawer({
           positionId={selectedVacancyForRequest.positionId}
           onSuccess={() => {
             refetchVacancies();
+          }}
+        />
+      )}
+
+      {/* Request Headcount Modal (New Demand Requisition) */}
+      {isNewHeadcountModalOpen && (
+        <RequestHeadcountModal
+          isOpen={isNewHeadcountModalOpen}
+          onClose={() => setIsNewHeadcountModalOpen(false)}
+          accountId={accountId ?? vacancies?.[0]?.accountId ?? null}
+          accountName={accountName ?? storeRow.accountName ?? null}
+          initialStoreId={storeRow.storeId}
+          initialStoreName={storeRow.storeName}
+          onSuccess={() => {
+            refetchVacancies();
+            refetchSlots();
           }}
         />
       )}

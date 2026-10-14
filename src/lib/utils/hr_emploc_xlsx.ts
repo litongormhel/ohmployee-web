@@ -176,6 +176,9 @@ export function downloadHrEmplocTemplate(
   variant: "v3" | "standard" = "v3",
   filename = "hr_emploc_import_template.xlsx",
 ): void {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
   const bytes = buildHrEmplocImportTemplateXlsx(variant);
   const blob = new Blob([bytes as unknown as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
