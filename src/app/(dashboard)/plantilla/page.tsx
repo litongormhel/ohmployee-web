@@ -5,33 +5,37 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   LockKeyhole,
   Users,
-  ArrowLeft,
   Building,
   Building2,
   Share2,
+  ChevronLeft,
   ChevronRight,
   Plus,
   Search,
   RotateCcw,
   X,
   MapPin,
-  Eye,
+  Filter,
+  Briefcase,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
-import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
 import {
   getPlantillaSummary,
   listWebPlantillaEmployees,
+  fetchNeedsHrcoEmployees,
+  fetchUnassignedHrcoCount,
   deriveDeactivationOverlay,
   PlantillaDataError,
   type PlantillaEmployeeListItem,
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
+import { fetchTeamDirectory, type TeamDirectoryUser } from "@/lib/queries/team_directory";
+import { listVacancies, type VacancyListItem } from "@/lib/queries/vacancy";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
 import { StoreStaffingOverviewDrawer } from "@/components/plantilla/StoreStaffingOverviewDrawer";
@@ -42,7 +46,7 @@ import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal
 // Types & Constants
 // ---------------------------------------------------------------------------
 
-type ViewMode = "active" | "inactive";
+type DirectoryTab = "active" | "vacancy" | "inactive" | "needs_hr";
 
 const PAGE_SIZE = 25;
 
@@ -71,10 +75,44 @@ function plantillaStatusVariant(status: string | null | undefined): BadgeVariant
   }
 }
 
-function getInitials(firstName: string | null, lastName: string | null): string {
-  const f = (firstName?.trim() || "")[0] ?? "";
-  const l = (lastName?.trim() || "")[0] ?? "";
-  return (f + l).toUpperCase() || "EM";
+function getInitials(firstName: string | null, lastName: string | null, fullName?: string | null): string {
+  if (firstName || lastName) {
+    const f = (firstName?.trim() || "")[0] ?? "";
+    const l = (lastName?.trim() || "")[0] ?? "";
+    return (f + l).toUpperCase() || "EM";
+  }
+  if (fullName && fullName.trim()) {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return (parts[0][0] ?? "E").toUpperCase();
+  }
+  return "EM";
+}
+
+function formatLeadershipName(user: TeamDirectoryUser): string {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName[0].toUpperCase()}. ${user.lastName}`;
+  }
+  if (user.fullName) {
+    if (user.fullName.includes(",")) {
+      const parts = user.fullName.split(",");
+      const last = parts[0]?.trim();
+      const first = parts.slice(1).join(",").trim();
+      if (first && last) {
+        return `${first[0].toUpperCase()}. ${last}`;
+      }
+    }
+    const parts = user.fullName.trim().split(/\s+/);
+    if (parts.length > 1) {
+      const first = parts[0];
+      const last = parts.slice(1).join(" ");
+      return `${first[0].toUpperCase()}. ${last}`;
+    }
+    return user.fullName;
+  }
+  return "—";
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +120,7 @@ function getInitials(firstName: string | null, lastName: string | null): string 
 // ---------------------------------------------------------------------------
 
 export default function PlantillaPage() {
-  const [view, setView] = useState<ViewMode>("active");
+  const [tab, setTab] = useState<DirectoryTab>("active");
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
@@ -102,12 +140,13 @@ export default function PlantillaPage() {
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
-  // Directory filter state (internally managed — NO raw UUID inputs)
+  // Directory filter state
   const [accountId, setAccountId] = useState("");
   const [search, setSearch] = useState("");
   const [storeId, setStoreId] = useState("");
   const [status, setStatus] = useState("");
   const [assignmentType, setAssignmentType] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // -------------------------------------------------------------------------
   // User Context and Account Lists
@@ -255,15 +294,61 @@ export default function PlantillaPage() {
         accountId: accountId || undefined,
         groupId: selectorGroupId || undefined,
       }),
-    enabled: isHydrated && !!currentUser,
+    enabled: isHydrated && !!currentUser && !!accountId,
   });
 
-  // Query for active roster or inactive roster
+  // Query for leadership roles: OM, TL, ATL, HRCO
+  const teamDirectoryQuery = useQuery({
+    queryKey: ["team-directory", "plantilla-account", accountId],
+    queryFn: () => fetchTeamDirectory({ accountId }),
+    enabled: !!accountId,
+    staleTime: 60000,
+  });
+
+  const leadershipTeam = useMemo(() => {
+    const users = teamDirectoryQuery.data ?? [];
+    const om: string[] = [];
+    const tl: string[] = [];
+    const atl: string[] = [];
+    const hrco: string[] = [];
+
+    for (const u of users) {
+      const role = (u.roleName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const formatted = formatLeadershipName(u);
+      if (!formatted || formatted === "—") continue;
+
+      if (role === "om" || role === "operationsmanager") {
+        om.push(formatted);
+      } else if (role === "tl" || role === "teamleader") {
+        tl.push(formatted);
+      } else if (role === "atl" || role === "assistantteamleader") {
+        atl.push(formatted);
+      } else if (role === "hrco" || role === "hrcoordinator") {
+        hrco.push(formatted);
+      }
+    }
+
+    const formatRoleDisplay = (names: string[]) => {
+      const unique = Array.from(new Set(names));
+      if (unique.length === 0) return "—";
+      if (unique.length <= 2) return unique.join(", ");
+      return `${unique[0]}, ${unique[1]} +${unique.length - 2} more`;
+    };
+
+    return {
+      om: formatRoleDisplay(om),
+      tl: formatRoleDisplay(tl),
+      atl: formatRoleDisplay(atl),
+      hrco: formatRoleDisplay(hrco),
+    };
+  }, [teamDirectoryQuery.data]);
+
+  // Query for active or inactive roster
   const employeeQuery = useQuery({
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, storeId, status, assignmentType, page, view },
+      { search, accountId, storeId, status, assignmentType, page, tab },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
@@ -272,11 +357,34 @@ export default function PlantillaPage() {
         storeId: storeId || undefined,
         status: status || undefined,
         deployment: assignmentType || undefined,
-        activeState: view === "inactive" ? "inactive" : "active",
+        activeState: tab === "inactive" ? "inactive" : "active",
         page,
         pageSize: PAGE_SIZE,
       }),
-    enabled: !!accountId,
+    enabled: !!accountId && (tab === "active" || tab === "inactive"),
+  });
+
+  // Query for vacancies
+  const vacancyListQuery = useQuery({
+    queryKey: ["plantilla", "vacancies", accountId, search, page],
+    queryFn: () =>
+      listVacancies({
+        accountId: accountId || undefined,
+        search: search.trim() || undefined,
+        status: "open",
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+    enabled: !!accountId && tab === "vacancy",
+    staleTime: 30000,
+  });
+
+  // Query for Needs HR... employees
+  const needsHrcoQuery = useQuery({
+    queryKey: ["plantilla", "needs-hrco-list", accountId, search],
+    queryFn: () => fetchNeedsHrcoEmployees(accountId, search),
+    enabled: !!accountId && tab === "needs_hr",
+    staleTime: 30000,
   });
 
   // Count query for inactive badge
@@ -296,31 +404,59 @@ export default function PlantillaPage() {
     staleTime: 30000,
   });
 
+  // Count query for Needs HR... badge
+  const unassignedHrcoCountQuery = useQuery({
+    queryKey: ["plantilla", "unassigned-hrco-count", accountId],
+    queryFn: () => fetchUnassignedHrcoCount(accountId),
+    enabled: !!accountId,
+    staleTime: 30000,
+  });
+
   // -------------------------------------------------------------------------
   // Derived state
   // -------------------------------------------------------------------------
 
   const summaryData = summaryQuery.data;
-  const summaryError =
-    summaryQuery.error instanceof PlantillaDataError ? summaryQuery.error : null;
-  const summaryBlocked = summaryError?.kind === "access_denied";
 
   const listError =
     employeeQuery.error instanceof PlantillaDataError ? employeeQuery.error : null;
 
-  const isListLoading = employeeQuery.isLoading;
-  const isListError = employeeQuery.isError && !isListLoading;
+  const isListLoading =
+    tab === "vacancy"
+      ? vacancyListQuery.isLoading
+      : tab === "needs_hr"
+      ? needsHrcoQuery.isLoading
+      : employeeQuery.isLoading;
+
+  const isListError =
+    tab === "vacancy"
+      ? vacancyListQuery.isError && !vacancyListQuery.isLoading
+      : tab === "needs_hr"
+      ? needsHrcoQuery.isError && !needsHrcoQuery.isLoading
+      : employeeQuery.isError && !employeeQuery.isLoading;
+
   const isAccessDenied = listError?.kind === "access_denied";
   const isRetryable = isListError && !isAccessDenied;
 
   const employeeRows = employeeQuery.data?.data ?? [];
-  const totalCount = employeeQuery.data?.totalCount ?? 0;
+  const vacancyRows = vacancyListQuery.data?.data ?? [];
+  const needsHrRows = needsHrcoQuery.data ?? [];
+
+  const totalCount =
+    tab === "vacancy"
+      ? vacancyListQuery.data?.totalCount ?? 0
+      : tab === "needs_hr"
+      ? needsHrRows.length
+      : employeeQuery.data?.totalCount ?? 0;
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const hasActiveFilters = Boolean(search.trim() || storeId || status || assignmentType);
 
-  const activeCount = summaryData?.actual ?? (view === "active" ? totalCount : 0);
-  const inactiveCount = inactiveCountQuery.data ?? (view === "inactive" ? totalCount : 0);
+  const activeCount = summaryData?.actual ?? 0;
+  const vacancyCount = summaryData?.vacant ?? 0;
+  const inactiveCount = inactiveCountQuery.data ?? 0;
+  const needsHrCount = unassignedHrcoCountQuery.data ?? 0;
 
   const fulfillmentRate =
     summaryData?.required && summaryData.required > 0
@@ -348,6 +484,7 @@ export default function PlantillaPage() {
     setStoreId("");
     setStatus("");
     setAssignmentType("");
+    setTab("active");
     setPage(1);
 
     const params = new URLSearchParams(searchParams.toString());
@@ -361,6 +498,7 @@ export default function PlantillaPage() {
     setStoreId("");
     setStatus("");
     setAssignmentType("");
+    setTab("active");
     setPage(1);
 
     const params = new URLSearchParams(searchParams.toString());
@@ -651,13 +789,13 @@ export default function PlantillaPage() {
     );
   }
 
-  const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name;
+  const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name ?? "Account";
   const showBackToSelection =
     currentUser?.accountScope.mode === "all" ||
     (currentUser?.accountScope.mode === "scoped" && currentUser?.accountScope.ids.length > 1);
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-6 text-gray-900">
+    <div className="relative flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900 pb-16">
       {!accountId ? (
         <>
           <div className="flex flex-col gap-1">
@@ -672,237 +810,261 @@ export default function PlantillaPage() {
         </>
       ) : (
         <>
-          {/* 1. Header & Context Strip */}
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-default pb-4">
-            <div className="space-y-1.5">
-              {/* Breadcrumb Backlink */}
-              <nav className="flex items-center gap-1.5 text-xs text-text-muted" aria-label="Breadcrumb">
-                {showBackToSelection ? (
+          {/* 1. Header & Context Banner (Deep Navy #0f244a / Brand Background) */}
+          <div className="rounded-2xl bg-gradient-to-b from-[#0f244a] to-[#0A2349] p-4 sm:p-5 text-white shadow-md border border-white/10 space-y-4">
+            {/* Top row: Back button, Account title, subtitle, and desktop Store Staffing shortcut */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                {showBackToSelection && (
                   <button
                     type="button"
                     onClick={handleBackToSelection}
-                    className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors"
+                    aria-label="Back to Account Selection"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white transition-colors cursor-pointer"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    <span>Account Selection</span>
+                    <ChevronLeft className="h-5 w-5" />
                   </button>
-                ) : (
-                  <span>Plantilla Directory</span>
                 )}
-                <span className="text-text-muted/60">/</span>
-                <span className="font-semibold text-text-primary truncate max-w-[240px] sm:max-w-none">
-                  {selectedAccountName}
-                </span>
-              </nav>
 
-              {/* Title with account name and role badge */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
-                  {selectedAccountName}
-                </h1>
-                {userRole && (
-                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 text-xs font-semibold text-brand-700 capitalize">
-                    {userRole.replace(/_/g, " ")}
-                  </span>
-                )}
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide truncate">
+                    {selectedAccountName}
+                  </h1>
+                  <p className="text-xs font-semibold text-white/60 tracking-wide mt-0.5">
+                    Viewing: Store Employees
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-text-secondary">
-                Managing roster allocations, capacity targets, and staffing offboarding.
-              </p>
-            </div>
 
-            {/* Right-aligned Action Bar */}
-            <div className="flex flex-wrap items-center gap-2.5">
               {/* Secondary button: Store Staffing drawer trigger with quota badge */}
               <button
                 type="button"
                 onClick={() => setIsStoreStaffingOverviewOpen(true)}
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:border-border-subtle transition-colors shadow-xs"
+                className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors shrink-0"
               >
-                <Building2 className="h-4 w-4 text-text-muted" />
+                <Building2 className="h-4 w-4 text-white/70" />
                 <span>Store Staffing</span>
-                <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-text-primary border border-border-default font-mono">
-                  {summaryData?.required ?? 0} Quota
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold font-mono">
+                  {summaryData?.required ?? 0}
                 </span>
               </button>
-
-              {/* Primary button: + Request Headcount (with icon) */}
-              {canRequestAdjustment && (
-                <button
-                  type="button"
-                  onClick={() => setIsRequestHeadcountOpen(true)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Request Headcount</span>
-                </button>
-              )}
-            </div>
-          </header>
-
-          {/* 2. Metrics Bar Refinement */}
-          <section aria-label="Plantilla summary metrics" className="space-y-3">
-            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-              <MetricCard
-                label="Required Quota"
-                value={summaryData?.required}
-                helperText="Total budgeted capacity quota"
-                isLoading={summaryQuery.isLoading}
-                isBlocked={summaryBlocked}
-                isError={!summaryBlocked && summaryQuery.isError}
-                errorText="Summary data failed to load"
-              />
-              <MetricCard
-                label="Active Deployed"
-                value={summaryData?.actual}
-                helperText="Active deployed on-site"
-                badge={summaryData?.required ? `${fulfillmentRate}% fulfilled` : undefined}
-                isLoading={summaryQuery.isLoading}
-                isBlocked={summaryBlocked}
-                isError={!summaryBlocked && summaryQuery.isError}
-                errorText="Summary data failed to load"
-              />
-              <MetricCard
-                label="HR Pipeline"
-                value={summaryData?.hrProcess}
-                helperText="Onboarding & candidate pipeline"
-                isLoading={summaryQuery.isLoading}
-                isBlocked={summaryBlocked}
-                isError={!summaryBlocked && summaryQuery.isError}
-                errorText="Summary data failed to load"
-              />
-              <MetricCard
-                label="Open Vacant"
-                value={summaryData?.vacant}
-                helperText="Approved open vacancy slots"
-                isLoading={summaryQuery.isLoading}
-                isBlocked={summaryBlocked}
-                isError={!summaryBlocked && summaryQuery.isError}
-                errorText="Summary data failed to load"
-              />
             </div>
 
-            {/* Subtle fulfillment rate indicator strip */}
-            {!summaryBlocked && !summaryQuery.isLoading && (summaryData?.required ?? 0) > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-xl border border-border-default bg-surface-muted/40 px-4 py-2.5 text-xs text-text-secondary shadow-xs">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-text-primary">Fulfillment Rate (MFR):</span>
-                  <span className="font-mono font-bold text-text-primary">{fulfillmentRate}%</span>
-                  <span className="text-text-muted">
-                    ({summaryData?.actual ?? 0} active deployed / {summaryData?.required ?? 0} required quota)
+            {/* 4-Column Metric Card */}
+            <div className="rounded-xl border border-white/15 bg-white/[0.06] p-2.5 sm:p-3">
+              <div className="grid grid-cols-4 divide-x divide-white/15 text-center">
+                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                    MFR
                   </span>
-                </div>
-                <div className="flex items-center gap-3 w-full sm:w-64">
-                  <div className="relative flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${
-                        fulfillmentRate >= 100
-                          ? "bg-emerald-500"
-                          : fulfillmentRate >= 95
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                      }`}
-                      style={{ width: `${Math.min(100, fulfillmentRate)}%` }}
-                    />
-                  </div>
-                  <span
-                    className={`font-mono font-bold text-xs shrink-0 ${
-                      fulfillmentRate >= 100
-                        ? "text-emerald-700"
-                        : fulfillmentRate >= 95
-                        ? "text-amber-700"
-                        : "text-red-700"
-                    }`}
-                  >
+                  <span className="mt-1 text-2xl sm:text-3xl font-black text-white font-mono leading-none">
                     {fulfillmentRate}%
                   </span>
                 </div>
-              </div>
-            )}
-          </section>
 
-          {/* 3. Toolbar & Filter Redesign */}
-          <div className="space-y-3">
-            {/* Segmented Tab Switcher */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div
-                role="tablist"
-                aria-label="Plantilla roster view"
-                className="inline-flex items-center rounded-lg border border-border-default bg-surface-muted p-1"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === "active"}
-                  onClick={() => {
-                    if (view !== "active") {
-                      setView("active");
-                      setPage(1);
-                    }
-                  }}
-                  className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    view === "active"
-                      ? "bg-surface-base text-text-primary shadow-xs"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Active Roster</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
-                      view === "active"
-                        ? "bg-brand-50 text-brand-700 border border-brand-200/80"
-                        : "bg-surface-base text-text-muted border border-border-default"
-                    }`}
-                  >
+                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                    ACTIVE
+                  </span>
+                  <span className="mt-1 text-xl sm:text-2xl font-black text-white font-mono leading-none">
                     {activeCount}
                   </span>
-                </button>
+                </div>
 
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === "inactive"}
-                  onClick={() => {
-                    if (view !== "inactive") {
-                      setView("inactive");
-                      setPage(1);
-                    }
-                  }}
-                  className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    view === "inactive"
-                      ? "bg-surface-base text-text-primary shadow-xs"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Inactive / Floating</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
-                      view === "inactive"
-                        ? "bg-purple-50 text-purple-700 border border-purple-200/80"
-                        : "bg-surface-base text-text-muted border border-border-default"
-                    }`}
-                  >
-                    {inactiveCount}
+                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                    VACANCY
                   </span>
-                </button>
+                  <span className="mt-1 text-xl sm:text-2xl font-black text-[#FCD34D] font-mono leading-none">
+                    {vacancyCount}
+                  </span>
+                </div>
+
+                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                    PIPELINE
+                  </span>
+                  <span className="mt-1 text-xl sm:text-2xl font-black text-white font-mono leading-none">
+                    {summaryData?.hrProcess ?? 0}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Unified Search & Filter Bar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
-              {/* Prominent search input with instant clear */}
-              <div className="relative flex-1 min-w-[260px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            {/* Leadership Team Strip: OM, TL, ATL, HRCO */}
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+              <div className="grid grid-cols-4 divide-x divide-white/10 text-center">
+                <div className="px-1 flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                    OM
+                  </span>
+                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                    {leadershipTeam.om}
+                  </span>
+                </div>
+
+                <div className="px-1 flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                    TL
+                  </span>
+                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                    {leadershipTeam.tl}
+                  </span>
+                </div>
+
+                <div className="px-1 flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                    ATL
+                  </span>
+                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                    {leadershipTeam.atl}
+                  </span>
+                </div>
+
+                <div className="px-1 flex flex-col items-center justify-center min-w-0">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                    HRCO
+                  </span>
+                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                    {leadershipTeam.hrco}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Underline Navigation Tabs */}
+          <div className="border-b border-border-default bg-surface-base rounded-xl overflow-hidden shadow-xs">
+            <div
+              role="tablist"
+              aria-label="Plantilla Directory Tabs"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 overflow-x-auto scrollbar-none"
+            >
+              {/* Tab 1: Active */}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "active"}
+                onClick={() => {
+                  setTab("active");
+                  setPage(1);
+                }}
+                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  tab === "active"
+                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
+                    : "border-transparent text-text-muted hover:text-text-primary"
+                }`}
+              >
+                <span>Active</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
+                    tab === "active"
+                      ? "bg-[#0E2C5C] text-white"
+                      : "bg-surface-muted text-text-secondary"
+                  }`}
+                >
+                  {activeCount}
+                </span>
+              </button>
+
+              {/* Tab 2: Vacancy */}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "vacancy"}
+                onClick={() => {
+                  setTab("vacancy");
+                  setPage(1);
+                }}
+                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  tab === "vacancy"
+                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
+                    : "border-transparent text-text-muted hover:text-text-primary"
+                }`}
+              >
+                <span>Vacancy</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
+                    tab === "vacancy"
+                      ? "bg-[#0E2C5C] text-white"
+                      : "bg-surface-muted text-text-secondary"
+                  }`}
+                >
+                  {vacancyCount}
+                </span>
+              </button>
+
+              {/* Tab 3: Inactive */}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "inactive"}
+                onClick={() => {
+                  setTab("inactive");
+                  setPage(1);
+                }}
+                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  tab === "inactive"
+                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
+                    : "border-transparent text-text-muted hover:text-text-primary"
+                }`}
+              >
+                <span>Inactive</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
+                    tab === "inactive"
+                      ? "bg-[#0E2C5C] text-white"
+                      : "bg-surface-muted text-text-secondary"
+                  }`}
+                >
+                  {inactiveCount}
+                </span>
+              </button>
+
+              {/* Tab 4: Needs HR... */}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "needs_hr"}
+                onClick={() => {
+                  setTab("needs_hr");
+                  setPage(1);
+                }}
+                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  tab === "needs_hr"
+                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
+                    : "border-transparent text-text-muted hover:text-text-primary"
+                }`}
+              >
+                <span>Needs HR...</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
+                    tab === "needs_hr"
+                      ? "bg-[#0E2C5C] text-white"
+                      : "bg-surface-muted text-text-secondary"
+                  }`}
+                >
+                  {needsHrCount}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Search & Filter Row */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
-                  placeholder="Search by member name, store, VCode, or position..."
+                  placeholder="Search employee, emploc no, name, store..."
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="h-10 w-full rounded-lg border border-border-default bg-surface-muted pl-9 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
-                  aria-label="Search plantilla roster"
+                  className="h-10 w-full rounded-xl border border-border-default bg-surface-base pl-10 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500 shadow-xs"
+                  aria-label="Search employee, emploc no, name, store..."
                 />
                 {search && (
                   <button
@@ -911,17 +1073,36 @@ export default function PlantillaPage() {
                       setSearch("");
                       setPage(1);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
                     aria-label="Clear search"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
 
-              {/* Dropdowns row */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Store selector dropdown */}
+              {/* Square filter toggle button */}
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors shadow-xs ${
+                  isFilterOpen || hasActiveFilters
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                }`}
+                aria-label="Toggle filters"
+                title="Toggle filters"
+              >
+                <Filter className="h-4 w-4" />
+                {hasActiveFilters && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-white" />
+                )}
+              </button>
+            </div>
+
+            {/* Expandable filter shelf when isFilterOpen is active */}
+            {isFilterOpen && (
+              <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
                 <div className="min-w-[170px] flex-1 sm:flex-initial">
                   <select
                     value={storeId}
@@ -929,7 +1110,7 @@ export default function PlantillaPage() {
                       setStoreId(e.target.value);
                       setPage(1);
                     }}
-                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
                     aria-label="Filter by store"
                   >
                     <option value="">All Stores</option>
@@ -941,7 +1122,6 @@ export default function PlantillaPage() {
                   </select>
                 </div>
 
-                {/* Status dropdown */}
                 <div className="min-w-[130px] flex-1 sm:flex-initial">
                   <select
                     value={status}
@@ -949,7 +1129,7 @@ export default function PlantillaPage() {
                       setStatus(e.target.value);
                       setPage(1);
                     }}
-                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
                     aria-label="Filter by status"
                   >
                     <option value="">All Statuses</option>
@@ -959,7 +1139,6 @@ export default function PlantillaPage() {
                   </select>
                 </div>
 
-                {/* Assignment Type dropdown */}
                 <div className="min-w-[130px] flex-1 sm:flex-initial">
                   <select
                     value={assignmentType}
@@ -967,7 +1146,7 @@ export default function PlantillaPage() {
                       setAssignmentType(e.target.value);
                       setPage(1);
                     }}
-                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
                     aria-label="Filter by assignment type"
                   >
                     <option value="">All Types</option>
@@ -977,90 +1156,106 @@ export default function PlantillaPage() {
                   </select>
                 </div>
 
-                {/* Reset / Clear filters button only when active filters exist */}
                 {hasActiveFilters && (
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-rose-200/80 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:text-rose-800 transition-colors shadow-xs"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
+                    <RotateCcw className="h-3 w-3" />
                     <span>Reset Filters</span>
                   </button>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* 4. Table Polish Area */}
-          <div className="min-h-[520px] overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
+          {/* 4. Employee Cards (Mobile Card Design) / Content Area */}
+          <div className="min-h-[460px]">
             {isListLoading ? (
               <DataState
                 kind="loading"
                 title="Loading plantilla records"
-                description="Fetching personnel roster through Supabase RPCs..."
+                description="Fetching roster through Supabase RPCs..."
               />
             ) : isAccessDenied ? (
               <DataState
                 kind="access_denied"
                 title="Access Restricted"
-                description="Supabase RLS policies blocked this read. You are not authorized to view plantilla records outside your scoped boundary."
+                description="Supabase RLS policies blocked this read. You are not authorized to view records outside your scoped boundary."
               />
             ) : isRetryable ? (
               <DataState
                 kind="error"
                 title="Fetch Failed"
-                description={
-                  listError?.message ??
-                  "The plantilla query failed. You can retry without changing filters."
-                }
-                onRetry={() => employeeQuery.refetch()}
+                description={listError?.message ?? "Failed to load plantilla records."}
+                onRetry={() => {
+                  if (tab === "vacancy") vacancyListQuery.refetch();
+                  else if (tab === "needs_hr") needsHrcoQuery.refetch();
+                  else employeeQuery.refetch();
+                }}
               />
-            ) : employeeRows.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs">
-                  <Users className="h-8 w-8 text-brand-600" />
-                  {hasActiveFilters && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow-xs">
-                      !
-                    </span>
-                  )}
+            ) : tab === "vacancy" ? (
+              vacancyRows.length === 0 ? (
+                <EmptyTabState
+                  hasActiveFilters={hasActiveFilters}
+                  onResetFilters={handleResetFilters}
+                  tabLabel="vacancies"
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                  {vacancyRows.map((v) => (
+                    <VacancyCard
+                      key={v.id}
+                      vacancy={v}
+                      onRequestHeadcount={() => setIsRequestHeadcountOpen(true)}
+                    />
+                  ))}
                 </div>
-                <h3 className="text-base font-bold text-text-primary">
-                  {hasActiveFilters
-                    ? "No matching plantilla records"
-                    : view === "inactive"
-                    ? "No inactive or floating records"
-                    : "No active employee records"}
-                </h3>
-                <p className="mt-1.5 max-w-sm text-xs text-text-muted leading-relaxed">
-                  {hasActiveFilters
-                    ? "We couldn't find any employees matching your current search or filter criteria. Try adjusting your parameters."
-                    : view === "inactive"
-                    ? "There are currently no inactive, suspended, or floating personnel for this account."
-                    : "There are currently no active personnel deployed under this account."}
-                </p>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors shadow-xs"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>Reset all filters</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <EmployeeTable
-                rows={employeeRows}
-                onRowClick={setSelectedPlantillaId}
-                storeLookupMap={storeLookupMap}
+              )
+            ) : tab === "needs_hr" ? (
+              needsHrRows.length === 0 ? (
+                <EmptyTabState
+                  hasActiveFilters={hasActiveFilters}
+                  onResetFilters={handleResetFilters}
+                  tabLabel="employees needing HRCO assignment"
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                  {needsHrRows.map((row) => (
+                    <EmployeeRosterCard
+                      key={row.id}
+                      row={row}
+                      isNeedsHr
+                      onSelect={() => setSelectedPlantillaId(row.id)}
+                      storeLookupMap={storeLookupMap}
+                    />
+                  ))}
+                </div>
+              )
+            ) : employeeRows.length === 0 ? (
+              <EmptyTabState
+                hasActiveFilters={hasActiveFilters}
+                onResetFilters={handleResetFilters}
+                tabLabel={tab === "inactive" ? "inactive employees" : "active employees"}
               />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                {employeeRows.map((row) => (
+                  <EmployeeRosterCard
+                    key={row.id}
+                    row={row}
+                    isInactive={tab === "inactive"}
+                    onSelect={() => setSelectedPlantillaId(row.id)}
+                    storeLookupMap={storeLookupMap}
+                  />
+                ))}
+              </div>
             )}
 
+            {/* Pagination Controls */}
             {!isListLoading && !isListError && totalCount > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default px-4 py-3 text-xs sm:text-sm text-text-muted">
+              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default pt-4 text-xs sm:text-sm text-text-muted">
                 <span>
                   Showing {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–
                   {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} record
@@ -1092,6 +1287,19 @@ export default function PlantillaPage() {
               </div>
             )}
           </div>
+
+          {/* 5. Floating Action Button (FAB) */}
+          {canRequestAdjustment && (
+            <button
+              type="button"
+              onClick={() => setIsRequestHeadcountOpen(true)}
+              aria-label="Request Headcount"
+              title="Request Headcount"
+              className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0E2C5C] hover:bg-[#0A2349] text-white shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-brand-500/30 cursor-pointer"
+            >
+              <Plus className="h-6 w-6 stroke-[2.5]" />
+            </button>
+          )}
 
           {/* Drawers & Modals */}
           <PlantillaDetailDrawer
@@ -1137,6 +1345,9 @@ export default function PlantillaPage() {
                 employeeQuery.refetch();
                 summaryQuery.refetch();
                 inactiveCountQuery.refetch();
+                unassignedHrcoCountQuery.refetch();
+                if (tab === "vacancy") vacancyListQuery.refetch();
+                if (tab === "needs_hr") needsHrcoQuery.refetch();
               }}
             />
           )}
@@ -1161,193 +1372,253 @@ export default function PlantillaPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Employee Table Component
+// Employee Roster Card Component (Mobile Card Design)
 // ---------------------------------------------------------------------------
 
-function EmployeeTable({
-  rows,
-  onRowClick,
+function EmployeeRosterCard({
+  row,
+  isInactive,
+  isNeedsHr,
+  onSelect,
   storeLookupMap,
 }: {
-  rows: PlantillaEmployeeListItem[];
-  onRowClick: (id: string) => void;
+  row: PlantillaEmployeeListItem;
+  isInactive?: boolean;
+  isNeedsHr?: boolean;
+  onSelect: () => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
+  const overlay = deriveDeactivationOverlay(row.plantillaStatus);
+  const displayName =
+    row.lastName && row.firstName
+      ? `${row.lastName}, ${row.firstName}`
+      : (row.lastName ?? row.firstName ?? "—");
+
+  const initials = getInitials(row.firstName, row.lastName);
+
+  // Store City/Province
+  const storeInfo = row.primaryStoreName
+    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+    : null;
+  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+
+  const statusLower = (row.plantillaStatus ?? "").toLowerCase();
+  const isOnLeave = statusLower === "on leave" || statusLower === "on_leave";
+  const isPendingSeparation = overlay.isPendingSeparation || statusLower === "pending separation";
+
+  const accentBorderClass = isPendingSeparation
+    ? "border-l-4 border-l-rose-500 bg-rose-50/20"
+    : isOnLeave
+    ? "border-l-4 border-l-amber-500"
+    : isInactive
+    ? "border-l-4 border-l-slate-400"
+    : isNeedsHr
+    ? "border-l-4 border-l-sky-500"
+    : "border-l-4 border-l-emerald-500";
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-table-rule bg-table-header">
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Member
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Store
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Position
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Assignment
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Status
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-table-rule">
-          {rows.map((row) => {
-            const overlay = deriveDeactivationOverlay(row.plantillaStatus);
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${accentBorderClass}`}
+    >
+      <div>
+        {/* Top Header: Avatar + Name / [Employee Number • Position] + Chevron */}
+        <div className="flex items-center gap-3">
+          {/* Dark navy circle avatar with initials */}
+          <div className="h-10 w-10 shrink-0 rounded-full bg-[#0E2C5C] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+            {initials}
+          </div>
 
-            const rowClass = overlay.isPendingSeparation
-              ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer transition-colors"
-              : "transition-colors hover:bg-table-row-hover cursor-pointer";
+          {/* Name & Subtitle */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-600 transition-colors">
+                {displayName}
+              </h4>
+              {row.plantillaType === "AH" && (
+                <span className="shrink-0 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
+                  AH
+                </span>
+              )}
+            </div>
 
-            const displayName =
-              row.lastName && row.firstName
-                ? `${row.lastName}, ${row.firstName}`
-                : (row.lastName ?? row.firstName ?? "—");
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-semibold text-brand-700 truncate">
+                {row.positionTitle || "General Staff"}
+              </span>
+            </div>
+          </div>
 
-            const initials = getInitials(row.firstName, row.lastName);
+          {/* Right Chevron & Status Badge */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isNeedsHr ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                Needs HRCO
+              </span>
+            ) : row.plantillaStatus && row.plantillaStatus.toLowerCase() !== "active" ? (
+              <StatusBadge
+                variant={plantillaStatusVariant(row.plantillaStatus)}
+                text={row.plantillaStatus}
+              />
+            ) : null}
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+      </div>
 
-            // Lookup City/Province for store
-            const storeInfo = row.primaryStoreName
-              ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-              : null;
-            const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+      {/* Operational footer strip */}
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+          <span className="truncate font-medium text-text-secondary">
+            {row.primaryStoreName || "Unassigned Outlet"}
+            {locationLabel ? ` (${locationLabel})` : ""}
+          </span>
+        </div>
 
-            return (
-              <tr
-                key={row.id}
-                className={rowClass}
-                onClick={() => onRowClick(row.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onRowClick(row.id);
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`View details for ${displayName}`}
-              >
-                {/* MEMBER: Formatted employee name with avatar initials and subtle ID subtitle */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-brand-50 border border-brand-200/70 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                      {initials}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-table-text text-sm hover:text-brand-600 transition-colors">
-                          {displayName}
-                        </span>
-                        {row.plantillaType === "AH" && (
-                          <span className="inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-status-warning-text">
-                            AH
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-mono text-xs text-table-text-muted mt-0.5">
-                        {row.employeeNo}
-                      </div>
-                    </div>
-                  </div>
-                </td>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
+              row.assignmentType?.toLowerCase() === "roving"
+                ? "bg-amber-50 text-amber-700 border-amber-200/80"
+                : "bg-surface-muted text-text-secondary border-border-default"
+            }`}
+          >
+            {row.assignmentType || "Stationary"}
+            {row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                {/* STORE: Outlet name with City/Province pill */}
-                <td className="px-4 py-3 text-table-text">
-                  <div className="min-w-0">
-                    <div className="font-medium text-table-text truncate">
-                      {row.primaryStoreName || "Unassigned Outlet"}
-                    </div>
-                    {locationLabel ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                        <MapPin className="h-3 w-3 text-text-muted shrink-0" />
-                        <span className="truncate max-w-[150px]">{locationLabel}</span>
-                      </span>
-                    ) : row.accountName ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
-                        {row.accountName}
-                      </span>
-                    ) : null}
-                  </div>
-                </td>
+// ---------------------------------------------------------------------------
+// Vacancy Card Component
+// ---------------------------------------------------------------------------
 
-                {/* POSITION: Job position with level or tier */}
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium text-table-text text-sm">
-                      {row.positionTitle ?? "General Staff"}
-                    </span>
-                    <span className="text-xs text-table-text-muted mt-0.5">
-                      {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                    </span>
-                  </div>
-                </td>
+function VacancyCard({
+  vacancy,
+  onRequestHeadcount,
+}: {
+  vacancy: VacancyListItem;
+  onRequestHeadcount: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onRequestHeadcount}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onRequestHeadcount();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer border-l-4 border-l-amber-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+    >
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shadow-xs">
+            <Briefcase className="h-5 w-5" />
+          </div>
 
-                {/* ASSIGNMENT: Clean badge (Stationary / Roving / Reliever) */}
-                <td className="px-4 py-3">
-                  {row.assignmentType?.toLowerCase() === "roving" ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 border border-sky-200/80 px-2 py-0.5 text-xs font-semibold text-sky-700">
-                      Roving{row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
-                    </span>
-                  ) : row.assignmentType?.toLowerCase() === "reliever" ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-xs font-semibold text-purple-700">
-                      Reliever
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                      Stationary
-                    </span>
-                  )}
-                </td>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-600 transition-colors">
+              {vacancy.position_title || "Open Position"}
+            </h4>
 
-                {/* STATUS: Design-token StatusBadge */}
-                <td className="px-4 py-3">
-                  {row.plantillaStatus ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <StatusBadge
-                        variant={plantillaStatusVariant(row.plantillaStatus)}
-                        text={row.plantillaStatus}
-                      />
-                      {row.slaBreached && (
-                        <span
-                          className="text-xs font-semibold text-status-danger-text"
-                          title="SLA breached"
-                        >
-                          ⚠
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-table-text-muted">—</span>
-                  )}
-                </td>
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono font-bold text-brand-700">{vacancy.vcode}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-medium text-text-secondary">
+                HC: {vacancy.activeApplicantCount > 0 ? vacancy.activeApplicantCount : 1}
+              </span>
+            </div>
+          </div>
 
-                {/* ACTIONS: One-click button to open PlantillaDetailDrawer */}
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRowClick(row.id);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
-                    aria-label={`View details for ${displayName}`}
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    <span>Details</span>
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                vacancy.pipelineStatus?.toLowerCase() === "pipeline"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {vacancy.pipelineStatus || "Open"}
+            </span>
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
+        <div className="flex items-center gap-1.5 truncate">
+          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+          <span className="truncate font-medium text-text-secondary">
+            {vacancy.storeName || "Unassigned Outlet"}
+          </span>
+        </div>
+
+        <span className="text-[11px] font-semibold text-text-muted font-mono">
+          {vacancy.agingDays != null ? `${vacancy.agingDays}d aging` : "Open"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Empty State Helper
+// ---------------------------------------------------------------------------
+
+function EmptyTabState({
+  hasActiveFilters,
+  onResetFilters,
+  tabLabel,
+}: {
+  hasActiveFilters: boolean;
+  onResetFilters: () => void;
+  tabLabel: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-border-default bg-surface-muted/20">
+      <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs">
+        <Users className="h-8 w-8 text-brand-600" />
+        {hasActiveFilters && (
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow-xs">
+            !
+          </span>
+        )}
+      </div>
+      <h3 className="text-base font-bold text-text-primary">
+        {hasActiveFilters ? "No matching records found" : `No ${tabLabel}`}
+      </h3>
+      <p className="mt-1.5 max-w-sm text-xs text-text-muted leading-relaxed">
+        {hasActiveFilters
+          ? "We couldn't find any records matching your current filter criteria. Try adjusting your parameters."
+          : `There are currently no ${tabLabel} listed under this account.`}
+      </p>
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={onResetFilters}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors shadow-xs"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          <span>Reset all filters</span>
+        </button>
+      )}
     </div>
   );
 }

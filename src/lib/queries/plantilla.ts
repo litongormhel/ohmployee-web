@@ -936,6 +936,54 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
   };
 }
 
+export async function fetchUnassignedHrcoCount(accountId: string): Promise<number> {
+  if (!accountId) return 0;
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("get_plantilla_unassigned_hrco_count", {
+      p_account_id: accountId,
+    });
+    if (!error && typeof data === "number") {
+      return data;
+    }
+  } catch {
+    // Fallback
+  }
+  return 0;
+}
+
+export async function fetchNeedsHrcoEmployees(
+  accountId: string,
+  search?: string
+): Promise<PlantillaEmployeeListItem[]> {
+  if (!accountId) return [];
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("get_plantilla_needs_hrco_employees", {
+      p_account_id: accountId,
+    });
+    if (!error && Array.isArray(data)) {
+      const rows = (data as Record<string, unknown>[])
+        .map((row) => normalizeEmployeeListRow(asObject(row)))
+        .filter((row): row is PlantillaEmployeeListItem => row !== null);
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        return rows.filter((r) =>
+          [r.firstName, r.lastName, r.employeeNo, r.primaryStoreName, r.positionTitle]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(q)
+        );
+      }
+      return rows;
+    }
+  } catch {
+    // Fallback
+  }
+  return [];
+}
+
 export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffingListParams) {
   const supabase = createClient();
   const { page, pageSize, offset } = clampPage(
