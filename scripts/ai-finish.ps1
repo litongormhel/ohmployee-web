@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w60a451f" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w61d552a" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "src/components/modals/RequestHeadcountModal.tsx:src/components/modals/NewStoreRequestModal.tsx:src/components/plantilla:src/lib/queries/requests.ts:src/lib/queries/plantilla.ts:src/app/(dashboard)/plantilla/page.tsx:scripts/ai-finish.ps1"
+    $env:OHM_SCOPE_FILES = "src/components/approvals/DeactivationDataTable.tsx:src/components/approvals/ActiveQueueReviewPane.tsx:src/lib/queries/requests.ts:scripts/ai-finish.ps1:.ai/briefing.md"
 }
 
 Write-Host "======================================================"

@@ -1439,6 +1439,8 @@ export function useRejectApplicantMovement() {
 
 // ─── Account Deactivations ───────────────────────────────────────────────────
 
+export type DeactivationStatusTab = "pending" | "approved" | "rejected" | "all";
+
 export interface DeactivationRequestItem {
   id: string;
   plantillaId: string;
@@ -1455,6 +1457,9 @@ export interface DeactivationRequestItem {
   requestedAt: string;
   requestedByName: string;
   requestedByProfileId: string;
+  processedAt: string | null;
+  processedByName: string | null;
+  processedByProfileId: string | null;
   // Enriched from plantilla
   storeName: string | null;
   positionTitle: string | null;
@@ -1488,14 +1493,54 @@ interface DeactivationDbRow {
   batch_id: string | null;
   resubmit_count: number;
   created_at: string;
+  processed_at: string | null;
   requestor_display_name: string | null;
   requestor_profile_id: string;
+  processor_display_name: string | null;
+  processed_by_profile_id: string | null;
 }
 
-export async function fetchPendingDeactivationRequests(): Promise<DeactivationRequestItem[]> {
-  const supabase = createClient();
+export interface DeactivationStatusCounts {
+  pending: number;
+  approved: number;
+  rejected: number;
+}
 
+export async function fetchDeactivationCounts(): Promise<DeactivationStatusCounts> {
+  const supabase = createClient();
   const { data, error } = await supabase
+    .from("v_deactivation_requests")
+    .select("status");
+
+  if (error || !data) {
+    return { pending: 0, approved: 0, rejected: 0 };
+  }
+
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending" || s === "under_review") {
+      pending++;
+    } else if (s === "approved" || s === "completed") {
+      approved++;
+    } else if (s === "rejected" || s === "cancelled") {
+      rejected++;
+    }
+  }
+
+  return { pending, approved, rejected };
+}
+
+export async function fetchDeactivationRequests(
+  tabOrFilter: DeactivationStatusTab | { status?: DeactivationStatusTab } = "pending"
+): Promise<DeactivationRequestItem[]> {
+  const supabase = createClient();
+  const statusTab = typeof tabOrFilter === "string" ? tabOrFilter : tabOrFilter?.status ?? "pending";
+
+  let query = supabase
     .from("v_deactivation_requests")
     .select(`
       id,
@@ -1510,11 +1555,22 @@ export async function fetchPendingDeactivationRequests(): Promise<DeactivationRe
       batch_id,
       resubmit_count,
       created_at,
+      processed_at,
       requestor_display_name,
-      requestor_profile_id
-    `)
-    .ilike("status", "pending")
-    .order("created_at", { ascending: false });
+      requestor_profile_id,
+      processor_display_name,
+      processed_by_profile_id
+    `);
+
+  if (statusTab === "pending") {
+    query = query.in("status", ["Pending", "pending", "under_review"]);
+  } else if (statusTab === "approved") {
+    query = query.in("status", ["Approved", "approved", "completed"]);
+  } else if (statusTab === "rejected") {
+    query = query.in("status", ["Rejected", "rejected", "cancelled"]);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -1565,8 +1621,45 @@ export async function fetchPendingDeactivationRequests(): Promise<DeactivationRe
     }
   }
 
+  // Batch-fetch operational group via accounts(groups(group_name))
+  const accountIds = Array.from(
+    new Set(rows.map((r) => r.account_id).filter((id): id is string => Boolean(id)))
+  );
+
+  const accountGroupMap: Record<string, string | null> = {};
+  if (accountIds.length > 0) {
+    try {
+      const { data: accountsData } = await supabase
+        .from("accounts")
+        .select(`
+          id,
+          groups(group_name)
+        `)
+        .in("id", accountIds);
+
+      if (accountsData) {
+        for (const acc of accountsData) {
+          const groupRelation = acc.groups as unknown as
+            | { group_name?: string }
+            | { group_name?: string }[]
+            | null;
+          const groupName = Array.isArray(groupRelation)
+            ? groupRelation[0]?.group_name
+            : groupRelation?.group_name;
+          if (groupName) {
+            accountGroupMap[acc.id] = groupName;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
   return rows.map((r) => {
     const meta = plantillaMap[r.plantilla_id];
+    const derivedGroupName = r.group_name || (r.account_id ? accountGroupMap[r.account_id] : null) || null;
+
     return {
       id: r.id,
       plantillaId: r.plantilla_id,
@@ -1574,7 +1667,7 @@ export async function fetchPendingDeactivationRequests(): Promise<DeactivationRe
       employeeNo: r.employee_no ?? null,
       accountName: r.account_name || "—",
       accountId: r.account_id,
-      groupName: r.group_name ?? null,
+      groupName: derivedGroupName,
       groupId: r.group_id ?? null,
       status: r.status,
       batchId: r.batch_id ?? null,
@@ -1583,6 +1676,9 @@ export async function fetchPendingDeactivationRequests(): Promise<DeactivationRe
       requestedAt: r.created_at,
       requestedByName: r.requestor_display_name || "Requester",
       requestedByProfileId: r.requestor_profile_id,
+      processedAt: r.processed_at ?? null,
+      processedByName: r.processor_display_name ?? null,
+      processedByProfileId: r.processed_by_profile_id ?? null,
       storeName: meta?.storeName ?? null,
       positionTitle: meta?.position ?? null,
       separationStatus: meta?.separationStatus ?? "Resigned",
@@ -1590,6 +1686,9 @@ export async function fetchPendingDeactivationRequests(): Promise<DeactivationRe
     };
   });
 }
+
+export const fetchPendingDeactivations = fetchDeactivationRequests;
+export const fetchPendingDeactivationRequests = fetchDeactivationRequests;
 
 export async function completeEmployeeDeactivation({
   requestId,
@@ -1708,10 +1807,19 @@ export async function rejectEmployeeDeactivation({
   return batchData;
 }
 
-export function usePendingDeactivationRequests() {
+export function useDeactivationRequests(status: DeactivationStatusTab = "pending") {
   return useQuery({
-    queryKey: ["deactivation-requests"],
-    queryFn: () => fetchPendingDeactivationRequests(),
+    queryKey: ["deactivation-requests", status],
+    queryFn: () => fetchDeactivationRequests(status),
+  });
+}
+
+export const usePendingDeactivationRequests = useDeactivationRequests;
+
+export function useDeactivationCounts() {
+  return useQuery({
+    queryKey: ["deactivation-counts"],
+    queryFn: () => fetchDeactivationCounts(),
   });
 }
 
@@ -1724,6 +1832,7 @@ export function useCompleteDeactivation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["deactivation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["deactivation-counts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
     },
@@ -1739,6 +1848,7 @@ export function useRejectDeactivation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["deactivation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["deactivation-counts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
     },
