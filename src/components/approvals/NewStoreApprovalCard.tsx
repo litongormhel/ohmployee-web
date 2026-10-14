@@ -95,6 +95,13 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
 
   const isBusy = approveMutation.isPending || rejectMutation.isPending;
   const location = [request.city, request.province].filter(Boolean).join(", ") || "Location unspecified";
+  const displayRequester = (() => {
+    const raw = (request.requestedByName || "").trim();
+    if (!raw || raw === "," || raw.replace(/[,\s]/g, "") === "" || raw.toLowerCase() === "unknown") {
+      return "Admin / Ops";
+    }
+    return raw;
+  })();
 
   return (
     <div className="rounded-lg border border-border-default bg-surface-base p-5 shadow-xs transition hover:border-slate-300">
@@ -191,7 +198,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
           <span className="block font-medium text-text-muted">Requested By</span>
           <div className="mt-0.5 flex items-center gap-1.5 font-medium text-text-primary">
             <User className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
-            <span className="truncate">{request.requestedByName || "Ops Requester"}</span>
+            <span className="truncate">{displayRequester}</span>
           </div>
           <span className="flex items-center gap-1 text-[11px] text-text-secondary mt-0.5">
             <Clock className="h-3 w-3" aria-hidden="true" />

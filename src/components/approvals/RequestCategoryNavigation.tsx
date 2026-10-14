@@ -7,6 +7,7 @@ import {
   Layers,
   MapPin,
   Store,
+  UserCheck,
   UserMinus,
   Users,
   UserX,
@@ -26,6 +27,7 @@ const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: str
   deactivations: UserMinus,
   applicant_movements: ArrowLeftRight,
   account_group_transfers: Layers,
+  relievers: UserCheck,
 };
 
 interface RequestCategoryNavigationProps {
@@ -46,7 +48,8 @@ export function RequestCategoryNavigation({
   return (
     <nav
       aria-label="Request Center Modules"
-      className="flex flex-col gap-1.5"
+      role="tablist"
+      className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 px-0.5"
     >
       {REQUEST_CATEGORIES.map((cat) => {
         const Icon = CATEGORY_ICONS[cat.key];
@@ -60,43 +63,31 @@ export function RequestCategoryNavigation({
           <button
             key={cat.key}
             type="button"
+            role="tab"
+            aria-selected={isSelected}
             onClick={() => onSelectCategory(cat.key)}
-            className={`group relative flex w-full items-center justify-between rounded-lg p-3 text-left transition-all ${
+            className={`group inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
               isSelected
-                ? "bg-brand-50/70 border border-brand-200 text-brand-900 shadow-2xs"
-                : "border border-transparent bg-transparent text-text-primary hover:border-slate-200 hover:bg-surface-hover"
+                ? "bg-brand-50 border border-brand-200 text-brand-900 shadow-2xs font-bold"
+                : "border border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
-            <div className="flex items-center gap-3 min-w-0 pr-2">
-              <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                  isSelected
-                    ? "border-brand-200 bg-brand-100/70 text-brand-700"
-                    : "border-border-default bg-surface-base text-text-muted group-hover:border-slate-300 group-hover:text-text-secondary"
-                }`}
-              >
-                <Icon className="h-4.5 w-4.5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`truncate text-sm font-semibold ${
-                      isSelected ? "text-brand-900" : "text-text-primary"
-                    }`}
-                  >
-                    {cat.label}
-                  </span>
-                </div>
-                <p className="truncate text-xs text-text-muted mt-0.5">
-                  {cat.description}
-                </p>
-              </div>
+            <div
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${
+                isSelected
+                  ? "bg-brand-100/80 text-brand-700"
+                  : "bg-surface-subtle text-text-muted group-hover:text-text-secondary"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
             </div>
 
-            {/* Dynamic Trailing Count Badge - No static SIM/NEW/BETA badges */}
+            <span className="truncate">{cat.label}</span>
+
+            {/* Dynamic Pill Badge */}
             {showBadge && (
               <span
-                className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold shadow-2xs ${
+                className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-2xs font-bold shadow-2xs transition-colors ${
                   isSelected
                     ? "bg-brand-600 text-white"
                     : "bg-blue-100 text-blue-800"

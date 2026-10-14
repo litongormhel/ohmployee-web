@@ -47,6 +47,7 @@ interface ActiveQueueReviewPaneProps {
 
 const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: string }>> = {
   coverage: { href: "/cencom", label: "Open CENCOM Module" },
+  relievers: { href: "/cencom", label: "Open CENCOM Module" },
 };
 
 export function ActiveQueueReviewPane({
@@ -69,7 +70,6 @@ export function ActiveQueueReviewPane({
   const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "TRANSFER" | "SWAP">("all");
   const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
-  const [coverageSubTab, setCoverageSubTab] = useState<"reliever" | "roving">("reliever");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
   const [relieverPriorityFilter, setRelieverPriorityFilter] = useState<"all" | "Urgent" | "High" | "Normal">("all");
@@ -1231,14 +1231,22 @@ export function ActiveQueueReviewPane({
   }
 
   // ── 8. Coverage & Reliever Endorsements Review Queue ─────────────────────
-  if (selectedCategory === "coverage") {
-    const totalCoverageCount = counts.coverage ?? (relieverRequests.length + rovingRequests.length);
-    const isCoverageBusy =
-      isRelieverLoading || isRovingLoading || isRelieverRefetching || isRovingRefetching;
+  if (selectedCategory === "coverage" || selectedCategory === "relievers") {
+    const isRelieverCategory = selectedCategory === "relievers";
+    const currentSubTab = isRelieverCategory ? "reliever" : "roving";
+    const activeCount = isRelieverCategory
+      ? (counts.relievers ?? relieverRequests.length)
+      : (counts.coverage ?? rovingRequests.length);
+    const isBusy = isRelieverCategory
+      ? (isRelieverLoading || isRelieverRefetching)
+      : (isRovingLoading || isRovingRefetching);
 
-    const handleRefreshCoverage = () => {
-      refetchRelievers();
-      refetchRoving();
+    const handleRefreshCurrent = () => {
+      if (isRelieverCategory) {
+        refetchRelievers();
+      } else {
+        refetchRoving();
+      }
     };
 
     return (
@@ -1248,39 +1256,43 @@ export function ActiveQueueReviewPane({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-text-primary">
-                Reliever Endorsements & Coverage Requests
+                {isRelieverCategory
+                  ? "Reliever Endorsements & Pool Deployments"
+                  : "Roving Coverage Group Structures"}
               </h2>
-              {totalCoverageCount > 0 && (
+              {activeCount > 0 && (
                 <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
-                  {totalCoverageCount} pending
+                  {activeCount} pending
                 </span>
               )}
             </div>
 
             <button
               type="button"
-              onClick={handleRefreshCoverage}
-              disabled={isCoverageBusy}
+              onClick={handleRefreshCurrent}
+              disabled={isBusy}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
               title="Refresh Queue"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isCoverageBusy ? "animate-spin" : ""}`}
+                className={`h-3.5 w-3.5 ${isBusy ? "animate-spin" : ""}`}
               />
               <span>Refresh</span>
             </button>
           </div>
           <p className="mt-0.5 text-xs text-text-secondary">
-            Operational review queue for temporary reliever pool deployments and CENCOM roving coverage group structures
+            {isRelieverCategory
+              ? "Operational review queue for temporary reliever pool deployments and workforce coverage"
+              : "Operational review queue for CENCOM roving store allocation groups and schedule structures"}
           </p>
 
           {/* Sub-Tab Segmented Switcher */}
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
             <button
               type="button"
-              onClick={() => setCoverageSubTab("reliever")}
+              onClick={() => onSelectCategory("relievers")}
               className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                coverageSubTab === "reliever"
+                currentSubTab === "reliever"
                   ? "bg-brand-600 text-white shadow-2xs"
                   : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
               }`}
@@ -1288,7 +1300,7 @@ export function ActiveQueueReviewPane({
               <span>Reliever Deployments</span>
               <span
                 className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
-                  coverageSubTab === "reliever"
+                  currentSubTab === "reliever"
                     ? "bg-white/20 text-white"
                     : "bg-slate-200 text-slate-700"
                 }`}
@@ -1299,9 +1311,9 @@ export function ActiveQueueReviewPane({
 
             <button
               type="button"
-              onClick={() => setCoverageSubTab("roving")}
+              onClick={() => onSelectCategory("coverage")}
               className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                coverageSubTab === "roving"
+                currentSubTab === "roving"
                   ? "bg-brand-600 text-white shadow-2xs"
                   : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
               }`}
@@ -1309,7 +1321,7 @@ export function ActiveQueueReviewPane({
               <span>Roving Coverage Groups</span>
               <span
                 className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
-                  coverageSubTab === "roving"
+                  currentSubTab === "roving"
                     ? "bg-white/20 text-white"
                     : "bg-slate-200 text-slate-700"
                 }`}
@@ -1322,7 +1334,7 @@ export function ActiveQueueReviewPane({
 
         {/* Toolbar: Search and Filters */}
         <div className="my-4 flex flex-wrap items-center gap-3">
-          {coverageSubTab === "reliever" ? (
+          {currentSubTab === "reliever" ? (
             <>
               <div className="relative min-w-[240px] flex-1">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
@@ -1390,7 +1402,7 @@ export function ActiveQueueReviewPane({
 
         {/* Content Stream */}
         <div className="flex-1 overflow-y-auto pr-1">
-          {coverageSubTab === "reliever" ? (
+          {currentSubTab === "reliever" ? (
             isRelieverLoading ? (
               <DataState
                 kind="loading"

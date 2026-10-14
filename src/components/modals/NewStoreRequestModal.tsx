@@ -23,6 +23,7 @@ export interface NewStoreRequestModalProps {
   onClose: () => void;
   initialAccountId?: string | null;
   initialAccountName?: string | null;
+  initialGroupId?: string | null;
   initialStoreName?: string | null;
   initialProvince?: string | null;
   initialCity?: string | null;
@@ -56,6 +57,7 @@ function NewStoreRequestModalDialog({
   onClose,
   initialAccountId,
   initialAccountName,
+  initialGroupId,
   initialStoreName = "",
   initialProvince = "",
   initialCity = "",
@@ -72,11 +74,38 @@ function NewStoreRequestModalDialog({
   const [province, setProvince] = useState(initialProvince || "");
   const [city, setCity] = useState(initialCity || "");
   const [reason, setReason] = useState("");
+  const [fetchedGroupId, setFetchedGroupId] = useState<string | null>(null);
+  const resolvedGroupId = initialGroupId || fetchedGroupId;
   const [fetchedProvinces, setFetchedProvinces] = useState<string[]>([]);
   const [fetchedCities, setFetchedCities] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedResult, setSubmittedResult] =
     useState<SubmitNewStoreRequestResult | null>(null);
+
+  // Look up account group_id if not provided
+  useEffect(() => {
+    if (initialGroupId || !initialAccountId) return;
+    const supabase = createClient();
+    let isMounted = true;
+    async function loadAccountGroup() {
+      try {
+        const { data } = await supabase
+          .from("accounts")
+          .select("group_id")
+          .eq("id", initialAccountId)
+          .maybeSingle();
+        if (isMounted && data?.group_id) {
+          setFetchedGroupId(data.group_id);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadAccountGroup();
+    return () => {
+      isMounted = false;
+    };
+  }, [initialAccountId, initialGroupId]);
 
   // Available provinces
   const availableProvinces = useMemo(() => {
@@ -218,6 +247,7 @@ function NewStoreRequestModalDialog({
         city: trimmedCity,
         account_id: initialAccountId,
         account_name: initialAccountName || "Scoped Account",
+        group_id: resolvedGroupId || null,
         reason: trimmedReason,
         position: initialPosition || null,
         requested_hc: initialRequestedHc || null,

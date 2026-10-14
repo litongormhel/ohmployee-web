@@ -31,6 +31,7 @@ export default function ApprovalsPage() {
       deactivations: 0,
       applicant_movements: 0,
       account_group_transfers: 0,
+      relievers: 0,
     },
     isLoading: isLoadingCounts,
     refetch: refetchCounts,
@@ -74,32 +75,24 @@ export default function ApprovalsPage() {
         }
       />
 
-      {/* Two-Pane Hub Layout */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Left Pane: Category Navigation List / Hub */}
-        <div className="w-full shrink-0 rounded-xl border border-border-default bg-surface-base p-3.5 shadow-xs lg:w-80">
-          <div className="mb-2 px-2 pb-2 border-b border-border-default">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-              Request Modules
-            </h2>
-          </div>
-          <RequestCategoryNavigation
-            selectedCategory={selectedCategory}
-            onSelectCategory={handleSelectCategory}
-            counts={counts}
-            acknowledgedCategories={acknowledgedCategories}
-            isLoadingCounts={isLoadingCounts}
-          />
-        </div>
+      {/* Top Horizontal Navigation Tab Strip */}
+      <div className="w-full rounded-xl border border-border-default bg-surface-base p-2 shadow-xs">
+        <RequestCategoryNavigation
+          selectedCategory={selectedCategory}
+          onSelectCategory={handleSelectCategory}
+          counts={counts}
+          acknowledgedCategories={acknowledgedCategories}
+          isLoadingCounts={isLoadingCounts}
+        />
+      </div>
 
-        {/* Right Pane: Active Queue Review Pane */}
-        <div className="min-w-0 flex-1 rounded-xl border border-border-default bg-surface-base p-6 shadow-xs">
-          <ActiveQueueReviewPane
-            selectedCategory={selectedCategory}
-            onSelectCategory={handleSelectCategory}
-            counts={counts}
-          />
-        </div>
+      {/* Active Queue Review Pane - 100% Full Width */}
+      <div className="w-full min-w-0 rounded-xl border border-border-default bg-surface-base p-6 shadow-xs">
+        <ActiveQueueReviewPane
+          selectedCategory={selectedCategory}
+          onSelectCategory={handleSelectCategory}
+          counts={counts}
+        />
       </div>
     </div>
   );

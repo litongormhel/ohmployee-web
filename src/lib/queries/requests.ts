@@ -9,7 +9,8 @@ export type RequestCategoryKey =
   | "hr_emploc_deletions"
   | "deactivations"
   | "applicant_movements"
-  | "account_group_transfers";
+  | "account_group_transfers"
+  | "relievers";
 
 export interface RequestCategoryConfig {
   key: RequestCategoryKey;
@@ -66,6 +67,12 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     label: "Account Group Transfers",
     description: "Account reassignments across operational management groups",
     tableName: "account_group_transfer_requests",
+  },
+  {
+    key: "relievers",
+    label: "Relievers",
+    description: "Temporary reliever pool deployments and workforce coverage",
+    tableName: "v_workforce_assignment_request_queue",
   },
 ];
 
@@ -128,6 +135,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     deactivations: 0,
     applicant_movements: 0,
     account_group_transfers: 0,
+    relievers: 0,
   };
 
   const countItem = async (
@@ -161,25 +169,23 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
-    // 3. Coverage & Reliever Endorsements
-    (async () => {
-      try {
-        const [covRes, relieverRes] = await Promise.all([
-          supabase
-            .from("coverage_requests")
-            .select("id", { count: "exact", head: true })
-            .or("status.ilike.pending,status.ilike.draft"),
-          supabase
-            .from("v_workforce_assignment_request_queue")
-            .select("request_id", { count: "exact", head: true })
-            .in("status", ["Pending", "pending", "For Review", "for review"]),
-        ]);
-        const total = (covRes.count ?? 0) + (relieverRes.count ?? 0);
-        return { key: "coverage" as RequestCategoryKey, count: total };
-      } catch {
-        return { key: "coverage" as RequestCategoryKey, count: 0 };
-      }
-    })(),
+    // 3. Coverage (Roving Coverage Groups)
+    countItem(
+      "coverage",
+      supabase
+        .from("coverage_requests")
+        .select("id", { count: "exact", head: true })
+        .or("status.ilike.pending,status.ilike.draft")
+    ),
+
+    // 4. Relievers (Workforce Pool Reliever Endorsements)
+    countItem(
+      "relievers",
+      supabase
+        .from("v_workforce_assignment_request_queue")
+        .select("request_id", { count: "exact", head: true })
+        .in("status", ["Pending", "pending", "For Review", "for review"])
+    ),
 
     // 4. Vacancy Closures
     countItem(
@@ -596,6 +602,53 @@ export type RejectNewStoreParams = {
   reason: string;
 };
 
+export function resolveRequesterDisplayName(
+  rawName: string | null | undefined,
+  profile?: {
+    full_name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  } | null
+): string {
+  if (profile) {
+    const fn = (profile.first_name || "").trim();
+    const ln = (profile.last_name || "").trim();
+    if (ln && fn) {
+      return `${ln}, ${fn}`;
+    }
+    if (fn) return fn;
+    if (ln) return ln;
+
+    const full = (profile.full_name || "").trim();
+    if (
+      full &&
+      full !== "," &&
+      full.replace(/[,\s]/g, "") !== "" &&
+      full.toLowerCase() !== "unknown"
+    ) {
+      return full;
+    }
+
+    if (profile.email && profile.email.trim()) {
+      const emailPrefix = profile.email.split("@")[0].trim();
+      if (emailPrefix) return emailPrefix;
+    }
+  }
+
+  const raw = (rawName || "").trim();
+  if (
+    raw &&
+    raw !== "," &&
+    raw.replace(/[,\s]/g, "") !== "" &&
+    raw.toLowerCase() !== "unknown"
+  ) {
+    return raw;
+  }
+
+  return "Admin / Ops";
+}
+
 interface NewStoreDbRow {
   id: string;
   store_name: string;
@@ -617,7 +670,24 @@ interface NewStoreDbRow {
   review_reason: string | null;
   created_at: string;
   groups?: {
+    id?: string;
     group_name: string | null;
+  } | null;
+  accounts?: {
+    id?: string;
+    account_name?: string | null;
+    group_id?: string | null;
+    groups?: {
+      id?: string;
+      group_name: string | null;
+    } | null;
+  } | null;
+  users_profile?: {
+    id?: string;
+    full_name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
   } | null;
 }
 
@@ -647,7 +717,24 @@ export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestIte
       review_reason,
       created_at,
       groups:group_id (
+        id,
         group_name
+      ),
+      accounts:account_id (
+        id,
+        account_name,
+        group_id,
+        groups:group_id (
+          id,
+          group_name
+        )
+      ),
+      users_profile:requested_by (
+        id,
+        full_name,
+        first_name,
+        last_name,
+        email
       )
     `)
     .ilike("status", "pending")
@@ -661,28 +748,39 @@ export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestIte
     throw new RequestDataError("generic", error.message);
   }
 
-  return ((data as unknown as NewStoreDbRow[]) ?? []).map((row: NewStoreDbRow) => ({
-    id: row.id,
-    storeName: row.store_name,
-    province: row.province,
-    city: row.city,
-    accountId: row.account_id,
-    accountName: row.account_name,
-    groupId: row.group_id ?? null,
-    groupName: row.groups?.group_name ?? null,
-    position: row.position ?? null,
-    requestedHc: row.requested_hc ?? null,
-    reason: row.reason,
-    status: row.status,
-    requestedBy: row.requested_by,
-    requestedByName: row.requested_by_name,
-    requestedAt: row.requested_at,
-    reviewedBy: row.reviewed_by ?? null,
-    reviewedByName: row.reviewed_by_name ?? null,
-    reviewedAt: row.reviewed_at ?? null,
-    reviewReason: row.review_reason ?? null,
-    createdAt: row.created_at,
-  }));
+  return ((data as unknown as NewStoreDbRow[]) ?? []).map((row: NewStoreDbRow) => {
+    const resolvedGroupId = row.group_id ?? row.accounts?.group_id ?? null;
+    const resolvedGroupName =
+      row.groups?.group_name ||
+      row.accounts?.groups?.group_name ||
+      null;
+
+    return {
+      id: row.id,
+      storeName: row.store_name,
+      province: row.province,
+      city: row.city,
+      accountId: row.account_id,
+      accountName: row.account_name,
+      groupId: resolvedGroupId,
+      groupName: resolvedGroupName,
+      position: row.position ?? null,
+      requestedHc: row.requested_hc ?? null,
+      reason: row.reason,
+      status: row.status,
+      requestedBy: row.requested_by,
+      requestedByName: resolveRequesterDisplayName(
+        row.requested_by_name,
+        row.users_profile
+      ),
+      requestedAt: row.requested_at,
+      reviewedBy: row.reviewed_by ?? null,
+      reviewedByName: row.reviewed_by_name ?? null,
+      reviewedAt: row.reviewed_at ?? null,
+      reviewReason: row.review_reason ?? null,
+      createdAt: row.created_at,
+    };
+  });
 }
 
 export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParams) {
@@ -795,8 +893,33 @@ export async function submitNewStoreRequest(
   input: SubmitNewStoreRequestInput
 ): Promise<SubmitNewStoreRequestResult> {
   const supabase = createClient();
+
+  // 1. Resolve group_id from accounts if omitted
+  let resolvedGroupId = input.group_id;
+  if (!resolvedGroupId && input.account_id) {
+    const { data: acc } = await supabase
+      .from("accounts")
+      .select("group_id")
+      .eq("id", input.account_id)
+      .maybeSingle();
+    if (acc?.group_id) {
+      resolvedGroupId = acc.group_id;
+    }
+  }
+
+  // 2. Explicitly supply authenticated user's ID
+  const { data: authData } = await supabase.auth.getUser();
+  const authUserId = authData?.user?.id;
+
+  const payload = {
+    ...input,
+    group_id: resolvedGroupId || null,
+    p_requested_by: authUserId || undefined,
+    requested_by: authUserId || undefined,
+  };
+
   const { data, error } = await supabase.rpc("submit_new_store_request", {
-    p_input: input,
+    p_input: payload,
   });
 
   if (error) {
