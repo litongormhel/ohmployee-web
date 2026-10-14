@@ -295,7 +295,8 @@ export function ActiveQueueReviewPane({
         req.groupName?.toLowerCase().includes(q) ||
         req.requestedByName.toLowerCase().includes(q) ||
         req.separationStatus.toLowerCase().includes(q) ||
-        req.remarks?.toLowerCase().includes(q)
+        req.remarks?.toLowerCase().includes(q) ||
+        (req.rejectionReason?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [deactivationRequests, deactivationSearchQuery]);
@@ -1064,19 +1065,88 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
-          {/* Search bar & Refresh trigger */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative min-w-[240px] flex-1 max-w-md">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search employee, ID, store, position, account..."
-                value={deactivationSearchQuery}
-                onChange={(e) => setDeactivationSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search employee, ID, store, position, account..."
+                  value={deactivationSearchQuery}
+                  onChange={(e) => setDeactivationSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Sub-Tabs: Pending / Deactivated / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDeactivationTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    deactivationTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      deactivationTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deactCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeactivationTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    deactivationTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Deactivated</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      deactivationTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deactCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeactivationTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    deactivationTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      deactivationTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deactCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh trigger */}
             <button
               type="button"
               onClick={handleRefreshDeactivations}
@@ -1089,72 +1159,6 @@ export function ActiveQueueReviewPane({
                 }`}
               />
               <span>Refresh</span>
-            </button>
-          </div>
-
-          {/* Sub-Tabs directly below search bar */}
-          <div className="mt-3 flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs w-fit">
-            <button
-              type="button"
-              onClick={() => setDeactivationTab("pending")}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                deactivationTab === "pending"
-                  ? "bg-white text-text-primary shadow-2xs font-semibold"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              <span>Pending</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                  deactivationTab === "pending"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-slate-200/80 text-text-muted"
-                }`}
-              >
-                {deactCounts.pending}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDeactivationTab("approved")}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                deactivationTab === "approved"
-                  ? "bg-white text-text-primary shadow-2xs font-semibold"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              <span>Deactivated</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                  deactivationTab === "approved"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-200/80 text-text-muted"
-                }`}
-              >
-                {deactCounts.approved}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDeactivationTab("rejected")}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                deactivationTab === "rejected"
-                  ? "bg-white text-text-primary shadow-2xs font-semibold"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              <span>Rejected</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                  deactivationTab === "rejected"
-                    ? "bg-rose-100 text-rose-800"
-                    : "bg-slate-200/80 text-text-muted"
-                }`}
-              >
-                {deactCounts.rejected}
-              </span>
             </button>
           </div>
         </div>

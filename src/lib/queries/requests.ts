@@ -1465,6 +1465,7 @@ export interface DeactivationRequestItem {
   positionTitle: string | null;
   separationStatus: string;
   remarks: string | null;
+  rejectionReason: string | null;
 }
 
 export type CompleteDeactivationParams = {
@@ -1589,14 +1590,20 @@ export async function fetchDeactivationRequests(
 
   let plantillaMap: Record<
     string,
-    { storeName: string | null; position: string | null; separationStatus: string; remarks: string | null }
+    {
+      storeName: string | null;
+      position: string | null;
+      separationStatus: string;
+      remarks: string | null;
+      deactivationReason: string | null;
+    }
   > = {};
 
   if (plantillaIds.length > 0) {
     try {
       const { data: pData } = await supabase
         .from("plantilla")
-        .select("id, store_name, position, separation_status, remarks")
+        .select("id, store_name, position, separation_status, remarks, deactivation_reason")
         .in("id", plantillaIds);
 
       if (pData) {
@@ -1607,12 +1614,19 @@ export async function fetchDeactivationRequests(
               position: p.position ?? null,
               separationStatus: p.separation_status ?? "Resigned",
               remarks: p.remarks ?? null,
+              deactivationReason: (p as unknown as { deactivation_reason?: string | null }).deactivation_reason ?? null,
             };
             return acc;
           },
           {} as Record<
             string,
-            { storeName: string | null; position: string | null; separationStatus: string; remarks: string | null }
+            {
+              storeName: string | null;
+              position: string | null;
+              separationStatus: string;
+              remarks: string | null;
+              deactivationReason: string | null;
+            }
           >
         );
       }
@@ -1656,9 +1670,36 @@ export async function fetchDeactivationRequests(
     }
   }
 
+  // Batch-fetch rejection reasons from employee_deactivation_audit_log
+  const requestIds = rows.map((r) => r.id);
+  const auditReasonMap: Record<string, string> = {};
+  if (statusTab === "rejected" || statusTab === "all") {
+    try {
+      const { data: auditData } = await supabase
+        .from("employee_deactivation_audit_log")
+        .select("request_id, metadata")
+        .in("request_id", requestIds)
+        .eq("action", "REJECTED");
+
+      if (auditData) {
+        for (const a of auditData) {
+          const meta = a.metadata as Record<string, unknown> | null;
+          const reasonVal = (meta?.reason || meta?.rejection_reason) as string | undefined;
+          if (reasonVal && !auditReasonMap[a.request_id]) {
+            auditReasonMap[a.request_id] = reasonVal;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking enrichment
+    }
+  }
+
   return rows.map((r) => {
     const meta = plantillaMap[r.plantilla_id];
     const derivedGroupName = r.group_name || (r.account_id ? accountGroupMap[r.account_id] : null) || null;
+    const resolvedRejectionReason =
+      auditReasonMap[r.id] || meta?.remarks || meta?.deactivationReason || null;
 
     return {
       id: r.id,
@@ -1683,6 +1724,7 @@ export async function fetchDeactivationRequests(
       positionTitle: meta?.position ?? null,
       separationStatus: meta?.separationStatus ?? "Resigned",
       remarks: meta?.remarks ?? null,
+      rejectionReason: resolvedRejectionReason,
     };
   });
 }
@@ -1802,6 +1844,23 @@ export async function rejectEmployeeDeactivation({
     });
   } catch {
     // Ignored non-fatal error
+  }
+
+  // Best-effort audit log recording of rejection reason
+  try {
+    const userRes = await supabase.auth.getUser();
+    const authUserId = userRes?.data?.user?.id;
+    if (authUserId) {
+      await supabase.from("employee_deactivation_audit_log").insert({
+        request_id: requestId,
+        plantilla_id: plantillaId,
+        action: "REJECTED",
+        performed_by_profile_id: authUserId,
+        metadata: { reason: trimmedReason, remarks: remarks?.trim() || null },
+      });
+    }
+  } catch {
+    // Non-blocking
   }
 
   return batchData;

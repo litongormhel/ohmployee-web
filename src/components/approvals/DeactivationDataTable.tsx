@@ -161,8 +161,11 @@ export function DeactivationDataTable({ requests, tab }: DeactivationDataTablePr
               <th scope="col" className="px-3.5 py-2.5">
                 REQUESTED BY
               </th>
-              <th scope="col" className="px-3.5 py-2.5 text-right">
-                ACTION
+              <th
+                scope="col"
+                className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}
+              >
+                {tab === "rejected" ? "REJECTED REASON" : "ACTION"}
               </th>
             </tr>
           </thead>
@@ -242,8 +245,8 @@ export function DeactivationDataTable({ requests, tab }: DeactivationDataTablePr
                     </div>
                   </td>
 
-                  {/* ACTION */}
-                  <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                  {/* ACTION / REJECTED REASON */}
+                  <td className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right whitespace-nowrap"}`}>
                     {isPending ? (
                       <div className="inline-flex items-center justify-end gap-2">
                         <button
@@ -278,14 +281,13 @@ export function DeactivationDataTable({ requests, tab }: DeactivationDataTablePr
                         )}
                       </div>
                     ) : (
-                      <div className="inline-flex flex-col items-end gap-0.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800">
-                          <XCircle className="h-3 w-3" aria-hidden="true" />
-                          Rejected
+                      <div className="flex flex-col items-start gap-0.5 max-w-xs">
+                        <span className="font-semibold text-rose-700 text-xs break-words">
+                          {request.rejectionReason || request.remarks || "No reason specified"}
                         </span>
                         {request.processedAt && (
                           <span className="text-[10px] font-mono text-text-muted">
-                            {formatDate(request.processedAt)}
+                            Rejected: {formatDate(request.processedAt)}
                           </span>
                         )}
                       </div>
