@@ -14,6 +14,8 @@ type SidebarProps = {
   userRole?: string;
 };
 
+const MAIN_MODULE_KEYS = new Set(["vacancy", "hr_emploc", "plantilla"]);
+
 function getCapabilitySummary(moduleKey: string, capabilities: Record<string, string[]>) {
   const capabilityCount = capabilities[moduleKey]?.length ?? 0;
 
@@ -37,6 +39,9 @@ export function Sidebar({
     ? Object.values(requestCounts).reduce((acc, c) => acc + c, 0)
     : 0;
 
+  const mainModules = visibleModules.filter((m) => MAIN_MODULE_KEYS.has(m.key));
+  const secondaryModules = visibleModules.filter((m) => !MAIN_MODULE_KEYS.has(m.key));
+
   const logout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -45,22 +50,17 @@ export function Sidebar({
   };
 
   return (
-    <aside className="hidden w-[var(--sidebar-width)] shrink-0 border-r border-[var(--line)] bg-[var(--side)] text-[var(--text)] lg:flex lg:flex-col h-screen sticky top-0">
-      {/* Header: Logo and subtitle with fixed height and bottom border */}
-      <div className="flex h-16 shrink-0 flex-col justify-center border-b border-[var(--line)] px-4">
-        <span className="text-sm font-semibold tracking-tight text-[var(--text)] leading-tight">
-          OHMployee
-        </span>
-        <span className="text-xs text-[var(--muted)] leading-tight">
-          Admin Command
-        </span>
+    <aside className="hidden w-[var(--sidebar-width)] shrink-0 border-r border-[var(--line)] bg-[var(--side)] text-[var(--text)] lg:flex lg:flex-col p-4 h-screen sticky top-0 overflow-y-auto">
+      {/* Brand Header */}
+      <div className="px-2.5 pb-6 pt-1 font-semibold text-[15px] text-[var(--text)]">
+        OHMployee
+        <small className="block text-[13px] font-normal text-[var(--muted)]">Admin Command</small>
       </div>
 
-      {/* Navigation Body: Scrollable tight container using standard vertical spacing */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1" aria-label="Main navigation">
-        {visibleModules.map(({ key, href, title, icon: Icon }) => {
+      {/* Main Group: Vacancy, HR Emploc, Plantilla */}
+      <nav className="flex flex-col gap-0.5" aria-label="Main modules">
+        {mainModules.map(({ key, href, title }) => {
           const isActive = activeModule.href === href;
-          const isApprovals = key === "approvals";
 
           return (
             <Link
@@ -68,21 +68,48 @@ export function Sidebar({
               href={href}
               title={getCapabilitySummary(key, moduleCapabilities)}
               aria-current={isActive ? "page" : undefined}
-              className={`flex h-9 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              className={`flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[15px] transition ${
+                isActive
+                  ? "bg-[var(--soft)] text-[var(--text)] font-semibold"
+                  : "text-[var(--text)] hover:bg-[var(--soft)]"
+              }`}
+            >
+              <span className="truncate">{title}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* 1px divider */}
+      <div className="my-4 mx-2.5 h-px bg-[var(--line)]" />
+
+      {/* Secondary Group */}
+      <nav className="flex flex-col gap-0.5" aria-label="Other modules">
+        {secondaryModules.map(({ key, href, title }) => {
+          const isActive = activeModule.href === href;
+          const isApprovals = key === "approvals";
+          const displayTitle =
+            key === "users"
+              ? "User management"
+              : key === "team_directory"
+              ? "Team directory"
+              : title;
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={getCapabilitySummary(key, moduleCapabilities)}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[13.5px] transition ${
                 isActive
                   ? "bg-[var(--soft)] text-[var(--text)] font-semibold"
                   : "text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
               }`}
             >
-              <Icon
-                className={`h-4 w-4 shrink-0 ${
-                  isActive ? "text-[var(--text)]" : "text-[var(--muted)]"
-                }`}
-                aria-hidden="true"
-              />
-              <span className="truncate">{title}</span>
+              <span className="truncate">{displayTitle}</span>
               {isApprovals && totalPendingCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--pillbg)] px-1.5 text-xs font-semibold text-[var(--accent)]">
+                <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
                   {totalPendingCount}
                 </span>
               )}
@@ -91,25 +118,21 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Footer / User Section: Pinned to the bottom */}
-      <div className="mt-auto shrink-0 border-t border-[var(--line)] p-3">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div className="min-w-0 flex-1">
-            <b className="block truncate text-xs font-semibold text-[var(--text)] leading-tight">
-              {userName}
-            </b>
-            <span className="block truncate text-[11px] text-[var(--muted)] leading-tight">
-              {userRole}
-            </span>
-          </div>
-          <button
-            onClick={logout}
-            title="Sign Out"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition hover:bg-[var(--soft)] hover:text-[var(--text)] cursor-pointer"
-          >
-            <LogOut size={16} aria-hidden="true" />
-          </button>
+      {/* Footer: User Name + Role + Logout */}
+      <div className="mt-auto pt-6 px-2.5 text-xs text-[var(--muted)] flex items-center justify-between">
+        <div className="truncate pr-2">
+          <b className="block font-medium text-[var(--text)] truncate text-[13.5px] leading-snug">
+            {userName}
+          </b>
+          <span className="truncate block text-[12px] leading-snug">{userRole}</span>
         </div>
+        <button
+          onClick={logout}
+          title="Sign Out"
+          className="rounded-md p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)] transition shrink-0 cursor-pointer"
+        >
+          <LogOut size={15} aria-hidden="true" />
+        </button>
       </div>
     </aside>
   );
