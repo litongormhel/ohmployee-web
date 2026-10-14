@@ -5,22 +5,25 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   LockKeyhole,
   Users,
+  ArrowLeft,
   Building,
   Building2,
   Share2,
-  ChevronLeft,
   ChevronRight,
   Plus,
   Search,
   RotateCcw,
   X,
   MapPin,
-  Filter,
+  Eye,
   Briefcase,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
@@ -47,6 +50,7 @@ import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal
 // ---------------------------------------------------------------------------
 
 type DirectoryTab = "active" | "vacancy" | "inactive" | "needs_hr";
+type DisplayView = "table" | "cards";
 
 const PAGE_SIZE = 25;
 
@@ -121,6 +125,7 @@ function formatLeadershipName(user: TeamDirectoryUser): string {
 
 export default function PlantillaPage() {
   const [tab, setTab] = useState<DirectoryTab>("active");
+  const [displayView, setDisplayView] = useState<DisplayView>("table");
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
@@ -146,7 +151,6 @@ export default function PlantillaPage() {
   const [storeId, setStoreId] = useState("");
   const [status, setStatus] = useState("");
   const [assignmentType, setAssignmentType] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // -------------------------------------------------------------------------
   // User Context and Account Lists
@@ -417,6 +421,9 @@ export default function PlantillaPage() {
   // -------------------------------------------------------------------------
 
   const summaryData = summaryQuery.data;
+  const summaryError =
+    summaryQuery.error instanceof PlantillaDataError ? summaryQuery.error : null;
+  const summaryBlocked = summaryError?.kind === "access_denied";
 
   const listError =
     employeeQuery.error instanceof PlantillaDataError ? employeeQuery.error : null;
@@ -795,7 +802,7 @@ export default function PlantillaPage() {
     (currentUser?.accountScope.mode === "scoped" && currentUser?.accountScope.ids.length > 1);
 
   return (
-    <div className="relative flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900 pb-16">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       {!accountId ? (
         <>
           <div className="flex flex-col gap-1">
@@ -810,251 +817,316 @@ export default function PlantillaPage() {
         </>
       ) : (
         <>
-          {/* 1. Header & Context Banner (Deep Navy #0f244a / Brand Background) */}
-          <div className="rounded-2xl bg-gradient-to-b from-[#0f244a] to-[#0A2349] p-4 sm:p-5 text-white shadow-md border border-white/10 space-y-4">
-            {/* Top row: Back button, Account title, subtitle, and desktop Store Staffing shortcut */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {showBackToSelection && (
+          {/* 1. Header & Context Action Bar (Enterprise Web Header) */}
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-default pb-4">
+            <div className="space-y-1.5">
+              {/* Breadcrumb Backlink */}
+              <nav className="flex items-center gap-1.5 text-xs text-text-muted" aria-label="Breadcrumb">
+                {showBackToSelection ? (
                   <button
                     type="button"
                     onClick={handleBackToSelection}
-                    aria-label="Back to Account Selection"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors"
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span>Account Selection</span>
                   </button>
+                ) : (
+                  <span>Plantilla Directory</span>
                 )}
+                <span className="text-text-muted/60">/</span>
+                <span className="font-semibold text-text-primary truncate max-w-[240px] sm:max-w-none">
+                  {selectedAccountName}
+                </span>
+              </nav>
 
-                <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide truncate">
-                    {selectedAccountName}
-                  </h1>
-                  <p className="text-xs font-semibold text-white/60 tracking-wide mt-0.5">
-                    Viewing: Store Employees
-                  </p>
-                </div>
+              {/* Title with account name and role badge */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
+                  {selectedAccountName}
+                </h1>
+                {userRole && (
+                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 text-xs font-semibold text-brand-700 capitalize">
+                    {userRole.replace(/_/g, " ")}
+                  </span>
+                )}
               </div>
+              <p className="text-xs text-text-secondary">
+                Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance.
+              </p>
+            </div>
 
+            {/* Right-aligned Enterprise Web Action Bar */}
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Secondary button: Store Staffing drawer trigger with quota badge */}
               <button
                 type="button"
                 onClick={() => setIsStoreStaffingOverviewOpen(true)}
-                className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors shrink-0"
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:border-border-subtle transition-colors shadow-xs cursor-pointer"
               >
-                <Building2 className="h-4 w-4 text-white/70" />
+                <Building2 className="h-4 w-4 text-text-muted" />
                 <span>Store Staffing</span>
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold font-mono">
-                  {summaryData?.required ?? 0}
+                <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-text-primary border border-border-default font-mono">
+                  {summaryData?.required ?? 0} Quota
                 </span>
               </button>
+
+              {/* Primary button: + Request Headcount */}
+              {canRequestAdjustment && (
+                <button
+                  type="button"
+                  onClick={() => setIsRequestHeadcountOpen(true)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Request Headcount</span>
+                </button>
+              )}
             </div>
+          </header>
 
-            {/* 4-Column Metric Card */}
-            <div className="rounded-xl border border-white/15 bg-white/[0.06] p-2.5 sm:p-3">
-              <div className="grid grid-cols-4 divide-x divide-white/15 text-center">
-                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
-                    MFR
-                  </span>
-                  <span className="mt-1 text-2xl sm:text-3xl font-black text-white font-mono leading-none">
-                    {fulfillmentRate}%
-                  </span>
-                </div>
-
-                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
-                    ACTIVE
-                  </span>
-                  <span className="mt-1 text-xl sm:text-2xl font-black text-white font-mono leading-none">
-                    {activeCount}
-                  </span>
-                </div>
-
-                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
-                    VACANCY
-                  </span>
-                  <span className="mt-1 text-xl sm:text-2xl font-black text-[#FCD34D] font-mono leading-none">
-                    {vacancyCount}
-                  </span>
-                </div>
-
-                <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
-                    PIPELINE
-                  </span>
-                  <span className="mt-1 text-xl sm:text-2xl font-black text-white font-mono leading-none">
-                    {summaryData?.hrProcess ?? 0}
-                  </span>
-                </div>
-              </div>
+          {/* 2. Executive KPI & Leadership Team Bar */}
+          <section aria-label="Plantilla summary metrics" className="space-y-3">
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <MetricCard
+                label="Fulfillment Rate (MFR)"
+                value={`${fulfillmentRate}%`}
+                helperText={`${summaryData?.actual ?? 0} active / ${summaryData?.required ?? 0} quota`}
+                badge={summaryData?.required ? `${fulfillmentRate}%` : undefined}
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="Active Deployed"
+                value={summaryData?.actual}
+                helperText="Active deployed personnel"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="Open Vacancies"
+                value={summaryData?.vacant}
+                helperText="Approved open vacancy slots"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="HR Pipeline"
+                value={summaryData?.hrProcess}
+                helperText="Candidate onboarding pipeline"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
             </div>
 
             {/* Leadership Team Strip: OM, TL, ATL, HRCO */}
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <div className="grid grid-cols-4 divide-x divide-white/10 text-center">
-                <div className="px-1 flex flex-col items-center justify-center min-w-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border-default bg-surface-muted/40 px-4 py-2.5 text-xs text-text-secondary shadow-xs">
+              <div className="flex items-center gap-2 shrink-0">
+                <Users className="h-4 w-4 text-brand-600" />
+                <span className="font-bold uppercase tracking-wider text-[11px] text-text-primary">
+                  Leadership Team:
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1 max-w-3xl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="rounded bg-brand-50 border border-brand-200/80 px-1.5 py-0.5 text-[10px] font-bold text-brand-700 shrink-0">
                     OM
                   </span>
-                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                  <span className="font-semibold text-text-primary truncate" title={leadershipTeam.om}>
                     {leadershipTeam.om}
                   </span>
                 </div>
-
-                <div className="px-1 flex flex-col items-center justify-center min-w-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="rounded bg-brand-50 border border-brand-200/80 px-1.5 py-0.5 text-[10px] font-bold text-brand-700 shrink-0">
                     TL
                   </span>
-                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                  <span className="font-semibold text-text-primary truncate" title={leadershipTeam.tl}>
                     {leadershipTeam.tl}
                   </span>
                 </div>
-
-                <div className="px-1 flex flex-col items-center justify-center min-w-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="rounded bg-brand-50 border border-brand-200/80 px-1.5 py-0.5 text-[10px] font-bold text-brand-700 shrink-0">
                     ATL
                   </span>
-                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                  <span className="font-semibold text-text-primary truncate" title={leadershipTeam.atl}>
                     {leadershipTeam.atl}
                   </span>
                 </div>
-
-                <div className="px-1 flex flex-col items-center justify-center min-w-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="rounded bg-brand-50 border border-brand-200/80 px-1.5 py-0.5 text-[10px] font-bold text-brand-700 shrink-0">
                     HRCO
                   </span>
-                  <span className="mt-0.5 text-xs font-bold text-white truncate max-w-full">
+                  <span className="font-semibold text-text-primary truncate" title={leadershipTeam.hrco}>
                     {leadershipTeam.hrco}
                   </span>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* 2. Underline Navigation Tabs */}
-          <div className="border-b border-border-default bg-surface-base rounded-xl overflow-hidden shadow-xs">
-            <div
-              role="tablist"
-              aria-label="Plantilla Directory Tabs"
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 overflow-x-auto scrollbar-none"
-            >
-              {/* Tab 1: Active */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "active"}
-                onClick={() => {
-                  setTab("active");
-                  setPage(1);
-                }}
-                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                  tab === "active"
-                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
-                    : "border-transparent text-text-muted hover:text-text-primary"
-                }`}
-              >
-                <span>Active</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
-                    tab === "active"
-                      ? "bg-[#0E2C5C] text-white"
-                      : "bg-surface-muted text-text-secondary"
-                  }`}
-                >
-                  {activeCount}
-                </span>
-              </button>
-
-              {/* Tab 2: Vacancy */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "vacancy"}
-                onClick={() => {
-                  setTab("vacancy");
-                  setPage(1);
-                }}
-                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                  tab === "vacancy"
-                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
-                    : "border-transparent text-text-muted hover:text-text-primary"
-                }`}
-              >
-                <span>Vacancy</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
-                    tab === "vacancy"
-                      ? "bg-[#0E2C5C] text-white"
-                      : "bg-surface-muted text-text-secondary"
-                  }`}
-                >
-                  {vacancyCount}
-                </span>
-              </button>
-
-              {/* Tab 3: Inactive */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "inactive"}
-                onClick={() => {
-                  setTab("inactive");
-                  setPage(1);
-                }}
-                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                  tab === "inactive"
-                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
-                    : "border-transparent text-text-muted hover:text-text-primary"
-                }`}
-              >
-                <span>Inactive</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
-                    tab === "inactive"
-                      ? "bg-[#0E2C5C] text-white"
-                      : "bg-surface-muted text-text-secondary"
-                  }`}
-                >
-                  {inactiveCount}
-                </span>
-              </button>
-
-              {/* Tab 4: Needs HR... */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "needs_hr"}
-                onClick={() => {
-                  setTab("needs_hr");
-                  setPage(1);
-                }}
-                className={`flex items-center gap-2 border-b-[3px] py-3.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                  tab === "needs_hr"
-                    ? "border-[#0E2C5C] text-[#0E2C5C] font-bold"
-                    : "border-transparent text-text-muted hover:text-text-primary"
-                }`}
-              >
-                <span>Needs HR...</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold font-mono transition-colors ${
-                    tab === "needs_hr"
-                      ? "bg-[#0E2C5C] text-white"
-                      : "bg-surface-muted text-text-secondary"
-                  }`}
-                >
-                  {needsHrCount}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* 3. Search & Filter Row */}
+          {/* 3. Navigation Tabs & Filter Toolbar */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            {/* Underline Tabs */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default">
+              <div
+                role="tablist"
+                aria-label="Plantilla Directory Tabs"
+                className="flex items-center gap-2 overflow-x-auto scrollbar-none"
+              >
+                {/* Tab 1: Active */}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "active"}
+                  onClick={() => {
+                    setTab("active");
+                    setPage(1);
+                  }}
+                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                    tab === "active"
+                      ? "border-brand-600 text-brand-700 font-bold"
+                      : "border-transparent text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Active</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      tab === "active"
+                        ? "bg-brand-50 text-brand-700 border border-brand-200/80"
+                        : "bg-surface-muted text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {activeCount}
+                  </span>
+                </button>
+
+                {/* Tab 2: Vacancy */}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "vacancy"}
+                  onClick={() => {
+                    setTab("vacancy");
+                    setPage(1);
+                  }}
+                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                    tab === "vacancy"
+                      ? "border-brand-600 text-brand-700 font-bold"
+                      : "border-transparent text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Vacancy</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      tab === "vacancy"
+                        ? "bg-amber-50 text-amber-700 border border-amber-200/80"
+                        : "bg-surface-muted text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {vacancyCount}
+                  </span>
+                </button>
+
+                {/* Tab 3: Inactive */}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "inactive"}
+                  onClick={() => {
+                    setTab("inactive");
+                    setPage(1);
+                  }}
+                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                    tab === "inactive"
+                      ? "border-brand-600 text-brand-700 font-bold"
+                      : "border-transparent text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Inactive</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      tab === "inactive"
+                        ? "bg-purple-50 text-purple-700 border border-purple-200/80"
+                        : "bg-surface-muted text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {inactiveCount}
+                  </span>
+                </button>
+
+                {/* Tab 4: Needs HRCO */}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "needs_hr"}
+                  onClick={() => {
+                    setTab("needs_hr");
+                    setPage(1);
+                  }}
+                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                    tab === "needs_hr"
+                      ? "border-brand-600 text-brand-700 font-bold"
+                      : "border-transparent text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Needs HRCO</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      tab === "needs_hr"
+                        ? "bg-sky-50 text-sky-700 border border-sky-200/80"
+                        : "bg-surface-muted text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {needsHrCount}
+                  </span>
+                </button>
+              </div>
+
+              {/* View switch: Table vs Cards */}
+              <div className="flex items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setDisplayView("table")}
+                  aria-label="Table View"
+                  title="Table View"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    displayView === "table"
+                      ? "bg-surface-base text-text-primary shadow-xs"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  <List className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Table</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayView("cards")}
+                  aria-label="Cards View"
+                  title="Cards View"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    displayView === "cards"
+                      ? "bg-surface-base text-text-primary shadow-xs"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Cards</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Unified Web Search & Filter Toolbar */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
                   placeholder="Search employee, emploc no, name, store..."
@@ -1063,8 +1135,8 @@ export default function PlantillaPage() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="h-10 w-full rounded-xl border border-border-default bg-surface-base pl-10 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500 shadow-xs"
-                  aria-label="Search employee, emploc no, name, store..."
+                  className="h-10 w-full rounded-lg border border-border-default bg-surface-muted pl-9 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
+                  aria-label="Search plantilla roster"
                 />
                 {search && (
                   <button
@@ -1073,36 +1145,16 @@ export default function PlantillaPage() {
                       setSearch("");
                       setPage(1);
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
                     aria-label="Clear search"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
 
-              {/* Square filter toggle button */}
-              <button
-                type="button"
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors shadow-xs ${
-                  isFilterOpen || hasActiveFilters
-                    ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                }`}
-                aria-label="Toggle filters"
-                title="Toggle filters"
-              >
-                <Filter className="h-4 w-4" />
-                {hasActiveFilters && (
-                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-white" />
-                )}
-              </button>
-            </div>
-
-            {/* Expandable filter shelf when isFilterOpen is active */}
-            {isFilterOpen && (
-              <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
+              {/* Desktop Filter Dropdowns */}
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="min-w-[170px] flex-1 sm:flex-initial">
                   <select
                     value={storeId}
@@ -1110,7 +1162,7 @@ export default function PlantillaPage() {
                       setStoreId(e.target.value);
                       setPage(1);
                     }}
-                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
                     aria-label="Filter by store"
                   >
                     <option value="">All Stores</option>
@@ -1129,7 +1181,7 @@ export default function PlantillaPage() {
                       setStatus(e.target.value);
                       setPage(1);
                     }}
-                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
                     aria-label="Filter by status"
                   >
                     <option value="">All Statuses</option>
@@ -1146,7 +1198,7 @@ export default function PlantillaPage() {
                       setAssignmentType(e.target.value);
                       setPage(1);
                     }}
-                    className="h-9 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none cursor-pointer focus:border-brand-500"
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
                     aria-label="Filter by assignment type"
                   >
                     <option value="">All Types</option>
@@ -1160,47 +1212,58 @@ export default function PlantillaPage() {
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-rose-200/80 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:text-rose-800 transition-colors shadow-xs"
                   >
-                    <RotateCcw className="h-3 w-3" />
+                    <RotateCcw className="h-3.5 w-3.5" />
                     <span>Reset Filters</span>
                   </button>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
-          {/* 4. Employee Cards (Mobile Card Design) / Content Area */}
-          <div className="min-h-[460px]">
+          {/* 4. Main Data Area: Table or Cards View */}
+          <div className="min-h-[500px]">
             {isListLoading ? (
-              <DataState
-                kind="loading"
-                title="Loading plantilla records"
-                description="Fetching roster through Supabase RPCs..."
-              />
+              <div className="rounded-xl border border-border-default bg-surface-base p-8">
+                <DataState
+                  kind="loading"
+                  title="Loading plantilla records"
+                  description="Fetching roster personnel through Supabase RPCs..."
+                />
+              </div>
             ) : isAccessDenied ? (
-              <DataState
-                kind="access_denied"
-                title="Access Restricted"
-                description="Supabase RLS policies blocked this read. You are not authorized to view records outside your scoped boundary."
-              />
+              <div className="rounded-xl border border-border-default bg-surface-base p-8">
+                <DataState
+                  kind="access_denied"
+                  title="Access Restricted"
+                  description="Supabase RLS policies blocked this read. You are not authorized to view plantilla records outside your scoped boundary."
+                />
+              </div>
             ) : isRetryable ? (
-              <DataState
-                kind="error"
-                title="Fetch Failed"
-                description={listError?.message ?? "Failed to load plantilla records."}
-                onRetry={() => {
-                  if (tab === "vacancy") vacancyListQuery.refetch();
-                  else if (tab === "needs_hr") needsHrcoQuery.refetch();
-                  else employeeQuery.refetch();
-                }}
-              />
+              <div className="rounded-xl border border-border-default bg-surface-base p-8">
+                <DataState
+                  kind="error"
+                  title="Fetch Failed"
+                  description={listError?.message ?? "The plantilla query failed."}
+                  onRetry={() => {
+                    if (tab === "vacancy") vacancyListQuery.refetch();
+                    else if (tab === "needs_hr") needsHrcoQuery.refetch();
+                    else employeeQuery.refetch();
+                  }}
+                />
+              </div>
             ) : tab === "vacancy" ? (
               vacancyRows.length === 0 ? (
                 <EmptyTabState
                   hasActiveFilters={hasActiveFilters}
                   onResetFilters={handleResetFilters}
                   tabLabel="vacancies"
+                />
+              ) : displayView === "table" ? (
+                <VacancyTable
+                  rows={vacancyRows}
+                  onRequestHeadcount={() => setIsRequestHeadcountOpen(true)}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
@@ -1220,10 +1283,17 @@ export default function PlantillaPage() {
                   onResetFilters={handleResetFilters}
                   tabLabel="employees needing HRCO assignment"
                 />
+              ) : displayView === "table" ? (
+                <EmployeeTable
+                  rows={needsHrRows}
+                  isNeedsHr
+                  onRowClick={setSelectedPlantillaId}
+                  storeLookupMap={storeLookupMap}
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                   {needsHrRows.map((row) => (
-                    <EmployeeRosterCard
+                    <EmployeeCard
                       key={row.id}
                       row={row}
                       isNeedsHr
@@ -1237,12 +1307,19 @@ export default function PlantillaPage() {
               <EmptyTabState
                 hasActiveFilters={hasActiveFilters}
                 onResetFilters={handleResetFilters}
-                tabLabel={tab === "inactive" ? "inactive employees" : "active employees"}
+                tabLabel={tab === "inactive" ? "inactive or floating employees" : "active deployed employees"}
+              />
+            ) : displayView === "table" ? (
+              <EmployeeTable
+                rows={employeeRows}
+                isInactive={tab === "inactive"}
+                onRowClick={setSelectedPlantillaId}
+                storeLookupMap={storeLookupMap}
               />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {employeeRows.map((row) => (
-                  <EmployeeRosterCard
+                  <EmployeeCard
                     key={row.id}
                     row={row}
                     isInactive={tab === "inactive"}
@@ -1255,7 +1332,7 @@ export default function PlantillaPage() {
 
             {/* Pagination Controls */}
             {!isListLoading && !isListError && totalCount > 0 && (
-              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default pt-4 text-xs sm:text-sm text-text-muted">
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default pt-4 text-xs sm:text-sm text-text-muted">
                 <span>
                   Showing {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–
                   {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} record
@@ -1287,19 +1364,6 @@ export default function PlantillaPage() {
               </div>
             )}
           </div>
-
-          {/* 5. Floating Action Button (FAB) */}
-          {canRequestAdjustment && (
-            <button
-              type="button"
-              onClick={() => setIsRequestHeadcountOpen(true)}
-              aria-label="Request Headcount"
-              title="Request Headcount"
-              className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0E2C5C] hover:bg-[#0A2349] text-white shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-brand-500/30 cursor-pointer"
-            >
-              <Plus className="h-6 w-6 stroke-[2.5]" />
-            </button>
-          )}
 
           {/* Drawers & Modals */}
           <PlantillaDetailDrawer
@@ -1372,10 +1436,307 @@ export default function PlantillaPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Employee Roster Card Component (Mobile Card Design)
+// Employee Table Component (Enterprise Web Table)
 // ---------------------------------------------------------------------------
 
-function EmployeeRosterCard({
+function EmployeeTable({
+  rows,
+  isInactive,
+  isNeedsHr,
+  onRowClick,
+  storeLookupMap,
+}: {
+  rows: PlantillaEmployeeListItem[];
+  isInactive?: boolean;
+  isNeedsHr?: boolean;
+  onRowClick: (id: string) => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-table-rule bg-table-header">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Member
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Store
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Position
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Assignment
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Status
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-table-rule">
+            {rows.map((row) => {
+              const overlay = deriveDeactivationOverlay(row.plantillaStatus);
+
+              const rowClass = overlay.isPendingSeparation
+                ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer transition-colors"
+                : isInactive
+                ? "opacity-80 transition-colors hover:bg-table-row-hover cursor-pointer"
+                : "transition-colors hover:bg-table-row-hover cursor-pointer";
+
+              const displayName =
+                row.lastName && row.firstName
+                  ? `${row.lastName}, ${row.firstName}`
+                  : (row.lastName ?? row.firstName ?? "—");
+
+              const initials = getInitials(row.firstName, row.lastName);
+
+              const storeInfo = row.primaryStoreName
+                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+                : null;
+              const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+
+              return (
+                <tr
+                  key={row.id}
+                  className={rowClass}
+                  onClick={() => onRowClick(row.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onRowClick(row.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View details for ${displayName}`}
+                >
+                  {/* MEMBER */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-brand-50 border border-brand-200/70 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-table-text text-sm hover:text-brand-600 transition-colors">
+                            {displayName}
+                          </span>
+                          {row.plantillaType === "AH" && (
+                            <span className="inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-status-warning-text">
+                              AH
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                          {row.employeeNo}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* STORE */}
+                  <td className="px-4 py-3 text-table-text">
+                    <div className="min-w-0">
+                      <div className="font-medium text-table-text truncate">
+                        {row.primaryStoreName || "Unassigned Outlet"}
+                      </div>
+                      {locationLabel ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
+                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                          <span className="truncate max-w-[150px]">{locationLabel}</span>
+                        </span>
+                      ) : row.accountName ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
+                          {row.accountName}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+
+                  {/* POSITION */}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-table-text text-sm">
+                        {row.positionTitle ?? "General Staff"}
+                      </span>
+                      <span className="text-xs text-table-text-muted mt-0.5">
+                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* ASSIGNMENT */}
+                  <td className="px-4 py-3">
+                    {row.assignmentType?.toLowerCase() === "roving" ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/80 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                        Roving{row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
+                      </span>
+                    ) : row.assignmentType?.toLowerCase() === "reliever" ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                        Reliever
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                        Stationary
+                      </span>
+                    )}
+                  </td>
+
+                  {/* STATUS */}
+                  <td className="px-4 py-3">
+                    {isNeedsHr ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Needs HRCO
+                      </span>
+                    ) : row.plantillaStatus ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <StatusBadge
+                          variant={plantillaStatusVariant(row.plantillaStatus)}
+                          text={row.plantillaStatus}
+                        />
+                        {row.slaBreached && (
+                          <span
+                            className="text-xs font-semibold text-status-danger-text"
+                            title="SLA breached"
+                          >
+                            ⚠
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-table-text-muted">—</span>
+                    )}
+                  </td>
+
+                  {/* ACTIONS */}
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRowClick(row.id);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
+                      aria-label={`View details for ${displayName}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>Details</span>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Vacancy Table Component
+// ---------------------------------------------------------------------------
+
+function VacancyTable({
+  rows,
+  onRequestHeadcount,
+}: {
+  rows: VacancyListItem[];
+  onRequestHeadcount: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-table-rule bg-table-header">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                VCode
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Position
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Store
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                HC Needed
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Aging
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Pipeline Status
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-table-rule">
+            {rows.map((row) => (
+              <tr
+                key={row.id}
+                className="transition-colors hover:bg-table-row-hover cursor-pointer"
+                onClick={onRequestHeadcount}
+              >
+                <td className="px-4 py-3 font-mono font-bold text-brand-700">
+                  {row.vcode}
+                </td>
+                <td className="px-4 py-3 font-medium text-table-text">
+                  {row.position_title || "General Staff"}
+                </td>
+                <td className="px-4 py-3 text-table-text">
+                  {row.storeName || "Unassigned Outlet"}
+                </td>
+                <td className="px-4 py-3 font-mono font-bold text-table-text">
+                  {row.activeApplicantCount > 0 ? row.activeApplicantCount : 1}
+                </td>
+                <td className="px-4 py-3 text-xs text-text-muted font-mono">
+                  {row.agingDays != null ? `${row.agingDays} days` : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                      row.pipelineStatus?.toLowerCase() === "pipeline"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {row.pipelineStatus || "Open"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRequestHeadcount();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
+                  >
+                    <span>Manage</span>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Employee Card Component (Optional Cards View)
+// ---------------------------------------------------------------------------
+
+function EmployeeCard({
   row,
   isInactive,
   isNeedsHr,
@@ -1396,7 +1757,6 @@ function EmployeeRosterCard({
 
   const initials = getInitials(row.firstName, row.lastName);
 
-  // Store City/Province
   const storeInfo = row.primaryStoreName
     ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
     : null;
@@ -1430,14 +1790,11 @@ function EmployeeRosterCard({
       className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${accentBorderClass}`}
     >
       <div>
-        {/* Top Header: Avatar + Name / [Employee Number • Position] + Chevron */}
         <div className="flex items-center gap-3">
-          {/* Dark navy circle avatar with initials */}
-          <div className="h-10 w-10 shrink-0 rounded-full bg-[#0E2C5C] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-brand-50 border border-brand-200 text-brand-700 font-bold text-xs flex items-center justify-center shadow-xs">
             {initials}
           </div>
 
-          {/* Name & Subtitle */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-600 transition-colors">
@@ -1459,7 +1816,6 @@ function EmployeeRosterCard({
             </div>
           </div>
 
-          {/* Right Chevron & Status Badge */}
           <div className="flex items-center gap-2 shrink-0">
             {isNeedsHr ? (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -1476,7 +1832,6 @@ function EmployeeRosterCard({
         </div>
       </div>
 
-      {/* Operational footer strip */}
       <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
         <div className="flex items-center gap-1.5 truncate max-w-[70%]">
           <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
@@ -1486,25 +1841,23 @@ function EmployeeRosterCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
-              row.assignmentType?.toLowerCase() === "roving"
-                ? "bg-amber-50 text-amber-700 border-amber-200/80"
-                : "bg-surface-muted text-text-secondary border-border-default"
-            }`}
-          >
-            {row.assignmentType || "Stationary"}
-            {row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
-          </span>
-        </div>
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
+            row.assignmentType?.toLowerCase() === "roving"
+              ? "bg-amber-50 text-amber-700 border-amber-200/80"
+              : "bg-surface-muted text-text-secondary border-border-default"
+          }`}
+        >
+          {row.assignmentType || "Stationary"}
+          {row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
+        </span>
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Vacancy Card Component
+// Vacancy Card Component (Optional Cards View)
 // ---------------------------------------------------------------------------
 
 function VacancyCard({
