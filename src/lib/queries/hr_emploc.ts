@@ -913,17 +913,21 @@ export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionReque
     .select(`
       id,
       hr_emploc_id,
-      deletion_type,
+      applicant_name,
+      vcode,
       reason,
+      deletion_type,
       original_emploc_id,
       status,
       requested_by,
       created_at,
-      hr_emploc (
+      snapshot_store,
+      snapshot_position,
+      hr_emploc:hr_emploc_id (
         applicant_name,
         employee_no,
         store_name,
-        position_title,
+        position,
         vcode
       )
     `)
@@ -944,11 +948,11 @@ export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionReque
     return {
       id: asString(row.id) ?? "",
       hrEmplocId: asString(row.hr_emploc_id) ?? "",
-      applicantName: asString(emploc.applicant_name) ?? "Anonymous",
+      applicantName: asString(emploc.applicant_name) ?? asString(row.applicant_name) ?? "Anonymous",
       employeeNo: asString(emploc.employee_no),
-      storeName: asString(emploc.store_name),
-      positionTitle: asString(emploc.position_title),
-      vcode: asString(emploc.vcode) ?? "Uncoded",
+      storeName: asString(emploc.store_name) ?? asString(row.snapshot_store),
+      positionTitle: asString(emploc.position) ?? asString(row.snapshot_position),
+      vcode: asString(emploc.vcode) ?? asString(row.vcode) ?? "Uncoded",
       deletionType: asString(row.deletion_type) ?? "Backout",
       requestedByName: asString(row.requested_by),
       requestedAt: asString(row.created_at),

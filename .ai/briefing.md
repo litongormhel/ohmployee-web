@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w60a451f**: Standardize Approvals Tab Typography, Decouple Relievers vs Coverage, and Fix Query Errors
 - **ohm#w48p639d**: Implement ADR-001 Slot Inspector and Audit Timeline Drawer in Plantilla
 - **ohm#w47p538c**: Implement Personnel Store Transfer Modal in Plantilla Management
 - **ohm#w46p437b**: Implement Plantilla Personnel Lifecycle Action Modals on Web

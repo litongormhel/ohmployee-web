@@ -95,6 +95,11 @@ function main() {
     console.log('');
   }
 
+  if (filesToStage.length === 0 && trackedChanges.length === 0) {
+    console.log('  [PASS] No in-scope changes to commit -- working tree clean.');
+    process.exit(0);
+  }
+
   // 4. Determine prompt ID and title from briefing.md
   let promptId = process.env.OHM_PROMPT_ID || 'ohm#manual';
   let taskTitle = 'Stop-hook validated';

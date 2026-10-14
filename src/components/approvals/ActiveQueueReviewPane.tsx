@@ -1230,24 +1230,10 @@ export function ActiveQueueReviewPane({
     );
   }
 
-  // ── 8. Coverage & Reliever Endorsements Review Queue ─────────────────────
-  if (selectedCategory === "coverage" || selectedCategory === "relievers") {
-    const isRelieverCategory = selectedCategory === "relievers";
-    const currentSubTab = isRelieverCategory ? "reliever" : "roving";
-    const activeCount = isRelieverCategory
-      ? (counts.relievers ?? relieverRequests.length)
-      : (counts.coverage ?? rovingRequests.length);
-    const isBusy = isRelieverCategory
-      ? (isRelieverLoading || isRelieverRefetching)
-      : (isRovingLoading || isRovingRefetching);
-
-    const handleRefreshCurrent = () => {
-      if (isRelieverCategory) {
-        refetchRelievers();
-      } else {
-        refetchRoving();
-      }
-    };
+  // ── 8. Roving Coverage Groups Review Queue ──────────────────────────────
+  if (selectedCategory === "coverage") {
+    const activeCount = counts.coverage ?? rovingRequests.length;
+    const isBusy = isRovingLoading || isRovingRefetching;
 
     return (
       <div className="flex h-full flex-col">
@@ -1256,9 +1242,7 @@ export function ActiveQueueReviewPane({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-text-primary">
-                {isRelieverCategory
-                  ? "Reliever Endorsements & Pool Deployments"
-                  : "Roving Coverage Group Structures"}
+                Roving Coverage Group Structures
               </h2>
               {activeCount > 0 && (
                 <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
@@ -1269,7 +1253,7 @@ export function ActiveQueueReviewPane({
 
             <button
               type="button"
-              onClick={handleRefreshCurrent}
+              onClick={() => refetchRoving()}
               disabled={isBusy}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
               title="Refresh Queue"
@@ -1281,163 +1265,36 @@ export function ActiveQueueReviewPane({
             </button>
           </div>
           <p className="mt-0.5 text-xs text-text-secondary">
-            {isRelieverCategory
-              ? "Operational review queue for temporary reliever pool deployments and workforce coverage"
-              : "Operational review queue for CENCOM roving store allocation groups and schedule structures"}
+            Operational review queue for CENCOM roving store allocation groups and schedule structures
           </p>
-
-          {/* Sub-Tab Segmented Switcher */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3">
-            <button
-              type="button"
-              onClick={() => onSelectCategory("relievers")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                currentSubTab === "reliever"
-                  ? "bg-brand-600 text-white shadow-2xs"
-                  : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
-              }`}
-            >
-              <span>Reliever Deployments</span>
-              <span
-                className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
-                  currentSubTab === "reliever"
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-200 text-slate-700"
-                }`}
-              >
-                {relieverRequests.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onSelectCategory("coverage")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                currentSubTab === "roving"
-                  ? "bg-brand-600 text-white shadow-2xs"
-                  : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
-              }`}
-            >
-              <span>Roving Coverage Groups</span>
-              <span
-                className={`rounded-full px-2 py-0.2 font-mono text-2xs ${
-                  currentSubTab === "roving"
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-200 text-slate-700"
-                }`}
-              >
-                {rovingRequests.length}
-              </span>
-            </button>
-          </div>
         </div>
 
-        {/* Toolbar: Search and Filters */}
+        {/* Toolbar: Search */}
         <div className="my-4 flex flex-wrap items-center gap-3">
-          {currentSubTab === "reliever" ? (
-            <>
-              <div className="relative min-w-[240px] flex-1">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
-                <input
-                  type="text"
-                  placeholder="Search by reliever name, ID, store, account, or requester..."
-                  value={relieverSearchQuery}
-                  onChange={(e) => setRelieverSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
-                />
-                {relieverSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setRelieverSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Priority Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
-                  Priority:
-                </span>
-                {(["all", "Urgent", "High", "Normal"] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setRelieverPriorityFilter(p)}
-                    className={`rounded-md px-2.5 py-1 text-2xs font-semibold capitalize transition ${
-                      relieverPriorityFilter === p
-                        ? "bg-slate-900 text-white shadow-2xs"
-                        : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="relative min-w-[240px] flex-1">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
-              <input
-                type="text"
-                placeholder="Search by group name, code, operation type, account, or requester..."
-                value={rovingSearchQuery}
-                onChange={(e) => setRovingSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
-              />
-              {rovingSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setRovingSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          )}
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+            <input
+              type="text"
+              placeholder="Search by group name, code, operation type, account, or requester..."
+              value={rovingSearchQuery}
+              onChange={(e) => setRovingSearchQuery(e.target.value)}
+              className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
+            />
+            {rovingSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setRovingSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Content Stream */}
         <div className="flex-1 overflow-y-auto pr-1">
-          {currentSubTab === "reliever" ? (
-            isRelieverLoading ? (
-              <DataState
-                kind="loading"
-                title="Loading Reliever Deployments"
-                description="Fetching pending reliever endorsement requests from workforce pool..."
-              />
-            ) : isRelieverError ? (
-              <DataState
-                kind="error"
-                title="Failed to Load Reliever Deployments"
-                description="An error occurred while fetching pending reliever endorsement requests."
-                onRetry={() => refetchRelievers()}
-              />
-            ) : filteredRelieverRequests.length === 0 ? (
-              <DataState
-                kind="empty"
-                title={
-                  relieverSearchQuery || relieverPriorityFilter !== "all"
-                    ? "No Matching Reliever Endorsements"
-                    : "No Pending Reliever Endorsements"
-                }
-                description={
-                  relieverSearchQuery || relieverPriorityFilter !== "all"
-                    ? "No requests match your current search and priority filters. Try clearing filters to see all pending items."
-                    : "All workforce pool reliever endorsements have been processed."
-                }
-              />
-            ) : (
-              <div className="space-y-4">
-                {filteredRelieverRequests.map((req) => (
-                  <RelieverCoverageApprovalCard key={req.requestId} request={req} />
-                ))}
-              </div>
-            )
-          ) : isRovingLoading ? (
+          {isRovingLoading ? (
             <DataState
               kind="loading"
               title="Loading Roving Coverage Groups"
@@ -1468,6 +1325,130 @@ export function ActiveQueueReviewPane({
             <div className="space-y-4">
               {filteredRovingRequests.map((req) => (
                 <CoverageGroupApprovalCard key={req.id} request={req} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 9. Reliever Endorsements Review Queue ────────────────────────────────
+  if (selectedCategory === "relievers") {
+    const activeCount = counts.relievers ?? relieverRequests.length;
+    const isBusy = isRelieverLoading || isRelieverRefetching;
+
+    return (
+      <div className="flex h-full flex-col">
+        {/* Header */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-text-primary">
+                Reliever Endorsements & Pool Deployments
+              </h2>
+              {activeCount > 0 && (
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
+                  {activeCount} pending
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refetchRelievers()}
+              disabled={isBusy}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
+              title="Refresh Queue"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isBusy ? "animate-spin" : ""}`}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+          <p className="mt-0.5 text-xs text-text-secondary">
+            Operational review queue for temporary reliever pool deployments and workforce coverage
+          </p>
+        </div>
+
+        {/* Toolbar: Search and Filters */}
+        <div className="my-4 flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+            <input
+              type="text"
+              placeholder="Search by reliever name, ID, store, account, or requester..."
+              value={relieverSearchQuery}
+              onChange={(e) => setRelieverSearchQuery(e.target.value)}
+              className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
+            />
+            {relieverSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setRelieverSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Priority Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
+              Priority:
+            </span>
+            {(["all", "Urgent", "High", "Normal"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setRelieverPriorityFilter(p)}
+                className={`rounded-md px-2.5 py-1 text-2xs font-semibold capitalize transition ${
+                  relieverPriorityFilter === p
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content Stream */}
+        <div className="flex-1 overflow-y-auto pr-1">
+          {isRelieverLoading ? (
+            <DataState
+              kind="loading"
+              title="Loading Reliever Deployments"
+              description="Fetching pending reliever endorsement requests from workforce pool..."
+            />
+          ) : isRelieverError ? (
+            <DataState
+              kind="error"
+              title="Failed to Load Reliever Deployments"
+              description="An error occurred while fetching pending reliever endorsement requests."
+              onRetry={() => refetchRelievers()}
+            />
+          ) : filteredRelieverRequests.length === 0 ? (
+            <DataState
+              kind="empty"
+              title={
+                relieverSearchQuery || relieverPriorityFilter !== "all"
+                  ? "No Matching Reliever Endorsements"
+                  : "No Pending Reliever Endorsements"
+              }
+              description={
+                relieverSearchQuery || relieverPriorityFilter !== "all"
+                  ? "No requests match your current search and priority filters. Try clearing filters to see all pending items."
+                  : "All workforce pool reliever endorsements have been processed."
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredRelieverRequests.map((req) => (
+                <RelieverCoverageApprovalCard key={req.requestId} request={req} />
               ))}
             </div>
           )}

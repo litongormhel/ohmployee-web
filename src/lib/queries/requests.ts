@@ -175,7 +175,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
       supabase
         .from("coverage_requests")
         .select("id", { count: "exact", head: true })
-        .or("status.ilike.pending,status.ilike.draft")
+        .in("status", ["pending", "draft"])
     ),
 
     // 4. Relievers (Workforce Pool Reliever Endorsements)
@@ -2132,11 +2132,11 @@ export async function fetchPendingCoverageRequests(): Promise<CoverageGroupReque
         account_name
       ),
       target_coverage_group:target_coverage_group_id (
-        name,
-        code
+        coverage_code,
+        area_name
       )
     `)
-    .or("status.ilike.pending,status.ilike.draft")
+    .in("status", ["pending", "draft"])
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
@@ -2174,7 +2174,7 @@ export async function fetchPendingCoverageRequests(): Promise<CoverageGroupReque
     execution_summary: Record<string, unknown> | null;
     created_at: string;
     accounts?: { account_name?: string } | null;
-    target_coverage_group?: { name?: string; code?: string } | null;
+    target_coverage_group?: { coverage_code?: string; area_name?: string } | null;
   };
 
   return ((data as unknown as RawCoverageRow[]) ?? []).map((row) => ({
@@ -2186,8 +2186,8 @@ export async function fetchPendingCoverageRequests(): Promise<CoverageGroupReque
     positionId: row.position_id ?? null,
     employmentType: row.employment_type ?? null,
     targetCoverageGroupId: row.target_coverage_group_id ?? null,
-    targetCoverageGroupName: row.target_coverage_group?.name ?? null,
-    targetCoverageGroupCode: row.target_coverage_group?.code ?? null,
+    targetCoverageGroupName: row.target_coverage_group?.area_name ?? null,
+    targetCoverageGroupCode: row.target_coverage_group?.coverage_code ?? null,
     sourceCoverageGroupId: row.source_coverage_group_id ?? null,
     destinationCoverageGroupId: row.destination_coverage_group_id ?? null,
     payload: row.payload ?? {},
