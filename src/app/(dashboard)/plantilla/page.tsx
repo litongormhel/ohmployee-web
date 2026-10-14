@@ -2,46 +2,59 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { LockKeyhole, Users, ArrowLeft, Building, Share2, ChevronRight, UserPlus } from "lucide-react";
+import {
+  LockKeyhole,
+  Users,
+  ArrowLeft,
+  Building,
+  Building2,
+  Share2,
+  ChevronRight,
+  Plus,
+  Search,
+  RotateCcw,
+  X,
+  MapPin,
+  Eye,
+} from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
-import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
-import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
 import {
   getPlantillaSummary,
   listWebPlantillaEmployees,
-  listWebPlantillaStoreStaffing,
   deriveDeactivationOverlay,
-  deriveStaffingRisk,
   PlantillaDataError,
   type PlantillaEmployeeListItem,
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
+import { StoreStaffingOverviewDrawer } from "@/components/plantilla/StoreStaffingOverviewDrawer";
 import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
 import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 
+// ---------------------------------------------------------------------------
+// Types & Constants
+// ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+type ViewMode = "active" | "inactive";
 
-type ViewMode = "employee" | "inactive" | "store";
-
-// ---------------------------------------------------------------------------
-// Status helpers
-// ---------------------------------------------------------------------------
+const PAGE_SIZE = 25;
 
 function plantillaStatusVariant(status: string | null | undefined): BadgeVariant {
-  switch ((status ?? "").toLowerCase()) {
+  switch ((status ?? "").toLowerCase().trim()) {
     case "active":
       return "success";
+    case "on leave":
+    case "on_leave":
+      return "warning";
+    case "floating":
+      return "neutral";
     case "pending transfer":
     case "pending_transfer":
       return "info";
@@ -58,63 +71,23 @@ function plantillaStatusVariant(status: string | null | undefined): BadgeVariant
   }
 }
 
-function staffingStatusVariant(status: string | null | undefined): BadgeVariant {
-  switch ((status ?? "").toLowerCase()) {
-    case "fully-staffed":
-    case "low":
-      return "success";
-    case "under-staffed":
-    case "critical":
-    case "high":
-      return "danger";
-    case "over-staffed":
-    case "medium":
-      return "warning";
-    default:
-      return "neutral";
-  }
+function getInitials(firstName: string | null, lastName: string | null): string {
+  const f = (firstName?.trim() || "")[0] ?? "";
+  const l = (lastName?.trim() || "")[0] ?? "";
+  return (f + l).toUpperCase() || "EM";
 }
 
 // ---------------------------------------------------------------------------
-// Filter option constants
-// ---------------------------------------------------------------------------
-
-
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "active", label: "Active" },
-  { value: "pending_transfer", label: "Pending Transfer" },
-  { value: "pending_separation", label: "Pending Separation" },
-  { value: "suspended", label: "Suspended" },
-  { value: "inactive", label: "Inactive" },
-];
-
-const DEPLOYMENT_TYPE_OPTIONS = [
-  { value: "", label: "All Types" },
-  { value: "budgeted", label: "Budgeted" },
-  { value: "additional", label: "Additional (AH)" },
-];
-
-const STAFFING_RISK_OPTIONS = [
-  { value: "", label: "All SLA Status" },
-  { value: "under-staffed", label: "Under-Staffed" },
-  { value: "fully-staffed", label: "Fully-Staffed" },
-  { value: "over-staffed", label: "Over-Staffed" },
-];
-
-const PAGE_SIZE = 25;
-
-// ---------------------------------------------------------------------------
-// Page
+// Page Component
 // ---------------------------------------------------------------------------
 
 export default function PlantillaPage() {
-  const [view, setView] = useState<ViewMode>("employee");
+  const [view, setView] = useState<ViewMode>("active");
   const [page, setPage] = useState(1);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [isStoreStaffingOverviewOpen, setIsStoreStaffingOverviewOpen] = useState(false);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
 
   // Search parameters and router
@@ -124,35 +97,17 @@ export default function PlantillaPage() {
 
   // Hydration state
   const [isHydrated, setIsHydrated] = useState(false);
+
   // Search query specifically for the account selector list
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
-  // Committed filter values (drive queries)
-  const [search, setSearch] = useState("");
+  // Directory filter state (internally managed — NO raw UUID inputs)
   const [accountId, setAccountId] = useState("");
-  const [groupId, setGroupId] = useState("");
-
-  // Pending (unsubmitted) filter values
-  const [pendingSearch, setPendingSearch] = useState("");
-  const [pendingAccountId, setPendingAccountId] = useState("");
-  const [pendingGroupId, setPendingGroupId] = useState("");
-
-  // Employee-specific pending filters
-  const [pendingStoreId, setPendingStoreId] = useState("");
-  const [pendingStatus, setPendingStatus] = useState("");
-  const [pendingPlantillaType, setPendingPlantillaType] = useState("");
-
-  // Committed employee filters
+  const [search, setSearch] = useState("");
   const [storeId, setStoreId] = useState("");
   const [status, setStatus] = useState("");
-  const [plantillaType, setPlantillaType] = useState("");
-
-  // Store-specific pending filters
-  const [pendingSlaStatus, setPendingSlaStatus] = useState("");
-
-  // Committed store filters
-  const [slaStatus, setSlaStatus] = useState("");
+  const [assignmentType, setAssignmentType] = useState("");
 
   // -------------------------------------------------------------------------
   // User Context and Account Lists
@@ -213,7 +168,6 @@ export default function PlantillaPage() {
 
   const allowedAccountIds = allowedAccountsQuery.data?.map((a) => a.id) ?? [];
 
-
   const accountSummaries = useQueries({
     queries: allowedAccountIds.map((accId) => ({
       queryKey: ["plantilla", "summary-account", accId],
@@ -244,66 +198,102 @@ export default function PlantillaPage() {
     /* eslint-disable react-hooks/set-state-in-effect */
     if (urlAccountId) {
       setAccountId(urlAccountId);
-      setPendingAccountId(urlAccountId);
     } else if (user) {
       const { accountScope } = user;
       if (accountScope.mode === "scoped" && accountScope.ids.length === 1) {
         setAccountId(accountScope.ids[0]);
-        setPendingAccountId(accountScope.ids[0]);
       }
     }
     setIsHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [userContextQuery.data, searchParams]);
 
+  // Stores under current account for dropdown & city/province lookup
+  const storesUnderAccountQuery = useQuery({
+    queryKey: ["plantilla", "account-stores", accountId],
+    queryFn: async () => {
+      if (!accountId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("stores")
+        .select("id, store_name, store_code, area_city, area_province, province")
+        .eq("account_id", accountId)
+        .eq("is_active", true)
+        .order("store_name");
+      if (error) throw error;
+      return (data ?? []).map((s) => ({
+        id: s.id as string,
+        name: s.store_name as string,
+        code: (s.store_code as string | null) ?? null,
+        city: (s.area_city as string | null) ?? null,
+        province: ((s.area_province ?? s.province) as string | null) ?? null,
+      }));
+    },
+    enabled: !!accountId,
+    staleTime: 30000,
+  });
+
+  const storeLookupMap = useMemo(() => {
+    const map = new Map<string, { city: string | null; province: string | null; code: string | null }>();
+    (storesUnderAccountQuery.data ?? []).forEach((s) => {
+      const info = { city: s.city, province: s.province, code: s.code };
+      map.set(s.name.toLowerCase().trim(), info);
+      map.set(s.id, info);
+    });
+    return map;
+  }, [storesUnderAccountQuery.data]);
+
   // -------------------------------------------------------------------------
   // Queries (Gated behind accountId)
   // -------------------------------------------------------------------------
 
   const summaryQuery = useQuery({
-    queryKey: ["plantilla", "summary", { search, accountId, groupId, selectorGroupId }],
+    queryKey: ["plantilla", "summary", { search, accountId, selectorGroupId }],
     queryFn: () =>
       getPlantillaSummary({
         search: accountId ? (search || undefined) : undefined,
         accountId: accountId || undefined,
-        groupId: accountId ? (groupId || undefined) : (selectorGroupId || undefined),
+        groupId: selectorGroupId || undefined,
       }),
     enabled: isHydrated && !!currentUser,
   });
 
+  // Query for active roster or inactive roster
   const employeeQuery = useQuery({
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, groupId, storeId, status, plantillaType, page, view },
+      { search, accountId, storeId, status, assignmentType, page, view },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
-        search: search || undefined,
+        search: search.trim() || undefined,
         accountId: accountId || undefined,
-        groupId: groupId || undefined,
         storeId: storeId || undefined,
         status: status || undefined,
-        deployment: plantillaType || undefined,
+        deployment: assignmentType || undefined,
         activeState: view === "inactive" ? "inactive" : "active",
         page,
         pageSize: PAGE_SIZE,
       }),
-    enabled: (view === "employee" || view === "inactive") && !!accountId,
+    enabled: !!accountId,
   });
 
-  const storeQuery = useQuery({
-    queryKey: ["plantilla", "stores", { search, accountId, groupId, slaStatus, page }],
-    queryFn: () =>
-      listWebPlantillaStoreStaffing({
-        search: search || undefined,
-        accountId: accountId || undefined,
-        groupId: groupId || undefined,
-        riskFilter: slaStatus || undefined,
-        page,
-        pageSize: PAGE_SIZE,
-      }),
-    enabled: view === "store" && !!accountId,
+  // Count query for inactive badge
+  const inactiveCountQuery = useQuery({
+    queryKey: ["plantilla", "inactive-count", accountId],
+    queryFn: async () => {
+      if (!accountId) return 0;
+      const res = await listWebPlantillaEmployees({
+        accountId,
+        activeState: "inactive",
+        page: 1,
+        pageSize: 1,
+      });
+      return res.totalCount;
+    },
+    enabled: !!accountId,
+    staleTime: 30000,
   });
 
   // -------------------------------------------------------------------------
@@ -315,24 +305,31 @@ export default function PlantillaPage() {
     summaryQuery.error instanceof PlantillaDataError ? summaryQuery.error : null;
   const summaryBlocked = summaryError?.kind === "access_denied";
 
-  const activeListQuery = view === "store" ? storeQuery : employeeQuery;
   const listError =
-    activeListQuery.error instanceof PlantillaDataError ? activeListQuery.error : null;
+    employeeQuery.error instanceof PlantillaDataError ? employeeQuery.error : null;
 
-  const isListLoading = activeListQuery.isLoading;
-  const isListError = activeListQuery.isError && !isListLoading;
+  const isListLoading = employeeQuery.isLoading;
+  const isListError = employeeQuery.isError && !isListLoading;
   const isAccessDenied = listError?.kind === "access_denied";
   const isRetryable = isListError && !isAccessDenied;
 
   const employeeRows = employeeQuery.data?.data ?? [];
-  const storeRows = storeQuery.data?.data ?? [];
-  const totalCount = activeListQuery.data?.totalCount ?? 0;
+  const totalCount = employeeQuery.data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const hasActiveFilters = Boolean(search.trim() || storeId || status || assignmentType);
+
+  const activeCount = summaryData?.actual ?? (view === "active" ? totalCount : 0);
+  const inactiveCount = inactiveCountQuery.data ?? (view === "inactive" ? totalCount : 0);
+
+  const fulfillmentRate =
+    summaryData?.required && summaryData.required > 0
+      ? Math.round(((summaryData.actual ?? 0) / summaryData.required) * 100)
+      : 0;
 
   // -------------------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------------------
-
 
   function getAccountSummary(accId: string) {
     const queryIndex = allowedAccountIds.indexOf(accId);
@@ -347,7 +344,11 @@ export default function PlantillaPage() {
 
   function handleSelectAccount(accId: string) {
     setAccountId(accId);
-    setPendingAccountId(accId);
+    setSearch("");
+    setStoreId("");
+    setStatus("");
+    setAssignmentType("");
+    setPage(1);
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("accountId", accId);
@@ -356,186 +357,24 @@ export default function PlantillaPage() {
 
   function handleBackToSelection() {
     setAccountId("");
-    setPendingAccountId("");
-    handleReset();
+    setSearch("");
+    setStoreId("");
+    setStatus("");
+    setAssignmentType("");
+    setPage(1);
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("accountId");
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  function handleApply() {
-    setSearch(pendingSearch);
-    setAccountId(pendingAccountId);
-    setGroupId(pendingGroupId);
-    setStoreId(pendingStoreId);
-    setStatus(pendingStatus);
-    setPlantillaType(pendingPlantillaType);
-    setSlaStatus(pendingSlaStatus);
-    setPage(1);
-  }
-
-  function handleReset() {
-    setPendingSearch("");
-    setPendingGroupId("");
-    setPendingStoreId("");
-    setPendingStatus("");
-    setPendingPlantillaType("");
-    setPendingSlaStatus("");
+  function handleResetFilters() {
     setSearch("");
-    setGroupId("");
     setStoreId("");
     setStatus("");
-    setPlantillaType("");
-    setSlaStatus("");
+    setAssignmentType("");
     setPage(1);
-
-    const user = userContextQuery.data?.currentUser;
-    const isSingleScoped =
-      user?.accountScope.mode === "scoped" && user?.accountScope.ids.length === 1;
-
-    if (isSingleScoped) {
-      const singleId = user.accountScope.ids[0];
-      setAccountId(singleId);
-      setPendingAccountId(singleId);
-    } else {
-      setAccountId("");
-      setPendingAccountId("");
-    }
   }
-
-  function switchView(next: ViewMode) {
-    if (next !== view) {
-      setView(next);
-      setPage(1);
-      setSelectedPlantillaId(null);
-      setSelectedStoreRow(null);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // List content
-  // -------------------------------------------------------------------------
-
-  function renderListContent() {
-    if (isListLoading) {
-      return (
-        <DataState
-          kind="loading"
-          title="Loading plantilla records"
-          description="Fetching personnel and store data through Supabase RPCs."
-        />
-      );
-    }
-
-    if (isAccessDenied) {
-      return (
-        <DataState
-          kind="access_denied"
-          title="Access Restricted"
-          description="Supabase RLS policies blocked this read. You are not authorized to view plantilla records outside your scoped boundary."
-        />
-      );
-    }
-
-    if (isRetryable) {
-      return (
-        <DataState
-          kind="error"
-          title="Fetch Failed"
-          description={
-            listError?.message ??
-            "The plantilla query failed. You can retry without changing filters."
-          }
-          onRetry={() => activeListQuery.refetch()}
-        />
-      );
-    }
-
-    if (view === "employee" || view === "inactive") {
-      if (employeeRows.length === 0) {
-        return (
-          <DataState
-            kind="empty"
-            title={view === "inactive" ? "No inactive records found" : "No employee records found"}
-            description={
-              view === "inactive"
-                ? "No inactive or terminated plantilla employees match the current filters."
-                : "No active plantilla employees match the current filters."
-            }
-          />
-        );
-      }
-      return <EmployeeTable rows={employeeRows} onRowClick={setSelectedPlantillaId} />;
-    }
-
-    if (storeRows.length === 0) {
-      return (
-        <DataState
-          kind="empty"
-          title="No store records found"
-          description="No store staffing records match the current filters."
-        />
-      );
-    }
-    return <StoreTable rows={storeRows} onRowClick={setSelectedStoreRow} />;
-  }
-
-  // -------------------------------------------------------------------------
-  // View toggle element (injected into filter bar)
-  // -------------------------------------------------------------------------
-
-  const viewToggle = (
-    <div
-      aria-label="Plantilla view mode"
-      className="flex items-center overflow-hidden rounded-md border border-border-default"
-      role="tablist"
-    >
-      <button
-        aria-selected={view === "employee"}
-        role="tab"
-        type="button"
-        className={`h-10 px-4 text-sm font-semibold transition-colors ${
-          view === "employee"
-            ? "bg-brand-600 text-white"
-            : "bg-surface-base text-text-secondary hover:bg-surface-hover"
-        }`}
-        onClick={() => switchView("employee")}
-      >
-        Employee View
-      </button>
-      <button
-        aria-selected={view === "inactive"}
-        role="tab"
-        type="button"
-        className={`h-9 border-l border-border-default px-3 text-sm font-medium transition-colors ${
-          view === "inactive"
-            ? "bg-brand-600 text-white"
-            : "bg-surface-base text-text-secondary hover:bg-surface-hover"
-        }`}
-        onClick={() => switchView("inactive")}
-      >
-        Inactive
-      </button>
-      <button
-        aria-selected={view === "store"}
-        role="tab"
-        type="button"
-        className={`h-10 border-l border-border-default px-4 text-sm font-semibold transition-colors ${
-          view === "store"
-            ? "bg-brand-600 text-white"
-            : "bg-surface-base text-text-secondary hover:bg-surface-hover"
-        }`}
-        onClick={() => switchView("store")}
-      >
-        Store Staffing
-      </button>
-    </div>
-  );
-
-
-  const inputClass =
-    "h-10 w-36 rounded-md border border-border-default bg-surface-muted px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors";
 
   // -------------------------------------------------------------------------
   // Render Selection Screen / Main Roster
@@ -605,14 +444,14 @@ export default function PlantillaPage() {
               placeholder="Search accounts..."
               value={accountSearch}
               onChange={(e) => setAccountSearch(e.target.value)}
-              className="h-10 w-full rounded-md border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
+              className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
             />
           </div>
           {uniqueGroups.length > 0 && (
             <select
               value={selectorGroupId}
               onChange={(e) => setSelectorGroupId(e.target.value)}
-              className="h-10 rounded-md border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
+              className="h-10 rounded-lg border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
               aria-label="Filter accounts by group"
             >
               <option value="">All Groups</option>
@@ -687,10 +526,6 @@ export default function PlantillaPage() {
                 });
 
               return sortedAccounts.map((account) => {
-                // Dynamic progress bar colors:
-                // 100%+ = Green (emerald)
-                // 95% - 99.99% = Yellow (amber)
-                // Below 95% = Red
                 const getProgressColors = (rate: number) => {
                   if (rate >= 100) {
                     return {
@@ -719,7 +554,6 @@ export default function PlantillaPage() {
                     onClick={() => handleSelectAccount(account.id)}
                     className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                   >
-                    {/* Left Icon Container */}
                     <div
                       className={`shrink-0 rounded-lg p-2.5 ${
                         account.isPoolAccount
@@ -734,7 +568,6 @@ export default function PlantillaPage() {
                       )}
                     </div>
 
-                    {/* Middle Content Section */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -756,7 +589,6 @@ export default function PlantillaPage() {
                           )}
                         </div>
 
-                        {/* Badge container */}
                         <div className="shrink-0 flex items-center gap-1.5">
                           {account.isPoolAccount ? (
                             <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 uppercase">
@@ -773,7 +605,6 @@ export default function PlantillaPage() {
                         </div>
                       </div>
 
-                      {/* Personnel Stats Row */}
                       <div className="mt-2.5 text-xs text-text-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span>
                           HC <strong className="text-text-primary font-bold">{account.actual}</strong>/
@@ -793,7 +624,6 @@ export default function PlantillaPage() {
                         )}
                       </div>
 
-                      {/* Progress Bar (MFR) */}
                       {!account.isPoolAccount && (
                         <div className="mt-3.5 flex items-center gap-3">
                           <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider shrink-0 w-8">
@@ -821,195 +651,467 @@ export default function PlantillaPage() {
     );
   }
 
-
-
   const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name;
-  const pageSubtitle = selectedAccountName
-    ? `Managing roster allocations, capacity targets, and offboarding for ${selectedAccountName}.`
-    : "Select a billing account to audit roster allocations, capacity targets, and offboarding workflows.";
+  const showBackToSelection =
+    currentUser?.accountScope.mode === "all" ||
+    (currentUser?.accountScope.mode === "scoped" && currentUser?.accountScope.ids.length > 1);
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
-      {accountId &&
-        (currentUser?.accountScope.mode === "all" ||
-          (currentUser?.accountScope.mode === "scoped" &&
-            currentUser?.accountScope.ids.length > 1)) && (
-          <div className="flex">
-            <button
-              type="button"
-              onClick={handleBackToSelection}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Account Selection
-            </button>
-          </div>
-        )}
-
-      {accountId && (
-        <AdminPageHeader
-          title="Plantilla Directory"
-          subtitle={pageSubtitle}
-          icon={Users}
-          readOnly
-        />
-      )}
-
-      {/* KPI summary row */}
-      <section
-        aria-label="Plantilla summary metrics"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <MetricCard
-          label="Required"
-          value={summaryData?.required}
-          helperText="Total required headcount (Actual + HR Process + Vacant)"
-          isLoading={summaryQuery.isLoading}
-          isBlocked={summaryBlocked}
-          isError={!summaryBlocked && summaryQuery.isError}
-          errorText="Summary data failed to load"
-        />
-        <MetricCard
-          label="Actual"
-          value={summaryData?.actual}
-          helperText="Total active deployed employees"
-          isLoading={summaryQuery.isLoading}
-          isBlocked={summaryBlocked}
-          isError={!summaryBlocked && summaryQuery.isError}
-          errorText="Summary data failed to load"
-        />
-        <MetricCard
-          label="HR Process"
-          value={summaryData?.hrProcess}
-          helperText="Onboarding pipeline candidates"
-          isLoading={summaryQuery.isLoading}
-          isBlocked={summaryBlocked}
-          isError={!summaryBlocked && summaryQuery.isError}
-          errorText="Summary data failed to load"
-        />
-        <MetricCard
-          label="Vacant"
-          value={summaryData?.vacant}
-          helperText="Approved open vacancy slots"
-          isLoading={summaryQuery.isLoading}
-          isBlocked={summaryBlocked}
-          isError={!summaryBlocked && summaryQuery.isError}
-          errorText="Summary data failed to load"
-        />
-      </section>
-
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-6 text-gray-900">
       {!accountId ? (
-        renderAccountSelectionContent()
+        <>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+              Plantilla Directory
+            </h1>
+            <p className="text-sm text-text-secondary">
+              Select a billing account to audit roster allocations, capacity targets, and staffing governance.
+            </p>
+          </div>
+          {renderAccountSelectionContent()}
+        </>
       ) : (
         <>
-          {/* Filter bar */}
-          <AdminFilterBar
-            searchPlaceholder="Search by employee, store, or VCode..."
-            searchVal={pendingSearch}
-            onSearchChange={setPendingSearch}
-            onApply={handleApply}
-            onReset={handleReset}
-            showResetButton
-            resetLabel="Reset"
-            filterSlot={
-              <div className="flex flex-wrap items-center gap-2">
-                {viewToggle}
-
-                {canRequestAdjustment && accountId && (
+          {/* 1. Header & Context Strip */}
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-default pb-4">
+            <div className="space-y-1.5">
+              {/* Breadcrumb Backlink */}
+              <nav className="flex items-center gap-1.5 text-xs text-text-muted" aria-label="Breadcrumb">
+                {showBackToSelection ? (
                   <button
                     type="button"
-                    onClick={() => setIsRequestHeadcountOpen(true)}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors"
+                    onClick={handleBackToSelection}
+                    className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors"
                   >
-                    <UserPlus className="h-4 w-4" />
-                    <span>Request Headcount</span>
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span>Account Selection</span>
+                  </button>
+                ) : (
+                  <span>Plantilla Directory</span>
+                )}
+                <span className="text-text-muted/60">/</span>
+                <span className="font-semibold text-text-primary truncate max-w-[240px] sm:max-w-none">
+                  {selectedAccountName}
+                </span>
+              </nav>
+
+              {/* Title with account name and role badge */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
+                  {selectedAccountName}
+                </h1>
+                {userRole && (
+                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 text-xs font-semibold text-brand-700 capitalize">
+                    {userRole.replace(/_/g, " ")}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary">
+                Managing roster allocations, capacity targets, and staffing offboarding.
+              </p>
+            </div>
+
+            {/* Right-aligned Action Bar */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Secondary button: Store Staffing drawer trigger with quota badge */}
+              <button
+                type="button"
+                onClick={() => setIsStoreStaffingOverviewOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:border-border-subtle transition-colors shadow-xs"
+              >
+                <Building2 className="h-4 w-4 text-text-muted" />
+                <span>Store Staffing</span>
+                <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-text-primary border border-border-default font-mono">
+                  {summaryData?.required ?? 0} Quota
+                </span>
+              </button>
+
+              {/* Primary button: + Request Headcount (with icon) */}
+              {canRequestAdjustment && (
+                <button
+                  type="button"
+                  onClick={() => setIsRequestHeadcountOpen(true)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Request Headcount</span>
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* 2. Metrics Bar Refinement */}
+          <section aria-label="Plantilla summary metrics" className="space-y-3">
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <MetricCard
+                label="Required Quota"
+                value={summaryData?.required}
+                helperText="Total budgeted capacity quota"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="Active Deployed"
+                value={summaryData?.actual}
+                helperText="Active deployed on-site"
+                badge={summaryData?.required ? `${fulfillmentRate}% fulfilled` : undefined}
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="HR Pipeline"
+                value={summaryData?.hrProcess}
+                helperText="Onboarding & candidate pipeline"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+              <MetricCard
+                label="Open Vacant"
+                value={summaryData?.vacant}
+                helperText="Approved open vacancy slots"
+                isLoading={summaryQuery.isLoading}
+                isBlocked={summaryBlocked}
+                isError={!summaryBlocked && summaryQuery.isError}
+                errorText="Summary data failed to load"
+              />
+            </div>
+
+            {/* Subtle fulfillment rate indicator strip */}
+            {!summaryBlocked && !summaryQuery.isLoading && (summaryData?.required ?? 0) > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-xl border border-border-default bg-surface-muted/40 px-4 py-2.5 text-xs text-text-secondary shadow-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-text-primary">Fulfillment Rate (MFR):</span>
+                  <span className="font-mono font-bold text-text-primary">{fulfillmentRate}%</span>
+                  <span className="text-text-muted">
+                    ({summaryData?.actual ?? 0} active deployed / {summaryData?.required ?? 0} required quota)
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-64">
+                  <div className="relative flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                    <div
+                      className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${
+                        fulfillmentRate >= 100
+                          ? "bg-emerald-500"
+                          : fulfillmentRate >= 95
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${Math.min(100, fulfillmentRate)}%` }}
+                    />
+                  </div>
+                  <span
+                    className={`font-mono font-bold text-xs shrink-0 ${
+                      fulfillmentRate >= 100
+                        ? "text-emerald-700"
+                        : fulfillmentRate >= 95
+                        ? "text-amber-700"
+                        : "text-red-700"
+                    }`}
+                  >
+                    {fulfillmentRate}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* 3. Toolbar & Filter Redesign */}
+          <div className="space-y-3">
+            {/* Segmented Tab Switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                role="tablist"
+                aria-label="Plantilla roster view"
+                className="inline-flex items-center rounded-lg border border-border-default bg-surface-muted p-1"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "active"}
+                  onClick={() => {
+                    if (view !== "active") {
+                      setView("active");
+                      setPage(1);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                    view === "active"
+                      ? "bg-surface-base text-text-primary shadow-xs"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Active Roster</span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      view === "active"
+                        ? "bg-brand-50 text-brand-700 border border-brand-200/80"
+                        : "bg-surface-base text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {activeCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "inactive"}
+                  onClick={() => {
+                    if (view !== "inactive") {
+                      setView("inactive");
+                      setPage(1);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                    view === "inactive"
+                      ? "bg-surface-base text-text-primary shadow-xs"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Inactive / Floating</span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                      view === "inactive"
+                        ? "bg-purple-50 text-purple-700 border border-purple-200/80"
+                        : "bg-surface-base text-text-muted border border-border-default"
+                    }`}
+                  >
+                    {inactiveCount}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Unified Search & Filter Bar */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
+              {/* Prominent search input with instant clear */}
+              <div className="relative flex-1 min-w-[260px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search by member name, store, VCode, or position..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-10 w-full rounded-lg border border-border-default bg-surface-muted pl-9 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
+                  aria-label="Search plantilla roster"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
+              </div>
 
-                <input
-                  type="text"
-                  placeholder="Account ID"
-                  value={pendingAccountId}
-                  onChange={(e) => setPendingAccountId(e.target.value)}
-                  className={inputClass}
-                  aria-label="Filter by account ID"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Group ID"
-                  value={pendingGroupId}
-                  onChange={(e) => setPendingGroupId(e.target.value)}
-                  className={inputClass}
-                  aria-label="Filter by group ID"
-                />
-
-                {(view === "employee" || view === "inactive") && (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="Store ID"
-                      value={pendingStoreId}
-                      onChange={(e) => setPendingStoreId(e.target.value)}
-                      className={inputClass}
-                      aria-label="Filter by store ID"
-                    />
-
-                    <select
-                      value={pendingStatus}
-                      onChange={(e) => setPendingStatus(e.target.value)}
-                      className={inputClass}
-                      aria-label="Filter by employment status"
-                    >
-                      <option value="">All Statuses</option>
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={pendingPlantillaType}
-                      onChange={(e) => setPendingPlantillaType(e.target.value)}
-                      className={inputClass}
-                      aria-label="Filter by plantilla type"
-                    >
-                      <option value="">All Types</option>
-                      {DEPLOYMENT_TYPE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-
-                {view === "store" && (
+              {/* Dropdowns row */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Store selector dropdown */}
+                <div className="min-w-[170px] flex-1 sm:flex-initial">
                   <select
-                    value={pendingSlaStatus}
-                    onChange={(e) => setPendingSlaStatus(e.target.value)}
-                    className={inputClass}
-                    aria-label="Filter by staffing risk"
+                    value={storeId}
+                    onChange={(e) => {
+                      setStoreId(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    aria-label="Filter by store"
                   >
-                    {STAFFING_RISK_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
+                    <option value="">All Stores</option>
+                    {(storesUnderAccountQuery.data ?? []).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.city ? `(${s.city})` : ""}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Status dropdown */}
+                <div className="min-w-[130px] flex-1 sm:flex-initial">
+                  <select
+                    value={status}
+                    onChange={(e) => {
+                      setStatus(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    aria-label="Filter by status"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="on leave">On Leave</option>
+                    <option value="floating">Floating</option>
+                  </select>
+                </div>
+
+                {/* Assignment Type dropdown */}
+                <div className="min-w-[130px] flex-1 sm:flex-initial">
+                  <select
+                    value={assignmentType}
+                    onChange={(e) => {
+                      setAssignmentType(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    aria-label="Filter by assignment type"
+                  >
+                    <option value="">All Types</option>
+                    <option value="stationary">Stationary</option>
+                    <option value="roving">Roving</option>
+                    <option value="reliever">Reliever</option>
+                  </select>
+                </div>
+
+                {/* Reset / Clear filters button only when active filters exist */}
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-rose-200/80 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:text-rose-800 transition-colors shadow-xs"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>Reset Filters</span>
+                  </button>
                 )}
               </div>
-            }
-          />
+            </div>
+          </div>
 
-          {/* Detail drawer */}
+          {/* 4. Table Polish Area */}
+          <div className="min-h-[520px] overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
+            {isListLoading ? (
+              <DataState
+                kind="loading"
+                title="Loading plantilla records"
+                description="Fetching personnel roster through Supabase RPCs..."
+              />
+            ) : isAccessDenied ? (
+              <DataState
+                kind="access_denied"
+                title="Access Restricted"
+                description="Supabase RLS policies blocked this read. You are not authorized to view plantilla records outside your scoped boundary."
+              />
+            ) : isRetryable ? (
+              <DataState
+                kind="error"
+                title="Fetch Failed"
+                description={
+                  listError?.message ??
+                  "The plantilla query failed. You can retry without changing filters."
+                }
+                onRetry={() => employeeQuery.refetch()}
+              />
+            ) : employeeRows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs">
+                  <Users className="h-8 w-8 text-brand-600" />
+                  {hasActiveFilters && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow-xs">
+                      !
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base font-bold text-text-primary">
+                  {hasActiveFilters
+                    ? "No matching plantilla records"
+                    : view === "inactive"
+                    ? "No inactive or floating records"
+                    : "No active employee records"}
+                </h3>
+                <p className="mt-1.5 max-w-sm text-xs text-text-muted leading-relaxed">
+                  {hasActiveFilters
+                    ? "We couldn't find any employees matching your current search or filter criteria. Try adjusting your parameters."
+                    : view === "inactive"
+                    ? "There are currently no inactive, suspended, or floating personnel for this account."
+                    : "There are currently no active personnel deployed under this account."}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors shadow-xs"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>Reset all filters</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <EmployeeTable
+                rows={employeeRows}
+                onRowClick={setSelectedPlantillaId}
+                storeLookupMap={storeLookupMap}
+              />
+            )}
+
+            {!isListLoading && !isListError && totalCount > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default px-4 py-3 text-xs sm:text-sm text-text-muted">
+                <span>
+                  Showing {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–
+                  {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} record
+                  {totalCount !== 1 ? "s" : ""}
+                </span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="h-8 rounded-lg border border-border-default px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="font-medium text-text-secondary">
+                      {page} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 rounded-lg border border-border-default px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Drawers & Modals */}
           <PlantillaDetailDrawer
             plantillaId={selectedPlantillaId}
             onClose={() => setSelectedPlantillaId(null)}
           />
 
-          {/* Store Staffing drawer */}
+          <StoreStaffingOverviewDrawer
+            isOpen={isStoreStaffingOverviewOpen}
+            onClose={() => setIsStoreStaffingOverviewOpen(false)}
+            accountId={accountId}
+            accountName={selectedAccountName}
+            summaryRequiredQuota={summaryData?.required}
+            canReviseQuota={canReviseQuota}
+            canRequestAdjustment={canRequestAdjustment}
+            onSelectStore={(store) => {
+              setSelectedStoreRow(store);
+            }}
+          />
+
           <StoreStaffingDrawer
             storeRow={selectedStoreRow}
             onClose={() => setSelectedStoreRow(null)}
@@ -1020,13 +1122,11 @@ export default function PlantillaPage() {
             accountName={selectedAccountName}
           />
 
-          {/* ADR-001 Slot Inspector & Audit Timeline Drawer */}
           <SlotDetailDrawer
             slotId={selectedSlotId}
             onClose={() => setSelectedSlotId(null)}
           />
 
-          {/* Request Headcount Modal (New Demand Requisition) */}
           {isRequestHeadcountOpen && (
             <RequestHeadcountModal
               isOpen={isRequestHeadcountOpen}
@@ -1034,104 +1134,67 @@ export default function PlantillaPage() {
               accountId={accountId}
               accountName={selectedAccountName}
               onSuccess={() => {
-                activeListQuery.refetch();
+                employeeQuery.refetch();
                 summaryQuery.refetch();
+                inactiveCountQuery.refetch();
               }}
             />
           )}
 
-          {/* Table area */}
-          <div className="min-h-[520px] overflow-hidden rounded-md border border-border-default bg-surface-base">
-            {renderListContent()}
-
-            {!isListLoading && !isListError && totalCount > 0 && (
-              <div className="flex items-center justify-between border-t border-border-default px-4 py-3 text-sm text-text-muted">
-                <span>
-                  {totalCount.toLocaleString()} record
-                  {totalCount !== 1 ? "s" : ""}
-                </span>
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <span>
-                      {page} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      className="h-8 rounded border border-border-default px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
+          {/* Footer system boundaries notice */}
+          <section className="rounded-xl border border-dashed border-gray-300 bg-gray-50/80 p-3.5">
+            <div className="flex items-start gap-2.5 text-xs text-gray-600">
+              <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
+              <div>
+                <span className="font-semibold text-gray-700">Governance & Boundary:</span> Plantilla data is queried securely via scoped RPCs (
+                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">get_web_plantilla_summary</code>,{" "}
+                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">list_web_plantilla_employees</code>, and{" "}
+                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">list_web_plantilla_store_staffing</code>).
+                All quota modifications and personnel movements enforce ADR-001 audit logging and safety floor verification.
               </div>
-            )}
-          </div>
+            </div>
+          </section>
         </>
       )}
-
-      {/* Footer system boundaries notice */}
-      <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-start gap-2 text-xs text-gray-600">
-          <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
-          <div>
-            <span className="font-semibold text-gray-700">Read-Only Boundary:</span> Plantilla reads use{" "}
-            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">get_web_plantilla_summary</code>,{" "}
-            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">list_web_plantilla_employees</code>, and{" "}
-            <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">list_web_plantilla_store_staffing</code>.
-            Employee transfers, AH slot management, separations, and other mutations remain disabled until backend action RPCs are approved.
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Employee table
+// Employee Table Component
 // ---------------------------------------------------------------------------
 
 function EmployeeTable({
   rows,
   onRowClick,
+  storeLookupMap,
 }: {
   rows: PlantillaEmployeeListItem[];
   onRowClick: (id: string) => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1280px] text-left text-[0.9375rem]">
+      <table className="w-full min-w-[980px] text-left text-sm">
         <thead>
           <tr className="border-b border-table-rule bg-table-header">
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Emp ID
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Member
             </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Name
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Store
             </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Account / Store
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Position
             </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Assignment
             </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Type
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
               Status
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              Actions
             </th>
           </tr>
         </thead>
@@ -1148,6 +1211,14 @@ function EmployeeTable({
                 ? `${row.lastName}, ${row.firstName}`
                 : (row.lastName ?? row.firstName ?? "—");
 
+            const initials = getInitials(row.firstName, row.lastName);
+
+            // Lookup City/Province for store
+            const storeInfo = row.primaryStoreName
+              ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+              : null;
+            const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+
             return (
               <tr
                 key={row.id}
@@ -1163,49 +1234,82 @@ function EmployeeTable({
                 role="button"
                 aria-label={`View details for ${displayName}`}
               >
-                <td className="px-3 py-2.5">
-                  <span className="font-mono text-xs bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 text-table-text">
-                    {row.employeeNo}
-                  </span>
-                </td>
-
-                <td className="px-3 py-2.5 font-medium text-table-text">
-                  <span>{displayName}</span>
-                  {row.plantillaType === "AH" && (
-                    <span className="ml-1.5 inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-status-warning-text">
-                      AH
-                    </span>
-                  )}
-                </td>
-
-                <td className="px-4 py-2.5 text-table-text-sub">
-                  <div className="leading-tight">
-                    <div>{row.accountName ?? "—"}</div>
-                    {row.primaryStoreName && (
-                      <div className="text-xs text-table-text-muted">{row.primaryStoreName}</div>
-                    )}
+                {/* MEMBER: Formatted employee name with avatar initials and subtle ID subtitle */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-brand-50 border border-brand-200/70 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-table-text text-sm hover:text-brand-600 transition-colors">
+                          {displayName}
+                        </span>
+                        {row.plantillaType === "AH" && (
+                          <span className="inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-status-warning-text">
+                            AH
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                        {row.employeeNo}
+                      </div>
+                    </div>
                   </div>
                 </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">{row.positionTitle ?? "—"}</td>
+                {/* STORE: Outlet name with City/Province pill */}
+                <td className="px-4 py-3 text-table-text">
+                  <div className="min-w-0">
+                    <div className="font-medium text-table-text truncate">
+                      {row.primaryStoreName || "Unassigned Outlet"}
+                    </div>
+                    {locationLabel ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
+                        <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                        <span className="truncate max-w-[150px]">{locationLabel}</span>
+                      </span>
+                    ) : row.accountName ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
+                        {row.accountName}
+                      </span>
+                    ) : null}
+                  </div>
+                </td>
 
-                <td className="px-3 py-2.5 text-table-text-sub">
-                  {row.assignmentType === "Roving" && row.coveredStoresCount > 0 ? (
-                    <span title={`Covers ${row.coveredStoresCount} store(s)`}>
-                      Roving ({row.coveredStoresCount})
+                {/* POSITION: Job position with level or tier */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-table-text text-sm">
+                      {row.positionTitle ?? "General Staff"}
+                    </span>
+                    <span className="text-xs text-table-text-muted mt-0.5">
+                      {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
+                    </span>
+                  </div>
+                </td>
+
+                {/* ASSIGNMENT: Clean badge (Stationary / Roving / Reliever) */}
+                <td className="px-4 py-3">
+                  {row.assignmentType?.toLowerCase() === "roving" ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 border border-sky-200/80 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                      Roving{row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
+                    </span>
+                  ) : row.assignmentType?.toLowerCase() === "reliever" ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                      Reliever
                     </span>
                   ) : (
-                    (row.assignmentType ?? "—")
+                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                      Stationary
+                    </span>
                   )}
                 </td>
 
-                <td className="px-3 py-2.5 text-xs text-table-text-sub">
-                  {row.plantillaType ?? "—"}
-                </td>
-
-                <td className="px-4 py-2.5">
+                {/* STATUS: Design-token StatusBadge */}
+                <td className="px-4 py-3">
                   {row.plantillaStatus ? (
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1.5">
                       <StatusBadge
                         variant={plantillaStatusVariant(row.plantillaStatus)}
                         text={row.plantillaStatus}
@@ -1223,180 +1327,20 @@ function EmployeeTable({
                     <span className="text-xs text-table-text-muted">—</span>
                   )}
                 </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
-// ---------------------------------------------------------------------------
-// Store staffing table
-// ---------------------------------------------------------------------------
-
-function formatFillRate(fillRate: number | null): string {
-  if (fillRate === null) return "—";
-  return `${(fillRate * 100).toFixed(1)}%`;
-}
-
-function StoreTable({
-  rows,
-  onRowClick,
-}: {
-  rows: PlantillaStoreStaffingRow[];
-  onRowClick?: (row: PlantillaStoreStaffingRow) => void;
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1400px] text-left text-[0.9375rem]">
-        <thead>
-          <tr className="border-b border-table-rule bg-table-header">
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Store Code
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Store Name
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Account / Region
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Actual
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              HR Pipeline
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Vacancy
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Required
-            </th>
-            <th
-              className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted"
-              title="Actual / (Actual + HR Pipeline + Vacancy)"
-            >
-              MFR %
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Staffing Risk
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              SLA Badge
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-table-rule">
-          {rows.map((row, index) => {
-            const risk = deriveStaffingRisk(row);
-            return (
-              <tr
-                key={`${row.storeId}-${row.storeCode ?? row.storeName ?? index}`}
-                className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                onClick={() => onRowClick?.(row)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onRowClick?.(row);
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`View staffing details for ${row.storeName ?? "store"}`}
-              >
-                <td className="px-4 py-2.5">
-                  <span className="font-mono text-xs text-table-text bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5">
-                    {row.storeCode ?? "—"}
-                  </span>
-                </td>
-
-                <td className="px-4 py-2.5 font-medium text-table-text">
-                  {row.storeName ?? "—"}
-                </td>
-
-                <td className="px-4 py-2.5 text-table-text-sub">
-                  <div className="leading-tight">
-                    <div>{row.accountName ?? "—"}</div>
-                    {row.region && (
-                      <div className="text-xs text-table-text-muted">{row.region}</div>
-                    )}
-                  </div>
-                </td>
-
-                {/* Actual — onboard_count from backend */}
-                <td className="px-4 py-2.5 text-table-text-sub">{row.onboardCount}</td>
-
-                {/* HR Pipeline — hr_pipeline_count from backend */}
-                <td className="px-4 py-2.5 text-table-text-sub">{row.hrPipelineCount}</td>
-
-                {/* Vacancy — open_headcount from backend */}
-                <td className="px-4 py-2.5 text-table-text-sub">
-                  {risk.vacancyCount > 0 ? (
-                    <span
-                      className={
-                        risk.vacancySlaBreached ? "font-semibold text-status-danger-text" : ""
-                      }
-                    >
-                      {risk.vacancyCount}
-                      {risk.vacancySlaBreached && (
-                        <span className="ml-1 text-xs" title="Vacancy SLA breached (7 days+)">
-                          ⚠
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-table-text-muted">0</span>
-                  )}
-                </td>
-
-                {/* Required — required_headcount from backend */}
-                <td className="px-4 py-2.5 text-table-text-sub">{row.requiredHeadcount}</td>
-
-                {/* MFR % — fill_rate from backend; formula: Actual / (Actual + HR Pipeline + Vacancy) */}
-                <td
-                  className="px-4 py-2.5 text-table-text-sub tabular-nums"
-                  title="Actual / (Actual + HR Pipeline + Vacancy)"
-                >
-                  {formatFillRate(row.fillRate)}
-                </td>
-
-                <td className="px-4 py-2.5">
-                  {risk.staffingRisk ? (
-                    <StatusBadge
-                      variant={staffingStatusVariant(risk.staffingRisk)}
-                      text={risk.staffingRisk}
-                    />
-                  ) : (
-                    <span className="text-xs text-table-text-muted">—</span>
-                  )}
-                </td>
-
-                <td className="px-4 py-2.5">
-                  {risk.slaBadge ? (
-                    <StatusBadge
-                      variant={staffingStatusVariant(risk.slaBadge)}
-                      text={risk.slaBadge}
-                    />
-                  ) : (
-                    <span className="text-xs text-table-text-muted">—</span>
-                  )}
-                </td>
-
-                <td className="px-4 py-2.5 text-right">
+                {/* ACTIONS: One-click button to open PlantillaDetailDrawer */}
+                <td className="px-4 py-3 text-right">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRowClick?.(row);
+                      onRowClick(row.id);
                     }}
-                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-base px-2.5 py-1 text-xs font-medium text-text-primary hover:bg-surface-hover shadow-xs transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
+                    aria-label={`View details for ${displayName}`}
                   >
-                    Manage Quota
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Details</span>
                   </button>
                 </td>
               </tr>
