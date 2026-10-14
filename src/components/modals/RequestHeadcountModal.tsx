@@ -26,6 +26,7 @@ import {
   type SubmitHeadcountRequestInput,
   type SubmitHeadcountRequestResult,
 } from "@/lib/queries/requests";
+import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 
 export interface RequestHeadcountModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export interface RequestHeadcountModalProps {
   initialStoreName?: string | null;
   initialProvince?: string | null;
   initialCity?: string | null;
+  sourceNewStoreRequestId?: string | null;
   onSuccess?: (result?: SubmitHeadcountRequestResult) => void;
 }
 
@@ -120,6 +122,7 @@ export function RequestHeadcountModal({
   initialStoreName,
   initialProvince,
   initialCity,
+  sourceNewStoreRequestId,
   onSuccess,
 }: RequestHeadcountModalProps) {
   if (!isOpen) return null;
@@ -133,6 +136,7 @@ export function RequestHeadcountModal({
       initialStoreName={initialStoreName}
       initialProvince={initialProvince}
       initialCity={initialCity}
+      sourceNewStoreRequestId={sourceNewStoreRequestId}
       onSuccess={onSuccess}
     />
   );
@@ -146,6 +150,7 @@ interface RequestHeadcountModalDialogProps {
   initialStoreName?: string | null;
   initialProvince?: string | null;
   initialCity?: string | null;
+  sourceNewStoreRequestId?: string | null;
   onSuccess?: (result?: SubmitHeadcountRequestResult) => void;
 }
 
@@ -157,12 +162,19 @@ function RequestHeadcountModalDialog({
   initialStoreName,
   initialProvince,
   initialCity,
+  sourceNewStoreRequestId,
   onSuccess,
 }: RequestHeadcountModalDialogProps) {
   const submitMutation = useSubmitHeadcountRequest();
 
   // Step state: "form" | "review"
   const [currentStep, setCurrentStep] = useState<"form" | "review">("form");
+
+  // NSR state
+  const [isNsrModalOpen, setIsNsrModalOpen] = useState(false);
+  const [linkedNewStoreRequestId, setLinkedNewStoreRequestId] = useState<string | null>(
+    sourceNewStoreRequestId || null
+  );
 
   // Account State
   const [selectedAccountId, setSelectedAccountId] = useState<string>(propAccountId || "");
@@ -664,14 +676,32 @@ function RequestHeadcountModalDialog({
       payload.urgency = urgency;
     }
 
+    if (linkedNewStoreRequestId) {
+      payload.source_new_store_request_id = linkedNewStoreRequestId;
+    }
+
     if (workforceType === "stationary" && selectedStore) {
-      payload.store_id = selectedStore.id;
-      payload.store_name = selectedStore.store_name;
-      payload.area_province =
-        selectedStore.province || selectedStore.area_province || selectedProvince || null;
-      payload.area_city = selectedStore.area_city || selectedCity || null;
+      if (linkedNewStoreRequestId) {
+        payload.source_new_store_request_id = linkedNewStoreRequestId;
+        payload.store_name = selectedStore.store_name;
+        payload.area_province =
+          selectedStore.province || selectedStore.area_province || selectedProvince || null;
+        payload.area_city = selectedStore.area_city || selectedCity || null;
+        if (selectedStore.id && selectedStore.id !== linkedNewStoreRequestId) {
+          payload.store_id = selectedStore.id;
+        }
+      } else {
+        payload.store_id = selectedStore.id;
+        payload.store_name = selectedStore.store_name;
+        payload.area_province =
+          selectedStore.province || selectedStore.area_province || selectedProvince || null;
+        payload.area_city = selectedStore.area_city || selectedCity || null;
+      }
     } else if (workforceType === "roving") {
       payload.store_ids = selectedRovingStores.map((s) => s.id);
+      if (linkedNewStoreRequestId) {
+        payload.source_new_store_request_id = linkedNewStoreRequestId;
+      }
     }
 
     submitMutation.mutate(payload, {
@@ -785,7 +815,9 @@ function RequestHeadcountModalDialog({
                 {propAccountId ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                     <span>{selectedAccountName || propAccountName || "Scoped Account"}</span>
-                    <span className="font-mono text-xs text-text-muted">({selectedAccountId})</span>
+                    <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-700/10">
+                      Scoped Account
+                    </span>
                   </div>
                 ) : (
                   <select
@@ -878,7 +910,10 @@ function RequestHeadcountModalDialog({
                     {selectedStore && (
                       <button
                         type="button"
-                        onClick={() => setSelectedStore(null)}
+                        onClick={() => {
+                          setSelectedStore(null);
+                          setLinkedNewStoreRequestId(null);
+                        }}
                         className="text-xs font-semibold text-brand-600 hover:text-brand-700"
                       >
                         Change Store
@@ -888,29 +923,56 @@ function RequestHeadcountModalDialog({
 
                   {selectedStore ? (
                     /* Store Verification Card */
-                    <div className="flex items-start justify-between rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          <h4 className="font-semibold text-sm text-emerald-950">
-                            {selectedStore.store_name}
-                          </h4>
-                          {selectedStore.island_group && (
-                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold font-mono text-emerald-800 uppercase">
-                              {selectedStore.island_group}
+                    linkedNewStoreRequestId ? (
+                      <div className="flex items-start justify-between rounded-lg border border-amber-300 bg-amber-50/70 p-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-amber-600" />
+                            <h4 className="font-semibold text-sm text-amber-950">
+                              {selectedStore.store_name}
+                            </h4>
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 uppercase">
+                              New Store Request
                             </span>
-                          )}
+                          </div>
+                          <p className="text-xs text-amber-800">
+                            {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
+                              .filter(Boolean)
+                              .join(", ") || "Pending Registration"}
+                          </p>
+                          <p className="text-[11px] text-amber-700 font-medium">
+                            Linked with NSR reference: <span className="font-mono">{linkedNewStoreRequestId}</span>
+                          </p>
                         </div>
-                        <p className="text-xs text-emerald-800">
-                          {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
-                            .filter(Boolean)
-                            .join(", ") || "Active Store"}
-                        </p>
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                          NSR Linked
+                        </span>
                       </div>
-                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
-                        Verified Store
-                      </span>
-                    </div>
+                    ) : (
+                      <div className="flex items-start justify-between rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <h4 className="font-semibold text-sm text-emerald-950">
+                              {selectedStore.store_name}
+                            </h4>
+                            {selectedStore.island_group && (
+                              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold font-mono text-emerald-800 uppercase">
+                                {selectedStore.island_group}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-emerald-800">
+                            {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
+                              .filter(Boolean)
+                              .join(", ") || "Active Store"}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                          Verified Store
+                        </span>
+                      </div>
+                    )
                   ) : (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -965,13 +1027,53 @@ function RequestHeadcountModalDialog({
                           />
                         </div>
 
-                        <div className="max-h-48 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
+                        <div className="max-h-56 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
                           {filteredStationaryStores.length === 0 ? (
-                            <div className="p-4 text-center text-xs text-text-muted">
-                              {isLoadingMasterData
-                                ? "Loading stores..."
-                                : "No stores matching current filters."}
-                            </div>
+                            isLoadingMasterData ? (
+                              <div className="p-4 text-center text-xs text-text-muted">
+                                Loading stores...
+                              </div>
+                            ) : (
+                              <div className="p-4 bg-amber-50/70 border-b border-amber-200/50 space-y-3 text-xs text-amber-900">
+                                <div className="flex items-start gap-2.5">
+                                  <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+                                  <div className="space-y-1">
+                                    <h4 className="font-bold text-sm text-amber-950">
+                                      Store Not Found
+                                    </h4>
+                                    <p className="text-amber-800">
+                                      The store you are looking for is not yet registered under this operational account.
+                                    </p>
+                                    <p className="text-[11px] text-amber-700">
+                                      Store not found in masterlist. Do you want to submit a New Store Request with this headcount requisition?
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/60">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsNsrModalOpen(true)}
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition-colors"
+                                  >
+                                    <Plus className="h-3.5 w-3.5" />
+                                    <span>+ Request New Store</span>
+                                  </button>
+                                  {(storeSearch || selectedProvince || selectedCity) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setStoreSearch("");
+                                        setSelectedCity("");
+                                        setSelectedProvince("");
+                                      }}
+                                      className="rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100/50 transition-colors"
+                                    >
+                                      Clear Filters & Search
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )
                           ) : (
                             filteredStationaryStores.map((s) => (
                               <button
@@ -1392,8 +1494,15 @@ function RequestHeadcountModalDialog({
                   </span>
                   {workforceType === "stationary" ? (
                     <div className="mt-1 flex items-center justify-between">
-                      <div className="font-bold text-sm text-text-primary">
-                        {selectedStore?.store_name}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-text-primary">
+                          {selectedStore?.store_name}
+                        </span>
+                        {linkedNewStoreRequestId && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 uppercase">
+                            NSR Linked
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs text-text-muted">
                         {[selectedStore?.area_city, selectedStore?.province || selectedStore?.area_province]
@@ -1516,6 +1625,37 @@ function RequestHeadcountModalDialog({
           )}
         </div>
       </div>
+
+      {isNsrModalOpen && (
+        <NewStoreRequestModal
+          isOpen={isNsrModalOpen}
+          onClose={() => setIsNsrModalOpen(false)}
+          initialAccountId={selectedAccountId}
+          initialAccountName={selectedAccountName || propAccountName}
+          initialStoreName={storeSearch.trim()}
+          initialProvince={selectedProvince}
+          initialCity={selectedCity}
+          initialPosition={selectedPosition?.position_name}
+          initialRequestedHc={headcountNeeded}
+          provinces={provinces}
+          cities={cities}
+          existingStores={stores}
+          onSuccess={(result) => {
+            setLinkedNewStoreRequestId(result.requestId);
+            setSelectedStore({
+              id: result.requestId,
+              store_name: result.storeName,
+              province: result.province,
+              area_province: result.province,
+              area_city: result.city,
+            });
+            if (result.province) setSelectedProvince(result.province);
+            if (result.city) setSelectedCity(result.city);
+            setStoreSearch("");
+            setIsNsrModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

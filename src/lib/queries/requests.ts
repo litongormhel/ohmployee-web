@@ -773,6 +773,52 @@ export function useRejectNewStoreRequest() {
   });
 }
 
+export interface SubmitNewStoreRequestInput {
+  store_name: string;
+  province: string;
+  city: string;
+  account_id: string;
+  account_name: string;
+  reason: string;
+  position?: string | null;
+  requested_hc?: number | null;
+  group_id?: string | null;
+}
+
+export interface SubmitNewStoreRequestResult {
+  request_id: string;
+  status: string;
+  notifications_sent?: number;
+}
+
+export async function submitNewStoreRequest(
+  input: SubmitNewStoreRequestInput
+): Promise<SubmitNewStoreRequestResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("submit_new_store_request", {
+    p_input: input,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to submit new store request");
+  }
+
+  return data as SubmitNewStoreRequestResult;
+}
+
+export function useSubmitNewStoreRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SubmitNewStoreRequestInput) => submitNewStoreRequest(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+    },
+  });
+}
+
+
 // ─── Vacancy Closures ────────────────────────────────────────────────────────
 
 export type VacancyClosureRequestItem = {
