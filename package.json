@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:prod": "node scripts/switch-env.js prod && next dev",
-    "build": "node scripts/switch-env.js staging && next build",
+    "build": "next build",
+    "build:staging": "node scripts/switch-env.js staging && next build",
     "build:prod": "node scripts/switch-env.js prod && next build",
     "start": "next start",
     "lint": "eslint",
