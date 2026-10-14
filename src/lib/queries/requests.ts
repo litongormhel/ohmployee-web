@@ -78,6 +78,14 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
 
 export type RequestCategoryCounts = Record<RequestCategoryKey, number>;
 
+export type ApprovalStatusTab = "pending" | "approved" | "rejected";
+
+export type RequestStatusCounts = {
+  pending: number;
+  approved: number;
+  rejected: number;
+};
+
 export type HeadcountRequestItem = {
   id: string;
   requestType: string;
@@ -102,6 +110,9 @@ export type HeadcountRequestItem = {
   requestedByName: string | null;
   requestedByRole: string | null;
   requestedAt: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  reviewerRemarks: string | null;
   createdAt: string;
   workforceType: string | null;
   employmentType: string | null;
@@ -242,12 +253,14 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
 }
 
 /**
- * Fetches pending headcount requests including quota amendment requests.
+ * Fetches headcount requests including quota amendment requests, filtered by status tab.
  */
-export async function fetchPendingHeadcountRequests(): Promise<HeadcountRequestItem[]> {
+export async function fetchHeadcountRequests(
+  tab: ApprovalStatusTab = "pending"
+): Promise<HeadcountRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("headcount_requests")
     .select(`
       id,
@@ -269,12 +282,23 @@ export async function fetchPendingHeadcountRequests(): Promise<HeadcountRequestI
       requested_by_name,
       requested_by_role,
       requested_at,
+      reviewed_by_name,
+      reviewed_at,
+      reviewer_remarks,
       created_at,
       workforce_type,
       employment_type
-    `)
-    .or("status.ilike.pending,status.ilike.under_review")
-    .order("created_at", { ascending: false });
+    `);
+
+  if (tab === "pending") {
+    query = query.or("status.ilike.pending,status.ilike.under_review");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed,status.ilike.approved_pending_vcode");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.cancelled");
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -334,11 +358,32 @@ export async function fetchPendingHeadcountRequests(): Promise<HeadcountRequestI
       requestedByName: row.requested_by_name ?? null,
       requestedByRole: row.requested_by_role ?? null,
       requestedAt: row.requested_at ?? row.created_at,
+      reviewedByName: row.reviewed_by_name ?? null,
+      reviewedAt: row.reviewed_at ?? null,
+      reviewerRemarks: row.reviewer_remarks ?? null,
       createdAt: row.created_at,
       workforceType: row.workforce_type ?? null,
       employmentType: row.employment_type ?? null,
     };
   });
+}
+
+export const fetchPendingHeadcountRequests = () => fetchHeadcountRequests("pending");
+
+export async function fetchHeadcountCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("headcount_requests").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending" || s === "under_review") pending++;
+    else if (s === "approved" || s === "completed" || s === "approved_pending_vcode") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 export type ApproveHeadcountParams = {
@@ -448,10 +493,19 @@ export function useRequestCategoryCounts() {
   });
 }
 
-export function usePendingHeadcountRequests() {
+export function useHeadcountRequests(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["pending-headcount-requests"],
-    queryFn: () => fetchPendingHeadcountRequests(),
+    queryKey: ["headcount-requests", tab],
+    queryFn: () => fetchHeadcountRequests(tab),
+  });
+}
+
+export const usePendingHeadcountRequests = () => useHeadcountRequests("pending");
+
+export function useHeadcountCounts() {
+  return useQuery({
+    queryKey: ["headcount-counts"],
+    queryFn: () => fetchHeadcountCounts(),
   });
 }
 
@@ -463,6 +517,8 @@ export function useApproveHeadcountRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -480,6 +536,8 @@ export function useRejectHeadcountRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });
     },
   });
@@ -691,10 +749,12 @@ interface NewStoreDbRow {
   } | null;
 }
 
-export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestItem[]> {
+export async function fetchNewStoreRequests(
+  tab: ApprovalStatusTab = "pending"
+): Promise<NewStoreRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("new_store_requests")
     .select(`
       id,
@@ -736,8 +796,17 @@ export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestIte
         last_name,
         email
       )
-    `)
-    .ilike("status", "pending")
+    `);
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.cancelled");
+  }
+
+  const { data, error } = await query
     .eq("is_archived", false)
     .order("requested_at", { ascending: false });
 
@@ -781,6 +850,28 @@ export async function fetchPendingNewStoreRequests(): Promise<NewStoreRequestIte
       createdAt: row.created_at,
     };
   });
+}
+
+export const fetchPendingNewStoreRequests = () => fetchNewStoreRequests("pending");
+
+export async function fetchNewStoreCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("new_store_requests")
+    .select("status")
+    .eq("is_archived", false);
+
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParams) {
@@ -839,10 +930,19 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
   return data;
 }
 
-export function usePendingNewStoreRequests() {
+export function useNewStoreRequests(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["pending-new-store-requests"],
-    queryFn: () => fetchPendingNewStoreRequests(),
+    queryKey: ["new-store-requests", tab],
+    queryFn: () => fetchNewStoreRequests(tab),
+  });
+}
+
+export const usePendingNewStoreRequests = () => useNewStoreRequests("pending");
+
+export function useNewStoreCounts() {
+  return useQuery({
+    queryKey: ["new-store-counts"],
+    queryFn: () => fetchNewStoreCounts(),
   });
 }
 
@@ -854,6 +954,8 @@ export function useApproveNewStoreRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
     },
   });
@@ -867,6 +969,8 @@ export function useRejectNewStoreRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
     },
   });
 }
@@ -989,10 +1093,12 @@ interface VacancyClosureDbRow {
   } | null;
 }
 
-export async function fetchPendingVacancyClosureRequests(): Promise<VacancyClosureRequestItem[]> {
+export async function fetchVacancyClosureRequests(
+  tab: ApprovalStatusTab = "pending"
+): Promise<VacancyClosureRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("vacancy_closure_requests")
     .select(`
       id,
@@ -1012,9 +1118,17 @@ export async function fetchPendingVacancyClosureRequests(): Promise<VacancyClosu
         position,
         account
       )
-    `)
-    .ilike("status", "pending")
-    .order("created_at", { ascending: false });
+    `);
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.withdrawn");
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -1043,6 +1157,24 @@ export async function fetchPendingVacancyClosureRequests(): Promise<VacancyClosu
       account: vac?.account ?? null,
     };
   });
+}
+
+export const fetchPendingVacancyClosureRequests = () => fetchVacancyClosureRequests("pending");
+
+export async function fetchVacancyClosureCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("vacancy_closure_requests").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "withdrawn") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 export async function reviewVacancyClosureRequest({
@@ -1097,10 +1229,19 @@ export async function approveAllVacancyClosureRequests() {
   return data as { approved_count: number; skipped_count: number };
 }
 
-export function usePendingVacancyClosureRequests() {
+export function useVacancyClosureRequests(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["pending-vacancy-closure-requests"],
-    queryFn: () => fetchPendingVacancyClosureRequests(),
+    queryKey: ["vacancy-closure-requests", tab],
+    queryFn: () => fetchVacancyClosureRequests(tab),
+  });
+}
+
+export const usePendingVacancyClosureRequests = () => useVacancyClosureRequests("pending");
+
+export function useVacancyClosureCounts() {
+  return useQuery({
+    queryKey: ["vacancy-closure-counts"],
+    queryFn: () => fetchVacancyClosureCounts(),
   });
 }
 
@@ -1112,6 +1253,8 @@ export function useReviewVacancyClosureRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -1128,6 +1271,8 @@ export function useApproveAllVacancyClosures() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -1167,6 +1312,7 @@ export interface ApplicantMovementRequestItem {
   // Metadata & Justification
   reason: string;
   remarks: string | null;
+  rejectionReason: string | null;
   requestedBy: string;
   requestedByName: string;
   requestedByRole: string;
@@ -1205,6 +1351,7 @@ interface AmrDbRow {
   target_account_name: string | null;
   reason: string;
   remarks: string | null;
+  rejection_reason?: string | null;
   requested_by: string;
   requested_by_name: string;
   requested_by_role: string;
@@ -1215,10 +1362,12 @@ interface AmrDbRow {
   execution_error: string | null;
 }
 
-export async function fetchPendingApplicantMovementRequests(): Promise<ApplicantMovementRequestItem[]> {
+export async function fetchApplicantMovementRequests(
+  tab: ApprovalStatusTab = "pending"
+): Promise<ApplicantMovementRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("vw_amr_list")
     .select(`
       id,
@@ -1238,6 +1387,7 @@ export async function fetchPendingApplicantMovementRequests(): Promise<Applicant
       target_account_name,
       reason,
       remarks,
+      rejection_reason,
       requested_by,
       requested_by_name,
       requested_by_role,
@@ -1246,9 +1396,17 @@ export async function fetchPendingApplicantMovementRequests(): Promise<Applicant
       reservation_reserved_at,
       has_active_reservation,
       execution_error
-    `)
-    .ilike("status", "pending")
-    .order("created_at", { ascending: false });
+    `);
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.withdrawn");
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -1321,6 +1479,7 @@ export async function fetchPendingApplicantMovementRequests(): Promise<Applicant
       targetApplicantStatus: r.target_applicant_status ?? null,
       reason: r.reason || "Operational Requirement",
       remarks: r.remarks ?? null,
+      rejectionReason: r.rejection_reason ?? null,
       requestedBy: r.requested_by,
       requestedByName: r.requested_by_name || "—",
       requestedByRole: r.requested_by_role || "Requester",
@@ -1331,6 +1490,24 @@ export async function fetchPendingApplicantMovementRequests(): Promise<Applicant
       executionError: r.execution_error ?? null,
     };
   });
+}
+
+export const fetchPendingApplicantMovementRequests = () => fetchApplicantMovementRequests("pending");
+
+export async function fetchApplicantMovementCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("applicant_movement_requests").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "withdrawn") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 export async function approveApplicantMovementRequest({
@@ -1398,10 +1575,19 @@ export async function rejectApplicantMovementRequest({
   return data;
 }
 
-export function usePendingApplicantMovements() {
+export function useApplicantMovementRequests(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["applicant-movement-requests"],
-    queryFn: () => fetchPendingApplicantMovementRequests(),
+    queryKey: ["applicant-movement-requests", tab],
+    queryFn: () => fetchApplicantMovementRequests(tab),
+  });
+}
+
+export const usePendingApplicantMovements = () => useApplicantMovementRequests("pending");
+
+export function useApplicantMovementCounts() {
+  return useQuery({
+    queryKey: ["applicant-movement-counts"],
+    queryFn: () => fetchApplicantMovementCounts(),
   });
 }
 
@@ -1414,6 +1600,7 @@ export function useApproveApplicantMovement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["applicant-movement-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["applicant-movement-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -1431,6 +1618,7 @@ export function useRejectApplicantMovement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["applicant-movement-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["applicant-movement-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
     },
@@ -1966,19 +2154,29 @@ export interface AccountGroupTransferItem {
   updatedAt: string;
 }
 
-export async function fetchPendingAccountGroupTransfers(): Promise<AccountGroupTransferItem[]> {
+export async function fetchAccountGroupTransfers(
+  tab: ApprovalStatusTab = "pending"
+): Promise<AccountGroupTransferItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("account_group_transfer_requests")
     .select(`
       *,
       accounts:account_id(account_name),
       from_groups:from_group_id(group_name, group_code),
       to_groups:to_group_id(group_name, group_code)
-    `)
-    .ilike("status", "pending")
-    .order("created_at", { ascending: false });
+    `);
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.cancelled");
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -2047,6 +2245,24 @@ export async function fetchPendingAccountGroupTransfers(): Promise<AccountGroupT
   });
 }
 
+export const fetchPendingAccountGroupTransfers = () => fetchAccountGroupTransfers("pending");
+
+export async function fetchAccountGroupTransferCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("account_group_transfer_requests").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+  return { pending, approved, rejected };
+}
+
 export async function approveAccountGroupTransfer(requestId: string): Promise<void> {
   const supabase = createClient();
 
@@ -2094,10 +2310,19 @@ export async function rejectAccountGroupTransfer({
   }
 }
 
-export function usePendingAccountGroupTransfers() {
+export function useAccountGroupTransfers(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["account-group-transfers"],
-    queryFn: () => fetchPendingAccountGroupTransfers(),
+    queryKey: ["account-group-transfers", tab],
+    queryFn: () => fetchAccountGroupTransfers(tab),
+  });
+}
+
+export const usePendingAccountGroupTransfers = () => useAccountGroupTransfers("pending");
+
+export function useAccountGroupTransferCounts() {
+  return useQuery({
+    queryKey: ["account-group-transfer-counts"],
+    queryFn: () => fetchAccountGroupTransferCounts(),
   });
 }
 
@@ -2109,6 +2334,7 @@ export function useApproveAccountGroupTransfer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["account-group-transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["account-group-transfer-counts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -2126,6 +2352,7 @@ export function useRejectAccountGroupTransfer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["account-group-transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["account-group-transfer-counts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -2194,13 +2421,12 @@ export type CoverageGroupRequestItem = {
   createdAt: string;
 };
 
-/**
- * Fetches pending Reliever Endorsement requests from v_workforce_assignment_request_queue.
- */
-export async function fetchPendingRelieverEndorsements(): Promise<RelieverEndorsementItem[]> {
+export async function fetchRelieverEndorsements(
+  tab: ApprovalStatusTab = "pending"
+): Promise<RelieverEndorsementItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("v_workforce_assignment_request_queue")
     .select(`
       request_id,
@@ -2225,8 +2451,17 @@ export async function fetchPendingRelieverEndorsements(): Promise<RelieverEndors
       request_age_days,
       escalation_level,
       notify_target_role
-    `)
-    .in("status", ["Pending", "pending", "For Review", "for review"])
+    `);
+
+  if (tab === "pending") {
+    query = query.in("status", ["Pending", "pending", "For Review", "for review"]);
+  } else if (tab === "approved") {
+    query = query.in("status", ["Approved", "approved", "Completed", "completed"]);
+  } else if (tab === "rejected") {
+    query = query.in("status", ["Rejected", "rejected", "Cancelled", "cancelled"]);
+  }
+
+  const { data, error } = await query
     .order("request_age_days", { ascending: false })
     .order("created_at", { ascending: true });
 
@@ -2263,13 +2498,33 @@ export async function fetchPendingRelieverEndorsements(): Promise<RelieverEndors
   }));
 }
 
+export const fetchPendingRelieverEndorsements = () => fetchRelieverEndorsements("pending");
+
+export async function fetchRelieverCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("v_workforce_assignment_request_queue").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending" || s === "for review") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+  return { pending, approved, rejected };
+}
+
 /**
- * Fetches pending Coverage Requests (roving coverage structures) joined with accounts and coverage groups.
+ * Fetches Coverage Requests (roving coverage structures) joined with accounts and coverage groups.
  */
-export async function fetchPendingCoverageRequests(): Promise<CoverageGroupRequestItem[]> {
+export async function fetchCoverageRequests(
+  tab: ApprovalStatusTab = "pending"
+): Promise<CoverageGroupRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("coverage_requests")
     .select(`
       id,
@@ -2304,8 +2559,17 @@ export async function fetchPendingCoverageRequests(): Promise<CoverageGroupReque
         coverage_code,
         area_name
       )
-    `)
-    .in("status", ["pending", "draft"])
+    `);
+
+  if (tab === "pending") {
+    query = query.in("status", ["pending", "draft"]);
+  } else if (tab === "approved") {
+    query = query.in("status", ["approved"]);
+  } else if (tab === "rejected") {
+    query = query.in("status", ["rejected", "cancelled"]);
+  }
+
+  const { data, error } = await query
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
@@ -2376,6 +2640,24 @@ export async function fetchPendingCoverageRequests(): Promise<CoverageGroupReque
     executionSummary: row.execution_summary ?? null,
     createdAt: row.created_at,
   }));
+}
+
+export const fetchPendingCoverageRequests = () => fetchCoverageRequests("pending");
+
+export async function fetchCoverageCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("coverage_requests").select("status").is("archived_at", null);
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending" || s === "draft") pending++;
+    else if (s === "approved") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 /**
@@ -2508,17 +2790,35 @@ export async function rejectCoverageRequest({
   }
 }
 
-export function usePendingRelieverEndorsements() {
+export function useRelieverEndorsements(tab: ApprovalStatusTab = "pending") {
   return useQuery({
-    queryKey: ["reliever-endorsements"],
-    queryFn: () => fetchPendingRelieverEndorsements(),
+    queryKey: ["reliever-endorsements", tab],
+    queryFn: () => fetchRelieverEndorsements(tab),
   });
 }
 
-export function usePendingCoverageRequests() {
+export const usePendingRelieverEndorsements = () => useRelieverEndorsements("pending");
+
+export function useRelieverCounts() {
   return useQuery({
-    queryKey: ["coverage-group-requests"],
-    queryFn: () => fetchPendingCoverageRequests(),
+    queryKey: ["reliever-counts"],
+    queryFn: () => fetchRelieverCounts(),
+  });
+}
+
+export function useCoverageRequests(tab: ApprovalStatusTab = "pending") {
+  return useQuery({
+    queryKey: ["coverage-group-requests", tab],
+    queryFn: () => fetchCoverageRequests(tab),
+  });
+}
+
+export const usePendingCoverageRequests = () => useCoverageRequests("pending");
+
+export function useCoverageCounts() {
+  return useQuery({
+    queryKey: ["coverage-counts"],
+    queryFn: () => fetchCoverageCounts(),
   });
 }
 
@@ -2534,6 +2834,7 @@ export function useApproveRelieverCoverage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["reliever-endorsements"] });
+      queryClient.invalidateQueries({ queryKey: ["reliever-counts"] });
       queryClient.invalidateQueries({ queryKey: ["workforce-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
@@ -2550,6 +2851,7 @@ export function useRejectRelieverCoverage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["reliever-endorsements"] });
+      queryClient.invalidateQueries({ queryKey: ["reliever-counts"] });
       queryClient.invalidateQueries({ queryKey: ["workforce-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
@@ -2568,6 +2870,7 @@ export function useApproveCoverageRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["coverage-group-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-counts"] });
       queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
@@ -2588,6 +2891,7 @@ export function useRejectCoverageRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["coverage-group-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-counts"] });
       queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });

@@ -12,34 +12,44 @@ import {
   X,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
-import { ApplicantMovementApprovalCard } from "@/components/approvals/ApplicantMovementApprovalCard";
-import { CoverageGroupApprovalCard } from "@/components/approvals/CoverageGroupApprovalCard";
+import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
+import { ApplicantMovementDataTable } from "@/components/approvals/ApplicantMovementDataTable";
+import { CoverageDataTable } from "@/components/approvals/CoverageDataTable";
 import { DeactivationDataTable } from "@/components/approvals/DeactivationDataTable";
-import { HeadcountAmendmentApprovalCard } from "@/components/approvals/HeadcountAmendmentApprovalCard";
-import { HeadcountStandardApprovalCard } from "@/components/approvals/HeadcountStandardApprovalCard";
-import { HrEmplocDeletionReviewCard } from "@/components/approvals/HrEmplocDeletionReviewCard";
-import { NewStoreApprovalCard } from "@/components/approvals/NewStoreApprovalCard";
-import { RelieverCoverageApprovalCard } from "@/components/approvals/RelieverCoverageApprovalCard";
-import { StoreTransferApprovalCard } from "@/components/approvals/StoreTransferApprovalCard";
-import { VacancyClosureApprovalCard } from "@/components/approvals/VacancyClosureApprovalCard";
+import { HeadcountDataTable } from "@/components/approvals/HeadcountDataTable";
+import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeletionDataTable";
+import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
+import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
+import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
 import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
 import {
   REQUEST_CATEGORIES,
-  usePendingHeadcountRequests,
-  usePendingNewStoreRequests,
-  usePendingVacancyClosureRequests,
-  usePendingApplicantMovements,
+  useHeadcountRequests,
+  useHeadcountCounts,
+  useNewStoreRequests,
+  useNewStoreCounts,
+  useVacancyClosureRequests,
+  useVacancyClosureCounts,
+  useApplicantMovementRequests,
+  useApplicantMovementCounts,
   useDeactivationRequests,
   useDeactivationCounts,
   type DeactivationStatusTab,
-  usePendingAccountGroupTransfers,
-  usePendingRelieverEndorsements,
-  usePendingCoverageRequests,
+  type ApprovalStatusTab,
+  useAccountGroupTransfers,
+  useAccountGroupTransferCounts,
+  useRelieverEndorsements,
+  useRelieverCounts,
+  useCoverageRequests,
+  useCoverageCounts,
   useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
-import { useEmplocDeletionRequests } from "@/lib/queries/hr_emploc";
+import {
+  useEmplocDeletionRequests,
+  useEmplocDeletionCounts,
+} from "@/lib/queries/hr_emploc";
 
 interface ActiveQueueReviewPaneProps {
   selectedCategory: RequestCategoryKey;
@@ -62,69 +72,107 @@ export function ActiveQueueReviewPane({
     currentUser?.roleKey || currentUser?.roleName
   );
 
-  // Search & Filter state
-  const [filterType, setFilterType] = useState<"all" | "amendment" | "standard">("all");
+  // Sub-tab selection state (pending | approved | rejected) for each queue
+  const [newStoreTab, setNewStoreTab] = useState<ApprovalStatusTab>("pending");
+  const [headcountTab, setHeadcountTab] = useState<ApprovalStatusTab>("pending");
+  const [coverageTab, setCoverageTab] = useState<ApprovalStatusTab>("pending");
+  const [vacancyClosureTab, setVacancyClosureTab] = useState<ApprovalStatusTab>("pending");
+  const [hrEmplocTab, setHrEmplocTab] = useState<ApprovalStatusTab>("pending");
+  const [movementTab, setMovementTab] = useState<ApprovalStatusTab>("pending");
+  const [deactivationTab, setDeactivationTab] = useState<DeactivationStatusTab>("pending");
+  const [transferTab, setTransferTab] = useState<ApprovalStatusTab>("pending");
+  const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
+
+  // Search queries per queue
   const [searchQuery, setSearchQuery] = useState("");
   const [deletionSearchQuery, setDeletionSearchQuery] = useState("");
   const [newStoreSearchQuery, setNewStoreSearchQuery] = useState("");
   const [vacancyClosureSearchQuery, setVacancyClosureSearchQuery] = useState("");
   const [movementSearchQuery, setMovementSearchQuery] = useState("");
-  const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "TRANSFER" | "SWAP">("all");
   const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
-  const [deactivationTab, setDeactivationTab] = useState<DeactivationStatusTab>("pending");
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
-  const [relieverPriorityFilter, setRelieverPriorityFilter] = useState<"all" | "Urgent" | "High" | "Normal">("all");
 
-  // Bulk actions state
+  // Bulk actions state for Vacancy Closures
   const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
   const [approveAllFeedback, setApproveAllFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
-  // Queries
+  // ── Queries & Live Counts ───────────────────────────────────────────────
+  // 1. Headcount
   const {
     data: requests = [],
     isLoading,
     isError,
     refetch,
     isRefetching,
-  } = usePendingHeadcountRequests();
+  } = useHeadcountRequests(headcountTab);
 
+  const {
+    data: headcountCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchHeadcountCounts,
+  } = useHeadcountCounts();
+
+  // 2. HR Emploc Deletions
   const {
     data: deletionRequests = [],
     isLoading: isDeletionLoading,
     isError: isDeletionError,
     refetch: refetchDeletions,
     isRefetching: isDeletionRefetching,
-  } = useEmplocDeletionRequests();
+  } = useEmplocDeletionRequests(hrEmplocTab);
 
+  const {
+    data: deletionCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchDeletionCounts,
+  } = useEmplocDeletionCounts();
+
+  // 3. New Store Requests
   const {
     data: newStoreRequests = [],
     isLoading: isNewStoreLoading,
     isError: isNewStoreError,
     refetch: refetchNewStores,
     isRefetching: isNewStoreRefetching,
-  } = usePendingNewStoreRequests();
+  } = useNewStoreRequests(newStoreTab);
 
+  const {
+    data: newStoreCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchNewStoreCounts,
+  } = useNewStoreCounts();
+
+  // 4. Vacancy Closures
   const {
     data: closureRequests = [],
     isLoading: isClosureLoading,
     isError: isClosureError,
     refetch: refetchClosures,
     isRefetching: isClosureRefetching,
-  } = usePendingVacancyClosureRequests();
+  } = useVacancyClosureRequests(vacancyClosureTab);
 
+  const {
+    data: closureCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchClosureCounts,
+  } = useVacancyClosureCounts();
+
+  // 5. Applicant Movements
   const {
     data: movementRequests = [],
     isLoading: isMovementLoading,
     isError: isMovementError,
     refetch: refetchMovements,
     isRefetching: isMovementRefetching,
-  } = usePendingApplicantMovements();
+  } = useApplicantMovementRequests(movementTab);
 
+  const {
+    data: movementCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchMovementCounts,
+  } = useApplicantMovementCounts();
+
+  // 6. Deactivations
   const {
     data: deactivationRequests = [],
     isLoading: isDeactLoading,
@@ -138,66 +186,81 @@ export function ActiveQueueReviewPane({
     refetch: refetchDeactCounts,
   } = useDeactivationCounts();
 
+  // 7. Account Group Transfers
   const {
     data: transferRequests = [],
     isLoading: isTransferLoading,
     isError: isTransferError,
     refetch: refetchTransfers,
     isRefetching: isTransferRefetching,
-  } = usePendingAccountGroupTransfers();
+  } = useAccountGroupTransfers(transferTab);
 
+  const {
+    data: transferCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchTransferCounts,
+  } = useAccountGroupTransferCounts();
+
+  // 8. Relievers
   const {
     data: relieverRequests = [],
     isLoading: isRelieverLoading,
     isError: isRelieverError,
     refetch: refetchRelievers,
     isRefetching: isRelieverRefetching,
-  } = usePendingRelieverEndorsements();
+  } = useRelieverEndorsements(relieverTab);
 
+  const {
+    data: relieverCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchRelieverCounts,
+  } = useRelieverCounts();
+
+  // 9. Coverage
   const {
     data: rovingRequests = [],
     isLoading: isRovingLoading,
     isError: isRovingError,
     refetch: refetchRoving,
     isRefetching: isRovingRefetching,
-  } = usePendingCoverageRequests();
+  } = useCoverageRequests(coverageTab);
+
+  const {
+    data: coverageCounts = { pending: 0, approved: 0, rejected: 0 },
+    refetch: refetchCoverageCounts,
+  } = useCoverageCounts();
 
   const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
   const currentCategoryConfig = useMemo(() => {
     return (
       REQUEST_CATEGORIES.find((c) => c.key === selectedCategory) ??
-      REQUEST_CATEGORIES[1] // Default to headcount
+      REQUEST_CATEGORIES[1]
     );
   }, [selectedCategory]);
 
+  // ── Filtered Search Results ──────────────────────────────────────────────
   const filteredRequests = useMemo(() => {
+    if (!searchQuery.trim()) return requests;
+    const q = searchQuery.toLowerCase();
     return requests.filter((req) => {
-      // Type filter
-      if (filterType === "amendment" && !req.isQuotaAmendment) return false;
-      if (filterType === "standard" && req.isQuotaAmendment) return false;
+      const matchesStore = req.storeName?.toLowerCase().includes(q);
+      const matchesVcode = req.targetVcode?.toLowerCase().includes(q);
+      const matchesPosition = req.positionName?.toLowerCase().includes(q);
+      const matchesAccount = req.accountName?.toLowerCase().includes(q);
+      const matchesRequester = req.requestedByName?.toLowerCase().includes(q);
+      const matchesRemarks = req.reviewerRemarks?.toLowerCase().includes(q);
+      const matchesReason = req.reason?.toLowerCase().includes(q);
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesStore = req.storeName?.toLowerCase().includes(q);
-        const matchesVcode = req.targetVcode?.toLowerCase().includes(q);
-        const matchesPosition = req.positionName?.toLowerCase().includes(q);
-        const matchesAccount = req.accountName?.toLowerCase().includes(q);
-        const matchesRequester = req.requestedByName?.toLowerCase().includes(q);
-
-        return (
-          matchesStore ||
-          matchesVcode ||
-          matchesPosition ||
-          matchesAccount ||
-          matchesRequester
-        );
-      }
-
-      return true;
+      return (
+        matchesStore ||
+        matchesVcode ||
+        matchesPosition ||
+        matchesAccount ||
+        matchesRequester ||
+        matchesRemarks ||
+        matchesReason
+      );
     });
-  }, [requests, filterType, searchQuery]);
+  }, [requests, searchQuery]);
 
   const filteredDeletionRequests = useMemo(() => {
     if (!deletionSearchQuery.trim()) return deletionRequests;
@@ -209,7 +272,8 @@ export function ActiveQueueReviewPane({
         req.storeName?.toLowerCase().includes(q) ||
         req.positionTitle?.toLowerCase().includes(q) ||
         req.requestedByName?.toLowerCase().includes(q) ||
-        req.employeeNo?.toLowerCase().includes(q)
+        req.employeeNo?.toLowerCase().includes(q) ||
+        (req.reviewerRemarks?.toLowerCase().includes(q) ?? false)
     );
   }, [deletionRequests, deletionSearchQuery]);
 
@@ -224,7 +288,8 @@ export function ActiveQueueReviewPane({
         req.province.toLowerCase().includes(q) ||
         req.requestedByName?.toLowerCase().includes(q) ||
         req.groupName?.toLowerCase().includes(q) ||
-        req.reason.toLowerCase().includes(q)
+        req.reason.toLowerCase().includes(q) ||
+        (req.reviewReason?.toLowerCase().includes(q) ?? false)
     );
   }, [newStoreRequests, newStoreSearchQuery]);
 
@@ -240,17 +305,15 @@ export function ActiveQueueReviewPane({
         req.account?.toLowerCase().includes(q) ||
         req.requestedBy.toLowerCase().includes(q) ||
         req.reason.toLowerCase().includes(q) ||
-        req.details?.toLowerCase().includes(q)
+        req.details?.toLowerCase().includes(q) ||
+        (req.reviewerRemarks?.toLowerCase().includes(q) ?? false)
     );
   }, [closureRequests, vacancyClosureSearchQuery]);
 
   const filteredMovementRequests = useMemo(() => {
+    if (!movementSearchQuery.trim()) return movementRequests;
+    const q = movementSearchQuery.toLowerCase();
     return movementRequests.filter((req) => {
-      if (movementTypeFilter !== "all" && req.movementType !== movementTypeFilter) {
-        return false;
-      }
-      if (!movementSearchQuery.trim()) return true;
-      const q = movementSearchQuery.toLowerCase();
       const matchSource =
         req.sourceApplicantName.toLowerCase().includes(q) ||
         req.sourceVacancyVcode.toLowerCase().includes(q) ||
@@ -267,20 +330,12 @@ export function ActiveQueueReviewPane({
         req.requestNumber.toLowerCase().includes(q) ||
         req.requestedByName.toLowerCase().includes(q) ||
         req.reason.toLowerCase().includes(q) ||
-        req.remarks?.toLowerCase().includes(q);
+        (req.remarks?.toLowerCase().includes(q) ?? false) ||
+        (req.rejectionReason?.toLowerCase().includes(q) ?? false);
 
       return matchSource || matchTarget || matchMeta;
     });
-  }, [movementRequests, movementTypeFilter, movementSearchQuery]);
-
-  const transferCount = useMemo(
-    () => movementRequests.filter((r) => r.movementType === "TRANSFER").length,
-    [movementRequests]
-  );
-  const swapCount = useMemo(
-    () => movementRequests.filter((r) => r.movementType === "SWAP").length,
-    [movementRequests]
-  );
+  }, [movementRequests, movementSearchQuery]);
 
   const filteredDeactivationRequests = useMemo(() => {
     if (!deactivationSearchQuery.trim()) return deactivationRequests;
@@ -313,21 +368,16 @@ export function ActiveQueueReviewPane({
         req.toGroupName.toLowerCase().includes(q) ||
         req.toGroupCode.toLowerCase().includes(q) ||
         req.requestedByName.toLowerCase().includes(q) ||
-        req.reason.toLowerCase().includes(q)
+        req.reason.toLowerCase().includes(q) ||
+        (req.rejectionReason?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [transferRequests, transferSearchQuery]);
 
   const filteredRelieverRequests = useMemo(() => {
+    if (!relieverSearchQuery.trim()) return relieverRequests;
+    const q = relieverSearchQuery.toLowerCase();
     return relieverRequests.filter((req) => {
-      if (
-        relieverPriorityFilter !== "all" &&
-        req.priority.toLowerCase() !== relieverPriorityFilter.toLowerCase()
-      ) {
-        return false;
-      }
-      if (!relieverSearchQuery.trim()) return true;
-      const q = relieverSearchQuery.toLowerCase();
       return (
         (req.employeeName?.toLowerCase().includes(q) ?? false) ||
         (req.employeeNumber?.toLowerCase().includes(q) ?? false) ||
@@ -336,10 +386,11 @@ export function ActiveQueueReviewPane({
         (req.requestedGroup?.toLowerCase().includes(q) ?? false) ||
         (req.requestedBy?.toLowerCase().includes(q) ?? false) ||
         (req.reason?.toLowerCase().includes(q) ?? false) ||
-        (req.poolType?.toLowerCase().includes(q) ?? false)
+        (req.poolType?.toLowerCase().includes(q) ?? false) ||
+        (req.rejectionReason?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [relieverRequests, relieverPriorityFilter, relieverSearchQuery]);
+  }, [relieverRequests, relieverSearchQuery]);
 
   const filteredRovingRequests = useMemo(() => {
     if (!rovingSearchQuery.trim()) return rovingRequests;
@@ -351,20 +402,14 @@ export function ActiveQueueReviewPane({
         (req.targetCoverageGroupName?.toLowerCase().includes(q) ?? false) ||
         (req.targetCoverageGroupCode?.toLowerCase().includes(q) ?? false) ||
         req.requestedByName.toLowerCase().includes(q) ||
-        (req.reason?.toLowerCase().includes(q) ?? false)
+        (req.reason?.toLowerCase().includes(q) ?? false) ||
+        (req.rejectionReason?.toLowerCase().includes(q) ?? false) ||
+        (req.reviewerRemarks?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [rovingRequests, rovingSearchQuery]);
 
-  const quotaCount = useMemo(
-    () => requests.filter((r) => r.isQuotaAmendment).length,
-    [requests]
-  );
-  const standardCount = useMemo(
-    () => requests.filter((r) => !r.isQuotaAmendment).length,
-    [requests]
-  );
-
+  // Bulk closure confirm handler
   const handleConfirmApproveAllClosures = async () => {
     setApproveAllFeedback(null);
     try {
@@ -376,6 +421,8 @@ export function ActiveQueueReviewPane({
         }${res.skipped_count > 0 ? ` (${res.skipped_count} skipped)` : ""}.`,
       });
       setIsApproveAllClosuresOpen(false);
+      refetchClosures();
+      refetchClosureCounts();
     } catch (err: unknown) {
       setApproveAllFeedback({
         type: "error",
@@ -387,70 +434,129 @@ export function ActiveQueueReviewPane({
     }
   };
 
-
   // ── 1. New Store Requests Queue ──────────────────────────────────────────
   if (selectedCategory === "new_stores") {
+    const handleRefresh = () => {
+      refetchNewStores();
+      refetchNewStoreCounts();
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  New Store Requests Queue
-                </h2>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-emerald-800">
-                  {newStoreRequests.length} pending
-                </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search store, account, city, province, requester..."
+                  value={newStoreSearchQuery}
+                  onChange={(e) => setNewStoreSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                Review store registry additions and branch onboarding requests awaiting administrative verification.
-              </p>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setNewStoreTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    newStoreTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      newStoreTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {newStoreCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewStoreTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    newStoreTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      newStoreTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {newStoreCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewStoreTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    newStoreTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      newStoreTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {newStoreCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchNewStores()}
+              onClick={handleRefresh}
               disabled={isNewStoreRefetching || isNewStoreLoading}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isNewStoreRefetching ? "animate-spin text-brand-600" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isNewStoreRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-
-          {/* Search */}
-          <div className="mt-4">
-            <div className="relative min-w-[240px] max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search store name, account, location, requester..."
-                value={newStoreSearchQuery}
-                onChange={(e) => setNewStoreSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isNewStoreLoading ? (
             <DataState
               kind="loading"
               title="Loading New Store Requests"
-              description="Fetching pending new store addition requests..."
+              description="Fetching new store addition requests..."
             />
           ) : isNewStoreError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
-              description="An error occurred while fetching pending new store requests."
-              onRetry={() => refetchNewStores()}
+              description="An error occurred while fetching new store requests."
+              onRetry={handleRefresh}
             />
           ) : filteredNewStoreRequests.length === 0 ? (
             <DataState
@@ -458,20 +564,27 @@ export function ActiveQueueReviewPane({
               title={
                 newStoreSearchQuery
                   ? "No Matching Requests"
-                  : "No Pending Store Requests"
+                  : newStoreTab === "pending"
+                  ? "No Pending Store Requests"
+                  : newStoreTab === "approved"
+                  ? "No Approved Store Requests"
+                  : "No Rejected Store Requests"
               }
               description={
                 newStoreSearchQuery
                   ? `No requests match "${newStoreSearchQuery}". Clear your search query to see all items.`
-                  : "All new store addition requests have been reviewed and processed."
+                  : newStoreTab === "pending"
+                  ? "All new store addition requests have been reviewed and processed."
+                  : newStoreTab === "approved"
+                  ? "No approved new store requests found in this queue."
+                  : "No rejected new store requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredNewStoreRequests.map((req) => (
-                <NewStoreApprovalCard key={req.id} request={req} />
-              ))}
-            </div>
+            <NewStoreDataTable
+              requests={filteredNewStoreRequests}
+              tab={newStoreTab}
+            />
           )}
         </div>
       </div>
@@ -480,27 +593,99 @@ export function ActiveQueueReviewPane({
 
   // ── 2. Vacancy Closures Queue ─────────────────────────────────────────────
   if (selectedCategory === "vacancy_closures") {
+    const handleRefresh = () => {
+      refetchClosures();
+      refetchClosureCounts();
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  Vacancy Closures Queue
-                </h2>
-                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-indigo-800">
-                  {closureRequests.length} pending
-                </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search VCode, store, position, requester..."
+                  value={vacancyClosureSearchQuery}
+                  onChange={(e) => setVacancyClosureSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                Review position requisition retirement and closed-slot clearance requests awaiting administrative action.
-              </p>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setVacancyClosureTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    vacancyClosureTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      vacancyClosureTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {closureCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVacancyClosureTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    vacancyClosureTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      vacancyClosureTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {closureCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVacancyClosureTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    vacancyClosureTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      vacancyClosureTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {closureCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Right side controls: Bulk Approve + Refresh */}
             <div className="flex items-center gap-2">
-              {canBulkApproveClosures && (
+              {canBulkApproveClosures && vacancyClosureTab === "pending" && (
                 <button
                   type="button"
                   onClick={() => setIsApproveAllClosuresOpen(true)}
@@ -517,7 +702,7 @@ export function ActiveQueueReviewPane({
 
               <button
                 type="button"
-                onClick={() => refetchClosures()}
+                onClick={handleRefresh}
                 disabled={isClosureRefetching || isClosureLoading}
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
               >
@@ -550,36 +735,22 @@ export function ActiveQueueReviewPane({
               </button>
             </div>
           )}
-
-          {/* Search */}
-          <div className="mt-4">
-            <div className="relative min-w-[240px] max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search VCode, store, position, requester..."
-                value={vacancyClosureSearchQuery}
-                onChange={(e) => setVacancyClosureSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isClosureLoading ? (
             <DataState
               kind="loading"
               title="Loading Vacancy Closures"
-              description="Fetching pending vacancy closure requests..."
+              description="Fetching vacancy closure requests..."
             />
           ) : isClosureError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
-              description="An error occurred while fetching pending vacancy closure requests."
-              onRetry={() => refetchClosures()}
+              description="An error occurred while fetching vacancy closure requests."
+              onRetry={handleRefresh}
             />
           ) : filteredClosureRequests.length === 0 ? (
             <DataState
@@ -587,20 +758,27 @@ export function ActiveQueueReviewPane({
               title={
                 vacancyClosureSearchQuery
                   ? "No Matching Requests"
-                  : "No Pending Vacancy Closures"
+                  : vacancyClosureTab === "pending"
+                  ? "No Pending Vacancy Closures"
+                  : vacancyClosureTab === "approved"
+                  ? "No Closed Vacancies"
+                  : "No Rejected Vacancy Closures"
               }
               description={
                 vacancyClosureSearchQuery
                   ? `No requests match "${vacancyClosureSearchQuery}". Clear your search query to see all items.`
-                  : "All vacancy closure requests have been reviewed and processed."
+                  : vacancyClosureTab === "pending"
+                  ? "All vacancy closure requests have been reviewed and processed."
+                  : vacancyClosureTab === "approved"
+                  ? "No approved vacancy closure requests found in this queue."
+                  : "No rejected vacancy closure requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredClosureRequests.map((req) => (
-                <VacancyClosureApprovalCard key={req.id} request={req} />
-              ))}
-            </div>
+            <VacancyClosureDataTable
+              requests={filteredClosureRequests}
+              tab={vacancyClosureTab}
+            />
           )}
         </div>
 
@@ -682,67 +860,127 @@ export function ActiveQueueReviewPane({
 
   // ── 3. HR Emploc Deletions Queue ─────────────────────────────────────────
   if (selectedCategory === "hr_emploc_deletions") {
+    const handleRefresh = () => {
+      refetchDeletions();
+      refetchDeletionCounts();
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  HR Emploc Deletion Queue
-                </h2>
-                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-amber-800">
-                  {deletionRequests.length} pending
-                </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search employee, VCode, store, requester..."
+                  value={deletionSearchQuery}
+                  onChange={(e) => setDeletionSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                Review employee locator Backout and Duplicate Record deletion requests awaiting administrative approval.
-              </p>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setHrEmplocTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    hrEmplocTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      hrEmplocTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deletionCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setHrEmplocTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    hrEmplocTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      hrEmplocTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deletionCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setHrEmplocTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    hrEmplocTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      hrEmplocTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {deletionCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchDeletions()}
+              onClick={handleRefresh}
               disabled={isDeletionRefetching || isDeletionLoading}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isDeletionRefetching ? "animate-spin text-brand-600" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isDeletionRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-
-          {/* Search */}
-          <div className="mt-4">
-            <div className="relative min-w-[240px] max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search employee, VCode, store..."
-                value={deletionSearchQuery}
-                onChange={(e) => setDeletionSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isDeletionLoading ? (
             <DataState
               kind="loading"
               title="Loading Deletion Requests"
-              description="Fetching pending HR Emploc deletion requests..."
+              description="Fetching HR Emploc deletion requests..."
             />
           ) : isDeletionError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
-              description="An error occurred while fetching pending deletion requests."
-              onRetry={() => refetchDeletions()}
+              description="An error occurred while fetching deletion requests."
+              onRetry={handleRefresh}
             />
           ) : filteredDeletionRequests.length === 0 ? (
             <DataState
@@ -750,20 +988,27 @@ export function ActiveQueueReviewPane({
               title={
                 deletionSearchQuery
                   ? "No Matching Requests"
-                  : "No Pending Deletion Requests"
+                  : hrEmplocTab === "pending"
+                  ? "No Pending Deletion Requests"
+                  : hrEmplocTab === "approved"
+                  ? "No Approved Deletions"
+                  : "No Rejected Deletions"
               }
               description={
                 deletionSearchQuery
                   ? `No requests match "${deletionSearchQuery}". Clear your search to see all items.`
-                  : "All HR Emploc deletion requests have been reviewed and processed."
+                  : hrEmplocTab === "pending"
+                  ? "All HR Emploc deletion requests have been reviewed and processed."
+                  : hrEmplocTab === "approved"
+                  ? "No approved HR Emploc deletion requests found in this queue."
+                  : "No rejected HR Emploc deletion requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredDeletionRequests.map((req) => (
-                <HrEmplocDeletionReviewCard key={req.id} request={req} />
-              ))}
-            </div>
+            <HrEmplocDeletionDataTable
+              requests={filteredDeletionRequests}
+              tab={hrEmplocTab}
+            />
           )}
         </div>
       </div>
@@ -772,115 +1017,127 @@ export function ActiveQueueReviewPane({
 
   // ── 4. Headcount Approvals Queue ─────────────────────────────────────────
   if (selectedCategory === "headcount") {
+    const handleRefresh = () => {
+      refetch();
+      refetchHeadcountCounts();
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  Headcount Approvals Queue
-                </h2>
-                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-brand-800">
-                  {requests.length} pending
-                </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search store, VCode, position, requester..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                Review operational quota amendments and additional capacity requests awaiting administrative action.
-              </p>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setHeadcountTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    headcountTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      headcountTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {headcountCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setHeadcountTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    headcountTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      headcountTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {headcountCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setHeadcountTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    headcountTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      headcountTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {headcountCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetch()}
+              onClick={handleRefresh}
               disabled={isRefetching || isLoading}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin text-brand-600" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-
-          {/* Filters & Search */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-              <button
-                type="button"
-                onClick={() => setFilterType("all")}
-                className={`rounded-md px-3 py-1 font-medium transition ${
-                  filterType === "all"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                All ({requests.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("amendment")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                  filterType === "amendment"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <span>Quota Amendments</span>
-                {quotaCount > 0 && (
-                  <span className="rounded-full bg-purple-100 px-1.5 text-[10px] font-mono font-semibold text-purple-700">
-                    {quotaCount}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("standard")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                  filterType === "standard"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <span>Standard Headcount</span>
-                {standardCount > 0 && (
-                  <span className="rounded-full bg-blue-100 px-1.5 text-[10px] font-mono font-semibold text-blue-700">
-                    {standardCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative min-w-[240px] flex-1 max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search store, VCode, position..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isLoading ? (
             <DataState
               kind="loading"
               title="Loading Headcount Requests"
-              description="Fetching live pending quota amendments and headcount requests..."
+              description="Fetching quota amendments and headcount requests..."
             />
           ) : isError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching pending headcount requests."
-              onRetry={() => refetch()}
+              onRetry={handleRefresh}
             />
           ) : filteredRequests.length === 0 ? (
             <DataState
@@ -888,26 +1145,27 @@ export function ActiveQueueReviewPane({
               title={
                 searchQuery
                   ? "No Matching Requests"
-                  : filterType === "amendment"
-                    ? "No Pending Quota Amendments"
-                    : "No Pending Headcount Requests"
+                  : headcountTab === "pending"
+                  ? "No Pending Headcount Requests"
+                  : headcountTab === "approved"
+                  ? "No Approved Headcount Requests"
+                  : "No Rejected Headcount Requests"
               }
               description={
                 searchQuery
                   ? `No requests match "${searchQuery}". Clear your search query to see all items.`
-                  : "All headcount requests and quota amendments have been reviewed and processed."
+                  : headcountTab === "pending"
+                  ? "All headcount requests and quota amendments have been reviewed and processed."
+                  : headcountTab === "approved"
+                  ? "No approved headcount requests found in this queue."
+                  : "No rejected headcount requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredRequests.map((req) =>
-                req.isQuotaAmendment ? (
-                  <HeadcountAmendmentApprovalCard key={req.id} request={req} />
-                ) : (
-                  <HeadcountStandardApprovalCard key={req.id} request={req} />
-                )
-              )}
-            </div>
+            <HeadcountDataTable
+              requests={filteredRequests}
+              tab={headcountTab}
+            />
           )}
         </div>
       </div>
@@ -916,115 +1174,127 @@ export function ActiveQueueReviewPane({
 
   // ── 5. Applicant Movement Requests (AMR) Queue ───────────────────────────
   if (selectedCategory === "applicant_movements") {
+    const handleRefresh = () => {
+      refetchMovements();
+      refetchMovementCounts();
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  Applicant Movement Approvals
-                </h2>
-                <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-indigo-800">
-                  {movementRequests.length} pending
-                </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search applicant, VCode, store, requester..."
+                  value={movementSearchQuery}
+                  onChange={(e) => setMovementSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary">
-                Review candidate transfer and slot swap requests awaiting administrative clearance and execution.
-              </p>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMovementTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    movementTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      movementTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {movementCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMovementTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    movementTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      movementTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {movementCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMovementTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    movementTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      movementTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {movementCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchMovements()}
+              onClick={handleRefresh}
               disabled={isMovementRefetching || isMovementLoading}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isMovementRefetching ? "animate-spin text-brand-600" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isMovementRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-
-          {/* Filters & Search */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-              <button
-                type="button"
-                onClick={() => setMovementTypeFilter("all")}
-                className={`rounded-md px-3 py-1 font-medium transition ${
-                  movementTypeFilter === "all"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                All ({movementRequests.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setMovementTypeFilter("TRANSFER")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                  movementTypeFilter === "TRANSFER"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <span>Transfers</span>
-                {transferCount > 0 && (
-                  <span className="rounded-full bg-blue-100 px-1.5 text-[10px] font-mono font-semibold text-blue-700">
-                    {transferCount}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMovementTypeFilter("SWAP")}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                  movementTypeFilter === "SWAP"
-                    ? "bg-white text-text-primary shadow-2xs font-semibold"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <span>Swaps</span>
-                {swapCount > 0 && (
-                  <span className="rounded-full bg-purple-100 px-1.5 text-[10px] font-mono font-semibold text-purple-700">
-                    {swapCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative min-w-[240px] flex-1 max-w-sm">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search applicant, VCode, store, position..."
-                value={movementSearchQuery}
-                onChange={(e) => setMovementSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isMovementLoading ? (
             <DataState
               kind="loading"
               title="Loading Applicant Movement Requests"
-              description="Fetching live pending candidate transfer and swap requisitions..."
+              description="Fetching candidate transfer and swap requisitions..."
             />
           ) : isMovementError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching pending applicant movements."
-              onRetry={() => refetchMovements()}
+              onRetry={handleRefresh}
             />
           ) : filteredMovementRequests.length === 0 ? (
             <DataState
@@ -1032,22 +1302,27 @@ export function ActiveQueueReviewPane({
               title={
                 movementSearchQuery
                   ? "No Matching Movement Requests"
-                  : movementTypeFilter !== "all"
-                    ? `No Pending ${movementTypeFilter === "TRANSFER" ? "Transfers" : "Swaps"}`
-                    : "No Pending Movement Requests"
+                  : movementTab === "pending"
+                  ? "No Pending Movement Requests"
+                  : movementTab === "approved"
+                  ? "No Approved Movement Requests"
+                  : "No Rejected Movement Requests"
               }
               description={
                 movementSearchQuery
                   ? `No requests match "${movementSearchQuery}". Clear your search query to see all items.`
-                  : "All applicant transfer and swap requests have been reviewed and resolved."
+                  : movementTab === "pending"
+                  ? "All applicant transfer and swap requests have been reviewed and resolved."
+                  : movementTab === "approved"
+                  ? "No approved applicant movements found in this queue."
+                  : "No rejected applicant movements found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredMovementRequests.map((req) => (
-                <ApplicantMovementApprovalCard key={req.id} request={req} />
-              ))}
-            </div>
+            <ApplicantMovementDataTable
+              requests={filteredMovementRequests}
+              tab={movementTab}
+            />
           )}
         </div>
       </div>
@@ -1213,72 +1488,127 @@ export function ActiveQueueReviewPane({
 
   // ── 7. Account Group Transfers Category ────────────────────────────────
   if (selectedCategory === "account_group_transfers") {
-    const livePendingCount = counts.account_group_transfers ?? transferRequests.length;
+    const handleRefresh = () => {
+      refetchTransfers();
+      refetchTransferCounts();
+    };
 
     return (
       <div className="flex h-full flex-col">
-        {/* Header Toolbar */}
-        <div className="flex flex-col gap-3 border-b border-border-default pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-text-primary">
-                {currentCategoryConfig.label}
-              </h2>
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
-                {livePendingCount} pending
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-text-secondary">
-              {currentCategoryConfig.description}
-            </p>
-          </div>
+        {/* Pane Toolbar */}
+        <div className="border-b border-border-default pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search account, group, AGT-#, requester..."
+                  value={transferSearchQuery}
+                  onChange={(e) => setTransferSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setTransferTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    transferTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      transferTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {transferCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTransferTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    transferTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      transferTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {transferCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTransferTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    transferTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      transferTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {transferCounts.rejected}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchTransfers()}
-              disabled={isTransferRefetching}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
-              title="Refresh Queue"
+              onClick={handleRefresh}
+              disabled={isTransferRefetching || isTransferLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isTransferRefetching ? "animate-spin" : ""}`}
-                aria-hidden="true"
+                className={`h-3.5 w-3.5 ${
+                  isTransferRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
-
-            {/* Client-side Search */}
-            <div className="relative w-full sm:w-64">
-              <Search
-                className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted"
-                aria-hidden="true"
-              />
-              <input
-                type="text"
-                placeholder="Search account, group, AGT-#..."
-                value={transferSearchQuery}
-                onChange={(e) => setTransferSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
           </div>
         </div>
 
         {/* Requests List Area */}
-        <div className="mt-4 flex-1 space-y-4">
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isTransferLoading ? (
             <DataState
               kind="loading"
               title="Loading Account Group Transfers"
-              description="Fetching live account group reassignments and simulation snapshots..."
+              description="Fetching account group reassignments and simulation snapshots..."
             />
           ) : isTransferError ? (
             <DataState
               kind="error"
               title="Failed to Load Queue"
-              description="An error occurred while fetching pending account group transfers."
-              onRetry={() => refetchTransfers()}
+              description="An error occurred while fetching account group transfers."
+              onRetry={handleRefresh}
             />
           ) : filteredTransferRequests.length === 0 ? (
             <DataState
@@ -1286,20 +1616,27 @@ export function ActiveQueueReviewPane({
               title={
                 transferSearchQuery
                   ? "No Matching Account Group Transfers"
-                  : "No Pending Account Group Transfers"
+                  : transferTab === "pending"
+                  ? "No Pending Account Group Transfers"
+                  : transferTab === "approved"
+                  ? "No Approved Account Transfers"
+                  : "No Rejected Account Transfers"
               }
               description={
                 transferSearchQuery
                   ? `No requests match "${transferSearchQuery}". Clear your search query to see all items.`
-                  : "All organizational account group reassignments have been processed."
+                  : transferTab === "pending"
+                  ? "All organizational account group reassignments have been processed."
+                  : transferTab === "approved"
+                  ? "No approved account group transfer requests found in this queue."
+                  : "No rejected account group transfer requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredTransferRequests.map((req) => (
-                <StoreTransferApprovalCard key={req.id} request={req} />
-              ))}
-            </div>
+            <AccountTransferDataTable
+              requests={filteredTransferRequests}
+              tab={transferTab}
+            />
           )}
         </div>
       </div>
@@ -1308,80 +1645,127 @@ export function ActiveQueueReviewPane({
 
   // ── 8. Roving Coverage Groups Review Queue ──────────────────────────────
   if (selectedCategory === "coverage") {
-    const activeCount = counts.coverage ?? rovingRequests.length;
-    const isBusy = isRovingLoading || isRovingRefetching;
+    const handleRefresh = () => {
+      refetchRoving();
+      refetchCoverageCounts();
+    };
 
     return (
       <div className="flex h-full flex-col">
-        {/* Header */}
+        {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Roving Coverage Group Structures
-              </h2>
-              {activeCount > 0 && (
-                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
-                  {activeCount} pending
-                </span>
-              )}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search group name, code, account, requester..."
+                  value={rovingSearchQuery}
+                  onChange={(e) => setRovingSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCoverageTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    coverageTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      coverageTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {coverageCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCoverageTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    coverageTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      coverageTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {coverageCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCoverageTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    coverageTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      coverageTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {coverageCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchRoving()}
-              disabled={isBusy}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
-              title="Refresh Queue"
+              onClick={handleRefresh}
+              disabled={isRovingRefetching || isRovingLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isBusy ? "animate-spin" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isRovingRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-          <p className="mt-0.5 text-xs text-text-secondary">
-            Operational review queue for CENCOM roving store allocation groups and schedule structures
-          </p>
         </div>
 
-        {/* Toolbar: Search */}
-        <div className="my-4 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[240px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
-            <input
-              type="text"
-              placeholder="Search by group name, code, operation type, account, or requester..."
-              value={rovingSearchQuery}
-              onChange={(e) => setRovingSearchQuery(e.target.value)}
-              className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
-            />
-            {rovingSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setRovingSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Content Stream */}
-        <div className="flex-1 overflow-y-auto pr-1">
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isRovingLoading ? (
             <DataState
               kind="loading"
               title="Loading Roving Coverage Groups"
-              description="Fetching pending coverage group structural requests..."
+              description="Fetching coverage group structural requests..."
             />
           ) : isRovingError ? (
             <DataState
               kind="error"
               title="Failed to Load Coverage Requests"
               description="An error occurred while fetching pending coverage requests."
-              onRetry={() => refetchRoving()}
+              onRetry={handleRefresh}
             />
           ) : filteredRovingRequests.length === 0 ? (
             <DataState
@@ -1389,20 +1773,27 @@ export function ActiveQueueReviewPane({
               title={
                 rovingSearchQuery
                   ? "No Matching Coverage Group Requests"
-                  : "No Pending Coverage Group Requests"
+                  : coverageTab === "pending"
+                  ? "No Pending Coverage Group Requests"
+                  : coverageTab === "approved"
+                  ? "No Approved Coverage Requests"
+                  : "No Rejected Coverage Requests"
               }
               description={
                 rovingSearchQuery
                   ? `No requests match "${rovingSearchQuery}". Clear your search query to see all items.`
-                  : "All CENCOM roving coverage group structural requests have been processed."
+                  : coverageTab === "pending"
+                  ? "All CENCOM roving coverage group structural requests have been processed."
+                  : coverageTab === "approved"
+                  ? "No approved coverage group requests found in this queue."
+                  : "No rejected coverage group requests found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredRovingRequests.map((req) => (
-                <CoverageGroupApprovalCard key={req.id} request={req} />
-              ))}
-            </div>
+            <CoverageDataTable
+              requests={filteredRovingRequests}
+              tab={coverageTab}
+            />
           )}
         </div>
       </div>
@@ -1411,132 +1802,164 @@ export function ActiveQueueReviewPane({
 
   // ── 9. Reliever Endorsements Review Queue ────────────────────────────────
   if (selectedCategory === "relievers") {
-    const activeCount = counts.relievers ?? relieverRequests.length;
-    const isBusy = isRelieverLoading || isRelieverRefetching;
+    const handleRefresh = () => {
+      refetchRelievers();
+      refetchRelieverCounts();
+    };
 
     return (
       <div className="flex h-full flex-col">
-        {/* Header */}
+        {/* Pane Toolbar */}
         <div className="border-b border-border-default pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Reliever Endorsements & Pool Deployments
-              </h2>
-              {activeCount > 0 && (
-                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
-                  {activeCount} pending
-                </span>
-              )}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search bar */}
+              <div className="relative w-64 sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search reliever name, ID, store, account, requester..."
+                  value={relieverSearchQuery}
+                  onChange={(e) => setRelieverSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Sub-Tabs: Pending / Approved / Rejected */}
+              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRelieverTab("pending")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    relieverTab === "pending"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      relieverTab === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {relieverCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRelieverTab("approved")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    relieverTab === "approved"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Approved</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      relieverTab === "approved"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {relieverCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRelieverTab("rejected")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+                    relieverTab === "rejected"
+                      ? "bg-white text-text-primary shadow-2xs font-semibold"
+                      : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <span>Rejected</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
+                      relieverTab === "rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-slate-200/80 text-text-muted"
+                    }`}
+                  >
+                    {relieverCounts.rejected}
+                  </span>
+                </button>
+              </div>
             </div>
 
+            {/* Refresh */}
             <button
               type="button"
-              onClick={() => refetchRelievers()}
-              disabled={isBusy}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-white px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
-              title="Refresh Queue"
+              onClick={handleRefresh}
+              disabled={isRelieverRefetching || isRelieverLoading}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isBusy ? "animate-spin" : ""}`}
+                className={`h-3.5 w-3.5 ${
+                  isRelieverRefetching ? "animate-spin text-brand-600" : ""
+                }`}
               />
               <span>Refresh</span>
             </button>
           </div>
-          <p className="mt-0.5 text-xs text-text-secondary">
-            Operational review queue for temporary reliever pool deployments and workforce coverage
-          </p>
         </div>
 
-        {/* Toolbar: Search and Filters */}
-        <div className="my-4 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[240px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
-            <input
-              type="text"
-              placeholder="Search by reliever name, ID, store, account, or requester..."
-              value={relieverSearchQuery}
-              onChange={(e) => setRelieverSearchQuery(e.target.value)}
-              className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-8 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand-500 focus:outline-none"
-            />
-            {relieverSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setRelieverSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Priority Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
-              Priority:
-            </span>
-            {(["all", "Urgent", "High", "Normal"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setRelieverPriorityFilter(p)}
-                className={`rounded-md px-2.5 py-1 text-2xs font-semibold capitalize transition ${
-                  relieverPriorityFilter === p
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-surface-subtle text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border-subtle"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content Stream */}
-        <div className="flex-1 overflow-y-auto pr-1">
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isRelieverLoading ? (
             <DataState
               kind="loading"
               title="Loading Reliever Deployments"
-              description="Fetching pending reliever endorsement requests from workforce pool..."
+              description="Fetching reliever endorsement requests from workforce pool..."
             />
           ) : isRelieverError ? (
             <DataState
               kind="error"
               title="Failed to Load Reliever Deployments"
               description="An error occurred while fetching pending reliever endorsement requests."
-              onRetry={() => refetchRelievers()}
+              onRetry={handleRefresh}
             />
           ) : filteredRelieverRequests.length === 0 ? (
             <DataState
               kind="empty"
               title={
-                relieverSearchQuery || relieverPriorityFilter !== "all"
+                relieverSearchQuery
                   ? "No Matching Reliever Endorsements"
-                  : "No Pending Reliever Endorsements"
+                  : relieverTab === "pending"
+                  ? "No Pending Reliever Endorsements"
+                  : relieverTab === "approved"
+                  ? "No Approved Reliever Deployments"
+                  : "No Rejected Reliever Deployments"
               }
               description={
-                relieverSearchQuery || relieverPriorityFilter !== "all"
-                  ? "No requests match your current search and priority filters. Try clearing filters to see all pending items."
-                  : "All workforce pool reliever endorsements have been processed."
+                relieverSearchQuery
+                  ? `No requests match "${relieverSearchQuery}". Clear your search query to see all items.`
+                  : relieverTab === "pending"
+                  ? "All workforce pool reliever endorsements have been processed."
+                  : relieverTab === "approved"
+                  ? "No approved reliever endorsements found in this queue."
+                  : "No rejected reliever endorsements found in this queue."
               }
             />
           ) : (
-            <div className="space-y-4">
-              {filteredRelieverRequests.map((req) => (
-                <RelieverCoverageApprovalCard key={req.requestId} request={req} />
-              ))}
-            </div>
+            <RelieverDataTable
+              requests={filteredRelieverRequests}
+              tab={relieverTab}
+            />
           )}
         </div>
       </div>
     );
   }
 
-  // ── 9. Other Categories (Fallback Pane) ──────────────────────────────────
+  // ── Fallback Pane for Unmapped Categories ────────────────────────────────
   const count = counts[selectedCategory] ?? 0;
   const linkInfo = CATEGORY_LINKS[selectedCategory];
-
 
   return (
     <div className="flex h-full flex-col">

@@ -892,23 +892,26 @@ export type EmplocDeletionRequestItem = {
   requestedByName: string | null;
   /** ISO timestamp of the request */
   requestedAt: string | null;
-  /** Current status — should be 'Pending' for this queue */
+  /** Current status */
   status: string;
   /** Reason / remarks from requester */
   reason: string | null;
   /** Original emploc ID when deletion_type = 'Duplicate Record' */
   originalEmplocId: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewerRemarks: string | null;
 };
 
 /**
- * Fetches pending HR Emploc deletion requests joined with hr_emploc data.
- * Queries `hr_emploc_deletion_requests` joined with `hr_emploc` for name,
- * store, position, and employee_no context needed by reviewers.
+ * Fetches HR Emploc deletion requests joined with hr_emploc data, filtered by status tab.
  */
-export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionRequestItem[]> {
+export async function fetchEmplocDeletionRequests(
+  tab: "pending" | "approved" | "rejected" = "pending"
+): Promise<EmplocDeletionRequestItem[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("hr_emploc_deletion_requests")
     .select(`
       id,
@@ -923,6 +926,9 @@ export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionReque
       created_at,
       snapshot_store,
       snapshot_position,
+      reviewed_by,
+      reviewed_at,
+      reviewer_remarks,
       hr_emploc:hr_emploc_id (
         applicant_name,
         employee_no,
@@ -930,9 +936,17 @@ export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionReque
         position,
         vcode
       )
-    `)
-    .ilike("status", "pending")
-    .order("created_at", { ascending: false });
+    `);
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.withdrawn");
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     if (error.code === "42501") {
@@ -959,8 +973,31 @@ export async function fetchEmplocDeletionRequests(): Promise<EmplocDeletionReque
       status: asString(row.status) ?? "Pending",
       reason: asString(row.reason),
       originalEmplocId: asString(row.original_emploc_id),
+      reviewedBy: asString(row.reviewed_by),
+      reviewedAt: asString(row.reviewed_at),
+      reviewerRemarks: asString(row.reviewer_remarks),
     };
   });
+}
+
+export async function fetchEmplocDeletionCounts(): Promise<{
+  pending: number;
+  approved: number;
+  rejected: number;
+}> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("hr_emploc_deletion_requests").select("status");
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+  for (const row of data) {
+    const s = (asString(row.status) || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "withdrawn") rejected++;
+  }
+  return { pending, approved, rejected };
 }
 
 export type ApproveEmplocDeletionParams = {
@@ -1017,10 +1054,19 @@ export async function rejectEmplocDeletion(
 }
 
 
-export function useEmplocDeletionRequests() {
+export function useEmplocDeletionRequests(
+  tab: "pending" | "approved" | "rejected" = "pending"
+) {
   return useQuery({
-    queryKey: ["emploc_deletion_requests"],
-    queryFn: () => fetchEmplocDeletionRequests(),
+    queryKey: ["emploc_deletion_requests", tab],
+    queryFn: () => fetchEmplocDeletionRequests(tab),
+  });
+}
+
+export function useEmplocDeletionCounts() {
+  return useQuery({
+    queryKey: ["emploc_deletion_counts"],
+    queryFn: () => fetchEmplocDeletionCounts(),
   });
 }
 
@@ -1031,6 +1077,7 @@ export function useApproveEmplocDeletion() {
     mutationFn: (params: ApproveEmplocDeletionParams) => approveEmplocDeletion(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emploc_deletion_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["emploc_deletion_counts"] });
       queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
@@ -1049,6 +1096,7 @@ export function useRejectEmplocDeletion() {
     mutationFn: (params: RejectEmplocDeletionParams) => rejectEmplocDeletion(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emploc_deletion_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["emploc_deletion_counts"] });
       queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
