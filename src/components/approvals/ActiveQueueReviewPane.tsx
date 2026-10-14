@@ -5,11 +5,9 @@ import Link from "next/link";
 import {
   ArrowRight,
   Building2,
-  CheckCheck,
   RefreshCw,
   Search,
   Users,
-  X,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
@@ -21,7 +19,6 @@ import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeleti
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
-import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
 import {
   REQUEST_CATEGORIES,
   useHeadcountRequests,
@@ -42,7 +39,6 @@ import {
   useRelieverCounts,
   useCoverageRequests,
   useCoverageCounts,
-  useApproveAllVacancyClosures,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
@@ -67,11 +63,6 @@ export function ActiveQueueReviewPane({
   onSelectCategory,
   counts,
 }: ActiveQueueReviewPaneProps) {
-  const currentUser = useCurrentUser();
-  const canBulkApproveClosures = isHeadOrSuperAdmin(
-    currentUser?.roleKey || currentUser?.roleName
-  );
-
   // Sub-tab selection state (pending | approved | rejected) for each queue
   const [newStoreTab, setNewStoreTab] = useState<ApprovalStatusTab>("pending");
   const [headcountTab, setHeadcountTab] = useState<ApprovalStatusTab>("pending");
@@ -93,13 +84,6 @@ export function ActiveQueueReviewPane({
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
-
-  // Bulk actions state for Vacancy Closures
-  const [isApproveAllClosuresOpen, setIsApproveAllClosuresOpen] = useState(false);
-  const [approveAllFeedback, setApproveAllFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   // ── Queries & Live Counts ───────────────────────────────────────────────
   // 1. Headcount
@@ -227,8 +211,6 @@ export function ActiveQueueReviewPane({
     data: coverageCounts = { pending: 0, approved: 0, rejected: 0 },
     refetch: refetchCoverageCounts,
   } = useCoverageCounts();
-
-  const approveAllClosuresMutation = useApproveAllVacancyClosures();
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -408,31 +390,6 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [rovingRequests, rovingSearchQuery]);
-
-  // Bulk closure confirm handler
-  const handleConfirmApproveAllClosures = async () => {
-    setApproveAllFeedback(null);
-    try {
-      const res = await approveAllClosuresMutation.mutateAsync();
-      setApproveAllFeedback({
-        type: "success",
-        message: `Approved ${res.approved_count} pending vacancy closure${
-          res.approved_count === 1 ? "" : "s"
-        }${res.skipped_count > 0 ? ` (${res.skipped_count} skipped)` : ""}.`,
-      });
-      setIsApproveAllClosuresOpen(false);
-      refetchClosures();
-      refetchClosureCounts();
-    } catch (err: unknown) {
-      setApproveAllFeedback({
-        type: "error",
-        message:
-          err instanceof Error
-            ? err.message
-            : "Failed to approve all closure requests.",
-      });
-    }
-  };
 
   // ── 1. New Store Requests Queue ──────────────────────────────────────────
   if (selectedCategory === "new_stores") {
@@ -683,23 +640,8 @@ export function ActiveQueueReviewPane({
               </div>
             </div>
 
-            {/* Right side controls: Bulk Approve + Refresh */}
+            {/* Right side controls: Refresh */}
             <div className="flex items-center gap-2">
-              {canBulkApproveClosures && vacancyClosureTab === "pending" && (
-                <button
-                  type="button"
-                  onClick={() => setIsApproveAllClosuresOpen(true)}
-                  disabled={
-                    closureRequests.length === 0 ||
-                    approveAllClosuresMutation.isPending
-                  }
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
-                >
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  <span>Approve All Pending Closures</span>
-                </button>
-              )}
-
               <button
                 type="button"
                 onClick={handleRefresh}
@@ -715,26 +657,6 @@ export function ActiveQueueReviewPane({
               </button>
             </div>
           </div>
-
-          {/* Feedback Banner */}
-          {approveAllFeedback && (
-            <div
-              className={`mt-3 flex items-start gap-2 rounded-md p-2.5 text-xs ${
-                approveAllFeedback.type === "success"
-                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border border-rose-200 bg-rose-50 text-rose-800"
-              }`}
-            >
-              <div className="flex-1">{approveAllFeedback.message}</div>
-              <button
-                type="button"
-                onClick={() => setApproveAllFeedback(null)}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Requests List Area */}
@@ -781,79 +703,6 @@ export function ActiveQueueReviewPane({
             />
           )}
         </div>
-
-        {/* Approve All Confirmation Modal */}
-        {isApproveAllClosuresOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-            <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                    <CheckCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-text-primary">
-                      Approve All Pending Closures
-                    </h3>
-                    <p className="text-xs text-text-secondary">
-                      Bulk approval of all active closure requisitions
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsApproveAllClosuresOpen(false)}
-                  disabled={approveAllClosuresMutation.isPending}
-                  className="text-text-muted hover:text-text-primary"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-2">
-                <p className="text-text-primary font-medium">
-                  Are you sure you want to approve all{" "}
-                  <span className="font-bold text-emerald-700">
-                    {closureRequests.length}
-                  </span>{" "}
-                  pending vacancy closure requests?
-                </p>
-                <p className="text-text-secondary">
-                  This action will permanently close and archive each corresponding vacancy and reconcile active plantilla slots per ADR-001.
-                </p>
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsApproveAllClosuresOpen(false)}
-                  disabled={approveAllClosuresMutation.isPending}
-                  className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmApproveAllClosures}
-                  disabled={approveAllClosuresMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition"
-                >
-                  {approveAllClosuresMutation.isPending ? (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      <span>Processing Bulk Approval...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCheck className="h-3.5 w-3.5" />
-                      <span>Confirm Bulk Approval</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

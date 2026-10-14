@@ -27,13 +27,25 @@ export function AdminTopbar({
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex min-h-16 items-center justify-between gap-4 px-5 py-3 lg:px-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Admin panel
-          </p>
-          <h1 className="text-lg font-semibold text-slate-950">
-            {activeModule.title}
-          </h1>
+        <div className="flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Admin panel
+            </p>
+            <h1 className="text-lg font-semibold text-slate-950">
+              {activeModule.title}
+            </h1>
+          </div>
+          {activeModule.key === "approvals" && (
+            <div className="hidden border-l border-slate-200 pl-4 sm:block">
+              <p className="text-xs font-semibold text-slate-900">
+                Request Center
+              </p>
+              <p className="text-xs text-slate-500 max-w-xl truncate lg:max-w-2xl">
+                Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments.
+              </p>
+            </div>
+          )}
         </div>
 
         <nav className="flex max-w-[52vw] gap-2 overflow-x-auto lg:hidden">

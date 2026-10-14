@@ -901,6 +901,8 @@ export type EmplocDeletionRequestItem = {
   reviewedBy: string | null;
   reviewedAt: string | null;
   reviewerRemarks: string | null;
+  groupName?: string | null;
+  accountName?: string | null;
 };
 
 /**
@@ -934,7 +936,8 @@ export async function fetchEmplocDeletionRequests(
         employee_no,
         store_name,
         position,
-        vcode
+        vcode,
+        account_name
       )
     `);
 
@@ -976,6 +979,8 @@ export async function fetchEmplocDeletionRequests(
       reviewedBy: asString(row.reviewed_by),
       reviewedAt: asString(row.reviewed_at),
       reviewerRemarks: asString(row.reviewer_remarks),
+      accountName: asString(emploc.account_name) ?? null,
+      groupName: null,
     };
   });
 }

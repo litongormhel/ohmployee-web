@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCheck, RefreshCw } from "lucide-react";
-import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { RequestCategoryNavigation } from "@/components/approvals/RequestCategoryNavigation";
 import { ActiveQueueReviewPane } from "@/components/approvals/ActiveQueueReviewPane";
 import {
@@ -34,8 +32,6 @@ export default function ApprovalsPage() {
       relievers: 0,
     },
     isLoading: isLoadingCounts,
-    refetch: refetchCounts,
-    isRefetching: isRefetchingCounts,
   } = useRequestCategoryCounts();
 
   const handleSelectCategory = (key: RequestCategoryKey) => {
@@ -48,32 +44,8 @@ export default function ApprovalsPage() {
     });
   };
 
-  const handleRefresh = async () => {
-    // Reloading data resets local acknowledgments so newly fetched counts show
-    setAcknowledgedCategories(new Set());
-    await refetchCounts();
-  };
-
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Request Center"
-        subtitle="Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments."
-        icon={CheckCheck}
-        actionSlot={
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefetchingCounts || isLoadingCounts}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-3 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${isRefetchingCounts ? "animate-spin text-brand-600" : ""}`}
-            />
-            <span>Refresh Counts</span>
-          </button>
-        }
-      />
 
       {/* Top Horizontal Navigation Tab Strip */}
       <div className="w-full rounded-xl border border-border-default bg-surface-base p-2 shadow-xs">
