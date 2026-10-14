@@ -7,7 +7,6 @@ import {
   ArrowLeftRight,
   CheckCheck,
   CheckCircle2,
-  Clock,
   RefreshCw,
   X,
   XCircle,
@@ -298,9 +297,8 @@ export function ApplicantMovementDataTable({
               type="button"
               onClick={handleOpenBulkReject}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-transparent px-2.5 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
             >
-              <XCircle className="h-3 w-3" />
               <span>Reject {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
 
@@ -308,9 +306,8 @@ export function ApplicantMovementDataTable({
               type="button"
               onClick={handleOpenBulkApprove}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ok)] bg-[var(--ok)] px-3 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
             >
-              <CheckCircle2 className="h-3 w-3" />
               <span>Approve {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
           </div>
@@ -318,13 +315,13 @@ export function ApplicantMovementDataTable({
       )}
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-border-default bg-surface-base shadow-2xs overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
         <div className="flex-1 overflow-x-auto">
           <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-semibold uppercase text-text-secondary border-b border-border-default">
+            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
               <tr>
                 {tab === "pending" && (
-                  <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+                  <th scope="col" className="w-10 px-4 py-2.5 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -335,37 +332,37 @@ export function ApplicantMovementDataTable({
                       }}
                       onChange={toggleSelectAll}
                       aria-label="Select all rows"
-                      className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                     />
                   </th>
                 )}
-                <th scope="col" className="px-3.5 py-2.5">
-                  REQUEST #
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Request #
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  TYPE
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Type
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  SOURCE (FROM)
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Source (From)
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  TARGET (TO)
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Target (To)
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  REASON
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Reason
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  REQUESTED BY
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Requested by
                 </th>
                 <th
                   scope="col"
-                  className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}
+                  className={`px-4 py-2.5 font-medium ${tab === "rejected" ? "text-left" : "text-right"}`}
                 >
-                  {tab === "rejected" ? "REJECTED REASON" : "ACTION"}
+                  {tab === "rejected" ? "Rejected reason" : "Action"}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-default">
+            <tbody className="divide-y divide-[var(--line)]">
               {requests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
@@ -379,36 +376,36 @@ export function ApplicantMovementDataTable({
                 return (
                   <tr
                     key={request.id}
-                    className={`transition-colors hover:bg-slate-50/80 ${
-                      isRowSelected ? "bg-brand-50/30" : ""
+                    className={`transition-colors hover:bg-[var(--soft)] ${
+                      isRowSelected ? "bg-[var(--pillbg)]/40" : ""
                     }`}
                   >
                     {tab === "pending" && (
-                      <td className="w-10 px-3.5 py-2.5 text-left">
+                      <td className="w-10 px-4 py-3.5 text-left align-middle">
                         <input
                           type="checkbox"
                           checked={isRowSelected}
                           onChange={() => toggleSelectOne(request.id)}
                           aria-label={`Select request ${request.requestNumber}`}
-                          className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+                          className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                         />
                       </td>
                     )}
 
                     {/* REQUEST # */}
-                    <td className="px-3.5 py-2.5 font-bold font-mono text-xs text-text-primary whitespace-nowrap">
+                    <td className="px-4 py-3.5 font-bold font-mono text-xs text-[var(--text)] whitespace-nowrap align-middle">
                       {request.requestNumber}
                     </td>
 
                     {/* TYPE */}
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
                       {request.movementType === "TRANSFER" ? (
-                        <span className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        <span className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--status-accent-border)] bg-[var(--pillbg)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
                           <ArrowRight className="h-3 w-3" />
                           Transfer
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                        <span className="inline-flex items-center gap-1 rounded-[6px] border border-purple-200/50 bg-purple-50/50 dark:bg-purple-950/20 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-400">
                           <ArrowLeftRight className="h-3 w-3" />
                           Swap
                         </span>
@@ -416,63 +413,61 @@ export function ApplicantMovementDataTable({
                     </td>
 
                     {/* SOURCE (FROM) */}
-                    <td className="px-3.5 py-2.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <div className="flex flex-col">
-                        <span className="font-bold text-text-primary text-xs">
+                        <span className="font-medium text-[var(--text)] text-xs">
                           {request.sourceApplicantName}
                         </span>
-                        <span className="font-mono text-[10px] text-text-muted">
+                        <span className="font-mono text-[10.5px] text-[var(--muted)]">
                           {request.sourceVacancyVcode} • {request.sourceStoreName || "Store"}
                         </span>
                       </div>
                     </td>
 
                     {/* TARGET (TO) */}
-                    <td className="px-3.5 py-2.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <div className="flex flex-col">
                         {request.targetApplicantName ? (
-                          <span className="font-bold text-text-primary text-xs">
+                          <span className="font-medium text-[var(--text)] text-xs">
                             {request.targetApplicantName}
                           </span>
                         ) : (
-                          <span className="font-semibold text-slate-700 text-xs">
+                          <span className="font-medium text-[var(--muted)] text-xs">
                             Open Vacancy
                           </span>
                         )}
-                        <span className="font-mono text-[10px] text-text-muted">
+                        <span className="font-mono text-[10.5px] text-[var(--muted)]">
                           {request.targetVacancyVcode} • {request.targetStoreName || "Store"}
                         </span>
                       </div>
                     </td>
 
                     {/* REASON */}
-                    <td className="px-3.5 py-2.5 text-text-secondary max-w-xs truncate" title={request.reason}>
+                    <td className="px-4 py-3.5 text-xs text-[var(--muted)] max-w-xs truncate align-middle" title={request.reason}>
                       {request.reason}
                     </td>
 
                     {/* REQUESTED BY */}
-                    <td className="px-3.5 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
                       <div className="flex flex-col">
-                        <span className="font-medium text-text-primary text-xs">
+                        <span className="text-xs text-[var(--text)]">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="font-mono text-[10px] text-text-muted flex items-center gap-1">
-                          <Clock className="h-3 w-3 inline text-text-muted" aria-hidden="true" />
+                        <span className="text-[12.5px] text-[var(--muted)]">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>
                     </td>
 
                     {/* ACTION / REJECTED REASON */}
-                    <td className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}>
+                    <td className={`px-4 py-3.5 align-middle ${tab === "rejected" ? "text-left" : "text-right"}`}>
                       {tab === "rejected" ? (
                         <div className="flex flex-col max-w-xs">
-                          <span className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1">
+                          <span className="text-xs font-normal text-[var(--bad)] border border-[var(--bad)]/30 rounded-lg px-2.5 py-1">
                             {request.rejectionReason || "No rejection reason provided"}
                           </span>
                           {(request.effectiveDate || request.createdAt) && (
-                            <span className="font-mono text-[10px] text-text-muted mt-1 flex items-center gap-1">
-                              <Clock className="h-3 w-3 inline text-text-muted" aria-hidden="true" />
+                            <span className="text-[12.5px] text-[var(--muted)] mt-1">
                               {formatDate(request.effectiveDate || request.createdAt)}
                             </span>
                           )}
@@ -483,35 +478,33 @@ export function ApplicantMovementDataTable({
                             type="button"
                             onClick={() => handleOpenReject(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--bad)]/40 bg-transparent px-3 text-xs font-normal text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
                           >
-                            <XCircle className="h-3 w-3" aria-hidden="true" />
                             <span>Reject</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleOpenApprove(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-600 bg-emerald-600 px-2.5 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
                           >
-                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                             <span>Approve</span>
                           </button>
                         </div>
                       ) : isApproved ? (
                         <div className="inline-flex flex-col items-end gap-0.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-normal">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
                             Executed
                           </span>
                           {(request.effectiveDate || request.createdAt) && (
-                            <span className="font-mono text-[10px] text-text-muted">
+                            <span className="text-[12.5px] text-[var(--muted)]">
                               {formatDate(request.effectiveDate || request.createdAt)}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--text)]">
                           {request.status}
                         </span>
                       )}

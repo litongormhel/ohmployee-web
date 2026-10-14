@@ -48,7 +48,7 @@ export default function ApprovalsPage() {
     <div className="space-y-6">
 
       {/* Top Horizontal Navigation Tab Strip */}
-      <div className="w-full rounded-xl border border-border-default bg-surface-base p-2 shadow-xs">
+      <div className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-2">
         <RequestCategoryNavigation
           selectedCategory={selectedCategory}
           onSelectCategory={handleSelectCategory}
@@ -59,7 +59,7 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Active Queue Review Pane - 100% Full Width */}
-      <div className="w-full min-w-0 rounded-xl border border-border-default bg-surface-base p-6 shadow-xs">
+      <div className="w-full min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-6">
         <ActiveQueueReviewPane
           selectedCategory={selectedCategory}
           onSelectCategory={handleSelectCategory}

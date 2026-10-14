@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   CheckCheck,
   CheckCircle2,
-  Clock,
   Layers,
   MapPin,
   RefreshCw,
@@ -291,9 +290,8 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
               type="button"
               onClick={handleOpenBulkReject}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-transparent px-2.5 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
             >
-              <XCircle className="h-3 w-3" />
               <span>Reject {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
 
@@ -301,9 +299,8 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
               type="button"
               onClick={handleOpenBulkApprove}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ok)] bg-[var(--ok)] px-3 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
             >
-              <CheckCircle2 className="h-3 w-3" />
               <span>Approve {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
           </div>
@@ -311,13 +308,13 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
       )}
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-border-default bg-surface-base shadow-2xs overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
         <div className="flex-1 overflow-x-auto">
           <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-border-default bg-slate-50/75 text-2xs font-semibold uppercase tracking-wider text-text-secondary">
+            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
+              <tr>
                 {tab === "pending" && (
-                  <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+                  <th scope="col" className="w-10 px-4 py-2.5 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -328,40 +325,40 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
                       }}
                       onChange={toggleSelectAll}
                       aria-label="Select all rows"
-                      className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                     />
                   </th>
                 )}
-                <th scope="col" className="px-3.5 py-2.5">
-                  GROUP
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Group
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  ACCOUNT
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Account
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  STORE NAME
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Store name
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  LOCATION
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Location
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  HC / POSITION
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  HC / Position
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  REASON
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Reason
                 </th>
-                <th scope="col" className="px-3.5 py-2.5">
-                  REQUESTED BY
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Requested by
                 </th>
                 <th
                   scope="col"
-                  className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}
+                  className={`px-4 py-2.5 font-medium ${tab === "rejected" ? "text-left" : "text-right"}`}
                 >
-                  {tab === "rejected" ? "REJECTED REASON" : "ACTION"}
+                  {tab === "rejected" ? "Rejected reason" : "Action"}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-default">
+            <tbody className="divide-y divide-[var(--line)]">
               {requests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
@@ -379,66 +376,66 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
                 return (
                   <tr
                     key={request.id}
-                    className={`transition-colors hover:bg-slate-50/80 ${
-                      isRowSelected ? "bg-brand-50/30" : ""
+                    className={`transition-colors hover:bg-[var(--soft)] ${
+                      isRowSelected ? "bg-[var(--pillbg)]/40" : ""
                     }`}
                   >
                     {tab === "pending" && (
-                      <td className="w-10 px-3.5 py-2.5 text-left">
+                      <td className="w-10 px-4 py-3.5 text-left align-middle">
                         <input
                           type="checkbox"
                           checked={isRowSelected}
                           onChange={() => toggleSelectOne(request.id)}
                           aria-label={`Select ${request.storeName}`}
-                          className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+                          className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                         />
                       </td>
                     )}
 
                     {/* GROUP */}
-                    <td className="px-3.5 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-xs text-[var(--text)] whitespace-nowrap align-middle">
                       {request.groupName ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-slate-700">
-                          <Layers className="h-3 w-3 text-text-muted" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1 font-medium text-[var(--text)]">
+                          <Layers className="h-3 w-3 text-[var(--muted)]" aria-hidden="true" />
                           {request.groupName}
                         </span>
                       ) : (
-                        <span className="text-text-muted">—</span>
+                        <span className="text-[var(--muted)]">—</span>
                       )}
                     </td>
 
                     {/* ACCOUNT */}
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                      <span className="inline-flex items-center rounded-[6px] border border-[var(--status-accent-border)] bg-[var(--pillbg)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
                         {request.accountName}
                       </span>
                     </td>
 
                     {/* STORE NAME */}
-                    <td className="px-3.5 py-2.5 font-bold text-text-primary text-xs sm:text-[13px] whitespace-nowrap">
+                    <td className="px-4 py-3.5 font-medium text-[var(--text)] text-xs whitespace-nowrap align-middle">
                       {request.storeName}
                     </td>
 
                     {/* LOCATION */}
-                    <td className="px-3.5 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-xs text-[var(--muted)] whitespace-nowrap align-middle">
                       {location ? (
                         <span className="inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-text-muted" aria-hidden="true" />
+                          <MapPin className="h-3 w-3 text-[var(--muted)]" aria-hidden="true" />
                           {location}
                         </span>
                       ) : (
-                        <span className="text-text-muted">—</span>
+                        <span className="text-[var(--muted)]">—</span>
                       )}
                     </td>
 
                     {/* HC / POSITION */}
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
                       <div className="flex items-center gap-1.5">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+                        <span className="rounded-md bg-[var(--soft)] px-2 py-0.5 font-mono text-[11px] font-semibold text-[var(--text)]">
                           {request.requestedHc ?? 1} HC
                         </span>
                         {request.position && (
-                          <span className="text-xs text-text-muted">
+                          <span className="text-xs text-[var(--muted)]">
                             ({request.position})
                           </span>
                         )}
@@ -446,33 +443,31 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
                     </td>
 
                     {/* REASON */}
-                    <td className="px-3.5 py-2.5 text-text-secondary max-w-xs truncate" title={request.reason}>
+                    <td className="px-4 py-3.5 text-xs text-[var(--muted)] max-w-xs truncate align-middle" title={request.reason}>
                       {request.reason || "—"}
                     </td>
 
                     {/* REQUESTED BY */}
-                    <td className="px-3.5 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
                       <div className="flex flex-col">
-                        <span className="font-medium text-text-primary text-xs">
+                        <span className="text-xs text-[var(--text)]">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="font-mono text-[10px] text-text-muted flex items-center gap-1">
-                          <Clock className="h-3 w-3 inline text-text-muted" aria-hidden="true" />
+                        <span className="text-[12.5px] text-[var(--muted)]">
                           {formatDate(request.createdAt)}
                         </span>
                       </div>
                     </td>
 
                     {/* ACTION / REJECTED REASON */}
-                    <td className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}>
+                    <td className={`px-4 py-3.5 align-middle ${tab === "rejected" ? "text-left" : "text-right"}`}>
                       {tab === "rejected" ? (
                         <div className="flex flex-col max-w-xs">
-                          <span className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1">
+                          <span className="text-xs font-normal text-[var(--bad)] border border-[var(--bad)]/30 rounded-lg px-2.5 py-1">
                             {request.reviewReason || "No rejection reason provided"}
                           </span>
                           {request.reviewedAt && (
-                            <span className="font-mono text-[10px] text-text-muted mt-1 flex items-center gap-1">
-                              <Clock className="h-3 w-3 inline text-text-muted" aria-hidden="true" />
+                            <span className="text-[12.5px] text-[var(--muted)] mt-1">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}
@@ -483,35 +478,33 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
                             type="button"
                             onClick={() => handleOpenReject(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--bad)]/40 bg-transparent px-3 text-xs font-normal text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
                           >
-                            <XCircle className="h-3 w-3" aria-hidden="true" />
                             <span>Reject</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleOpenApprove(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-600 bg-emerald-600 px-2.5 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
                           >
-                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                             <span>Approve Store</span>
                           </button>
                         </div>
                       ) : isApproved ? (
                         <div className="inline-flex flex-col items-end gap-0.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-normal">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
                             Approved
                           </span>
                           {request.reviewedAt && (
-                            <span className="font-mono text-[10px] text-text-muted">
+                            <span className="text-[12.5px] text-[var(--muted)]">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--text)]">
                           {request.status}
                         </span>
                       )}

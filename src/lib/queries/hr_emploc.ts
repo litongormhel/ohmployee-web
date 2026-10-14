@@ -992,7 +992,11 @@ export async function fetchEmplocDeletionCounts(): Promise<{
 }> {
   const supabase = createClient();
   const { data, error } = await supabase.from("hr_emploc_deletion_requests").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchEmplocDeletionCounts] query failed:", error.code, error.message);
+    throwHrEmplocError(error);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -1072,6 +1076,7 @@ export function useEmplocDeletionCounts() {
   return useQuery({
     queryKey: ["emploc_deletion_counts"],
     queryFn: () => fetchEmplocDeletionCounts(),
+    retry: 1,
   });
 }
 

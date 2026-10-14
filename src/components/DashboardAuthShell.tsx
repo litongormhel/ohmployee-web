@@ -118,10 +118,12 @@ function AuthenticatedShell({
         onStaySignedIn={handleStaySignedIn}
         onSignOut={handleIdleLogout}
       />
-      <div className="flex min-h-screen bg-slate-100">
+      <div className="flex min-h-screen bg-[var(--bg)]">
         <Sidebar
           visibleModules={visibleModules}
           moduleCapabilities={currentUser.moduleCapabilities}
+          userName={currentUser.displayName || currentUser.email || "Admin"}
+          userRole={currentUser.roleName || currentUser.roleKey || "Super admin"}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminTopbar

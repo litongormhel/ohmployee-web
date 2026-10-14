@@ -373,7 +373,14 @@ export const fetchPendingHeadcountRequests = () => fetchHeadcountRequests("pendi
 export async function fetchHeadcountCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("headcount_requests").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchHeadcountCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -506,6 +513,7 @@ export function useHeadcountCounts() {
   return useQuery({
     queryKey: ["headcount-counts"],
     queryFn: () => fetchHeadcountCounts(),
+    retry: 1,
   });
 }
 
@@ -861,7 +869,14 @@ export async function fetchNewStoreCounts(): Promise<RequestStatusCounts> {
     .select("status")
     .eq("is_archived", false);
 
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchNewStoreCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -943,6 +958,7 @@ export function useNewStoreCounts() {
   return useQuery({
     queryKey: ["new-store-counts"],
     queryFn: () => fetchNewStoreCounts(),
+    retry: 1,
   });
 }
 
@@ -1164,7 +1180,14 @@ export const fetchPendingVacancyClosureRequests = () => fetchVacancyClosureReque
 export async function fetchVacancyClosureCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("vacancy_closure_requests").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchVacancyClosureCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -1242,6 +1265,7 @@ export function useVacancyClosureCounts() {
   return useQuery({
     queryKey: ["vacancy-closure-counts"],
     queryFn: () => fetchVacancyClosureCounts(),
+    retry: 1,
   });
 }
 
@@ -1497,7 +1521,14 @@ export const fetchPendingApplicantMovementRequests = () => fetchApplicantMovemen
 export async function fetchApplicantMovementCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("applicant_movement_requests").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchApplicantMovementCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -1588,6 +1619,7 @@ export function useApplicantMovementCounts() {
   return useQuery({
     queryKey: ["applicant-movement-counts"],
     queryFn: () => fetchApplicantMovementCounts(),
+    retry: 1,
   });
 }
 
@@ -1701,7 +1733,14 @@ export async function fetchDeactivationCounts(): Promise<DeactivationStatusCount
     .from("v_deactivation_requests")
     .select("status");
 
-  if (error || !data) {
+  if (error) {
+    console.error("[fetchDeactivationCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) {
     return { pending: 0, approved: 0, rejected: 0 };
   }
 
@@ -1917,8 +1956,12 @@ export async function fetchDeactivationRequests(
   });
 }
 
-export const fetchPendingDeactivations = fetchDeactivationRequests;
-export const fetchPendingDeactivationRequests = fetchDeactivationRequests;
+export async function fetchPendingDeactivations(
+  tabOrFilter: DeactivationStatusTab | { status?: DeactivationStatusTab } = "pending"
+): Promise<DeactivationRequestItem[]> {
+  return fetchDeactivationRequests(tabOrFilter);
+}
+export const fetchPendingDeactivationRequests = fetchPendingDeactivations;
 
 export async function completeEmployeeDeactivation({
   requestId,
@@ -2067,6 +2110,7 @@ export function useDeactivationCounts() {
   return useQuery({
     queryKey: ["deactivation-counts"],
     queryFn: () => fetchDeactivationCounts(),
+    retry: 1,
   });
 }
 
@@ -2250,7 +2294,14 @@ export const fetchPendingAccountGroupTransfers = () => fetchAccountGroupTransfer
 export async function fetchAccountGroupTransferCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("account_group_transfer_requests").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchAccountGroupTransferCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -2323,6 +2374,7 @@ export function useAccountGroupTransferCounts() {
   return useQuery({
     queryKey: ["account-group-transfer-counts"],
     queryFn: () => fetchAccountGroupTransferCounts(),
+    retry: 1,
   });
 }
 
@@ -2503,7 +2555,14 @@ export const fetchPendingRelieverEndorsements = () => fetchRelieverEndorsements(
 export async function fetchRelieverCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("v_workforce_assignment_request_queue").select("status");
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchRelieverCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -2647,7 +2706,14 @@ export const fetchPendingCoverageRequests = () => fetchCoverageRequests("pending
 export async function fetchCoverageCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase.from("coverage_requests").select("status").is("archived_at", null);
-  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+  if (error) {
+    console.error("[fetchCoverageCounts] query failed:", error.code, error.message);
+    if (error.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -2803,6 +2869,7 @@ export function useRelieverCounts() {
   return useQuery({
     queryKey: ["reliever-counts"],
     queryFn: () => fetchRelieverCounts(),
+    retry: 1,
   });
 }
 
@@ -2819,6 +2886,7 @@ export function useCoverageCounts() {
   return useQuery({
     queryKey: ["coverage-counts"],
     queryFn: () => fetchCoverageCounts(),
+    retry: 1,
   });
 }
 

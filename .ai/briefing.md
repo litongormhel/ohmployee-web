@@ -1,36 +1,9 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#4f8k1v7n**: Fix Silent {0,0,0} Counts Fallback — Error Visibility Across Approvals Queues
+- **ohm#9d4t2w6c**: Minimalist Web Pass — New Sidebar + Approvals Restyle + Global Minimal Tokens
 - **ohm#w61d552a**: Restructure Approvals Deactivations Queue to Sub-Tabs and Dense Table Layout
 - **ohm#w60a451f**: Standardize Approvals Tab Typography, Decouple Relievers vs Coverage, and Fix Query Errors
 - **ohm#w48p639d**: Implement ADR-001 Slot Inspector and Audit Timeline Drawer in Plantilla
-- **ohm#w47p538c**: Implement Personnel Store Transfer Modal in Plantilla Management
-- **ohm#w46p437b**: Implement Plantilla Personnel Lifecycle Action Modals on Web
-- **ohm#w44s235c**: Implement Full App Settings, Profile Security, and Diagnostics Module on Web
-- **ohm#w42t033a**: Implement Full-Fidelity Team Directory Module on Web
-- **ohm#w40r831e**: Implement Reliever Endorsements & Coverage Requests In-Place Review Cards in Approvals
-- **ohm#w38s629c**: Implement In-Place Review Cards for Account Group Transfers in Approvals
-- **ohm#w36a427a**: Implement In-Place Review Cards for Applicant Movements and Account Deactivations in Approvals
-- **ohm#w35a326f**: Implement In-Place Review Cards for New Stores and Vacancy Closures in Approvals
-- **ohm#w33e124d**: Implement HR Emploc Bulk XLSX Import and Reconciliation Wizard on Web
-- **ohm#w32e023c**: Integrate HR Emploc Deletion Review Queue in Approvals Center
-- **ohm#w31e922b**: Wire HR Emploc Lifecycle Action Mutations and Modals on Web
-- **ohm#w29m720d**: Implement Full-Fidelity "More" Settings & Governance Hub on Web
-- **ohm#w20e711b**: Fix Infinite "Loading Secure Workspace" Loop on Vercel Deployment
-- **ohm#w19d610a**: Streamline Vacancy Header and Consolidate Status Tabs with Embedded Counts
-- **ohm#w17b408e**: Refine Vacancy Table: Clean Status, Inline Add Applicant, Location Subtitles, and Polished Badges
-- **ohm#w16a307d**: Align Vacancy Management Table Columns with Official CSV Schema
-- **ohm#w15f206c**: Polish and Clean Up Vacancy Management UI in ohmployee_web
-- **ohm#w14e105b**: Implement CENCOM Module and Group Performance Views with Slot Authority Coherence
-- **ohm#w13d904a**: Implement Request Center Hub and Headcount Quota Amendment Approvals in ohmployee_web
-- **ohm#w12c803f**: Implement Headcount Quota Revision and Ops Amendment Modals in ohmployee_web
-- **ohm#w11b702e**: Enforce Global Light Mode Default Across ohmployee_web
-- **ohm#w10a482b**: Baseline Audit of ohmployee_web Architecture, Theme, and Core Modules
-- **ohm#9m2v5jqk**: Plantilla Web — Implement Account-First Selection Gate
-- **ohm#4t8w2xhp**: ADR-001 Compliance Check — Plantilla Account-First Flow (Read-Only)
-- **ohm#7k3n9dqm**: Web-Mobile UX Parity Audit — All Modules (Read-Only)
-- **ohm#2vbn6xkq**: ohmployee-web — Add .gitignore Entries + Push 12 Commits to origin/main
-- **ohm#5jhq8mwv**: ohmployee-web — Commit 443 Backfilled Migration Files via finish.js Gate
-- **ohm#9frm5ktz**: ohmployee-web — Clean Up Stale Duplicate schema_migrations Rows (PROD)
-- **ohm#6ynv2crx**: ohmployee-web — Backfill 443 Missing Migration Files from Mobile Repo
-- **ohm#3wpx7ldk**: ohmployee-web — Investigate & Reconcile ~400-Migration Local/PROD Gap (Read-Only)
+

@@ -1,5 +1,122 @@
 # AI Handoff
 
+## Fix Silent {0,0,0} Counts Fallback — Error Visibility Across Approvals Queues (ohm#4f8k1v7n)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**
+
+### Summary of Changes
+
+1. **Error Throwing and Console Logging on 9 Count Queries (`src/lib/queries/requests.ts`, `src/lib/queries/hr_emploc.ts`)**:
+   - Replaced silent `if (error || !data) return { pending: 0, approved: 0, rejected: 0 }` fallback across all 9 count functions:
+     - `fetchHeadcountCounts`
+     - `fetchNewStoreCounts`
+     - `fetchVacancyClosureCounts`
+     - `fetchApplicantMovementCounts`
+     - `fetchDeactivationCounts`
+     - `fetchAccountGroupTransferCounts`
+     - `fetchRelieverCounts`
+     - `fetchCoverageCounts`
+     - `fetchEmplocDeletionCounts`
+   - When an error is returned by Supabase, the function logs `console.error("[functionName] query failed:", error.code, error.message)` to aid debugging in browser console, then throws `RequestDataError` (or calls `throwHrEmplocError(error)`).
+   - If `!data` (no error, empty/null payload), it safely returns `{ pending: 0, approved: 0, rejected: 0 }`.
+
+2. **Retry Configuration on 9 Hooks (`src/lib/queries/requests.ts`, `src/lib/queries/hr_emploc.ts`)**:
+   - Added `retry: 1` to `useHeadcountCounts`, `useNewStoreCounts`, `useVacancyClosureCounts`, `useApplicantMovementCounts`, `useDeactivationCounts`, `useAccountGroupTransferCounts`, `useRelieverCounts`, `useCoverageCounts`, and `useEmplocDeletionCounts`.
+
+3. **Status Badge Error and Loading Visibility (`src/components/approvals/ActiveQueueReviewPane.tsx`)**:
+   - Updated `QueueToolbarProps` and `QueueToolbar` to accept `isCountsLoading?: boolean` and `isCountsError?: boolean`.
+   - Distinct badge states:
+     - Loading: displays `"..."` in muted font.
+     - Error / Undefined: displays quiet `"—"` in muted font.
+     - Success: displays the numeric count (with warm accent styling when pending > 0 on the pending tab).
+   - Removed `= { pending: 0, approved: 0, rejected: 0 }` destructuring default assignments from all 9 count hook invocations so `0` is rendered only after a successful fetch.
+   - Wired `isCountsLoading` and `isCountsError` props into the `QueueToolbar` for all 9 review queues (`new_stores`, `vacancy_closures`, `hr_emploc_deletions`, `headcount`, `applicant_movements`, `deactivations`, `account_group_transfers`, `coverage`, `relievers`).
+
+4. **Preserved Scopes & Unconfirmed Root Cause**:
+   - Aggregates (`fetchRequestCategoryCounts`), sidebar Approvals badge, and category tab navigation badges remain untouched and resilient.
+   - The root cause of the Vacancy Closures Pending badge mismatch remains unconfirmed pending browser Network tab inspection (`GET vacancy_closure_requests?select=status`).
+   - No DB writes, migrations, or RLS modifications performed.
+   - "Withdrawn" status handling in `VacancyClosureDataTable.tsx` remains untouched.
+
+### Verification Results
+- `npx tsc --noEmit`: **PASS** (0 errors).
+- ESLint (targeted): **PASS** on `src/lib/queries/requests.ts`, `src/lib/queries/hr_emploc.ts`, and `src/components/approvals/ActiveQueueReviewPane.tsx` (0 errors, 0 warnings).
+- `npm run build`: **PASS** (18/18 static pages compiled and prerendered cleanly).
+
+---
+
+## Minimalist Web Pass — New Sidebar + Approvals Restyle + Global Minimal Tokens (ohm#9d4t2w6c)
+
+**Status: COMPLETE — CLIENT-SIDE PRESENTATION & TOKENS ONLY, MAIN BRANCH**
+
+### Summary of Changes
+
+Successfully executed a comprehensive minimalist visual pass across OHMployee Web matching the approved design specification and mockup `OHMployee Web - Minimal Approvals.html` without modifying any business logic, routing, RBAC, data models, or backend/Supabase schemas:
+
+1. **Global Minimal Tokens (`src/app/globals.css`)**:
+   - Palette calibrated to minimal tokens (`--bg: #ffffff`, `--side: #fafafb`, `--soft: #f4f4f6`, `--line: #ececef`, `--text: #16161a`, `--muted: #8a8a94`, `--accent: #2b4fd6`, `--ok: #1a8a5a`, `--bad: #c4372b`, `--warn: #b7791f`, `--pillbg: #eef2ff`).
+   - Removed drop shadows on cards, tables, topbar, and sidebar; maintained elevation and shadows exclusively on floating overlays (modals, dropdowns, popovers, drawers).
+   - Preserved all token alias names and retained existing font variables (`DM_Sans` and `DM_Mono`).
+
+2. **Sidebar Rebuild (`src/components/Sidebar.tsx`, `src/components/DashboardAuthShell.tsx`)**:
+   - Implemented exact mockup hierarchy: Header with "OHMployee" (15px bold) and "Admin Command" (12px muted).
+   - Primary group: Vacancy, HR Emploc, Plantilla with 14px high-contrast typography.
+   - 1px hairline divider (`border-[var(--line)]`).
+   - Secondary group: Dashboard, CENCOM, Approvals, User management, Team directory, Notifications, Reports, Settings, More with 13.5px muted typography.
+   - Dynamic trailing badge on Approvals displaying the aggregate pending count (`bg-[var(--accent)] text-white text-[10.5px] px-1.5 py-0.2 rounded-full font-bold`).
+   - Active state styling: Soft background fill (`bg-[var(--soft)] text-[var(--text)] font-semibold`) with zero icons, zero colored accent bars, and zero shadows.
+   - Footer: Rendered user full name and role in muted small typography.
+   - Fully preserved responsive drawer handling, logout flow, and RBAC module visibility (`visibleModules`).
+
+3. **Admin Topbar Flat Pass (`src/components/AdminTopbar.tsx`)**:
+   - Swapped heavy shadow and border styling for a clean flat `bg-[var(--bg)] border-b border-[var(--line)]` layout with tracking uppercase eyebrow breadcrumb.
+
+4. **Approvals Page Layout & Navigation (`src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`)**:
+   - Card container converted to flat `rounded-xl border border-[var(--line)] bg-[var(--surface-base)]` with zero shadows.
+   - Tab strip: Outline-styled active tab (`border border-[var(--line)] bg-[var(--surface-base)] font-semibold text-[var(--text)]`) and quiet accent badge (`bg-[var(--pillbg)] text-[var(--accent)] border border-blue-200/50`) preserving unacknowledged notification tracking without logic alteration.
+
+5. **Operational States & Queue Toolbar (`src/components/shared/DataState.tsx`, `src/components/approvals/ActiveQueueReviewPane.tsx`)**:
+   - Removed decorative SVG graphics from empty/loading/error states in favor of clean operational typography.
+   - Built unified `QueueToolbar` across all 9 review queues: flat search input with 1px hairline border, segmented status control with embedded counts, and ghost refresh button.
+
+6. **All 9 Approvals Queue Data Tables Restyled**:
+   - Restyled `VacancyClosureDataTable.tsx`, `HeadcountDataTable.tsx`, `NewStoreDataTable.tsx`, `CoverageDataTable.tsx`, `DeactivationDataTable.tsx`, `ApplicantMovementDataTable.tsx`, `AccountTransferDataTable.tsx`, `RelieverDataTable.tsx`, and `HrEmplocDeletionDataTable.tsx`.
+   - Applied sticky table headers with muted `text-[12.5px] font-medium`, row hover (`hover:bg-[var(--soft)]`), mono bold VCode/Request # (`font-mono font-bold text-[13px] text-[var(--text)]`), small outlined Account pill (`rounded-[6px] border border-blue-200/50 bg-[var(--pillbg)] text-[var(--accent)]`), branch name stacked beneath store, timestamp stacked beneath requester name, quiet outlined red Reject action (`border border-[var(--bad)]/40 text-[var(--bad)] hover:bg-[var(--bad)]/10`), and solid green Approve button (`bg-[var(--ok)] text-white hover:bg-emerald-700`).
+
+7. **Report on Pending Badge (0 vs 2 Pending Rows on Vacancy Closures)**:
+   - *Cause 1 (Client Acknowledgment)*: Selecting any category tab immediately triggers `handleSelectCategory()`, adding the key to `acknowledgedCategories` and deliberately suppressing the category tab badge.
+   - *Cause 2 (RLS Scoping Policy)*: `fetchVacancyClosureCounts()` selects `status` from `vacancy_closure_requests`. Under policy `vacancy_closure_req_read_scoped`, non-admin or unauthenticated contexts yield 0 rows, returning `{ pending: 0 }`.
+   - *Cause 3 (Missing Invalidation)*: Mutation hook `useReviewVacancyClosureRequest()` invalidates `['vacancy-closure-requests']` and `['request-category-counts']`, but fails to invalidate `['vacancy-closure-counts']`.
+
+### Verification Results
+- `npx tsc --noEmit`: **PASS** (0 errors).
+- `npm run build`: **PASS** (18/18 static routes compiled and prerendered cleanly in 56s).
+- `npx eslint`: **PASS** on all 16 touched components/pages (0 errors, 0 warnings).
+- Git branch: `main` only (no new branches created; no DB writes).
+
+### Files Changed
+- `src/app/globals.css`
+- `src/components/DashboardAuthShell.tsx`
+- `src/components/Sidebar.tsx`
+- `src/components/AdminTopbar.tsx`
+- `src/app/(dashboard)/approvals/page.tsx`
+- `src/components/approvals/RequestCategoryNavigation.tsx`
+- `src/components/shared/DataState.tsx`
+- `src/components/approvals/ActiveQueueReviewPane.tsx`
+- `src/components/approvals/VacancyClosureDataTable.tsx`
+- `src/components/approvals/HeadcountDataTable.tsx`
+- `src/components/approvals/NewStoreDataTable.tsx`
+- `src/components/approvals/CoverageDataTable.tsx`
+- `src/components/approvals/DeactivationDataTable.tsx`
+- `src/components/approvals/ApplicantMovementDataTable.tsx`
+- `src/components/approvals/AccountTransferDataTable.tsx`
+- `src/components/approvals/RelieverDataTable.tsx`
+- `src/components/approvals/HrEmplocDeletionDataTable.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Baseline Audit of ohmployee_web Architecture, Theme, and Core Modules (ohm#w10a482b)
 
 **Status: COMPLETE — READ-ONLY BASELINE AUDIT & IMPLEMENTATION ROADMAP**

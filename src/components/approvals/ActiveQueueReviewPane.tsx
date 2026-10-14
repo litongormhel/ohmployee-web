@@ -9,7 +9,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { DataState } from "@/components/shared/DataState";
+import { ApprovalsDataState } from "@/components/approvals/ApprovalsDataState";
 import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
 import { ApplicantMovementDataTable } from "@/components/approvals/ApplicantMovementDataTable";
 import { CoverageDataTable } from "@/components/approvals/CoverageDataTable";
@@ -58,6 +58,142 @@ const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: 
   relievers: { href: "/cencom", label: "Open CENCOM Module" },
 };
 
+interface QueueToolbarProps<T extends string = ApprovalStatusTab> {
+  searchQuery: string;
+  onSearchChange: (val: string) => void;
+  searchPlaceholder?: string;
+  currentTab: T;
+  onTabChange: (tab: T) => void;
+  counts?: { pending: number; approved: number; rejected: number };
+  isCountsLoading?: boolean;
+  isCountsError?: boolean;
+  approvedLabel?: string;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+  isLoading: boolean;
+}
+
+function QueueToolbar<T extends string = ApprovalStatusTab>({
+  searchQuery,
+  onSearchChange,
+  searchPlaceholder = "Filter requests...",
+  currentTab,
+  onTabChange,
+  counts,
+  isCountsLoading = false,
+  isCountsError = false,
+  approvedLabel = "Approved",
+  onRefresh,
+  isRefreshing,
+  isLoading,
+}: QueueToolbarProps<T>) {
+  const renderBadge = (count: number | undefined, tabName: T, isPending = false) => {
+    if (isCountsLoading) {
+      return (
+        <span className="rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold text-[var(--muted)]">
+          ...
+        </span>
+      );
+    }
+    if (isCountsError || count === undefined) {
+      return (
+        <span className="rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold text-[var(--muted)]">
+          —
+        </span>
+      );
+    }
+    const isSelected = currentTab === tabName;
+    const colorClass = isSelected
+      ? isPending && count > 0
+        ? "bg-[var(--soft)] text-[var(--warn)]"
+        : "bg-[var(--soft)] text-[var(--muted)]"
+      : "bg-transparent text-[var(--muted)]";
+
+    return (
+      <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${colorClass}`}>
+        {count}
+      </span>
+    );
+  };
+
+  return (
+    <div className="border-b border-[var(--line)] pb-3">
+      {/* Search / Filter Strip with Refresh */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative w-72 sm:w-80">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--muted)]" />
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="h-8 w-full rounded-[9px] border border-[var(--line)] bg-[var(--bg)] pl-8 pr-3 text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--text)] focus:outline-hidden"
+          />
+        </div>
+
+        {/* Refresh */}
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing || isLoading}
+          className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] disabled:opacity-50 transition cursor-pointer"
+        >
+          <RefreshCw
+            className={`h-3 w-3 ${
+              isRefreshing ? "animate-spin text-[var(--text)]" : ""
+            }`}
+          />
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      {/* Sub-Tabs directly below the search/filter strip */}
+      <div className="mt-3 flex items-center gap-1">
+        <div className="flex items-center gap-0.5 rounded-[9px] border border-[var(--line)] bg-[var(--soft)] p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => onTabChange("pending" as T)}
+            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
+              currentTab === "pending"
+                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
+                : "text-[var(--muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            <span>Pending</span>
+            {renderBadge(counts?.pending, "pending" as T, true)}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onTabChange("approved" as T)}
+            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
+              currentTab === "approved"
+                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
+                : "text-[var(--muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            <span>{approvedLabel}</span>
+            {renderBadge(counts?.approved, "approved" as T, false)}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onTabChange("rejected" as T)}
+            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
+              currentTab === "rejected"
+                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
+                : "text-[var(--muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            <span>Rejected</span>
+            {renderBadge(counts?.rejected, "rejected" as T, false)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ActiveQueueReviewPane({
   selectedCategory,
   onSelectCategory,
@@ -96,7 +232,9 @@ export function ActiveQueueReviewPane({
   } = useHeadcountRequests(headcountTab);
 
   const {
-    data: headcountCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: headcountCounts,
+    isLoading: isHeadcountCountsLoading,
+    isError: isHeadcountCountsError,
     refetch: refetchHeadcountCounts,
   } = useHeadcountCounts();
 
@@ -110,7 +248,9 @@ export function ActiveQueueReviewPane({
   } = useEmplocDeletionRequests(hrEmplocTab);
 
   const {
-    data: deletionCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: deletionCounts,
+    isLoading: isDeletionCountsLoading,
+    isError: isDeletionCountsError,
     refetch: refetchDeletionCounts,
   } = useEmplocDeletionCounts();
 
@@ -124,7 +264,9 @@ export function ActiveQueueReviewPane({
   } = useNewStoreRequests(newStoreTab);
 
   const {
-    data: newStoreCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: newStoreCounts,
+    isLoading: isNewStoreCountsLoading,
+    isError: isNewStoreCountsError,
     refetch: refetchNewStoreCounts,
   } = useNewStoreCounts();
 
@@ -138,7 +280,9 @@ export function ActiveQueueReviewPane({
   } = useVacancyClosureRequests(vacancyClosureTab);
 
   const {
-    data: closureCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: closureCounts,
+    isLoading: isClosureCountsLoading,
+    isError: isClosureCountsError,
     refetch: refetchClosureCounts,
   } = useVacancyClosureCounts();
 
@@ -152,7 +296,9 @@ export function ActiveQueueReviewPane({
   } = useApplicantMovementRequests(movementTab);
 
   const {
-    data: movementCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: movementCounts,
+    isLoading: isMovementCountsLoading,
+    isError: isMovementCountsError,
     refetch: refetchMovementCounts,
   } = useApplicantMovementCounts();
 
@@ -166,7 +312,9 @@ export function ActiveQueueReviewPane({
   } = useDeactivationRequests(deactivationTab);
 
   const {
-    data: deactCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: deactCounts,
+    isLoading: isDeactCountsLoading,
+    isError: isDeactCountsError,
     refetch: refetchDeactCounts,
   } = useDeactivationCounts();
 
@@ -180,7 +328,9 @@ export function ActiveQueueReviewPane({
   } = useAccountGroupTransfers(transferTab);
 
   const {
-    data: transferCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: transferCounts,
+    isLoading: isTransferCountsLoading,
+    isError: isTransferCountsError,
     refetch: refetchTransferCounts,
   } = useAccountGroupTransferCounts();
 
@@ -194,7 +344,9 @@ export function ActiveQueueReviewPane({
   } = useRelieverEndorsements(relieverTab);
 
   const {
-    data: relieverCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: relieverCounts,
+    isLoading: isRelieverCountsLoading,
+    isError: isRelieverCountsError,
     refetch: refetchRelieverCounts,
   } = useRelieverCounts();
 
@@ -208,7 +360,9 @@ export function ActiveQueueReviewPane({
   } = useCoverageRequests(coverageTab);
 
   const {
-    data: coverageCounts = { pending: 0, approved: 0, rejected: 0 },
+    data: coverageCounts,
+    isLoading: isCoverageCountsLoading,
+    isError: isCoverageCountsError,
     refetch: refetchCoverageCounts,
   } = useCoverageCounts();
 
@@ -400,123 +554,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search store, account, city, province, requester..."
-                  value={newStoreSearchQuery}
-                  onChange={(e) => setNewStoreSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setNewStoreTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    newStoreTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      newStoreTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {newStoreCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewStoreTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    newStoreTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      newStoreTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {newStoreCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewStoreTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    newStoreTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      newStoreTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {newStoreCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isNewStoreRefetching || isNewStoreLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isNewStoreRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={newStoreSearchQuery}
+          onSearchChange={setNewStoreSearchQuery}
+          searchPlaceholder="Search store, account, city, province, requester..."
+          currentTab={newStoreTab}
+          onTabChange={setNewStoreTab}
+          counts={newStoreCounts}
+          isCountsLoading={isNewStoreCountsLoading}
+          isCountsError={isNewStoreCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isNewStoreRefetching}
+          isLoading={isNewStoreLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isNewStoreLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading New Store Requests"
               description="Fetching new store addition requests..."
             />
           ) : isNewStoreError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching new store requests."
               onRetry={handleRefresh}
             />
           ) : filteredNewStoreRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 newStoreSearchQuery
@@ -557,125 +625,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search VCode, store, position, requester..."
-                  value={vacancyClosureSearchQuery}
-                  onChange={(e) => setVacancyClosureSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setVacancyClosureTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    vacancyClosureTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      vacancyClosureTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {closureCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setVacancyClosureTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    vacancyClosureTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      vacancyClosureTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {closureCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setVacancyClosureTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    vacancyClosureTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      vacancyClosureTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {closureCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Right side controls: Refresh */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={isClosureRefetching || isClosureLoading}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${
-                    isClosureRefetching ? "animate-spin text-brand-600" : ""
-                  }`}
-                />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={vacancyClosureSearchQuery}
+          onSearchChange={setVacancyClosureSearchQuery}
+          searchPlaceholder="Search VCode, store, position, requester..."
+          currentTab={vacancyClosureTab}
+          onTabChange={setVacancyClosureTab}
+          counts={closureCounts}
+          isCountsLoading={isClosureCountsLoading}
+          isCountsError={isClosureCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isClosureRefetching}
+          isLoading={isClosureLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isClosureLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Vacancy Closures"
               description="Fetching vacancy closure requests..."
             />
           ) : isClosureError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching vacancy closure requests."
               onRetry={handleRefresh}
             />
           ) : filteredClosureRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 vacancyClosureSearchQuery
@@ -716,123 +696,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search employee, VCode, store, requester..."
-                  value={deletionSearchQuery}
-                  onChange={(e) => setDeletionSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setHrEmplocTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    hrEmplocTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      hrEmplocTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deletionCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHrEmplocTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    hrEmplocTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      hrEmplocTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deletionCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHrEmplocTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    hrEmplocTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      hrEmplocTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deletionCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isDeletionRefetching || isDeletionLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isDeletionRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={deletionSearchQuery}
+          onSearchChange={setDeletionSearchQuery}
+          searchPlaceholder="Search employee, VCode, store, requester..."
+          currentTab={hrEmplocTab}
+          onTabChange={setHrEmplocTab}
+          counts={deletionCounts}
+          isCountsLoading={isDeletionCountsLoading}
+          isCountsError={isDeletionCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isDeletionRefetching}
+          isLoading={isDeletionLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isDeletionLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Deletion Requests"
               description="Fetching HR Emploc deletion requests..."
             />
           ) : isDeletionError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching deletion requests."
               onRetry={handleRefresh}
             />
           ) : filteredDeletionRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 deletionSearchQuery
@@ -873,123 +767,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search store, VCode, position, requester..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setHeadcountTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    headcountTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      headcountTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {headcountCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHeadcountTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    headcountTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      headcountTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {headcountCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHeadcountTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    headcountTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      headcountTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {headcountCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isRefetching || isLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search store, VCode, position, requester..."
+          currentTab={headcountTab}
+          onTabChange={setHeadcountTab}
+          counts={headcountCounts}
+          isCountsLoading={isHeadcountCountsLoading}
+          isCountsError={isHeadcountCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefetching}
+          isLoading={isLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Headcount Requests"
               description="Fetching quota amendments and headcount requests..."
             />
           ) : isError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching pending headcount requests."
               onRetry={handleRefresh}
             />
           ) : filteredRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 searchQuery
@@ -1030,123 +838,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search applicant, VCode, store, requester..."
-                  value={movementSearchQuery}
-                  onChange={(e) => setMovementSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMovementTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    movementTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      movementTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {movementCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMovementTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    movementTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      movementTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {movementCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMovementTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    movementTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      movementTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {movementCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isMovementRefetching || isMovementLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isMovementRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={movementSearchQuery}
+          onSearchChange={setMovementSearchQuery}
+          searchPlaceholder="Search applicant, VCode, store, requester..."
+          currentTab={movementTab}
+          onTabChange={setMovementTab}
+          counts={movementCounts}
+          isCountsLoading={isMovementCountsLoading}
+          isCountsError={isMovementCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isMovementRefetching}
+          isLoading={isMovementLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isMovementLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Applicant Movement Requests"
               description="Fetching candidate transfer and swap requisitions..."
             />
           ) : isMovementError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching pending applicant movements."
               onRetry={handleRefresh}
             />
           ) : filteredMovementRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 movementSearchQuery
@@ -1187,123 +909,38 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search employee, ID, store, position, account..."
-                  value={deactivationSearchQuery}
-                  onChange={(e) => setDeactivationSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Deactivated / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setDeactivationTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    deactivationTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      deactivationTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deactCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeactivationTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    deactivationTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Deactivated</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      deactivationTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deactCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeactivationTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    deactivationTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      deactivationTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {deactCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh trigger */}
-            <button
-              type="button"
-              onClick={handleRefreshDeactivations}
-              disabled={isDeactRefetching || isDeactLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isDeactRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar<DeactivationStatusTab>
+          searchQuery={deactivationSearchQuery}
+          onSearchChange={setDeactivationSearchQuery}
+          searchPlaceholder="Search employee, ID, store, position, account..."
+          currentTab={deactivationTab}
+          onTabChange={setDeactivationTab}
+          counts={deactCounts}
+          isCountsLoading={isDeactCountsLoading}
+          isCountsError={isDeactCountsError}
+          approvedLabel="Deactivated"
+          onRefresh={handleRefreshDeactivations}
+          isRefreshing={isDeactRefetching}
+          isLoading={isDeactLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isDeactLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Deactivation Requests"
               description="Fetching live employee deactivation and separation clearance requests..."
             />
           ) : isDeactError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching deactivation requests."
               onRetry={handleRefreshDeactivations}
             />
           ) : filteredDeactivationRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 deactivationSearchQuery
@@ -1344,123 +981,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search account, group, AGT-#, requester..."
-                  value={transferSearchQuery}
-                  onChange={(e) => setTransferSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setTransferTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    transferTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      transferTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {transferCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTransferTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    transferTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      transferTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {transferCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTransferTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    transferTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      transferTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {transferCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isTransferRefetching || isTransferLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isTransferRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={transferSearchQuery}
+          onSearchChange={setTransferSearchQuery}
+          searchPlaceholder="Search account, group, AGT-#, requester..."
+          currentTab={transferTab}
+          onTabChange={setTransferTab}
+          counts={transferCounts}
+          isCountsLoading={isTransferCountsLoading}
+          isCountsError={isTransferCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isTransferRefetching}
+          isLoading={isTransferLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isTransferLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Account Group Transfers"
               description="Fetching account group reassignments and simulation snapshots..."
             />
           ) : isTransferError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Queue"
               description="An error occurred while fetching account group transfers."
               onRetry={handleRefresh}
             />
           ) : filteredTransferRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 transferSearchQuery
@@ -1501,123 +1052,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search group name, code, account, requester..."
-                  value={rovingSearchQuery}
-                  onChange={(e) => setRovingSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setCoverageTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    coverageTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      coverageTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {coverageCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCoverageTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    coverageTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      coverageTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {coverageCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCoverageTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    coverageTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      coverageTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {coverageCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isRovingRefetching || isRovingLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isRovingRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={rovingSearchQuery}
+          onSearchChange={setRovingSearchQuery}
+          searchPlaceholder="Search group name, code, account, requester..."
+          currentTab={coverageTab}
+          onTabChange={setCoverageTab}
+          counts={coverageCounts}
+          isCountsLoading={isCoverageCountsLoading}
+          isCountsError={isCoverageCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isRovingRefetching}
+          isLoading={isRovingLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isRovingLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Roving Coverage Groups"
               description="Fetching coverage group structural requests..."
             />
           ) : isRovingError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Coverage Requests"
               description="An error occurred while fetching pending coverage requests."
               onRetry={handleRefresh}
             />
           ) : filteredRovingRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 rovingSearchQuery
@@ -1658,123 +1123,37 @@ export function ActiveQueueReviewPane({
 
     return (
       <div className="flex h-full flex-col">
-        {/* Pane Toolbar */}
-        <div className="border-b border-border-default pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search bar */}
-              <div className="relative w-64 sm:w-72">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search reliever name, ID, store, account, requester..."
-                  value={relieverSearchQuery}
-                  onChange={(e) => setRelieverSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border-default bg-white pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Sub-Tabs: Pending / Approved / Rejected */}
-              <div className="flex items-center gap-1 rounded-lg border border-border-default bg-slate-100/80 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setRelieverTab("pending")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    relieverTab === "pending"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Pending</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      relieverTab === "pending"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {relieverCounts.pending}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRelieverTab("approved")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    relieverTab === "approved"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Approved</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      relieverTab === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {relieverCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRelieverTab("rejected")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
-                    relieverTab === "rejected"
-                      ? "bg-white text-text-primary shadow-2xs font-semibold"
-                      : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>Rejected</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${
-                      relieverTab === "rejected"
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-slate-200/80 text-text-muted"
-                    }`}
-                  >
-                    {relieverCounts.rejected}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isRelieverRefetching || isRelieverLoading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isRelieverRefetching ? "animate-spin text-brand-600" : ""
-                }`}
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+        <QueueToolbar
+          searchQuery={relieverSearchQuery}
+          onSearchChange={setRelieverSearchQuery}
+          searchPlaceholder="Search reliever name, ID, store, account, requester..."
+          currentTab={relieverTab}
+          onTabChange={setRelieverTab}
+          counts={relieverCounts}
+          isCountsLoading={isRelieverCountsLoading}
+          isCountsError={isRelieverCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isRelieverRefetching}
+          isLoading={isRelieverLoading}
+        />
 
         {/* Requests List Area */}
         <div className="mt-4 flex-1 min-h-0 flex flex-col">
           {isRelieverLoading ? (
-            <DataState
+            <ApprovalsDataState
               kind="loading"
               title="Loading Reliever Deployments"
               description="Fetching reliever endorsement requests from workforce pool..."
             />
           ) : isRelieverError ? (
-            <DataState
+            <ApprovalsDataState
               kind="error"
               title="Failed to Load Reliever Deployments"
               description="An error occurred while fetching pending reliever endorsement requests."
               onRetry={handleRefresh}
             />
           ) : filteredRelieverRequests.length === 0 ? (
-            <DataState
+            <ApprovalsDataState
               kind="empty"
               title={
                 relieverSearchQuery

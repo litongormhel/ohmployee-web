@@ -303,9 +303,8 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
               type="button"
               onClick={handleOpenBulkReject}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-transparent px-2.5 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
             >
-              <XCircle className="h-3 w-3" />
               <span>Reject {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
 
@@ -313,9 +312,8 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
               type="button"
               onClick={handleOpenBulkApprove}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ok)] bg-[var(--ok)] px-3 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
             >
-              <CheckCircle2 className="h-3 w-3" />
               <span>Approve {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
           </div>
@@ -323,13 +321,13 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
       )}
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-border-default bg-surface-base shadow-2xs overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
         <div className="flex-1 overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-semibold uppercase text-text-secondary border-b border-border-default">
+            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
               <tr>
                 {tab === "pending" && (
-                  <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+                  <th scope="col" className="w-10 px-4 py-2.5 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -340,199 +338,199 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
                       }}
                       onChange={toggleSelectAll}
                       aria-label="Select all rows"
-                      className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                     />
                   </th>
                 )}
-              <th scope="col" className="px-3.5 py-2.5">
-                PRIORITY
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                EMPLOYEE
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                POOL TYPE
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                TARGET ACCOUNT
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                TARGET STORE / GROUP
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                DATES
-              </th>
-              <th scope="col" className="px-3.5 py-2.5">
-                REASON
-              </th>
-              <th
-                scope="col"
-                className={`px-3.5 py-2.5 ${tab === "rejected" ? "text-left" : "text-right"}`}
-              >
-                {tab === "rejected" ? "REJECTED REASON" : "ACTION"}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-default">
-            {requests.map((request) => {
-              const reqStatus = (request.status || "").toLowerCase();
-              const isPending =
-                tab === "pending" ||
-                reqStatus === "pending" ||
-                reqStatus === "for review";
-              const isApproved =
-                reqStatus === "approved" || reqStatus === "completed";
-
-              const priorityLower = (request.priority || "Normal").toLowerCase();
-
-              return (
-                <tr
-                  key={request.requestId}
-                  className="transition-colors hover:bg-slate-50/80"
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Priority
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Employee
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Pool type
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Target account
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Target store / group
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Dates
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-medium">
+                  Reason
+                </th>
+                <th
+                  scope="col"
+                  className={`px-4 py-2.5 font-medium ${tab === "rejected" ? "text-left" : "text-right"}`}
                 >
-                  {tab === "pending" && (
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(request.requestId)}
-                        onChange={() => toggleSelectOne(request.requestId)}
-                        aria-label={`Select reliever request ${request.requestId}`}
-                        className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
-                      />
-                    </td>
-                  )}
-                  {/* PRIORITY */}
-                  <td className="px-3.5 py-2.5 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${
-                        priorityLower === "urgent"
-                          ? "border-rose-200 bg-rose-50 text-rose-800"
-                          : priorityLower === "high"
-                          ? "border-amber-200 bg-amber-50 text-amber-800"
-                          : "border-slate-200 bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      {request.priority || "Normal"}
-                    </span>
-                  </td>
+                  {tab === "rejected" ? "Rejected reason" : "Action"}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--line)]">
+              {requests.map((request) => {
+                const reqStatus = (request.status || "").toLowerCase();
+                const isPending =
+                  tab === "pending" ||
+                  reqStatus === "pending" ||
+                  reqStatus === "for review";
+                const isApproved =
+                  reqStatus === "approved" || reqStatus === "completed";
 
-                  {/* EMPLOYEE */}
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-text-primary text-xs sm:text-[13px]">
-                        {request.employeeName || "Unassigned"}
-                      </span>
-                      {request.employeeNumber && (
-                        <span className="font-mono text-[10px] text-text-muted">
-                          {request.employeeNumber}
-                        </span>
-                      )}
-                    </div>
-                  </td>
+                const priorityLower = (request.priority || "Normal").toLowerCase();
 
-                  {/* POOL TYPE */}
-                  <td className="px-3.5 py-2.5 whitespace-nowrap">
-                    <span className="inline-flex items-center rounded border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">
-                      {request.poolType || "Reliever"}
-                    </span>
-                  </td>
-
-                  {/* TARGET ACCOUNT */}
-                  <td className="px-3.5 py-2.5 whitespace-nowrap">
-                    <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      {request.requestedAccount || "—"}
-                    </span>
-                  </td>
-
-                  {/* TARGET STORE / GROUP */}
-                  <td className="px-3.5 py-2.5 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-text-primary text-xs">
-                        {request.requestedStore || "—"}
-                      </span>
-                      {request.requestedGroup && (
-                        <span className="text-[10px] text-text-muted">
-                          {request.requestedGroup}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* DATES */}
-                  <td className="px-3.5 py-2.5 text-text-secondary whitespace-nowrap font-mono text-[11px]">
-                    {request.startDate ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar className="h-3 w-3 text-text-muted inline" />
-                        {formatDate(request.startDate)} → {formatDate(request.endDate)}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-                  {/* REASON */}
-                  <td className="px-3.5 py-2.5 max-w-xs truncate text-text-secondary" title={request.reason || ""}>
-                    {request.reason || "—"}
-                  </td>
-
-                  {/* ACTION / REJECTED REASON */}
-                  <td
-                    className={`px-3.5 py-2.5 ${
-                      tab === "rejected" ? "text-left" : "text-right whitespace-nowrap"
+                return (
+                  <tr
+                    key={request.requestId}
+                    className={`transition-colors hover:bg-[var(--soft)] ${
+                      selectedIds.has(request.requestId) ? "bg-[var(--pillbg)]/40" : ""
                     }`}
                   >
-                    {isPending ? (
-                      <div className="inline-flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenReject(request)}
-                          disabled={isBusy || !canReview}
-                          title={!canReview ? "Requires Data Team / Admin role" : undefined}
-                          className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-400 disabled:opacity-50 transition"
-                        >
-                          <XCircle className="h-3 w-3" aria-hidden="true" />
-                          <span>Reject</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenApprove(request)}
-                          disabled={isBusy || !canReview}
-                          title={!canReview ? "Requires Data Team / Admin role" : undefined}
-                          className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-600 bg-emerald-600 px-2.5 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
-                        >
-                          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                          <span>Approve Reliever</span>
-                        </button>
-                      </div>
-                    ) : isApproved ? (
-                      <div className="inline-flex flex-col items-end gap-0.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                          <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                          Assigned
-                        </span>
-                        {request.reviewedAt && (
-                          <span className="text-[10px] font-mono text-text-muted">
-                            {formatDate(request.reviewedAt)}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-start gap-0.5 max-w-xs">
-                        <span className="font-semibold text-rose-700 text-xs break-words">
-                          {request.rejectionReason || "No reason specified"}
-                        </span>
-                        {request.reviewedAt && (
-                          <span className="text-[10px] font-mono text-text-muted">
-                            Rejected: {formatDate(request.reviewedAt)}
-                          </span>
-                        )}
-                      </div>
+                    {tab === "pending" && (
+                      <td className="w-10 px-4 py-3.5 text-left align-middle">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(request.requestId)}
+                          onChange={() => toggleSelectOne(request.requestId)}
+                          aria-label={`Select reliever request ${request.requestId}`}
+                          className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                        />
+                      </td>
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+                    {/* PRIORITY */}
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                      <span
+                        className={`inline-flex items-center rounded-[6px] border px-2 py-0.5 text-xs font-medium ${
+                          priorityLower === "urgent"
+                            ? "border-rose-200/50 bg-rose-50/60 text-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                            : priorityLower === "high"
+                            ? "border-amber-200/50 bg-amber-50/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                            : "border-[var(--line)] bg-[var(--soft)] text-[var(--muted)]"
+                        }`}
+                      >
+                        {request.priority || "Normal"}
+                      </span>
+                    </td>
+
+                    {/* EMPLOYEE */}
+                    <td className="px-4 py-3.5 align-middle">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-[var(--text)] text-xs">
+                          {request.employeeName || "Unassigned"}
+                        </span>
+                        {request.employeeNumber && (
+                          <span className="font-mono text-[10.5px] text-[var(--muted)]">
+                            {request.employeeNumber}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* POOL TYPE */}
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                      <span className="inline-flex items-center rounded-[6px] border border-[var(--status-accent-border)] bg-[var(--pillbg)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
+                        {request.poolType || "Reliever"}
+                      </span>
+                    </td>
+
+                    {/* TARGET ACCOUNT */}
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                      <span className="inline-flex items-center rounded-[6px] border border-[var(--status-accent-border)] bg-[var(--pillbg)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
+                        {request.requestedAccount || "—"}
+                      </span>
+                    </td>
+
+                    {/* TARGET STORE / GROUP */}
+                    <td className="px-4 py-3.5 whitespace-nowrap align-middle">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[var(--text)]">
+                          {request.requestedStore || "—"}
+                        </span>
+                        {request.requestedGroup && (
+                          <span className="text-[12.5px] text-[var(--muted)]">
+                            {request.requestedGroup}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* DATES */}
+                    <td className="px-4 py-3.5 whitespace-nowrap font-mono text-xs text-[var(--text)] align-middle">
+                      {request.startDate ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-[var(--muted)] inline" />
+                          {formatDate(request.startDate)} → {formatDate(request.endDate)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    {/* REASON */}
+                    <td className="px-4 py-3.5 max-w-xs truncate text-xs text-[var(--muted)] align-middle" title={request.reason || ""}>
+                      {request.reason || "—"}
+                    </td>
+
+                    {/* ACTION / REJECTED REASON */}
+                    <td
+                      className={`px-4 py-3.5 align-middle ${
+                        tab === "rejected" ? "text-left" : "text-right whitespace-nowrap"
+                      }`}
+                    >
+                      {isPending ? (
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReject(request)}
+                            disabled={isBusy || !canReview}
+                            title={!canReview ? "Requires Data Team / Admin role" : undefined}
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--bad)]/40 bg-transparent px-3 text-xs font-normal text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+                          >
+                            <span>Reject</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenApprove(request)}
+                            disabled={isBusy || !canReview}
+                            title={!canReview ? "Requires Data Team / Admin role" : undefined}
+                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+                          >
+                            <span>Approve Reliever</span>
+                          </button>
+                        </div>
+                      ) : isApproved ? (
+                        <div className="inline-flex flex-col items-end gap-0.5">
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-normal">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
+                            Assigned
+                          </span>
+                          {request.reviewedAt && (
+                            <span className="text-[12.5px] text-[var(--muted)]">
+                              {formatDate(request.reviewedAt)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-start gap-0.5 max-w-xs">
+                          <span className="text-xs font-normal text-[var(--bad)] border border-[var(--bad)]/30 rounded-lg px-2.5 py-1">
+                            {request.rejectionReason || "No reason specified"}
+                          </span>
+                          {request.reviewedAt && (
+                            <span className="text-[12.5px] text-[var(--muted)] mt-1">
+                              {formatDate(request.reviewedAt)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
         </table>
       </div>
     </div>
