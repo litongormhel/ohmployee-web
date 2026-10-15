@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCheck, RefreshCw } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { RequestCategoryNavigation } from "@/components/approvals/RequestCategoryNavigation";
@@ -10,9 +11,30 @@ import {
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
 
-export default function ApprovalsPage() {
-  const [selectedCategory, setSelectedCategory] =
+const VALID_CATEGORIES = new Set<string>([
+  "new_stores",
+  "headcount",
+  "coverage",
+  "vacancy_closures",
+  "hr_emploc_deletions",
+  "deactivations",
+  "applicant_movements",
+  "account_group_transfers",
+  "relievers",
+]);
+
+function ApprovalsPageContent() {
+  const searchParams = useSearchParams();
+  const paramTab = searchParams.get("tab") || searchParams.get("category");
+  const urlCategory =
+    paramTab && VALID_CATEGORIES.has(paramTab)
+      ? (paramTab as RequestCategoryKey)
+      : null;
+
+  const [localCategory, setLocalCategory] =
     useState<RequestCategoryKey>("headcount");
+
+  const selectedCategory = urlCategory ?? localCategory;
 
   // Clear-on-Click / Acknowledgment:
   // When a user selects/clicks a request category, temporarily clear or acknowledge
@@ -39,7 +61,7 @@ export default function ApprovalsPage() {
   } = useRequestCategoryCounts();
 
   const handleSelectCategory = (key: RequestCategoryKey) => {
-    setSelectedCategory(key);
+    setLocalCategory(key);
     // Mark as acknowledged in current session view state to clear trailing pill badge
     setAcknowledgedCategories((prev) => {
       const next = new Set(prev);
@@ -89,5 +111,20 @@ export default function ApprovalsPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function ApprovalsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="h-14 border-b border-border-subtle bg-surface-base animate-pulse" />
+          <div className="h-64 rounded-xl border border-border-default bg-surface-base animate-pulse" />
+        </div>
+      }
+    >
+      <ApprovalsPageContent />
+    </Suspense>
   );
 }

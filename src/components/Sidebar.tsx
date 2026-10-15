@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useRequestCategoryCounts } from "@/lib/queries/requests";
+import { useUnreadNotificationsCount } from "@/lib/queries/notifications";
 
 type SidebarProps = {
   visibleModules: WebModule[];
@@ -38,6 +39,8 @@ export function Sidebar({
   const totalPendingCount = requestCounts
     ? Object.values(requestCounts).reduce((acc, c) => acc + c, 0)
     : 0;
+
+  const { data: unreadNotificationsCount = 0 } = useUnreadNotificationsCount();
 
   const mainModules = visibleModules.filter((m) => MAIN_MODULE_KEYS.has(m.key));
   const secondaryModules = visibleModules.filter((m) => !MAIN_MODULE_KEYS.has(m.key));
@@ -88,6 +91,7 @@ export function Sidebar({
         {secondaryModules.map(({ key, href, title }) => {
           const isActive = activeModule.href === href;
           const isApprovals = key === "approvals";
+          const isNotifications = key === "notifications";
           const displayTitle =
             key === "users"
               ? "User management"
@@ -111,6 +115,11 @@ export function Sidebar({
               {isApprovals && totalPendingCount > 0 && (
                 <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
                   {totalPendingCount}
+                </span>
+              )}
+              {isNotifications && unreadNotificationsCount > 0 && (
+                <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
+                  {unreadNotificationsCount}
                 </span>
               )}
             </Link>
