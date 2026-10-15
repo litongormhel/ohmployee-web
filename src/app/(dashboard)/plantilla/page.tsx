@@ -26,6 +26,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { MetricCard } from "@/components/shared/MetricCard";
+import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
@@ -807,85 +808,76 @@ export default function PlantillaPage() {
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       {!accountId ? (
         <>
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-              Plantilla Directory
-            </h1>
-            <p className="text-sm text-text-secondary">
-              Select a billing account to audit roster allocations, capacity targets, and staffing governance.
-            </p>
-          </div>
+          <AdminPageHeader
+            categoryTag="ADMIN PANEL"
+            moduleName="Plantilla"
+            title="Plantilla Directory"
+            subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
+            icon={Building2}
+          />
           {renderAccountSelectionContent()}
         </>
       ) : (
         <>
           {/* 1. Header & Context Action Bar (Enterprise Web Header) */}
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-default pb-4">
-            <div className="space-y-1.5">
-              {/* Breadcrumb Backlink */}
-              <nav className="flex items-center gap-1.5 text-xs text-text-muted" aria-label="Breadcrumb">
+          <AdminPageHeader
+            categoryTag="ADMIN PANEL"
+            moduleName="Plantilla"
+            title={
+              <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
                 {showBackToSelection ? (
                   <button
                     type="button"
                     onClick={handleBackToSelection}
                     className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    <span>Account Selection</span>
+                    <ArrowLeft className="h-3 w-3" />
+                    <span>Accounts</span>
                   </button>
                 ) : (
-                  <span>Plantilla Directory</span>
+                  <span className="text-text-muted">Accounts</span>
                 )}
                 <span className="text-text-muted/60">/</span>
-                <span className="font-semibold text-text-primary truncate max-w-[240px] sm:max-w-none">
+                <span className="text-sm font-semibold text-text-primary leading-tight truncate">
                   {selectedAccountName}
                 </span>
-              </nav>
-
-              {/* Title with account name and role badge */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
-                  {selectedAccountName}
-                </h1>
                 {userRole && (
-                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 text-xs font-semibold text-brand-700 capitalize">
+                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2 py-0.2 text-[10px] font-semibold text-brand-700 capitalize">
                     {userRole.replace(/_/g, " ")}
                   </span>
                 )}
-              </div>
-              <p className="text-xs text-text-secondary">
-                Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance.
-              </p>
-            </div>
-
-            {/* Right-aligned Enterprise Web Action Bar */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Secondary button: Store Staffing drawer trigger with quota badge */}
-              <button
-                type="button"
-                onClick={() => setIsStoreStaffingOverviewOpen(true)}
-                className="group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs"
-              >
-                <Building2 className="w-4 h-4 shrink-0 text-text-muted group-hover:text-text-secondary transition-colors" />
-                <span>Store Staffing</span>
-                <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/80 shadow-2xs transition-colors">
-                  {summaryData?.required ?? 0} Quota
-                </span>
-              </button>
-
-              {/* Primary button: + Request Headcount */}
-              {canRequestAdjustment && (
+              </nav>
+            }
+            subtitle="Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance."
+            actionSlot={
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Secondary button: Store Staffing drawer trigger with quota badge */}
                 <button
                   type="button"
-                  onClick={() => setIsRequestHeadcountOpen(true)}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                  onClick={() => setIsStoreStaffingOverviewOpen(true)}
+                  className="group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs"
                 >
-                  <Plus className="w-4 h-4 shrink-0" />
-                  <span>Request Headcount</span>
+                  <Building2 className="w-4 h-4 shrink-0 text-text-muted group-hover:text-text-secondary transition-colors" />
+                  <span>Store Staffing</span>
+                  <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/80 shadow-2xs transition-colors">
+                    {summaryData?.required ?? 0} Quota
+                  </span>
                 </button>
-              )}
-            </div>
-          </header>
+
+                {/* Primary button: + Request Headcount */}
+                {canRequestAdjustment && (
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestHeadcountOpen(true)}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                  >
+                    <Plus className="w-4 h-4 shrink-0" />
+                    <span>Request Headcount</span>
+                  </button>
+                )}
+              </div>
+            }
+          />
 
           {/* 2. Executive KPI & Leadership Team Bar */}
           <section aria-label="Plantilla summary metrics" className="space-y-3">

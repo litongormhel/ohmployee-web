@@ -12,7 +12,9 @@ import {
   TrendingUp,
   UserCheck,
   UserMinus,
+  RotateCcw,
 } from "lucide-react";
+import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import {
   VacancyTable,
   type VacancyStatus,
@@ -449,6 +451,20 @@ export default function VacancyPage() {
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+      <AdminPageHeader
+        categoryTag="ADMIN PANEL"
+        moduleName="Vacancy"
+        title="Vacancy Management"
+        subtitle="Monitor unfilled store vacancies, applicant pipeline, and aging requisitions."
+        icon={Briefcase}
+        primaryAction={{
+          label: summaryQuery.isFetching || listQuery.isFetching ? "Refreshing..." : "Refresh Data",
+          icon: RotateCcw,
+          onClick: retryVacancyReads,
+          disabled: summaryQuery.isFetching || listQuery.isFetching,
+        }}
+      />
+
       {isFreezeModeActive && (
         <div
           role="alert"

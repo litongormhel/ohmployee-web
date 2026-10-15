@@ -62,7 +62,9 @@ export default function DashboardPage() {
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       <AdminPageHeader
-        title="Dashboard"
+        categoryTag="ADMIN PANEL"
+        moduleName="Dashboard"
+        title="Dashboard Overview"
         subtitle="Cross-module operational overview for the OHMployee admin workspace."
         icon={LayoutDashboard}
         readOnly

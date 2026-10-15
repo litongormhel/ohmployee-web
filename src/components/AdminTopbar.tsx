@@ -25,30 +25,19 @@ export function AdminTopbar({
   const activeModule = getActiveModule(pathname, visibleModules);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)]">
-      <div className="flex min-h-16 items-center justify-between gap-4 px-5 py-3 lg:px-8">
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.06em] text-[var(--muted)]">
-              Admin panel
-            </p>
-            <h1 className="text-[19px] font-semibold text-[var(--text)]">
-              {activeModule.title}
-            </h1>
-          </div>
-          {activeModule.key === "approvals" && (
-            <div className="hidden border-l border-[var(--line)] pl-4 sm:block">
-              <p className="text-xs font-semibold text-[var(--text)]">
-                Request Center
-              </p>
-              <p className="text-xs text-[var(--muted)] max-w-xl truncate lg:max-w-2xl">
-                Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments.
-              </p>
-            </div>
-          )}
+    <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)] lg:hidden">
+      <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">
+            Admin panel
+          </p>
+          <span className="text-text-muted/60 text-xs shrink-0">/</span>
+          <h1 className="text-sm font-bold text-text-primary truncate">
+            {activeModule.title}
+          </h1>
         </div>
 
-        <nav className="flex max-w-[52vw] gap-2 overflow-x-auto lg:hidden">
+        <nav className="flex max-w-[55vw] gap-2 overflow-x-auto no-scrollbar scrollbar-none">
           {visibleModules.map((module) => {
             const isActive = activeModule.href === module.href;
 

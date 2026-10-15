@@ -86,6 +86,8 @@ export default function CencomPage() {
     <div className="space-y-6">
       {/* 1. Header */}
       <AdminPageHeader
+        categoryTag="ADMIN PANEL"
+        moduleName="CENCOM"
         title="CENCOM Central Command"
         subtitle="Operational manpower fulfillment, slot-authority allocation, and group performance monitoring."
         icon={Activity}

@@ -16,7 +16,10 @@ import {
   Clock,
   AlertCircle,
   FileText,
+  RotateCcw,
+  Users,
 } from "lucide-react";
+import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import {
   HrEmplocTable,
   type HrEmplocQueue,
@@ -190,6 +193,23 @@ export default function HrEmplocPage() {
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+      <AdminPageHeader
+        categoryTag="ADMIN PANEL"
+        moduleName="HR Emploc"
+        title="HR Employee Placement (Emploc)"
+        subtitle="Store assignment reconciliation, employee movements, and workforce compliance."
+        icon={Users}
+        primaryAction={{
+          label: summaryQuery.isFetching || listQuery.isFetching ? "Refreshing..." : "Refresh Data",
+          icon: RotateCcw,
+          onClick: () => {
+            void summaryQuery.refetch();
+            void listQuery.refetch();
+          },
+          disabled: summaryQuery.isFetching || listQuery.isFetching,
+        }}
+      />
+
       {/* Unified workbench card: Status tabs & Filter toolbar */}
       <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-card p-3 shadow-xs">
         {/* Status Tabs Navigation */}

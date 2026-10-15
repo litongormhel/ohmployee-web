@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { CheckCheck, RefreshCw } from "lucide-react";
+import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { RequestCategoryNavigation } from "@/components/approvals/RequestCategoryNavigation";
 import { ActiveQueueReviewPane } from "@/components/approvals/ActiveQueueReviewPane";
 import {
@@ -32,6 +34,8 @@ export default function ApprovalsPage() {
       relievers: 0,
     },
     isLoading: isLoadingCounts,
+    refetch: refetchCounts,
+    isRefetching: isRefetchingCounts,
   } = useRequestCategoryCounts();
 
   const handleSelectCategory = (key: RequestCategoryKey) => {
@@ -44,8 +48,26 @@ export default function ApprovalsPage() {
     });
   };
 
+  const handleRefresh = async () => {
+    setAcknowledgedCategories(new Set());
+    await refetchCounts();
+  };
+
   return (
     <div className="space-y-6">
+      <AdminPageHeader
+        categoryTag="ADMIN PANEL"
+        moduleName="Approvals"
+        title="Request Center"
+        subtitle="Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments."
+        icon={CheckCheck}
+        primaryAction={{
+          label: isRefetchingCounts || isLoadingCounts ? "Refreshing..." : "Refresh Counts",
+          icon: RefreshCw,
+          onClick: handleRefresh,
+          disabled: isRefetchingCounts || isLoadingCounts,
+        }}
+      />
 
       {/* Top Horizontal Navigation Tab Strip */}
       <div className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-2">

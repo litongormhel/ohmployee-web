@@ -142,7 +142,9 @@ export default function UsersPage() {
     <div className="space-y-6 p-6">
       {/* Top Header */}
       <AdminPageHeader
-        title="User Management"
+        categoryTag="ADMIN PANEL"
+        moduleName="User Management"
+        title="User Access & Security"
         subtitle="Manage user directories, organizational roles, and cascaded group/account scopes."
         icon={Users}
         actionSlot={
@@ -150,10 +152,10 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setCreateUserOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-blue-700"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
             >
-              <UserPlus className="h-4 w-4" />
-              Create User
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>Create User</span>
             </button>
           ) : null
         }
