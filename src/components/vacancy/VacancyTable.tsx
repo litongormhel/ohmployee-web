@@ -131,6 +131,30 @@ function getVacancyStatusVariant(status: string): BadgeVariant {
   return "neutral";
 }
 
+function isOnBoardStatus(row: VacancyListItem): boolean {
+  const statusValues = [
+    row.stageBadge,
+    row.derivedStatus,
+    row.pipelineStatus,
+    row.vacancyStatus,
+  ];
+
+  for (const status of statusValues) {
+    if (!status) continue;
+    const clean = status.toLowerCase().replace(/[\s_-]+/g, "");
+    if (
+      clean === "onboard" ||
+      clean === "foronboard" ||
+      clean === "onboarding" ||
+      clean === "confirmedonboard"
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getErrorCopy(kind: VacancyDataErrorKind | null) {
   if (kind === "access_denied") {
     return {
@@ -500,7 +524,7 @@ export function VacancyTable({
                                 <span className="hidden sm:inline">Update</span>
                               </button>
                             )}
-                            {onMarkHired && (
+                            {onMarkHired && isOnBoardStatus(row) && (
                               <button
                                 type="button"
                                 onClick={(e) => {
