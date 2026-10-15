@@ -180,6 +180,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
       supabase
         .from("headcount_requests")
         .select("id", { count: "exact", head: true })
+        .eq("is_archived", false)
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
@@ -189,6 +190,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
       supabase
         .from("coverage_requests")
         .select("id", { count: "exact", head: true })
+        .is("archived_at", null)
         .in("status", ["pending", "draft"])
     ),
 
@@ -255,6 +257,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   return results;
 }
 
+export const getRequestSummaryCounters = fetchRequestCategoryCounts;
+
 /**
  * Fetches headcount requests including quota amendment requests, filtered by status tab.
  */
@@ -294,7 +298,8 @@ export async function fetchHeadcountRequests(
       created_vcode,
       created_vcodes,
       vacancy_created
-    `);
+    `)
+    .eq("is_archived", false);
 
   if (tab === "pending") {
     query = query.or("status.ilike.pending,status.ilike.under_review");
@@ -381,7 +386,10 @@ export const fetchPendingHeadcountRequests = () => fetchHeadcountRequests("pendi
 
 export async function fetchHeadcountCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("headcount_requests").select("status");
+  const { data, error } = await supabase
+    .from("headcount_requests")
+    .select("status")
+    .eq("is_archived", false);
   if (error) {
     console.error("[fetchHeadcountCounts] query failed:", error.code, error.message);
     if (error.code === "42501") {

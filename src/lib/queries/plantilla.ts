@@ -1306,7 +1306,8 @@ export async function fetchDestinationStores(accountId?: string | null): Promise
         group_name
       )
     `)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .neq("status", "archived");
 
   if (accountId) {
     query = query.eq("account_id", accountId);
@@ -1513,6 +1514,7 @@ export async function fetchPlantillaSlotDetail(slotId: string): Promise<Plantill
             .from("stores")
             .select("store_name, vcode")
             .eq("id", storeId)
+            .neq("status", "archived")
             .maybeSingle();
           if (sData) {
             storeName = asString(sData.store_name);

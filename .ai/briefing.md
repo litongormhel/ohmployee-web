@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w78p469a**: Eliminate Archived Data Leakage in Web to Match Mobile PROD Parity
 - **ohm#w76v267a**: Refactor Pipeline Tab Table Columns, Actions, and Fix Saved View Across Vacancy Tabs
 - **ohm#w75v166a**: Replace Penalty with HC Across Vacancy Tables and Add + Applicant to Actions in Open Tab Only
 - **ohm#w74e965a**: Implement Full Unpaginated Vacancy Export Dropdown with Parity Layout
