@@ -444,3 +444,24 @@ export function isPlantillaLifecycleRole(roleKeyOrName?: string | null): boolean
   );
 }
 
+/**
+ * Administrator roles authorized for unpaginated Vacancy dataset export
+ * (role_level >= 80: Super Admin, Head Admin, Data Team / Encoder).
+ */
+export function isVacancyExportRole(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    normalized === "super_admin" ||
+    normalized.includes("super_admin") ||
+    normalized === "head_admin" ||
+    normalized.includes("head_admin") ||
+    normalized === "data_team" ||
+    normalized.includes("data_team") ||
+    normalized === "encoder" ||
+    normalized.includes("encoder") ||
+    normalized === "admin"
+  );
+}
+
+

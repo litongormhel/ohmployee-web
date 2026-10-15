@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w73v864a" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w74e965a" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:.ai/briefing.md:src/components/ui/popover.tsx:src/components/vacancy/VacancyFilterToolbar.tsx"
+    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:.ai/briefing.md:src/providers/ThemeProvider.tsx"
 }
 
 Write-Host "======================================================"

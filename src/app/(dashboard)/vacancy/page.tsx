@@ -1,11 +1,14 @@
 // app/(dashboard)/vacancy/page.tsx
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Archive,
   Briefcase,
+  ChevronDown,
+  Download,
+  Loader2,
   LockKeyhole,
   ShieldOff,
   TrendingUp,
@@ -32,6 +35,8 @@ import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyC
 import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
 import {
   VacancyDataError,
+  downloadCsv,
+  fetchVacanciesForExport,
   getVacancySummary,
   listVacancies,
   useApproveAllClosureRequests,
@@ -39,7 +44,7 @@ import {
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
-import { useCurrentUser } from "@/lib/auth";
+import { isVacancyExportRole, useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
 const statusTabs: Array<{
@@ -140,9 +145,15 @@ export default function VacancyPage() {
     hiredDate?: string | null;
   } | null>(null);
   const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
+  const [errorToast, setErrorToast] = useState<{ message: string } | null>(null);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   const approveAllClosuresMutation = useApproveAllClosureRequests();
   const reviewClosureMutation = useReviewClosureRequest();
+
 
   const queryParams = useMemo(
     () => ({
@@ -230,6 +241,9 @@ export default function VacancyPage() {
     statusTabs.find((tab) => tab.value === status)?.label ?? "Open";
 
   const currentUser = useCurrentUser();
+  const canExport = useMemo(() => {
+    return isVacancyExportRole(currentUser?.roleKey || currentUser?.roleName);
+  }, [currentUser]);
 
   const accountsQuery = useQuery({
     queryKey: ["vacancy-accounts", currentUser?.accountScope],
@@ -491,6 +505,67 @@ export default function VacancyPage() {
     setSelectedVacancyId(null);
   }
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsExportMenuOpen(false);
+      }
+    }
+    if (isExportMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isExportMenuOpen]);
+
+  async function handleExport(scope: "current_tab" | "all_statuses") {
+    setIsExportMenuOpen(false);
+    setIsExporting(true);
+    setErrorToast(null);
+
+    try {
+      const exportFilters = {
+        search: search || undefined,
+        accountId: accountId || undefined,
+        groupId: groupId || undefined,
+        aging: agingBucket || undefined,
+        urgency: urgency || undefined,
+        dateFrom: vacantFrom || undefined,
+        dateTo: vacantTo || undefined,
+      };
+
+      const result = await fetchVacanciesForExport(scope, status, exportFilters);
+      downloadCsv(result.csv, result.filename);
+
+      setSuccessToast({
+        message: `Successfully exported ${result.rowCount} records to ${result.filename}`,
+      });
+      setTimeout(() => {
+        setSuccessToast((prev) => (prev?.message.includes(result.filename) ? null : prev));
+      }, 6000);
+    } catch (err) {
+      console.error("[vacancy export error]", err);
+      const message = err instanceof Error ? err.message : "Failed to generate CSV export.";
+      setErrorToast({ message: `Export failed: ${message}` });
+      setTimeout(() => {
+        setErrorToast(null);
+      }, 6000);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
       <AdminPageHeader
@@ -553,52 +628,155 @@ export default function VacancyPage() {
         </div>
       )}
 
-      {/* Status Tabs Navigation */}
+      {errorToast && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-xs">
+              ✕
+            </span>
+            <span className="font-medium text-xs sm:text-sm">{errorToast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorToast(null)}
+            className="rounded p-1 text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors cursor-pointer"
+            aria-label="Dismiss error notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Status Tabs Navigation & Export Action */}
       <div
         aria-label="Vacancy status filter"
-        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none rounded-lg border border-border-subtle bg-surface p-2 shadow-2xs"
-        role="tablist"
+        className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface p-2 shadow-2xs"
       >
-        {statusTabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = status === tab.value;
-          const count = tabCounts[tab.value];
-          return (
-            <button
-              key={tab.value}
-              aria-selected={isActive}
-              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                isActive
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-              }`}
-              onClick={() => updateStatus(tab.value)}
-              role="tab"
-              type="button"
-            >
-              {Icon && (
-                <Icon
-                  className={`w-4 h-4 shrink-0 transition-colors ${
-                    isActive
-                      ? "text-brand-700"
-                      : "text-text-muted group-hover:text-text-secondary"
-                  }`}
-                />
-              )}
-              <span>{tab.label}</span>
-              <span
-                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+        <div
+          role="tablist"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none min-w-0"
+        >
+          {statusTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = status === tab.value;
+            const count = tabCounts[tab.value];
+            return (
+              <button
+                key={tab.value}
+                aria-selected={isActive}
+                className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                    ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                 }`}
+                onClick={() => updateStatus(tab.value)}
+                role="tab"
+                type="button"
               >
-                {summaryQuery.isLoading ? "–" : count}
-              </span>
+                {Icon && (
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      isActive
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
+                )}
+                <span>{tab.label}</span>
+                <span
+                  className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                    isActive
+                      ? "bg-brand-600 text-white"
+                      : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                  }`}
+                >
+                  {summaryQuery.isLoading ? "–" : count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {canExport && (
+          <div className="ml-auto shrink-0 flex items-center relative" ref={exportDropdownRef}>
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={() => setIsExportMenuOpen((prev) => !prev)}
+              aria-expanded={isExportMenuOpen}
+              aria-haspopup="menu"
+              className="h-9 text-xs font-semibold border border-border-subtle bg-surface hover:bg-surface-hover px-3 flex items-center gap-1.5 rounded-lg text-text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-brand-600" />
+              ) : (
+                <Download className="w-4 h-4 shrink-0 text-text-secondary" />
+              )}
+              <span>{isExporting ? "Exporting..." : "Export Data"}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-text-muted transition-transform duration-150 ${
+                  isExportMenuOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
-          );
-        })}
+
+            {isExportMenuOpen && (
+              <div
+                role="menu"
+                aria-label="Export options"
+                className="absolute right-0 top-full mt-1.5 w-64 rounded-lg border border-border-subtle bg-surface p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleExport("current_tab")}
+                  disabled={isExporting}
+                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold group-hover:text-brand-700">
+                      Export Current View
+                    </span>
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      {summaryQuery.isLoading ? "–" : (tabCounts[status] ?? 0)}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-text-muted mt-0.5">
+                    {activeTabLabel} tab ({summaryQuery.isLoading ? "–" : (tabCounts[status] ?? 0)} records)
+                  </span>
+                </button>
+
+                <div className="my-1 border-t border-border-subtle" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleExport("all_statuses")}
+                  disabled={isExporting}
+                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold group-hover:text-brand-700">
+                      Export Masterlist
+                    </span>
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      {summaryQuery.isLoading ? "–" : (summaryQuery.data?.total ?? 0)}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-text-muted mt-0.5">
+                    All Statuses: Open to Failed/Backout
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
 
       {/* Filter Toolbar */}
       <VacancyFilterToolbar

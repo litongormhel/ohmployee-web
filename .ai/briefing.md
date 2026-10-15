@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w74e965a**: Implement Full Unpaginated Vacancy Export Dropdown with Parity Layout
 - **ohm#w73v864a**: Consolidate Vacancy Filter Toolbar into Compact Single-Row Layout with Popover
 - **ohm#w72m763a**: Refactor More Module into Standard Horizontal Tabs Layout
 - **ohm#w71c662b**: Fix column "group_id" of relation "coverage_groups" does not exist in create_plantilla_slot_from_request
