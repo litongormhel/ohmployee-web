@@ -87,30 +87,30 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
   isRefreshing,
   isLoading,
 }: QueueToolbarProps<T>) {
-  const renderBadge = (count: number | undefined, tabName: T, isPending = false) => {
+  const renderBadge = (count: number | undefined, tabName: T) => {
     if (isCountsLoading) {
       return (
-        <span className="rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold text-[var(--muted)]">
+        <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold text-text-muted">
           ...
         </span>
       );
     }
     if (isCountsError || count === undefined) {
       return (
-        <span className="rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold text-[var(--muted)]">
+        <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold text-text-muted">
           —
         </span>
       );
     }
     const isSelected = currentTab === tabName;
-    const colorClass = isSelected
-      ? isPending && count > 0
-        ? "bg-[var(--soft)] text-[var(--warn)]"
-        : "bg-[var(--soft)] text-[var(--muted)]"
-      : "bg-transparent text-[var(--muted)]";
-
     return (
-      <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-semibold ${colorClass}`}>
+      <span
+        className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+          isSelected
+            ? "bg-brand-600 text-white"
+            : "bg-slate-100 text-slate-600 border border-slate-200/80"
+        }`}
+      >
         {count}
       </span>
     );
@@ -148,47 +148,51 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
       </div>
 
       {/* Sub-Tabs directly below the search/filter strip */}
-      <div className="mt-3 flex items-center gap-1">
-        <div className="flex items-center gap-0.5 rounded-[9px] border border-[var(--line)] bg-[var(--soft)] p-0.5 text-xs">
-          <button
-            type="button"
-            onClick={() => onTabChange("pending" as T)}
-            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
-              currentTab === "pending"
-                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
-                : "text-[var(--muted)] hover:text-[var(--text)]"
-            }`}
-          >
-            <span>Pending</span>
-            {renderBadge(counts?.pending, "pending" as T, true)}
-          </button>
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentTab === "pending"}
+          onClick={() => onTabChange("pending" as T)}
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+            currentTab === "pending"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+          }`}
+        >
+          <span>Pending</span>
+          {renderBadge(counts?.pending, "pending" as T)}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => onTabChange("approved" as T)}
-            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
-              currentTab === "approved"
-                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
-                : "text-[var(--muted)] hover:text-[var(--text)]"
-            }`}
-          >
-            <span>{approvedLabel}</span>
-            {renderBadge(counts?.approved, "approved" as T, false)}
-          </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentTab === "approved"}
+          onClick={() => onTabChange("approved" as T)}
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+            currentTab === "approved"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+          }`}
+        >
+          <span>{approvedLabel}</span>
+          {renderBadge(counts?.approved, "approved" as T)}
+        </button>
 
-          <button
-            type="button"
-            onClick={() => onTabChange("rejected" as T)}
-            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1 font-medium transition cursor-pointer ${
-              currentTab === "rejected"
-                ? "bg-[var(--bg)] text-[var(--text)] font-semibold border border-[var(--line)] shadow-2xs"
-                : "text-[var(--muted)] hover:text-[var(--text)]"
-            }`}
-          >
-            <span>Rejected</span>
-            {renderBadge(counts?.rejected, "rejected" as T, false)}
-          </button>
-        </div>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentTab === "rejected"}
+          onClick={() => onTabChange("rejected" as T)}
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+            currentTab === "rejected"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+          }`}
+        >
+          <span>Rejected</span>
+          {renderBadge(counts?.rejected, "rejected" as T)}
+        </button>
       </div>
     </div>
   );

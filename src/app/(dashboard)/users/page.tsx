@@ -14,7 +14,7 @@ import {
   useUsersList,
   type UserProfileItem,
 } from "@/lib/queries/users";
-import { Users, UserPlus, ShieldAlert } from "lucide-react";
+import { Users, UserPlus, ShieldAlert, UserCheck, UserX } from "lucide-react";
 
 export default function UsersPage() {
   const currentUser = useCurrentUser();
@@ -171,22 +171,31 @@ export default function UsersPage() {
       <div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-xs">
         {/* Segmented Control Tabs */}
         <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-          <div className="flex items-center gap-2" role="tablist" aria-label="User Status Tabs">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none" role="tablist" aria-label="User Status Tabs">
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === "active"}
               onClick={() => setActiveTab("active")}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "active"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-surface-muted text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
+              <UserCheck
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  activeTab === "active"
+                    ? "text-brand-700"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
               <span>Active</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                  activeTab === "active" ? "bg-white/20 text-white" : "bg-border-default text-text-secondary"
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  activeTab === "active"
+                    ? "bg-brand-600 text-white"
+                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
                 }`}
               >
                 {activeCount}
@@ -198,16 +207,25 @@ export default function UsersPage() {
               role="tab"
               aria-selected={activeTab === "inactive"}
               onClick={() => setActiveTab("inactive")}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "inactive"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-surface-muted text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
+              <UserX
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  activeTab === "inactive"
+                    ? "text-brand-700"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
               <span>Inactive</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                  activeTab === "inactive" ? "bg-white/20 text-white" : "bg-border-default text-text-secondary"
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  activeTab === "inactive"
+                    ? "bg-brand-600 text-white"
+                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
                 }`}
               >
                 {inactiveCount}

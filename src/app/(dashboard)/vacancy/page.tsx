@@ -5,9 +5,13 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Archive,
+  Briefcase,
   FileSearch,
   LockKeyhole,
   ShieldOff,
+  TrendingUp,
+  UserCheck,
+  UserMinus,
 } from "lucide-react";
 import {
   VacancyTable,
@@ -37,26 +41,35 @@ import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
-const statusTabs: Array<{ value: VacancyStatus; label: string }> = [
+const statusTabs: Array<{
+  value: VacancyStatus;
+  label: string;
+  icon: typeof Briefcase;
+}> = [
   {
     value: "open",
     label: "Open",
+    icon: Briefcase,
   },
   {
     value: "pipeline",
     label: "Pipeline",
+    icon: TrendingUp,
   },
   {
     value: "hired",
     label: "Hired",
+    icon: UserCheck,
   },
   {
     value: "closure",
     label: "Closure",
+    icon: Archive,
   },
   {
     value: "failed_backout",
     label: "Failed / Backout",
+    icon: UserMinus,
   },
 ];
 
@@ -487,31 +500,41 @@ export default function VacancyPage() {
         {/* Status Tabs Navigation */}
         <div
           aria-label="Vacancy status filter"
-          className="flex flex-wrap items-center gap-2"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none border-b border-border-subtle pb-3"
           role="tablist"
         >
           {statusTabs.map((tab) => {
+            const Icon = tab.icon;
             const isActive = status === tab.value;
             const count = tabCounts[tab.value];
             return (
               <button
                 key={tab.value}
                 aria-selected={isActive}
-                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                    ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                 }`}
                 onClick={() => updateStatus(tab.value)}
                 role="tab"
                 type="button"
               >
+                {Icon && (
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      isActive
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
+                )}
                 <span>{tab.label}</span>
                 <span
-                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                     isActive
-                      ? "bg-white/20 text-white"
-                      : "border border-gray-200/80 bg-gray-100 text-gray-600"
+                      ? "bg-brand-600 text-white"
+                      : "bg-slate-100 text-slate-600 border border-slate-200/80"
                   }`}
                 >
                   {summaryQuery.isLoading ? "–" : count}

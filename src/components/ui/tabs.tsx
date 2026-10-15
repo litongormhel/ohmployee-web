@@ -44,7 +44,7 @@ export function Tabs({ defaultValue, children, ...props }: TabsProps) {
 export function TabsList({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`inline-flex rounded-lg border border-gray-200 bg-white p-1 ${className}`}
+      className={`flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none border-b border-border-subtle pb-3 ${className}`}
       role="tablist"
       {...props}
     />
@@ -67,10 +67,10 @@ export function TabsTrigger({
   return (
     <button
       aria-selected={isActive}
-      className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+      className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
         isActive
-          ? "bg-blue-600 text-white"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+          : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
       } ${className}`}
       onClick={() => tabs.setValue(value)}
       role="tab"

@@ -1,10 +1,32 @@
-"use client";
-
+import type { ComponentType } from "react";
+import {
+  Archive,
+  ArrowLeftRight,
+  Layers,
+  MapPin,
+  Store,
+  UserCheck,
+  UserMinus,
+  Users,
+  UserX,
+} from "lucide-react";
 import {
   REQUEST_CATEGORIES,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
+
+const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: string }>> = {
+  new_stores: Store,
+  headcount: Users,
+  coverage: MapPin,
+  vacancy_closures: Archive,
+  hr_emploc_deletions: UserX,
+  deactivations: UserMinus,
+  applicant_movements: ArrowLeftRight,
+  account_group_transfers: Layers,
+  relievers: UserCheck,
+};
 
 interface RequestCategoryNavigationProps {
   selectedCategory: RequestCategoryKey;
@@ -25,9 +47,10 @@ export function RequestCategoryNavigation({
     <nav
       aria-label="Approval types"
       role="tablist"
-      className="flex items-center gap-1 overflow-x-auto scrollbar-none p-1"
+      className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none p-1"
     >
       {REQUEST_CATEGORIES.map((cat) => {
+        const Icon = CATEGORY_ICONS[cat.key];
         const isSelected = selectedCategory === cat.key;
         const rawCount = counts[cat.key] ?? 0;
         const isAcknowledged = acknowledgedCategories.has(cat.key);
@@ -41,17 +64,32 @@ export function RequestCategoryNavigation({
             role="tab"
             aria-selected={isSelected}
             onClick={() => onSelectCategory(cat.key)}
-            className={`group inline-flex h-9 shrink-0 items-center justify-center rounded-[9px] px-3.5 py-2 text-xs whitespace-nowrap transition cursor-pointer ${
+            className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               isSelected
-                ? "border border-[var(--text)] bg-transparent text-[var(--text)] font-semibold"
-                : "border border-transparent bg-transparent text-[var(--muted)] hover:text-[var(--text)]"
+                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
+            {Icon && (
+              <Icon
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  isSelected
+                    ? "text-brand-700"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
+            )}
             <span className="truncate">{cat.label}</span>
 
-            {/* Dynamic Pill Badge - restyled small, quiet, accent */}
+            {/* Dynamic Pill Badge */}
             {showBadge && (
-              <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.2 text-[11px] font-mono font-medium bg-[var(--pillbg)] text-[var(--accent)] border border-[var(--status-accent-border)]">
+              <span
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  isSelected
+                    ? "bg-brand-600 text-white"
+                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                }`}
+              >
                 {rawCount}
               </span>
             )}

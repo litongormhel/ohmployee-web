@@ -58,42 +58,54 @@ export default function HrEmplocImportPage() {
       {/* 3-Tab Wizard Navigation */}
       <div
         aria-label="Import wizard navigation tabs"
-        className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none border-b border-border-subtle pb-3"
         role="tablist"
       >
         <button
           aria-selected={activeTab === "upload"}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
             activeTab === "upload"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
           }`}
           onClick={() => setActiveTab("upload")}
           role="tab"
           type="button"
         >
-          <UploadCloud className="h-3.5 w-3.5" />
+          <UploadCloud
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              activeTab === "upload"
+                ? "text-brand-700"
+                : "text-text-muted group-hover:text-text-secondary"
+            }`}
+          />
           <span>Upload & Preview</span>
         </button>
 
         <button
           aria-selected={activeTab === "review"}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
             activeTab === "review"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
           }`}
           onClick={() => setActiveTab("review")}
           role="tab"
           type="button"
         >
-          <Clock className="h-3.5 w-3.5" />
+          <Clock
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              activeTab === "review"
+                ? "text-brand-700"
+                : "text-text-muted group-hover:text-text-secondary"
+            }`}
+          />
           <span>Review Batches</span>
           <span
-            className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
               activeTab === "review"
-                ? "bg-white/20 text-white"
-                : "border border-gray-200/80 bg-gray-100 text-gray-600"
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-600 border border-slate-200/80"
             }`}
           >
             {pendingCount}
@@ -102,22 +114,28 @@ export default function HrEmplocImportPage() {
 
         <button
           aria-selected={activeTab === "history"}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
             activeTab === "history"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
           }`}
           onClick={() => setActiveTab("history")}
           role="tab"
           type="button"
         >
-          <History className="h-3.5 w-3.5" />
+          <History
+            className={`w-4 h-4 shrink-0 transition-colors ${
+              activeTab === "history"
+                ? "text-brand-700"
+                : "text-text-muted group-hover:text-text-secondary"
+            }`}
+          />
           <span>History & Rollback</span>
           <span
-            className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
               activeTab === "history"
-                ? "bg-white/20 text-white"
-                : "border border-gray-200/80 bg-gray-100 text-gray-600"
+                ? "bg-brand-600 text-white"
+                : "bg-slate-100 text-slate-600 border border-slate-200/80"
             }`}
           >
             {historyCount}

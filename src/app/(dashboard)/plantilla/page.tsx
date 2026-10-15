@@ -19,6 +19,8 @@ import {
   Briefcase,
   LayoutGrid,
   List,
+  AlertCircle,
+  UserMinus,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
@@ -862,11 +864,11 @@ export default function PlantillaPage() {
               <button
                 type="button"
                 onClick={() => setIsStoreStaffingOverviewOpen(true)}
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:border-border-subtle transition-colors shadow-xs cursor-pointer"
+                className="group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs"
               >
-                <Building2 className="h-4 w-4 text-text-muted" />
+                <Building2 className="w-4 h-4 shrink-0 text-text-muted group-hover:text-text-secondary transition-colors" />
                 <span>Store Staffing</span>
-                <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-text-primary border border-border-default font-mono">
+                <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/80 shadow-2xs transition-colors">
                   {summaryData?.required ?? 0} Quota
                 </span>
               </button>
@@ -876,9 +878,9 @@ export default function PlantillaPage() {
                 <button
                   type="button"
                   onClick={() => setIsRequestHeadcountOpen(true)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-brand-700 transition-colors focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 cursor-pointer"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="w-4 h-4 shrink-0" />
                   <span>Request Headcount</span>
                 </button>
               )}
@@ -974,14 +976,14 @@ export default function PlantillaPage() {
 
           {/* 3. Navigation Tabs & Filter Toolbar */}
           <div className="space-y-3">
-            {/* Underline Tabs */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default">
+            {/* Standardized Tab Row & View Switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
               <div
                 role="tablist"
                 aria-label="Plantilla Directory Tabs"
-                className="flex items-center gap-2 overflow-x-auto scrollbar-none"
+                className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none"
               >
-                {/* Tab 1: Active */}
+                {/* Tab 1: Active Roster */}
                 <button
                   type="button"
                   role="tab"
@@ -990,18 +992,25 @@ export default function PlantillaPage() {
                     setTab("active");
                     setPage(1);
                   }}
-                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     tab === "active"
-                      ? "border-brand-600 text-brand-700 font-bold"
-                      : "border-transparent text-text-secondary hover:text-text-primary"
+                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
-                  <span>Active</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                  <Users
+                    className={`w-4 h-4 shrink-0 transition-colors ${
                       tab === "active"
-                        ? "bg-brand-50 text-brand-700 border border-brand-200/80"
-                        : "bg-surface-muted text-text-muted border border-border-default"
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
+                  <span>Active Roster</span>
+                  <span
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                      tab === "active"
+                        ? "bg-brand-600 text-white"
+                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
                   >
                     {activeCount}
@@ -1017,25 +1026,32 @@ export default function PlantillaPage() {
                     setTab("vacancy");
                     setPage(1);
                   }}
-                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     tab === "vacancy"
-                      ? "border-brand-600 text-brand-700 font-bold"
-                      : "border-transparent text-text-secondary hover:text-text-primary"
+                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
+                  <Briefcase
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      tab === "vacancy"
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
                   <span>Vacancy</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       tab === "vacancy"
-                        ? "bg-amber-50 text-amber-700 border border-amber-200/80"
-                        : "bg-surface-muted text-text-muted border border-border-default"
+                        ? "bg-brand-600 text-white"
+                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
                   >
                     {vacancyCount}
                   </span>
                 </button>
 
-                {/* Tab 3: Inactive */}
+                {/* Tab 3: Inactive / Floating */}
                 <button
                   type="button"
                   role="tab"
@@ -1044,18 +1060,25 @@ export default function PlantillaPage() {
                     setTab("inactive");
                     setPage(1);
                   }}
-                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     tab === "inactive"
-                      ? "border-brand-600 text-brand-700 font-bold"
-                      : "border-transparent text-text-secondary hover:text-text-primary"
+                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
-                  <span>Inactive</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                  <UserMinus
+                    className={`w-4 h-4 shrink-0 transition-colors ${
                       tab === "inactive"
-                        ? "bg-purple-50 text-purple-700 border border-purple-200/80"
-                        : "bg-surface-muted text-text-muted border border-border-default"
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
+                  <span>Inactive / Floating</span>
+                  <span
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                      tab === "inactive"
+                        ? "bg-brand-600 text-white"
+                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
                   >
                     {inactiveCount}
@@ -1071,18 +1094,25 @@ export default function PlantillaPage() {
                     setTab("needs_hr");
                     setPage(1);
                   }}
-                  className={`flex items-center gap-2 border-b-[3px] py-3 px-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     tab === "needs_hr"
-                      ? "border-brand-600 text-brand-700 font-bold"
-                      : "border-transparent text-text-secondary hover:text-text-primary"
+                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
+                  <AlertCircle
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      tab === "needs_hr"
+                        ? "text-brand-700"
+                        : "text-text-muted group-hover:text-text-secondary"
+                    }`}
+                  />
                   <span>Needs HRCO</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       tab === "needs_hr"
-                        ? "bg-sky-50 text-sky-700 border border-sky-200/80"
-                        : "bg-surface-muted text-text-muted border border-border-default"
+                        ? "bg-brand-600 text-white"
+                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
                   >
                     {needsHrCount}
@@ -1091,13 +1121,13 @@ export default function PlantillaPage() {
               </div>
 
               {/* View switch: Table vs Cards */}
-              <div className="flex items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
+              <div className="flex h-9 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
                 <button
                   type="button"
                   onClick={() => setDisplayView("table")}
                   aria-label="Table View"
                   title="Table View"
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
                     displayView === "table"
                       ? "bg-surface-base text-text-primary shadow-xs"
                       : "text-text-muted hover:text-text-primary"
@@ -1111,7 +1141,7 @@ export default function PlantillaPage() {
                   onClick={() => setDisplayView("cards")}
                   aria-label="Cards View"
                   title="Cards View"
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
                     displayView === "cards"
                       ? "bg-surface-base text-text-primary shadow-xs"
                       : "text-text-muted hover:text-text-primary"

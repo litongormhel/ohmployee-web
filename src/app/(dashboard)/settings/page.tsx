@@ -35,60 +35,98 @@ export default function SettingsPage() {
       />
 
       {/* Settings Navigation Tabs */}
-      <div className="border-b border-border-default">
-        <nav className="flex space-x-2" aria-label="Settings Tabs">
+      <div className="border-b border-border-subtle pb-3">
+        <nav className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none" aria-label="Settings Tabs" role="tablist">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "profile"}
             onClick={() => setActiveTab("profile")}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "profile"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-text-secondary hover:border-border-default hover:text-text-primary"
+                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
-            <User className="h-4 w-4" />
+            <User
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                activeTab === "profile"
+                  ? "text-brand-700"
+                  : "text-text-muted group-hover:text-text-secondary"
+              }`}
+            />
             <span>Profile & Security</span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "preferences"}
             onClick={() => setActiveTab("preferences")}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "preferences"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-text-secondary hover:border-border-default hover:text-text-primary"
+                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
-            <Sliders className="h-4 w-4" />
+            <Sliders
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                activeTab === "preferences"
+                  ? "text-brand-700"
+                  : "text-text-muted group-hover:text-text-secondary"
+              }`}
+            />
             <span>Preferences & Appearance</span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "security"}
             onClick={() => setActiveTab("security")}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "security"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-text-secondary hover:border-border-default hover:text-text-primary"
+                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
-            <Shield className="h-4 w-4" />
+            <Shield
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                activeTab === "security"
+                  ? "text-brand-700"
+                  : "text-text-muted group-hover:text-text-secondary"
+              }`}
+            />
             <span>Security Center & Sessions</span>
           </button>
 
           {isSuperAdmin && (
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab === "diagnostics"}
               onClick={() => setActiveTab("diagnostics")}
-              className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "diagnostics"
-                  ? "border-purple-600 text-purple-600 font-semibold"
-                  : "border-transparent text-text-secondary hover:border-border-default hover:text-text-primary"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
-              <Activity className="h-4 w-4" />
+              <Activity
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  activeTab === "diagnostics"
+                    ? "text-brand-700"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
               <span>System Diagnostics</span>
-              <span className="rounded-full bg-purple-100 px-1.5 py-0.2 text-2xs font-bold text-purple-700">
+              <span
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  activeTab === "diagnostics"
+                    ? "bg-brand-600 text-white"
+                    : "bg-purple-100 text-purple-700 border border-purple-200"
+                }`}
+              >
                 Admin
               </span>
             </button>

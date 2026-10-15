@@ -19,7 +19,6 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import type {
   VacancyDataErrorKind,
@@ -87,7 +86,7 @@ function getTableColumns(status: VacancyStatus): string[] {
 
 type VacancyTableProps = {
   status: VacancyStatus;
-  statusDescription: string;
+  statusDescription?: string;
   rows: VacancyListItem[];
   selectedId: string | null;
   totalCount: number;
@@ -162,7 +161,7 @@ function getErrorCopy(kind: VacancyDataErrorKind | null) {
 
 export function VacancyTable({
   status,
-  statusDescription,
+  statusDescription = status,
   rows,
   selectedId,
   totalCount,
@@ -190,26 +189,6 @@ export function VacancyTable({
 
   return (
     <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-table-text">
-              {statusDescription}
-            </h2>
-            <Badge className="font-mono text-[11px] text-table-text-muted">
-              {status === "failed_backout" ? "failed / backout" : status}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-table-text-muted">
-            Active store requisitions matching current filter criteria.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-table-text-muted">
-          <Clock3 className="h-4 w-4" aria-hidden="true" />
-          {isLoading ? "Loading vacancy queue" : `${totalCount} records`}
-        </div>
-      </div>
-
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
