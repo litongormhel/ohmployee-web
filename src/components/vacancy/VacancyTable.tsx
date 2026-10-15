@@ -61,8 +61,8 @@ function getTableColumns(status: VacancyStatus): string[] {
     "ACCOUNT / GROUP",
     "OUTLET NAME",
     "HRCO",
-    "STATUS",
     "APPLICANT",
+    "STATUS",
     "AGING",
     "HC",
     "ACTIONS",
@@ -354,7 +354,62 @@ export function VacancyTable({
                       </>
                     ) : (
                       <>
-                        {/* 6. STATUS (omitted for open tab as it is redundant) */}
+                        {/* 6. APPLICANT */}
+                        {status !== "open" && (
+                          <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                            {status === "pipeline" ? (
+                              /* Pipeline Tab: Display Candidate Full Name, and underneath, mobile phone number with phone icon */
+                              <div className="flex flex-col gap-0.5">
+                                <div className="font-semibold text-table-text">
+                                  {row.applicantName || "Assigned Candidate"}
+                                </div>
+                                {row.contactNumber ? (
+                                  <div className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
+                                    <Phone className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+                                    <span>{row.contactNumber}</span>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : status === "hired" ? (
+                              /* Hired Tab: Display Hired Worker Name, Onboard Date, and Position */
+                              <div className="flex flex-col gap-0.5">
+                                <div className="font-semibold text-table-text">
+                                  {row.applicantName || "Hired Worker"}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
+                                  {row.hiredDate && (
+                                    <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
+                                      Onboard: {row.hiredDate}
+                                    </span>
+                                  )}
+                                  {row.position_title && (
+                                    <span className="text-[11px] text-slate-600">
+                                      {row.position_title}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : status === "failed_backout" ? (
+                              /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
+                              <div className="flex flex-col gap-1">
+                                <div className="font-semibold text-table-text">
+                                  {row.applicantName || "Candidate"}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {row.dropoutDate && (
+                                    <span className="text-[11px] text-table-text-muted font-mono">
+                                      {row.dropoutDate}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              row.applicantName || "—"
+                            )}
+                          </td>
+                        )}
+
+                        {/* 7. STATUS */}
                         {status !== "open" && (
                           <td className="border-b border-table-rule px-4 py-2.5">
                             {status === "pipeline" ? (
@@ -372,67 +427,7 @@ export function VacancyTable({
                             )}
                           </td>
                         )}
-
-                        {/* 7. APPLICANT */}
-                        {status !== "open" && (
-                          <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                            {status === "pipeline" ? (
-                              /* Pipeline Tab: Query and display Candidate Full Name, contact number, and current stage badge */
-                            <div className="flex flex-col gap-1">
-                              <div className="font-semibold text-table-text">
-                                {row.applicantName || "Assigned Candidate"}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                                  {row.stageBadge || (row.activeApplicantCount > 1 ? `${row.activeApplicantCount} in pipeline` : "In Pipeline")}
-                                </span>
-                                {row.contactNumber && (
-                                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
-                                    <Phone className="h-2.5 w-2.5" />
-                                    {row.contactNumber}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : status === "hired" ? (
-                            /* Hired Tab: Display Hired Worker Name, Onboard Date, and Position */
-                            <div className="flex flex-col gap-0.5">
-                              <div className="font-semibold text-table-text">
-                                {row.applicantName || "Hired Worker"}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
-                                {row.hiredDate && (
-                                  <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
-                                    Onboard: {row.hiredDate}
-                                  </span>
-                                )}
-                                {row.position_title && (
-                                  <span className="text-[11px] text-slate-600">
-                                    {row.position_title}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : status === "failed_backout" ? (
-                            /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
-                            <div className="flex flex-col gap-1">
-                              <div className="font-semibold text-table-text">
-                                {row.applicantName || "Candidate"}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {row.dropoutDate && (
-                                  <span className="text-[11px] text-table-text-muted font-mono">
-                                    {row.dropoutDate}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            row.applicantName || "—"
-                          )}
-                        </td>
-                      )}
-                    </>
+                      </>
                   )}
 
                   {/* 8. AGING */}
@@ -498,11 +493,11 @@ export function VacancyTable({
                                   e.stopPropagation();
                                   onAdvancePipeline(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition shadow-xs"
+                                className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition shadow-xs cursor-pointer"
                                 title={`Update pipeline stage for ${row.applicantName || row.vcode}`}
                               >
                                 <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Stage</span>
+                                <span className="hidden sm:inline">Update</span>
                               </button>
                             )}
                             {onMarkHired && (
@@ -512,11 +507,11 @@ export function VacancyTable({
                                   e.stopPropagation();
                                   onMarkHired(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
-                                title={`Mark ${row.applicantName || row.vcode} as hired`}
+                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                title={`Approve placement / mark ${row.applicantName || row.vcode} as hired`}
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Hire</span>
+                                <span className="hidden sm:inline">Approve</span>
                               </button>
                             )}
                             {onFailBackout && (
@@ -526,10 +521,11 @@ export function VacancyTable({
                                   e.stopPropagation();
                                   onFailBackout(row);
                                 }}
-                                className="inline-flex items-center justify-center rounded bg-rose-50 p-1 text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs"
+                                className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
                                 title={`Dropout / backout candidate for ${row.vcode}`}
                               >
                                 <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span className="hidden sm:inline">Backout</span>
                               </button>
                             )}
                           </>

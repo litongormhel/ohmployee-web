@@ -37,6 +37,8 @@ export interface VacancyFilterToolbarProps {
   }) => void;
   onResetAdvancedFilters: () => void;
   onClearAll: () => void;
+  onOpenSavedViews?: () => void;
+  savedViewsCount?: number;
   disabled?: boolean;
 }
 
@@ -58,6 +60,8 @@ export function VacancyFilterToolbar({
   onApplyAdvancedFilters,
   onResetAdvancedFilters,
   onClearAll,
+  onOpenSavedViews,
+  savedViewsCount = 0,
   disabled = false,
 }: VacancyFilterToolbarProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -341,12 +345,19 @@ export function VacancyFilterToolbar({
           </button>
         )}
         <button
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-subtle bg-surface-base px-3 text-xs font-medium text-text-secondary hover:bg-surface-hover transition-colors shadow-2xs cursor-not-allowed opacity-75"
-          disabled
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-subtle bg-surface-base px-3 text-xs font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={disabled}
+          onClick={onOpenSavedViews}
           type="button"
+          aria-label="Open saved views and presets"
         >
           <FileSearch className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
           <span>Saved View</span>
+          {typeof savedViewsCount === "number" && savedViewsCount > 0 && (
+            <span className="ml-0.5 rounded-full bg-brand-50 border border-brand-200 px-1.5 py-0.2 text-[10px] font-semibold text-brand-700">
+              {savedViewsCount}
+            </span>
+          )}
         </button>
       </div>
     </form>

@@ -33,6 +33,12 @@ import { FailBackoutModal } from "@/components/vacancy/FailBackoutModal";
 import { ReopenVacancyModal } from "@/components/vacancy/ReopenVacancyModal";
 import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyClosureModal";
 import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
+import { SavedViewsModal } from "@/components/vacancy/SavedViewsModal";
+import {
+  useVacancySavedViews,
+  type VacancyFilterState,
+  type VacancySavedView,
+} from "@/components/vacancy/useVacancySavedViews";
 import {
   VacancyDataError,
   downloadCsv,
@@ -151,6 +157,9 @@ export default function VacancyPage() {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
 
+  const { savedViews, saveView, updateView, deleteView } = useVacancySavedViews();
+  const [isSavedViewsModalOpen, setIsSavedViewsModalOpen] = useState(false);
+
   const approveAllClosuresMutation = useApproveAllClosureRequests();
   const reviewClosureMutation = useReviewClosureRequest();
 
@@ -169,6 +178,20 @@ export default function VacancyPage() {
       pageSize,
     }),
     [accountId, agingBucket, groupId, page, search, status, urgency, vacantFrom, vacantTo],
+  );
+
+  const currentFilters: VacancyFilterState = useMemo(
+    () => ({
+      status,
+      search,
+      accountId,
+      groupId,
+      agingBucket,
+      urgency,
+      vacantFrom,
+      vacantTo,
+    }),
+    [status, search, accountId, groupId, agingBucket, urgency, vacantFrom, vacantTo],
   );
 
   const freezeQuery = useQuery({
@@ -505,6 +528,58 @@ export default function VacancyPage() {
     setSelectedVacancyId(null);
   }
 
+  function handleApplySavedView(view: VacancySavedView) {
+    setStatus(view.filters.status);
+    setSearchDraft(view.filters.search || "");
+    setSearch(view.filters.search || "");
+    setAccountId(view.filters.accountId || "");
+    setGroupId(view.filters.groupId || "");
+    setAgingBucket(view.filters.agingBucket || "");
+    setUrgency(view.filters.urgency || "");
+    setVacantFrom(view.filters.vacantFrom || "");
+    setVacantTo(view.filters.vacantTo || "");
+    setPage(1);
+    setSelectedVacancyId(null);
+    setIsSavedViewsModalOpen(false);
+
+    setSuccessToast({
+      message: `Applied saved view "${view.name}".`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(view.name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleSaveView(name: string, filters: VacancyFilterState) {
+    saveView(name, filters);
+    setSuccessToast({
+      message: `Saved view preset "${name}" successfully.`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleUpdateView(id: string, name: string, filters: VacancyFilterState) {
+    updateView(id, name, filters);
+    setSuccessToast({
+      message: `Updated view preset "${name}" with current filters.`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleDeleteView(id: string, name: string) {
+    deleteView(id);
+    setSuccessToast({
+      message: `Deleted view preset "${name}".`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -797,6 +872,8 @@ export default function VacancyPage() {
         onApplyAdvancedFilters={handleApplyAdvancedFilters}
         onResetAdvancedFilters={handleResetAdvancedFilters}
         onClearAll={handleClearAll}
+        onOpenSavedViews={() => setIsSavedViewsModalOpen(true)}
+        savedViewsCount={savedViews.length}
         disabled={blocked}
       />
 
@@ -991,6 +1068,19 @@ export default function VacancyPage() {
           }}
         />
       )}
+
+      <SavedViewsModal
+        isOpen={isSavedViewsModalOpen}
+        onClose={() => setIsSavedViewsModalOpen(false)}
+        currentFilters={currentFilters}
+        accounts={accounts}
+        groups={uniqueGroups}
+        savedViews={savedViews}
+        onSaveView={handleSaveView}
+        onUpdateView={handleUpdateView}
+        onDeleteView={handleDeleteView}
+        onApplyView={handleApplySavedView}
+      />
 
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
         <div className="flex items-start gap-2 text-sm text-gray-600">
