@@ -116,6 +116,9 @@ export type HeadcountRequestItem = {
   createdAt: string;
   workforceType: string | null;
   employmentType: string | null;
+  createdVcode: string | null;
+  createdVcodes: string[] | null;
+  vacancyCreated: boolean;
 };
 
 export type RequestErrorKind = "unauthorized" | "validation" | "not_found" | "generic";
@@ -287,7 +290,10 @@ export async function fetchHeadcountRequests(
       reviewer_remarks,
       created_at,
       workforce_type,
-      employment_type
+      employment_type,
+      created_vcode,
+      created_vcodes,
+      vacancy_created
     `);
 
   if (tab === "pending") {
@@ -364,6 +370,9 @@ export async function fetchHeadcountRequests(
       createdAt: row.created_at,
       workforceType: row.workforce_type ?? null,
       employmentType: row.employment_type ?? null,
+      createdVcode: row.created_vcode ?? null,
+      createdVcodes: Array.isArray(row.created_vcodes) ? row.created_vcodes : null,
+      vacancyCreated: Boolean(row.vacancy_created),
     };
   });
 }
@@ -443,19 +452,84 @@ export async function approveHeadcountRequest({
   }
 
   // Standard Headcount request approval
-  const { data, error } = await supabase.rpc("approve_headcount_request", {
+  // Phase 1: approve_headcount_request
+  const { data: phase1Data, error: phase1Error } = await supabase.rpc("approve_headcount_request", {
     p_request_id: requestId,
     p_remarks: trimmedRemarks,
+  });
+
+  if (phase1Error) {
+    if (phase1Error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        phase1Error.message || "Unauthorized: Only Administrators may approve headcount requests.",
+      );
+    }
+    throw new RequestDataError("generic", phase1Error.message);
+  }
+
+  if (phase1Data && typeof phase1Data === "object" && (phase1Data as { ok?: boolean }).ok === false) {
+    throw new RequestDataError(
+      "generic",
+      (phase1Data as { error?: string }).error || "Failed to approve headcount request",
+    );
+  }
+
+  // Phase 2: create_plantilla_slot_from_request immediately for standard headcount requests
+  const { data: phase2Data, error: phase2Error } = await supabase.rpc("create_plantilla_slot_from_request", {
+    p_request_id: requestId,
+  });
+
+  if (phase2Error) {
+    console.error("[approveHeadcountRequest] Phase 2 slot creation error:", phase2Error);
+    if (phase2Error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        phase2Error.message || "Unauthorized: Only Administrators may create plantilla slots.",
+      );
+    }
+    throw new RequestDataError("generic", phase2Error.message);
+  }
+
+  if (phase2Data && typeof phase2Data === "object" && (phase2Data as { ok?: boolean }).ok === false) {
+    console.error("[approveHeadcountRequest] Phase 2 returned error:", phase2Data);
+    throw new RequestDataError(
+      "generic",
+      (phase2Data as { error?: string }).error || "Failed to create plantilla slot from request",
+    );
+  }
+
+  return {
+    phase1: phase1Data,
+    phase2: phase2Data,
+  };
+}
+
+/**
+ * Creates plantilla slot(s) and mints VCodes for an approved headcount request.
+ * Resolves legacy or pending-vcode approved headcount requests in one click.
+ */
+export async function generateVcodeFromHeadcountRequest(requestId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("create_plantilla_slot_from_request", {
+    p_request_id: requestId,
   });
 
   if (error) {
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
-        error.message || "Unauthorized: Only Administrators may approve headcount requests.",
+        error.message || "Unauthorized: Only Administrators may create plantilla slots.",
       );
     }
     throw new RequestDataError("generic", error.message);
+  }
+
+  if (data && typeof data === "object" && (data as { ok?: boolean }).ok === false) {
+    throw new RequestDataError(
+      "generic",
+      (data as { error?: string }).error || "Failed to create plantilla slot from request",
+    );
   }
 
   return data;
@@ -528,6 +602,31 @@ export function useApproveHeadcountRequest() {
       queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
       queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["quota-details"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+    },
+  });
+}
+
+export function useGenerateVcodeFromHeadcountRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestId: string) => generateVcodeFromHeadcountRequest(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });

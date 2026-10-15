@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Layers,
   RefreshCw,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   X,
@@ -16,6 +17,7 @@ import {
 import {
   useApproveHeadcountRequest,
   useRejectHeadcountRequest,
+  useGenerateVcodeFromHeadcountRequest,
   type HeadcountRequestItem,
   type ApprovalStatusTab,
 } from "@/lib/queries/requests";
@@ -63,6 +65,30 @@ export function HeadcountDataTable({ requests, tab }: HeadcountDataTableProps) {
 
   const approveMutation = useApproveHeadcountRequest();
   const rejectMutation = useRejectHeadcountRequest();
+  const generateVcodeMutation = useGenerateVcodeFromHeadcountRequest();
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<{ id: string; message: string } | null>(null);
+
+  const handleGenerateVcode = async (req: HeadcountRequestItem) => {
+    setGeneratingId(req.id);
+    setGenerateError(null);
+    try {
+      await generateVcodeMutation.mutateAsync(req.id);
+      setBulkFeedback({
+        type: "success",
+        message: `Successfully generated VCode for ${req.storeName || req.positionName || "request"}.`,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to generate VCode.";
+      setGenerateError({ id: req.id, message: errMsg });
+      setBulkFeedback({
+        type: "error",
+        message: `Failed to generate VCode for ${req.storeName || "request"}: ${errMsg}`,
+      });
+    } finally {
+      setGeneratingId(null);
+    }
+  };
 
   const isAllSelected = requests.length > 0 && selectedIds.size === requests.length;
 
@@ -225,7 +251,11 @@ export function HeadcountDataTable({ requests, tab }: HeadcountDataTableProps) {
     }
   };
 
-  const isBusy = approveMutation.isPending || rejectMutation.isPending || isBulkProcessing;
+  const isBusy =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    generateVcodeMutation.isPending ||
+    isBulkProcessing;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -433,9 +463,9 @@ export function HeadcountDataTable({ requests, tab }: HeadcountDataTableProps) {
                         <span className="text-xs text-[var(--text)]">
                           {request.positionName || "—"}
                         </span>
-                        {request.targetVcode && (
+                        {(request.createdVcode || (request.createdVcodes && request.createdVcodes.length > 0 ? request.createdVcodes.join(", ") : null) || request.targetVcode) && (
                           <span className="font-mono text-[10.5px] text-[var(--muted)]">
-                            {request.targetVcode}
+                            {request.createdVcode || (request.createdVcodes && request.createdVcodes.length > 0 ? request.createdVcodes.join(", ") : null) || request.targetVcode}
                           </span>
                         )}
                       </div>
@@ -523,17 +553,58 @@ export function HeadcountDataTable({ requests, tab }: HeadcountDataTableProps) {
                           </button>
                         </div>
                       ) : isApproved ? (
-                        <div className="inline-flex flex-col items-end gap-0.5">
-                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-normal">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
-                            Approved
-                          </span>
-                          {request.reviewedAt && (
-                            <span className="text-[12.5px] text-[var(--muted)]">
-                              {formatDate(request.reviewedAt)}
-                            </span>
-                          )}
-                        </div>
+                        (() => {
+                          const hasCreatedVcode = Boolean(
+                            request.createdVcode ||
+                              (request.createdVcodes && request.createdVcodes.length > 0)
+                          );
+                          const isPendingVcode =
+                            reqStatus === "approved_pending_vcode" ||
+                            (!request.isQuotaAmendment && !hasCreatedVcode);
+
+                          if (isPendingVcode) {
+                            return (
+                              <div className="inline-flex flex-col items-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateVcode(request)}
+                                  disabled={isBusy || generatingId === request.id}
+                                  className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-2.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-50 transition cursor-pointer"
+                                  title="Mint VCode and create plantilla slot"
+                                >
+                                  {generatingId === request.id ? (
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-3 w-3" />
+                                  )}
+                                  <span>Generate VCode</span>
+                                </button>
+                                {generateError?.id === request.id && (
+                                  <span
+                                    className="text-[10px] text-rose-600 max-w-[140px] truncate"
+                                    title={generateError.message}
+                                  >
+                                    {generateError.message}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="inline-flex flex-col items-end gap-0.5">
+                              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-normal">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
+                                Approved
+                              </span>
+                              {request.reviewedAt && (
+                                <span className="text-[12.5px] text-[var(--muted)]">
+                                  {formatDate(request.reviewedAt)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--text)]">
                           {request.status}
