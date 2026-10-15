@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w71c662b**: Fix column "group_id" of relation "coverage_groups" does not exist in create_plantilla_slot_from_request
 - **ohm#w68n359a**: Implement Full-Featured Notifications Center with Mobile Parity and Realtime Supabase Query
 - **ohm#w67h258b**: Standardize All Page Headers to Compact Inline Approvals Pattern Across Modules
 - **ohm#w66t157a**: Unify All Page Tab Headers Across System to Match Approvals Tab Standard
