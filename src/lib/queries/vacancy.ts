@@ -86,6 +86,7 @@ export type VacancyListItem = {
   hasPenalty: boolean;
   penaltyExposure: number;
   penaltyAmount: number | null;
+  headcount?: number;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   totalCount: number;
@@ -152,6 +153,7 @@ export type VacancyDetailItem = {
   hasPenalty: boolean;
   penaltyExposure: number;
   penaltyAmount: number | null;
+  headcount?: number;
   applicantLastName: string | null;
   applicantFirstName: string | null;
   applicantName: string | null;
@@ -457,6 +459,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hasPenalty,
     penaltyExposure,
     penaltyAmount,
+    headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -619,6 +622,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     hasPenalty,
     penaltyExposure,
     penaltyAmount,
+    headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
     applicantLastName,
     applicantFirstName,
     applicantName,
@@ -974,6 +978,7 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
+            headcount: asNumber(h.required_headcount ?? h.headcount) ?? 1,
             lastActivityAt: asString(h.hired_at),
             rowCapabilities: {
               canViewDetail: true,
@@ -1190,6 +1195,7 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
+            headcount: asNumber(vac.required_headcount ?? vac.headcount) ?? 1,
             lastActivityAt: closureRequestedAt,
             rowCapabilities: {
               canViewDetail: true,
@@ -1277,7 +1283,7 @@ export async function listVacancies(params: VacancyListParams) {
         const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
         let vacQuery = supabase
           .from("vacancies")
-          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at")
+          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
           .in("vcode", dropoutVcodes)
           .eq("is_archived", false)
           .is("deleted_at", null);
@@ -1297,7 +1303,7 @@ export async function listVacancies(params: VacancyListParams) {
 
         const failedRows: VacancyListItem[] = validDropouts.map((d: Record<string, unknown>, idx: number) => {
           const vcode = asString(d.vacancy_vcode) ?? "Uncoded";
-          const vac = vacMap.get(vcode);
+          const vac = vacMap.get(vcode) as Record<string, unknown> | undefined;
           const lName = asString(d.last_name);
           const fName = asString(d.first_name);
           const fFull = asString(d.full_name);
@@ -1345,6 +1351,7 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
+            headcount: asNumber(vac?.required_headcount ?? vac?.headcount ?? d.required_headcount) ?? 1,
             lastActivityAt: asString(d.updated_at ?? d.created_at),
             rowCapabilities: {
               canViewDetail: true,
@@ -1782,6 +1789,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               hasPenalty: false,
               penaltyExposure: 0,
               penaltyAmount: null,
+              headcount: 1,
               applicantLastName: lName,
               applicantFirstName: fName,
               applicantName: workerName,

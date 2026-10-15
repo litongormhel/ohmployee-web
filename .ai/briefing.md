@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w75v166a**: Replace Penalty with HC Across Vacancy Tables and Add + Applicant to Actions in Open Tab Only
 - **ohm#w74e965a**: Implement Full Unpaginated Vacancy Export Dropdown with Parity Layout
 - **ohm#w73v864a**: Consolidate Vacancy Filter Toolbar into Compact Single-Row Layout with Popover
 - **ohm#w72m763a**: Refactor More Module into Standard Horizontal Tabs Layout

@@ -45,6 +45,7 @@ type VacancyDetailDrawerProps = {
   vacancyId: string | null;
   onClose: () => void;
   isFreezeModeActive?: boolean;
+  status?: string;
 };
 
 function formatDate(value: string | null) {
@@ -62,7 +63,7 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : "retryable";
 }
 
-export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false }: VacancyDetailDrawerProps) {
+export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false, status }: VacancyDetailDrawerProps) {
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
@@ -423,19 +424,20 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 )}
               </div>
 
-              {/* Pipeline / Candidate Summary */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" />
-                    Applicant & Pipeline Information
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                    <span>{detail.activeApplicantCount} Active</span>
-                    <span>&bull;</span>
-                    <span>{detail.confirmedOnboardCount} Onboarded</span>
+              {/* Pipeline / Candidate Summary (omitted for Open vacancies) */}
+              {!(status === "open" || detail.derivedStatus?.toLowerCase() === "open" || detail.vacancyStatus?.toLowerCase() === "open") && (
+                <div className="rounded-md border border-gray-100 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5" />
+                      Applicant & Pipeline Information
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                      <span>{detail.activeApplicantCount} Active</span>
+                      <span>&bull;</span>
+                      <span>{detail.confirmedOnboardCount} Onboarded</span>
+                    </div>
                   </div>
-                </div>
 
                 {/* Active Candidate cards */}
                 <div className="space-y-2.5">
@@ -592,6 +594,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   <span>PII Guard active: Candidate personal contact details subject to operational scope.</span>
                 </div>
               </div>
+            )}
 
               {/* Headcount Origin & Approvals Context */}
               <div className="rounded-md border border-gray-100 p-4 space-y-3 text-sm">

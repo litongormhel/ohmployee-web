@@ -863,6 +863,7 @@ export default function VacancyPage() {
         vacancyId={selectedVacancyId}
         onClose={() => setSelectedVacancyId(null)}
         isFreezeModeActive={isFreezeModeActive}
+        status={status}
       />
 
       {isAddApplicantModalOpen && endorseTargetVacancy && (
