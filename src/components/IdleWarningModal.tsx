@@ -83,13 +83,13 @@ export function IdleWarningModal({
       aria-describedby="idle-warning-description"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
-      <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-border-default bg-surface-card dark:bg-[#18191d] p-6 shadow-xl">
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/40">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-7 w-7 text-blue-600"
+              className="h-7 w-7 text-blue-600 dark:text-blue-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -108,7 +108,7 @@ export function IdleWarningModal({
         {/* Title */}
         <h2
           id="idle-warning-title"
-          className="mt-4 text-center text-lg font-bold text-slate-900"
+          className="mt-4 text-center text-lg font-bold text-text-primary"
         >
           Still there?
         </h2>
@@ -116,7 +116,7 @@ export function IdleWarningModal({
         {/* Description */}
         <p
           id="idle-warning-description"
-          className="mt-2 text-center text-sm leading-6 text-slate-500"
+          className="mt-2 text-center text-sm leading-6 text-text-secondary"
         >
           You&apos;ve been inactive for a while. You&apos;ll be signed out
           automatically in:
@@ -124,9 +124,9 @@ export function IdleWarningModal({
 
         {/* Countdown */}
         <div className="mt-4 flex justify-center">
-          <div className="rounded-xl bg-red-50 px-6 py-3">
+          <div className="rounded-xl bg-red-50 dark:bg-red-950/30 px-6 py-3">
             <span
-              className="font-mono text-3xl font-extrabold tabular-nums text-red-600"
+              className="font-mono text-3xl font-extrabold tabular-nums text-red-600 dark:text-red-400"
               aria-live="polite"
               aria-atomic="true"
             >
@@ -141,7 +141,7 @@ export function IdleWarningModal({
             id="idle-stay-signed-in"
             type="button"
             onClick={onStaySignedIn}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer"
           >
             Stay Signed In
           </button>
@@ -149,12 +149,13 @@ export function IdleWarningModal({
             id="idle-sign-out-now"
             type="button"
             onClick={onSignOut}
-            className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+            className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 cursor-pointer"
           >
             Sign Out Now
           </button>
         </div>
       </div>
+
     </div>
   );
 }

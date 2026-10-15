@@ -45,7 +45,7 @@ export function AdminPageHeader({
         </div>
 
         {/* Vertical Divider */}
-        <div className="h-8 w-px bg-slate-200 shrink-0" aria-hidden="true" />
+        <div className="h-8 w-px bg-border-subtle shrink-0" aria-hidden="true" />
 
         {/* Middle Section (Context & Subtitle) */}
         <div className="min-w-0">

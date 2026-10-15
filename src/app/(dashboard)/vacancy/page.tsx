@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Archive,
   Briefcase,
-  FileSearch,
   LockKeyhole,
   ShieldOff,
   TrendingUp,
@@ -20,6 +19,7 @@ import {
   type VacancyStatus,
 } from "@/components/vacancy/VacancyTable";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
+import { VacancyFilterToolbar } from "@/components/vacancy/VacancyFilterToolbar";
 import {
   AddApplicantModal,
   type VacancyContextSummary,
@@ -39,7 +39,6 @@ import {
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
-import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -317,9 +316,52 @@ export default function VacancyPage() {
     }
   }
 
-  function applySearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function applySearch(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     setSearch(searchDraft.trim());
+    setPage(1);
+    setSelectedVacancyId(null);
+  }
+
+  function handleClearSearch() {
+    setSearchDraft("");
+    setSearch("");
+    setPage(1);
+    setSelectedVacancyId(null);
+  }
+
+  function handleApplyAdvancedFilters(filters: {
+    agingBucket: string;
+    urgency: string;
+    vacantFrom: string;
+    vacantTo: string;
+  }) {
+    setAgingBucket(filters.agingBucket);
+    setUrgency(filters.urgency);
+    setVacantFrom(filters.vacantFrom);
+    setVacantTo(filters.vacantTo);
+    setPage(1);
+    setSelectedVacancyId(null);
+  }
+
+  function handleResetAdvancedFilters() {
+    setAgingBucket("");
+    setUrgency("");
+    setVacantFrom("");
+    setVacantTo("");
+    setPage(1);
+    setSelectedVacancyId(null);
+  }
+
+  function handleClearAll() {
+    setSearchDraft("");
+    setSearch("");
+    setAccountId("");
+    setGroupId("");
+    setAgingBucket("");
+    setUrgency("");
+    setVacantFrom("");
+    setVacantTo("");
     setPage(1);
     setSelectedVacancyId(null);
   }
@@ -511,166 +553,74 @@ export default function VacancyPage() {
         </div>
       )}
 
-      {/* Unified workbench card: Status tabs & Filter toolbar */}
-      <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-card p-3 shadow-xs">
-        {/* Status Tabs Navigation */}
-        <div
-          aria-label="Vacancy status filter"
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none border-b border-border-subtle pb-3"
-          role="tablist"
-        >
-          {statusTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = status === tab.value;
-            const count = tabCounts[tab.value];
-            return (
-              <button
-                key={tab.value}
-                aria-selected={isActive}
-                className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                  isActive
-                    ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-                }`}
-                onClick={() => updateStatus(tab.value)}
-                role="tab"
-                type="button"
-              >
-                {Icon && (
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      isActive
-                        ? "text-brand-700"
-                        : "text-text-muted group-hover:text-text-secondary"
-                    }`}
-                  />
-                )}
-                <span>{tab.label}</span>
-                <span
-                  className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                    isActive
-                      ? "bg-brand-600 text-white"
-                      : "bg-slate-100 text-slate-600 border border-slate-200/80"
-                  }`}
-                >
-                  {summaryQuery.isLoading ? "–" : count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Filter Bar Controls */}
-        <AdminFilterBar
-          searchPlaceholder="Search code, position, outlet, applicant, HRCO..."
-          searchVal={searchDraft}
-          onSearchChange={setSearchDraft}
-          onSearchSubmit={applySearch}
-          disabled={blocked}
-          showApplyButton={true}
-          applyLabel="Apply"
-          extraActionsSlot={
+      {/* Status Tabs Navigation */}
+      <div
+        aria-label="Vacancy status filter"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none rounded-lg border border-border-subtle bg-surface p-2 shadow-2xs"
+        role="tablist"
+      >
+        {statusTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = status === tab.value;
+          const count = tabCounts[tab.value];
+          return (
             <button
-              className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 cursor-not-allowed"
-              disabled
+              key={tab.value}
+              aria-selected={isActive}
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                isActive
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+              }`}
+              onClick={() => updateStatus(tab.value)}
+              role="tab"
               type="button"
             >
-              <FileSearch className="h-4 w-4" aria-hidden="true" />
-              Saved View
+              {Icon && (
+                <Icon
+                  className={`w-4 h-4 shrink-0 transition-colors ${
+                    isActive
+                      ? "text-brand-700"
+                      : "text-text-muted group-hover:text-text-secondary"
+                  }`}
+                />
+              )}
+              <span>{tab.label}</span>
+              <span
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  isActive
+                    ? "bg-brand-600 text-white"
+                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                }`}
+              >
+                {summaryQuery.isLoading ? "–" : count}
+              </span>
             </button>
-          }
-        >
-          <select
-            aria-label="Account filter"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            onChange={(event) => handleAccountChange(event.target.value)}
-            value={accountId}
-          >
-            <option value="">All accounts</option>
-            {filteredAccounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Group filter"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            onChange={(event) => handleGroupChange(event.target.value)}
-            value={groupId}
-          >
-            <option value="">All groups</option>
-            {uniqueGroups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Aging bucket filter"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            onChange={(event) => {
-              setAgingBucket(event.target.value);
-              setPage(1);
-              setSelectedVacancyId(null);
-            }}
-            value={agingBucket}
-          >
-            <option value="">All aging</option>
-            <option value="advance">Advance</option>
-            <option value="1_15">1-15 days</option>
-            <option value="16_30">16-30 days</option>
-            <option value="31_60">31-60 days</option>
-            <option value="61_120">61-120 days</option>
-            <option value="gt121">121+ days</option>
-          </select>
-          <select
-            aria-label="Urgency filter"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            onChange={(event) => {
-              setUrgency(event.target.value);
-              setPage(1);
-              setSelectedVacancyId(null);
-            }}
-            value={urgency}
-          >
-            <option value="">All urgency</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Normal">Normal</option>
-          </select>
-          <input
-            aria-label="Vacant date from"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            max={vacantTo || undefined}
-            onChange={(event) => {
-              setVacantFrom(event.target.value);
-              setPage(1);
-              setSelectedVacancyId(null);
-            }}
-            type="date"
-            value={vacantFrom}
-          />
-          <input
-            aria-label="Vacant date to"
-            className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none focus:border-blue-300"
-            disabled={blocked}
-            min={vacantFrom || undefined}
-            onChange={(event) => {
-              setVacantTo(event.target.value);
-              setPage(1);
-              setSelectedVacancyId(null);
-            }}
-            type="date"
-            value={vacantTo}
-          />
-        </AdminFilterBar>
+          );
+        })}
       </div>
+
+      {/* Filter Toolbar */}
+      <VacancyFilterToolbar
+        searchDraft={searchDraft}
+        onSearchChange={setSearchDraft}
+        onSearchSubmit={applySearch}
+        onClearSearch={handleClearSearch}
+        accountId={accountId}
+        onAccountChange={handleAccountChange}
+        accounts={filteredAccounts}
+        groupId={groupId}
+        onGroupChange={handleGroupChange}
+        groups={uniqueGroups}
+        agingBucket={agingBucket}
+        urgency={urgency}
+        vacantFrom={vacantFrom}
+        vacantTo={vacantTo}
+        onApplyAdvancedFilters={handleApplyAdvancedFilters}
+        onResetAdvancedFilters={handleResetAdvancedFilters}
+        onClearAll={handleClearAll}
+        disabled={blocked}
+      />
 
       {status === "closure" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700">

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * OHMployee Web Design Token System
  * Authoritative blueprint: docs/state/web_design_tokens.md
@@ -96,8 +98,94 @@
   --table-row-danger-hover: #facdca; 
 }
 
+:root[data-theme="light"],
+:root.light {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"],
+:root.dark {
+  color-scheme: dark;
+
+  --bg: #101114;
+  --side: #101114;
+  --soft: #18191d;
+  --line: #25262c;
+  --text: #ececf0;
+  --muted: #7d7e88;
+  --accent: #8aa4ff;
+  --ok: #4cc58d;
+  --okbg: #1f9d6a;
+  --bad: #ff7d70;
+  --warn: #e0a94a;
+  --pillbg: #1a2140;
+
+  --background: var(--bg);
+  --foreground: var(--text);
+
+  --surface-base: var(--bg);
+  --surface-card: var(--bg);
+  --surface-header: var(--bg);
+  --surface-muted: var(--soft);
+  --surface-hover: var(--soft);
+  --surface-selected: var(--pillbg);
+
+  --text-primary: var(--text);
+  --text-secondary: #a3a3ad;
+  --text-muted: var(--muted);
+  --text-inverted: #101114;
+
+  --border-subtle: var(--line);
+  --border-default: var(--line);
+  --border-strong: #3f4049;
+
+  --table-header: var(--bg);
+  --table-row: var(--bg);
+  --table-row-hover: var(--soft);
+  --table-row-selected: var(--pillbg);
+  --table-rule: var(--line);
+  --table-rule-section: var(--line);
+  --table-text: var(--text);
+  --table-text-sub: #a3a3ad;
+  --table-text-muted: var(--muted);
+
+  --mono-pill-surface: var(--soft);
+  --mono-pill-ink: var(--text);
+  --mono-pill-ring: var(--line);
+
+  --status-success-bg: rgba(76, 197, 141, 0.12);
+  --status-success-border: rgba(76, 197, 141, 0.3);
+  --status-success-text: var(--ok);
+
+  --status-warning-bg: rgba(224, 169, 74, 0.12);
+  --status-warning-border: rgba(224, 169, 74, 0.3);
+  --status-warning-text: var(--warn);
+
+  --status-danger-bg: rgba(255, 125, 112, 0.12);
+  --status-danger-border: rgba(255, 125, 112, 0.3);
+  --status-danger-text: var(--bad);
+
+  --status-info-bg: var(--pillbg);
+  --status-info-border: rgba(138, 164, 255, 0.3);
+  --status-info-text: var(--accent);
+
+  --status-neutral-bg: var(--soft);
+  --status-neutral-border: var(--line);
+  --status-neutral-text: var(--muted);
+
+  --status-accent-bg: var(--pillbg);
+  --status-accent-border: rgba(138, 164, 255, 0.3);
+  --status-accent-text: var(--accent);
+
+  --table-row-danger: rgba(255, 125, 112, 0.15);
+  --table-row-danger-hover: rgba(255, 125, 112, 0.25);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-theme="system"],
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+
     --bg: #101114;
     --side: #101114;
     --soft: #18191d;
@@ -124,6 +212,7 @@
     --text-primary: var(--text);
     --text-secondary: #a3a3ad;
     --text-muted: var(--muted);
+    --text-inverted: #101114;
 
     --border-subtle: var(--line);
     --border-default: var(--line);
@@ -173,11 +262,13 @@
 }
 
 
+
 @theme inline {
   /* Page surfaces + semantic colors (resolve at runtime) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
+  --color-surface: var(--surface-base);
   --color-surface-base: var(--surface-base);
   --color-surface-card: var(--surface-card);
   --color-surface-header: var(--surface-header);

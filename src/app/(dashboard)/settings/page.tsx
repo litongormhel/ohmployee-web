@@ -46,14 +46,14 @@ export default function SettingsPage() {
             onClick={() => setActiveTab("profile")}
             className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "profile"
-                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                ? "border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/15 text-brand-900 dark:text-brand-300 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 dark:hover:border-slate-700 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
             <User
               className={`w-4 h-4 shrink-0 transition-colors ${
                 activeTab === "profile"
-                  ? "text-brand-700"
+                  ? "text-brand-700 dark:text-brand-400"
                   : "text-text-muted group-hover:text-text-secondary"
               }`}
             />
@@ -67,19 +67,20 @@ export default function SettingsPage() {
             onClick={() => setActiveTab("preferences")}
             className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "preferences"
-                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                ? "border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/15 text-brand-900 dark:text-brand-300 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 dark:hover:border-slate-700 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
             <Sliders
               className={`w-4 h-4 shrink-0 transition-colors ${
                 activeTab === "preferences"
-                  ? "text-brand-700"
+                  ? "text-brand-700 dark:text-brand-400"
                   : "text-text-muted group-hover:text-text-secondary"
               }`}
             />
             <span>Preferences & Appearance</span>
           </button>
+
 
           <button
             type="button"
@@ -88,14 +89,14 @@ export default function SettingsPage() {
             onClick={() => setActiveTab("security")}
             className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               activeTab === "security"
-                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                ? "border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/15 text-brand-900 dark:text-brand-300 shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 dark:hover:border-slate-700 hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
             <Shield
               className={`w-4 h-4 shrink-0 transition-colors ${
                 activeTab === "security"
-                  ? "text-brand-700"
+                  ? "text-brand-700 dark:text-brand-400"
                   : "text-text-muted group-hover:text-text-secondary"
               }`}
             />
@@ -110,14 +111,14 @@ export default function SettingsPage() {
               onClick={() => setActiveTab("diagnostics")}
               className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "diagnostics"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/15 text-brand-900 dark:text-brand-300 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 dark:hover:border-slate-700 hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <Activity
                 className={`w-4 h-4 shrink-0 transition-colors ${
                   activeTab === "diagnostics"
-                    ? "text-brand-700"
+                    ? "text-brand-700 dark:text-brand-400"
                     : "text-text-muted group-hover:text-text-secondary"
                 }`}
               />
@@ -126,7 +127,7 @@ export default function SettingsPage() {
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "diagnostics"
                     ? "bg-brand-600 text-white"
-                    : "bg-purple-100 text-purple-700 border border-purple-200"
+                    : "bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40"
                 }`}
               >
                 Admin

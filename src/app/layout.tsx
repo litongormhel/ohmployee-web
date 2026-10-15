@@ -29,13 +29,40 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
-      style={{ colorScheme: "light" }}
-      className={`light h-full antialiased ${dmSans.variable} ${dmMono.variable}`}
+      suppressHydrationWarning
+      className={`h-full antialiased ${dmSans.variable} ${dmMono.variable}`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var stored = localStorage.getItem('ohmployee_theme_mode');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var theme = stored || 'light';
+                  var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+                  var root = document.documentElement;
+                  root.setAttribute('data-theme', theme);
+                  root.setAttribute('data-resolved-theme', isDark ? 'dark' : 'light');
+                  root.style.colorScheme = isDark ? 'dark' : 'light';
+                  if (isDark) {
+                    root.classList.add('dark');
+                    root.classList.remove('light');
+                  } else {
+                    root.classList.add('light');
+                    root.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>
     </html>
   );
 }
+

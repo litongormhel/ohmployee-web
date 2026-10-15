@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w71c662b" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w73v864a" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "supabase/migrations/20262606000032_fix_create_slot_roving_coverage_groups.sql:scripts/ai-finish.ps1:.ai/briefing.md"
+    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:.ai/briefing.md:src/components/ui/popover.tsx:src/components/vacancy/VacancyFilterToolbar.tsx"
 }
 
 Write-Host "======================================================"
