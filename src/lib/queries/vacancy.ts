@@ -589,12 +589,16 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     employmentType: asString(row.employment_type),
     vacancyStatus: asString(row.vacancy_status ?? row.status),
     pipelineStatus: asString(row.pipeline_status),
-    derivedStatus: asString(row.derived_status),
+    derivedStatus: asString(row.derived_status ?? row.pipeline_status),
     activeApplicantCount: asCount(row.active_applicant_count),
     confirmedOnboardCount: asCount(row.confirmed_onboard_count),
     hasRecentHire: asBoolean(row.has_recent_hire),
-    hasPendingClosure: asBoolean(row.has_pending_closure),
-    closureRequestStatus: asString(row.closure_request_status),
+    hasPendingClosure:
+      asBoolean(row.has_pending_closure) ||
+      asBoolean((row.row_capabilities as Record<string, unknown> | undefined)?.has_pending_closure),
+    closureRequestStatus:
+      asString(row.closure_request_status) ||
+      asString((row.row_capabilities as Record<string, unknown> | undefined)?.closure_request_status),
     vacantDate: asString(row.vacant_date),
     agingDays: asNumber(row.aging_days),
     agingBucket: asString(row.aging_bucket),
@@ -691,7 +695,7 @@ function tabToRpcStatus(tab?: VacancyStatus): string | null {
     case "pipeline":       return "Pipeline";
     case "with_applicant": return "Pipeline";
     case "hired":          return "Hired";
-    case "closure":        return "Closed";
+    case "closure":        return "Closure";
     case "failed_backout": return null;
     case "rejected":       return null;
     case "backout":        return null;
@@ -774,61 +778,50 @@ export async function getVacancySummary(
     }
   })();
 
-  // Closure tab count: restricted exclusively to Requests for Deletion / Pending Closures on active vacancies
+  // Closure tab count: checks for status IN ('closure', 'for_closure'), has_pending_closure = true, OR existing pending closure request
   const closurePromise = (async () => {
     try {
-      const { data: rawRequests, error } = await supabase
+      // 1. Fetch pending requests from vacancy_closure_requests
+      const { data: rawRequests } = await supabase
         .from("vacancy_closure_requests")
-        .select(`
-          id,
-          vacancy_vcode,
-          vacancies (
-            id,
-            is_archived,
-            deleted_at,
-            account_id,
-            group_id
-          )
-        `)
-        .eq("status", "Pending");
+        .select("id, vacancy_vcode, status")
+        .ilike("status", "pending");
 
-      if (error || !rawRequests) {
-        const { data: fallbackRequests } = await supabase
-          .from("vacancy_closure_requests")
-          .select("id, vacancy_vcode")
-          .eq("status", "Pending");
+      const pendingVcodes = new Set(
+        (rawRequests ?? []).map((r) => r.vacancy_vcode).filter(Boolean),
+      );
 
-        if (!fallbackRequests || fallbackRequests.length === 0) return 0;
-        const vcodes = Array.from(new Set(fallbackRequests.map((r) => r.vacancy_vcode).filter(Boolean)));
-        let vacQuery = supabase
-          .from("vacancies")
-          .select("vcode, account_id, group_id")
-          .in("vcode", vcodes)
-          .eq("is_archived", false)
-          .is("deleted_at", null);
+      // 2. Query active vacancies that match either the pending requests, has_pending_closure, or closure status
+      let vacQuery = supabase
+        .from("vacancies")
+        .select("id, vcode, account_id, group_id, has_pending_closure, closure_request_status, status, is_archived, deleted_at")
+        .eq("is_archived", false)
+        .is("deleted_at", null);
 
-        if (params.accountId) {
-          vacQuery = vacQuery.eq("account_id", params.accountId);
-        }
-        if (params.groupId) {
-          vacQuery = vacQuery.eq("group_id", params.groupId);
-        }
-
-        const { data: activeVacs } = await vacQuery;
-        const activeVcodeSet = new Set((activeVacs ?? []).map((v) => v.vcode));
-        return fallbackRequests.filter((r) => activeVcodeSet.has(r.vacancy_vcode)).length;
+      if (params.accountId) {
+        vacQuery = vacQuery.eq("account_id", params.accountId);
+      }
+      if (params.groupId) {
+        vacQuery = vacQuery.eq("group_id", params.groupId);
       }
 
-      const activeClosureRequests = rawRequests.filter((cr: Record<string, unknown>) => {
-        const vac = cr.vacancies as Record<string, unknown> | null;
-        if (!vac) return false;
-        if (vac.is_archived === true || vac.deleted_at !== null) return false;
-        if (params.accountId && vac.account_id !== params.accountId) return false;
-        if (params.groupId && vac.group_id !== params.groupId) return false;
-        return true;
+      const { data: activeVacs, error: vacError } = await vacQuery;
+      if (vacError || !activeVacs) {
+        return pendingVcodes.size;
+      }
+
+      const closureVacs = activeVacs.filter((v) => {
+        const vcode = v.vcode;
+        const statusLower = (v.status || "").toLowerCase().trim();
+        const closureReqStatusLower = (v.closure_request_status || "").toLowerCase().trim();
+        const isClosureStatus = statusLower === "closure" || statusLower === "for_closure";
+        const hasPendingFlag = v.has_pending_closure === true || closureReqStatusLower === "pending";
+        const hasPendingRequest = vcode ? pendingVcodes.has(vcode) : false;
+
+        return isClosureStatus || hasPendingFlag || hasPendingRequest;
       });
 
-      return activeClosureRequests.length;
+      return closureVacs.length;
     } catch {
       return 0;
     }
@@ -1069,84 +1062,102 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   if (currentTab === "closure") {
-    // 3. Closure Tab: Restrict exclusively to "Requests for Deletion / Pending Closures" on active vacancies
+    // 3. Closure Tab: Restrict to active vacancies with pending closure requests, has_pending_closure, or status IN ('closure', 'for_closure')
     try {
-      const { data: closureRequests, error: closureError } = await supabase
+      // 1. Fetch pending requests from vacancy_closure_requests
+      const { data: closureRequests } = await supabase
         .from("vacancy_closure_requests")
-        .select(`
-          id,
-          vacancy_vcode,
-          reason,
-          details,
-          status,
-          requested_by,
-          created_at,
-          vacancies (
-            id,
-            store_name,
-            store_branch,
-            position,
-            account,
-            account_id,
-            group_id,
-            area_city,
-            province,
-            is_archived,
-            deleted_at
-          )
-        `)
-        .eq("status", "Pending")
+        .select("id, vacancy_vcode, reason, details, status, requested_by, created_at")
+        .ilike("status", "pending")
         .order("created_at", { ascending: false });
 
-      if (!closureError && Array.isArray(closureRequests)) {
-        // Collect vcodes where the joined vacancies object might be null or missing
-        const pendingVcodes = closureRequests
-          .filter((cr) => !cr.vacancies)
-          .map((cr) => cr.vacancy_vcode)
-          .filter(Boolean);
-
-        let fallbackVacMap = new Map<string, Record<string, unknown>>();
-        if (pendingVcodes.length > 0) {
-          try {
-            const { data: vacFallback } = await supabase
-              .from("vacancies")
-              .select("id, vcode, store_name, store_branch, position, account, account_id, group_id, area_city, province, is_archived, deleted_at")
-              .in("vcode", pendingVcodes)
-              .eq("is_archived", false)
-              .is("deleted_at", null);
-            if (vacFallback) {
-              fallbackVacMap = new Map(vacFallback.map((v) => [v.vcode, v]));
-            }
-          } catch {
-            // Graceful fallback
+      const requestMap = new Map<string, Record<string, unknown>>();
+      if (Array.isArray(closureRequests)) {
+        for (const cr of closureRequests) {
+          const vcode = asString(cr.vacancy_vcode);
+          if (vcode && !requestMap.has(vcode)) {
+            requestMap.set(vcode, cr as Record<string, unknown>);
           }
         }
+      }
 
-        // Strictly filter out archived and deleted vacancies
-        const validClosureRequests = closureRequests.filter((cr: Record<string, unknown>) => {
-          const vcode = asString(cr.vacancy_vcode);
-          const vac = (cr.vacancies as Record<string, unknown> | null) || (vcode ? fallbackVacMap.get(vcode) : null);
-          if (!vac) return false;
-          if (vac.is_archived === true || vac.deleted_at !== null) return false;
-          return true;
+      // 2. Fetch active vacancies
+      let vacQuery = supabase
+        .from("vacancies")
+        .select(`
+          id,
+          vcode,
+          store_name,
+          store_branch,
+          position,
+          account,
+          account_id,
+          group_id,
+          area_city,
+          province,
+          is_archived,
+          deleted_at,
+          has_pending_closure,
+          closure_request_status,
+          status,
+          created_at,
+          updated_at
+        `)
+        .eq("is_archived", false)
+        .is("deleted_at", null);
+
+      if (params.accountId) {
+        vacQuery = vacQuery.eq("account_id", params.accountId);
+      }
+      if (params.groupId) {
+        vacQuery = vacQuery.eq("group_id", params.groupId);
+      }
+
+      const { data: activeVacs, error: vacError } = await vacQuery;
+
+      if (!vacError && Array.isArray(activeVacs)) {
+        const closureVacs = activeVacs.filter((vac: Record<string, unknown>) => {
+          const vcode = asString(vac.vcode);
+          const statusLower = (asString(vac.status) || "").toLowerCase().trim();
+          const closureReqStatusLower = (asString(vac.closure_request_status) || "").toLowerCase().trim();
+          const isClosureStatus = statusLower === "closure" || statusLower === "for_closure";
+          const hasPendingFlag = asBoolean(vac.has_pending_closure) || closureReqStatusLower === "pending";
+          const hasPendingRequest = vcode ? requestMap.has(vcode) : false;
+
+          return isClosureStatus || hasPendingFlag || hasPendingRequest;
         });
 
-        const closureRows: VacancyListItem[] = validClosureRequests.map((cr: Record<string, unknown>, idx: number) => {
-          const vcode = asString(cr.vacancy_vcode) ?? "Uncoded";
-          const vac = (cr.vacancies as Record<string, unknown> | null) || fallbackVacMap.get(vcode) || null;
-          const storeName = asString(vac?.store_name ?? vac?.store_branch);
-          const position = asString(vac?.position) ?? "—";
-          const account = asString(vac?.account);
-          const loc = [asString(vac?.area_city), asString(vac?.province)]
+        const closureRows: VacancyListItem[] = closureVacs.map((vac: Record<string, unknown>, idx: number) => {
+          const vcode = asString(vac.vcode) ?? "Uncoded";
+          const cr = requestMap.get(vcode);
+          const storeName = asString(vac.store_name ?? vac.store_branch);
+          const position = asString(vac.position) ?? "—";
+          const account = asString(vac.account);
+          const loc = [asString(vac.area_city), asString(vac.province)]
             .filter(Boolean)
             .join(" • ") || null;
 
+          const closureReason =
+            asString(cr?.reason) ??
+            asString(cr?.details) ??
+            asString(vac.closure_reason) ??
+            "Store Closed / Outlet Ceased Operations";
+          const closureRequestedBy =
+            asString(cr?.requested_by) ??
+            asString(vac.closure_requested_by) ??
+            "Operations";
+          const closureRequestedAt =
+            asString(cr?.created_at) ??
+            asString(vac.closure_requested_at) ??
+            asString(vac.updated_at);
+          const closureRequestId = asString(cr?.id) ?? null;
+
           return {
-            id: asString(vac?.id) ?? asString(cr.id) ?? `closure-${idx}`,
+            id: asString(vac.id) ?? asString(cr?.id) ?? `closure-${idx}`,
             vcode,
-            accountId: asString(vac?.account_id),
+            accountId: asString(vac.account_id),
             accountName: account,
-            groupId: asString(vac?.group_id),
+            groupId: asString(vac.group_id),
             groupName: null,
             storeId: null,
             storeName,
@@ -1162,7 +1173,7 @@ export async function listVacancies(params: VacancyListParams) {
             hasRecentHire: false,
             hasPendingClosure: true,
             closureRequestStatus: "Pending",
-            vacantDate: asString(cr.created_at),
+            vacantDate: closureRequestedAt,
             agingDays: null,
             agingBucket: null,
             targetFillDate: null,
@@ -1172,14 +1183,14 @@ export async function listVacancies(params: VacancyListParams) {
             applicantName: null,
             contactNumber: null,
             hiredDate: null,
-            closureReason: asString(cr.reason) ?? asString(cr.details) ?? "Pending Closure",
-            closureRequestedBy: asString(cr.requested_by) ?? "Ops",
-            closureRequestedAt: asString(cr.created_at),
-            closureRequestId: asString(cr.id),
+            closureReason,
+            closureRequestedBy,
+            closureRequestedAt,
+            closureRequestId,
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
-            lastActivityAt: asString(cr.created_at),
+            lastActivityAt: closureRequestedAt,
             rowCapabilities: {
               canViewDetail: true,
               canApprove: true,
@@ -1187,17 +1198,11 @@ export async function listVacancies(params: VacancyListParams) {
               canRequestClosure: false,
               raw: {},
             },
-            totalCount: validClosureRequests.length,
+            totalCount: closureVacs.length,
           };
         });
 
         let filteredClosure = closureRows;
-        if (params.accountId) {
-          filteredClosure = filteredClosure.filter((r) => r.accountId === params.accountId);
-        }
-        if (params.groupId) {
-          filteredClosure = filteredClosure.filter((r) => r.groupId === params.groupId);
-        }
         if (params.search) {
           const q = params.search.toLowerCase();
           filteredClosure = filteredClosure.filter(
@@ -1652,14 +1657,22 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   // Final Tab Scoping Enforcement:
-  // For Open Tab: Exclude any vacancy that has an active candidate assigned or active applicant count > 0
+  // For Open Tab: Exclude any vacancy that has an active candidate assigned, active applicant count > 0,
+  // or active in-flight closure requests (hasPendingClosure, closureRequestStatus = 'Pending', derivedStatus = 'For Closure')
   let finalRows = rows;
   if (currentTab === "open") {
     finalRows = rows.filter((r) => {
       const hasActive =
         (r.activeApplicantCount && r.activeApplicantCount > 0) ||
         Boolean(r.applicantName);
-      return !hasActive;
+      const isPendingClosure =
+        r.hasPendingClosure === true ||
+        (r.closureRequestStatus && r.closureRequestStatus.toLowerCase() === "pending") ||
+        r.derivedStatus?.toLowerCase() === "for closure" ||
+        r.derivedStatus?.toLowerCase() === "closure" ||
+        r.vacancyStatus?.toLowerCase() === "for_closure" ||
+        r.vacancyStatus?.toLowerCase() === "closure";
+      return !hasActive && !isPendingClosure;
     });
     for (const r of finalRows) {
       r.applicantId = null;
@@ -1866,6 +1879,43 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
         if (prof?.full_name) {
           normalized.hrcoName = prof.full_name;
         }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  // Ensure pending closure details are enriched if applicable
+  if (!normalized.hasPendingClosure && normalized.vcode) {
+    try {
+      const { data: vacCheck } = await supabase
+        .from("vacancies")
+        .select("has_pending_closure, closure_request_status")
+        .eq("vcode", normalized.vcode)
+        .maybeSingle();
+      if (vacCheck) {
+        if (vacCheck.has_pending_closure) normalized.hasPendingClosure = true;
+        if (vacCheck.closure_request_status) normalized.closureRequestStatus = vacCheck.closure_request_status;
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  if (normalized.hasPendingClosure || normalized.closureRequestStatus === "Pending") {
+    try {
+      const { data: closureReq } = await supabase
+        .from("vacancy_closure_requests")
+        .select("id, reason, details, requested_by, created_at, status")
+        .eq("vacancy_vcode", normalized.vcode)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (closureReq) {
+        normalized.closureReason = closureReq.reason || closureReq.details || normalized.closureReason;
+        normalized.closureRequestedBy = closureReq.requested_by || normalized.closureRequestedBy;
+        normalized.closureRequestedAt = closureReq.created_at || normalized.closureRequestedAt;
+        normalized.closureRequestStatus = closureReq.status || normalized.closureRequestStatus;
       }
     } catch {
       // Graceful fallback
@@ -2370,8 +2420,15 @@ export function useRequestVacancyClosure() {
       requestVacancyClosure(params),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
       queryClient.invalidateQueries({
         queryKey: ["vacancy-detail", variables.vcode],
       });
@@ -2417,8 +2474,15 @@ export function useReviewClosureRequest() {
       reviewClosureRequest(params),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
       if (variables.vcode) {
         queryClient.invalidateQueries({
           queryKey: ["vacancy-detail", variables.vcode],
@@ -2455,8 +2519,15 @@ export function useApproveAllClosureRequests() {
       approveAllClosureRequests(requestIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
     },
   });
 }

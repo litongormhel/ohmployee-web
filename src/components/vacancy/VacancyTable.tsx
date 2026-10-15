@@ -141,6 +141,7 @@ function getVacancyStatusVariant(status: string): BadgeVariant {
   if (norm === "hired" || norm === "filled" || norm === "complete" || norm === "completed") return "success";
   if (norm === "rejected" || norm === "failed" || norm === "failed_backout" || norm === "failed / backout") return "danger";
   if (norm === "backout") return "warning";
+  if (norm === "for closure" || norm === "for_closure" || norm === "pending clearance") return "warning";
   if (norm === "closure" || norm === "closed") return "neutral";
   return "neutral";
 }
@@ -361,7 +362,17 @@ export function VacancyTable({
                       <>
                         {/* 6. REASON FOR DELETION */}
                         <td className="border-b border-table-rule px-4 py-2.5 font-medium text-rose-900">
-                          {row.closureReason || "Requested for Deletion"}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {(row.hasPendingClosure || row.closureRequestStatus?.toLowerCase() === "pending" || row.derivedStatus === "For Closure") && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                  <Clock3 className="h-3 w-3" />
+                                  Pending Clearance
+                                </span>
+                              )}
+                              <span>{row.closureReason || "Requested for Deletion"}</span>
+                            </div>
+                          </div>
                         </td>
 
                         {/* 7. REQUESTED BY */}

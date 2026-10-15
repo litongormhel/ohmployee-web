@@ -7,6 +7,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Calendar,
+  Clock3,
   History,
   Lock,
   MapPin,
@@ -153,6 +154,39 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
             <NotFoundState />
           ) : (
             <>
+              {/* Pending Closure Clearance Notice */}
+              {(detail.hasPendingClosure ||
+                detail.closureRequestStatus?.toLowerCase() === "pending" ||
+                detail.derivedStatus === "For Closure") && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-start gap-2.5">
+                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                  <div className="text-xs space-y-1">
+                    <div className="font-semibold flex items-center gap-1.5">
+                      <span>Closure Clearance In-Flight</span>
+                      {detail.closureRequestStatus && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800 border border-amber-300">
+                          {detail.closureRequestStatus}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-amber-800/90 leading-relaxed">
+                      This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
+                    </div>
+                    {detail.closureReason && (
+                      <div className="mt-1 font-medium text-amber-950">
+                        Reason: {detail.closureReason}
+                      </div>
+                    )}
+                    {detail.closureRequestedBy && (
+                      <div className="text-[11px] text-amber-700">
+                        Requested by {detail.closureRequestedBy}
+                        {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Status & Urgency Badges */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-md border border-gray-100 bg-gray-50 p-2.5">
@@ -160,14 +194,22 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   <div className="mt-1 flex items-center gap-1.5">
                     <Badge
                       className={
-                        detail.derivedStatus === "Open" || detail.derivedStatus === "open"
+                        detail.hasPendingClosure ||
+                        detail.closureRequestStatus?.toLowerCase() === "pending" ||
+                        detail.derivedStatus === "For Closure"
+                          ? "border-amber-300 bg-amber-50 text-amber-800"
+                          : detail.derivedStatus === "Open" || detail.derivedStatus === "open"
                           ? "border-blue-200 bg-blue-50 text-blue-700"
                           : detail.derivedStatus === "pipeline" || detail.derivedStatus === "Pipeline"
                           ? "border-purple-200 bg-purple-50 text-purple-700"
                           : "border-gray-200 bg-gray-50 text-gray-700"
                       }
                     >
-                      {detail.derivedStatus ?? detail.vacancyStatus ?? "--"}
+                      {detail.hasPendingClosure ||
+                      detail.closureRequestStatus?.toLowerCase() === "pending" ||
+                      detail.derivedStatus === "For Closure"
+                        ? "Pending Clearance"
+                        : detail.derivedStatus ?? detail.vacancyStatus ?? "--"}
                     </Badge>
                   </div>
                 </div>
@@ -641,135 +683,152 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               </div>
 
               {/* Capability-Aware Action Area */}
-              <CapabilityActionBar
-                isReadOnlyEmergencyActive={isFreezeModeActive}
-                actions={[
-                  {
-                    label: "Adjust Quota",
-                    isAvailable: canReviseQuota,
-                    onClick: () => setIsReviseQuotaModalOpen(true),
-                  },
-                  {
-                    label: "Request HC Adjustment",
-                    isAvailable: canRequestAdjustment,
-                    onClick: () => setIsRequestAdjustmentModalOpen(true),
-                  },
-                  {
-                    label: "Approve Vacancy",
-                    isAvailable: detail.rowCapabilities?.canApprove === true,
-                  },
-                  {
-                    label: "Add Applicant",
-                    isAvailable:
-                      detail.rowCapabilities?.canUpdateApplicantStatus === true ||
-                      detail.derivedStatus?.toLowerCase() === "open" ||
-                      detail.activeApplicantCount === 0,
-                    onClick: () => setIsAddApplicantModalOpen(true),
-                  },
-                  {
-                    label: "Update Stage",
-                    isAvailable:
-                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                      detail.derivedStatus?.toLowerCase() !== "hired" &&
-                      detail.derivedStatus?.toLowerCase() !== "closed",
-                    onClick: () => {
-                      if (detail.activeApplicantsList?.[0]) {
-                        setSelectedCandidate({
-                          id: detail.activeApplicantsList[0].applicantId,
-                          fullName: detail.activeApplicantsList[0].displayName,
-                          lastName: detail.activeApplicantsList[0].lastName,
-                          firstName: detail.activeApplicantsList[0].firstName,
-                          contactNumber: detail.activeApplicantsList[0].contactNumber,
-                          status: detail.activeApplicantsList[0].statusLabel,
-                          vcode: detail.vcode,
-                          positionTitle: detail.position_title,
-                        });
-                      }
-                      setIsAdvancePipelineModalOpen(true);
-                    },
-                  },
-                  {
-                    label: "Mark Hired",
-                    isAvailable:
-                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                      detail.derivedStatus?.toLowerCase() !== "hired" &&
-                      detail.derivedStatus?.toLowerCase() !== "closed",
-                    onClick: () => {
-                      if (detail.activeApplicantsList?.[0]) {
-                        setSelectedCandidate({
-                          id: detail.activeApplicantsList[0].applicantId,
-                          fullName: detail.activeApplicantsList[0].displayName,
-                          lastName: detail.activeApplicantsList[0].lastName,
-                          firstName: detail.activeApplicantsList[0].firstName,
-                          contactNumber: detail.activeApplicantsList[0].contactNumber,
-                          status: detail.activeApplicantsList[0].statusLabel,
-                          vcode: detail.vcode,
-                          positionTitle: detail.position_title,
-                        });
-                      }
-                      setIsMarkHiredModalOpen(true);
-                    },
-                  },
-                  {
-                    label: "Drop / Backout",
-                    isAvailable:
-                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                      detail.derivedStatus?.toLowerCase() !== "hired" &&
-                      detail.derivedStatus?.toLowerCase() !== "closed",
-                    onClick: () => {
-                      if (detail.activeApplicantsList?.[0]) {
-                        setSelectedCandidate({
-                          id: detail.activeApplicantsList[0].applicantId,
-                          fullName: detail.activeApplicantsList[0].displayName,
-                          lastName: detail.activeApplicantsList[0].lastName,
-                          firstName: detail.activeApplicantsList[0].firstName,
-                          contactNumber: detail.activeApplicantsList[0].contactNumber,
-                          status: detail.activeApplicantsList[0].statusLabel,
-                          vcode: detail.vcode,
-                          positionTitle: detail.position_title,
-                        });
-                      }
-                      setIsFailBackoutModalOpen(true);
-                    },
-                  },
-                  {
-                    label: "Edit Hired Date",
-                    isAvailable:
-                      Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                      (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
-                    onClick: () => {
-                      if (detail.activeApplicantsList?.[0]) {
-                        setSelectedCandidate({
-                          id: detail.activeApplicantsList[0].applicantId,
-                          fullName: detail.activeApplicantsList[0].displayName,
-                          lastName: detail.activeApplicantsList[0].lastName,
-                          firstName: detail.activeApplicantsList[0].firstName,
-                          contactNumber: detail.activeApplicantsList[0].contactNumber,
-                          status: detail.activeApplicantsList[0].statusLabel,
-                          vcode: detail.vcode,
-                          positionTitle: detail.position_title,
-                          hiredDate: detail.activeApplicantsList[0].onboardDate,
-                        });
-                      }
-                      setIsEditHiredDateModalOpen(true);
-                    },
-                  },
-                  {
-                    label: "Reopen Slot",
-                    isAvailable:
-                      detail.derivedStatus?.toLowerCase() === "failed_backout" ||
-                      detail.derivedStatus?.toLowerCase() === "rejected" ||
-                      detail.derivedStatus?.toLowerCase() === "backout" ||
-                      detail.derivedStatus?.toLowerCase() === "closed",
-                    onClick: () => setIsReopenVacancyModalOpen(true),
-                  },
-                  {
-                    label: "Request Closure",
-                    isAvailable: !detail.hasPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed",
-                    onClick: () => setIsRequestClosureModalOpen(true),
-                  },
-                ]}
-              />
+              {(() => {
+                const isPendingClosure =
+                  detail.hasPendingClosure ||
+                  detail.closureRequestStatus?.toLowerCase() === "pending" ||
+                  detail.derivedStatus === "For Closure";
+
+                return (
+                  <CapabilityActionBar
+                    isReadOnlyEmergencyActive={isFreezeModeActive}
+                    actions={[
+                      {
+                        label: "Adjust Quota",
+                        isAvailable: canReviseQuota,
+                        onClick: () => setIsReviseQuotaModalOpen(true),
+                      },
+                      {
+                        label: "Request HC Adjustment",
+                        isAvailable: canRequestAdjustment,
+                        onClick: () => setIsRequestAdjustmentModalOpen(true),
+                      },
+                      {
+                        label: "Approve Vacancy",
+                        isAvailable: !isPendingClosure && detail.rowCapabilities?.canApprove === true,
+                      },
+                      {
+                        label: "Add Applicant",
+                        isAvailable:
+                          !isPendingClosure &&
+                          (detail.rowCapabilities?.canUpdateApplicantStatus === true ||
+                            detail.derivedStatus?.toLowerCase() === "open" ||
+                            detail.activeApplicantCount === 0),
+                        onClick: () => setIsAddApplicantModalOpen(true),
+                      },
+                      {
+                        label: "Update Stage",
+                        isAvailable:
+                          !isPendingClosure &&
+                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                          detail.derivedStatus?.toLowerCase() !== "hired" &&
+                          detail.derivedStatus?.toLowerCase() !== "closed",
+                        onClick: () => {
+                          if (detail.activeApplicantsList?.[0]) {
+                            setSelectedCandidate({
+                              id: detail.activeApplicantsList[0].applicantId,
+                              fullName: detail.activeApplicantsList[0].displayName,
+                              lastName: detail.activeApplicantsList[0].lastName,
+                              firstName: detail.activeApplicantsList[0].firstName,
+                              contactNumber: detail.activeApplicantsList[0].contactNumber,
+                              status: detail.activeApplicantsList[0].statusLabel,
+                              vcode: detail.vcode,
+                              positionTitle: detail.position_title,
+                            });
+                          }
+                          setIsAdvancePipelineModalOpen(true);
+                        },
+                      },
+                      {
+                        label: "Mark Hired",
+                        isAvailable:
+                          !isPendingClosure &&
+                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                          detail.derivedStatus?.toLowerCase() !== "hired" &&
+                          detail.derivedStatus?.toLowerCase() !== "closed",
+                        onClick: () => {
+                          if (detail.activeApplicantsList?.[0]) {
+                            setSelectedCandidate({
+                              id: detail.activeApplicantsList[0].applicantId,
+                              fullName: detail.activeApplicantsList[0].displayName,
+                              lastName: detail.activeApplicantsList[0].lastName,
+                              firstName: detail.activeApplicantsList[0].firstName,
+                              contactNumber: detail.activeApplicantsList[0].contactNumber,
+                              status: detail.activeApplicantsList[0].statusLabel,
+                              vcode: detail.vcode,
+                              positionTitle: detail.position_title,
+                            });
+                          }
+                          setIsMarkHiredModalOpen(true);
+                        },
+                      },
+                      {
+                        label: "Drop / Backout",
+                        isAvailable:
+                          !isPendingClosure &&
+                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                          detail.derivedStatus?.toLowerCase() !== "hired" &&
+                          detail.derivedStatus?.toLowerCase() !== "closed",
+                        onClick: () => {
+                          if (detail.activeApplicantsList?.[0]) {
+                            setSelectedCandidate({
+                              id: detail.activeApplicantsList[0].applicantId,
+                              fullName: detail.activeApplicantsList[0].displayName,
+                              lastName: detail.activeApplicantsList[0].lastName,
+                              firstName: detail.activeApplicantsList[0].firstName,
+                              contactNumber: detail.activeApplicantsList[0].contactNumber,
+                              status: detail.activeApplicantsList[0].statusLabel,
+                              vcode: detail.vcode,
+                              positionTitle: detail.position_title,
+                            });
+                          }
+                          setIsFailBackoutModalOpen(true);
+                        },
+                      },
+                      {
+                        label: "Edit Hired Date",
+                        isAvailable:
+                          !isPendingClosure &&
+                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                          (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
+                        onClick: () => {
+                          if (detail.activeApplicantsList?.[0]) {
+                            setSelectedCandidate({
+                              id: detail.activeApplicantsList[0].applicantId,
+                              fullName: detail.activeApplicantsList[0].displayName,
+                              lastName: detail.activeApplicantsList[0].lastName,
+                              firstName: detail.activeApplicantsList[0].firstName,
+                              contactNumber: detail.activeApplicantsList[0].contactNumber,
+                              status: detail.activeApplicantsList[0].statusLabel,
+                              vcode: detail.vcode,
+                              positionTitle: detail.position_title,
+                              hiredDate: detail.activeApplicantsList[0].onboardDate,
+                            });
+                          }
+                          setIsEditHiredDateModalOpen(true);
+                        },
+                      },
+                      {
+                        label: "Reopen Slot",
+                        isAvailable:
+                          !isPendingClosure &&
+                          (detail.derivedStatus?.toLowerCase() === "failed_backout" ||
+                            detail.derivedStatus?.toLowerCase() === "rejected" ||
+                            detail.derivedStatus?.toLowerCase() === "backout" ||
+                            detail.derivedStatus?.toLowerCase() === "closed"),
+                        onClick: () => setIsReopenVacancyModalOpen(true),
+                      },
+                      {
+                        label: "Request Closure",
+                        isAvailable:
+                          !isPendingClosure &&
+                          detail.derivedStatus?.toLowerCase() !== "closed",
+                        onClick: () => setIsRequestClosureModalOpen(true),
+                      },
+                    ]}
+                  />
+                );
+              })()}
 
               {/* Add Applicant Modal */}
               {isAddApplicantModalOpen && (

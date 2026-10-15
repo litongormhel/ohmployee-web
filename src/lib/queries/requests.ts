@@ -1280,9 +1280,12 @@ export function useReviewVacancyClosureRequest() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
     },
   });
 }
@@ -1298,9 +1301,12 @@ export function useApproveAllVacancyClosures() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });
+      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
     },
   });
 }
