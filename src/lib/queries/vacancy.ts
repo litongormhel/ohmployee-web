@@ -1936,8 +1936,8 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
 export type EndorseApplicantParams = {
   vcode: string;
   firstName: string;
+  middleName: string;
   lastName: string;
-  middleName?: string | null;
   contactNumber: string;
   targetOnboardDate?: string | null;
   recruiterName?: string | null;
@@ -1960,10 +1960,8 @@ export async function endorseApplicant(
   const vcode = params.vcode.trim();
   const firstName = params.firstName.trim();
   const lastName = params.lastName.trim();
-  const middleName = params.middleName?.trim() || null;
-  const fullName = middleName
-    ? `${lastName}, ${firstName} ${middleName}`
-    : `${lastName}, ${firstName}`;
+  const middleName = params.middleName?.trim() || "";
+  const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
   
   // Normalize contact number: must be 11 digits starting with 09
   const cleanContact = params.contactNumber.replace(/[^0-9]/g, "");
@@ -1975,8 +1973,8 @@ export async function endorseApplicant(
   if (!vcode) {
     throw new VacancyDataError("validation", "Target VCode is required.");
   }
-  if (!firstName || !lastName) {
-    throw new VacancyDataError("validation", "First Name and Last Name are required.");
+  if (!firstName || !middleName || !lastName) {
+    throw new VacancyDataError("validation", "First Name, Middle Name, and Last Name are required.");
   }
   if (!normalizedContact || !/^09[0-9]{9}$/.test(normalizedContact)) {
     throw new VacancyDataError(

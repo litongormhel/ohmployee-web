@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w78p469a" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w79a570a" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:.ai/briefing.md:src/providers/ThemeProvider.tsx:src/components/vacancy/SavedViewsModal.tsx:src/components/vacancy/useVacancySavedViews.ts:supabase/migrations/20262606000040_fix_prod_archived_predicate_drift.sql"
+    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:.ai/briefing.md:src/providers/ThemeProvider.tsx:src/components/modals/EndorseApplicantModal.tsx:src/components/vacancy/EndorseApplicantModal.tsx"
 }
 
 Write-Host "======================================================"

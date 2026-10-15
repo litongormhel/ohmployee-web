@@ -273,6 +273,7 @@
   --color-surface-card: var(--surface-card);
   --color-surface-header: var(--surface-header);
   --color-surface-muted: var(--surface-muted);
+  --color-surface-subtle: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
 

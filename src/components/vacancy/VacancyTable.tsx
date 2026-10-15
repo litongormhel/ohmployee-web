@@ -2,12 +2,10 @@
 "use client";
 
 import {
-  Archive,
   Calendar,
   Check,
   CheckCircle2,
   ClipboardList,
-  Clock3,
   Eye,
   LockKeyhole,
   Phone,
@@ -351,17 +349,7 @@ export function VacancyTable({
                       <>
                         {/* 6. REASON FOR DELETION */}
                         <td className="border-b border-table-rule px-4 py-2.5 font-medium text-rose-900">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {(row.hasPendingClosure || row.closureRequestStatus?.toLowerCase() === "pending" || row.derivedStatus === "For Closure") && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                                  <Clock3 className="h-3 w-3" />
-                                  Pending Clearance
-                                </span>
-                              )}
-                              <span>{row.closureReason || "Requested for Deletion"}</span>
-                            </div>
-                          </div>
+                          <span>{row.closureReason || "Requested for Deletion"}</span>
                         </td>
 
                         {/* 7. REQUESTED BY */}
@@ -599,20 +587,6 @@ export function VacancyTable({
                                   <span className="hidden sm:inline">Reject</span>
                                 </button>
                               </>
-                            )}
-                            {onRequestClosure && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRequestClosure(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 border border-slate-200 hover:bg-slate-200 transition shadow-xs"
-                                title={`Review closure details for ${row.vcode}`}
-                              >
-                                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Review</span>
-                              </button>
                             )}
                           </div>
                         )}

@@ -38,6 +38,9 @@ export function AddApplicantModal({
   );
 }
 
+export const EndorseApplicantModal = AddApplicantModal;
+export type EndorseApplicantModalProps = AddApplicantModalProps;
+
 function AddApplicantModalContent({
   vacancy,
   onClose,
@@ -52,7 +55,6 @@ function AddApplicantModalContent({
   const lastNameId = useId();
   const contactNumberId = useId();
   const targetOnboardDateId = useId();
-  const recruiterNameId = useId();
   const hrcoRemarksId = useId();
 
   const currentUser = useCurrentUser();
@@ -64,13 +66,20 @@ function AddApplicantModalContent({
   const [lastName, setLastName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [targetOnboardDate, setTargetOnboardDate] = useState("");
-  const [recruiterName, setRecruiterName] = useState(() => currentUser?.displayName ?? "");
   const [hrcoRemarks, setHrcoRemarks] = useState("");
 
   const [formError, setFormError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [touched, setTouched] = useState<{
+    firstName?: boolean;
+    middleName?: boolean;
+    lastName?: boolean;
+    contactNumber?: boolean;
+  }>({});
 
   // Validation
   const trimmedFirstName = firstName.trim();
+  const trimmedMiddleName = middleName.trim();
   const trimmedLastName = lastName.trim();
   const digitsOnlyContact = contactNumber.replace(/[^0-9]/g, "");
 
@@ -83,9 +92,14 @@ function AddApplicantModalContent({
   const isContactValid =
     normalizedContact.length === 11 && normalizedContact.startsWith("09");
 
+  const isFirstNameValid = trimmedFirstName.length > 0;
+  const isMiddleNameValid = trimmedMiddleName.length > 0;
+  const isLastNameValid = trimmedLastName.length > 0;
+
   const isFormValid =
-    trimmedFirstName.length > 0 &&
-    trimmedLastName.length > 0 &&
+    isFirstNameValid &&
+    isMiddleNameValid &&
+    isLastNameValid &&
     isContactValid &&
     !endorseMutation.isPending;
 
@@ -99,10 +113,15 @@ function AddApplicantModalContent({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
     setFormError(null);
 
     if (!trimmedFirstName) {
       setFormError("First name is required.");
+      return;
+    }
+    if (!trimmedMiddleName) {
+      setFormError("Middle name is required.");
       return;
     }
     if (!trimmedLastName) {
@@ -110,7 +129,9 @@ function AddApplicantModalContent({
       return;
     }
     if (!isContactValid) {
-      setFormError("Contact number must be an 11-digit mobile number starting with 09 (e.g., 09171234567).");
+      setFormError(
+        "Contact number must be an 11-digit mobile number starting with 09 (e.g., 09171234567)."
+      );
       return;
     }
 
@@ -118,11 +139,11 @@ function AddApplicantModalContent({
       {
         vcode: vacancy.vcode,
         firstName: trimmedFirstName,
+        middleName: trimmedMiddleName,
         lastName: trimmedLastName,
-        middleName: middleName.trim() || null,
         contactNumber: normalizedContact,
         targetOnboardDate: targetOnboardDate || null,
-        recruiterName: recruiterName.trim() || currentUser?.displayName || null,
+        recruiterName: currentUser?.displayName || null,
         recruiterId: currentUser?.profileId || null,
         hrcoRemarks: hrcoRemarks.trim() || null,
       },
@@ -134,9 +155,15 @@ function AddApplicantModalContent({
         onError: (err) => {
           setFormError(err.message || "Failed to endorse candidate into vacancy.");
         },
-      },
+      }
     );
   };
+
+  const accountGroupText =
+    vacancy.accountName && vacancy.groupName
+      ? `${vacancy.accountName} (${vacancy.groupName})`
+      : vacancy.accountName ||
+        (vacancy.groupName ? `(${vacancy.groupName})` : "—");
 
   return (
     <div
@@ -145,21 +172,21 @@ function AddApplicantModalContent({
       aria-labelledby="add-applicant-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
     >
-      <div className="relative w-full max-w-xl rounded-xl border border-gray-200 bg-white shadow-2xl transition-all overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-xl rounded-xl border border-border-subtle bg-surface-base shadow-2xl transition-all overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/70">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
-              <UserPlus className="h-4.5 w-4.5" />
+        <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3.5 bg-surface-subtle">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
+              <UserPlus className="h-4 w-4" />
             </div>
             <div>
               <h2
                 id="add-applicant-modal-title"
-                className="text-base font-semibold text-gray-900"
+                className="text-sm font-semibold text-text-primary"
               >
                 Add / Endorse Applicant
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-text-muted">
                 Endorse candidate into active requisition and transition to Pipeline
               </p>
             </div>
@@ -168,7 +195,7 @@ function AddApplicantModalContent({
             type="button"
             onClick={onClose}
             disabled={endorseMutation.isPending}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors disabled:opacity-50"
+            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
             aria-label="Close modal"
           >
             <X className="h-4 w-4" />
@@ -176,57 +203,38 @@ function AddApplicantModalContent({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Target Requisition Context Card */}
-          <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-4 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">
-                Target Requisition Context
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 overflow-y-auto p-5 space-y-4"
+        >
+          {/* Target Requisition Context Header Strip */}
+          <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border-subtle bg-surface-subtle text-xs">
+            <span className="font-mono font-bold text-text-primary bg-surface-base px-2 py-0.5 rounded border border-border-subtle shadow-2xs">
+              {vacancy.vcode}
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5 text-text-secondary">
+              <span className="font-semibold text-text-primary">
+                {vacancy.positionTitle || "General Staff"}
               </span>
-              <span className="font-mono text-xs font-bold text-gray-900 bg-white border border-blue-200 px-2 py-0.5 rounded shadow-2xs">
-                {vacancy.vcode}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-gray-500">Position Title:</span>{" "}
-                <span className="font-semibold text-gray-800">
-                  {vacancy.positionTitle || "General Staff"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500">Outlet / Store:</span>{" "}
-                <span className="font-semibold text-gray-800">
-                  {vacancy.storeName || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500">Account:</span>{" "}
-                <span className="font-medium text-gray-700">
-                  {vacancy.accountName || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500">Group:</span>{" "}
-                <span className="font-medium text-gray-700">
-                  {vacancy.groupName || "General / Direct"}
-                </span>
-              </div>
+              <span className="text-text-muted">•</span>
+              <span>{vacancy.storeName || "—"}</span>
+              <span className="text-text-muted">•</span>
+              <span>{accountGroupText}</span>
             </div>
           </div>
 
           {/* Candidate Form Fields */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <div className="space-y-3.5">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
               Candidate Information
             </h3>
 
-            {/* Name Fields: First, Middle, Last */}
+            {/* 3-Column Name Row: First Name *, Middle Name *, Last Name * */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label
                   htmlFor={firstNameId}
-                  className="block text-xs font-medium text-gray-700 mb-1"
+                  className="block text-xs font-medium text-text-primary mb-1"
                 >
                   First Name <span className="text-red-500">*</span>
                 </label>
@@ -235,33 +243,58 @@ function AddApplicantModalContent({
                   type="text"
                   required
                   value={firstName}
+                  onBlur={() =>
+                    setTouched((prev) => ({ ...prev, firstName: true }))
+                  }
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="e.g. Juan"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                    (submitted || touched.firstName) && !trimmedFirstName
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      : "border-border-subtle"
+                  }`}
                 />
+                {(submitted || touched.firstName) && !trimmedFirstName && (
+                  <p className="mt-1 text-[11px] text-red-500">
+                    First name is required.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label
                   htmlFor={middleNameId}
-                  className="block text-xs font-medium text-gray-700 mb-1"
+                  className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  Middle Name <span className="text-gray-400 font-normal">(optional)</span>
+                  Middle Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={middleNameId}
                   type="text"
+                  required
                   value={middleName}
+                  onBlur={() =>
+                    setTouched((prev) => ({ ...prev, middleName: true }))
+                  }
                   onChange={(e) => setMiddleName(e.target.value)}
                   placeholder="e.g. Santos"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                    (submitted || touched.middleName) && !trimmedMiddleName
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      : "border-border-subtle"
+                  }`}
                 />
+                {(submitted || touched.middleName) && !trimmedMiddleName && (
+                  <p className="mt-1 text-[11px] text-red-500">
+                    Middle name is required.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label
                   htmlFor={lastNameId}
-                  className="block text-xs font-medium text-gray-700 mb-1"
+                  className="block text-xs font-medium text-text-primary mb-1"
                 >
                   Last Name <span className="text-red-500">*</span>
                 </label>
@@ -270,26 +303,40 @@ function AddApplicantModalContent({
                   type="text"
                   required
                   value={lastName}
+                  onBlur={() =>
+                    setTouched((prev) => ({ ...prev, lastName: true }))
+                  }
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="e.g. Dela Cruz"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                    (submitted || touched.lastName) && !trimmedLastName
+                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      : "border-border-subtle"
+                  }`}
                 />
+                {(submitted || touched.lastName) && !trimmedLastName && (
+                  <p className="mt-1 text-[11px] text-red-500">
+                    Last name is required.
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Contact Number & Target Onboard Date */}
+            {/* Contact & Onboard Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label
                     htmlFor={contactNumberId}
-                    className="block text-xs font-medium text-gray-700"
+                    className="block text-xs font-medium text-text-primary"
                   >
                     11-Digit Contact Number <span className="text-red-500">*</span>
                   </label>
                   <span
                     className={`text-[10px] font-mono ${
-                      isContactValid ? "text-emerald-600 font-semibold" : "text-gray-400"
+                      isContactValid
+                        ? "text-emerald-600 font-semibold"
+                        : "text-text-muted"
                     }`}
                   >
                     {digitsOnlyContact.length}/11 digits
@@ -300,25 +347,34 @@ function AddApplicantModalContent({
                   type="tel"
                   required
                   value={contactNumber}
+                  onBlur={() =>
+                    setTouched((prev) => ({ ...prev, contactNumber: true }))
+                  }
                   onChange={handleContactChange}
                   placeholder="09XXXXXXXXX"
-                  className={`w-full rounded-md border px-3 py-2 text-xs font-mono outline-none placeholder:text-gray-400 transition-colors ${
-                    contactNumber && !isContactValid
-                      ? "border-amber-400 bg-amber-50/20 text-gray-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                      : "border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs font-mono outline-none placeholder:text-text-muted transition-colors ${
+                    (submitted ||
+                      touched.contactNumber ||
+                      contactNumber.length > 0) &&
+                    !isContactValid
+                      ? "border-amber-400 bg-amber-50/20 text-text-primary focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                      : "border-border-subtle text-text-primary focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   }`}
                 />
-                {contactNumber && !isContactValid && (
-                  <p className="mt-1 text-[11px] text-amber-600">
-                    Must be 11 digits starting with 09
-                  </p>
-                )}
+                {(submitted ||
+                  touched.contactNumber ||
+                  contactNumber.length > 0) &&
+                  !isContactValid && (
+                    <p className="mt-1 text-[11px] text-amber-600">
+                      Must be 11 digits starting with 09 (e.g. 09171234567)
+                    </p>
+                  )}
               </div>
 
               <div>
                 <label
                   htmlFor={targetOnboardDateId}
-                  className="block text-xs font-medium text-gray-700 mb-1"
+                  className="block text-xs font-medium text-text-primary mb-1"
                 >
                   Target Onboard Date
                 </label>
@@ -327,39 +383,19 @@ function AddApplicantModalContent({
                   type="date"
                   value={targetOnboardDate}
                   onChange={(e) => setTargetOnboardDate(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="w-full h-9 rounded-md border border-border-subtle bg-surface-base px-3 text-xs text-text-primary outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
               </div>
-            </div>
-
-            {/* Recruiter / Endorsed By */}
-            <div>
-              <label
-                htmlFor={recruiterNameId}
-                className="block text-xs font-medium text-gray-700 mb-1"
-              >
-                Recruiter / Endorsed By
-              </label>
-              <input
-                id={recruiterNameId}
-                type="text"
-                value={recruiterName}
-                onChange={(e) => setRecruiterName(e.target.value)}
-                placeholder="Current User Profile"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-              />
-              <p className="mt-1 text-[11px] text-gray-400">
-                Defaults to your authenticated account name.
-              </p>
             </div>
 
             {/* HRCO Remarks / Notes */}
             <div>
               <label
                 htmlFor={hrcoRemarksId}
-                className="block text-xs font-medium text-gray-700 mb-1"
+                className="block text-xs font-medium text-text-primary mb-1"
               >
-                HRCO Remarks / Notes <span className="text-gray-400 font-normal">(optional)</span>
+                HRCO Remarks / Notes{" "}
+                <span className="text-text-muted font-normal">(optional)</span>
               </label>
               <textarea
                 id={hrcoRemarksId}
@@ -367,46 +403,57 @@ function AddApplicantModalContent({
                 value={hrcoRemarks}
                 onChange={(e) => setHrcoRemarks(e.target.value)}
                 placeholder="Candidate background, endorsements, interview findings, or operational notes..."
-                className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-xs text-gray-900 outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="w-full rounded-md border border-border-subtle bg-surface-base p-2.5 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               />
             </div>
           </div>
 
           {/* Form Error Message */}
           {formError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
               <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
               <span>{formError}</span>
             </div>
           )}
 
           {/* Modal Footer Actions */}
-          <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 mt-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={endorseMutation.isPending}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {endorseMutation.isPending ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Endorsing...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span>Endorse Candidate</span>
-                </>
-              )}
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 mt-auto">
+            {/* Endorser Metadata Indicator */}
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+              <span className="text-text-muted">Endorsed by:</span>
+              <span className="inline-flex items-center gap-1 rounded bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary border border-border-subtle">
+                {currentUser?.displayName || "Current User"}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={endorseMutation.isPending}
+                className="h-9 rounded-md border border-border-subtle bg-surface-base px-3.5 text-xs font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!isFormValid}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                {endorseMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Endorsing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    <span>Endorse Candidate</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
