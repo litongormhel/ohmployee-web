@@ -9,9 +9,9 @@ The web app remains an admin-panel presentation layer. Supabase is the authority
 ## Current Foundation Observed
 
 - `src/lib/supabase/client.ts` creates a browser Supabase client from `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- `src/app/(auth)/login/page.tsx` signs in with Supabase Auth, redirects successful login to `/dashboard`, and redirects already-authenticated visitors away from `/login`.
+- `src/app/(auth)/login/page.tsx` signs in with Supabase Auth, redirects successful login to `/vacancy`, and redirects already-authenticated visitors away from `/login`.
 - `src/app/(dashboard)/layout.tsx` delegates the dashboard route group to `src/components/DashboardAuthShell.tsx`.
-- `src/components/DashboardAuthShell.tsx` loads the current Supabase Auth session/user on the client, calls `get_web_current_user_context`, redirects missing sessions to `/login`, renders a blocked-access screen for denied authenticated users, redirects hidden direct module routes back to `/dashboard`, and passes backend-filtered modules into the shell.
+- `src/components/DashboardAuthShell.tsx` loads the current Supabase Auth session/user on the client, calls `get_web_current_user_context`, redirects missing sessions to `/login`, renders a blocked-access screen for denied authenticated users, redirects hidden direct module routes back to `/vacancy` (or primary visible module), and passes backend-filtered modules into the shell.
 - `src/components/Sidebar.tsx` signs out through the browser Supabase client, redirects to `/login`, and renders only backend-visible modules.
 - `src/components/AdminTopbar.tsx` renders the active module title and mobile module navigation from backend-visible modules only.
 - `src/lib/auth.ts` defines the RPC-backed current-user context loader, fail-closed blocked states, and module visibility helper.
@@ -205,7 +205,7 @@ Visibility must be resolved from existing Mobile RBAC semantics and backend-prov
 4. Typed current-user context loading now calls `get_web_current_user_context`.
 5. Stable module keys have been added to `webModules`; align them with backend capability keys when the contract is confirmed.
 6. `Sidebar` and `AdminTopbar` now filter navigation from resolved module visibility.
-7. Direct navigation to hidden modules redirects back to `/dashboard` in the client shell.
+7. Direct navigation to hidden modules redirects back to `/vacancy` (or authorized primary module) in the client shell.
 8. Replace placeholder module queries only after each module's data contract and RLS policy are approved.
 
 ## Exact Next Implementation Prompt

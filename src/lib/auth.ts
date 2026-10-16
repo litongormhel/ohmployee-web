@@ -65,9 +65,10 @@ type WebCurrentUserContextRpcRow = {
   capabilities?: unknown;
 };
 
+const VACANCY_MODULE_KEY = "vacancy";
 const DASHBOARD_MODULE_KEY = "dashboard";
 const KNOWN_MODULE_KEYS = new Set(webModules.map((module) => module.key));
-const SAFE_MINIMAL_MODULE_KEYS = new Set([DASHBOARD_MODULE_KEY]);
+const SAFE_MINIMAL_MODULE_KEYS = new Set([VACANCY_MODULE_KEY, DASHBOARD_MODULE_KEY]);
 
 function buildModuleAccess(allowedModuleKeys: string[]) {
   const visibleModuleKeys =

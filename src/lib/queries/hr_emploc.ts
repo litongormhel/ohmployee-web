@@ -228,7 +228,10 @@ function getErrorKind(error: PostgrestError): HrEmplocDataErrorKind {
 }
 
 function throwHrEmplocError(error: PostgrestError): never {
-  throw new HrEmplocDataError(getErrorKind(error), error.message);
+  const message = [error.message, error.details, error.hint]
+    .filter(Boolean)
+    .join(" — ") || "Database error";
+  throw new HrEmplocDataError(getErrorKind(error), message);
 }
 
 function summarizeDeficiency(value: unknown): string | null {
@@ -541,7 +544,7 @@ export async function reviewWebHrEmplocCorrection(
   };
 }
 
-export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmplocDetailItem> {
+export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmplocDetailItem | null> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_hr_emploc_detail", {
     p_hr_emploc_id: hrEmplocId,
@@ -553,12 +556,12 @@ export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmploc
 
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) {
-    throw new HrEmplocDataError("retryable", "No HR Emploc detail record found");
+    return null;
   }
 
   const normalized = normalizeDetailRow(asObject(row));
   if (!normalized) {
-    throw new HrEmplocDataError("retryable", "Failed to normalize HR Emploc detail record");
+    return null;
   }
 
   return normalized;

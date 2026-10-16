@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-The Dashboard (`/dashboard`) is the landing module for all authenticated OHMployee Web users. It provides a cross-module operational overview sourced exclusively from backend RPCs. No data is mocked or computed in the web layer.
+The Dashboard (`/dashboard`) is the cross-module operational overview for authenticated OHMployee Web users (with Vacancy `/vacancy` serving as the primary operational landing workspace). It provides an overview sourced exclusively from backend RPCs. No data is mocked or computed in the web layer.
 
 ---
 

@@ -27,7 +27,7 @@ export default function LoginPage() {
         }
 
         if (isMounted && data?.session) {
-          router.replace('/dashboard')
+          router.replace('/vacancy')
         }
       } catch (err) {
         console.warn("[login] Error during session check:", err)
@@ -51,7 +51,7 @@ export default function LoginPage() {
       setIsSubmitting(false)
       return setError(error.message)
     }
-    router.replace('/dashboard')
+    router.replace('/vacancy')
     router.refresh()
   }
 

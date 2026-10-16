@@ -28,9 +28,12 @@ export function AdminTopbar({
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)] lg:hidden">
       <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">
+          <Link
+            href="/vacancy"
+            className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0 hover:text-text-primary"
+          >
             Admin panel
-          </p>
+          </Link>
           <span className="text-text-muted/60 text-xs shrink-0">/</span>
           <h1 className="text-sm font-bold text-text-primary truncate">
             {activeModule.title}

@@ -8,6 +8,7 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Landing Page Integration**: Vacancy (`/vacancy`) serves as the primary operational landing workspace for authenticated OHMployee Web sessions; the application root (`/`), successful authentication redirects, and fallback redirects route to `/vacancy` instead of `/dashboard`.
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
 - The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.
 - **Deployed `list_web_vacancies` params** (migration `20260524130000`): `p_status text`, `p_account_id uuid`, `p_group_id uuid`, `p_position text`, `p_urgency text`, `p_aging_bucket text`, `p_search text`, `p_vacant_from date`, `p_vacant_to date`, `p_limit integer`, `p_offset integer`, `p_sort_by text`, `p_sort_dir text`. Sort allowlist: `vcode`, `account_name`, `group_name`, `store_name`, `position_title`, `vacancy_status`, `pipeline_status`, `vacant_date`, `aging_days`, `target_fill_date`, `urgency`.

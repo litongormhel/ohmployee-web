@@ -23,10 +23,17 @@ export type WebModule = {
 
 export const webModules: WebModule[] = [
   {
+    key: "vacancy",
+    title: "Vacancy",
+    href: "/vacancy",
+    purpose: "Primary operational landing workspace for vacancy tracking, requisition, and hiring movement.",
+    icon: BriefcaseBusiness,
+  },
+  {
     key: "dashboard",
     title: "Dashboard",
     href: "/dashboard",
-    purpose: "Command-center landing space for operational summaries and next actions.",
+    purpose: "Command-center overview space for operational summaries and cross-module metrics.",
     icon: LayoutDashboard,
   },
   {
@@ -35,13 +42,6 @@ export const webModules: WebModule[] = [
     href: "/cencom",
     purpose: "Centralized coordination workspace for workforce operations.",
     icon: Building2,
-  },
-  {
-    key: "vacancy",
-    title: "Vacancy",
-    href: "/vacancy",
-    purpose: "Vacancy tracking foundation for requisition and hiring movement.",
-    icon: BriefcaseBusiness,
   },
   {
     key: "hr_emploc",

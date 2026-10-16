@@ -43,7 +43,7 @@ function AuthenticatedShell({
 
   useEffect(() => {
     if (visibleModules.length > 0 && !canViewActiveModule) {
-      const fallbackTarget = visibleModules[0]?.href ?? "/dashboard";
+      const fallbackTarget = visibleModules[0]?.href ?? "/vacancy";
       if (pathname !== fallbackTarget) {
         router.replace(fallbackTarget);
       }

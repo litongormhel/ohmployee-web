@@ -27,11 +27,11 @@ This foundation pass stabilizes the Next.js App Router structure and establishes
 - The shell includes a left sidebar, topbar/header, active route styling, responsive mobile module navigation, and a constrained main content area.
 - Module navigation is driven by `src/lib/modules.ts` and filtered by the current web user context.
 - Blank module routes use clean empty states with title, operational purpose, and no mocked business records.
-- Root `/` redirects to `/dashboard`.
-- Dashboard routes are wrapped by a lightweight auth shell. Missing Supabase Auth sessions redirect to `/login`; login success and already-authenticated login visits redirect to `/dashboard`.
+- Root `/` redirects to `/vacancy`.
+- Dashboard routes are wrapped by a lightweight auth shell. Missing Supabase Auth sessions redirect to `/login`; login success and already-authenticated login visits redirect to `/vacancy`.
 - The dashboard auth shell calls `get_web_current_user_context` after Supabase Auth user validation and renders the admin shell only when `access_status === "allowed"`.
 - Authenticated users denied by the RPC see a blocked-access screen for missing profile, inactive/disabled account, unauthorized role/web access, or RPC failure.
-- Module navigation is filtered from backend `allowed_module_keys`; an allowed user with an empty module array receives a dashboard-only shell. Missing or malformed module/capability payloads block access.
+- Module navigation is filtered from backend `allowed_module_keys`; an allowed user with an empty module array receives a minimal vacancy/dashboard shell. Missing or malformed module/capability payloads block access.
 
 ## Architecture Direction
 

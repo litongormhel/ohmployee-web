@@ -55,10 +55,10 @@ export function Sidebar({
   return (
     <aside className="hidden w-[var(--sidebar-width)] shrink-0 border-r border-[var(--line)] bg-[var(--side)] text-[var(--text)] lg:flex lg:flex-col p-4 h-screen sticky top-0 overflow-y-auto">
       {/* Brand Header */}
-      <div className="px-2.5 pb-6 pt-1 font-semibold text-[15px] text-[var(--text)]">
+      <Link href="/vacancy" className="px-2.5 pb-6 pt-1 font-semibold text-[15px] text-[var(--text)] block hover:opacity-90">
         OHMployee
         <small className="block text-[13px] font-normal text-[var(--muted)]">Admin Command</small>
-      </div>
+      </Link>
 
       {/* Main Group: Vacancy, HR Emploc, Plantilla */}
       <nav className="flex flex-col gap-0.5" aria-label="Main modules">
