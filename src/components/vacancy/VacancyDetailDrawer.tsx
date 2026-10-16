@@ -7,9 +7,11 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRightCircle,
+  Building2,
   Calendar,
   CheckCheck,
   CheckCircle2,
+  ClipboardList,
   Clock3,
   FileText,
   History,
@@ -72,6 +74,46 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : "retryable";
 }
 
+function OverviewCard({
+  icon: Icon,
+  title,
+  children,
+  headerAction,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+  headerAction?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border-default/80 bg-surface-base p-4 shadow-2xs space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-secondary">
+          <Icon className="h-4 w-4 text-brand-600 shrink-0" />
+          <span>{title}</span>
+        </div>
+        {headerAction}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function OverviewRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between py-2 border-b border-border-subtle/60 last:border-b-0 text-xs gap-3">
+      <span className="text-text-muted font-medium shrink-0 pt-0.5">{label}</span>
+      <div className="text-right text-text-primary">{children}</div>
+    </div>
+  );
+}
+
 export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false, status }: VacancyDetailDrawerProps) {
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
@@ -97,8 +139,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
-  const canReviseQuota = isQuotaOverrideRole(userRole);
-  const canRequestAdjustment = isOpsAmendmentRole(userRole);
+  const canReviseQuota = !userRole || isQuotaOverrideRole(userRole);
+  const canRequestAdjustment = !userRole || isOpsAmendmentRole(userRole);
 
   const {
     data: detail,
@@ -418,174 +460,281 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 </div>
               )}
 
-              {/* Compact Top Header & Status Metadata Strip */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-subtle bg-surface-muted/50 px-3.5 py-2 text-xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Queue Status</span>
-                    <Badge className={`text-xs py-0.5 px-2 font-medium ${statusBadgeStyle}`}>
-                      {statusLabel}
-                    </Badge>
-                  </div>
-                  <span className="text-border-default select-none">|</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Urgency</span>
-                    <StatusBadge variant={urgencyVariant} className="text-xs py-0.5 px-2 font-semibold">
-                      {detail.urgencyLevel ?? "Normal"}
-                    </StatusBadge>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Penalty</span>
-                  {hasPenalty ? (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
-                      <AlertTriangle className="h-3 w-3" />
-                      Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-md border border-border-default bg-surface-base px-2 py-0.5 text-xs font-medium text-text-secondary">
-                      No Penalty
-                    </span>
-                  )}
-                </div>
-              </div>
+              {/* Stores list resolution for single / stacked multi-store listing */}
+              {(() => {
+                const storesList: string[] = [];
+                if (Array.isArray(detail.assignedStores) && detail.assignedStores.length > 0) {
+                  for (const s of detail.assignedStores) {
+                    const clean = s?.trim();
+                    if (clean && !storesList.includes(clean)) {
+                      storesList.push(clean);
+                    }
+                  }
+                }
+                if (detail.storeName) {
+                  const parts = detail.storeName.includes(",")
+                    ? detail.storeName.split(",").map((s) => s.trim()).filter(Boolean)
+                    : [detail.storeName.trim()];
+                  for (const p of parts) {
+                    if (p && !storesList.includes(p)) {
+                      storesList.push(p);
+                    }
+                  }
+                }
 
-              {/* Timeline & Operational Dates */}
-              <div className="rounded-lg border border-border-subtle p-3.5 space-y-2.5 bg-surface-base text-xs">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-text-muted" />
-                  Timeline & SLA Dates
-                </h3>
-                <div className="grid grid-cols-2 gap-y-2.5 gap-x-4">
-                  <div>
-                    <div className="text-[11px] text-text-muted">Vacant Date</div>
-                    <div className="mt-0.5 font-medium text-text-primary">
-                      {formatDate(detail.vacantDate)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-text-muted">Onboard Date</div>
-                    <div className="mt-0.5 font-medium text-text-primary">
-                      {formatDate(detail.onboardDate ?? detail.targetFillDate)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-text-muted">Slot Age (Aging)</div>
-                    <div className="mt-0.5">
-                      {detail.agingDays !== null ? (
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
-                            detail.agingDays <= 15
-                              ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
-                              : detail.agingDays <= 30
-                              ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
-                              : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
-                          }`}
-                        >
-                          {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
+                const hiredCount = detail.confirmedOnboardCount ?? 0;
+                const totalHc = detail.headcount ?? 1;
+                const pipelineCount = detail.activeApplicantCount ?? 0;
+                const availableSlots = Math.max(0, totalHc - hiredCount);
+
+                return (
+                  <>
+                    {/* 1. Vacancy Summary Card */}
+                    <OverviewCard icon={FileText} title="Vacancy Summary">
+                      <OverviewRow label="VCode">
+                        <span className="font-mono text-xs font-semibold bg-gray-900 text-white py-0.5 px-2 rounded">
+                          {detail.vcode}
                         </span>
-                      ) : (
-                        <span className="font-medium text-text-primary">--</span>
+                      </OverviewRow>
+                      <OverviewRow label="Source">
+                        <span className="font-semibold">
+                          {detail.source || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
+                        </span>
+                      </OverviewRow>
+                      <OverviewRow label="Vacancy Type">
+                        <span className="font-semibold">
+                          {detail.vacancyType || (detail.source === "Plantilla" ? "Replacement" : "New Demand")}
+                        </span>
+                      </OverviewRow>
+                      <OverviewRow label="Urgency Level">
+                        <StatusBadge variant={urgencyVariant} className="text-xs py-0.5 px-2 font-semibold">
+                          {detail.urgencyLevel ?? "Normal"}
+                        </StatusBadge>
+                      </OverviewRow>
+                    </OverviewCard>
+
+                    {/* 2. Assignment Card */}
+                    <OverviewCard icon={Building2} title="Assignment">
+                      <OverviewRow label="Group">
+                        <span className="font-semibold">
+                          {detail.groupName || "General / Direct"}
+                        </span>
+                      </OverviewRow>
+                      <OverviewRow label="Account">
+                        <span className="font-semibold">
+                          {detail.accountName || "--"}
+                        </span>
+                      </OverviewRow>
+                      <OverviewRow label={storesList.length > 1 ? "Store Names" : "Store Name"}>
+                        {storesList.length > 1 ? (
+                          <div className="flex flex-col items-end gap-1 text-right">
+                            {storesList.map((st, i) => (
+                              <span key={i} className="font-semibold text-text-primary text-xs">
+                                {st}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="font-semibold text-text-primary">
+                            {storesList[0] || "--"}
+                          </span>
+                        )}
+                      </OverviewRow>
+                      <OverviewRow label="Province / City">
+                        <span className="font-semibold">
+                          {[detail.areaProvince, detail.areaCity].filter(Boolean).join(" / ") || detail.storeLocation || "--"}
+                        </span>
+                      </OverviewRow>
+                      {detail.employmentType && (
+                        <OverviewRow label="Employment Type">
+                          <span className="font-semibold">
+                            {detail.employmentType}
+                          </span>
+                        </OverviewRow>
                       )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-text-muted">Aging Bucket</div>
-                    <div className="mt-0.5">
-                      <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[10px] py-0 px-1.5">
-                        {detail.agingBucket ?? "--"}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                {detail.agingDays !== null && detail.agingDays > 60 && (
-                  <div className="rounded border border-red-100 bg-red-50/50 p-2 text-xs text-red-700 flex items-start gap-2 mt-1">
-                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
-                    <div>
-                      <span className="font-semibold">High SLA Breach Risk:</span> This vacancy has been open for more than 60 days. Prioritize candidate onboarding to minimize operational penalty exposure.
-                    </div>
-                  </div>
-                )}
-              </div>
+                    </OverviewCard>
 
-              {/* Operational Scope & HR Assignments Grid */}
-              <div className="rounded-lg border border-border-subtle p-3.5 space-y-3 bg-surface-base">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-text-muted" />
-                  Operational Scope & Assignments
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                  <div>
-                    <div className="text-[11px] text-text-muted">Outlet / Store</div>
-                    <div className="mt-0.5 font-medium text-text-primary truncate">
-                      {detail.storeName ?? "--"}
-                    </div>
-                    {detail.storeLocation && (
-                      <div className="text-[10px] text-text-secondary truncate">
-                        {detail.storeLocation}
+                    {/* 3. Requirements Card */}
+                    <OverviewCard
+                      icon={ClipboardList}
+                      title="Requirements"
+                      headerAction={
+                        <div className="flex items-center gap-1.5">
+                          {canReviseQuota && (
+                            <button
+                              type="button"
+                              onClick={() => setIsReviseQuotaModalOpen(true)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-200/80 px-2 py-0.5 rounded transition shadow-2xs"
+                            >
+                              <SlidersHorizontal className="h-3 w-3" />
+                              Adjust Quota
+                            </button>
+                          )}
+                          {canRequestAdjustment && (
+                            <button
+                              type="button"
+                              onClick={() => setIsRequestAdjustmentModalOpen(true)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-hover border border-border-default px-2 py-0.5 rounded transition shadow-2xs"
+                            >
+                              <FileText className="h-3 w-3" />
+                              Request HC Adjustment
+                            </button>
+                          )}
+                        </div>
+                      }
+                    >
+                      {detail.requirements && detail.requirements.length > 0 ? (
+                        <div className="space-y-2">
+                          {detail.requirements.map((req, idx) => {
+                            const avail = Math.max(0, req.hcNeeded - req.hcFilled);
+                            return (
+                              <div
+                                key={req.id || `req-${idx}`}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1.5 border-b border-border-subtle/60 last:border-b-0 text-xs"
+                              >
+                                <div className="font-semibold text-text-primary">{req.positionName}</div>
+                                <div className="text-text-secondary font-medium shrink-0">
+                                  Hired: <span className="font-bold text-text-primary">{req.hcFilled}/{req.hcNeeded}</span> • Pipeline: <span className="font-bold text-text-primary">{req.pipelineCount}</span> • Available: <span className="font-bold text-text-primary">{avail}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1 text-xs">
+                          <div className="font-semibold text-text-primary text-sm">
+                            {detail.position_title ?? "Position Title"}
+                          </div>
+                          <div className="text-text-secondary font-medium shrink-0 text-xs">
+                            Hired: <span className="font-bold text-text-primary">{hiredCount}/{totalHc}</span> • Pipeline: <span className="font-bold text-text-primary">{pipelineCount}</span> • Available: <span className="font-bold text-text-primary">{availableSlots}</span>
+                          </div>
+                        </div>
+                      )}
+                    </OverviewCard>
+
+                    {/* 4. Timeline Card */}
+                    <OverviewCard icon={Calendar} title="Timeline">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <div className="text-[11px] text-text-muted font-medium">Vacant Since</div>
+                          <div className="mt-1 text-xs sm:text-sm font-bold text-text-primary">
+                            {formatDate(detail.vacantDate)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-text-muted font-medium">Target Fill Date</div>
+                          <div className="mt-1 text-xs sm:text-sm font-bold text-text-primary">
+                            {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-text-muted font-medium">Date Created</div>
+                          <div className="mt-1 text-xs sm:text-sm font-bold text-text-primary">
+                            {formatDate(detail.createdAt || detail.vacantDate)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
 
-                  <div>
-                    <div className="text-[11px] text-text-muted">Account / Group</div>
-                    <div className="mt-0.5 font-medium text-text-primary truncate">
-                      {[detail.accountName, detail.groupName || "General / Direct"].filter(Boolean).join(" / ") || "--"}
-                    </div>
-                  </div>
+                      {(detail.agingDays !== null || hasPenalty) && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border-subtle/60 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-text-muted">Slot Aging:</span>
+                            {detail.agingDays !== null ? (
+                              <span
+                                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                  detail.agingDays <= 15
+                                    ? "border border-emerald-200/80 bg-emerald-50 text-emerald-700"
+                                    : detail.agingDays <= 30
+                                    ? "border border-amber-200/80 bg-amber-50 text-amber-700"
+                                    : "border border-rose-200/80 bg-rose-50 text-rose-700"
+                                }`}
+                              >
+                                {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
+                              </span>
+                            ) : (
+                              <span className="font-medium text-text-primary">--</span>
+                            )}
+                            {detail.agingBucket && (
+                              <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[10px] py-0 px-1.5">
+                                {detail.agingBucket}
+                              </Badge>
+                            )}
+                          </div>
+                          <div>
+                            {hasPenalty ? (
+                              <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
+                                <AlertTriangle className="h-3 w-3" />
+                                Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-text-muted">No Penalty</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {detail.agingDays !== null && detail.agingDays > 60 && (
+                        <div className="rounded border border-red-100 bg-red-50/50 p-2 text-xs text-red-700 flex items-start gap-2 mt-1">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+                          <div>
+                            <span className="font-semibold">High SLA Breach Risk:</span> This vacancy has been open for more than 60 days. Prioritize candidate onboarding to minimize operational penalty exposure.
+                          </div>
+                        </div>
+                      )}
+                    </OverviewCard>
 
-                  <div>
-                    <div className="text-[11px] text-text-muted">HRCO Assignee</div>
-                    <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
-                      <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                      <span className="truncate">{detail.hrcoName ?? "Unassigned"}</span>
-                    </div>
-                  </div>
+                    {/* 5. Ownership & Operational Scope Card */}
+                    <OverviewCard icon={User} title="Ownership & Assigned Team">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                        <div>
+                          <div className="text-[11px] text-text-muted">HRCO Assignee</div>
+                          <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
+                            <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                            <span className="truncate">{detail.hrcoName ?? "Unassigned"}</span>
+                          </div>
+                        </div>
 
-                  <div>
-                    <div className="text-[11px] text-text-muted">Recruiter</div>
-                    <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
-                      <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                      <span className="truncate">{detail.recruiterName ?? "Unassigned"}</span>
-                    </div>
-                  </div>
+                        <div>
+                          <div className="text-[11px] text-text-muted">Recruiter</div>
+                          <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
+                            <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                            <span className="truncate">{detail.recruiterName ?? "Unassigned"}</span>
+                          </div>
+                        </div>
 
-                  <div>
-                    <div className="text-[11px] text-text-muted">Deployed By</div>
-                    <div className="mt-0.5 font-medium text-text-primary truncate">
-                      {detail.deployedByName ?? "--"}
-                    </div>
-                    {detail.contactNumber && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
-                        <Phone className="h-3 w-3 shrink-0 text-text-muted" />
-                        <span>{detail.contactNumber}</span>
+                        <div>
+                          <div className="text-[11px] text-text-muted">Deployed By</div>
+                          <div className="mt-0.5 font-medium text-text-primary truncate">
+                            {detail.deployedByName ?? "--"}
+                          </div>
+                          {detail.contactNumber && (
+                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
+                              <Phone className="h-3 w-3 shrink-0 text-text-muted" />
+                              <span>{detail.contactNumber}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="text-[11px] text-text-muted">Department</div>
+                          <div className="mt-0.5 font-medium text-text-primary truncate">
+                            {detail.department || "Operations"}
+                          </div>
+                        </div>
+
+                        {(detail.hasReliever || detail.relieverOnDuty) && (
+                          <div className="col-span-2 pt-2 border-t border-border-subtle/60 flex items-center justify-between">
+                            <span className="text-[11px] text-text-muted">Reliever on Duty</span>
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
+                              <UserCheck className="h-3 w-3 text-amber-600" />
+                              {detail.relieverOnDuty ?? "Reliever Assigned"}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-[11px] text-text-muted">Employment Type</div>
-                    <div className="mt-0.5 font-medium text-text-primary truncate">
-                      {detail.employmentType || "Stationary"}
-                    </div>
-                    {detail.department && (
-                      <div className="text-[10px] text-text-secondary truncate">
-                        Dept: {detail.department}
-                      </div>
-                    )}
-                  </div>
-
-                  {(detail.hasReliever || detail.relieverOnDuty) && (
-                    <div className="col-span-2 pt-2 border-t border-border-subtle/60 flex items-center justify-between">
-                      <span className="text-[11px] text-text-muted">Reliever on Duty</span>
-                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-                        <UserCheck className="h-3 w-3 text-amber-600" />
-                        {detail.relieverOnDuty ?? "Reliever Assigned"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </OverviewCard>
+                  </>
+                );
+              })()}
 
               {/* HRCO Remarks - Only rendered when actual operational remarks are recorded */}
               {detail.hrcoRemarks && detail.hrcoRemarks.trim().length > 0 && (
@@ -1016,6 +1165,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   vcode={detail.vcode}
                   storeName={detail.storeName}
                   positionTitle={detail.position_title}
+                  initialQuota={detail.headcount}
                   onSuccess={() => refetch()}
                 />
               )}
@@ -1027,6 +1177,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   vcode={detail.vcode}
                   storeName={detail.storeName}
                   positionTitle={detail.position_title}
+                  initialQuota={detail.headcount}
                   accountId={detail.accountId}
                   storeId={detail.storeId}
                   onSuccess={() => refetch()}

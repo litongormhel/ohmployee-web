@@ -117,11 +117,24 @@ export type ActivityHistoryItem = {
   profileName: string | null;
 };
 
+export type VacancyRequirementItem = {
+  id: string;
+  positionName: string;
+  employmentType?: string | null;
+  hcNeeded: number;
+  hcFilled: number;
+  pipelineCount: number;
+};
+
 export type VacancyDetailItem = {
   vacancyId: string;
   vcode: string;
   cgCode?: string | null;
   assignedStores?: string[];
+  source?: string | null;
+  vacancyType?: string | null;
+  createdAt?: string | null;
+  requirements?: VacancyRequirementItem[];
   accountId: string | null;
   accountName: string | null;
   groupId: string | null;
@@ -651,6 +664,14 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     vacancyId: id,
     vcode,
     cgCode,
+    assignedStores: Array.isArray(row.assigned_stores)
+      ? (row.assigned_stores as string[])
+      : Array.isArray(row.assignedStores)
+      ? (row.assignedStores as string[])
+      : undefined,
+    source: asString(row.source),
+    vacancyType: asString(row.vacancy_type),
+    createdAt: asString(row.created_at),
     accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
     groupId: asString(row.group_id),
@@ -2020,21 +2041,112 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
     }
   }
 
-  // Ensure pending closure details are enriched if applicable
-  if (!normalized.hasPendingClosure && normalized.vcode) {
+  // Ensure pending closure and extra metadata details are enriched if applicable
+  if (normalized.vcode) {
     try {
       const { data: vacCheck } = await supabase
         .from("vacancies")
-        .select("has_pending_closure, closure_request_status")
+        .select("has_pending_closure, closure_request_status, source, vacancy_type, created_at, target_fill_date, vacant_date, required_headcount")
         .eq("vcode", normalized.vcode)
         .maybeSingle();
       if (vacCheck) {
-        if (vacCheck.has_pending_closure) normalized.hasPendingClosure = true;
-        if (vacCheck.closure_request_status) normalized.closureRequestStatus = vacCheck.closure_request_status;
+        if (!normalized.hasPendingClosure && vacCheck.has_pending_closure) normalized.hasPendingClosure = true;
+        if (!normalized.closureRequestStatus && vacCheck.closure_request_status) normalized.closureRequestStatus = vacCheck.closure_request_status;
+        if (!normalized.source && vacCheck.source) normalized.source = vacCheck.source;
+        if (!normalized.vacancyType && vacCheck.vacancy_type) normalized.vacancyType = vacCheck.vacancy_type;
+        if (!normalized.createdAt && vacCheck.created_at) normalized.createdAt = vacCheck.created_at;
+        if (!normalized.targetFillDate && vacCheck.target_fill_date) normalized.targetFillDate = vacCheck.target_fill_date;
+        if (!normalized.vacantDate && vacCheck.vacant_date) normalized.vacantDate = vacCheck.vacant_date;
+        if ((!normalized.headcount || normalized.headcount <= 1) && vacCheck.required_headcount) {
+          normalized.headcount = Number(vacCheck.required_headcount);
+        }
       }
     } catch {
       // Graceful fallback
     }
+  }
+
+  // Enrich assigned stores for coverage groups if not already present
+  if (!normalized.assignedStores || normalized.assignedStores.length === 0) {
+    try {
+      const { data: cgShadowData } = await supabase
+        .from("vw_slot_derived_vacancy_cg_covered_shadow")
+        .select("legacy_vcode, cg_code, coverage_group_id")
+        .eq("legacy_vcode", normalized.vcode)
+        .maybeSingle();
+
+      if (cgShadowData?.coverage_group_id) {
+        if (cgShadowData.cg_code) normalized.cgCode = cgShadowData.cg_code;
+        const { data: cgsData } = await supabase
+          .from("coverage_group_stores")
+          .select("coverage_group_id, stores(store_name)")
+          .eq("coverage_group_id", cgShadowData.coverage_group_id)
+          .is("archived_at", null);
+
+        if (cgsData && cgsData.length > 0) {
+          const stores: string[] = [];
+          for (const item of cgsData as Array<Record<string, unknown>>) {
+            const storeObj = item.stores as Record<string, unknown> | null;
+            const sName = asString(storeObj?.store_name);
+            if (sName && !stores.includes(sName)) {
+              stores.push(sName);
+            }
+          }
+          if (stores.length > 0) {
+            normalized.assignedStores = stores;
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  // Enrich itemized requirements if available
+  try {
+    const { data: reqData } = await supabase
+      .from("vacancy_requirements")
+      .select("id, vacancy_id, position_id, employment_type, hc_needed, hc_filled")
+      .eq("vacancy_id", normalized.vacancyId)
+      .order("hc_needed", { ascending: false });
+
+    if (reqData && reqData.length > 0) {
+      const posIds = (reqData as Array<Record<string, unknown>>)
+        .map((r) => asString(r.position_id))
+        .filter(Boolean);
+      const posMap = new Map<string, string>();
+      if (posIds.length > 0) {
+        try {
+          const { data: posData } = await supabase
+            .from("positions")
+            .select("id, position_name")
+            .in("id", posIds);
+          if (posData) {
+            for (const p of posData as Array<Record<string, unknown>>) {
+              const pid = asString(p.id);
+              const pname = asString(p.position_name);
+              if (pid && pname) posMap.set(pid, pname);
+            }
+          }
+        } catch {
+          // Graceful fallback
+        }
+      }
+
+      normalized.requirements = (reqData as Array<Record<string, unknown>>).map((r) => {
+        const pid = asString(r.position_id);
+        return {
+          id: asString(r.id) || "",
+          positionName: (pid ? posMap.get(pid) : null) || normalized.position_title || "Position",
+          employmentType: asString(r.employment_type) || normalized.employmentType,
+          hcNeeded: asNumber(r.hc_needed) || 1,
+          hcFilled: asNumber(r.hc_filled) || 0,
+          pipelineCount: normalized.activeApplicantCount || 0,
+        };
+      });
+    }
+  } catch {
+    // Graceful fallback
   }
 
   if (normalized.hasPendingClosure || normalized.closureRequestStatus === "Pending") {
