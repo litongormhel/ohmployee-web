@@ -486,6 +486,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 const totalHc = detail.headcount ?? 1;
                 const pipelineCount = detail.activeApplicantCount ?? 0;
                 const availableSlots = Math.max(0, totalHc - hiredCount);
+                const isHiredTab = status === "hired" || detail.derivedStatus?.toLowerCase() === "hired" || detail.vacancyStatus?.toLowerCase() === "filled";
 
                 return (
                   <>
@@ -701,18 +702,27 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           </div>
                         </div>
 
-                        <div>
-                          <div className="text-[11px] text-text-muted">Deployed By</div>
-                          <div className="mt-0.5 font-medium text-text-primary truncate">
-                            {detail.deployedByName ?? "--"}
-                          </div>
-                          {detail.contactNumber && (
-                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
-                              <Phone className="h-3 w-3 shrink-0 text-text-muted" />
-                              <span>{detail.contactNumber}</span>
+                        {isHiredTab ? (
+                          <div>
+                            <div className="text-[11px] text-text-muted">Deployed By</div>
+                            <div className="mt-0.5 font-medium text-text-primary truncate">
+                              {detail.deployedByName ?? "--"}
                             </div>
-                          )}
-                        </div>
+                            {detail.contactNumber && (
+                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
+                                <Phone className="h-3 w-3 shrink-0 text-text-muted" />
+                                <span>{detail.contactNumber}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : detail.triggeredByName ? (
+                          <div>
+                            <div className="text-[11px] text-text-muted">Triggered By</div>
+                            <div className="mt-0.5 font-medium text-text-primary truncate">
+                              {detail.triggeredByName}
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div>
                           <div className="text-[11px] text-text-muted">Department</div>

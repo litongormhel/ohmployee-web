@@ -184,6 +184,7 @@ export type VacancyDetailItem = {
   // Detail-specific fields
   requestedById: string | null;
   requestedByName: string | null;
+  triggeredByName?: string | null;
   approvedById: string | null;
   approvedByName: string | null;
   approvedAt: string | null;
@@ -624,8 +625,18 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
       row.deployed_by_name ??
       row.deployed_by ??
       row.endorsed_by_name ??
-      row.triggered_by_name ??
       primaryApplicant?.deployedByName,
+    ),
+  ) || null;
+
+  const triggeredByName = formatPersonName(
+    null,
+    null,
+    null,
+    asString(
+      row.triggered_by_name ??
+      row.triggered_by_full_name ??
+      row.requester_name,
     ),
   ) || null;
 
@@ -725,6 +736,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     // Detail-specific fields
     requestedById: asString(row.requested_by_id),
     requestedByName: asString(row.requested_by_name),
+    triggeredByName,
     approvedById: asString(row.approved_by_id),
     approvedByName: asString(row.approved_by_name),
     approvedAt: asString(row.approved_at),
