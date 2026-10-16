@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileSearch,
-  LockKeyhole,
   Send,
   Loader2,
   CheckCircle2,
@@ -917,15 +916,6 @@ export default function HrEmplocPage() {
         onApplyView={handleApplySavedView}
       />
 
-      {/* Footer System Boundaries Notice */}
-      <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-start gap-2 text-xs text-gray-600">
-          <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
-          <div>
-            <span className="font-semibold text-gray-700">Audit Security Active:</span> Allocation queries, deficiency tagging, correction reviews, employee ID assignments, Plantilla deployments, and separation requests execute under server-authoritative RLS scopes using <code className="font-mono bg-gray-100 px-1 rounded text-[11px]">auth.uid()</code> and user profile metadata.
-          </div>
-        </div>
-      </section>
 
       {/* Bulk Move Summary Dialog */}
       {bulkResultModal?.isOpen && (

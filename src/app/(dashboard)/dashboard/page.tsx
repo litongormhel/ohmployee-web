@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { LayoutDashboard, LockKeyhole } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
@@ -252,21 +252,6 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* Footer boundary notice */}
-      <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-start gap-2 text-xs text-gray-600">
-          <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
-          <div>
-            <span className="font-semibold text-gray-700">Read-Only Boundary:</span> Dashboard
-            reads use{" "}
-            <code className="rounded bg-gray-100 px-1 font-mono text-[11px]">fn_dashboard_metrics</code>{" "}
-            and{" "}
-            <code className="rounded bg-gray-100 px-1 font-mono text-[11px]">fn_dashboard_operational_analytics</code>.
-            Security KPIs are gated server-side by the caller&apos;s role. No mutations are
-            available from this page.
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

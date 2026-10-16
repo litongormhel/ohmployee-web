@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Download,
   Loader2,
-  LockKeyhole,
   ShieldOff,
   TrendingUp,
   UserCheck,
@@ -1086,14 +1085,6 @@ export default function VacancyPage() {
         onApplyView={handleApplySavedView}
       />
 
-      <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-start gap-2 text-sm text-gray-600">
-          <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400" aria-hidden="true" />
-          <div>
-            Vacancy requisitions and headcount quotas are managed through Plantilla. Applicant status updates and quota amendments reflect automatically.
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

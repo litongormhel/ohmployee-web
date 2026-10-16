@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import {
-  LockKeyhole,
   Users,
   ArrowLeft,
   Building,
@@ -1424,19 +1423,6 @@ export default function PlantillaPage() {
             />
           )}
 
-          {/* Footer system boundaries notice */}
-          <section className="rounded-xl border border-dashed border-gray-300 bg-gray-50/80 p-3.5">
-            <div className="flex items-start gap-2.5 text-xs text-gray-600">
-              <LockKeyhole className="mt-0.5 h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
-              <div>
-                <span className="font-semibold text-gray-700">Governance & Boundary:</span> Plantilla data is queried securely via scoped RPCs (
-                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">get_web_plantilla_summary</code>,{" "}
-                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">list_web_plantilla_employees</code>, and{" "}
-                <code className="font-mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">list_web_plantilla_store_staffing</code>).
-                All quota modifications and personnel movements enforce ADR-001 audit logging and safety floor verification.
-              </div>
-            </div>
-          </section>
         </>
       )}
     </div>
