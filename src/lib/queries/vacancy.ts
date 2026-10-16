@@ -100,6 +100,7 @@ export type ActiveApplicantItem = {
   displayName: string;
   lastName: string | null;
   firstName: string | null;
+  middleName?: string | null;
   contactNumber: string | null;
   statusLabel: string;
   onboardDate: string | null;
@@ -388,6 +389,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
 
   const applicantLastName = asString(row.applicant_last_name ?? row.last_name);
   const applicantFirstName = asString(row.applicant_first_name ?? row.first_name);
+  const applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name);
   const rawApplicantName = asString(
     row.applicant_name ??
     row.applicant_full_name ??
@@ -397,7 +399,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const applicantName = formatPersonName(
     applicantFirstName,
     applicantLastName,
-    null,
+    applicantMiddleName,
     rawApplicantName,
   ) || null;
 
@@ -510,6 +512,7 @@ function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
     displayName,
     lastName,
     firstName,
+    middleName,
     contactNumber: asString(obj.contact_number ?? obj.mobile_number ?? obj.phone),
     statusLabel: asString(obj.status_label ?? obj.status) ?? "New",
     onboardDate: asString(obj.onboard_date ?? obj.hired_date),
@@ -550,6 +553,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
   const primaryApplicant = activeApplicantsList[0];
   const applicantLastName = asString(row.applicant_last_name ?? row.last_name) ?? primaryApplicant?.lastName ?? null;
   const applicantFirstName = asString(row.applicant_first_name ?? row.first_name) ?? primaryApplicant?.firstName ?? null;
+  const applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name) ?? primaryApplicant?.middleName ?? null;
   const rawApplicantName = asString(
     row.applicant_name ??
     row.applicant_full_name ??
@@ -559,7 +563,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
   const applicantName = formatPersonName(
     applicantFirstName,
     applicantLastName,
-    null,
+    applicantMiddleName,
     rawApplicantName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous" ? primaryApplicant.displayName : null),
   ) || null;
 
@@ -1671,7 +1675,7 @@ export async function listVacancies(params: VacancyListParams) {
     try {
       const { data: applicantsData } = await supabase
         .from("applicants")
-        .select("id, vacancy_vcode, first_name, last_name, full_name, contact_number, status, hired_date, backout_reason, backout_date, created_at, updated_at")
+        .select("id, vacancy_vcode, first_name, last_name, middle_name, full_name, contact_number, status, hired_date, backout_reason, backout_date, created_at, updated_at")
         .in("vacancy_vcode", allVcodes)
         .eq("is_archived", false)
         .order("created_at", { ascending: false });
@@ -1713,8 +1717,9 @@ export async function listVacancies(params: VacancyListParams) {
               row.hiredDate = row.hiredDate || asString(active.hired_date);
               const lName = asString(active.last_name);
               const fName = asString(active.first_name);
+              const mName = asString(active.middle_name);
               const fFull = asString(active.full_name);
-              row.applicantName = formatPersonName(fName, lName, null, fFull || row.applicantName);
+              row.applicantName = formatPersonName(fName, lName, mName, fFull || row.applicantName);
               row.stageBadge = asString(active.status) || "In Pipeline";
             }
           }

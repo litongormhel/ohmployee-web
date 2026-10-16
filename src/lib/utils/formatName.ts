@@ -22,6 +22,19 @@ export function formatPersonName(
   const m = middleName?.trim() || "";
 
   if (l && f) {
+    if (!m && fullName?.trim()) {
+      const parsedFromFull = parseFullNameString(fullName.trim());
+      if (parsedFromFull.includes(",")) {
+        const parts = parsedFromFull.split(",");
+        const parsedFirstAndMiddle = parts.slice(1).join(" ").trim();
+        if (
+          parsedFirstAndMiddle.toUpperCase().startsWith(f.toUpperCase()) &&
+          parsedFirstAndMiddle.length > f.length
+        ) {
+          return `${l}, ${parsedFirstAndMiddle}`.toUpperCase();
+        }
+      }
+    }
     const fnPart = m ? `${f} ${m}` : f;
     return `${l}, ${fnPart}`.toUpperCase();
   }
