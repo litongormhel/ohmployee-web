@@ -27,6 +27,7 @@ import {
   tagWebHrEmplocDeficiency,
   reviewWebHrEmplocCorrection,
   useWithdrawEmplocDeletion,
+  getCorrectionAttachmentSignedUrl,
   HrEmplocDataError,
   type TagDeficiencyParams,
   type ReviewCorrectionParams,
@@ -139,6 +140,16 @@ export function HrEmplocDetailDrawer({
     if (!matchingKey) return null;
     const val = detail.correctionReason[matchingKey];
     return typeof val === "string" ? val : JSON.stringify(val);
+  };
+
+  const handleOpenAttachment = async (pathOrUrl: string) => {
+    try {
+      const url = await getCorrectionAttachmentSignedUrl(pathOrUrl);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to open attachment:", err);
+      window.open(pathOrUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   return (
@@ -318,6 +329,24 @@ export function HrEmplocDetailDrawer({
               Placement Parameters
             </h3>
             <div className="grid grid-cols-2 gap-y-3 text-sm">
+              <div>
+                <div className="text-xs text-gray-400">Vacancy Code (VCode)</div>
+                <div className="mt-0.5 font-mono font-medium text-gray-900">
+                  {detail.vcode || "--"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Account</div>
+                <div className="mt-0.5 font-medium text-gray-800">
+                  {detail.accountName || "--"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Store / Location</div>
+                <div className="mt-0.5 font-medium text-gray-800">
+                  {detail.storeName || "--"}
+                </div>
+              </div>
               <div>
                 <div className="text-xs text-gray-400">Assignment Type</div>
                 <div className="mt-0.5 font-medium text-gray-800">
@@ -523,14 +552,13 @@ export function HrEmplocDetailDrawer({
                         <FileText className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <a
-                          className="text-xs font-semibold text-blue-600 hover:underline truncate block"
-                          href={file.fileUrl}
-                          rel="noreferrer"
-                          target="_blank"
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-blue-600 hover:underline truncate block text-left cursor-pointer"
+                          onClick={() => handleOpenAttachment(file.fileUrl)}
                         >
                           {file.fileName}
-                        </a>
+                        </button>
                         <div className="text-[10px] text-gray-400 flex flex-wrap gap-x-2">
                           <span>By: {file.uploadedBy}</span>
                           <span>•</span>
@@ -544,16 +572,14 @@ export function HrEmplocDetailDrawer({
                         </div>
                       </div>
                     </div>
-                    <a
+                    <button
+                      type="button"
                       aria-label={`Download file ${file.fileName}`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition"
-                      download
-                      href={file.fileUrl}
-                      rel="noreferrer"
-                      target="_blank"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition cursor-pointer"
+                      onClick={() => handleOpenAttachment(file.fileUrl)}
                     >
                       <FileDown className="h-4 w-4" />
-                    </a>
+                    </button>
                   </div>
                 ))}
               </div>

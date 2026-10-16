@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w80b681a" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w84c185a" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:src/components/hr-emploc/HrEmplocSavedViewsModal.tsx:src/components/hr-emploc/TagDeficiencyModal.tsx:src/components/hr-emploc/useHrEmplocSavedViews.ts:supabase/migrations/20262606000041_fix_hr_emploc_summary_counter_and_list_hrco.sql"
+    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:src/components/hr-emploc/UploadAttachmentModal.tsx:src/components/hr-emploc/SubmitCorrectionModal.tsx:src/components/hr-emploc/ReviewApproveModal.tsx:src/components/hr-emploc/ReviewRevertModal.tsx:supabase/migrations/20262606000043_fix_hr_emploc_mobile_web_parity_prod.sql"
 }
 
 Write-Host "======================================================"

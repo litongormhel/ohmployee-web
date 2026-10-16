@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w84c185a**: HR Emploc Tab-Specific Columns, Mobile Correction/Review Workflow Parity, and Default-10 Pagination
 - **ohm#w79a570a**: Redesign Add/Endorse Applicant Modal and Make Middle Name Required
 - **ohm#w78p469a**: Eliminate Archived Data Leakage in Web to Match Mobile PROD Parity
 - **ohm#w76v267a**: Refactor Pipeline Tab Table Columns, Actions, and Fix Saved View Across Vacancy Tabs

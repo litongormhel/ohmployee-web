@@ -31,12 +31,18 @@ import {
   useBulkMoveToPlantilla,
   fetchHrEmplocsForExport,
   downloadCsv,
+  getCorrectionAttachmentSignedUrl,
+  isBenefitsOnlyCorrection,
   HrEmplocDataError,
   type HrEmplocListItem,
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
 import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
 import { TagDeficiencyModal } from "@/components/hr-emploc/TagDeficiencyModal";
+import { UploadAttachmentModal } from "@/components/hr-emploc/UploadAttachmentModal";
+import { SubmitCorrectionModal } from "@/components/hr-emploc/SubmitCorrectionModal";
+import { ReviewApproveModal } from "@/components/hr-emploc/ReviewApproveModal";
+import { ReviewRevertModal } from "@/components/hr-emploc/ReviewRevertModal";
 import { HrEmplocSavedViewsModal } from "@/components/hr-emploc/HrEmplocSavedViewsModal";
 import {
   useHrEmplocSavedViews,
@@ -72,8 +78,6 @@ const queueTabs: Array<{
   },
 ];
 
-const pageSize = 25;
-
 function getErrorKind(error: unknown) {
   return error instanceof HrEmplocDataError ? error.kind : null;
 }
@@ -85,11 +89,16 @@ export default function HrEmplocPage() {
   const [accountId, setAccountId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
+  const [uploadTarget, setUploadTarget] = useState<HrEmplocListItem | null>(null);
+  const [submitCorrectionTarget, setSubmitCorrectionTarget] = useState<HrEmplocListItem | null>(null);
+  const [approveReviewTarget, setApproveReviewTarget] = useState<HrEmplocListItem | null>(null);
+  const [revertReviewTarget, setRevertReviewTarget] = useState<HrEmplocListItem | null>(null);
   const [bulkResultModal, setBulkResultModal] = useState<{
     isOpen: boolean;
     moved: number;
@@ -314,6 +323,18 @@ export default function HrEmplocPage() {
     }, 5000);
   }
 
+  async function handleDownloadAttachment(row: HrEmplocListItem) {
+    if (!row.attachmentUrl) return;
+    try {
+      const url = await getCorrectionAttachmentSignedUrl(row.attachmentUrl);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("[hr-emploc attachment download error]", err);
+      const message = err instanceof Error ? err.message : "Failed to open attachment.";
+      setErrorToast({ message: `Attachment error: ${message}` });
+    }
+  }
+
   // Group filter parameters for list query
   const listParams = useMemo(
     () => ({
@@ -324,7 +345,7 @@ export default function HrEmplocPage() {
       page,
       pageSize,
     }),
-    [queue, accountId, groupId, search, page]
+    [queue, accountId, groupId, search, page, pageSize]
   );
 
   // Summary query parameters across all tabs
@@ -727,11 +748,21 @@ export default function HrEmplocPage() {
         errorKind={listErrorKind}
         isLoading={listQuery.isLoading}
         onPageChange={updatePage}
+        onPageSizeChange={(newPageSize) => {
+          setPageSize(newPageSize);
+          setPage(1);
+          setSelectedId(null);
+        }}
         onRetry={retryQueryReads}
         onSelect={selectRow}
         onAddEmploc={(row) => setAssignTarget(row)}
         onForCorrection={(row) => setCorrectionTarget(row)}
         onAssignEmployeeNo={(row) => setAssignTarget(row)}
+        onUploadAttachment={(row) => setUploadTarget(row)}
+        onSubmitCorrection={(row) => setSubmitCorrectionTarget(row)}
+        onApproveReview={(row) => setApproveReviewTarget(row)}
+        onRevertReview={(row) => setRevertReviewTarget(row)}
+        onDownloadAttachment={handleDownloadAttachment}
         page={page}
         pageSize={pageSize}
         rows={rows}
@@ -765,7 +796,7 @@ export default function HrEmplocPage() {
         />
       )}
 
-      {/* For Correction Modal */}
+      {/* For Correction Modal (Tag Deficiency) */}
       {correctionTarget && (
         <TagDeficiencyModal
           isOpen={true}
@@ -777,6 +808,71 @@ export default function HrEmplocPage() {
             setCorrectionTarget(null);
             setSuccessToast({
               message: `Record ${correctionTarget.vcode} returned for correction successfully.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Upload Compliance Attachment Modal */}
+      {uploadTarget && (
+        <UploadAttachmentModal
+          isOpen={true}
+          row={uploadTarget}
+          onClose={() => setUploadTarget(null)}
+          onSuccess={(msg) => {
+            setUploadTarget(null);
+            setSuccessToast({
+              message: msg || `Compliance attachment uploaded for ${uploadTarget.applicantName}.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Submit Correction Modal (Transition to Review) */}
+      {submitCorrectionTarget && (
+        <SubmitCorrectionModal
+          isOpen={true}
+          row={submitCorrectionTarget}
+          canUploadAttachments={!isBenefitsOnlyCorrection(submitCorrectionTarget.deficiencyIssues)}
+          onClose={() => setSubmitCorrectionTarget(null)}
+          onSuccess={(msg) => {
+            setSubmitCorrectionTarget(null);
+            setSuccessToast({
+              message: msg || `Correction submitted to Review for ${submitCorrectionTarget.applicantName}.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Approve Review Modal (Transition to Ready) */}
+      {approveReviewTarget && (
+        <ReviewApproveModal
+          isOpen={true}
+          row={approveReviewTarget}
+          onClose={() => setApproveReviewTarget(null)}
+          onSuccess={(msg) => {
+            setApproveReviewTarget(null);
+            setSuccessToast({
+              message: msg || `Review approved for ${approveReviewTarget.applicantName}. Record is now Ready.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Revert Review Modal (Transition back to Correction) */}
+      {revertReviewTarget && (
+        <ReviewRevertModal
+          isOpen={true}
+          row={revertReviewTarget}
+          onClose={() => setRevertReviewTarget(null)}
+          onSuccess={(msg) => {
+            setRevertReviewTarget(null);
+            setSuccessToast({
+              message: msg || `Review reverted to Correction for ${revertReviewTarget.applicantName}.`,
             });
             retryQueryReads();
           }}

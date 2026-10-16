@@ -19,7 +19,16 @@ export type HrEmplocRowCapabilities = {
   canMoveToPlantilla: boolean;    // For Encoder, Head Admin & Super Admin
   canRequestDeletion: boolean;    // For Ops roles (om, hrco, atl, tl)
   canReviewDeletion: boolean;     // For Encoder, Head Admin & Super Admin
+  canSubmitCorrection: boolean;   // For HRCO / Super Admin in Correction
+  canApproveCorrection: boolean;  // For HR Personnel / Super Admin in Review
+  canRevertCorrection: boolean;   // For HR Personnel / Super Admin in Review
   raw: Record<string, boolean>;
+};
+
+export type HrEmplocDeficiencyIssue = {
+  code: string;
+  label: string;
+  comment: string | null;
 };
 
 export type HrEmplocListItem = {
@@ -40,6 +49,14 @@ export type HrEmplocListItem = {
   assignmentType: string | null;
   coveredStoresCount: number;
   deficiencySummary: string | null;
+  deficiencyIssues: HrEmplocDeficiencyIssue[];
+  correctionReason: Record<string, unknown> | Array<unknown> | null;
+  requestedByName: string | null;
+  hrcoRemarks: string | null;
+  notes: string | null;
+  attachmentUrl: string | null;
+  attachmentFileName: string | null;
+  attachmentMetadata: Record<string, unknown> | null;
   hiredDate: string | null;
   dateRequested: string | null;
   slaBreached: boolean;
@@ -98,6 +115,7 @@ export type HrEmplocDetailItem = {
   hrcoName: string | null;
   opsRemarks: string | null;
   hrRemarks: string | null;
+  requestedByName: string | null;
   requirementOverallStatus: string | null;
   correctionReason: Record<string, unknown>;
   uploadedAttachments: CorrectionAttachmentItem[];
@@ -191,11 +209,14 @@ function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
   return {
     canViewDetail: raw.can_view_detail === true || raw.can_view === true,
     canTagDeficiency: raw.can_tag_deficiency === true,
-    canReviewCorrection: raw.can_review_correction === true,
+    canReviewCorrection: raw.can_review_correction === true || raw.can_approve_correction === true,
     canAssignEmployeeNo: raw.can_assign_employee_no === true,
     canMoveToPlantilla: raw.can_move_to_plantilla === true,
     canRequestDeletion: raw.can_request_deletion === true,
     canReviewDeletion: raw.can_review_deletion === true,
+    canSubmitCorrection: raw.can_submit_correction === true,
+    canApproveCorrection: raw.can_approve_correction === true || raw.can_review_correction === true,
+    canRevertCorrection: raw.can_revert_correction === true,
     raw,
   };
 }
@@ -257,6 +278,55 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     return null;
   }
 
+  const caps = asObject(row.row_capabilities ?? row.rowCapabilities);
+  const defSummary = asObject(row.deficiency_summary ?? row.deficiencySummary);
+  const rawIssues = Array.isArray(defSummary.issues) ? defSummary.issues : [];
+  const deficiencyIssues: HrEmplocDeficiencyIssue[] = rawIssues.map((item) => {
+    const obj = asObject(item);
+    return {
+      code: asString(obj.code) ?? "OTHER",
+      label: asString(obj.label) ?? asString(obj.code) ?? "Other",
+      comment: asString(obj.comment) ?? null,
+    };
+  });
+
+  const requestedByName = asString(
+    row.requested_by_name ??
+    row.requestedByName ??
+    row.hr_reviewed_by ??
+    row.hrReviewedBy ??
+    caps.requested_by_name ??
+    caps.requestedByName ??
+    caps.hr_reviewed_by
+  );
+
+  const hrcoRemarks = asString(
+    row.hrco_remarks ??
+    row.hrcoRemarks ??
+    row.ops_remarks ??
+    row.opsRemarks ??
+    row.notes ??
+    caps.hrco_remarks ??
+    caps.notes ??
+    caps.ops_remarks
+  );
+
+  const attachmentUrl = asString(
+    row.attachment_url ??
+    row.attachmentUrl ??
+    caps.attachment_url ??
+    caps.attachmentUrl
+  );
+
+  const attachmentFileName = asString(
+    row.attachment_file_name ??
+    row.attachmentFileName ??
+    caps.attachment_file_name ??
+    caps.attachmentFileName
+  );
+
+  const attachmentMetadata = (row.attachment_metadata ?? row.attachmentMetadata ?? caps.attachment_metadata ?? caps.attachmentMetadata) as Record<string, unknown> | null;
+
   return {
     id,
     applicantName: asString(row.applicant_name ?? row.applicantName) ?? "Anonymous",
@@ -271,7 +341,8 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     hrcoName: asString(
       row.hrco_name ??
       row.hrcoName ??
-      asObject(row.row_capabilities ?? row.rowCapabilities).hrco_name
+      caps.hrco_name ??
+      caps.hrcoName
     ),
     hrStatus: asString(row.hr_status ?? row.hrStatus) ?? "Pending",
     deploymentStatus: asString(row.deployment_status ?? row.deploymentStatus ?? row.status) ?? "Pending Emploc",
@@ -279,11 +350,19 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     assignmentType: asString(row.assignment_type ?? row.assignmentType),
     coveredStoresCount: asCount(row.covered_stores_count ?? row.coveredStoresCount),
     deficiencySummary: summarizeDeficiency(row.deficiency_summary ?? row.deficiencySummary),
+    deficiencyIssues,
+    correctionReason: (row.correction_reason ?? row.correctionReason ?? caps.correction_reason) as Record<string, unknown> | Array<unknown> | null,
+    requestedByName,
+    hrcoRemarks,
+    notes: hrcoRemarks,
+    attachmentUrl,
+    attachmentFileName,
+    attachmentMetadata,
     hiredDate: asString(row.hired_date ?? row.hiredDate),
     dateRequested: asString(row.date_requested ?? row.dateRequested),
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
     slaElapsedDays: asCount(row.aging_days ?? row.sla_elapsed_days ?? row.slaElapsedDays),
-    rowCapabilities: normalizeCapabilities(row.row_capabilities ?? row.rowCapabilities),
+    rowCapabilities: normalizeCapabilities(caps),
     totalCount: asCount(row.total_count ?? row.totalCount),
   };
 }
@@ -372,6 +451,7 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
     hrcoName: asString(row.hrco_name ?? row.hrcoName) ?? null,
     opsRemarks: asString(row.ops_remarks ?? row.opsRemarks) ?? null,
     hrRemarks: asString(row.hr_remarks ?? row.hrRemarks) ?? null,
+    requestedByName: asString(row.hr_reviewed_by ?? row.hrReviewedBy ?? row.requested_by_name ?? row.requestedByName) ?? null,
     requirementOverallStatus: asString(row.requirement_overall_status ?? row.requirementOverallStatus) ?? null,
     correctionReason: asObject(row.correction_reason ?? row.correctionReason),
     uploadedAttachments,
@@ -542,6 +622,263 @@ export async function reviewWebHrEmplocCorrection(
     correctionReason: asObject(row.correction_reason),
     reviewedAt: asString(row.reviewed_at) ?? new Date().toISOString(),
   };
+}
+
+/**
+ * Checks whether the tagged deficiency items consist exclusively of benefits-related issues:
+ * SSS, PhilHealth (PH), and/or Pag-IBIG.
+ * Matches Mobile app parity rule: When benefits-only, document upload is hidden.
+ */
+export function isBenefitsOnlyCorrection(
+  correctionReason: unknown,
+  deficiencyIssues?: HrEmplocDeficiencyIssue[] | null
+): boolean {
+  const codes: string[] = [];
+
+  if (Array.isArray(deficiencyIssues) && deficiencyIssues.length > 0) {
+    for (const issue of deficiencyIssues) {
+      if (issue.code) codes.push(issue.code.toUpperCase().trim());
+      else if (issue.label) codes.push(issue.label.toUpperCase().trim());
+    }
+  } else if (Array.isArray(correctionReason)) {
+    for (const item of correctionReason) {
+      if (typeof item === "string") {
+        codes.push(item.toUpperCase().trim());
+      } else if (item && typeof item === "object") {
+        const c = (item as Record<string, unknown>).code ?? (item as Record<string, unknown>).type;
+        if (typeof c === "string") codes.push(c.toUpperCase().trim());
+      }
+    }
+  } else if (correctionReason && typeof correctionReason === "object") {
+    const c = (correctionReason as Record<string, unknown>).type ?? (correctionReason as Record<string, unknown>).code;
+    if (typeof c === "string") codes.push(c.toUpperCase().trim());
+  }
+
+  if (codes.length === 0) {
+    return false;
+  }
+
+  const benefitsCodes = new Set([
+    "INVALID_SSS",
+    "INVALID_PHILHEALTH",
+    "INVALID_PAGIBIG",
+    "SSS",
+    "PHILHEALTH",
+    "PAGIBIG",
+    "PAG-IBIG",
+    "PH",
+  ]);
+
+  return codes.every((code) => {
+    if (benefitsCodes.has(code)) return true;
+    const normalized = code.replace(/[^A-Z]/g, "");
+    return (
+      normalized.includes("SSS") ||
+      normalized.includes("PHILHEALTH") ||
+      normalized.includes("PAGIBIG")
+    );
+  });
+}
+
+/**
+ * Uploads a correction compliance attachment to the private 'hr-corrections' Supabase storage bucket
+ * and registers metadata in public.hr_emploc_correction_attachments.
+ */
+export async function uploadCorrectionAttachment(params: {
+  hrEmplocId: string;
+  file: File;
+}): Promise<{ id: string; storagePath: string; fileName: string }> {
+  const allowed = ["image/jpeg", "image/png", "application/pdf"];
+  if (!allowed.includes(params.file.type)) {
+    throw new HrEmplocDataError(
+      "invalid_state",
+      `Unsupported file type: ${params.file.type}. Allowed formats are JPG, PNG, and PDF.`
+    );
+  }
+  if (params.file.size > 5 * 1024 * 1024) {
+    throw new HrEmplocDataError(
+      "invalid_state",
+      `File exceeds 5 MB limit: ${params.file.name}`
+    );
+  }
+
+  const supabase = createClient();
+  const ext = params.file.name.split(".").pop() || "jpg";
+  const uniqueId =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2);
+  const objectPath = `${uniqueId}.${ext}`;
+  const fullStoragePath = `hr-corrections/${objectPath}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("hr-corrections")
+    .upload(objectPath, params.file, {
+      contentType: params.file.type,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new HrEmplocDataError(
+      "retryable",
+      `Storage upload failed: ${uploadError.message}`
+    );
+  }
+
+  const { data: row, error: insertError } = await supabase
+    .from("hr_emploc_correction_attachments")
+    .insert({
+      hr_emploc_id: params.hrEmplocId,
+      storage_path: fullStoragePath,
+      original_filename: params.file.name,
+      mime_type: params.file.type,
+      size_bytes: params.file.size,
+    })
+    .select("id, storage_path, original_filename")
+    .single();
+
+  if (insertError) {
+    try {
+      await supabase.storage.from("hr-corrections").remove([objectPath]);
+    } catch {
+      // Ignored orphan cleanup
+    }
+    throwHrEmplocError(insertError);
+  }
+
+  return {
+    id: row.id,
+    storagePath: row.storage_path,
+    fileName: row.original_filename,
+  };
+}
+
+/**
+ * Creates a 1-hour signed URL for an attachment in the private 'hr-corrections' bucket.
+ */
+export async function getCorrectionAttachmentSignedUrl(
+  storagePath: string
+): Promise<string> {
+  const supabase = createClient();
+  const objectPath = storagePath.startsWith("hr-corrections/")
+    ? storagePath.replace("hr-corrections/", "")
+    : storagePath;
+
+  const { data, error } = await supabase.storage
+    .from("hr-corrections")
+    .createSignedUrl(objectPath, 3600);
+
+  if (error || !data?.signedUrl) {
+    throw new HrEmplocDataError(
+      "retryable",
+      `Failed to generate signed download link: ${error?.message || "File unavailable"}`
+    );
+  }
+
+  return data.signedUrl;
+}
+
+/**
+ * Submits HRCO correction notes (and uploads any provided attachments),
+ * transitioning the record from 'For Correction' to 'For Review'.
+ */
+export async function submitHrcoCorrection(params: {
+  hrEmplocId: string;
+  hrcoNotes: string;
+  attachments?: File[];
+}): Promise<void> {
+  const trimmedNotes = params.hrcoNotes.trim();
+  if (!trimmedNotes) {
+    throw new HrEmplocDataError(
+      "invalid_state",
+      "Correction update remarks/notes are required."
+    );
+  }
+
+  if (params.attachments && params.attachments.length > 0) {
+    for (const file of params.attachments) {
+      await uploadCorrectionAttachment({
+        hrEmplocId: params.hrEmplocId,
+        file,
+      });
+    }
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("submit_hrco_correction_update", {
+    p_correction_request_id: params.hrEmplocId,
+    p_hrco_notes: trimmedNotes,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+/**
+ * Approves a record currently in Review, resolving deficiencies and moving it to Complete/Ready.
+ */
+export async function approveHrEmplocReview(params: {
+  hrEmplocId: string;
+  resolvedKeys?: string[];
+  remarks?: string;
+}): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("review_web_hr_emploc_correction", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_decision: "approve",
+    p_resolved_keys: params.resolvedKeys ?? [],
+    p_remarks: params.remarks?.trim() || null,
+  });
+
+  if (error) {
+    // Fallback: try approve_correction_request if review_web_hr_emploc_correction errored on resolution keys
+    const { error: approveError } = await supabase.rpc("approve_correction_request", {
+      p_correction_request_id: params.hrEmplocId,
+      p_approved_by: null,
+    });
+    if (approveError) {
+      throwHrEmplocError(error);
+    }
+  }
+}
+
+/**
+ * Reverts a record currently in Review back to Correction with HR remarks.
+ */
+export async function revertHrEmplocReview(params: {
+  hrEmplocId: string;
+  remarks: string;
+}): Promise<void> {
+  const trimmed = params.remarks.trim();
+  if (!trimmed) {
+    throw new HrEmplocDataError(
+      "invalid_state",
+      "HR remarks explaining what must be corrected are required to revert."
+    );
+  }
+
+  const supabase = createClient();
+
+  // Prefer reject_correction_request (exact Mobile counterpart)
+  const { error: rejectError } = await supabase.rpc("reject_correction_request", {
+    p_correction_request_id: params.hrEmplocId,
+    p_hr_remarks: trimmed,
+  });
+
+  if (rejectError) {
+    // Fallback to review_web_hr_emploc_correction return
+    const { error: returnError } = await supabase.rpc("review_web_hr_emploc_correction", {
+      p_hr_emploc_id: params.hrEmplocId,
+      p_decision: "return",
+      p_resolved_keys: [],
+      p_remarks: trimmed,
+    });
+    if (returnError) {
+      throwHrEmplocError(returnError);
+    }
+  }
 }
 
 export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmplocDetailItem | null> {

@@ -2,38 +2,31 @@
 "use client";
 
 import {
-  Clock3,
   Eye,
   LockKeyhole,
   AlertTriangle,
   UserCheck,
   AlertCircle,
+  Upload,
+  Send,
+  CheckCircle2,
+  RotateCcw,
+  Download,
+  ArrowRight,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { DataState } from "@/components/shared/DataState";
-import type {
-  HrEmplocDataErrorKind,
-  HrEmplocListItem,
-  HrEmplocQueue,
+import {
+  isBenefitsOnlyCorrection,
+  type HrEmplocDataErrorKind,
+  type HrEmplocListItem,
+  type HrEmplocQueue,
 } from "@/lib/queries/hr_emploc";
 
 export type { HrEmplocQueue } from "@/lib/queries/hr_emploc";
 
-const tableColumns = [
-  "Group",
-  "Account",
-  "Store",
-  "VCode",
-  "Applicant",
-  "Position",
-  "HRCO",
-  "SLA",
-  "Actions",
-];
-
 type HrEmplocTableProps = {
   queue: HrEmplocQueue;
-  queueLabel: string;
+  queueLabel?: string;
   rows: HrEmplocListItem[];
   selectedId: string | null;
   totalCount: number;
@@ -44,10 +37,68 @@ type HrEmplocTableProps = {
   onSelect: (row: HrEmplocListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
   onAddEmploc?: (row: HrEmplocListItem) => void;
   onForCorrection?: (row: HrEmplocListItem) => void;
   onAssignEmployeeNo?: (row: HrEmplocListItem) => void;
+  onMoveToPlantilla?: (row: HrEmplocListItem) => void;
+  onUploadAttachment?: (row: HrEmplocListItem) => void;
+  onSubmitCorrection?: (row: HrEmplocListItem) => void;
+  onApproveReview?: (row: HrEmplocListItem) => void;
+  onRevertReview?: (row: HrEmplocListItem) => void;
+  onDownloadAttachment?: (row: HrEmplocListItem) => void;
 };
+
+function getTableColumns(queue: HrEmplocQueue): string[] {
+  switch (queue) {
+    case "correction":
+      return [
+        "Group",
+        "Account",
+        "Applicant",
+        "Position",
+        "HRCO",
+        "SLA",
+        "Reason",
+        "Requested By",
+        "Actions",
+      ];
+    case "review":
+      return [
+        "Group",
+        "Account",
+        "Applicant",
+        "Position",
+        "HRCO",
+        "SLA",
+        "Reason",
+        "Notes",
+        "Attachment",
+        "Actions",
+      ];
+    case "ready":
+      return [
+        "Group",
+        "Account",
+        "Applicant",
+        "Position",
+        "HRCO",
+        "SLA",
+        "Actions",
+      ];
+    case "pending":
+    default:
+      return [
+        "Group",
+        "Account",
+        "Applicant",
+        "Position",
+        "HRCO",
+        "SLA",
+        "Actions",
+      ];
+  }
+}
 
 function getSlaColorClass(days: number): string {
   if (days <= 30) {
@@ -61,7 +112,6 @@ function getSlaColorClass(days: number): string {
 
 export function HrEmplocTable({
   queue,
-  queueLabel,
   rows,
   selectedId,
   totalCount,
@@ -72,14 +122,22 @@ export function HrEmplocTable({
   onSelect,
   onRetry,
   onPageChange,
+  onPageSizeChange,
   onAddEmploc,
   onForCorrection,
   onAssignEmployeeNo,
+  onMoveToPlantilla,
+  onUploadAttachment,
+  onSubmitCorrection,
+  onApproveReview,
+  onRevertReview,
+  onDownloadAttachment,
 }: HrEmplocTableProps) {
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastRecord = Math.min(totalCount, page * pageSize);
 
+  const columns = getTableColumns(queue);
   const handleAddEmploc = onAddEmploc || onAssignEmployeeNo;
 
   const getErrorTitle = () => {
@@ -95,31 +153,15 @@ export function HrEmplocTable({
   };
 
   return (
-    <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
-      {/* Table Header Controls (without descriptive subtext banner) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-4 py-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-table-text">
-            {queueLabel}
-          </h2>
-          <Badge className="font-mono text-[10px] text-table-text-muted bg-surface-muted hover:bg-surface-muted border-none">
-            {queue}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-table-text-muted">
-          <Clock3 className="h-4 w-4" aria-hidden="true" />
-          {isLoading ? "Loading compliance list" : `${totalCount} records scoped`}
-        </div>
-      </div>
-
-      {/* Main Table Container */}
+    <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row shadow-2xs">
+      {/* Main Table Container (Without redundant inner card header bar) */}
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
-              {tableColumns.map((column) => (
+              {columns.map((column) => (
                 <th
-                  className={`border-b border-table-rule-section px-4 py-2.5 ${
+                  className={`border-b border-table-rule-section px-4 py-3 ${
                     column === "Actions" ? "text-right" : ""
                   }`}
                   key={column}
@@ -133,7 +175,7 @@ export function HrEmplocTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={columns.length}>
                   <DataState
                     kind="loading"
                     title="Loading compliance roster"
@@ -143,7 +185,7 @@ export function HrEmplocTable({
               </tr>
             ) : errorKind ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={columns.length}>
                   <DataState
                     kind={errorKind === "access_denied" ? "access_denied" : "error"}
                     title={getErrorTitle()}
@@ -154,7 +196,7 @@ export function HrEmplocTable({
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-3 py-12 text-center" colSpan={tableColumns.length}>
+                <td className="px-3 py-12 text-center" colSpan={columns.length}>
                   <DataState
                     kind="empty"
                     title="No recruits found"
@@ -167,6 +209,14 @@ export function HrEmplocTable({
                 const isPendingDeletion =
                   row.hrStatus.toLowerCase().trim() === "pending deletion" ||
                   row.hrStatus.toLowerCase().trim() === "pending_deletion";
+
+                // Conditional Upload Button Rule:
+                // Hide Upload button ONLY when deficiency reason(s) consist exclusively of Invalid SSS, PhilHealth (PH), and/or Pag-IBIG.
+                const isBenefitsOnly = isBenefitsOnlyCorrection(
+                  row.correctionReason,
+                  row.deficiencyIssues
+                );
+                const showUploadButton = !isBenefitsOnly;
 
                 return (
                   <tr
@@ -196,19 +246,7 @@ export function HrEmplocTable({
                       {row.accountName ?? "--"}
                     </td>
 
-                    {/* 3. Store */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-muted truncate max-w-[160px]">
-                      {row.storeName ?? "--"}
-                    </td>
-
-                    {/* 4. VCode */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
-                      <span className="font-mono text-xs text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 select-all">
-                        {row.vcode}
-                      </span>
-                    </td>
-
-                    {/* 5. Applicant */}
+                    {/* 3. Applicant */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="font-semibold text-table-text flex items-center gap-1.5">
                         {isPendingDeletion && (
@@ -223,17 +261,17 @@ export function HrEmplocTable({
                       </div>
                     </td>
 
-                    {/* 6. Position */}
+                    {/* 4. Position */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text truncate max-w-[160px]">
                       {row.positionTitle ?? "--"}
                     </td>
 
-                    {/* 7. HRCO */}
+                    {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px]">
                       {row.hrcoName ?? "--"}
                     </td>
 
-                    {/* 8. SLA (Aging) */}
+                    {/* 6. SLA (Aging) */}
                     <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${getSlaColorClass(
@@ -244,10 +282,73 @@ export function HrEmplocTable({
                       </span>
                     </td>
 
-                    {/* 9. Actions */}
+                    {/* 7. Reason (Correction & Review Tabs) */}
+                    {(queue === "correction" || queue === "review") && (
+                      <td className="border-b border-table-rule px-4 py-2.5 max-w-[200px]">
+                        {row.deficiencySummary ? (
+                          <span
+                            className="inline-block truncate max-w-[190px] rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200/60"
+                            title={row.deficiencySummary}
+                          >
+                            {row.deficiencySummary}
+                          </span>
+                        ) : (
+                          <span className="text-table-text-muted text-xs">--</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* 8. Requested By (Correction Tab) */}
+                    {queue === "correction" && (
+                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px] text-xs">
+                        {row.requestedByName ?? "--"}
+                      </td>
+                    )}
+
+                    {/* 9. Notes (Review Tab) */}
+                    {queue === "review" && (
+                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text max-w-[200px]">
+                        {row.notes ? (
+                          <span
+                            className="inline-block truncate max-w-[190px] text-xs text-gray-700 italic"
+                            title={row.notes}
+                          >
+                            &ldquo;{row.notes}&rdquo;
+                          </span>
+                        ) : (
+                          <span className="text-table-text-muted text-xs">--</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* 10. Attachment (Review Tab) */}
+                    {queue === "review" && (
+                      <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
+                        {row.attachmentUrl ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDownloadAttachment?.(row);
+                            }}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 border border-blue-200 transition-colors cursor-pointer"
+                            title={`Download ${row.attachmentFileName || "attachment"}`}
+                          >
+                            <Download className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[100px]">
+                              {row.attachmentFileName || "Download"}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400 font-medium">N/A</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Tab-Specific Actions */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Inline Operational Actions for Pending Queue */}
+                        {/* ── Pending Queue Actions ──────────────── */}
                         {queue === "pending" && (
                           <>
                             {handleAddEmploc && (
@@ -282,6 +383,115 @@ export function HrEmplocTable({
                           </>
                         )}
 
+                        {/* ── Correction Queue Actions ───────────── */}
+                        {queue === "correction" && (
+                          <>
+                            {showUploadButton && onUploadAttachment && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUploadAttachment(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white hover:bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Upload document for ${row.applicantName}`}
+                                title="Upload supporting document"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                <span>Upload</span>
+                              </button>
+                            )}
+
+                            {onSubmitCorrection && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSubmitCorrection(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-600 hover:bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Submit correction for ${row.applicantName}`}
+                                title="Submit correction with notes to Review"
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                                <span>Submit Correction</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* ── Review Queue Actions ───────────────── */}
+                        {queue === "review" && (
+                          <>
+                            {onApproveReview && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onApproveReview(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Approve correction review for ${row.applicantName}`}
+                                title="Approve correction"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Approve</span>
+                              </button>
+                            )}
+
+                            {onRevertReview && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRevertReview(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Revert review for ${row.applicantName}`}
+                                title="Revert back to Correction"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span>Revert</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* ── Ready Queue Actions ────────────────── */}
+                        {queue === "ready" && (
+                          <>
+                            {!row.employeeNo && onAssignEmployeeNo && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAssignEmployeeNo(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Assign Emploc number for ${row.applicantName}`}
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span>Assign Emploc</span>
+                              </button>
+                            )}
+
+                            {row.employeeNo && onMoveToPlantilla && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMoveToPlantilla(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Move ${row.applicantName} to Plantilla`}
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                                <span>Move to Plantilla</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+
                         {/* Status / capability indicators */}
                         {isPendingDeletion && (
                           <span title="Record Locked: Pending Deletion">
@@ -292,15 +502,16 @@ export function HrEmplocTable({
                         {/* Inspect Candidate Detail */}
                         <button
                           aria-label={`Inspect candidate ${row.applicantName}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition cursor-pointer"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition cursor-pointer"
                           disabled={!row.rowCapabilities.canViewDetail}
                           onClick={(e) => {
                             e.stopPropagation();
                             onSelect(row);
                           }}
                           type="button"
+                          title="View Details"
                         >
-                          <Eye className="h-4 w-4" aria-hidden="true" />
+                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </td>
@@ -312,11 +523,30 @@ export function HrEmplocTable({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
-        <span>
-          Showing {firstRecord}-{lastRecord} of {totalCount} compliance records
-        </span>
+      {/* Pagination Footer (Default 10 with Selector) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
+        <div className="flex items-center gap-3">
+          <span>
+            Showing {firstRecord}-{lastRecord} of {totalCount} records
+          </span>
+
+          {onPageSizeChange && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-table-text-muted">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                className="h-7 rounded border border-table-rule-section bg-table-row px-2 text-xs font-medium text-table-text focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+                aria-label="Select rows per page"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-2">
           <button
             className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -326,7 +556,7 @@ export function HrEmplocTable({
           >
             Previous
           </button>
-          <span className="font-medium">
+          <span className="font-medium text-xs">
             Page {page} of {pageCount}
           </span>
           <button
