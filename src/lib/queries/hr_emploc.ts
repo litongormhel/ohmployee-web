@@ -28,8 +28,12 @@ export type HrEmplocListItem = {
   vcode: string;
   accountId: string | null;
   accountName: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  storeId: string | null;
   storeName: string | null;
   positionTitle: string | null;
+  hrcoName: string | null;
   hrStatus: string;
   deploymentStatus: string;
   employeeNo: string | null;
@@ -256,8 +260,16 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     vcode: asString(row.vcode) ?? "Uncoded",
     accountId: asString(row.account_id ?? row.accountId),
     accountName: asString(row.account_name ?? row.accountName),
+    groupId: asString(row.group_id ?? row.groupId),
+    groupName: asString(row.group_name ?? row.groupName),
+    storeId: asString(row.store_id ?? row.storeId),
     storeName: asString(row.store_name ?? row.storeName),
     positionTitle: asString(row.position_title ?? row.positionTitle),
+    hrcoName: asString(
+      row.hrco_name ??
+      row.hrcoName ??
+      asObject(row.row_capabilities ?? row.rowCapabilities).hrco_name
+    ),
     hrStatus: asString(row.hr_status ?? row.hrStatus) ?? "Pending",
     deploymentStatus: asString(row.deployment_status ?? row.deploymentStatus ?? row.status) ?? "Pending Emploc",
     employeeNo: asString(row.employee_no ?? row.employeeNo),
@@ -390,11 +402,11 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
 }
 
 export async function getWebHrEmplocSummary(
-  params: Pick<HrEmplocListParams, "queue" | "accountId" | "groupId" | "search">
+  params: Partial<Pick<HrEmplocListParams, "queue" | "accountId" | "groupId" | "search">> = {}
 ) {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_web_hr_emploc_summary", {
-    p_queue: params.queue || null,
+    p_queue: null,
     p_status: null,
     p_deficiency: null,
     p_sla_filter: null,
@@ -1117,3 +1129,145 @@ export function useRejectEmplocDeletion() {
     },
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unpaginated Export Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HrEmplocExportFilters {
+  search?: string;
+  accountId?: string;
+  groupId?: string;
+}
+
+export interface HrEmplocExportResult {
+  csv: string;
+  rowCount: number;
+  filename: string;
+  scopeTitle: string;
+}
+
+function escapeCsvValue(val: unknown): string {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+export const HR_EMPLOC_EXPORT_HEADERS = [
+  "Group",
+  "Account",
+  "Store",
+  "VCode",
+  "Applicant",
+  "Position",
+  "HRCO",
+  "SLA (Days)",
+  "HR Status",
+  "Deployment Status",
+  "Hired Date",
+  "Date Requested",
+] as const;
+
+export async function fetchHrEmplocsForExport(
+  scope: "current_view" | "masterlist",
+  queue: HrEmplocQueue,
+  filters: HrEmplocExportFilters = {}
+): Promise<HrEmplocExportResult> {
+  const supabase = createClient();
+  const PAGE_BATCH = 200;
+  let offset = 0;
+  const allRows: HrEmplocListItem[] = [];
+
+  const queueParam = scope === "current_view" ? queue : null;
+
+  while (true) {
+    const { data, error } = await supabase.rpc("list_web_hr_emplocs", {
+      p_queue: queueParam,
+      p_status: null,
+      p_deficiency: null,
+      p_sla_filter: null,
+      p_account_id: filters.accountId || null,
+      p_group_id: filters.groupId || null,
+      p_search: filters.search?.trim() || null,
+      p_limit: PAGE_BATCH,
+      p_offset: offset,
+      p_sort_by: "created_at",
+      p_sort_dir: "desc",
+    });
+
+    if (error) {
+      throwHrEmplocError(error);
+    }
+
+    const batch = (Array.isArray(data) ? data : [])
+      .map((row) => normalizeListRow(asObject(row)))
+      .filter((row): row is HrEmplocListItem => row !== null);
+
+    allRows.push(...batch);
+
+    if (batch.length < PAGE_BATCH) {
+      break;
+    }
+
+    offset += PAGE_BATCH;
+  }
+
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "_",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+  ].join("");
+
+  const scopeTitle =
+    scope === "current_view"
+      ? queue.charAt(0).toUpperCase() + queue.slice(1)
+      : "Masterlist";
+
+  const filename = `OHMployee_Emploc_${scopeTitle}_${timestamp}.csv`;
+
+  const headerLine = HR_EMPLOC_EXPORT_HEADERS.map(escapeCsvValue).join(",");
+  const dataLines = allRows.map((r) =>
+    [
+      escapeCsvValue(r.groupName || "--"),
+      escapeCsvValue(r.accountName || "--"),
+      escapeCsvValue(r.storeName || "--"),
+      escapeCsvValue(r.vcode),
+      escapeCsvValue(r.applicantName),
+      escapeCsvValue(r.positionTitle || "--"),
+      escapeCsvValue(r.hrcoName || "--"),
+      escapeCsvValue(r.slaElapsedDays),
+      escapeCsvValue(r.hrStatus),
+      escapeCsvValue(r.deploymentStatus),
+      escapeCsvValue(r.hiredDate || "--"),
+      escapeCsvValue(r.dateRequested || "--"),
+    ].join(",")
+  );
+
+  // UTF-8 Excel BOM encoding
+  const csv = "\uFEFF" + [headerLine, ...dataLines].join("\r\n");
+
+  return {
+    csv,
+    rowCount: allRows.length,
+    filename,
+    scopeTitle,
+  };
+}
+
+export function downloadCsv(csv: string, filename: string): void {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+

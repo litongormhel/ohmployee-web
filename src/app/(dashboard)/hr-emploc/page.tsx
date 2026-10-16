@@ -1,23 +1,23 @@
 // app/(dashboard)/hr-emploc/page.tsx
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import {
   FileSearch,
   LockKeyhole,
-  Building,
-  Briefcase,
   Send,
   Loader2,
   CheckCircle2,
-  UploadCloud,
   Clock,
   AlertCircle,
   FileText,
   RotateCcw,
   Users,
+  Search,
+  X,
+  Download,
+  ChevronDown,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import {
@@ -29,12 +29,21 @@ import {
   getWebHrEmplocSummary,
   listWebHrEmplocs,
   useBulkMoveToPlantilla,
+  fetchHrEmplocsForExport,
+  downloadCsv,
   HrEmplocDataError,
   type HrEmplocListItem,
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
-import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
+import { TagDeficiencyModal } from "@/components/hr-emploc/TagDeficiencyModal";
+import { HrEmplocSavedViewsModal } from "@/components/hr-emploc/HrEmplocSavedViewsModal";
+import {
+  useHrEmplocSavedViews,
+  type HrEmplocFilterState,
+  type HrEmplocSavedView,
+} from "@/components/hr-emploc/useHrEmplocSavedViews";
+import { createClient } from "@/lib/supabase/client";
 
 const queueTabs: Array<{
   value: HrEmplocQueue;
@@ -73,21 +82,71 @@ export default function HrEmplocPage() {
   const [queue, setQueue] = useState<HrEmplocQueue>("pending");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
-  const [assignment, setAssignment] = useState<"Stationary" | "Roving" | "">("");
-  const [position, setPosition] = useState("");
   const [accountId, setAccountId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Modal target states
+  const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
+  const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
   const [bulkResultModal, setBulkResultModal] = useState<{
     isOpen: boolean;
     moved: number;
     skipped: number;
     results: BulkMoveResultItem[];
   } | null>(null);
-  const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
+
+  // Saved Views
+  const { savedViews, saveView, updateView, deleteView } = useHrEmplocSavedViews();
+  const [isSavedViewsModalOpen, setIsSavedViewsModalOpen] = useState(false);
+
+  // Export dropdown state
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notifications
+  const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
+  const [errorToast, setErrorToast] = useState<{ message: string } | null>(null);
 
   const bulkMoveMutation = useBulkMoveToPlantilla();
+
+  // Accounts & Groups lookup query for compact filter dropdowns
+  const accountsQuery = useQuery({
+    queryKey: ["filter-accounts-list"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("id, account_name, group_id, groups(group_name)")
+        .order("account_name");
+      if (error) return [];
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        name: row.account_name as string,
+        groupId: row.group_id as string | null,
+        groupName: Array.isArray(row.groups)
+          ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
+          : row.groups && typeof row.groups === "object"
+          ? ((row.groups as unknown as Record<string, unknown>).group_name as string | null)
+          : null,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+
+  const uniqueGroups = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of accounts) {
+      if (a.groupId && a.groupName) {
+        map.set(a.groupId, a.groupName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [accounts]);
 
   function updateQueue(nextQueue: HrEmplocQueue) {
     setQueue(nextQueue);
@@ -95,9 +154,17 @@ export default function HrEmplocPage() {
     setSelectedId(null);
   }
 
-  function applySearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function applySearch() {
     setSearch(searchDraft.trim());
+    setPage(1);
+    setSelectedId(null);
+  }
+
+  function clearAllFilters() {
+    setSearchDraft("");
+    setSearch("");
+    setAccountId("");
+    setGroupId("");
     setPage(1);
     setSelectedId(null);
   }
@@ -131,7 +198,123 @@ export default function HrEmplocPage() {
     }
   }
 
-  // Group filter parameters
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsExportMenuOpen(false);
+      }
+    }
+    if (isExportMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isExportMenuOpen]);
+
+  async function handleExport(scope: "current_view" | "masterlist") {
+    setIsExportMenuOpen(false);
+    setIsExporting(true);
+    setErrorToast(null);
+
+    try {
+      const exportFilters = {
+        search: search || undefined,
+        accountId: accountId || undefined,
+        groupId: groupId || undefined,
+      };
+
+      const result = await fetchHrEmplocsForExport(scope, queue, exportFilters);
+      downloadCsv(result.csv, result.filename);
+
+      setSuccessToast({
+        message: `Successfully exported ${result.rowCount} records to ${result.filename}`,
+      });
+      setTimeout(() => {
+        setSuccessToast((prev) => (prev?.message.includes(result.filename) ? null : prev));
+      }, 6000);
+    } catch (err) {
+      console.error("[hr-emploc export error]", err);
+      const message = err instanceof Error ? err.message : "Failed to generate CSV export.";
+      setErrorToast({ message: `Export failed: ${message}` });
+      setTimeout(() => {
+        setErrorToast(null);
+      }, 6000);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  const currentFilters: HrEmplocFilterState = useMemo(
+    () => ({
+      queue,
+      search,
+      accountId,
+      groupId,
+    }),
+    [queue, search, accountId, groupId]
+  );
+
+  function handleApplySavedView(view: HrEmplocSavedView) {
+    setQueue(view.filters.queue);
+    setSearchDraft(view.filters.search || "");
+    setSearch(view.filters.search || "");
+    setAccountId(view.filters.accountId || "");
+    setGroupId(view.filters.groupId || "");
+    setPage(1);
+    setSelectedId(null);
+    setIsSavedViewsModalOpen(false);
+
+    setSuccessToast({
+      message: `Applied saved view "${view.name}".`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(view.name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleSaveView(name: string, filters: HrEmplocFilterState) {
+    saveView(name, filters);
+    setSuccessToast({
+      message: `Saved view preset "${name}" successfully.`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleUpdateView(id: string, name: string, filters: HrEmplocFilterState) {
+    updateView(id, name, filters);
+    setSuccessToast({
+      message: `Updated view preset "${name}" with current filters.`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
+  function handleDeleteView(id: string, name: string) {
+    deleteView(id);
+    setSuccessToast({
+      message: `Deleted view preset "${name}".`,
+    });
+    setTimeout(() => {
+      setSuccessToast((prev) => (prev?.message.includes(name) ? null : prev));
+    }, 5000);
+  }
+
+  // Group filter parameters for list query
   const listParams = useMemo(
     () => ({
       queue,
@@ -141,17 +324,17 @@ export default function HrEmplocPage() {
       page,
       pageSize,
     }),
-    [queue, accountId, groupId, search, page],
+    [queue, accountId, groupId, search, page]
   );
 
+  // Summary query parameters across all tabs
   const summaryParams = useMemo(
     () => ({
-      queue,
       accountId: accountId.trim() || undefined,
       groupId: groupId.trim() || undefined,
       search: search.trim() || undefined,
     }),
-    [queue, accountId, groupId, search],
+    [accountId, groupId, search]
   );
 
   // Queries
@@ -177,9 +360,11 @@ export default function HrEmplocPage() {
 
   const activeQueueLabel =
     queueTabs.find((tab) => tab.value === queue)?.label ?? "Compliance Queue";
+
+  // Tab counters computation with live fetched row parity
   const tabCounts: Record<HrEmplocQueue, number> = useMemo(() => {
     const summary = summaryQuery.data;
-    return {
+    const counts: Record<HrEmplocQueue, number> = {
       pending: summary?.pending ?? 0,
       correction: summary?.correction ?? 0,
       review: summary?.review ?? 0,
@@ -189,7 +374,22 @@ export default function HrEmplocPage() {
       deletion_pending: summary?.pendingDeletion ?? 0,
       all: 0,
     };
+
+    // Ensure active tab accurately matches live fetched rows count from listQuery
+    if (listQuery.data?.totalCount !== undefined && !listQuery.isLoading) {
+      counts[queue] = listQuery.data.totalCount;
+    }
+
+    return counts;
+  }, [summaryQuery.data, listQuery.data, listQuery.isLoading, queue]);
+
+  const totalMasterlistCount = useMemo(() => {
+    const s = summaryQuery.data;
+    if (!s) return 0;
+    return (s.pending ?? 0) + (s.correction ?? 0) + (s.review ?? 0) + (s.ready ?? 0);
   }, [summaryQuery.data]);
+
+  const isAnyFilterActive = Boolean(searchDraft.trim() || search || accountId || groupId);
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
@@ -202,21 +402,65 @@ export default function HrEmplocPage() {
         primaryAction={{
           label: summaryQuery.isFetching || listQuery.isFetching ? "Refreshing..." : "Refresh Data",
           icon: RotateCcw,
-          onClick: () => {
-            void summaryQuery.refetch();
-            void listQuery.refetch();
-          },
+          onClick: retryQueryReads,
           disabled: summaryQuery.isFetching || listQuery.isFetching,
         }}
       />
 
-      {/* Unified workbench card: Status tabs & Filter toolbar */}
-      <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-card p-3 shadow-xs">
-        {/* Status Tabs Navigation */}
+      {successToast && (
         <div
-          aria-label="HR Emploc queue filter"
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none border-b border-border-subtle pb-3"
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">
+              ✓
+            </span>
+            <span className="font-medium text-xs sm:text-sm">{successToast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {errorToast && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-xs">
+              ✕
+            </span>
+            <span className="font-medium text-xs sm:text-sm">{errorToast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorToast(null)}
+            className="rounded p-1 text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors cursor-pointer"
+            aria-label="Dismiss error notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Status Tabs Navigation & Actions (Saved View + Export Data aligned to the right) */}
+      <div
+        aria-label="HR Emploc queue filter"
+        className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface p-2 shadow-2xs"
+      >
+        <div
           role="tablist"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none min-w-0"
         >
           {queueTabs.map((tab) => {
             const Icon = tab.icon;
@@ -259,160 +503,299 @@ export default function HrEmplocPage() {
           })}
         </div>
 
-        {/* Filter Bar Controls */}
-        <AdminFilterBar
-          searchPlaceholder="Search candidate name, VCode, deficiencies..."
-          searchVal={searchDraft}
-          onSearchChange={setSearchDraft}
-          onSearchSubmit={applySearch}
-          disabled={blocked}
-          showApplyButton={true}
-          applyLabel="Search & Filter"
-          extraActionsSlot={
-            <div className="flex items-center gap-2">
-              {queue === "ready" && (
-                <button
-                  className="inline-flex h-10 items-center gap-1.5 rounded-md bg-emerald-700 px-3.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={bulkMoveMutation.isPending || rows.length === 0}
-                  onClick={handleBulkMove}
-                  type="button"
-                >
-                  {bulkMoveMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
-                </button>
+        {/* Right-hand side actions: Saved View & Export Data dropdown */}
+        <div className="ml-auto shrink-0 flex items-center gap-2">
+          {/* Saved View */}
+          <button
+            type="button"
+            onClick={() => setIsSavedViewsModalOpen(true)}
+            aria-label="Open saved views and presets"
+            className="h-9 text-xs font-semibold border border-border-subtle bg-surface hover:bg-surface-hover px-3 flex items-center gap-1.5 rounded-lg text-text-primary transition-colors cursor-pointer"
+          >
+            <FileSearch className="w-3.5 h-3.5 shrink-0 text-text-secondary" />
+            <span>Saved View</span>
+            {savedViews.length > 0 && (
+              <span className="rounded-full bg-brand-50 border border-brand-200 px-1.5 py-0.2 text-[10px] font-semibold text-brand-700">
+                {savedViews.length}
+              </span>
+            )}
+          </button>
+
+          {/* Export Data dropdown */}
+          <div className="relative" ref={exportDropdownRef}>
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={() => setIsExportMenuOpen((prev) => !prev)}
+              aria-expanded={isExportMenuOpen}
+              aria-haspopup="menu"
+              className="h-9 text-xs font-semibold border border-border-subtle bg-surface hover:bg-surface-hover px-3 flex items-center gap-1.5 rounded-lg text-text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-brand-600" />
+              ) : (
+                <Download className="w-4 h-4 shrink-0 text-text-secondary" />
               )}
-              <Link
-                href="/hr-emploc/import"
-                className="inline-flex h-10 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition"
+              <span>{isExporting ? "Exporting..." : "Export Data"}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-text-muted transition-transform duration-150 ${
+                  isExportMenuOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {isExportMenuOpen && (
+              <div
+                role="menu"
+                aria-label="Export options"
+                className="absolute right-0 top-full mt-1.5 w-64 rounded-lg border border-border-subtle bg-surface p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
               >
-                <UploadCloud className="h-4 w-4 text-gray-500" aria-hidden="true" />
-                <span>Import XLSX</span>
-              </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleExport("current_view")}
+                  disabled={isExporting}
+                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold group-hover:text-brand-700">
+                      Export Current View
+                    </span>
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      {summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-text-muted mt-0.5">
+                    {activeQueueLabel} queue ({summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)} records)
+                  </span>
+                </button>
+
+                <div className="my-1 border-t border-border-subtle" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleExport("masterlist")}
+                  disabled={isExporting}
+                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold group-hover:text-brand-700">
+                      Export Masterlist
+                    </span>
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      {summaryQuery.isLoading ? "–" : totalMasterlistCount}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-text-muted mt-0.5">
+                    All queues: Pending to Ready / Transferred
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Compact Enterprise Filter Toolbar */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          applySearch();
+        }}
+        className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-lg border border-border-subtle bg-surface"
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-2.5 min-w-0">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[280px]">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted"
+              aria-hidden="true"
+            />
+            <input
+              aria-label="Search HR Emploc records"
+              className="h-9 w-full rounded-md border border-border-default bg-surface-muted pl-9 pr-8 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base disabled:cursor-not-allowed disabled:opacity-75"
+              disabled={blocked}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applySearch();
+                }
+              }}
+              placeholder="Search applicant name, VCode, position, store, HRCO..."
+              type="text"
+              value={searchDraft}
+            />
+            {searchDraft && (
               <button
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-50/50 cursor-not-allowed"
-                disabled
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                disabled={blocked}
+                onClick={() => {
+                  setSearchDraft("");
+                  setSearch("");
+                  setPage(1);
+                  setSelectedId(null);
+                }}
                 type="button"
               >
-                <FileSearch className="h-4 w-4" aria-hidden="true" />
-                Saved View
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
-            </div>
-          }
-        >
-            {/* Assignment filter */}
-            <select
-              aria-label="Assignment type filter"
-              className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
-              disabled
-              onChange={(event) => {
-                setAssignment(event.target.value as "Stationary" | "Roving" | "");
-                setPage(1);
-                setSelectedId(null);
-              }}
-              value={assignment}
-            >
-              <option value="">All Assignment Types</option>
-              <option value="Stationary">Stationary</option>
-              <option value="Roving">Roving</option>
-            </select>
+            )}
+          </div>
 
-            {/* Position filter */}
-            <div className="relative flex items-center">
-              <Briefcase className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <input
-                aria-label="Position title filter"
-                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
-                disabled
-                onChange={(event) => {
-                  setPosition(event.target.value);
-                  setPage(1);
-                  setSelectedId(null);
-                }}
-                placeholder="Position Filter"
-                type="text"
-                value={position}
-              />
-            </div>
+          {/* Group Selector */}
+          <select
+            aria-label="Group filter"
+            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={blocked}
+            onChange={(e) => {
+              setGroupId(e.target.value);
+              setPage(1);
+              setSelectedId(null);
+            }}
+            value={groupId}
+          >
+            <option value="">All groups</option>
+            {uniqueGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
 
-            {/* Account UUID filter */}
-            <div className="relative flex items-center">
-              <Building className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <input
-                aria-label="Account UUID filter"
-                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
-                disabled={blocked}
-                onChange={(event) => {
-                  setAccountId(event.target.value);
-                  setPage(1);
-                  setSelectedId(null);
-                }}
-                placeholder="Account ID (UUID)"
-                type="text"
-                value={accountId}
-              />
-            </div>
-
-            {/* Group UUID filter */}
-            <div className="relative flex items-center">
-              <Building className="absolute left-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <input
-                aria-label="Group UUID filter"
-                className="h-10 w-[170px] rounded-md border border-gray-200 bg-white pl-8 pr-3 text-sm text-gray-600 outline-none transition-colors focus:border-blue-300"
-                disabled={blocked}
-                onChange={(event) => {
-                  setGroupId(event.target.value);
-                  setPage(1);
-                  setSelectedId(null);
-                }}
-                placeholder="Group ID (UUID)"
-                type="text"
-                value={groupId}
-              />
-            </div>
-          </AdminFilterBar>
+          {/* Account Selector */}
+          <select
+            aria-label="Account filter"
+            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={blocked}
+            onChange={(e) => {
+              setAccountId(e.target.value);
+              setPage(1);
+              setSelectedId(null);
+            }}
+            value={accountId}
+          >
+            <option value="">All accounts</option>
+            {(groupId
+              ? accounts.filter((a) => a.groupId === groupId)
+              : accounts
+            ).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Roster Grid Component */}
-        <HrEmplocTable
-          errorKind={listErrorKind}
-          isLoading={listQuery.isLoading}
-          onPageChange={updatePage}
-          onRetry={retryQueryReads}
-          onSelect={selectRow}
-          onAssignEmployeeNo={(row) => setAssignTarget(row)}
-          page={page}
-          pageSize={pageSize}
-          rows={rows}
-          selectedId={selectedId}
-          queue={queue}
-          queueLabel={activeQueueLabel}
-          totalCount={totalCount}
-        />
+        {/* Action Endcap */}
+        <div className="flex items-center gap-2 shrink-0">
+          {queue === "ready" && (
+            <button
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              disabled={bulkMoveMutation.isPending || rows.length === 0}
+              onClick={handleBulkMove}
+              type="button"
+            >
+              {bulkMoveMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>{bulkMoveMutation.isPending ? "Deploying..." : "Bulk Deploy Ready"}</span>
+            </button>
+          )}
 
-        {/* Selected Details Aside Inspector */}
-        <HrEmplocDetailDrawer
-          hrEmplocId={selectedId}
-          onClose={() => setSelectedId(null)}
-        />
+          {isAnyFilterActive && (
+            <button
+              aria-label="Clear all filters"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+              disabled={blocked}
+              onClick={clearAllFilters}
+              type="button"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Clear All</span>
+            </button>
+          )}
+        </div>
+      </form>
 
-        {/* Inline Assign Employee No Modal (opened from table row) */}
-        {assignTarget && (
-          <AssignEmployeeNoModal
-            hrEmplocId={assignTarget.id}
-            candidateName={assignTarget.applicantName}
-            vcode={assignTarget.vcode}
-            currentEmployeeNo={assignTarget.employeeNo}
-            onClose={() => setAssignTarget(null)}
-            onSuccess={() => {
-              setAssignTarget(null);
-              retryQueryReads();
-            }}
-          />
-        )}
+      {/* Roster Grid Component with Restructured Columns & Row Actions */}
+      <HrEmplocTable
+        errorKind={listErrorKind}
+        isLoading={listQuery.isLoading}
+        onPageChange={updatePage}
+        onRetry={retryQueryReads}
+        onSelect={selectRow}
+        onAddEmploc={(row) => setAssignTarget(row)}
+        onForCorrection={(row) => setCorrectionTarget(row)}
+        onAssignEmployeeNo={(row) => setAssignTarget(row)}
+        page={page}
+        pageSize={pageSize}
+        rows={rows}
+        selectedId={selectedId}
+        queue={queue}
+        queueLabel={activeQueueLabel}
+        totalCount={totalCount}
+      />
+
+      {/* Selected Details Aside Inspector */}
+      <HrEmplocDetailDrawer
+        hrEmplocId={selectedId}
+        onClose={() => setSelectedId(null)}
+      />
+
+      {/* Add Emploc / Placement Onboarding Modal */}
+      {assignTarget && (
+        <AssignEmployeeNoModal
+          hrEmplocId={assignTarget.id}
+          candidateName={assignTarget.applicantName}
+          vcode={assignTarget.vcode}
+          currentEmployeeNo={assignTarget.employeeNo}
+          onClose={() => setAssignTarget(null)}
+          onSuccess={() => {
+            setAssignTarget(null);
+            setSuccessToast({
+              message: `Placement onboarding updated for ${assignTarget.applicantName}.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* For Correction Modal */}
+      {correctionTarget && (
+        <TagDeficiencyModal
+          isOpen={true}
+          hrEmplocId={correctionTarget.id}
+          applicantName={correctionTarget.applicantName}
+          vcode={correctionTarget.vcode}
+          onClose={() => setCorrectionTarget(null)}
+          onSuccess={() => {
+            setCorrectionTarget(null);
+            setSuccessToast({
+              message: `Record ${correctionTarget.vcode} returned for correction successfully.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Saved Views Modal */}
+      <HrEmplocSavedViewsModal
+        isOpen={isSavedViewsModalOpen}
+        onClose={() => setIsSavedViewsModalOpen(false)}
+        currentFilters={currentFilters}
+        accounts={accounts}
+        groups={uniqueGroups}
+        savedViews={savedViews}
+        onSaveView={handleSaveView}
+        onUpdateView={handleUpdateView}
+        onDeleteView={handleDeleteView}
+        onApplyView={handleApplySavedView}
+      />
 
       {/* Footer System Boundaries Notice */}
       <section className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-3">
@@ -476,7 +859,7 @@ export default function HrEmplocPage() {
               <button
                 type="button"
                 onClick={() => setBulkResultModal(null)}
-                className="rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition"
+                className="rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition cursor-pointer"
               >
                 Done
               </button>

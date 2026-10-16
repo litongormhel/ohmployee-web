@@ -6,6 +6,8 @@ import {
   Eye,
   LockKeyhole,
   AlertTriangle,
+  UserCheck,
+  AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DataState } from "@/components/shared/DataState";
@@ -18,14 +20,15 @@ import type {
 export type { HrEmplocQueue } from "@/lib/queries/hr_emploc";
 
 const tableColumns = [
-  "Candidate",
+  "Group",
+  "Account",
+  "Store",
   "VCode",
-  "Account / Store",
-  "Assignment",
+  "Applicant",
   "Position",
-  "Employee No",
-  "SLA Age",
-  "",
+  "HRCO",
+  "SLA",
+  "Actions",
 ];
 
 type HrEmplocTableProps = {
@@ -41,6 +44,8 @@ type HrEmplocTableProps = {
   onSelect: (row: HrEmplocListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
+  onAddEmploc?: (row: HrEmplocListItem) => void;
+  onForCorrection?: (row: HrEmplocListItem) => void;
   onAssignEmployeeNo?: (row: HrEmplocListItem) => void;
 };
 
@@ -67,14 +72,20 @@ export function HrEmplocTable({
   onSelect,
   onRetry,
   onPageChange,
+  onAddEmploc,
+  onForCorrection,
   onAssignEmployeeNo,
 }: HrEmplocTableProps) {
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastRecord = Math.min(totalCount, page * pageSize);
 
+  const handleAddEmploc = onAddEmploc || onAssignEmployeeNo;
+
   const getErrorTitle = () => {
-    return errorKind === "access_denied" ? "HR Emploc Access Blocked" : "Compliance Queue Data Unavailable";
+    return errorKind === "access_denied"
+      ? "HR Emploc Access Blocked"
+      : "Compliance Queue Data Unavailable";
   };
 
   const getErrorDescription = () => {
@@ -85,20 +96,15 @@ export function HrEmplocTable({
 
   return (
     <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
-      {/* Table Header Controls */}
+      {/* Table Header Controls (without descriptive subtext banner) */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-table-rule-section px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-table-text">
-              {queueLabel}
-            </h2>
-            <Badge className="font-mono text-[10px] text-table-text-muted bg-surface-muted hover:bg-surface-muted border-none">
-              {queue}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-table-text-muted">
-            Compact queue tracking compliant onboarding milestones.
-          </p>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-table-text">
+            {queueLabel}
+          </h2>
+          <Badge className="font-mono text-[10px] text-table-text-muted bg-surface-muted hover:bg-surface-muted border-none">
+            {queue}
+          </Badge>
         </div>
         <div className="flex items-center gap-2 text-sm text-table-text-muted">
           <Clock3 className="h-4 w-4" aria-hidden="true" />
@@ -111,12 +117,12 @@ export function HrEmplocTable({
         <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-[0.9375rem]">
           <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
             <tr>
-              {tableColumns.map((column, idx) => (
+              {tableColumns.map((column) => (
                 <th
                   className={`border-b border-table-rule-section px-4 py-2.5 ${
-                    column === "" ? "text-right" : ""
+                    column === "Actions" ? "text-right" : ""
                   }`}
-                  key={column || `actions-${idx}`}
+                  key={column}
                   scope="col"
                 >
                   {column}
@@ -180,11 +186,36 @@ export function HrEmplocTable({
                       }
                     }}
                   >
-                    {/* Candidate Name */}
+                    {/* 1. Group */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text font-medium truncate max-w-[140px]">
+                      {row.groupName ?? "--"}
+                    </td>
+
+                    {/* 2. Account */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text truncate max-w-[160px]">
+                      {row.accountName ?? "--"}
+                    </td>
+
+                    {/* 3. Store */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-muted truncate max-w-[160px]">
+                      {row.storeName ?? "--"}
+                    </td>
+
+                    {/* 4. VCode */}
+                    <td className="border-b border-table-rule px-4 py-2.5">
+                      <span className="font-mono text-xs text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 select-all">
+                        {row.vcode}
+                      </span>
+                    </td>
+
+                    {/* 5. Applicant */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="font-semibold text-table-text flex items-center gap-1.5">
                         {isPendingDeletion && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-status-danger-text shrink-0" aria-hidden="true" />
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 text-status-danger-text shrink-0"
+                            aria-hidden="true"
+                          />
                         )}
                         <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
                           {row.applicantName}
@@ -192,107 +223,76 @@ export function HrEmplocTable({
                       </div>
                     </td>
 
-                    {/* Vacancy Code */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
-                      <span className="font-mono text-xs text-mono-pill-ink bg-mono-pill-surface border border-mono-pill-ring rounded px-1.5 py-0.5 select-all">
-                        {row.vcode}
-                      </span>
-                    </td>
-
-                    {/* Account / Store */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      <div className="font-medium text-table-text truncate max-w-[180px]">
-                        {row.accountName ?? "--"}
-                      </div>
-                      <div className="text-xs text-table-text-muted truncate max-w-[180px]">
-                        {row.storeName ?? "--"}
-                      </div>
-                    </td>
-
-                    {/* Assignment Type */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      {row.assignmentType === "Roving" ? (
-                        <div className="relative group inline-block">
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-status-accent-bg text-status-accent-text border border-status-accent-border">
-                            Roving ({row.coveredStoresCount})
-                          </span>
-                          {/* Tooltip */}
-                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded py-1 px-2.5 shadow-md whitespace-nowrap z-30 transition duration-150">
-                            Covers {row.coveredStoresCount} roving store placements.
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-status-neutral-bg text-status-neutral-text border border-status-neutral-border">
-                          Stationary
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Position */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text">
+                    {/* 6. Position */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text truncate max-w-[160px]">
                       {row.positionTitle ?? "--"}
                     </td>
 
-                    {/* Employee Number */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
-                      {row.employeeNo ? (
-                        <Badge className="font-mono text-xs bg-status-success-bg text-status-success-text border-status-success-border">
-                          {row.employeeNo}
-                        </Badge>
-                      ) : onAssignEmployeeNo && row.rowCapabilities.canAssignEmployeeNo ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAssignEmployeeNo(row);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-blue-200 bg-blue-50/50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
-                          aria-label={`Assign employee number for ${row.applicantName}`}
-                        >
-                          <span>+ Add Emploc</span>
-                        </button>
-                      ) : (
-                        <span className="text-table-text-muted">—</span>
-                      )}
+                    {/* 7. HRCO */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px]">
+                      {row.hrcoName ?? "--"}
                     </td>
 
-                    {/* SLA Age — color-coded: ≤30d green, 31-60d amber, >60d red */}
-                    <td className="border-b border-table-rule px-4 py-2.5">
+                    {/* 8. SLA (Aging) */}
+                    <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${getSlaColorClass(row.slaElapsedDays)}`}
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${getSlaColorClass(
+                          row.slaElapsedDays
+                        )}`}
                       >
                         {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
                       </span>
                     </td>
 
-                    {/* Actions */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-right">
+                    {/* 9. Actions */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Capability hints */}
-                        {row.rowCapabilities.canAssignEmployeeNo && (
-                          <span
-                            aria-label="Can assign employee number"
-                            className="inline-block w-2 h-2 rounded-full bg-status-success-text"
-                            title="Can Assign Employee ID"
-                          />
+                        {/* Inline Operational Actions for Pending Queue */}
+                        {queue === "pending" && (
+                          <>
+                            {handleAddEmploc && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddEmploc(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-600 hover:bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Add Emploc for ${row.applicantName}`}
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span>Add Emploc</span>
+                              </button>
+                            )}
+
+                            {onForCorrection && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onForCorrection(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Return for correction for ${row.applicantName}`}
+                              >
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                <span>For Correction</span>
+                              </button>
+                            )}
+                          </>
                         )}
-                        {row.rowCapabilities.canMoveToPlantilla && (
-                          <span
-                            aria-label="Can deploy to Plantilla"
-                            className="inline-block w-2 h-2 rounded-full bg-status-info-text"
-                            title="Can Deploy to Plantilla"
-                          />
-                        )}
+
+                        {/* Status / capability indicators */}
                         {isPendingDeletion && (
                           <span title="Record Locked: Pending Deletion">
-                            <LockKeyhole
-                              className="h-3.5 w-3.5 text-status-danger-text"
-                            />
+                            <LockKeyhole className="h-3.5 w-3.5 text-status-danger-text" />
                           </span>
                         )}
+
+                        {/* Inspect Candidate Detail */}
                         <button
                           aria-label={`Inspect candidate ${row.applicantName}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition cursor-pointer"
                           disabled={!row.rowCapabilities.canViewDetail}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -319,7 +319,7 @@ export function HrEmplocTable({
         </span>
         <div className="flex items-center gap-2">
           <button
-            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={page <= 1 || isLoading}
             onClick={() => onPageChange(page - 1)}
             type="button"
@@ -330,7 +330,7 @@ export function HrEmplocTable({
             Page {page} of {pageCount}
           </span>
           <button
-            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={page >= pageCount || isLoading}
             onClick={() => onPageChange(page + 1)}
             type="button"
