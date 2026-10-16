@@ -1691,7 +1691,7 @@ export async function listVacancies(params: VacancyListParams) {
 
   return {
     data: finalRows,
-    totalCount: currentTab === "open" ? finalRows.length : getTotalCount(finalRows),
+    totalCount: getTotalCount(finalRows) || getTotalCount(rows),
     page,
     pageSize,
   };
