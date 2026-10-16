@@ -1,5 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 export type HrEmplocQueue =
   | "pending"
@@ -329,7 +330,7 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
 
   return {
     id,
-    applicantName: asString(row.applicant_name ?? row.applicantName) ?? "Anonymous",
+    applicantName: formatPersonName(null, null, null, asString(row.applicant_name ?? row.applicantName) ?? "Anonymous"),
     vcode: asString(row.vcode) ?? "Uncoded",
     accountId: asString(row.account_id ?? row.accountId),
     accountName: asString(row.account_name ?? row.accountName),
@@ -436,7 +437,7 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
 
   return {
     id,
-    applicantName: asString(row.applicant_name ?? row.applicantName) ?? "Anonymous",
+    applicantName: formatPersonName(null, null, null, asString(row.applicant_name ?? row.applicantName) ?? "Anonymous"),
     vcode: asString(row.vcode) ?? "Uncoded",
     accountName: asString(row.account_name ?? row.accountName) ?? null,
     storeName: asString(row.store_name ?? row.storeName) ?? null,

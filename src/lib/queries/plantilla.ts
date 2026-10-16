@@ -1,6 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 // ---------------------------------------------------------------------------
 // Primitive types
@@ -224,6 +225,10 @@ export type PlantillaEmployeeListItem = {
   employeeNo: string;
   firstName: string | null;
   lastName: string | null;
+  fullName?: string | null;
+  vcode?: string | null;
+  cgCode?: string | null;
+  assignedStores?: string[];
   positionTitle: string | null;
   accountName: string | null;
   primaryStoreName: string | null;
@@ -445,45 +450,24 @@ function parseAndFormatName(
   lastName: string | null,
   middleName: string | null,
   fullName: string | null
-): { firstName: string | null; lastName: string | null } {
-  if (firstName && lastName) {
-    const fName = middleName ? `${firstName} ${middleName}` : firstName;
-    return {
-      firstName: fName,
-      lastName: lastName,
-    };
+): { firstName: string | null; lastName: string | null; fullName: string | null } {
+  const formatted = formatPersonName(firstName, lastName, middleName, fullName);
+  if (!formatted) {
+    return { firstName: null, lastName: null, fullName: null };
   }
 
-  const name = fullName ? fullName.trim() : "";
-  if (!name) {
-    return { firstName: null, lastName: null };
-  }
-
-  if (name.toLowerCase().includes("vacant")) {
-    return { firstName: name, lastName: null };
-  }
-
-  const commaIndex = name.indexOf(",");
+  const commaIndex = formatted.indexOf(",");
   if (commaIndex !== -1) {
-    const lastPart = name.substring(0, commaIndex).trim();
-    const firstPart = name.substring(commaIndex + 1).trim();
+    const lastPart = formatted.substring(0, commaIndex).trim();
+    const firstPart = formatted.substring(commaIndex + 1).trim();
     return {
       firstName: firstPart || null,
       lastName: lastPart || null,
+      fullName: formatted,
     };
   }
 
-  const parts = name.split(/\s+/);
-  if (parts.length >= 2) {
-    const lastPart = parts[parts.length - 1];
-    const firstParts = parts.slice(0, parts.length - 1);
-    return {
-      firstName: firstParts.join(" "),
-      lastName: lastPart,
-    };
-  }
-
-  return { firstName: name, lastName: null };
+  return { firstName: formatted, lastName: null, fullName: formatted };
 }
 
 function getErrorKind(error: PostgrestError): PlantillaDataErrorKind {
@@ -653,11 +637,17 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     asString(row.employee_name ?? row.employeeName)
   );
 
+  const rawVcode = asString(row.vcode);
+  const isCg = rawVcode?.startsWith("CG-") || false;
+
   return {
     id,
     employeeNo: asString(row.employee_no) ?? "Uncoded",
     firstName: nameObj.firstName,
     lastName: nameObj.lastName,
+    fullName: nameObj.fullName,
+    vcode: rawVcode,
+    cgCode: isCg ? rawVcode : null,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
     primaryStoreName: asString(row.primary_store_name ?? row.store_name),
@@ -927,6 +917,50 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
   const rows = (Array.isArray(data) ? data : [])
     .map((row) => normalizeEmployeeListRow(asObject(row)))
     .filter((row): row is PlantillaEmployeeListItem => row !== null);
+
+  // Enrich assigned stores for coverage group employees (e.g., CG-TG2-0006)
+  const cgCodes = Array.from(
+    new Set(
+      rows
+        .map((r) => r.vcode)
+        .filter((v): v is string => Boolean(v && v.startsWith("CG-"))),
+    ),
+  );
+
+  if (cgCodes.length > 0) {
+    try {
+      const { data: cgData } = await supabase
+        .from("coverage_groups")
+        .select("coverage_code, coverage_group_stores(stores(store_name))")
+        .in("coverage_code", cgCodes)
+        .is("archived_at", null);
+
+      if (cgData) {
+        const storeMap = new Map<string, string[]>();
+        for (const item of cgData as Array<Record<string, unknown>>) {
+          const code = asString(item.coverage_code);
+          const cgs = Array.isArray(item.coverage_group_stores) ? item.coverage_group_stores : [];
+          const stores: string[] = [];
+          for (const s of cgs as Array<Record<string, unknown>>) {
+            const stObj = (s as Record<string, unknown>).stores as Record<string, unknown> | null;
+            const stName = asString(stObj?.store_name);
+            if (stName) stores.push(stName);
+          }
+          if (code && stores.length > 0) {
+            storeMap.set(code, stores);
+          }
+        }
+
+        for (const r of rows) {
+          if (r.vcode && storeMap.has(r.vcode)) {
+            r.assignedStores = storeMap.get(r.vcode);
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
 
   return {
     data: rows,

@@ -1,6 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 export type VacancyStatus =
   | "open"
@@ -48,6 +49,8 @@ export type VacancyRowCapabilities = {
 export type VacancyListItem = {
   id: string;
   vcode: string;
+  cgCode?: string | null;
+  assignedStores?: string[];
   accountId: string | null;
   accountName: string | null;
   groupId: string | null;
@@ -116,6 +119,8 @@ export type ActivityHistoryItem = {
 export type VacancyDetailItem = {
   vacancyId: string;
   vcode: string;
+  cgCode?: string | null;
+  assignedStores?: string[];
   accountId: string | null;
   accountName: string | null;
   groupId: string | null;
@@ -389,11 +394,12 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     row.full_name ??
     row.candidate_name,
   );
-  const applicantName = rawApplicantName
-    ? rawApplicantName
-    : applicantLastName && applicantFirstName
-    ? `${applicantLastName}, ${applicantFirstName}`
-    : applicantLastName || applicantFirstName || null;
+  const applicantName = formatPersonName(
+    applicantFirstName,
+    applicantLastName,
+    null,
+    rawApplicantName,
+  ) || null;
 
   const penaltyAmount = asNumber(row.penalty_amount ?? row.penalty_exposure);
   const hasPenalty =
@@ -418,9 +424,34 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   );
   const hiredDate = asString(row.hired_date ?? row.onboard_date);
 
+  const rawVcode = asString(row.vcode ?? row.vacancy_code) ?? "Uncoded";
+  const cgCode = asString(row.cg_code ?? row.coverage_code) ?? (rawVcode.startsWith("CG-") ? rawVcode : null);
+  const vcode = cgCode || rawVcode;
+
+  let agingDays = asNumber(row.aging_days);
+  if (agingDays === null || isNaN(agingDays)) {
+    const vDateStr = asString(row.vacant_date ?? row.created_at);
+    if (vDateStr) {
+      const vDate = new Date(vDateStr);
+      if (!isNaN(vDate.getTime())) {
+        const diffMs = Date.now() - vDate.getTime();
+        agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      }
+    }
+  }
+
+  let agingBucket = asString(row.aging_bucket);
+  if ((!agingBucket || agingBucket === "unknown") && agingDays !== null) {
+    if (agingDays <= 7) agingBucket = "0_7";
+    else if (agingDays <= 14) agingBucket = "8_14";
+    else if (agingDays <= 30) agingBucket = "15_30";
+    else agingBucket = "31_plus";
+  }
+
   return {
     id,
-    vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
+    vcode,
+    cgCode,
     accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
     groupId: asString(row.group_id),
@@ -440,8 +471,8 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hasPendingClosure: asBoolean(row.has_pending_closure),
     closureRequestStatus: asString(row.closure_request_status),
     vacantDate: asString(row.vacant_date),
-    agingDays: asNumber(row.aging_days),
-    agingBucket: asString(row.aging_bucket),
+    agingDays,
+    agingBucket,
     targetFillDate: asString(row.target_fill_date),
     urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
@@ -470,22 +501,21 @@ function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
   const obj = asObject(item);
   const lastName = asString(obj.last_name ?? obj.applicant_last_name);
   const firstName = asString(obj.first_name ?? obj.applicant_first_name);
-  let displayName = asString(obj.display_name ?? obj.full_name ?? obj.name);
-  if (!displayName && (lastName || firstName)) {
-    displayName = [firstName, lastName].filter(Boolean).join(" ");
-  }
+  const middleName = asString(obj.middle_name);
+  const rawDisplayName = asString(obj.display_name ?? obj.full_name ?? obj.name);
+  const displayName = formatPersonName(firstName, lastName, middleName, rawDisplayName) || "Anonymous";
 
   return {
     applicantId: asString(obj.applicant_id ?? obj.id) ?? "",
-    displayName: displayName ?? "Anonymous",
+    displayName,
     lastName,
     firstName,
     contactNumber: asString(obj.contact_number ?? obj.mobile_number ?? obj.phone),
     statusLabel: asString(obj.status_label ?? obj.status) ?? "New",
     onboardDate: asString(obj.onboard_date ?? obj.hired_date),
     updatedAt: asString(obj.updated_at ?? obj.created_at),
-    recruiterName: asString(obj.recruiter_name ?? obj.recruited_by_name),
-    deployedByName: asString(obj.deployed_by_name ?? obj.deployed_by),
+    recruiterName: formatPersonName(null, null, null, asString(obj.recruiter_name ?? obj.recruited_by_name)) || null,
+    deployedByName: formatPersonName(null, null, null, asString(obj.deployed_by_name ?? obj.deployed_by)) || null,
   };
 }
 
@@ -526,11 +556,12 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     row.full_name ??
     row.candidate_name,
   );
-  const applicantName = rawApplicantName
-    ? rawApplicantName
-    : applicantLastName && applicantFirstName
-    ? `${applicantLastName}, ${applicantFirstName}`
-    : applicantLastName || applicantFirstName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous" ? primaryApplicant.displayName : null);
+  const applicantName = formatPersonName(
+    applicantFirstName,
+    applicantLastName,
+    null,
+    rawApplicantName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous" ? primaryApplicant.displayName : null),
+  ) || null;
 
   const contactNumber = asString(
     row.contact_number ??
@@ -556,20 +587,30 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     row.vacancy_remarks,
   );
 
-  const recruiterName = asString(
-    row.recruiter_name ??
-    row.recruited_by_name ??
-    row.assigned_encoder_name ??
-    primaryApplicant?.recruiterName,
-  );
+  const recruiterName = formatPersonName(
+    null,
+    null,
+    null,
+    asString(
+      row.recruiter_name ??
+      row.recruited_by_name ??
+      row.assigned_encoder_name ??
+      primaryApplicant?.recruiterName,
+    ),
+  ) || null;
 
-  const deployedByName = asString(
-    row.deployed_by_name ??
-    row.deployed_by ??
-    row.endorsed_by_name ??
-    row.triggered_by_name ??
-    primaryApplicant?.deployedByName,
-  );
+  const deployedByName = formatPersonName(
+    null,
+    null,
+    null,
+    asString(
+      row.deployed_by_name ??
+      row.deployed_by ??
+      row.endorsed_by_name ??
+      row.triggered_by_name ??
+      primaryApplicant?.deployedByName,
+    ),
+  ) || null;
 
   const onboardDate = asString(
     row.onboard_date ??
@@ -578,9 +619,34 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     primaryApplicant?.onboardDate,
   );
 
+  const rawVcode = asString(row.vcode ?? row.vacancy_code) ?? "Uncoded";
+  const cgCode = asString(row.cg_code ?? row.coverage_code) ?? (rawVcode.startsWith("CG-") ? rawVcode : null);
+  const vcode = cgCode || rawVcode;
+
+  let agingDays = asNumber(row.aging_days);
+  if (agingDays === null || isNaN(agingDays)) {
+    const vDateStr = asString(row.vacant_date ?? row.created_at);
+    if (vDateStr) {
+      const vDate = new Date(vDateStr);
+      if (!isNaN(vDate.getTime())) {
+        const diffMs = Date.now() - vDate.getTime();
+        agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      }
+    }
+  }
+
+  let agingBucket = asString(row.aging_bucket);
+  if ((!agingBucket || agingBucket === "unknown") && agingDays !== null) {
+    if (agingDays <= 7) agingBucket = "0_7";
+    else if (agingDays <= 14) agingBucket = "8_14";
+    else if (agingDays <= 30) agingBucket = "15_30";
+    else agingBucket = "31_plus";
+  }
+
   return {
     vacancyId: id,
-    vcode: asString(row.vcode ?? row.vacancy_code) ?? "Uncoded",
+    vcode,
+    cgCode,
     accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
     groupId: asString(row.group_id),
@@ -603,8 +669,8 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
       asString(row.closure_request_status) ||
       asString((row.row_capabilities as Record<string, unknown> | undefined)?.closure_request_status),
     vacantDate: asString(row.vacant_date),
-    agingDays: asNumber(row.aging_days),
-    agingBucket: asString(row.aging_bucket),
+    agingDays,
+    agingBucket,
     targetFillDate: asString(row.target_fill_date),
     urgencyLevel: asString(row.urgency_level ?? row.urgency),
     hrcoName: asString(row.hrco_name),
@@ -932,11 +998,7 @@ export async function listVacancies(params: VacancyListParams) {
           const lName = asString(h.last_name);
           const fName = asString(h.first_name);
           const rawFull = asString(h.full_name);
-          const workerName = rawFull
-            ? rawFull
-            : lName && fName
-            ? `${lName}, ${fName}`
-            : lName || fName || "Hired Worker";
+          const workerName = formatPersonName(fName, lName, null, rawFull || "Hired Worker");
 
           const hiredDate = asString(h.hired_date ?? h.hired_at);
           const position = asString(h.position_name ?? h.position);
@@ -1307,7 +1369,7 @@ export async function listVacancies(params: VacancyListParams) {
           const lName = asString(d.last_name);
           const fName = asString(d.first_name);
           const fFull = asString(d.full_name);
-          const candidateName = fFull || (lName && fName ? `${lName}, ${fName}` : lName || fName || "Candidate");
+          const candidateName = formatPersonName(fName, lName, null, fFull || "Candidate");
           const storeName = asString(vac?.store_name ?? vac?.store_branch);
           const position = asString(vac?.position) ?? "—";
           const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || null;
@@ -1652,7 +1714,7 @@ export async function listVacancies(params: VacancyListParams) {
               const lName = asString(active.last_name);
               const fName = asString(active.first_name);
               const fFull = asString(active.full_name);
-              row.applicantName = fFull || (lName && fName ? `${lName}, ${fName}` : lName || fName || row.applicantName);
+              row.applicantName = formatPersonName(fName, lName, null, fFull || row.applicantName);
               row.stageBadge = asString(active.status) || "In Pipeline";
             }
           }
@@ -1660,6 +1722,66 @@ export async function listVacancies(params: VacancyListParams) {
       }
     } catch {
       // Graceful fallback if applicants lookup fails
+    }
+  }
+
+  // Enrich coverage group CGCode and assigned stores for multi-store / coverage group vacancies
+  if (allVcodes.length > 0) {
+    try {
+      const { data: cgShadowData } = await supabase
+        .from("vw_slot_derived_vacancy_cg_covered_shadow")
+        .select("legacy_vcode, cg_code, coverage_group_id")
+        .in("legacy_vcode", allVcodes);
+
+      if (cgShadowData && cgShadowData.length > 0) {
+        const cgIdMap = new Map<string, { cgCode: string; coverageGroupId: string }>();
+        const cgIds: string[] = [];
+        for (const item of cgShadowData as Array<{ legacy_vcode: string; cg_code: string; coverage_group_id: string }>) {
+          if (item.legacy_vcode) {
+            cgIdMap.set(item.legacy_vcode, {
+              cgCode: item.cg_code,
+              coverageGroupId: item.coverage_group_id,
+            });
+            if (item.coverage_group_id) {
+              cgIds.push(item.coverage_group_id);
+            }
+          }
+        }
+
+        const cgStoresMap = new Map<string, string[]>();
+        if (cgIds.length > 0) {
+          const { data: cgsData } = await supabase
+            .from("coverage_group_stores")
+            .select("coverage_group_id, stores(store_name)")
+            .in("coverage_group_id", Array.from(new Set(cgIds)))
+            .is("archived_at", null);
+
+          if (cgsData) {
+            for (const item of cgsData as Array<Record<string, unknown>>) {
+              const cgId = asString(item.coverage_group_id);
+              const storeObj = item.stores as Record<string, unknown> | null;
+              const storeName = asString(storeObj?.store_name);
+              if (cgId && storeName) {
+                if (!cgStoresMap.has(cgId)) cgStoresMap.set(cgId, []);
+                cgStoresMap.get(cgId)!.push(storeName);
+              }
+            }
+          }
+        }
+
+        for (const row of rows) {
+          const cgInfo = cgIdMap.get(row.vcode);
+          if (cgInfo) {
+            row.cgCode = cgInfo.cgCode;
+            const stores = cgStoresMap.get(cgInfo.coverageGroupId);
+            if (stores && stores.length > 0) {
+              row.assignedStores = stores;
+            }
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
     }
   }
 
@@ -1724,7 +1846,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             const lName = asString(match.last_name);
             const fName = asString(match.first_name);
             const rawFull = asString(match.full_name);
-            const workerName = rawFull || (lName && fName ? `${lName}, ${fName}` : lName || fName || "Hired Worker");
+            const workerName = formatPersonName(fName, lName, null, rawFull || "Hired Worker");
             const hiredDate = asString(match.hired_date ?? match.hired_at);
             const pos = asString(match.position_name ?? match.position);
 
@@ -1958,10 +2080,10 @@ export async function endorseApplicant(
 ): Promise<EndorseApplicantResult> {
   const supabase = createClient();
   const vcode = params.vcode.trim();
-  const firstName = params.firstName.trim();
-  const lastName = params.lastName.trim();
-  const middleName = params.middleName?.trim() || "";
-  const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
+  const firstName = params.firstName.trim().toUpperCase();
+  const lastName = params.lastName.trim().toUpperCase();
+  const middleName = params.middleName?.trim().toUpperCase() || "";
+  const fullName = formatPersonName(firstName, lastName, middleName);
   
   // Normalize contact number: must be 11 digits starting with 09
   const cleanContact = params.contactNumber.replace(/[^0-9]/g, "");

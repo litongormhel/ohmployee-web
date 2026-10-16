@@ -24,6 +24,7 @@ import type {
   VacancyListItem,
   VacancyStatus,
 } from "@/lib/queries/vacancy";
+import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
@@ -294,7 +295,7 @@ export function VacancyTable({
                   >
                     {/* 1. VCODE */}
                     <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm font-semibold text-table-text-sub">
-                      {row.vcode}
+                      {row.cgCode || row.vcode || "Uncoded"}
                     </td>
 
                     {/* 2. POSITION */}
@@ -319,14 +320,26 @@ export function VacancyTable({
 
                     {/* 4. OUTLET NAME */}
                     <td className="border-b border-table-rule px-4 py-2.5">
-                      <div className="font-medium text-table-text">
-                        {row.storeName ?? "—"}
-                      </div>
-                      {row.storeLocation ? (
-                        <div className="text-xs text-table-text-muted">
-                          {row.storeLocation}
-                        </div>
-                      ) : null}
+                      {(() => {
+                        const storeInfo = formatStoreDisplay(row.storeName, row.assignedStores);
+                        return (
+                          <div title={storeInfo.isMulti ? storeInfo.tooltip : undefined}>
+                            <div className="font-medium text-table-text flex items-center gap-1.5">
+                              <span className="truncate">{storeInfo.displayText}</span>
+                              {storeInfo.isMulti && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                                  +{storeInfo.extraCount}
+                                </span>
+                              )}
+                            </div>
+                            {row.storeLocation ? (
+                              <div className="text-xs text-table-text-muted">
+                                {row.storeLocation}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* 5. HRCO */}
@@ -372,7 +385,7 @@ export function VacancyTable({
                               /* Pipeline Tab: Display Candidate Full Name, and underneath, mobile phone number with phone icon */
                               <div className="flex flex-col gap-0.5">
                                 <div className="font-semibold text-table-text">
-                                  {row.applicantName || "Assigned Candidate"}
+                                  {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Assigned Candidate"}
                                 </div>
                                 {row.contactNumber ? (
                                   <div className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
@@ -385,7 +398,7 @@ export function VacancyTable({
                               /* Hired Tab: Display Hired Worker Name, Onboard Date, and Position */
                               <div className="flex flex-col gap-0.5">
                                 <div className="font-semibold text-table-text">
-                                  {row.applicantName || "Hired Worker"}
+                                  {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Hired Worker"}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
                                   {row.hiredDate && (
@@ -404,7 +417,7 @@ export function VacancyTable({
                               /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
                               <div className="flex flex-col gap-1">
                                 <div className="font-semibold text-table-text">
-                                  {row.applicantName || "Candidate"}
+                                  {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Candidate"}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {row.dropoutDate && (
@@ -415,7 +428,7 @@ export function VacancyTable({
                                 </div>
                               </div>
                             ) : (
-                              row.applicantName || "—"
+                              row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "—"
                             )}
                           </td>
                         )}

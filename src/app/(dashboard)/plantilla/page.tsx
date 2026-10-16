@@ -42,6 +42,7 @@ import {
 } from "@/lib/queries/plantilla";
 import { fetchTeamDirectory, type TeamDirectoryUser } from "@/lib/queries/team_directory";
 import { listVacancies, type VacancyListItem } from "@/lib/queries/vacancy";
+import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
 import { StoreStaffingOverviewDrawer } from "@/components/plantilla/StoreStaffingOverviewDrawer";
@@ -1483,9 +1484,12 @@ function EmployeeTable({
                 : "transition-colors hover:bg-table-row-hover cursor-pointer";
 
               const displayName =
-                row.lastName && row.firstName
-                  ? `${row.lastName}, ${row.firstName}`
-                  : (row.lastName ?? row.firstName ?? "—");
+                formatPersonName(
+                  row.firstName,
+                  row.lastName,
+                  null,
+                  row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+                ) || "—";
 
               const initials = getInitials(row.firstName, row.lastName);
 
@@ -1527,7 +1531,7 @@ function EmployeeTable({
                           )}
                         </div>
                         <div className="font-mono text-xs text-table-text-muted mt-0.5">
-                          {row.employeeNo}
+                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
                         </div>
                       </div>
                     </div>
@@ -1535,21 +1539,31 @@ function EmployeeTable({
 
                   {/* STORE */}
                   <td className="px-4 py-3 text-table-text">
-                    <div className="min-w-0">
-                      <div className="font-medium text-table-text truncate">
-                        {row.primaryStoreName || "Unassigned Outlet"}
-                      </div>
-                      {locationLabel ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[150px]">{locationLabel}</span>
-                        </span>
-                      ) : row.accountName ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
-                          {row.accountName}
-                        </span>
-                      ) : null}
-                    </div>
+                    {(() => {
+                      const storeObj = formatStoreDisplay(row.primaryStoreName, row.assignedStores);
+                      return (
+                        <div className="min-w-0" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
+                          <div className="font-medium text-table-text flex items-center gap-1.5">
+                            <span className="truncate">{storeObj.displayText}</span>
+                            {storeObj.isMulti && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                                +{storeObj.extraCount}
+                              </span>
+                            )}
+                          </div>
+                          {locationLabel ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
+                              <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                              <span className="truncate max-w-[150px]">{locationLabel}</span>
+                            </span>
+                          ) : row.accountName ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
+                              {row.accountName}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* POSITION */}
@@ -1680,13 +1694,25 @@ function VacancyTable({
                 onClick={onRequestHeadcount}
               >
                 <td className="px-4 py-3 font-mono font-bold text-brand-700">
-                  {row.vcode}
+                  {row.cgCode || row.vcode || "Uncoded"}
                 </td>
                 <td className="px-4 py-3 font-medium text-table-text">
                   {row.position_title || "General Staff"}
                 </td>
                 <td className="px-4 py-3 text-table-text">
-                  {row.storeName || "Unassigned Outlet"}
+                  {(() => {
+                    const storeObj = formatStoreDisplay(row.storeName, row.assignedStores);
+                    return (
+                      <div className="flex items-center gap-1.5" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
+                        <span className="truncate">{storeObj.displayText}</span>
+                        {storeObj.isMulti && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                            +{storeObj.extraCount}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3 font-mono font-bold text-table-text">
                   {row.activeApplicantCount > 0 ? row.activeApplicantCount : 1}
@@ -1745,9 +1771,12 @@ function EmployeeCard({
 }) {
   const overlay = deriveDeactivationOverlay(row.plantillaStatus);
   const displayName =
-    row.lastName && row.firstName
-      ? `${row.lastName}, ${row.firstName}`
-      : (row.lastName ?? row.firstName ?? "—");
+    formatPersonName(
+      row.firstName,
+      row.lastName,
+      null,
+      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+    ) || "—";
 
   const initials = getInitials(row.firstName, row.lastName);
 
@@ -1802,7 +1831,9 @@ function EmployeeCard({
             </div>
 
             <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="font-mono text-text-secondary">
+                {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo || "—"}
+              </span>
               <span className="text-text-muted/40">•</span>
               <span className="font-semibold text-brand-700 truncate">
                 {row.positionTitle || "General Staff"}
@@ -1827,13 +1858,23 @@ function EmployeeCard({
       </div>
 
       <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {row.primaryStoreName || "Unassigned Outlet"}
-            {locationLabel ? ` (${locationLabel})` : ""}
-          </span>
-        </div>
+        {(() => {
+          const storeObj = formatStoreDisplay(row.primaryStoreName, row.assignedStores);
+          return (
+            <div className="flex items-center gap-1.5 truncate max-w-[70%]" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
+              <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+              <span className="truncate font-medium text-text-secondary">
+                {storeObj.displayText}
+                {locationLabel ? ` (${locationLabel})` : ""}
+              </span>
+              {storeObj.isMulti && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                  +{storeObj.extraCount}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
@@ -1886,7 +1927,7 @@ function VacancyCard({
             </h4>
 
             <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono font-bold text-brand-700">{vacancy.vcode}</span>
+              <span className="font-mono font-bold text-brand-700">{vacancy.cgCode || vacancy.vcode || "Uncoded"}</span>
               <span className="text-text-muted/40">•</span>
               <span className="font-medium text-text-secondary">
                 HC: {vacancy.activeApplicantCount > 0 ? vacancy.activeApplicantCount : 1}
@@ -1910,12 +1951,22 @@ function VacancyCard({
       </div>
 
       <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {vacancy.storeName || "Unassigned Outlet"}
-          </span>
-        </div>
+        {(() => {
+          const storeObj = formatStoreDisplay(vacancy.storeName, vacancy.assignedStores);
+          return (
+            <div className="flex items-center gap-1.5 truncate max-w-[70%]" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
+              <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+              <span className="truncate font-medium text-text-secondary">
+                {storeObj.displayText}
+              </span>
+              {storeObj.isMulti && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                  +{storeObj.extraCount}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         <span className="text-[11px] font-semibold text-text-muted font-mono">
           {vacancy.agingDays != null ? `${vacancy.agingDays}d aging` : "Open"}

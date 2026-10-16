@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 export type RequestCategoryKey =
   | "new_stores"
@@ -1601,7 +1602,7 @@ export async function fetchApplicantMovementRequests(
       status: (r.status.toLowerCase() as ApplicantMovementStatus) || "pending",
       approvalStage: r.approval_stage ?? null,
       sourceApplicantId: r.source_applicant_id,
-      sourceApplicantName: r.source_applicant_name || "—",
+      sourceApplicantName: formatPersonName(null, null, null, r.source_applicant_name || "—") || "—",
       sourceApplicantStatus: r.source_applicant_status ?? null,
       sourceVacancyVcode: r.source_vacancy_vcode,
       sourceStoreName: srcVac?.storeName ?? null,
@@ -1612,7 +1613,7 @@ export async function fetchApplicantMovementRequests(
       targetPosition: tgtVac?.position ?? null,
       targetAccountName: tgtVac?.account ?? r.target_account_name ?? null,
       targetApplicantId: r.target_applicant_id ?? null,
-      targetApplicantName: r.target_applicant_name ?? null,
+      targetApplicantName: r.target_applicant_name ? formatPersonName(null, null, null, r.target_applicant_name) : null,
       targetApplicantStatus: r.target_applicant_status ?? null,
       reason: r.reason || "Operational Requirement",
       remarks: r.remarks ?? null,
@@ -2044,7 +2045,7 @@ export async function fetchDeactivationRequests(
     return {
       id: r.id,
       plantillaId: r.plantilla_id,
-      employeeName: r.employee_name || "—",
+      employeeName: formatPersonName(null, null, null, r.employee_name || "—") || "—",
       employeeNo: r.employee_no ?? null,
       accountName: r.account_name || "—",
       accountId: r.account_id,
@@ -2641,7 +2642,7 @@ export async function fetchRelieverEndorsements(
     requestId: row.request_id,
     employeeId: row.employee_id,
     employeeNumber: row.employee_number ?? null,
-    employeeName: row.employee_name ?? null,
+    employeeName: row.employee_name ? formatPersonName(null, null, null, row.employee_name) : null,
     poolType: row.pool_type ?? null,
     requestedAccount: row.requested_account ?? null,
     requestedStore: row.requested_store ?? null,
