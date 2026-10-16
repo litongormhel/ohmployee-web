@@ -6,17 +6,26 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowRightCircle,
   Calendar,
+  CheckCheck,
+  CheckCircle2,
   Clock3,
+  FileText,
   History,
   Lock,
   MapPin,
   Phone,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
+  SlidersHorizontal,
   User,
   UserCheck,
+  UserMinus,
+  UserPlus,
   Users,
+  XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -108,6 +117,60 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
   const errorKind = isError ? getErrorKind(error) : null;
 
+  const isPendingClosure = Boolean(
+    detail?.hasPendingClosure ||
+    detail?.closureRequestStatus?.toLowerCase() === "pending" ||
+    detail?.derivedStatus === "For Closure"
+  );
+
+  const statusLabel = isPendingClosure
+    ? "Pending Clearance"
+    : detail?.derivedStatus ?? detail?.vacancyStatus ?? "--";
+
+  const statusBadgeStyle = isPendingClosure
+    ? "border-amber-300 bg-amber-50 text-amber-800"
+    : detail?.derivedStatus?.toLowerCase() === "open"
+    ? "border-blue-200 bg-blue-50 text-blue-700"
+    : detail?.derivedStatus?.toLowerCase() === "pipeline"
+    ? "border-purple-200 bg-purple-50 text-purple-700"
+    : detail?.derivedStatus?.toLowerCase() === "hired"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-gray-200 bg-gray-50 text-gray-700";
+
+  const urgencyVariant =
+    detail?.urgencyLevel === "High"
+      ? "danger"
+      : detail?.urgencyLevel === "Medium"
+      ? "warning"
+      : "neutral";
+
+  const hasPenalty = Boolean(
+    detail &&
+    (detail.hasPenalty ||
+      (detail.penaltyAmount !== null && detail.penaltyAmount > 0) ||
+      detail.penaltyExposure > 0)
+  );
+
+  const penaltyFormatted =
+    detail && detail.penaltyAmount !== null && detail.penaltyAmount > 0
+      ? `₱${detail.penaltyAmount.toLocaleString()}`
+      : detail && detail.penaltyExposure > 0
+      ? `₱${detail.penaltyExposure.toLocaleString()}`
+      : null;
+
+  const hasHeadcountContext = Boolean(
+    detail &&
+    (detail.headcountRequestId ||
+      detail.vacancyReason ||
+      detail.approvedByName ||
+      detail.approvedAt ||
+      detail.jobDescription)
+  );
+
+  const hasActivityLogs = Boolean(
+    detail && detail.activityHistory && detail.activityHistory.length > 0
+  );
+
   return (
     <DetailDrawer
       isOpen={!!vacancyId}
@@ -116,9 +179,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
         isLoading ? (
           <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
         ) : detail ? (
-          <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-1 px-2.5">
-            {detail.vcode}
-          </Badge>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-0.5 px-2">
+              {detail.vcode}
+            </Badge>
+            <Badge className={`text-[11px] py-0 px-2 font-medium ${statusBadgeStyle}`}>
+              {statusLabel}
+            </Badge>
+          </div>
         ) : (
           <Badge className="bg-red-50 text-red-700">Error</Badge>
         )
@@ -143,6 +211,168 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
             </span>
           </>
         )
+      }
+      footer={
+        detail ? (
+          <CapabilityActionBar
+            variant="toolbar"
+            isReadOnlyEmergencyActive={isFreezeModeActive}
+            actions={[
+              {
+                label: "Add Applicant",
+                isAvailable:
+                  !isPendingClosure &&
+                  (detail.rowCapabilities?.canUpdateApplicantStatus === true ||
+                    detail.derivedStatus?.toLowerCase() === "open" ||
+                    detail.activeApplicantCount === 0),
+                onClick: () => setIsAddApplicantModalOpen(true),
+                icon: UserPlus,
+                variant: "primary",
+              },
+              {
+                label: "Update Stage",
+                isAvailable:
+                  !isPendingClosure &&
+                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                  detail.derivedStatus?.toLowerCase() !== "hired" &&
+                  detail.derivedStatus?.toLowerCase() !== "closed",
+                onClick: () => {
+                  if (detail.activeApplicantsList?.[0]) {
+                    setSelectedCandidate({
+                      id: detail.activeApplicantsList[0].applicantId,
+                      fullName: detail.activeApplicantsList[0].displayName,
+                      lastName: detail.activeApplicantsList[0].lastName,
+                      firstName: detail.activeApplicantsList[0].firstName,
+                      contactNumber: detail.activeApplicantsList[0].contactNumber,
+                      status: detail.activeApplicantsList[0].statusLabel,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    });
+                  }
+                  setIsAdvancePipelineModalOpen(true);
+                },
+                icon: ArrowRightCircle,
+                variant: "primary",
+              },
+              {
+                label: "Mark Hired",
+                isAvailable:
+                  !isPendingClosure &&
+                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                  detail.derivedStatus?.toLowerCase() !== "hired" &&
+                  detail.derivedStatus?.toLowerCase() !== "closed",
+                onClick: () => {
+                  if (detail.activeApplicantsList?.[0]) {
+                    setSelectedCandidate({
+                      id: detail.activeApplicantsList[0].applicantId,
+                      fullName: detail.activeApplicantsList[0].displayName,
+                      lastName: detail.activeApplicantsList[0].lastName,
+                      firstName: detail.activeApplicantsList[0].firstName,
+                      contactNumber: detail.activeApplicantsList[0].contactNumber,
+                      status: detail.activeApplicantsList[0].statusLabel,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    });
+                  }
+                  setIsMarkHiredModalOpen(true);
+                },
+                icon: CheckCircle2,
+                variant: "success",
+              },
+              {
+                label: "Reopen Slot",
+                isAvailable:
+                  !isPendingClosure &&
+                  (detail.derivedStatus?.toLowerCase() === "failed_backout" ||
+                    detail.derivedStatus?.toLowerCase() === "rejected" ||
+                    detail.derivedStatus?.toLowerCase() === "backout" ||
+                    detail.derivedStatus?.toLowerCase() === "closed"),
+                onClick: () => setIsReopenVacancyModalOpen(true),
+                icon: RotateCcw,
+                variant: "primary",
+              },
+              {
+                label: "Adjust Quota",
+                isAvailable: canReviseQuota,
+                onClick: () => setIsReviseQuotaModalOpen(true),
+                icon: SlidersHorizontal,
+                variant: "secondary",
+              },
+              {
+                label: "Request HC Adjustment",
+                isAvailable: canRequestAdjustment,
+                onClick: () => setIsRequestAdjustmentModalOpen(true),
+                icon: FileText,
+                variant: "secondary",
+              },
+              {
+                label: "Approve Vacancy",
+                isAvailable: !isPendingClosure && detail.rowCapabilities?.canApprove === true,
+                icon: CheckCheck,
+                variant: "success",
+              },
+              {
+                label: "Edit Hired Date",
+                isAvailable:
+                  !isPendingClosure &&
+                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                  (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
+                onClick: () => {
+                  if (detail.activeApplicantsList?.[0]) {
+                    setSelectedCandidate({
+                      id: detail.activeApplicantsList[0].applicantId,
+                      fullName: detail.activeApplicantsList[0].displayName,
+                      lastName: detail.activeApplicantsList[0].lastName,
+                      firstName: detail.activeApplicantsList[0].firstName,
+                      contactNumber: detail.activeApplicantsList[0].contactNumber,
+                      status: detail.activeApplicantsList[0].statusLabel,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                      hiredDate: detail.activeApplicantsList[0].onboardDate,
+                    });
+                  }
+                  setIsEditHiredDateModalOpen(true);
+                },
+                icon: Calendar,
+                variant: "secondary",
+              },
+              {
+                label: "Drop / Backout",
+                isAvailable:
+                  !isPendingClosure &&
+                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
+                  detail.derivedStatus?.toLowerCase() !== "hired" &&
+                  detail.derivedStatus?.toLowerCase() !== "closed",
+                onClick: () => {
+                  if (detail.activeApplicantsList?.[0]) {
+                    setSelectedCandidate({
+                      id: detail.activeApplicantsList[0].applicantId,
+                      fullName: detail.activeApplicantsList[0].displayName,
+                      lastName: detail.activeApplicantsList[0].lastName,
+                      firstName: detail.activeApplicantsList[0].firstName,
+                      contactNumber: detail.activeApplicantsList[0].contactNumber,
+                      status: detail.activeApplicantsList[0].statusLabel,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    });
+                  }
+                  setIsFailBackoutModalOpen(true);
+                },
+                icon: UserMinus,
+                variant: "danger",
+              },
+              {
+                label: "Request Closure",
+                isAvailable:
+                  !isPendingClosure &&
+                  detail.derivedStatus?.toLowerCase() !== "closed",
+                onClick: () => setIsRequestClosureModalOpen(true),
+                icon: XCircle,
+                variant: "warning",
+              },
+            ]}
+          />
+        ) : undefined
       }
     >
           {isLoading ? (
@@ -188,102 +418,59 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 </div>
               )}
 
-              {/* Status & Urgency Badges */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-md border border-gray-100 bg-gray-50 p-2.5">
-                  <div className="text-[10px] font-medium uppercase text-gray-400">Queue Status</div>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <Badge
-                      className={
-                        detail.hasPendingClosure ||
-                        detail.closureRequestStatus?.toLowerCase() === "pending" ||
-                        detail.derivedStatus === "For Closure"
-                          ? "border-amber-300 bg-amber-50 text-amber-800"
-                          : detail.derivedStatus === "Open" || detail.derivedStatus === "open"
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : detail.derivedStatus === "pipeline" || detail.derivedStatus === "Pipeline"
-                          ? "border-purple-200 bg-purple-50 text-purple-700"
-                          : "border-gray-200 bg-gray-50 text-gray-700"
-                      }
-                    >
-                      {detail.hasPendingClosure ||
-                      detail.closureRequestStatus?.toLowerCase() === "pending" ||
-                      detail.derivedStatus === "For Closure"
-                        ? "Pending Clearance"
-                        : detail.derivedStatus ?? detail.vacancyStatus ?? "--"}
+              {/* Compact Top Header & Status Metadata Strip */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-subtle bg-surface-muted/50 px-3.5 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Queue Status</span>
+                    <Badge className={`text-xs py-0.5 px-2 font-medium ${statusBadgeStyle}`}>
+                      {statusLabel}
                     </Badge>
                   </div>
-                </div>
-
-                <div className="rounded-md border border-gray-100 bg-gray-50 p-2.5">
-                  <div className="text-[10px] font-medium uppercase text-gray-400">Urgency Level</div>
-                  <div className="mt-1">
-                    <StatusBadge
-                      variant={
-                        detail.urgencyLevel === "High"
-                          ? "danger"
-                          : detail.urgencyLevel === "Medium"
-                          ? "warning"
-                          : "neutral"
-                      }
-                      className="font-semibold"
-                    >
+                  <span className="text-border-default select-none">|</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Urgency</span>
+                    <StatusBadge variant={urgencyVariant} className="text-xs py-0.5 px-2 font-semibold">
                       {detail.urgencyLevel ?? "Normal"}
                     </StatusBadge>
                   </div>
                 </div>
-              </div>
-
-              {/* Penalty Exposure Banner */}
-              <div className="rounded-md border border-gray-100 p-3 bg-gray-50/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Penalty Status</span>
-                  {detail.hasPenalty || (detail.penaltyAmount !== null && detail.penaltyAmount > 0) || detail.penaltyExposure > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Penalty</span>
+                  {hasPenalty ? (
                     <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
                       <AlertTriangle className="h-3 w-3" />
-                      Penalty Active
+                      Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-600">
+                    <span className="inline-flex items-center rounded-md border border-border-default bg-surface-base px-2 py-0.5 text-xs font-medium text-text-secondary">
                       No Penalty
                     </span>
                   )}
                 </div>
-                {(detail.hasPenalty || (detail.penaltyAmount !== null && detail.penaltyAmount > 0) || detail.penaltyExposure > 0) && (
-                  <div className="mt-2 text-xs text-rose-700 flex items-center justify-between border-t border-rose-100 pt-2">
-                    <span className="font-medium">Calculated Penalty Exposure:</span>
-                    <span className="text-sm font-bold">
-                      {detail.penaltyAmount !== null && detail.penaltyAmount > 0
-                        ? `₱${detail.penaltyAmount.toLocaleString()}`
-                        : detail.penaltyExposure > 0
-                        ? `₱${detail.penaltyExposure.toLocaleString()}`
-                        : "Active Rate"}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Timeline & Operational Dates */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
+              <div className="rounded-lg border border-border-subtle p-3.5 space-y-2.5 bg-surface-base text-xs">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-text-muted" />
                   Timeline & SLA Dates
                 </h3>
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-y-2.5 gap-x-4">
                   <div>
-                    <div className="text-xs text-gray-400">Vacant Date</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
+                    <div className="text-[11px] text-text-muted">Vacant Date</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
                       {formatDate(detail.vacantDate)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">Onboard Date</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
+                    <div className="text-[11px] text-text-muted">Onboard Date</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
                       {formatDate(detail.onboardDate ?? detail.targetFillDate)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">Slot Age (Aging)</div>
+                    <div className="text-[11px] text-text-muted">Slot Age (Aging)</div>
                     <div className="mt-0.5">
                       {detail.agingDays !== null ? (
                         <span
@@ -298,21 +485,21 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
                         </span>
                       ) : (
-                        <span className="text-sm font-medium text-gray-800">--</span>
+                        <span className="font-medium text-text-primary">--</span>
                       )}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400">Aging Bucket</div>
+                    <div className="text-[11px] text-text-muted">Aging Bucket</div>
                     <div className="mt-0.5">
-                      <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[10px]">
+                      <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[10px] py-0 px-1.5">
                         {detail.agingBucket ?? "--"}
                       </Badge>
                     </div>
                   </div>
                 </div>
                 {detail.agingDays !== null && detail.agingDays > 60 && (
-                  <div className="rounded border border-red-100 bg-red-50/50 p-2.5 text-xs text-red-700 flex items-start gap-2">
+                  <div className="rounded border border-red-100 bg-red-50/50 p-2 text-xs text-red-700 flex items-start gap-2 mt-1">
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
                     <div>
                       <span className="font-semibold">High SLA Breach Risk:</span> This vacancy has been open for more than 60 days. Prioritize candidate onboarding to minimize operational penalty exposure.
@@ -321,108 +508,96 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 )}
               </div>
 
-              {/* Store & Operational Scope */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Store & Operational Scope
+              {/* Operational Scope & HR Assignments Grid */}
+              <div className="rounded-lg border border-border-subtle p-3.5 space-y-3 bg-surface-base">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-text-muted" />
+                  Operational Scope & Assignments
                 </h3>
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
                   <div>
-                    <div className="text-xs text-gray-400">Outlet / Store</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
+                    <div className="text-[11px] text-text-muted">Outlet / Store</div>
+                    <div className="mt-0.5 font-medium text-text-primary truncate">
                       {detail.storeName ?? "--"}
                     </div>
                     {detail.storeLocation && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-[10px] text-text-secondary truncate">
                         {detail.storeLocation}
                       </div>
                     )}
                   </div>
+
                   <div>
-                    <div className="text-xs text-gray-400">Account / Group</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
+                    <div className="text-[11px] text-text-muted">Account / Group</div>
+                    <div className="mt-0.5 font-medium text-text-primary truncate">
                       {[detail.accountName, detail.groupName || "General / Direct"].filter(Boolean).join(" / ") || "--"}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-400">Employment Type</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
-                      {detail.employmentType || "Stationary"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400">Business Department</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
-                      {detail.department ?? "--"}
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-xs text-gray-400">Reliever on Duty</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 font-medium text-gray-800">
-                      {detail.hasReliever || detail.relieverOnDuty ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-                          <UserCheck className="h-3 w-3 text-amber-600" />
-                          {detail.relieverOnDuty ?? "Reliever Assigned"}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-500">None Assigned</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* HR & Deployment Team */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  HR & Deployment Assignment
-                </h3>
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
                   <div>
-                    <div className="text-xs text-gray-400">HRCO Assignee</div>
-                    <div className="mt-0.5 font-medium text-gray-800 flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-gray-400" />
-                      <span>{detail.hrcoName ?? "Unassigned"}</span>
+                    <div className="text-[11px] text-text-muted">HRCO Assignee</div>
+                    <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
+                      <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                      <span className="truncate">{detail.hrcoName ?? "Unassigned"}</span>
                     </div>
                   </div>
+
                   <div>
-                    <div className="text-xs text-gray-400">Recruiter</div>
-                    <div className="mt-0.5 font-medium text-gray-800 flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-gray-400" />
-                      <span>{detail.recruiterName ?? "Unassigned"}</span>
+                    <div className="text-[11px] text-text-muted">Recruiter</div>
+                    <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1.5 truncate">
+                      <User className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                      <span className="truncate">{detail.recruiterName ?? "Unassigned"}</span>
                     </div>
                   </div>
+
                   <div>
-                    <div className="text-xs text-gray-400">Deployed By</div>
-                    <div className="mt-0.5 font-medium text-gray-800">
+                    <div className="text-[11px] text-text-muted">Deployed By</div>
+                    <div className="mt-0.5 font-medium text-text-primary truncate">
                       {detail.deployedByName ?? "--"}
                     </div>
+                    {detail.contactNumber && (
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
+                        <Phone className="h-3 w-3 shrink-0 text-text-muted" />
+                        <span>{detail.contactNumber}</span>
+                      </div>
+                    )}
                   </div>
+
                   <div>
-                    <div className="text-xs text-gray-400">Contact Number</div>
-                    <div className="mt-0.5 font-medium text-gray-800 flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-gray-400" />
-                      <span>{detail.contactNumber ?? "--"}</span>
+                    <div className="text-[11px] text-text-muted">Employment Type</div>
+                    <div className="mt-0.5 font-medium text-text-primary truncate">
+                      {detail.employmentType || "Stationary"}
                     </div>
+                    {detail.department && (
+                      <div className="text-[10px] text-text-secondary truncate">
+                        Dept: {detail.department}
+                      </div>
+                    )}
                   </div>
+
+                  {(detail.hasReliever || detail.relieverOnDuty) && (
+                    <div className="col-span-2 pt-2 border-t border-border-subtle/60 flex items-center justify-between">
+                      <span className="text-[11px] text-text-muted">Reliever on Duty</span>
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
+                        <UserCheck className="h-3 w-3 text-amber-600" />
+                        {detail.relieverOnDuty ?? "Reliever Assigned"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* HRCO Remarks */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  HRCO Remarks
-                </h3>
-                {detail.hrcoRemarks ? (
-                  <p className="text-xs text-gray-700 bg-gray-50 p-2.5 rounded border border-gray-100 leading-relaxed whitespace-pre-line">
-                    {detail.hrcoRemarks}
+              {/* HRCO Remarks - Only rendered when actual operational remarks are recorded */}
+              {detail.hrcoRemarks && detail.hrcoRemarks.trim().length > 0 && (
+                <div className="rounded-lg border border-border-subtle p-3 space-y-1.5 bg-surface-muted/30">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    HRCO Remarks
+                  </h3>
+                  <p className="text-xs text-text-primary bg-surface-base p-2.5 rounded border border-border-subtle leading-relaxed whitespace-pre-line">
+                    {detail.hrcoRemarks.trim()}
                   </p>
-                ) : (
-                  <div className="text-xs text-gray-400 italic bg-gray-50/50 p-2.5 rounded border border-dashed border-gray-200">
-                    No HRCO operational remarks recorded.
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Pipeline / Candidate Summary (omitted for Open vacancies) */}
               {!(status === "open" || detail.derivedStatus?.toLowerCase() === "open" || detail.vacancyStatus?.toLowerCase() === "open") && (
@@ -596,242 +771,88 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               </div>
             )}
 
-              {/* Headcount Origin & Approvals Context */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3 text-sm">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Headcount & Approvals Context
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between border-b border-gray-50 pb-1.5">
-                    <span className="text-xs text-gray-400">Headcount Request ID</span>
-                    <span className="font-mono text-xs text-gray-700 truncate max-w-[200px]">
-                      {detail.headcountRequestId ?? "--"}
-                    </span>
+              {/* Headcount Origin & Approvals Context - Hidden if completely empty */}
+              {hasHeadcountContext && (
+                <div className="rounded-lg border border-border-subtle p-3.5 space-y-2.5 text-xs bg-surface-base">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    Headcount & Approvals Context
+                  </h3>
+                  <div className="space-y-2">
+                    {detail.headcountRequestId && (
+                      <div className="flex justify-between border-b border-border-subtle/50 pb-1.5">
+                        <span className="text-[11px] text-text-muted">Headcount Request ID</span>
+                        <span className="font-mono text-xs text-text-primary truncate max-w-[200px]">
+                          {detail.headcountRequestId}
+                        </span>
+                      </div>
+                    )}
+                    {detail.vacancyReason && (
+                      <div className="flex justify-between border-b border-border-subtle/50 pb-1.5">
+                        <span className="text-[11px] text-text-muted">Vacancy Stated Reason</span>
+                        <span className="text-xs text-text-primary font-medium">
+                          {detail.vacancyReason}
+                        </span>
+                      </div>
+                    )}
+                    {detail.approvedByName && (
+                      <div className="flex justify-between border-b border-border-subtle/50 pb-1.5">
+                        <span className="text-[11px] text-text-muted">Approved By</span>
+                        <span className="text-xs text-text-primary font-medium">
+                          {detail.approvedByName}
+                        </span>
+                      </div>
+                    )}
+                    {detail.approvedAt && (
+                      <div className="flex justify-between border-b border-border-subtle/50 pb-1.5">
+                        <span className="text-[11px] text-text-muted">Approval Date</span>
+                        <span className="text-xs text-text-primary">
+                          {formatDate(detail.approvedAt)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-between border-b border-gray-50 pb-1.5">
-                    <span className="text-xs text-gray-400">Vacancy Stated Reason</span>
-                    <span className="text-xs text-gray-800 font-medium">
-                      {detail.vacancyReason ?? "--"}
-                    </span>
-                  </div>
-                  {detail.approvedByName && (
-                    <div className="flex justify-between border-b border-gray-50 pb-1.5">
-                      <span className="text-xs text-gray-400">Approved By</span>
-                      <span className="text-xs text-gray-800 font-medium">
-                        {detail.approvedByName}
-                      </span>
-                    </div>
-                  )}
-                  {detail.approvedAt && (
-                    <div className="flex justify-between border-b border-gray-50 pb-1.5">
-                      <span className="text-xs text-gray-400">Approval Date</span>
-                      <span className="text-xs text-gray-800">
-                        {formatDate(detail.approvedAt)}
-                      </span>
+                  {detail.jobDescription && (
+                    <div className="mt-2 pt-2 border-t border-border-subtle/50">
+                      <div className="text-[11px] text-text-muted mb-1">Job Description & Qualifications</div>
+                      <p className="text-xs text-text-secondary leading-relaxed bg-surface-muted/50 p-2.5 rounded border border-border-subtle whitespace-pre-line">
+                        {detail.jobDescription}
+                      </p>
                     </div>
                   )}
                 </div>
-                {detail.jobDescription && (
-                  <div className="mt-3">
-                    <div className="text-xs text-gray-400">Job Description & Qualifications</div>
-                    <p className="mt-1 text-xs text-gray-600 leading-relaxed bg-gray-50 p-2.5 rounded border border-gray-100">
-                      {detail.jobDescription}
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* Audit Activity Timeline */}
-              <div className="rounded-md border border-gray-100 p-4 space-y-3">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  <History className="h-4 w-4 text-gray-400" />
-                  <span>Activity History</span>
-                </div>
-                <div className="relative pl-4 space-y-4 border-l-2 border-gray-100 ml-1.5 mt-2">
-                  {detail.activityHistory && detail.activityHistory.length > 0 ? (
-                    detail.activityHistory.map((item, index) => (
+              {/* Audit Activity Timeline - Hidden when no real audit logs exist */}
+              {hasActivityLogs && (
+                <div className="rounded-lg border border-border-subtle p-3.5 space-y-3 bg-surface-base">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    <History className="h-3.5 w-3.5 text-text-muted" />
+                    <span>Activity History</span>
+                  </div>
+                  <div className="relative pl-4 space-y-3 border-l-2 border-border-subtle ml-1.5 mt-2">
+                    {detail.activityHistory!.map((item, index) => (
                       <div key={item.eventId || `activity-${index}`} className="relative text-xs">
                         {/* Timeline dot */}
-                        <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
+                        <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-base bg-brand-500" />
                         <div className="flex justify-between">
-                          <span className="font-semibold text-gray-800">{item.eventLabel}</span>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="font-semibold text-text-primary">{item.eventLabel}</span>
+                          <span className="text-[10px] text-text-muted">
                             {formatDate(item.createdAt)}
                           </span>
                         </div>
                         {item.eventDescription && (
-                          <p className="mt-0.5 text-gray-500">{item.eventDescription}</p>
+                          <p className="mt-0.5 text-text-secondary">{item.eventDescription}</p>
                         )}
                         {item.profileName && (
-                          <div className="mt-0.5 text-[10px] text-gray-400">
+                          <div className="mt-0.5 text-[10px] text-text-muted">
                             By {item.profileName}
                           </div>
                         )}
                       </div>
-                    ))
-                  ) : (
-                    // Default baseline placeholder timeline
-                    <div className="relative text-xs">
-                      <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-gray-800">Vacancy Created</span>
-                        <span className="text-[10px] text-gray-400">
-                          {formatDate(detail.vacantDate)}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-gray-500">Record initialized on the vacancy list.</p>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              {/* Capability-Aware Action Area */}
-              {(() => {
-                const isPendingClosure =
-                  detail.hasPendingClosure ||
-                  detail.closureRequestStatus?.toLowerCase() === "pending" ||
-                  detail.derivedStatus === "For Closure";
-
-                return (
-                  <CapabilityActionBar
-                    isReadOnlyEmergencyActive={isFreezeModeActive}
-                    actions={[
-                      {
-                        label: "Adjust Quota",
-                        isAvailable: canReviseQuota,
-                        onClick: () => setIsReviseQuotaModalOpen(true),
-                      },
-                      {
-                        label: "Request HC Adjustment",
-                        isAvailable: canRequestAdjustment,
-                        onClick: () => setIsRequestAdjustmentModalOpen(true),
-                      },
-                      {
-                        label: "Approve Vacancy",
-                        isAvailable: !isPendingClosure && detail.rowCapabilities?.canApprove === true,
-                      },
-                      {
-                        label: "Add Applicant",
-                        isAvailable:
-                          !isPendingClosure &&
-                          (detail.rowCapabilities?.canUpdateApplicantStatus === true ||
-                            detail.derivedStatus?.toLowerCase() === "open" ||
-                            detail.activeApplicantCount === 0),
-                        onClick: () => setIsAddApplicantModalOpen(true),
-                      },
-                      {
-                        label: "Update Stage",
-                        isAvailable:
-                          !isPendingClosure &&
-                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                          detail.derivedStatus?.toLowerCase() !== "hired" &&
-                          detail.derivedStatus?.toLowerCase() !== "closed",
-                        onClick: () => {
-                          if (detail.activeApplicantsList?.[0]) {
-                            setSelectedCandidate({
-                              id: detail.activeApplicantsList[0].applicantId,
-                              fullName: detail.activeApplicantsList[0].displayName,
-                              lastName: detail.activeApplicantsList[0].lastName,
-                              firstName: detail.activeApplicantsList[0].firstName,
-                              contactNumber: detail.activeApplicantsList[0].contactNumber,
-                              status: detail.activeApplicantsList[0].statusLabel,
-                              vcode: detail.vcode,
-                              positionTitle: detail.position_title,
-                            });
-                          }
-                          setIsAdvancePipelineModalOpen(true);
-                        },
-                      },
-                      {
-                        label: "Mark Hired",
-                        isAvailable:
-                          !isPendingClosure &&
-                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                          detail.derivedStatus?.toLowerCase() !== "hired" &&
-                          detail.derivedStatus?.toLowerCase() !== "closed",
-                        onClick: () => {
-                          if (detail.activeApplicantsList?.[0]) {
-                            setSelectedCandidate({
-                              id: detail.activeApplicantsList[0].applicantId,
-                              fullName: detail.activeApplicantsList[0].displayName,
-                              lastName: detail.activeApplicantsList[0].lastName,
-                              firstName: detail.activeApplicantsList[0].firstName,
-                              contactNumber: detail.activeApplicantsList[0].contactNumber,
-                              status: detail.activeApplicantsList[0].statusLabel,
-                              vcode: detail.vcode,
-                              positionTitle: detail.position_title,
-                            });
-                          }
-                          setIsMarkHiredModalOpen(true);
-                        },
-                      },
-                      {
-                        label: "Drop / Backout",
-                        isAvailable:
-                          !isPendingClosure &&
-                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                          detail.derivedStatus?.toLowerCase() !== "hired" &&
-                          detail.derivedStatus?.toLowerCase() !== "closed",
-                        onClick: () => {
-                          if (detail.activeApplicantsList?.[0]) {
-                            setSelectedCandidate({
-                              id: detail.activeApplicantsList[0].applicantId,
-                              fullName: detail.activeApplicantsList[0].displayName,
-                              lastName: detail.activeApplicantsList[0].lastName,
-                              firstName: detail.activeApplicantsList[0].firstName,
-                              contactNumber: detail.activeApplicantsList[0].contactNumber,
-                              status: detail.activeApplicantsList[0].statusLabel,
-                              vcode: detail.vcode,
-                              positionTitle: detail.position_title,
-                            });
-                          }
-                          setIsFailBackoutModalOpen(true);
-                        },
-                      },
-                      {
-                        label: "Edit Hired Date",
-                        isAvailable:
-                          !isPendingClosure &&
-                          Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                          (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
-                        onClick: () => {
-                          if (detail.activeApplicantsList?.[0]) {
-                            setSelectedCandidate({
-                              id: detail.activeApplicantsList[0].applicantId,
-                              fullName: detail.activeApplicantsList[0].displayName,
-                              lastName: detail.activeApplicantsList[0].lastName,
-                              firstName: detail.activeApplicantsList[0].firstName,
-                              contactNumber: detail.activeApplicantsList[0].contactNumber,
-                              status: detail.activeApplicantsList[0].statusLabel,
-                              vcode: detail.vcode,
-                              positionTitle: detail.position_title,
-                              hiredDate: detail.activeApplicantsList[0].onboardDate,
-                            });
-                          }
-                          setIsEditHiredDateModalOpen(true);
-                        },
-                      },
-                      {
-                        label: "Reopen Slot",
-                        isAvailable:
-                          !isPendingClosure &&
-                          (detail.derivedStatus?.toLowerCase() === "failed_backout" ||
-                            detail.derivedStatus?.toLowerCase() === "rejected" ||
-                            detail.derivedStatus?.toLowerCase() === "backout" ||
-                            detail.derivedStatus?.toLowerCase() === "closed"),
-                        onClick: () => setIsReopenVacancyModalOpen(true),
-                      },
-                      {
-                        label: "Request Closure",
-                        isAvailable:
-                          !isPendingClosure &&
-                          detail.derivedStatus?.toLowerCase() !== "closed",
-                        onClick: () => setIsRequestClosureModalOpen(true),
-                      },
-                    ]}
-                  />
-                );
-              })()}
+              )}
 
               {/* Add Applicant Modal */}
               {isAddApplicantModalOpen && (
