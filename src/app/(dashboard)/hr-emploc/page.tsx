@@ -38,6 +38,7 @@ import {
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
 import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
+import { DeployToPlantillaModal } from "@/components/hr-emploc/DeployToPlantillaModal";
 import { TagDeficiencyModal } from "@/components/hr-emploc/TagDeficiencyModal";
 import { UploadAttachmentModal } from "@/components/hr-emploc/UploadAttachmentModal";
 import { SubmitCorrectionModal } from "@/components/hr-emploc/SubmitCorrectionModal";
@@ -94,6 +95,7 @@ export default function HrEmplocPage() {
 
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
+  const [deployTarget, setDeployTarget] = useState<HrEmplocListItem | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
   const [uploadTarget, setUploadTarget] = useState<HrEmplocListItem | null>(null);
   const [submitCorrectionTarget, setSubmitCorrectionTarget] = useState<HrEmplocListItem | null>(null);
@@ -758,6 +760,7 @@ export default function HrEmplocPage() {
         onAddEmploc={(row) => setAssignTarget(row)}
         onForCorrection={(row) => setCorrectionTarget(row)}
         onAssignEmployeeNo={(row) => setAssignTarget(row)}
+        onMoveToPlantilla={(row) => setDeployTarget(row)}
         onUploadAttachment={(row) => setUploadTarget(row)}
         onSubmitCorrection={(row) => setSubmitCorrectionTarget(row)}
         onApproveReview={(row) => setApproveReviewTarget(row)}
@@ -790,6 +793,27 @@ export default function HrEmplocPage() {
             setAssignTarget(null);
             setSuccessToast({
               message: `Placement onboarding updated for ${assignTarget.applicantName}.`,
+            });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Move to Plantilla Modal */}
+      {deployTarget && (
+        <DeployToPlantillaModal
+          hrEmplocId={deployTarget.id}
+          candidateName={deployTarget.applicantName}
+          vcode={deployTarget.vcode}
+          positionTitle={deployTarget.positionTitle}
+          storeName={deployTarget.storeName}
+          accountName={deployTarget.accountName}
+          employeeNo={deployTarget.employeeNo}
+          onClose={() => setDeployTarget(null)}
+          onSuccess={() => {
+            setDeployTarget(null);
+            setSuccessToast({
+              message: `Successfully deployed ${deployTarget.applicantName} to Plantilla.`,
             });
             retryQueryReads();
           }}

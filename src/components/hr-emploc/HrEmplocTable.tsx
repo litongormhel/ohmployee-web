@@ -460,6 +460,22 @@ export function HrEmplocTable({
                         {/* ── Ready Queue Actions ────────────────── */}
                         {queue === "ready" && (
                           <>
+                            {onMoveToPlantilla && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMoveToPlantilla(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Move ${row.applicantName} to Plantilla`}
+                                title="Deploy candidate to Plantilla"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                                <span>Move to Plantilla</span>
+                              </button>
+                            )}
+
                             {!row.employeeNo && onAssignEmployeeNo && (
                               <button
                                 type="button"
@@ -469,24 +485,10 @@ export function HrEmplocTable({
                                 }}
                                 className="inline-flex items-center gap-1 rounded-md bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 aria-label={`Assign Emploc number for ${row.applicantName}`}
+                                title="Assign Employee / Emploc number"
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
                                 <span>Assign Emploc</span>
-                              </button>
-                            )}
-
-                            {row.employeeNo && onMoveToPlantilla && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onMoveToPlantilla(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
-                                aria-label={`Move ${row.applicantName} to Plantilla`}
-                              >
-                                <ArrowRight className="h-3.5 w-3.5" />
-                                <span>Move to Plantilla</span>
                               </button>
                             )}
                           </>
