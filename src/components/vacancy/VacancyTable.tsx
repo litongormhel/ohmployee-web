@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
+import { TablePagination } from "@/components/shared/TablePagination";
 import type {
   VacancyDataErrorKind,
   VacancyListItem,
@@ -89,6 +90,7 @@ type VacancyTableProps = {
   onEditHiredDate?: (vacancy: VacancyListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
 
@@ -183,15 +185,12 @@ export function VacancyTable({
   onMarkHired,
   onFailBackout,
   onReopenVacancy,
-  onRequestClosure,
   onReviewClosure,
   onEditHiredDate,
   onRetry,
   onPageChange,
+  onPageSizeChange,
 }: VacancyTableProps) {
-  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-  const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const lastRecord = Math.min(totalCount, page * pageSize);
   const errorCopy = getErrorCopy(errorKind);
   const activeColumns = getTableColumns(status);
 
@@ -629,32 +628,15 @@ export function VacancyTable({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
-        <span>
-          {firstRecord}-{lastRecord} of {totalCount} records
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            className="h-8 rounded-md border border-table-rule-section px-3 font-medium text-table-text-sub disabled:opacity-50"
-            disabled={page <= 1 || isLoading}
-            onClick={() => onPageChange(page - 1)}
-            type="button"
-          >
-            Previous
-          </button>
-          <span>
-            Page {page} of {pageCount}
-          </span>
-          <button
-            className="h-8 rounded-md border border-table-rule-section px-3 font-medium text-table-text-sub disabled:opacity-50"
-            disabled={page >= pageCount || isLoading}
-            onClick={() => onPageChange(page + 1)}
-            type="button"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        pageSizeOptions={[10, 25, 50]}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isLoading}
+      />
     </section>
   );
 }

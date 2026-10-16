@@ -85,8 +85,6 @@ const statusTabs: Array<{
   },
 ];
 
-const pageSize = 25;
-
 function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : null;
 }
@@ -102,6 +100,7 @@ export default function VacancyPage() {
   const [vacantFrom, setVacantFrom] = useState("");
   const [vacantTo, setVacantTo] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [endorseTargetVacancy, setEndorseTargetVacancy] = useState<VacancyContextSummary | null>(null);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
@@ -177,7 +176,7 @@ export default function VacancyPage() {
       page,
       pageSize,
     }),
-    [accountId, agingBucket, groupId, page, search, status, urgency, vacantFrom, vacantTo],
+    [accountId, agingBucket, groupId, page, pageSize, search, status, urgency, vacantFrom, vacantTo],
   );
 
   const currentFilters: VacancyFilterState = useMemo(
@@ -917,6 +916,11 @@ export default function VacancyPage() {
         errorKind={listErrorKind}
         isLoading={listQuery.isLoading}
         onPageChange={updatePage}
+        onPageSizeChange={(newPageSize) => {
+          setPageSize(newPageSize);
+          setPage(1);
+          setSelectedVacancyId(null);
+        }}
         onRetry={retryVacancyReads}
         onSelect={selectVacancy}
         onAddApplicant={handleOpenAddApplicant}

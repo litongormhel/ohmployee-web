@@ -15,6 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   isBenefitsOnlyCorrection,
   type HrEmplocDataErrorKind,
@@ -133,10 +134,6 @@ export function HrEmplocTable({
   onRevertReview,
   onDownloadAttachment,
 }: HrEmplocTableProps) {
-  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-  const firstRecord = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const lastRecord = Math.min(totalCount, page * pageSize);
-
   const columns = getTableColumns(queue);
   const handleAddEmploc = onAddEmploc || onAssignEmployeeNo;
 
@@ -526,51 +523,15 @@ export function HrEmplocTable({
       </div>
 
       {/* Pagination Footer (Default 10 with Selector) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-table-rule-section px-4 py-3 text-sm text-table-text-muted">
-        <div className="flex items-center gap-3">
-          <span>
-            Showing {firstRecord}-{lastRecord} of {totalCount} records
-          </span>
-
-          {onPageSizeChange && (
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-table-text-muted">Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                className="h-7 rounded border border-table-rule-section bg-table-row px-2 text-xs font-medium text-table-text focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
-                aria-label="Select rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            disabled={page <= 1 || isLoading}
-            onClick={() => onPageChange(page - 1)}
-            type="button"
-          >
-            Previous
-          </button>
-          <span className="font-medium text-xs">
-            Page {page} of {pageCount}
-          </span>
-          <button
-            className="h-8 rounded-md border border-table-rule-section bg-table-row px-3 font-medium text-table-text-sub shadow-xs hover:bg-table-row-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            disabled={page >= pageCount || isLoading}
-            onClick={() => onPageChange(page + 1)}
-            type="button"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        pageSizeOptions={[10, 25, 50]}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isLoading}
+      />
     </section>
   );
 }

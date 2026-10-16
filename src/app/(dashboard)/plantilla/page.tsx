@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
+import { TablePagination } from "@/components/shared/TablePagination";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
 import {
@@ -54,8 +55,6 @@ import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal
 
 type DirectoryTab = "active" | "vacancy" | "inactive" | "needs_hr";
 type DisplayView = "table" | "cards";
-
-const PAGE_SIZE = 25;
 
 function plantillaStatusVariant(status: string | null | undefined): BadgeVariant {
   switch ((status ?? "").toLowerCase().trim()) {
@@ -130,6 +129,7 @@ export default function PlantillaPage() {
   const [tab, setTab] = useState<DirectoryTab>("active");
   const [displayView, setDisplayView] = useState<DisplayView>("table");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedStoreRow, setSelectedStoreRow] = useState<PlantillaStoreStaffingRow | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -355,7 +355,7 @@ export default function PlantillaPage() {
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, storeId, status, assignmentType, page, tab },
+      { search, accountId, storeId, status, assignmentType, page, pageSize, tab },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
@@ -366,21 +366,21 @@ export default function PlantillaPage() {
         deployment: assignmentType || undefined,
         activeState: tab === "inactive" ? "inactive" : "active",
         page,
-        pageSize: PAGE_SIZE,
+        pageSize,
       }),
     enabled: !!accountId && (tab === "active" || tab === "inactive"),
   });
 
   // Query for vacancies
   const vacancyListQuery = useQuery({
-    queryKey: ["plantilla", "vacancies", accountId, search, page],
+    queryKey: ["plantilla", "vacancies", accountId, search, page, pageSize],
     queryFn: () =>
       listVacancies({
         accountId: accountId || undefined,
         search: search.trim() || undefined,
         status: "open",
         page,
-        pageSize: PAGE_SIZE,
+        pageSize,
       }),
     enabled: !!accountId && tab === "vacancy",
     staleTime: 30000,
@@ -450,7 +450,12 @@ export default function PlantillaPage() {
 
   const employeeRows = employeeQuery.data?.data ?? [];
   const vacancyRows = vacancyListQuery.data?.data ?? [];
-  const needsHrRows = needsHrcoQuery.data ?? [];
+  const needsHrRows = useMemo(() => needsHrcoQuery.data ?? [], [needsHrcoQuery.data]);
+
+  const paginatedNeedsHrRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return needsHrRows.slice(start, start + pageSize);
+  }, [needsHrRows, page, pageSize]);
 
   const totalCount =
     tab === "vacancy"
@@ -458,8 +463,6 @@ export default function PlantillaPage() {
       : tab === "needs_hr"
       ? needsHrRows.length
       : employeeQuery.data?.totalCount ?? 0;
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const hasActiveFilters = Boolean(search.trim() || storeId || status || assignmentType);
 
@@ -1307,14 +1310,14 @@ export default function PlantillaPage() {
                 />
               ) : displayView === "table" ? (
                 <EmployeeTable
-                  rows={needsHrRows}
+                  rows={paginatedNeedsHrRows}
                   isNeedsHr
                   onRowClick={setSelectedPlantillaId}
                   storeLookupMap={storeLookupMap}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                  {needsHrRows.map((row) => (
+                  {paginatedNeedsHrRows.map((row) => (
                     <EmployeeCard
                       key={row.id}
                       row={row}
@@ -1354,36 +1357,19 @@ export default function PlantillaPage() {
 
             {/* Pagination Controls */}
             {!isListLoading && !isListError && totalCount > 0 && (
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border-default pt-4 text-xs sm:text-sm text-text-muted">
-                <span>
-                  Showing {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–
-                  {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} record
-                  {totalCount !== 1 ? "s" : ""}
-                </span>
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="h-8 rounded-lg border border-border-default px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <span className="font-medium text-text-secondary">
-                      {page} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      className="h-8 rounded-lg border border-border-default px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-              </div>
+              <TablePagination
+                page={page}
+                pageSize={pageSize}
+                totalCount={totalCount}
+                pageSizeOptions={[10, 25, 50]}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(newPageSize) => {
+                  setPageSize(newPageSize);
+                  setPage(1);
+                }}
+                isLoading={isListLoading}
+                className="mt-4 pt-4 border-t border-border-default px-0"
+              />
             )}
           </div>
 

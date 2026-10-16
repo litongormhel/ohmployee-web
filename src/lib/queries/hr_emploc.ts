@@ -165,7 +165,7 @@ export class HrEmplocDataError extends Error {
 
 type HrEmplocRpcRow = Record<string, unknown>;
 
-const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
 function asObject(value: unknown): Record<string, unknown> {
