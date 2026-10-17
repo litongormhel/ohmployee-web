@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w89p601b**: Execute Web "More" Module Parity — Wire Orphaned Modals, Add Data Control Tab & Build Core Governance Modals
 - **ohm#w89p600a**: Compact High-Density Redesign of Vacancy Detail Drawer
 - **ohm#w84c185a**: HR Emploc Tab-Specific Columns, Mobile Correction/Review Workflow Parity, and Default-10 Pagination
 - **ohm#w79a570a**: Redesign Add/Endorse Applicant Modal and Make Middle Name Required

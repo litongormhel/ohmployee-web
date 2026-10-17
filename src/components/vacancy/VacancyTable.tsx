@@ -12,7 +12,6 @@ import {
   RefreshCw,
   RotateCcw,
   TrendingUp,
-  User,
   UserMinus,
   UserPlus,
   X,
@@ -24,7 +23,7 @@ import type {
   VacancyListItem,
   VacancyStatus,
 } from "@/lib/queries/vacancy";
-import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
+import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
@@ -53,6 +52,18 @@ function getTableColumns(status: VacancyStatus): string[] {
       "AGING",
       "HC",
       "ACTIONS",
+    ];
+  }
+  if (status === "hired") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "APPLICANT",
+      "ONBOARD DATE",
+      "DAYS TO FILL",
     ];
   }
   return [
@@ -168,6 +179,30 @@ function getErrorCopy(kind: VacancyDataErrorKind | null) {
     title: "Unable to Load Vacancies",
     body: "Could not retrieve vacancy records. Please retry or adjust filters.",
   };
+}
+
+function formatOnboardDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const parts = value.split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    if (monthIndex >= 0 && monthIndex < 12 && !Number.isNaN(day) && !Number.isNaN(year)) {
+      return `${months[monthIndex]} ${day}, ${year}`;
+    }
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
 export function VacancyTable({
@@ -345,9 +380,8 @@ export function VacancyTable({
                     {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.hrcoName ? (
-                        <div className="flex items-center gap-1.5 font-medium text-table-text">
-                          <User className="h-3.5 w-3.5 shrink-0 text-table-text-muted" aria-hidden="true" />
-                          <span>{row.hrcoName}</span>
+                        <div className="font-medium text-table-text">
+                          {formatHrcoName(row.hrcoName)}
                         </div>
                       ) : (
                         <span className="inline-flex items-center rounded-md border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
@@ -376,6 +410,42 @@ export function VacancyTable({
                           )}
                         </td>
                       </>
+                    ) : status === "hired" ? (
+                      <>
+                        {/* 6. APPLICANT */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          <div className="font-semibold text-table-text">
+                            {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Hired Worker"}
+                          </div>
+                        </td>
+
+                        {/* 7. ONBOARD DATE - beside Applicant */}
+                        <td className="border-b border-table-rule px-4 py-2.5">
+                          <span className="inline-flex items-center gap-1.5 rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800 text-xs">
+                            <Calendar className="h-3 w-3 shrink-0 text-emerald-600" aria-hidden="true" />
+                            <span>{formatOnboardDate(row.hiredDate)}</span>
+                          </span>
+                        </td>
+
+                        {/* 8. DAYS TO FILL (from vacant date until onboard date) */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          {row.daysToFill !== null && row.daysToFill !== undefined ? (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                                row.daysToFill <= 15
+                                  ? "border border-emerald-200/80 bg-emerald-50 text-emerald-700"
+                                  : row.daysToFill <= 30
+                                  ? "border border-amber-200/80 bg-amber-50 text-amber-700"
+                                  : "border border-rose-200/80 bg-rose-50 text-rose-700"
+                              }`}
+                            >
+                              {row.daysToFill} {row.daysToFill === 1 ? "day" : "days"}
+                            </span>
+                          ) : (
+                            <span className="text-table-text-muted">—</span>
+                          )}
+                        </td>
+                      </>
                     ) : (
                       <>
                         {/* 6. APPLICANT */}
@@ -393,25 +463,6 @@ export function VacancyTable({
                                     <span>{row.contactNumber}</span>
                                   </div>
                                 ) : null}
-                              </div>
-                            ) : status === "hired" ? (
-                              /* Hired Tab: Display Hired Worker Name, Onboard Date, and Position */
-                              <div className="flex flex-col gap-0.5">
-                                <div className="font-semibold text-table-text">
-                                  {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Hired Worker"}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-table-text-muted">
-                                  {row.hiredDate && (
-                                    <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800 text-[10px]">
-                                      Onboard: {row.hiredDate}
-                                    </span>
-                                  )}
-                                  {row.position_title && (
-                                    <span className="text-[11px] text-slate-600">
-                                      {row.position_title}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
                             ) : status === "failed_backout" ? (
                               /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
@@ -452,187 +503,177 @@ export function VacancyTable({
                           </td>
                         )}
                       </>
-                  )}
-
-                  {/* 8. AGING */}
-                  <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                    {row.agingDays !== null && row.agingDays !== undefined ? (
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
-                          row.agingDays <= 15
-                            ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
-                            : row.agingDays <= 30
-                            ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
-                            : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
-                        }`}
-                      >
-                        {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
-                      </span>
-                    ) : row.agingBucket === "advance" ? (
-                      <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                        Advance
-                      </span>
-                    ) : row.agingBucket ? (
-                      <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
-                        {formatAgingBucket(row.agingBucket)}
-                      </span>
-                    ) : (
-                      <span className="text-table-text-muted">—</span>
                     )}
-                  </td>
 
-                  {/* 9. HC */}
-                  <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
-                    {typeof row.headcount === "number" ? row.headcount : 1}
-                  </td>
+                    {/* Columns 8, 9, 10: AGING, HC, ACTIONS (Omitted for Hired tab) */}
+                    {status !== "hired" && (
+                      <>
+                        {/* 8. AGING */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          {row.agingDays !== null && row.agingDays !== undefined ? (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
+                                row.agingDays <= 15
+                                  ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
+                                  : row.agingDays <= 30
+                                  ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
+                                  : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
+                              }`}
+                            >
+                              {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
+                            </span>
+                          ) : row.agingBucket === "advance" ? (
+                            <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              Advance
+                            </span>
+                          ) : row.agingBucket ? (
+                            <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
+                              {formatAgingBucket(row.agingBucket)}
+                            </span>
+                          ) : (
+                            <span className="text-table-text-muted">—</span>
+                          )}
+                        </td>
 
-                  {/* 10. ACTIONS */}
-                  <td className="border-b border-table-rule px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {status === "open" && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onAddApplicant) {
-                              onAddApplicant(row);
-                            } else {
-                              onSelect(row);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs"
-                          title={`Add applicant for ${row.vcode}`}
-                        >
-                          <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>+ Applicant</span>
-                        </button>
-                      )}
+                        {/* 9. HC */}
+                        <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
+                          {typeof row.headcount === "number" ? row.headcount : 1}
+                        </td>
 
-                        {status === "pipeline" && (
-                          <>
-                            {onAdvancePipeline && (
+                        {/* 10. ACTIONS */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {status === "open" && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onAdvancePipeline(row);
+                                  if (onAddApplicant) {
+                                    onAddApplicant(row);
+                                  } else {
+                                    onSelect(row);
+                                  }
                                 }}
-                                className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition shadow-xs cursor-pointer"
-                                title={`Update pipeline stage for ${row.applicantName || row.vcode}`}
+                                className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs"
+                                title={`Add applicant for ${row.vcode}`}
                               >
-                                <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Update</span>
+                                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span>+ Applicant</span>
                               </button>
                             )}
-                            {onMarkHired && isOnBoardStatus(row) && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onMarkHired(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
-                                title={`Approve placement / mark ${row.applicantName || row.vcode} as hired`}
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Approve</span>
-                              </button>
-                            )}
-                            {onFailBackout && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onFailBackout(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
-                                title={`Dropout / backout candidate for ${row.vcode}`}
-                              >
-                                <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Backout</span>
-                              </button>
-                            )}
-                          </>
-                        )}
 
-                        {status === "hired" && onEditHiredDate && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditHiredDate(row);
-                            }}
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs"
-                            title={`Edit hired date for ${row.applicantName || row.vcode}`}
-                          >
-                            <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span className="hidden sm:inline">Edit Date</span>
-                          </button>
-                        )}
-
-                        {status === "closure" && (
-                          <div className="flex items-center gap-1">
-                            {onReviewClosure && (
+                            {status === "pipeline" && (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onReviewClosure(row, "Approved");
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
-                                  title={`Approve closure request for ${row.vcode}`}
-                                >
-                                  <Check className="h-3 w-3" aria-hidden="true" />
-                                  <span className="hidden sm:inline">Approve</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onReviewClosure(row, "Rejected");
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs"
-                                  title={`Reject closure request for ${row.vcode}`}
-                                >
-                                  <X className="h-3 w-3" aria-hidden="true" />
-                                  <span className="hidden sm:inline">Reject</span>
-                                </button>
+                                {onAdvancePipeline && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAdvancePipeline(row);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                    title={`Update pipeline stage for ${row.applicantName || row.vcode}`}
+                                  >
+                                    <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Update</span>
+                                  </button>
+                                )}
+                                {onMarkHired && isOnBoardStatus(row) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onMarkHired(row);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                    title={`Approve placement / mark ${row.applicantName || row.vcode} as hired`}
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Approve</span>
+                                  </button>
+                                )}
+                                {onFailBackout && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onFailBackout(row);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
+                                    title={`Dropout / backout candidate for ${row.vcode}`}
+                                  >
+                                    <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Backout</span>
+                                  </button>
+                                )}
                               </>
                             )}
+
+                            {status === "closure" && (
+                              <div className="flex items-center gap-1">
+                                {onReviewClosure && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onReviewClosure(row, "Approved");
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
+                                      title={`Approve closure request for ${row.vcode}`}
+                                    >
+                                      <Check className="h-3 w-3" aria-hidden="true" />
+                                      <span className="hidden sm:inline">Approve</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onReviewClosure(row, "Rejected");
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs"
+                                      title={`Reject closure request for ${row.vcode}`}
+                                    >
+                                      <X className="h-3 w-3" aria-hidden="true" />
+                                      <span className="hidden sm:inline">Reject</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {status === "failed_backout" && onReopenVacancy && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onReopenVacancy(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
+                                title={`Reopen slot for ${row.vcode}`}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                                <span className="hidden sm:inline">Reopen</span>
+                              </button>
+                            )}
+
+                            <button
+                              aria-label={`Select vacancy ${row.vcode}`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition"
+                              disabled={!row.rowCapabilities.canViewDetail}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(row);
+                              }}
+                              type="button"
+                              title="View Details"
+                            >
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
                           </div>
-                        )}
-
-                        {status === "failed_backout" && onReopenVacancy && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReopenVacancy(row);
-                            }}
-                            className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
-                            title={`Reopen slot for ${row.vcode}`}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span className="hidden sm:inline">Reopen</span>
-                          </button>
-                        )}
-
-                        <button
-                          aria-label={`Select vacancy ${row.vcode}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition"
-                          disabled={!row.rowCapabilities.canViewDetail}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(row);
-                          }}
-                          type="button"
-                          title="View Details"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </td>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 );
               })

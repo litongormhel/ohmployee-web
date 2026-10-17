@@ -1,5 +1,55 @@
 # AI Handoff
 
+## Execute Web "More" Module Parity — Wire Orphaned Modals, Add Data Control Tab & Build Core Governance Modals (ohm#w89p601b)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**
+
+### Summary of Changes
+
+1. **Expanded `/more/page.tsx` Tab Navigation & Grid**:
+   - Added 5th tab: **`Data Control`** (`tab=data_control`, Icon: `Database`) alongside `Overview`, `Admin Tools`, `Permissions & Access`, and `Audit & Integrity`.
+   - Replaced rigid 3-card limits with responsive multi-row card grids (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`).
+
+2. **Wired Pre-built Orphaned Modals & Existing Routes**:
+   - **`Overview` Tab (`tab=overview`)**:
+     - Added **`User Management`** card linking to `/users`.
+     - Added **`Account Requests`** card wired to open the new `AccountRequestsModal.tsx`.
+   - **`Admin Tools` Tab (`tab=admin_tools`)**:
+     - Added **`Data Archival Center`** card wired to open `DataArchivalCenterModal.tsx`.
+   - **`Permissions & Access` Tab (`tab=permissions`)**:
+     - Added **`Temporary Group Access`** card wired to open `TempPermissionModal.tsx`.
+     - Added **`Access Control Center`** card wired to open `AccessControlCenterModal.tsx`.
+   - **`Audit & Integrity` Tab (`tab=audit`)**:
+     - Added **`Data Archival & Recovery`** card wired to open `DataArchivalCenterModal.tsx`.
+   - **`Data Control` Tab (`tab=data_control`)**:
+     - **`Import HR Emploc`**: Links directly to `/hr-emploc/import`.
+     - **`Edit Lock Control`**: Wired to open `EditLockControlModal.tsx`.
+     - **`Data Archival / Recovery`**: Wired to open `DataArchivalCenterModal.tsx`.
+     - **`Global Store Transfer`**: Wired to open `GlobalStoreTransferModal.tsx`.
+     - **`Roving Coverage Groups`**: Links to `/approvals?tab=coverage`.
+     - **Remaining Bulk Importers** (`Import Plantilla`, `Import Vacancy`, `Import MIKA`, `Import Payroll`, `Payroll Review Center`): Rendered with accurate descriptions, icons, and Phase 3 badges for 100% visual parity with Mobile.
+
+3. **Built High-Priority Missing Governance Modals**:
+   - **`AccessControlCenterModal.tsx`**:
+     - Ported from Mobile `access_control_center_screen.dart` and `module_visibility_service.dart`.
+     - Super Admin user search, role baseline computation, per-user module visibility overrides (`allow` | `deny` | `inherit`) via `fn_set_module_visibility_override` RPC, and audit history via `fn_module_override_audit`.
+   - **`GlobalStoreTransferModal.tsx`**:
+     - Ported 4-step store transfer flow from Mobile (`global_store_transfer_screen.dart` and `global_store_transfer_service.dart`).
+     - Step 1: Source scope (group, account). Step 2: Employee multi-select. Step 3: Target scope (group, account, store) with vacant slot assignment. Step 4: Review and audited reason submission.
+   - **`AccountRequestsModal.tsx`**:
+     - Built using backend RPC `get_approval_queue` and `approve_account_request_v2`.
+     - Allows Super Admins to view pending, approved, and rejected registration requests, assign roles (excluding SA/HA) and operational group/account scopes, or reject with audited reasons.
+     - Wired into both `/more` and `/users` header actions (`actionSlot`).
+
+4. **Query & Model Extensions (`src/lib/queries/more.ts`, `src/lib/queries/accountRequests.ts`)**:
+   - Added typed fetchers, mutations, and React Query hooks for `acc-users`, `acc-overrides`, `acc-audit`, store transfer options/submission, and account approval queues.
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors).
+- `npm run build`: **PASS** (19/19 static pages compiled and prerendered cleanly).
+
+---
+
 ## Fix Silent {0,0,0} Counts Fallback — Error Visibility Across Approvals Queues (ohm#4f8k1v7n)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**

@@ -4,21 +4,28 @@ import { Suspense, useCallback, useMemo, useState, type ComponentType } from "re
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Archive,
   ArrowRight,
   CheckCircle2,
   Clock,
+  Database,
+  FileSpreadsheet,
   FileText,
   History,
   Key,
   Layers,
+  Lock,
   LogOut,
+  Send,
   Settings,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Sliders,
   TrendingUp,
+  Upload,
   User,
+  UserCheck,
   Users2,
   Wrench,
 } from "lucide-react";
@@ -27,11 +34,19 @@ import { useActiveTempPermission } from "@/lib/queries/more";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 
+// Modals
+import { DataArchivalCenterModal } from "@/components/more/DataArchivalCenterModal";
+import { EditLockControlModal } from "@/components/more/EditLockControlModal";
+import { TempPermissionModal } from "@/components/more/TempPermissionModal";
+import { AccessControlCenterModal } from "@/components/more/AccessControlCenterModal";
+import { GlobalStoreTransferModal } from "@/components/more/GlobalStoreTransferModal";
+import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
+
 // ============================================================================
 // Types & Definitions
 // ============================================================================
 
-export type MoreTabKey = "overview" | "admin_tools" | "permissions" | "audit";
+export type MoreTabKey = "overview" | "admin_tools" | "permissions" | "audit" | "data_control";
 
 export interface MoreFeatureTile {
   id: string;
@@ -72,6 +87,11 @@ const MORE_TABS: MoreTabItem[] = [
     label: "Audit & Integrity",
     icon: FileText,
   },
+  {
+    key: "data_control",
+    label: "Data Control",
+    icon: Database,
+  },
 ];
 
 // ============================================================================
@@ -89,12 +109,21 @@ function MorePageContent() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Modal Open States
+  const [dataArchivalOpen, setDataArchivalOpen] = useState(false);
+  const [editLockOpen, setEditLockOpen] = useState(false);
+  const [tempPermissionOpen, setTempPermissionOpen] = useState(false);
+  const [accessControlOpen, setAccessControlOpen] = useState(false);
+  const [storeTransferOpen, setStoreTransferOpen] = useState(false);
+  const [accountRequestsOpen, setAccountRequestsOpen] = useState(false);
+
   // Tab State with URL query synchronization
   const rawTab = searchParams.get("tab");
   const initialTab: MoreTabKey =
     rawTab === "admin_tools" ||
     rawTab === "permissions" ||
-    rawTab === "audit"
+    rawTab === "audit" ||
+    rawTab === "data_control"
       ? rawTab
       : "overview";
 
@@ -161,6 +190,24 @@ function MorePageContent() {
   const overviewTiles: MoreFeatureTile[] = useMemo(
     () => [
       {
+        id: "user_management",
+        title: "User Management",
+        description: "Password reset, role management, and account transfers",
+        icon: Users2,
+        href: "/users",
+        badgeLabel: "ADMIN",
+        badgeVariant: "purple",
+      },
+      {
+        id: "account_requests",
+        title: "Account Requests",
+        description: "Review, approve, or reject pending employee account registrations",
+        icon: UserCheck,
+        onClick: () => setAccountRequestsOpen(true),
+        badgeLabel: "APPROVALS",
+        badgeVariant: "blue",
+      },
+      {
         id: "team_directory",
         title: "Team Directory",
         description: "Find and contact Ops, Recruitment, and Data Team users",
@@ -205,6 +252,16 @@ function MorePageContent() {
         minRoleLevel: 100,
       },
       {
+        id: "data_archival_center",
+        title: "Data Archival Center",
+        description: "Inspect soft-deleted records, restore Plantilla or Vacancies, and view archival audit trail",
+        icon: Archive,
+        onClick: () => setDataArchivalOpen(true),
+        badgeLabel: "LEVEL 100",
+        badgeVariant: "rose",
+        minRoleLevel: 100,
+      },
+      {
         id: "switch_role",
         title: "Switch Role",
         description: "Act as a different role with scoped access for testing",
@@ -233,6 +290,26 @@ function MorePageContent() {
   // ── Tab 3: Permissions & Access ───────────────────────────────────────────
   const permissionTiles: MoreFeatureTile[] = useMemo(
     () => [
+      {
+        id: "temp_permission",
+        title: "Temporary Group Access",
+        description: "Grant time-bound group overrides to Encoders for CENCOM or operational coverage",
+        icon: Clock,
+        onClick: () => setTempPermissionOpen(true),
+        badgeLabel: "OVERRIDE",
+        badgeVariant: "amber",
+        minRoleLevel: 90,
+      },
+      {
+        id: "access_control_center",
+        title: "Access Control Center",
+        description: "Super Admin tool to toggle per-user module navigation overrides with full audit logging",
+        icon: Sliders,
+        onClick: () => setAccessControlOpen(true),
+        badgeLabel: "SUPER ADMIN",
+        badgeVariant: "purple",
+        minRoleLevel: 100,
+      },
       {
         id: "permission_matrix",
         title: "Permission Matrix",
@@ -271,6 +348,16 @@ function MorePageContent() {
   const auditTiles: MoreFeatureTile[] = useMemo(
     () => [
       {
+        id: "data_archival_recovery",
+        title: "Data Archival & Recovery",
+        description: "Archived Plantilla/Vacancy restoration and full archival audit observation logs",
+        icon: Archive,
+        onClick: () => setDataArchivalOpen(true),
+        badgeLabel: "SUPER ADMIN",
+        badgeVariant: "purple",
+        minRoleLevel: 100,
+      },
+      {
         id: "security_events",
         title: "Security Events",
         description: "Security activity, threat indicators, and auth alerts",
@@ -304,6 +391,105 @@ function MorePageContent() {
     []
   );
 
+  // ── Tab 5: Data Control (Parity with Mobile Data Control) ─────────────────
+  const dataControlTiles: MoreFeatureTile[] = useMemo(
+    () => [
+      {
+        id: "import_hr_emploc",
+        title: "Import HR Emploc",
+        description: "Bulk upload HR Emploc records via XLSX with HA/SA approval",
+        icon: Upload,
+        href: "/hr-emploc/import",
+        badgeLabel: "EXCEL",
+        badgeVariant: "emerald",
+      },
+      {
+        id: "edit_lock_control",
+        title: "Edit Lock Control",
+        description: "Restrict edits during CENCOM or review periods with SA temporary override controls",
+        icon: Lock,
+        onClick: () => setEditLockOpen(true),
+        badgeLabel: "SECURITY",
+        badgeVariant: "amber",
+        minRoleLevel: 90,
+      },
+      {
+        id: "data_archival_control",
+        title: "Data Archival / Recovery",
+        description: "Recover soft-deleted plantilla and vacancy records with audited reason logging",
+        icon: Archive,
+        onClick: () => setDataArchivalOpen(true),
+        badgeLabel: "LEVEL 100",
+        badgeVariant: "rose",
+        minRoleLevel: 100,
+      },
+      {
+        id: "global_store_transfer",
+        title: "Global Store Transfer",
+        description: "Request employee store transfers for SA approval with target vacant slot assignment",
+        icon: Send,
+        onClick: () => setStoreTransferOpen(true),
+        badgeLabel: "TRANSFER",
+        badgeVariant: "blue",
+      },
+      {
+        id: "roving_coverage_groups",
+        title: "Roving Coverage Groups",
+        description: "Review and manage roving reliever assignments and multi-store coverage pools",
+        icon: Users2,
+        href: "/approvals?tab=coverage",
+        badgeLabel: "ROVING",
+        badgeVariant: "blue",
+      },
+      {
+        id: "import_plantilla",
+        title: "Import Plantilla",
+        description: "Bulk master plantilla baseline ingestion (CSV/XLSX parser staging)",
+        icon: FileSpreadsheet,
+        onClick: () => alert("Plantilla Bulk Importer will be available in Phase 3 parity."),
+        badgeLabel: "PHASE 3",
+        badgeVariant: "purple",
+      },
+      {
+        id: "import_vacancy",
+        title: "Import Vacancy",
+        description: "Bulk import vacancy records and requisitions into current operational active groups",
+        icon: FileSpreadsheet,
+        onClick: () => alert("Vacancy Bulk Importer will be available in Phase 3 parity."),
+        badgeLabel: "PHASE 3",
+        badgeVariant: "purple",
+      },
+      {
+        id: "import_mika",
+        title: "Import MIKA",
+        description: "MIKA biometric attendance and store activity import staging",
+        icon: FileSpreadsheet,
+        onClick: () => alert("MIKA Attendance Importer will be available in Phase 3 parity."),
+        badgeLabel: "PHASE 3",
+        badgeVariant: "purple",
+      },
+      {
+        id: "import_payroll",
+        title: "Import Payroll",
+        description: "Import operational payroll sheets and employee wage deductions",
+        icon: FileSpreadsheet,
+        onClick: () => alert("Payroll Importer will be available in Phase 3 parity."),
+        badgeLabel: "PHASE 3",
+        badgeVariant: "purple",
+      },
+      {
+        id: "payroll_review_center",
+        title: "Payroll Review Center",
+        description: "Verify and approve payroll reconciliations and variance discrepancies",
+        icon: FileText,
+        onClick: () => alert("Payroll Review Center will be available in Phase 3 parity."),
+        badgeLabel: "PHASE 3",
+        badgeVariant: "purple",
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       {/* Standard Admin Header */}
@@ -311,7 +497,7 @@ function MorePageContent() {
         categoryTag="ADMIN PANEL"
         moduleName="More"
         title="System Hub & Governance Tools"
-        subtitle="Access administrator utilities, security matrices, audit trails, and command controls."
+        subtitle="Access administrator utilities, security matrices, audit trails, data control, and command controls."
         icon={Layers}
       />
 
@@ -557,7 +743,67 @@ function MorePageContent() {
             </div>
           </div>
         )}
+
+        {/* Tab 5: Data Control */}
+        {activeTab === "data_control" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-600" />
+                  <span>Data Control & Batch Ingestion</span>
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                  Mobile Parity
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dataControlTiles.map((tile) => (
+                <TileCard key={tile.id} tile={tile} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Modals Mounting */}
+      <DataArchivalCenterModal
+        isOpen={dataArchivalOpen}
+        onClose={() => setDataArchivalOpen(false)}
+        canRestore={isSuperAdmin}
+      />
+
+      <EditLockControlModal
+        isOpen={editLockOpen}
+        onClose={() => setEditLockOpen(false)}
+        canManageOverrides={isHeadAdmin}
+      />
+
+      <TempPermissionModal
+        isOpen={tempPermissionOpen}
+        onClose={() => setTempPermissionOpen(false)}
+        canManage={isHeadAdmin}
+        currentUserFullName={currentUser?.displayName || "Administrator"}
+      />
+
+      <AccessControlCenterModal
+        isOpen={accessControlOpen}
+        onClose={() => setAccessControlOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <GlobalStoreTransferModal
+        isOpen={storeTransferOpen}
+        onClose={() => setStoreTransferOpen(false)}
+        currentUserFullName={currentUser?.displayName || "Administrator"}
+      />
+
+      <AccountRequestsModal
+        isOpen={accountRequestsOpen}
+        onClose={() => setAccountRequestsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
     </div>
   );
 }
@@ -587,6 +833,8 @@ function TileCard({ tile }: { tile: MoreFeatureTile }) {
                     ? "bg-purple-100 text-purple-800 border border-purple-200/60"
                     : tile.badgeVariant === "amber"
                     ? "bg-amber-100 text-amber-800 border border-amber-200/60"
+                    : tile.badgeVariant === "emerald"
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200/60"
                     : "bg-slate-100 text-slate-800 border border-slate-200/60"
                 }`}
               >
@@ -624,7 +872,7 @@ function TileCard({ tile }: { tile: MoreFeatureTile }) {
     <button
       type="button"
       onClick={tile.onClick}
-      className="block text-left w-full h-full focus:outline-none"
+      className="block text-left w-full h-full focus:outline-hidden"
     >
       {content}
     </button>

@@ -77,8 +77,12 @@ export type VacancyListItem = {
   hrcoName: string | null;
   applicantId?: string | null;
   applicantName: string | null;
+  applicantFirstName?: string | null;
+  applicantLastName?: string | null;
+  applicantMiddleName?: string | null;
   contactNumber?: string | null;
   hiredDate?: string | null;
+  daysToFill?: number | null;
   stageBadge?: string | null;
   closureReason?: string | null;
   closureRequestedBy?: string | null;
@@ -164,6 +168,7 @@ export type VacancyDetailItem = {
   // Supplementary fields from official sheet schema
   contactNumber: string | null;
   onboardDate: string | null;
+  daysToFill?: number | null;
   relieverOnDuty: string | null;
   hasReliever: boolean;
   hrcoRemarks: string | null;
@@ -397,6 +402,20 @@ function throwVacancyError(error: PostgrestError): never {
   throw new VacancyDataError(getErrorKind(error), error.message);
 }
 
+export function calculateDaysToFill(
+  vacantDate?: string | null,
+  onboardDate?: string | null,
+): number | null {
+  if (!vacantDate || !onboardDate) return null;
+  const vClean = vacantDate.substring(0, 10);
+  const oClean = onboardDate.substring(0, 10);
+  const vTime = Date.parse(`${vClean}T00:00:00Z`);
+  const oTime = Date.parse(`${oClean}T00:00:00Z`);
+  if (isNaN(vTime) || isNaN(oTime)) return null;
+  const diffDays = Math.round((oTime - vTime) / 86400000);
+  return Math.max(0, diffDays);
+}
+
 function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const id = asString(row.vacancy_id ?? row.id);
 
@@ -497,6 +516,9 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hrcoName: asString(row.hrco_name),
     applicantId,
     applicantName,
+    applicantFirstName,
+    applicantLastName,
+    applicantMiddleName,
     contactNumber,
     hiredDate,
     stageBadge: asString(row.stage_badge ?? row.stage ?? row.top_applicant_status),
@@ -1040,8 +1062,9 @@ export async function listVacancies(params: VacancyListParams) {
         const hiredRows: VacancyListItem[] = hiredData.map((h: Record<string, unknown>, idx: number) => {
           const lName = asString(h.last_name);
           const fName = asString(h.first_name);
+          const mName = asString(h.middle_name);
           const rawFull = asString(h.full_name);
-          const workerName = formatPersonName(fName, lName, null, rawFull || "Hired Worker");
+          const workerName = formatPersonName(fName, lName, mName, rawFull || "Hired Worker");
 
           const hiredDate = asString(h.hired_date ?? h.hired_at);
           const position = asString(h.position_name ?? h.position);
@@ -1070,7 +1093,8 @@ export async function listVacancies(params: VacancyListParams) {
             hasRecentHire: true,
             hasPendingClosure: false,
             closureRequestStatus: null,
-            vacantDate: hiredDate,
+            vacantDate: null,
+            daysToFill: null,
             agingDays: null,
             agingBucket: null,
             targetFillDate: null,
@@ -1078,6 +1102,9 @@ export async function listVacancies(params: VacancyListParams) {
             hrcoName: asString(h.hired_by) ?? "HR Team",
             applicantId: asString(h.id),
             applicantName: workerName,
+            applicantFirstName: fName,
+            applicantLastName: lName,
+            applicantMiddleName: mName,
             contactNumber: asString(h.contact_number),
             hiredDate,
             hasPenalty: false,
@@ -1096,15 +1123,14 @@ export async function listVacancies(params: VacancyListParams) {
           };
         });
 
-        // Enrich store info for hired rows if vcodes exist
+        // Enrich store info and vacantDate for hired rows if vcodes exist
         const hiredVcodes = Array.from(new Set(hiredRows.map((r) => r.vcode).filter(Boolean)));
         if (hiredVcodes.length > 0) {
           try {
             const { data: vacsData } = await supabase
               .from("vacancies")
-              .select("vcode, store_name, area_city, province, store_id, account_id, group_id, account, group_name")
+              .select("vcode, store_name, store_branch, area_city, province, store_id, account_id, group_id, account, vacant_date, created_at, employment_type, hrco_name")
               .in("vcode", hiredVcodes)
-              .eq("is_archived", false)
               .is("deleted_at", null);
 
             if (vacsData && vacsData.length > 0) {
@@ -1112,12 +1138,15 @@ export async function listVacancies(params: VacancyListParams) {
               for (const row of hiredRows) {
                 if (vacMap.has(row.vcode)) {
                   const v = vacMap.get(row.vcode)!;
-                  row.storeName = v.store_name || null;
+                  row.storeName = v.store_name || v.store_branch || null;
+                  row.vacantDate = v.vacant_date || v.created_at?.substring(0, 10) || null;
+                  row.daysToFill = calculateDaysToFill(row.vacantDate, row.hiredDate);
                   row.accountId = v.account_id || row.accountId;
                   row.groupId = v.group_id || row.groupId;
                   row.storeId = v.store_id || row.storeId;
                   row.accountName = row.accountName || v.account || null;
-                  row.groupName = row.groupName || v.group_name || null;
+                  if (v.employment_type) row.employmentType = v.employment_type;
+                  if (v.hrco_name) row.hrcoName = v.hrco_name;
                   const loc = [v.area_city, v.province].filter(Boolean).join(" • ");
                   if (loc) row.storeLocation = loc;
                 }
@@ -1889,8 +1918,9 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             const vcode = asString(match.vacancy_vcode) ?? "Uncoded";
             const lName = asString(match.last_name);
             const fName = asString(match.first_name);
+            const mName = asString(match.middle_name);
             const rawFull = asString(match.full_name);
-            const workerName = formatPersonName(fName, lName, null, rawFull || "Hired Worker");
+            const workerName = formatPersonName(fName, lName, mName, rawFull || "Hired Worker");
             const hiredDate = asString(match.hired_date ?? match.hired_at);
             const pos = asString(match.position_name ?? match.position);
 
@@ -1910,6 +1940,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             const areaCity = asString(vacRow?.area_city);
             const areaProvince = asString(vacRow?.area_province ?? vacRow?.province);
             const storeLocation = [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
+            const vacDate = asString(vacRow?.vacant_date ?? vacRow?.created_at) || hiredDate;
 
             return {
               vacancyId,
@@ -1919,7 +1950,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               groupId: asString(vacRow?.group_id),
               groupName: asString(match.group_name ?? vacRow?.group_name),
               storeId: asString(vacRow?.store_id),
-              storeName: asString(vacRow?.store_name ?? vacRow?.store),
+              storeName: asString(vacRow?.store_name ?? vacRow?.store_branch ?? vacRow?.store),
               position_title: pos || asString(vacRow?.position),
               department: asString(vacRow?.department ?? vacRow?.business_unit),
               employmentType: asString(vacRow?.employment_type),
@@ -1931,7 +1962,8 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               hasRecentHire: true,
               hasPendingClosure: false,
               closureRequestStatus: null,
-              vacantDate: hiredDate,
+              vacantDate: vacDate,
+              daysToFill: calculateDaysToFill(vacDate, hiredDate),
               agingDays: null,
               agingBucket: null,
               targetFillDate: null,
@@ -3167,12 +3199,9 @@ async function fetchAllHiredVacancies(
     const hiredRows = hiredData.map((h: Record<string, unknown>, idx: number) => {
       const lName = asString(h.last_name);
       const fName = asString(h.first_name);
+      const mName = asString(h.middle_name);
       const rawFull = asString(h.full_name);
-      const workerName = rawFull
-        ? rawFull
-        : lName && fName
-        ? `${lName}, ${fName}`
-        : lName || fName || "Hired Worker";
+      const workerName = formatPersonName(fName, lName, mName, rawFull || "Hired Worker");
 
       const hiredDate = asString(h.hired_date ?? h.hired_at);
       const position = asString(h.position_name ?? h.position);
@@ -3191,7 +3220,9 @@ async function fetchAllHiredVacancies(
         storeName: null as string | null,
         storeLocation: null as string | null,
         position_title: position,
-        vacantDate: hiredDate,
+        vacantDate: null as string | null,
+        hiredDate,
+        daysToFill: null as number | null,
         agingDays: null as number | null,
         urgencyLevel: null as string | null,
         hrcoName: asString(h.hired_by) ?? "HR Team",
@@ -3205,9 +3236,8 @@ async function fetchAllHiredVacancies(
       try {
         const { data: vacsData } = await supabase
           .from("vacancies")
-          .select("vcode, store_name, area_city, province, store_id, account_id, group_id, account, group_name")
+          .select("vcode, store_name, store_branch, area_city, province, store_id, account_id, group_id, account, vacant_date, created_at")
           .in("vcode", hiredVcodes)
-          .eq("is_archived", false)
           .is("deleted_at", null);
 
         if (vacsData && vacsData.length > 0) {
@@ -3215,12 +3245,13 @@ async function fetchAllHiredVacancies(
           for (const row of hiredRows) {
             if (vacMap.has(row.vcode)) {
               const v = vacMap.get(row.vcode)!;
-              row.storeName = v.store_name || null;
+              row.storeName = v.store_name || v.store_branch || null;
+              row.vacantDate = v.vacant_date || v.created_at?.substring(0, 10) || null;
+              row.daysToFill = calculateDaysToFill(row.vacantDate, row.hiredDate);
               row.accountId = v.account_id || row.accountId;
               row.groupId = v.group_id || row.groupId;
               row.storeId = v.store_id || row.storeId;
               row.accountName = row.accountName || v.account || null;
-              row.groupName = row.groupName || v.group_name || null;
               const loc = [v.area_city, v.province].filter(Boolean).join(" • ");
               if (loc) row.storeLocation = loc;
             }
@@ -3276,7 +3307,10 @@ async function fetchAllHiredVacancies(
         storeName: item.storeName || "",
         storeLocation: item.storeLocation || "",
         hrcoName: item.hrcoName || "",
-        agingDays: "",
+        agingDays:
+          item.daysToFill !== null && item.daysToFill !== undefined
+            ? `${item.daysToFill} days`
+            : "",
         urgencyLevel: item.urgencyLevel || "",
         createdDate: createdDateStr,
       };

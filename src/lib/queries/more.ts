@@ -646,3 +646,549 @@ export function useRestoreVacancy() {
     },
   });
 }
+
+// ============================================================================
+// Access Control Center (Module Visibility Overrides)
+// ============================================================================
+
+export interface AccUser {
+  id: string;
+  fullName: string;
+  roleName: string;
+  roleLevel: number;
+  groups: string[];
+  accounts: string[];
+}
+
+export interface ModuleOverrideAuditItem {
+  id: string;
+  changedBy: string | null;
+  changedByName: string | null;
+  permissionKey: string;
+  previousValue: string;
+  newValue: string;
+  reason: string;
+  createdAt: string;
+}
+
+export const ACC_MODULE_KEYS = [
+  "cencom.view",
+  "vacancy.view",
+  "hr_emploc.view",
+  "plantilla.view",
+  "reports.view",
+  "user_management.view",
+  "imports.view",
+  "security.view",
+] as const;
+
+export const ACC_MODULE_LABELS: Record<string, string> = {
+  "cencom.view": "CENCOM",
+  "vacancy.view": "Vacancy",
+  "hr_emploc.view": "HR Emploc",
+  "plantilla.view": "Plantilla",
+  "reports.view": "Reports",
+  "user_management.view": "User Management",
+  "imports.view": "Imports",
+  "security.view": "Security",
+};
+
+export function getRoleModuleDefault(roleName: string, roleLevel: number, key: string): boolean {
+  const normRole = roleName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const isSuperAdmin = normRole.includes("super_admin") || normRole === "owner" || roleLevel >= 100;
+  const isHeadAdmin = isSuperAdmin || normRole.includes("head_admin") || roleLevel >= 90;
+  const isEncoder = normRole === "encoder" || roleLevel === 30;
+  const isOpsTeam = isHeadAdmin || isEncoder || roleLevel >= 50;
+
+  switch (key) {
+    case "cencom.view":
+      return isOpsTeam;
+    case "vacancy.view":
+      return true;
+    case "hr_emploc.view":
+      return isOpsTeam;
+    case "plantilla.view":
+      return isOpsTeam;
+    case "reports.view":
+      return isOpsTeam;
+    case "user_management.view":
+      return isHeadAdmin;
+    case "imports.view":
+      return isHeadAdmin;
+    case "security.view":
+      return isSuperAdmin;
+    default:
+      return false;
+  }
+}
+
+export async function fetchAccUsers(): Promise<AccUser[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("users_profile")
+    .select(`
+      id,
+      full_name,
+      is_active,
+      roles (role_name, role_level),
+      user_scopes (
+        groups (group_name),
+        accounts (account_name)
+      )
+    `)
+    .eq("is_active", true)
+    .order("full_name");
+
+  if (error || !data) return [];
+
+  return (data as unknown as Record<string, unknown>[]).map((r) => {
+    const role = (r.roles as Record<string, unknown> | null) ?? null;
+    const scopes = Array.isArray(r.user_scopes) ? (r.user_scopes as Record<string, unknown>[]) : [];
+    const groupsSet = new Set<string>();
+    const accountsSet = new Set<string>();
+
+    for (const s of scopes) {
+      const g = s.groups as { group_name?: string } | null;
+      const a = s.accounts as { account_name?: string } | null;
+      if (g?.group_name) groupsSet.add(g.group_name);
+      if (a?.account_name) accountsSet.add(a.account_name);
+    }
+
+    return {
+      id: String(r.id),
+      fullName: String(r.full_name || "Unknown"),
+      roleName: String(role?.role_name || "Viewer"),
+      roleLevel: Number(role?.role_level || 0),
+      groups: Array.from(groupsSet).sort(),
+      accounts: Array.from(accountsSet).sort(),
+    };
+  });
+}
+
+export async function fetchUserModuleOverrides(userId: string): Promise<Record<string, string>> {
+  if (!userId) return {};
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_module_overrides_for_user", {
+    p_target_user: userId,
+  });
+
+  if (error || !data) return {};
+  return typeof data === "object" ? (data as Record<string, string>) : {};
+}
+
+export async function fetchUserModuleOverrideAudit(userId: string): Promise<ModuleOverrideAuditItem[]> {
+  if (!userId) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_module_override_audit", {
+    p_target_user: userId,
+    p_limit: 50,
+  });
+
+  if (error || !data) return [];
+  const rows = (data as unknown as Record<string, unknown>[]) || [];
+
+  return rows.map((r) => ({
+    id: String(r.id),
+    changedBy: r.changed_by ? String(r.changed_by) : null,
+    changedByName: r.changed_by_name ? String(r.changed_by_name) : null,
+    permissionKey: String(r.permission_key || ""),
+    previousValue: String(r.previous_value || "inherit"),
+    newValue: String(r.new_value || "inherit"),
+    reason: String(r.reason || ""),
+    createdAt: String(r.created_at || ""),
+  }));
+}
+
+export async function setModuleVisibilityOverride(payload: {
+  userId: string;
+  permissionKey: string;
+  state: "allow" | "deny" | "inherit";
+  reason: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("fn_set_module_visibility_override", {
+    p_target_user: payload.userId,
+    p_permission_key: payload.permissionKey,
+    p_new_state: payload.state,
+    p_reason: payload.reason.trim(),
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to update module visibility override");
+  }
+}
+
+export function useAccUsers() {
+  return useQuery({
+    queryKey: ["acc-users"],
+    queryFn: fetchAccUsers,
+  });
+}
+
+export function useUserModuleOverrides(userId: string | null) {
+  return useQuery<Record<string, string>>({
+    queryKey: ["acc-overrides", userId],
+    queryFn: () => (userId ? fetchUserModuleOverrides(userId) : Promise.resolve({} as Record<string, string>)),
+    enabled: !!userId,
+  });
+}
+
+export function useUserModuleOverrideAudit(userId: string | null) {
+  return useQuery({
+    queryKey: ["acc-audit", userId],
+    queryFn: () => (userId ? fetchUserModuleOverrideAudit(userId) : Promise.resolve([])),
+    enabled: !!userId,
+  });
+}
+
+export function useSetModuleVisibilityOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setModuleVisibilityOverride,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["acc-overrides", variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ["acc-audit", variables.userId] });
+    },
+  });
+}
+
+// ============================================================================
+// Global Store Transfer
+// ============================================================================
+
+export interface StoreTransferGroupOption {
+  id: string;
+  name: string;
+}
+
+export interface StoreTransferAccountOption {
+  id: string;
+  groupId: string;
+  name: string;
+}
+
+export interface StoreTransferEmployeeOption {
+  id: string;
+  displayName: string;
+  employeeNo: string;
+  currentVcode: string;
+  position: string;
+  currentStore: string;
+  storeId: string | null;
+  groupId: string;
+  groupName: string;
+  accountId: string;
+  accountName: string;
+}
+
+export interface StoreTransferStoreOption {
+  id: string;
+  accountId: string;
+  name: string;
+}
+
+export interface StoreTransferVacantSlotOption {
+  id: string;
+  vcode: string;
+  position: string;
+  storeId: string;
+  storeName: string;
+  accountName: string;
+  groupName: string;
+}
+
+export async function fetchStoreTransferGroups(): Promise<StoreTransferGroupOption[]> {
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("get_plantilla_scope_menu");
+    if (error || !data) {
+      // Fallback to groups table if RPC fails or not accessible
+      const { data: rawGroups } = await supabase.from("groups").select("id, group_name").order("group_name");
+      return (rawGroups || []).map((g: { id: string; group_name: string }) => ({
+        id: g.id,
+        name: g.group_name,
+      }));
+    }
+
+    const unique = new Map<string, { id: string; name: string; order: number }>();
+    for (const row of data as Record<string, unknown>[]) {
+      if (row.can_view === false) continue;
+      const id = String(row.scope_id || row.group_id || "");
+      const name = String(row.label || row.group_name || "");
+      if (!id || !name) continue;
+      const sortOrder = typeof row.sort_order === "number" ? row.sort_order : 0;
+      if (!unique.has(id) || sortOrder < unique.get(id)!.order) {
+        unique.set(id, { id, name, order: sortOrder });
+      }
+    }
+
+    return Array.from(unique.values())
+      .sort((a, b) => a.order - b.order)
+      .map(({ id, name }) => ({ id, name }));
+  } catch {
+    const { data: rawGroups } = await supabase.from("groups").select("id, group_name").order("group_name");
+    return (rawGroups || []).map((g: { id: string; group_name: string }) => ({
+      id: g.id,
+      name: g.group_name,
+    }));
+  }
+}
+
+export async function fetchStoreTransferAccounts(groupId: string): Promise<StoreTransferAccountOption[]> {
+  if (!groupId) return [];
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("get_accounts_by_group", {
+      p_group_id: groupId,
+    });
+
+    if (error || !data) {
+      const { data: rawAccounts } = await supabase
+        .from("accounts")
+        .select("id, account_name, group_id")
+        .eq("group_id", groupId)
+        .order("account_name");
+      return (rawAccounts || []).map((a: { id: string; account_name: string; group_id: string }) => ({
+        id: a.id,
+        groupId: a.group_id || groupId,
+        name: a.account_name,
+      }));
+    }
+
+    return (data as Record<string, unknown>[]).map((row) => ({
+      id: String(row.account_id || row.id || ""),
+      groupId: String(row.group_id || groupId),
+      name: String(row.account_name || ""),
+    })).filter((a) => a.id && a.name);
+  } catch {
+    const { data: rawAccounts } = await supabase
+      .from("accounts")
+      .select("id, account_name, group_id")
+      .eq("group_id", groupId)
+      .order("account_name");
+    return (rawAccounts || []).map((a: { id: string; account_name: string; group_id: string }) => ({
+      id: a.id,
+      groupId: a.group_id || groupId,
+      name: a.account_name,
+    }));
+  }
+}
+
+export async function fetchStoreTransferEmployees(params: {
+  groupId: string;
+  groupName: string;
+  accountId: string;
+  accountName: string;
+}): Promise<StoreTransferEmployeeOption[]> {
+  if (!params.groupId || !params.accountId) return [];
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("v_plantilla_safe")
+    .select(
+      "id, employee_name, employee_no, vcode, position, store_id, store_name, account_id, account, status, source_headcount_request_id"
+    )
+    .eq("account_id", params.accountId)
+    .eq("status", "Active")
+    .is("source_headcount_request_id", null)
+    .order("employee_name");
+
+  if (error || !data) return [];
+
+  return (data as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id || ""),
+    displayName: String(row.employee_name || ""),
+    employeeNo: String(row.employee_no || ""),
+    currentVcode: String(row.vcode || ""),
+    position: String(row.position || ""),
+    currentStore: String(row.store_name || ""),
+    storeId: row.store_id ? String(row.store_id) : null,
+    groupId: params.groupId,
+    groupName: params.groupName,
+    accountId: params.accountId,
+    accountName: row.account ? String(row.account) : params.accountName,
+  })).filter((e) => e.id);
+}
+
+export async function fetchStoreTransferStores(params: {
+  groupId: string;
+  accountId: string;
+}): Promise<StoreTransferStoreOption[]> {
+  if (!params.groupId || !params.accountId) return [];
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, account_id, store_name")
+    .eq("group_id", params.groupId)
+    .eq("account_id", params.accountId)
+    .eq("is_active", true)
+    .order("store_name");
+
+  if (error || !data) return [];
+
+  return (data as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id || ""),
+    accountId: String(row.account_id || params.accountId),
+    name: String(row.store_name || ""),
+  })).filter((s) => s.id && s.name);
+}
+
+export async function fetchStoreTransferVacantSlots(params: {
+  storeId: string;
+  storeName: string;
+  accountName: string;
+  groupName: string;
+}): Promise<StoreTransferVacantSlotOption[]> {
+  if (!params.storeId) return [];
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("v_plantilla_safe")
+    .select(
+      "id, vcode, position, store_id, store_name, account, status, source_headcount_request_id"
+    )
+    .eq("store_id", params.storeId)
+    .eq("status", "Active")
+    .not("source_headcount_request_id", "is", null)
+    .order("vcode");
+
+  if (error || !data) return [];
+
+  return (data as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id || ""),
+    vcode: String(row.vcode || ""),
+    position: String(row.position || ""),
+    storeId: row.store_id ? String(row.store_id) : params.storeId,
+    storeName: row.store_name ? String(row.store_name) : params.storeName,
+    accountName: row.account ? String(row.account) : params.accountName,
+    groupName: params.groupName,
+  })).filter((s) => s.id && s.vcode);
+}
+
+export async function submitGlobalStoreTransferRequest(payload: {
+  sourceScope: string;
+  targetScope: string;
+  reason: string;
+  employees: Array<{
+    employeeId: string;
+    employeeName: string;
+    employeeNo: string;
+    sourceVcode: string;
+    sourceStore: string;
+    targetSlotId: string;
+    targetVcode: string;
+    targetStore: string;
+    position: string;
+  }>;
+}): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Insert into requests table or audit log as a pending store transfer request
+  // Matches store transfer request pattern
+  const { error } = await supabase.from("audit_logs").insert({
+    action: "STORE_TRANSFER_REQUEST",
+    module: "Transfer",
+    new_data: {
+      source_scope: payload.sourceScope,
+      target_scope: payload.targetScope,
+      reason: payload.reason,
+      employees: payload.employees,
+      status: "pending_sa_approval",
+      requested_by: user?.id,
+      requested_at: new Date().toISOString(),
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to submit store transfer request");
+  }
+}
+
+export function useStoreTransferGroups() {
+  return useQuery({
+    queryKey: ["store-transfer-groups"],
+    queryFn: fetchStoreTransferGroups,
+  });
+}
+
+export function useStoreTransferAccounts(groupId: string | null) {
+  return useQuery({
+    queryKey: ["store-transfer-accounts", groupId],
+    queryFn: () => (groupId ? fetchStoreTransferAccounts(groupId) : Promise.resolve([])),
+    enabled: !!groupId,
+  });
+}
+
+export function useStoreTransferEmployees(params: {
+  groupId: string | null;
+  groupName: string;
+  accountId: string | null;
+  accountName: string;
+}) {
+  return useQuery({
+    queryKey: ["store-transfer-employees", params.groupId, params.accountId],
+    queryFn: () =>
+      params.groupId && params.accountId
+        ? fetchStoreTransferEmployees({
+            groupId: params.groupId,
+            groupName: params.groupName,
+            accountId: params.accountId,
+            accountName: params.accountName,
+          })
+        : Promise.resolve([]),
+    enabled: !!params.groupId && !!params.accountId,
+  });
+}
+
+export function useStoreTransferStores(params: {
+  groupId: string | null;
+  accountId: string | null;
+}) {
+  return useQuery({
+    queryKey: ["store-transfer-stores", params.groupId, params.accountId],
+    queryFn: () =>
+      params.groupId && params.accountId
+        ? fetchStoreTransferStores({
+            groupId: params.groupId,
+            accountId: params.accountId,
+          })
+        : Promise.resolve([]),
+    enabled: !!params.groupId && !!params.accountId,
+  });
+}
+
+export function useStoreTransferVacantSlots(params: {
+  storeId: string | null;
+  storeName: string;
+  accountName: string;
+  groupName: string;
+}) {
+  return useQuery({
+    queryKey: ["store-transfer-vacant-slots", params.storeId],
+    queryFn: () =>
+      params.storeId
+        ? fetchStoreTransferVacantSlots({
+            storeId: params.storeId,
+            storeName: params.storeName,
+            accountName: params.accountName,
+            groupName: params.groupName,
+          })
+        : Promise.resolve([]),
+    enabled: !!params.storeId,
+  });
+}
+
+export function useSubmitGlobalStoreTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: submitGlobalStoreTransferRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+    },
+  });
+}

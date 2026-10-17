@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useConfirmApplicantOnboard } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 export interface MarkHiredModalProps {
   isOpen: boolean;
@@ -98,13 +99,18 @@ function MarkHiredModalContent({
         ? `0${cleanContact}`
         : cleanContact;
 
+    const trimmedLast = lastName.trim();
+    const trimmedFirst = firstName.trim();
+    const trimmedMiddle = middleName.trim() || null;
+    const computedFullName = formatPersonName(trimmedFirst, trimmedLast, trimmedMiddle);
+
     confirmOnboardMutation.mutate(
       {
         applicantId: applicant.id,
-        lastName: lastName.trim(),
-        firstName: firstName.trim(),
-        middleName: middleName.trim() || null,
-        fullName: `${lastName.trim()}, ${firstName.trim()}`,
+        lastName: trimmedLast,
+        firstName: trimmedFirst,
+        middleName: trimmedMiddle,
+        fullName: computedFullName || `${trimmedLast}, ${trimmedFirst}`,
         contactNumber: normalizedContact,
         hiredByUserId: currentUser?.profileId ?? null,
         hiredDate,
@@ -115,7 +121,7 @@ function MarkHiredModalContent({
       },
       {
         onSuccess: () => {
-          onSuccess?.(`${lastName.trim()}, ${firstName.trim()}`);
+          onSuccess?.(computedFullName || `${trimmedLast}, ${trimmedFirst}`);
           onClose();
         },
         onError: (err) => {

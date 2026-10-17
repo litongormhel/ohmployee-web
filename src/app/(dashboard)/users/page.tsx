@@ -15,6 +15,7 @@ import {
   type UserProfileItem,
 } from "@/lib/queries/users";
 import { Users, UserPlus, ShieldAlert, UserCheck, UserX } from "lucide-react";
+import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
 
 export default function UsersPage() {
   const currentUser = useCurrentUser();
@@ -43,6 +44,7 @@ export default function UsersPage() {
   // Drawer & Modal selection state
   const [selectedUser, setSelectedUser] = useState<UserProfileItem | null>(null);
   const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [accountRequestsOpen, setAccountRequestsOpen] = useState(false);
 
   // Users Query
   const { data: allUsers = [], isLoading, refetch } = useUsersList();
@@ -148,16 +150,26 @@ export default function UsersPage() {
         subtitle="Manage user directories, organizational roles, and cascaded group/account scopes."
         icon={Users}
         actionSlot={
-          isSuperAdmin ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setCreateUserOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
+              onClick={() => setAccountRequestsOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
             >
-              <UserPlus className="h-3.5 w-3.5" />
-              <span>Create User</span>
+              <UserCheck className="h-3.5 w-3.5 text-blue-600" />
+              <span>Account Requests</span>
             </button>
-          ) : null
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setCreateUserOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>Create User</span>
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -295,6 +307,13 @@ export default function UsersPage() {
         onSuccess={() => {
           refetch();
         }}
+      />
+
+      {/* Account Requests Queue Modal */}
+      <AccountRequestsModal
+        isOpen={accountRequestsOpen}
+        onClose={() => setAccountRequestsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
       />
     </div>
   );

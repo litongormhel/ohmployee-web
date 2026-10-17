@@ -62,11 +62,24 @@ type VacancyDetailDrawerProps = {
 
 function formatDate(value: string | null) {
   if (!value) return "--";
+  const parts = value.split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    if (monthIndex >= 0 && monthIndex < 12 && !Number.isNaN(day) && !Number.isNaN(year)) {
+      return `${months[monthIndex]} ${day}, ${year}`;
+    }
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "2-digit",
+    day: "numeric",
     year: "numeric",
   }).format(date);
 }
@@ -186,6 +199,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     detail?.derivedStatus === "For Closure"
   );
 
+  const isHired = Boolean(
+    status === "hired" ||
+    detail?.derivedStatus?.toLowerCase() === "hired" ||
+    detail?.pipelineStatus?.toLowerCase() === "hired" ||
+    detail?.vacancyStatus?.toLowerCase() === "filled" ||
+    (detail?.confirmedOnboardCount ?? 0) > 0
+  );
+
   const statusLabel = isPendingClosure
     ? "Pending Clearance"
     : detail?.derivedStatus ?? detail?.vacancyStatus ?? "--";
@@ -278,7 +299,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
         )
       }
       footer={
-        detail ? (
+        detail && !isHired ? (
           <CapabilityActionBar
             variant="toolbar"
             isReadOnlyEmergencyActive={isFreezeModeActive}
@@ -738,12 +759,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             <div className="mt-0.5 font-semibold text-text-primary truncate">
                               {detail.deployedByName ?? "--"}
                             </div>
-                            {detail.contactNumber && (
-                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-secondary truncate">
-                                <Phone className="h-3 w-3 shrink-0 text-text-muted" />
-                                <span>{detail.contactNumber}</span>
-                              </div>
-                            )}
                           </div>
                         ) : detail.triggeredByName ? (
                           <div>
@@ -806,54 +821,55 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 {/* Active Candidate cards */}
                 <div className="space-y-2">
                   {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
-                    detail.activeApplicantsList.map((candidate, index) => (
-                      <div
-                        key={candidate.applicantId || `candidate-${index}`}
-                        className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs hover:bg-surface-muted/70 transition space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[9px]">
-                              {candidate.displayName.charAt(0)}
-                            </div>
-                            <div>
+                    detail.activeApplicantsList.map((candidate, index) => {
+                      const isCandidateHired =
+                        isHired ||
+                        candidate.statusLabel.toLowerCase().includes("hired") ||
+                        candidate.statusLabel.toLowerCase().includes("confirm");
+
+                      return (
+                        <div
+                          key={candidate.applicantId || `candidate-${index}`}
+                          className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs hover:bg-surface-muted/70 transition space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[9px]">
+                                {candidate.displayName.charAt(0)}
+                              </div>
                               <div className="font-semibold text-text-primary">
                                 {candidate.displayName}
                               </div>
-                              {candidate.lastName && candidate.firstName && (
-                                <div className="text-[10px] text-text-muted">
-                                  {candidate.lastName}, {candidate.firstName}
-                                </div>
-                              )}
                             </div>
+                            <Badge
+                              className={`text-[10px] py-0 ${
+                                isCandidateHired
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-purple-200 bg-purple-50 text-purple-700"
+                              }`}
+                            >
+                              {candidate.statusLabel}
+                            </Badge>
                           </div>
-                          <Badge className="border-purple-200 bg-purple-50 text-purple-700 text-[10px] py-0">
-                            {candidate.statusLabel}
-                          </Badge>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-1 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
-                          {candidate.contactNumber && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-text-muted" />
-                              <span>{candidate.contactNumber}</span>
-                            </div>
-                          )}
-                          {candidate.onboardDate && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 text-text-muted" />
-                              <span>Onboard: {formatDate(candidate.onboardDate)}</span>
-                            </div>
-                          )}
-                          <div className="text-[10px] text-text-muted col-span-2">
-                            Updated {formatDate(candidate.updatedAt)}
+                          <div className="grid grid-cols-2 gap-1 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                            {candidate.contactNumber && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3 text-text-muted" />
+                                <span>{candidate.contactNumber}</span>
+                              </div>
+                            )}
+                            {candidate.onboardDate && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-text-muted" />
+                                <span>Onboard: {formatDate(candidate.onboardDate)}</span>
+                              </div>
+                            )}
                           </div>
-                        </div>
 
-                        {/* Quick action buttons for this candidate */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50">
-                          {candidate.statusLabel.toLowerCase() !== "hired" && candidate.statusLabel.toLowerCase() !== "confirmed" ? (
-                            <>
+                          {/* Quick action buttons for this candidate (Only for active pipeline, not hired) */}
+                          {!isCandidateHired && (
+                            <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -911,32 +927,11 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                               >
                                 Drop / Backout
                               </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCandidate({
-                                  id: candidate.applicantId,
-                                  fullName: candidate.displayName,
-                                  lastName: candidate.lastName,
-                                  firstName: candidate.firstName,
-                                  contactNumber: candidate.contactNumber,
-                                  status: candidate.statusLabel,
-                                  vcode: detail.vcode,
-                                  positionTitle: detail.position_title,
-                                  hiredDate: candidate.onboardDate,
-                                });
-                                setIsEditHiredDateModalOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
-                            >
-                              Edit Hired Date
-                            </button>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : detail.applicantName ? (
                     <div className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs">
                       <div className="font-semibold text-text-primary">{detail.applicantName}</div>

@@ -116,6 +116,9 @@ export default function VacancyPage() {
   const [markHiredTargetCandidate, setMarkHiredTargetCandidate] = useState<{
     id: string;
     fullName: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    middleName?: string | null;
     contactNumber?: string | null;
     vcode: string;
     positionTitle?: string | null;
@@ -442,6 +445,9 @@ export default function VacancyPage() {
     setMarkHiredTargetCandidate({
       id: row.applicantId || row.id,
       fullName: row.applicantName || "Candidate",
+      firstName: row.applicantFirstName,
+      lastName: row.applicantLastName,
+      middleName: row.applicantMiddleName,
       contactNumber: row.contactNumber,
       vcode: row.vcode,
       positionTitle: row.position_title,

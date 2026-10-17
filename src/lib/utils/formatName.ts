@@ -54,6 +54,36 @@ export function formatPersonName(
 }
 
 /**
+ * Formats HRCO name strictly as "LASTNAME, FIRSTNAME" (e.g. "GOMEZ, SELENA").
+ */
+export function formatHrcoName(name?: string | null): string {
+  if (!name) return "";
+  const trimmed = name.trim();
+  if (!trimmed || trimmed === "—" || trimmed === "-") return trimmed;
+  if (trimmed.toLowerCase() === "unassigned") return "Unassigned";
+
+  const formatted = parseFullNameString(trimmed);
+  if (!formatted.includes(",")) {
+    return formatted.toUpperCase();
+  }
+
+  const [lastName, ...restParts] = formatted.split(",");
+  const rest = restParts.join(" ").trim();
+  const tokens = rest.split(/\s+/).filter(Boolean);
+
+  if (tokens.length <= 1) {
+    return `${lastName.trim()}, ${rest}`.toUpperCase();
+  }
+
+  const lastToken = tokens[tokens.length - 1];
+  if (lastToken.length <= 2 || lastToken.endsWith(".")) {
+    tokens.pop();
+  }
+
+  return `${lastName.trim()}, ${tokens.join(" ")}`.toUpperCase();
+}
+
+/**
  * Parses an arbitrary full name string into uppercase "LASTNAME, FIRSTNAME MIDDLENAME".
  */
 export function parseFullNameString(name: string): string {
