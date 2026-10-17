@@ -1,8 +1,9 @@
 // components/vacancy/VacancyDetailDrawer.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { fetchTeamDirectory } from "@/lib/queries/team_directory";
 import {
   AlertCircle,
   AlertTriangle,
@@ -134,6 +135,46 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     enabled: !!vacancyId,
     retry: false,
   });
+
+  const { data: teamUsers } = useQuery({
+    queryKey: ["vacancy-team-directory", detail?.accountId],
+    queryFn: () => fetchTeamDirectory({ accountId: detail!.accountId! }),
+    enabled: Boolean(detail?.accountId),
+    staleTime: 60_000,
+  });
+
+  const leadership = useMemo(() => {
+    const users = teamUsers ?? [];
+    const om: string[] = [];
+    const tl: string[] = [];
+    const atl: string[] = [];
+
+    for (const u of users) {
+      const role = (u.roleName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const name = u.displayName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : null);
+      if (!name) continue;
+
+      if (role === "om" || role === "operationsmanager") {
+        om.push(name);
+      } else if (role === "tl" || role === "teamleader") {
+        tl.push(name);
+      } else if (role === "atl" || role === "assistantteamleader") {
+        atl.push(name);
+      }
+    }
+
+    const formatRoleNames = (list: string[], fallback?: string | null) => {
+      const unique = Array.from(new Set(list));
+      if (unique.length > 0) return unique.join(", ");
+      return fallback || "Unassigned";
+    };
+
+    return {
+      om: formatRoleNames(om, detail?.omName),
+      tl: formatRoleNames(tl, detail?.tlName),
+      atl: formatRoleNames(atl, detail?.atlName),
+    };
+  }, [teamUsers, detail?.omName, detail?.tlName, detail?.atlName]);
 
   if (!vacancyId) return null;
 
@@ -667,6 +708,30 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           </div>
                         </div>
 
+                        <div>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">OM</span>
+                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
+                            <User className="h-3 w-3 shrink-0 text-text-muted" />
+                            <span className="truncate">{leadership.om}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">TL</span>
+                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
+                            <User className="h-3 w-3 shrink-0 text-text-muted" />
+                            <span className="truncate">{leadership.tl}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">ATL</span>
+                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
+                            <User className="h-3 w-3 shrink-0 text-text-muted" />
+                            <span className="truncate">{leadership.atl}</span>
+                          </div>
+                        </div>
+
                         {isHiredTab ? (
                           <div>
                             <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Deployed By</span>
@@ -687,14 +752,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                               {detail.triggeredByName}
                             </div>
                           </div>
-                        ) : null}
-
-                        <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Department</span>
-                          <div className="mt-0.5 font-semibold text-text-primary truncate">
-                            {detail.department || "Operations"}
+                        ) : (
+                          <div>
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Triggered By</span>
+                            <div className="mt-0.5 font-semibold text-text-primary truncate">
+                              --
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {(detail.hasReliever || detail.relieverOnDuty) && (
                           <div className="col-span-2 pt-1.5 border-t border-border-subtle/50 flex items-center justify-between text-xs">

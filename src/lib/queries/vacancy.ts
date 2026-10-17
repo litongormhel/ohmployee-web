@@ -180,6 +180,9 @@ export type VacancyDetailItem = {
   areaCity: string | null;
   areaProvince: string | null;
   storeBranch: string | null;
+  omName?: string | null;
+  tlName?: string | null;
+  atlName?: string | null;
 
   // Detail-specific fields
   requestedById: string | null;
@@ -732,6 +735,9 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     areaCity: asString(row.area_city),
     areaProvince: asString(row.area_province ?? row.area_name ?? row.province),
     storeBranch: asString(row.store_branch),
+    omName: asString(row.om_name ?? row.om),
+    tlName: asString(row.tl_name ?? row.tl),
+    atlName: asString(row.atl_name ?? row.atl),
 
     // Detail-specific fields
     requestedById: asString(row.requested_by_id),
@@ -2029,24 +2035,72 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
     }
   }
 
-  if (!normalized.hrcoName && (normalized.accountId || normalized.accountName)) {
+  // Enrich leadership team (OM, TL, ATL, HRCO) from accounts and users_profile
+  if (normalized.accountId || normalized.accountName) {
     try {
       const { data: rawAccount } = await supabase
         .from("accounts")
-        .select("id, account_name, hrco_user_id")
+        .select("id, account_name, hrco_user_id, om_user_id, atl_user_id, om_name, atl_name")
         .eq(normalized.accountId ? "id" : "account_name", normalized.accountId || normalized.accountName)
         .maybeSingle();
 
-      if (rawAccount?.hrco_user_id) {
-        const { data: prof } = await supabase
-          .from("users_profile")
-          .select("full_name")
-          .eq("id", rawAccount.hrco_user_id)
-          .maybeSingle();
+      if (rawAccount) {
+        if (!normalized.omName && rawAccount.om_name) normalized.omName = rawAccount.om_name;
+        if (!normalized.atlName && rawAccount.atl_name) normalized.atlName = rawAccount.atl_name;
 
-        if (prof?.full_name) {
-          normalized.hrcoName = prof.full_name;
+        const userIdsToFetch = [
+          !normalized.hrcoName && rawAccount.hrco_user_id ? rawAccount.hrco_user_id : null,
+          !normalized.omName && rawAccount.om_user_id ? rawAccount.om_user_id : null,
+          !normalized.atlName && rawAccount.atl_user_id ? rawAccount.atl_user_id : null,
+        ].filter(Boolean) as string[];
+
+        if (userIdsToFetch.length > 0) {
+          const { data: profs } = await supabase
+            .from("users_profile")
+            .select("id, full_name")
+            .in("id", userIdsToFetch);
+
+          if (profs) {
+            for (const p of profs) {
+              if (p.id === rawAccount.hrco_user_id && !normalized.hrcoName) {
+                normalized.hrcoName = p.full_name;
+              }
+              if (p.id === rawAccount.om_user_id && !normalized.omName) {
+                normalized.omName = p.full_name;
+              }
+              if (p.id === rawAccount.atl_user_id && !normalized.atlName) {
+                normalized.atlName = p.full_name;
+              }
+            }
+          }
         }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  // Also query team directory for TL (and OM/ATL if missing)
+  if (normalized.accountId && (!normalized.tlName || !normalized.omName || !normalized.atlName)) {
+    try {
+      const { data: teamData } = await supabase.rpc("get_team_directory", {
+        p_account_id: normalized.accountId,
+      });
+      if (Array.isArray(teamData)) {
+        const omList: string[] = [];
+        const tlList: string[] = [];
+        const atlList: string[] = [];
+        for (const item of teamData) {
+          const role = String(item.role_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const name = String(item.full_name || item.display_name || "").trim();
+          if (!name) continue;
+          if (role === "om" || role === "operationsmanager") omList.push(name);
+          else if (role === "tl" || role === "teamleader") tlList.push(name);
+          else if (role === "atl" || role === "assistantteamleader") atlList.push(name);
+        }
+        if (!normalized.omName && omList.length > 0) normalized.omName = Array.from(new Set(omList)).join(", ");
+        if (!normalized.tlName && tlList.length > 0) normalized.tlName = Array.from(new Set(tlList)).join(", ");
+        if (!normalized.atlName && atlList.length > 0) normalized.atlName = Array.from(new Set(atlList)).join(", ");
       }
     } catch {
       // Graceful fallback
