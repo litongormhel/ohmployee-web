@@ -1,7 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
-- **ohm#w89p600a**: Redesign Web Vacancy Drawer to Match Mobile Overview Structure with Stacked Stores & Quota Actions
+- **ohm#w89p600a**: Compact High-Density Redesign of Vacancy Detail Drawer
 - **ohm#w84c185a**: HR Emploc Tab-Specific Columns, Mobile Correction/Review Workflow Parity, and Default-10 Pagination
 - **ohm#w79a570a**: Redesign Add/Endorse Applicant Modal and Make Middle Name Required
 - **ohm#w78p469a**: Eliminate Archived Data Leakage in Web to Match Mobile PROD Parity

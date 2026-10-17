@@ -14,6 +14,8 @@ export interface DetailDrawerProps {
   children: ReactNode;
   widthClass?: string; // e.g. "w-[460px]" or custom responsive overrides
   footer?: ReactNode;
+  contentClassName?: string;
+  footerClassName?: string;
 }
 
 export function DetailDrawer({
@@ -26,6 +28,8 @@ export function DetailDrawer({
   children,
   widthClass = "w-[var(--drawer-width-md)] max-w-full",
   footer,
+  contentClassName = "p-5 space-y-5",
+  footerClassName = "px-5 py-3",
 }: DetailDrawerProps) {
   // ESC key handler
   useEffect(() => {
@@ -95,13 +99,13 @@ export function DetailDrawer({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className={`flex-1 overflow-y-auto ${contentClassName}`}>
           {children}
         </div>
 
         {/* Drawer Footer */}
         {footer && (
-          <div className="border-t border-border-subtle bg-surface-base px-5 py-3 shrink-0">
+          <div className={`border-t border-border-subtle bg-surface-base shrink-0 ${footerClassName}`}>
             {footer}
           </div>
         )}
