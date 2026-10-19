@@ -1,6 +1,55 @@
 # AI Handoff
 
-## Phase 3 Web "More" Parity — Port Data Control Bulk Importers (Plantilla, Vacancy, MIKA, Payroll) & Payroll Review Center (ohm#w89p601c)
+## Phase 4 Web "More" Parity — Port OHM's Safespace, Switch Role, Roving Coverage Groups & Bulk Archive Execution (ohm#w89p601d)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile-to-Web "More" Module Parity Achieved)**
+
+### Summary of Changes
+
+1. **OHM's Safespace Command Center (`src/components/more/OhmsSafespaceModal.tsx`)**:
+   - Ported the owner command center (`safespace_screen.dart`, `super_admin_controls_screen.dart`, `risk_controls_screen.dart`, `freeze_modes_screen.dart`, `diagnostics_screen.dart`, `security_audit_logs_screen.dart`).
+   - Integrated tabbed management for:
+     - **Overview & Hub**: Quick access tiles to all system governance functions.
+     - **System Controls**: Toggle `account_registration` and `import_plantilla` feature gates backed by `fn_update_governance_control` with mandatory audited reason prompt.
+     - **Risk Controls**: Phase 1 capability restrictions (`risk_bulk_actions`, `risk_role_editing`, `risk_vcode_creation`, `risk_export_sensitive_data`, `risk_manual_deletion_actions`, `risk_import_rollback_actions`, `risk_cross_group_operations`) with non-emergency amber styling contract.
+     - **Freeze Modes**: Domain suspension controls (`payroll_freeze`, `audit_freeze`, `recruitment_freeze`, `read_only_emergency`) via `fn_update_freeze_mode`.
+     - **Diagnostics & Live Telemetry**: Live ping measuring round-trip RPC latency, RLS connection integrity, and freeze state evaluator.
+     - **Security Audit Logs**: Stream of past governance actions from `fn_get_governance_audit_log`.
+
+2. **Scoped Role Impersonation Utility (`src/components/more/SwitchRoleModal.tsx` & `src/components/DashboardAuthShell.tsx`)**:
+   - Ported Flutter's `switch_role_screen.dart` allowing Super Admins to act as scoped roles for testing and view verification.
+   - Wired to backend RPCs `get_active_acting_session`, `start_acting_session`, and `stop_acting_session`.
+   - Features:
+     - Quick switch buttons for common roles (Head Admin, Encoder, OM, HRCO, HR Personnel, Recruitment Team, Viewer).
+     - Multi-select Group and Account scope limits.
+     - Mandated justification reason input.
+     - Persistent sticky Amber Acting Banner in `DashboardAuthShell.tsx` notifying the user of their active acting session with a one-click "Revert to Super Admin" button.
+
+3. **Roving Coverage Groups Management (`src/components/more/RovingCoverageGroupsModal.tsx`)**:
+   - Ported Flutter's `coverage_group_list_screen.dart` and `coverage_group_detail_screen.dart` to Web Data Control.
+   - Wired to Supabase RPCs `list_coverage_groups` and `get_coverage_group_detail`.
+   - Dual-pane layout:
+     - Left pane: Searchable coverage group cards displaying code, account, position, required headcount, and active counts.
+     - Right pane: Detailed inspection of cluster stores (highlighting anchor store), assigned headcount slots, and fulfillment status.
+
+4. **Expanded Data Archival Center (`src/components/more/DataArchivalCenterModal.tsx`)**:
+   - Added **Execute Archive / QA Reset** tab and **Batch History & Rollback** tab alongside existing Plantilla Restore, Vacancy Restore, and Audit Trail tabs.
+   - Wired to Supabase RPCs:
+     - `fn_get_archive_impact_preview`: Live counters for plantilla, vacancies, HR emploc, and Moses HQ items.
+     - `fn_archive_all_operational_data` (QA Reset Archive), `fn_archive_plantilla_data`, `fn_archive_vacancy_data`, `fn_archive_hr_emploc_data`, and `fn_archive_moses_hq_data`.
+     - Strict confirmation phrase validation (e.g. typing `ARCHIVE QA DATA` exactly) and mandatory operational reason.
+     - `fn_get_archive_batch_history` and `fn_rollback_archive_batch` for 72-hour reversible batch rollbacks.
+
+5. **Wired in `/more/page.tsx`**:
+   - Replaced 404 links and placeholder alerts for `OHM's Safespace`, `Switch Role`, and `Roving Coverage Groups` with interactive modal launchers.
+   - All 5 tabs (`overview`, `admin_tools`, `permissions`, `audit`, `data_control`) now have 100% working modules with 0 dead links or stubs.
+
+### Verification Results
+- `npx tsc --noEmit`: **PASS** (0 TypeScript errors).
+- `npm run build`: **PASS** (19/19 static pages compiled and prerendered cleanly).
+
+---
+
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**
 

@@ -1192,3 +1192,740 @@ export function useSubmitGlobalStoreTransfer() {
     },
   });
 }
+
+// ============================================================================
+// Governance & Safespace Controls Types & Queries
+// ============================================================================
+
+export interface GovernanceControlItem {
+  controlKey: string;
+  enabled: boolean;
+  updatedAt: string;
+  reason: string | null;
+  updatedByName: string | null;
+}
+
+export interface GovernanceAuditRecordItem {
+  id: string;
+  controlKey: string;
+  action: string;
+  beforeValue: Record<string, unknown> | null;
+  afterValue: Record<string, unknown> | null;
+  changedAt: string;
+  reason: string | null;
+  changedByName: string | null;
+}
+
+export async function fetchGovernanceControls(): Promise<GovernanceControlItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_governance_controls");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    controlKey: String(r.control_key || ""),
+    enabled: r.enabled === true,
+    updatedAt: String(r.updated_at || new Date().toISOString()),
+    reason: r.reason ? String(r.reason) : null,
+    updatedByName: r.updated_by_name ? String(r.updated_by_name) : null,
+  }));
+}
+
+export async function fetchGovernanceAuditLogs(): Promise<GovernanceAuditRecordItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_governance_audit_log");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id || ""),
+    controlKey: String(r.control_key || ""),
+    action: String(r.action || ""),
+    beforeValue: (r.before_value as Record<string, unknown>) ?? null,
+    afterValue: (r.after_value as Record<string, unknown>) ?? null,
+    changedAt: String(r.changed_at || new Date().toISOString()),
+    reason: r.reason ? String(r.reason) : null,
+    changedByName: r.changed_by_name ? String(r.changed_by_name) : null,
+  }));
+}
+
+export async function fetchRiskControls(): Promise<GovernanceControlItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_risk_controls");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    controlKey: String(r.control_key || ""),
+    enabled: r.enabled === true,
+    updatedAt: String(r.updated_at || new Date().toISOString()),
+    reason: r.reason ? String(r.reason) : null,
+    updatedByName: r.updated_by_name ? String(r.updated_by_name) : null,
+  }));
+}
+
+export async function fetchFreezeModes(): Promise<GovernanceControlItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_freeze_modes");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    controlKey: String(r.control_key || ""),
+    enabled: r.enabled === true,
+    updatedAt: String(r.updated_at || new Date().toISOString()),
+    reason: r.reason ? String(r.reason) : null,
+    updatedByName: r.updated_by_name ? String(r.updated_by_name) : null,
+  }));
+}
+
+export async function updateGovernanceControl({
+  controlKey,
+  enabled,
+  reason,
+  actorId,
+}: {
+  controlKey: string;
+  enabled: boolean;
+  reason?: string;
+  actorId: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_update_governance_control", {
+    p_control_key: controlKey,
+    p_enabled: enabled,
+    p_reason: reason?.trim() || null,
+    p_actor_id: actorId,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateFreezeMode({
+  controlKey,
+  enabled,
+  reason,
+  actorId,
+}: {
+  controlKey: string;
+  enabled: boolean;
+  reason: string;
+  actorId: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_update_freeze_mode", {
+    p_control_key: controlKey,
+    p_enabled: enabled,
+    p_reason: reason.trim(),
+    p_actor_id: actorId,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export function useGovernanceControls() {
+  return useQuery({
+    queryKey: ["governance-controls"],
+    queryFn: fetchGovernanceControls,
+  });
+}
+
+export function useGovernanceAuditLogs() {
+  return useQuery({
+    queryKey: ["governance-audit-logs"],
+    queryFn: fetchGovernanceAuditLogs,
+  });
+}
+
+export function useRiskControls() {
+  return useQuery({
+    queryKey: ["risk-controls"],
+    queryFn: fetchRiskControls,
+  });
+}
+
+export function useFreezeModes() {
+  return useQuery({
+    queryKey: ["freeze-modes"],
+    queryFn: fetchFreezeModes,
+  });
+}
+
+export function useUpdateGovernanceControl() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateGovernanceControl,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["governance-controls"] });
+      queryClient.invalidateQueries({ queryKey: ["risk-controls"] });
+      queryClient.invalidateQueries({ queryKey: ["governance-audit-logs"] });
+    },
+  });
+}
+
+export function useUpdateFreezeMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateFreezeMode,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["freeze-modes"] });
+      queryClient.invalidateQueries({ queryKey: ["governance-controls"] });
+      queryClient.invalidateQueries({ queryKey: ["governance-audit-logs"] });
+    },
+  });
+}
+
+// ============================================================================
+// Acting Session (Switch Role) Types & Queries
+// ============================================================================
+
+export interface ActingSessionResult {
+  id: string;
+  actingRole: string;
+  actingGroupIds: string[];
+  actingAccountIds: string[];
+  reason: string | null;
+  startedAt: string;
+  expiresAt: string;
+  isExpired: boolean;
+}
+
+export interface ScopeGroupItem {
+  id: string;
+  groupCode: string;
+  groupName: string;
+}
+
+export interface ScopeAccountItem {
+  id: string;
+  accountName: string;
+  accountCode: string | null;
+  groupId: string | null;
+}
+
+export async function fetchActiveActingSession(): Promise<ActingSessionResult | null> {
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("get_active_acting_session");
+    if (error || !data) return null;
+    const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+    if (!r || !r.id) return null;
+
+    const expiresAt = String(r.expires_at || "");
+    const isExpired = expiresAt ? Date.now() > new Date(expiresAt).getTime() : false;
+
+    return {
+      id: String(r.id),
+      actingRole: String(r.acting_role || ""),
+      actingGroupIds: Array.isArray(r.acting_group_ids)
+        ? r.acting_group_ids.map(String)
+        : [],
+      actingAccountIds: Array.isArray(r.acting_account_ids)
+        ? r.acting_account_ids.map(String)
+        : [],
+      reason: r.reason ? String(r.reason) : null,
+      startedAt: String(r.started_at || ""),
+      expiresAt,
+      isExpired,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchScopeGroups(): Promise<ScopeGroupItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("groups")
+    .select("id, group_code, group_name")
+    .order("group_name");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id || ""),
+    groupCode: String(r.group_code || ""),
+    groupName: String(r.group_name || ""),
+  }));
+}
+
+export async function fetchScopeAccounts(groupIds?: string[]): Promise<ScopeAccountItem[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from("accounts")
+    .select("id, account_name, account_code, group_id")
+    .eq("is_active", true);
+
+  if (groupIds && groupIds.length > 0) {
+    query = query.in("group_id", groupIds);
+  }
+
+  const { data, error } = await query.order("account_name");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id || ""),
+    accountName: String(r.account_name || ""),
+    accountCode: r.account_code ? String(r.account_code) : null,
+    groupId: r.group_id ? String(r.group_id) : null,
+  }));
+}
+
+export async function startActingSession({
+  role,
+  groupIds,
+  accountIds,
+  reason,
+}: {
+  role: string;
+  groupIds?: string[];
+  accountIds?: string[];
+  reason: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("start_acting_session", {
+    p_acting_role: role,
+    p_group_ids: groupIds && groupIds.length > 0 ? groupIds : null,
+    p_account_ids: accountIds && accountIds.length > 0 ? accountIds : null,
+    p_reason: reason.trim(),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function stopActingSession() {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("stop_acting_session");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export function useActiveActingSession() {
+  return useQuery({
+    queryKey: ["active-acting-session"],
+    queryFn: fetchActiveActingSession,
+    refetchInterval: 30000,
+  });
+}
+
+export function useScopeGroups() {
+  return useQuery({
+    queryKey: ["scope-groups"],
+    queryFn: fetchScopeGroups,
+  });
+}
+
+export function useScopeAccounts(groupIds?: string[]) {
+  return useQuery({
+    queryKey: ["scope-accounts", groupIds?.join(",") || "all"],
+    queryFn: () => fetchScopeAccounts(groupIds),
+  });
+}
+
+export function useStartActingSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: startActingSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["active-acting-session"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserContext"] });
+    },
+  });
+}
+
+export function useStopActingSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: stopActingSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["active-acting-session"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserContext"] });
+    },
+  });
+}
+
+// ============================================================================
+// Roving Coverage Groups Types & Queries
+// ============================================================================
+
+export interface CoverageGroupSummaryItem {
+  coverageGroupId: string;
+  coverageCode: string;
+  accountId: string;
+  accountName: string;
+  groupId: string | null;
+  groupName: string | null;
+  positionId: string;
+  positionName: string;
+  employmentType: string;
+  areaName: string | null;
+  groupStatus: string;
+  createdAt: string | null;
+  requiredHc: number;
+  openCount: number;
+  pipelineCount: number;
+  hrProcessingCount: number;
+  activeCount: number;
+  closedCount: number;
+  mfrPct: number;
+  isMfrMet: boolean;
+  vacancyTab: string;
+  activeStoreCount: number;
+  anchorStoreId: string | null;
+  anchorStoreName: string | null;
+  storePreview: string | null;
+}
+
+export interface CoverageGroupDetailItem {
+  id: string;
+  coverageCode: string;
+  accountId: string;
+  accountName: string;
+  groupId: string | null;
+  groupName: string | null;
+  positionId: string;
+  positionName: string;
+  employmentType: string;
+  areaName: string | null;
+  groupStatus: string;
+  createdAt: string | null;
+  requiredHc: number;
+  stores: Array<{
+    id: string;
+    storeId: string;
+    storeName: string;
+    isAnchor: boolean;
+    areaCity?: string | null;
+    areaProvince?: string | null;
+  }>;
+  slots: Array<{
+    id: string;
+    vcode: string;
+    slotStatus: string;
+    assignedEmployeeName?: string | null;
+  }>;
+}
+
+export async function fetchCoverageGroups(accountId?: string): Promise<CoverageGroupSummaryItem[]> {
+  const supabase = createClient();
+  const params: Record<string, string> = {};
+  if (accountId) {
+    params.p_account_id = accountId;
+  }
+  const { data, error } = await supabase.rpc("list_coverage_groups", params);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    coverageGroupId: String(r.coverage_group_id || r.id || ""),
+    coverageCode: String(r.coverage_code || ""),
+    accountId: String(r.account_id || ""),
+    accountName: String(r.account_name || ""),
+    groupId: r.group_id ? String(r.group_id) : null,
+    groupName: r.group_name ? String(r.group_name) : null,
+    positionId: String(r.position_id || ""),
+    positionName: String(r.position_name || ""),
+    employmentType: String(r.employment_type || "Reliever"),
+    areaName: r.area_name ? String(r.area_name) : null,
+    groupStatus: String(r.group_status || "Active"),
+    createdAt: r.created_at ? String(r.created_at) : null,
+    requiredHc: Number(r.required_hc ?? 0),
+    openCount: Number(r.open_count ?? 0),
+    pipelineCount: Number(r.pipeline_count ?? 0),
+    hrProcessingCount: Number(r.hr_processing_count ?? 0),
+    activeCount: Number(r.active_count ?? 0),
+    closedCount: Number(r.closed_count ?? 0),
+    mfrPct: Number(r.mfr_pct ?? 0),
+    isMfrMet: r.is_mfr_met === true,
+    vacancyTab: String(r.vacancy_tab || "open"),
+    activeStoreCount: Number(r.active_store_count ?? 0),
+    anchorStoreId: r.anchor_store_id ? String(r.anchor_store_id) : null,
+    anchorStoreName: r.anchor_store_name ? String(r.anchor_store_name) : null,
+    storePreview: r.store_preview ? String(r.store_preview) : null,
+  }));
+}
+
+export async function fetchCoverageGroupDetail(coverageGroupId: string): Promise<CoverageGroupDetailItem | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_coverage_group_detail", {
+    p_coverage_group_id: coverageGroupId,
+  });
+  if (error || !data) return null;
+  const d = data as Record<string, unknown>;
+  const rawStores = Array.isArray(d.stores) ? (d.stores as Record<string, unknown>[]) : [];
+  const rawSlots = Array.isArray(d.slots) ? (d.slots as Record<string, unknown>[]) : [];
+
+  return {
+    id: String(d.id || coverageGroupId),
+    coverageCode: String(d.coverage_code || ""),
+    accountId: String(d.account_id || ""),
+    accountName: String(d.account_name || ""),
+    groupId: d.group_id ? String(d.group_id) : null,
+    groupName: d.group_name ? String(d.group_name) : null,
+    positionId: String(d.position_id || ""),
+    positionName: String(d.position_name || ""),
+    employmentType: String(d.employment_type || "Reliever"),
+    areaName: d.area_name ? String(d.area_name) : null,
+    groupStatus: String(d.group_status || "Active"),
+    createdAt: d.created_at ? String(d.created_at) : null,
+    requiredHc: Number(d.required_hc ?? 0),
+    stores: rawStores.map((s) => ({
+      id: String(s.id || ""),
+      storeId: String(s.store_id || ""),
+      storeName: String(s.store_name || ""),
+      isAnchor: s.is_anchor === true,
+      areaCity: s.area_city ? String(s.area_city) : null,
+      areaProvince: s.area_province ? String(s.area_province) : null,
+    })),
+    slots: rawSlots.map((sl) => ({
+      id: String(sl.id || ""),
+      vcode: String(sl.vcode || ""),
+      slotStatus: String(sl.slot_status || "Open"),
+      assignedEmployeeName: sl.assigned_employee_name ? String(sl.assigned_employee_name) : null,
+    })),
+  };
+}
+
+export async function createDirectCoverageGroup(params: {
+  accountId: string;
+  positionId: string;
+  employmentType: string;
+  areaName?: string;
+  storeIds: string[];
+  anchorStoreId: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("create_coverage_group", {
+    p_account_id: params.accountId,
+    p_position_id: params.positionId,
+    p_employment_type: params.employmentType,
+    p_area_name: params.areaName || null,
+    p_store_ids: params.storeIds,
+    p_anchor_store_id: params.anchorStoreId,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function archiveDirectCoverageGroup({
+  coverageGroupId,
+  reason,
+}: {
+  coverageGroupId: string;
+  reason?: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("archive_coverage_group", {
+    p_coverage_group_id: coverageGroupId,
+    p_archive_reason: reason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export function useCoverageGroups(accountId?: string) {
+  return useQuery({
+    queryKey: ["coverage-groups", accountId || "all"],
+    queryFn: () => fetchCoverageGroups(accountId),
+  });
+}
+
+export function useCoverageGroupDetail(coverageGroupId: string | null) {
+  return useQuery({
+    queryKey: ["coverage-group-detail", coverageGroupId],
+    queryFn: () => (coverageGroupId ? fetchCoverageGroupDetail(coverageGroupId) : Promise.resolve(null)),
+    enabled: !!coverageGroupId,
+  });
+}
+
+export function useCreateDirectCoverageGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createDirectCoverageGroup,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+    },
+  });
+}
+
+export function useArchiveDirectCoverageGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: archiveDirectCoverageGroup,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+    },
+  });
+}
+
+// ============================================================================
+// Bulk Archival Execution & History Types & Queries
+// ============================================================================
+
+export interface ArchiveImpactPreviewItem {
+  plantillaCount: number;
+  vacancyCount: number;
+  hrEmplocCount: number;
+  mosesHqPoolCount: number;
+  mosesHqAssignmentCount: number;
+  mosesHqOpenSlotCount: number;
+  mosesHqRequestCount: number;
+  total: number;
+  mosesHqTotal: number;
+}
+
+export interface ArchiveBatchRecordItem {
+  id: string;
+  archiveBatchId: string;
+  actionType: string;
+  reason: string;
+  executedByName: string;
+  executedAt: string;
+  rollbackDeadline: string;
+  plantillaCount: number;
+  vacancyCount: number;
+  hrEmplocCount: number;
+  mosesHqCount: number;
+  totalCount: number;
+  status: string;
+  canRollback: boolean;
+  rolledBackByName: string | null;
+  rolledBackAt: string | null;
+}
+
+export async function fetchArchiveImpactPreview(): Promise<ArchiveImpactPreviewItem> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_archive_impact_preview");
+  if (error || !data) {
+    return {
+      plantillaCount: 0,
+      vacancyCount: 0,
+      hrEmplocCount: 0,
+      mosesHqPoolCount: 0,
+      mosesHqAssignmentCount: 0,
+      mosesHqOpenSlotCount: 0,
+      mosesHqRequestCount: 0,
+      total: 0,
+      mosesHqTotal: 0,
+    };
+  }
+
+  const d = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
+  const pc = Number(d.plantilla_count ?? 0);
+  const vc = Number(d.vacancy_count ?? 0);
+  const hc = Number(d.hr_emploc_count ?? 0);
+  const mPool = Number(d.moses_hq_pool_count ?? 0);
+  const mAssign = Number(d.moses_hq_assignment_count ?? 0);
+  const mSlot = Number(d.moses_hq_open_slot_count ?? 0);
+  const mReq = Number(d.moses_hq_request_count ?? 0);
+
+  return {
+    plantillaCount: pc,
+    vacancyCount: vc,
+    hrEmplocCount: hc,
+    mosesHqPoolCount: mPool,
+    mosesHqAssignmentCount: mAssign,
+    mosesHqOpenSlotCount: mSlot,
+    mosesHqRequestCount: mReq,
+    total: pc + vc + hc,
+    mosesHqTotal: mAssign + mSlot + mReq,
+  };
+}
+
+export async function fetchArchiveBatchHistory(): Promise<ArchiveBatchRecordItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_get_archive_batch_history");
+  if (error || !data) return [];
+
+  const now = Date.now();
+  return (data as Record<string, unknown>[]).map((r) => {
+    const deadline = String(r.rollback_deadline || "");
+    const status = String(r.status || "ACTIVE");
+    const canRollback = status === "ACTIVE" && deadline ? now < new Date(deadline).getTime() : false;
+
+    return {
+      id: String(r.id || ""),
+      archiveBatchId: String(r.archive_batch_id || ""),
+      actionType: String(r.action_type || ""),
+      reason: String(r.reason || ""),
+      executedByName: String(r.executed_by_name || "Unknown"),
+      executedAt: String(r.executed_at || ""),
+      rollbackDeadline: deadline,
+      plantillaCount: Number(r.plantilla_count ?? 0),
+      vacancyCount: Number(r.vacancy_count ?? 0),
+      hrEmplocCount: Number(r.hr_emploc_count ?? 0),
+      mosesHqCount: Number(r.moses_hq_count ?? 0),
+      totalCount: Number(r.total_count ?? 0),
+      status,
+      canRollback,
+      rolledBackByName: r.rolled_back_by_name ? String(r.rolled_back_by_name) : null,
+      rolledBackAt: r.rolled_back_at ? String(r.rolled_back_at) : null,
+    };
+  });
+}
+
+export async function executeBulkArchive({
+  actionType,
+  reason,
+}: {
+  actionType: "qa_reset" | "plantilla" | "vacancy" | "hr_emploc" | "moses_hq";
+  reason: string;
+}) {
+  const supabase = createClient();
+  let rpcName = "fn_archive_all_operational_data";
+  if (actionType === "plantilla") rpcName = "fn_archive_plantilla_data";
+  else if (actionType === "vacancy") rpcName = "fn_archive_vacancy_data";
+  else if (actionType === "hr_emploc") rpcName = "fn_archive_hr_emploc_data";
+  else if (actionType === "moses_hq") rpcName = "fn_archive_moses_hq_data";
+
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_reason: reason.trim(),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function rollbackArchiveBatch({
+  batchId,
+  reason,
+}: {
+  batchId: string;
+  reason: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_rollback_archive_batch", {
+    p_batch_id: batchId,
+    p_reason: reason.trim(),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export function useArchiveImpactPreview() {
+  return useQuery({
+    queryKey: ["archive-impact-preview"],
+    queryFn: fetchArchiveImpactPreview,
+  });
+}
+
+export function useArchiveBatchHistory() {
+  return useQuery({
+    queryKey: ["archive-batch-history"],
+    queryFn: fetchArchiveBatchHistory,
+  });
+}
+
+export function useExecuteBulkArchive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: executeBulkArchive,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["archive-batch-history"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-impact-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-observation-snapshot"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}
+
+export function useRollbackArchiveBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rollbackArchiveBatch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["archive-batch-history"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-impact-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["archive-observation-snapshot"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    },
+  });
+}

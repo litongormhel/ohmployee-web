@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w89p601d**: Phase 4 Web "More" Parity — Port OHM's Safespace, Switch Role, Roving Coverage Groups & Bulk Archive Execution
 - **ohm#w89p601c**: Phase 3 Web "More" Parity — Port Data Control Bulk Importers (Plantilla, Vacancy, MIKA, Payroll) & Payroll Review Center
 - **ohm#w89p601b**: Execute Web "More" Module Parity — Wire Orphaned Modals, Add Data Control Tab & Build Core Governance Modals
 - **ohm#w89p600a**: Compact High-Density Redesign of Vacancy Detail Drawer

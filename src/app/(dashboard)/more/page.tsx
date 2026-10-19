@@ -46,6 +46,9 @@ import { VacancyImportModal } from "@/components/more/VacancyImportModal";
 import { MikaImportModal } from "@/components/more/MikaImportModal";
 import { PayrollImportModal } from "@/components/more/PayrollImportModal";
 import { PayrollReviewCenterModal } from "@/components/more/PayrollReviewCenterModal";
+import { OhmsSafespaceModal } from "@/components/more/OhmsSafespaceModal";
+import { SwitchRoleModal } from "@/components/more/SwitchRoleModal";
+import { RovingCoverageGroupsModal } from "@/components/more/RovingCoverageGroupsModal";
 
 // ============================================================================
 // Types & Definitions
@@ -126,6 +129,9 @@ function MorePageContent() {
   const [mikaImportOpen, setMikaImportOpen] = useState(false);
   const [payrollImportOpen, setPayrollImportOpen] = useState(false);
   const [payrollReviewCenterOpen, setPayrollReviewCenterOpen] = useState(false);
+  const [ohmsSafespaceOpen, setOhmsSafespaceOpen] = useState(false);
+  const [switchRoleOpen, setSwitchRoleOpen] = useState(false);
+  const [rovingCoverageOpen, setRovingCoverageOpen] = useState(false);
 
   // Tab State with URL query synchronization
   const rawTab = searchParams.get("tab");
@@ -256,7 +262,7 @@ function MorePageContent() {
         title: "OHM's Safespace",
         description: "Owner command center — system controls, risk, and diagnostics",
         icon: ShieldAlert,
-        href: "/admin/safespace",
+        onClick: () => setOhmsSafespaceOpen(true),
         badgeLabel: "LEVEL 100",
         badgeVariant: "rose",
         minRoleLevel: 100,
@@ -276,9 +282,7 @@ function MorePageContent() {
         title: "Switch Role",
         description: "Act as a different role with scoped access for testing",
         icon: Sliders,
-        onClick: () => {
-          alert("Role switcher is enabled in Super Admin development environment.");
-        },
+        onClick: () => setSwitchRoleOpen(true),
         badgeLabel: "LEVEL 100",
         badgeVariant: "rose",
         minRoleLevel: 100,
@@ -447,7 +451,7 @@ function MorePageContent() {
         title: "Roving Coverage Groups",
         description: "Review and manage roving reliever assignments and multi-store coverage pools",
         icon: Users2,
-        href: "/approvals?tab=coverage",
+        onClick: () => setRovingCoverageOpen(true),
         badgeLabel: "ROVING",
         badgeVariant: "blue",
       },
@@ -839,6 +843,21 @@ function MorePageContent() {
       <PayrollReviewCenterModal
         isOpen={payrollReviewCenterOpen}
         onClose={() => setPayrollReviewCenterOpen(false)}
+      />
+
+      <OhmsSafespaceModal
+        isOpen={ohmsSafespaceOpen}
+        onClose={() => setOhmsSafespaceOpen(false)}
+      />
+
+      <SwitchRoleModal
+        isOpen={switchRoleOpen}
+        onClose={() => setSwitchRoleOpen(false)}
+      />
+
+      <RovingCoverageGroupsModal
+        isOpen={rovingCoverageOpen}
+        onClose={() => setRovingCoverageOpen(false)}
       />
     </div>
   );
