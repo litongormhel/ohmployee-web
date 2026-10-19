@@ -41,6 +41,11 @@ import { TempPermissionModal } from "@/components/more/TempPermissionModal";
 import { AccessControlCenterModal } from "@/components/more/AccessControlCenterModal";
 import { GlobalStoreTransferModal } from "@/components/more/GlobalStoreTransferModal";
 import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
+import { PlantillaImportModal } from "@/components/more/PlantillaImportModal";
+import { VacancyImportModal } from "@/components/more/VacancyImportModal";
+import { MikaImportModal } from "@/components/more/MikaImportModal";
+import { PayrollImportModal } from "@/components/more/PayrollImportModal";
+import { PayrollReviewCenterModal } from "@/components/more/PayrollReviewCenterModal";
 
 // ============================================================================
 // Types & Definitions
@@ -116,6 +121,11 @@ function MorePageContent() {
   const [accessControlOpen, setAccessControlOpen] = useState(false);
   const [storeTransferOpen, setStoreTransferOpen] = useState(false);
   const [accountRequestsOpen, setAccountRequestsOpen] = useState(false);
+  const [plantillaImportOpen, setPlantillaImportOpen] = useState(false);
+  const [vacancyImportOpen, setVacancyImportOpen] = useState(false);
+  const [mikaImportOpen, setMikaImportOpen] = useState(false);
+  const [payrollImportOpen, setPayrollImportOpen] = useState(false);
+  const [payrollReviewCenterOpen, setPayrollReviewCenterOpen] = useState(false);
 
   // Tab State with URL query synchronization
   const rawTab = searchParams.get("tab");
@@ -446,8 +456,8 @@ function MorePageContent() {
         title: "Import Plantilla",
         description: "Bulk master plantilla baseline ingestion (CSV/XLSX parser staging)",
         icon: FileSpreadsheet,
-        onClick: () => alert("Plantilla Bulk Importer will be available in Phase 3 parity."),
-        badgeLabel: "PHASE 3",
+        onClick: () => setPlantillaImportOpen(true),
+        badgeLabel: "BASELINE",
         badgeVariant: "purple",
       },
       {
@@ -455,8 +465,8 @@ function MorePageContent() {
         title: "Import Vacancy",
         description: "Bulk import vacancy records and requisitions into current operational active groups",
         icon: FileSpreadsheet,
-        onClick: () => alert("Vacancy Bulk Importer will be available in Phase 3 parity."),
-        badgeLabel: "PHASE 3",
+        onClick: () => setVacancyImportOpen(true),
+        badgeLabel: "INTAKE",
         badgeVariant: "purple",
       },
       {
@@ -464,8 +474,8 @@ function MorePageContent() {
         title: "Import MIKA",
         description: "MIKA biometric attendance and store activity import staging",
         icon: FileSpreadsheet,
-        onClick: () => alert("MIKA Attendance Importer will be available in Phase 3 parity."),
-        badgeLabel: "PHASE 3",
+        onClick: () => setMikaImportOpen(true),
+        badgeLabel: "BIOMETRIC",
         badgeVariant: "purple",
       },
       {
@@ -473,8 +483,8 @@ function MorePageContent() {
         title: "Import Payroll",
         description: "Import operational payroll sheets and employee wage deductions",
         icon: FileSpreadsheet,
-        onClick: () => alert("Payroll Importer will be available in Phase 3 parity."),
-        badgeLabel: "PHASE 3",
+        onClick: () => setPayrollImportOpen(true),
+        badgeLabel: "CHECKER",
         badgeVariant: "purple",
       },
       {
@@ -482,8 +492,8 @@ function MorePageContent() {
         title: "Payroll Review Center",
         description: "Verify and approve payroll reconciliations and variance discrepancies",
         icon: FileText,
-        onClick: () => alert("Payroll Review Center will be available in Phase 3 parity."),
-        badgeLabel: "PHASE 3",
+        onClick: () => setPayrollReviewCenterOpen(true),
+        badgeLabel: "REVIEWS",
         badgeVariant: "purple",
       },
     ],
@@ -803,6 +813,32 @@ function MorePageContent() {
         isOpen={accountRequestsOpen}
         onClose={() => setAccountRequestsOpen(false)}
         isSuperAdmin={isSuperAdmin}
+      />
+
+      <PlantillaImportModal
+        isOpen={plantillaImportOpen}
+        onClose={() => setPlantillaImportOpen(false)}
+      />
+
+      <VacancyImportModal
+        isOpen={vacancyImportOpen}
+        onClose={() => setVacancyImportOpen(false)}
+      />
+
+      <MikaImportModal
+        isOpen={mikaImportOpen}
+        onClose={() => setMikaImportOpen(false)}
+      />
+
+      <PayrollImportModal
+        isOpen={payrollImportOpen}
+        onClose={() => setPayrollImportOpen(false)}
+        onOpenReviewCenter={() => setPayrollReviewCenterOpen(true)}
+      />
+
+      <PayrollReviewCenterModal
+        isOpen={payrollReviewCenterOpen}
+        onClose={() => setPayrollReviewCenterOpen(false)}
       />
     </div>
   );

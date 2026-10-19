@@ -1,5 +1,50 @@
 # AI Handoff
 
+## Phase 3 Web "More" Parity — Port Data Control Bulk Importers (Plantilla, Vacancy, MIKA, Payroll) & Payroll Review Center (ohm#w89p601c)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**
+
+### Summary of Changes
+
+1. **Spreadsheet Utilities & Official Template Generators (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Ported official two-sheet XLSX template builders and client-side validators matching mobile implementations:
+     - `downloadPlantillaImportTemplate()`: Two-sheet workbook (`IMPORT_TEMPLATE` + `VALIDATION_GUIDE`) with required store master and employee baseline columns.
+     - `downloadVacancyImportTemplate()`: Two-sheet workbook with VCODE, requisition dates, headcount, and candidate pipeline fields.
+     - `downloadMikaImportTemplate()`: Two-sheet workbook with Employee No., Fullname, Account, and biometric registration attributes.
+     - `downloadPayrollCheckTemplate()`: Official 3-column payroll reconciliation workbook (`PAYROLL_TEMPLATE` + `GUIDE`).
+     - `parseSpreadsheetToRows()`: General robust XLSX/CSV parser returning normalized column headers and row objects with empty row filtering.
+
+2. **Data Control Query Hooks & Backend RPC Wiring (`src/lib/queries/dataControl.ts`)**:
+   - Scope menu helpers: `useDataControlGroups()`, `useDataControlAccounts(groupId)`.
+   - **Plantilla Baseline Import**: `submitPlantillaBaselineImport`, `fetchPlantillaImportBatches`, `fetchPlantillaImportRows`, `approvePlantillaImportBatch`, `rejectPlantillaImportBatch`.
+   - **Vacancy Requisition Import**: `submitVacancyImport`, `fetchVacancyImportBatches`, `fetchVacancyImportRows`, `approveVacancyImportBatch`, `rejectVacancyImportBatch`.
+   - **MIKA Biometric & Attendance**: `fetchMikaImportLogs`, `fetchMikaImportRows`, `submitMikaImport` (chunked 100-row inserts), `approveMikaImport` (isolated to checker; does not mutate employee roster).
+   - **Payroll Reconciliation Checker**: `fetchGlobalPlantillaForPayrollCheck`, `reconcilePayroll` algorithm matching `payroll_check_service.dart` with normalized string matching for name/account and classification into:
+     - Missing in Payroll
+     - Missing in Plantilla
+     - Paid Inactive
+     - Mismatch
+     - Duplicates
+     - Clean
+   - **Payroll Review Center**: `fetchPayrollReviewSessions`, `fetchPayrollReviewItems`, `createPayrollReviewSession`, `submitOpsPayrollReviewComment`, `closePayrollReviewItem`, `closePayrollReviewSession`.
+
+3. **Built 5 Complete Web Modals in `src/components/more/`**:
+   - **`PlantillaImportModal.tsx`**: Group & Account scope picker, XLSX template download, file dropzone, live parsed preview table with column validation, review queue for HA/SA approval or audited rejection, and historical import logs.
+   - **`VacancyImportModal.tsx`**: Scope selector, vacancy XLSX template download, drag-and-drop file parser, requisition preview table, review queue with row inspection, and approval/rejection controls.
+   - **`MikaImportModal.tsx`**: MIKA attendance upload, client-side cross-check against active Plantilla slots to automatically flag possible ghost employees (Type A) and account mismatches (Type B / Blocked), review queue, and approval.
+   - **`PayrollImportModal.tsx`**: 3-column XLSX parser, live global plantilla reconciliation with tabbed discrepancy metrics, table inspection, and "Send to Ops Review" session publisher.
+   - **`PayrollReviewCenterModal.tsx`**: Ops review session list with status filtering (All, Open, Closed), session drilldown with item filter tabs, Ops response / remarks resolution drawer, item closure, and session closure controls.
+
+4. **Connected in `/more/page.tsx` (`tab=data_control`)**:
+   - Replaced all 5 Phase 3 badges/alerts on the cards with direct modal trigger handlers (`onClick`) and active operational badges (`BASELINE`, `INTAKE`, `BIOMETRIC`, `CHECKER`, `REVIEWS`).
+   - Mounted all 5 modals with state controls, allowing seamless cross-navigation (e.g. from Payroll Import directly into Payroll Review Center).
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors).
+- `npm run build`: **PASS** (19/19 static pages compiled and prerendered cleanly).
+
+---
+
 ## Execute Web "More" Module Parity — Wire Orphaned Modals, Add Data Control Tab & Build Core Governance Modals (ohm#w89p601b)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH**
