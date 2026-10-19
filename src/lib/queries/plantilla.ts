@@ -1980,4 +1980,11 @@ export function useStorePlantillaSlots(storeId: string | null) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Workforce Pool & Workforce Analytics Re-exports
+// ---------------------------------------------------------------------------
+export * from "./workforcePool";
+export * from "./workforceAnalytics";
+
+
 

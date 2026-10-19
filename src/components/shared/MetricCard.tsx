@@ -14,6 +14,9 @@ export interface MetricCardProps {
   isError?: boolean;
   error?: boolean;
   errorText?: string;
+  icon?: React.ElementType;
+  variant?: "default" | "positive" | "info" | "warning" | "danger" | "neutral" | string;
+  className?: string;
 }
 
 export function MetricCard({
@@ -30,6 +33,9 @@ export function MetricCard({
   isError,
   error,
   errorText,
+  icon: Icon,
+  variant,
+  className,
 }: MetricCardProps) {
   const displayHelper = helper ?? helperText;
   const isCurrentlyLoading = loading ?? isLoading;
@@ -37,10 +43,28 @@ export function MetricCard({
   const isCurrentlyError = error ?? isError;
   const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : undefined);
 
+  const variantColor =
+    variant === "positive"
+      ? "text-emerald-600"
+      : variant === "info"
+      ? "text-blue-600"
+      : variant === "warning"
+      ? "text-amber-600"
+      : variant === "danger"
+      ? "text-red-600"
+      : "text-text-secondary";
+
   return (
-    <div className="rounded-md border border-border-default bg-surface-base px-4 py-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md">
-      <div className="text-xs font-semibold uppercase tracking-normal text-text-secondary">
-        {label}
+    <div
+      className={`rounded-md border border-border-default bg-surface-base px-4 py-3.5 shadow-sm transition-shadow duration-200 hover:shadow-md ${
+        className ?? ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold uppercase tracking-normal text-text-secondary truncate">
+          {label}
+        </div>
+        {Icon ? <Icon className={`h-4 w-4 shrink-0 ${variantColor}`} /> : null}
       </div>
       <div className="mt-1.5 flex items-end justify-between gap-3">
         <div className="text-3xl font-semibold leading-none text-text-primary">

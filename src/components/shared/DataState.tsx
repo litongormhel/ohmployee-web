@@ -3,14 +3,19 @@ import { AlertCircle, ClipboardList, LockKeyhole, RefreshCw } from "lucide-react
 export type DataStateKind = "loading" | "empty" | "access_denied" | "error";
 
 export interface DataStateProps {
-  kind: DataStateKind;
+  kind?: DataStateKind;
+  state?: DataStateKind;
   title?: string;
   description?: string;
+  message?: string;
   onRetry?: () => void;
 }
 
-export function DataState({ kind, title, description, onRetry }: DataStateProps) {
-  switch (kind) {
+export function DataState({ kind, state, title, description, message, onRetry }: DataStateProps) {
+  const activeKind = kind ?? state ?? "loading";
+  const activeDesc = description ?? message;
+
+  switch (activeKind) {
     case "loading": {
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -22,7 +27,7 @@ export function DataState({ kind, title, description, onRetry }: DataStateProps)
             {title ?? "Loading scoped vacancies"}
           </h3>
           <p className="mt-1 text-xs text-text-muted max-w-sm leading-relaxed">
-            {description ?? "Fetching queue data through Supabase RPCs."}
+            {activeDesc ?? "Fetching queue data through Supabase RPCs."}
           </p>
         </div>
       );
@@ -38,7 +43,7 @@ export function DataState({ kind, title, description, onRetry }: DataStateProps)
             {title ?? "Access Denied"}
           </h3>
           <p className="mt-1 text-xs text-text-secondary max-w-md leading-relaxed">
-            {description ?? "Supabase RLS policies blocked this read. You are not authorized to view rows outside your scoped boundary."}
+            {activeDesc ?? "Supabase RLS policies blocked this read. You are not authorized to view rows outside your scoped boundary."}
           </p>
         </div>
       );
@@ -54,7 +59,7 @@ export function DataState({ kind, title, description, onRetry }: DataStateProps)
             {title ?? "Fetch Failed"}
           </h3>
           <p className="mt-1 text-xs text-text-secondary max-w-md leading-relaxed">
-            {description ?? "The query request failed. You can retry without changing filters."}
+            {activeDesc ?? "The query request failed. You can retry without changing filters."}
           </p>
           {onRetry && (
             <button
@@ -80,7 +85,7 @@ export function DataState({ kind, title, description, onRetry }: DataStateProps)
             {title ?? "No records found"}
           </h3>
           <p className="mt-1 text-xs text-text-muted max-w-sm leading-relaxed">
-            {description ?? "The backend returned an empty scoped result for this selection."}
+            {activeDesc ?? "The backend returned an empty scoped result for this selection."}
           </p>
         </div>
       );

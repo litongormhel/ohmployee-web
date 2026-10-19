@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Complete Web `/plantilla` Parity — Port Moses HQ Pool & 7-Tab Workforce Analytics Dashboard (ohm#w89p602e)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Parity Achieved on `/plantilla`)**
+
+### Objective
+Elevated `src/app/(dashboard)/plantilla/page.tsx` from 75% to 100% Mobile parity by porting the two remaining major modules from `d:\Projects\OHMployee\lib\features\plantilla\`:
+1. **Moses HQ Pool Management (`moses_hq_pool_screen.dart`)** for tracking, filtering, and managing pooled personnel (Relievers, Commandos, Seasonals).
+2. **Workforce Analytics Dashboard (`workforce_analytics_dashboard_screen.dart`)** featuring all 7 executive workforce analytics tabs (`Overview`, `Deployment`, `Coverage`, `Conversion`, `Slots`, `Health`, `Executive`).
+3. **URL Query & Deep-Linking Synchronization**: Provided segmented top-level view switcher tabs (`Store Plantilla`, `Moses HQ Pool` with `?view=moses_pool`, `Workforce Analytics` with `?view=analytics`) with deep-linking support and auto-navigation from pool accounts.
+
+---
+
+### Implementation Details
+
+1. **Moses HQ Pool View & Actions (`src/components/plantilla/`)**:
+   - `MosesHqPoolView.tsx`: Complete HQ pool dashboard with dynamic pool type tabs (`All`, `Reliever`, `Commando`, `Seasonal`), status filters (`All`, `Available`, `Deployed`, `Needs Review`, `Inactive`), search, 7 executive KPI counters (`Total Pool`, `Available`, `Deployed`, `In Review`, `Inactive`, `Approved Quota`, `Vacant Slots`), high-density employee table with load badges and review triggers, XLSX export, and action drawers.
+   - `PoolEmployeeDetailDrawer.tsx`: Full employee drawer displaying employee profile, active deployments with inline close/complete actions, pending request management with withdrawal actions, and comprehensive assignment history.
+   - `RequestRelieverCoverageModal.tsx`: Coverage deployment request modal with account/store cascading selection, priority, dates, and position.
+   - `RequestPoolConversionModal.tsx`: Modal requesting permanent pool-to-plantilla conversion with target account, store, and position lookup.
+   - `RequestPoolHeadcountModal.tsx`: Vacancy creation modal expanding pool quotas.
+   - `PoolOpenSlotsDrawer.tsx`: Approved vacant pool slots inspector with filter by pool type, position, and days open.
+   - `PoolReviewQueueDrawer.tsx`: Slot review queue with interactive "Reopen for Replenishment" and "Close Slot" actions.
+   - `PoolRequestHistoryDrawer.tsx`: Audit trail drawer for past pool headcount requests.
+
+2. **7-Tab Workforce Analytics Dashboard (`src/components/plantilla/WorkforceAnalyticsView.tsx`)**:
+   - Full 7-tab executive dashboard powered by live Supabase RPCs:
+     - **Tab 1: `Overview`**: Headcount breakdown, active deployment summary, coverage requests, pool type breakdown table.
+     - **Tab 2: `Deployment`**: Deployment velocity, multi-store reliever counts, average stores per reliever, overdue deployments, and visual load distribution progress bars (`Low`, `Medium`, `High`, `Critical`).
+     - **Tab 3: `Coverage`**: Pending coverage demand, SLA compliance, emergency/critical requests, and aging brackets.
+     - **Tab 4: `Conversion`**: Conversion rate, approval/rejection rates, pending conversion queue, and conversion metrics.
+     - **Tab 5: `Slots`**: Slot review queue analytics, vacant pool slots, and review decision metrics.
+     - **Tab 6: `Health`**: Overall health score (0–100), operational risks, high-load relievers, and import incidents tracker (`get_plantilla_import_incidents`).
+     - **Tab 7: `Executive`**: High-level executive KPI summary cards (`Total Pool Employees`, `Utilization %`, `Availability %`, `Pool Capacity %`, `Coverage Efficiency %`, `Health Score`).
+   - Dynamic date range & account scope filters, refresh controls, and multi-sheet XLSX export.
+
+3. **Supabase Data Layer (`src/lib/queries/workforcePool.ts` & `workforceAnalytics.ts`)**:
+   - Added complete TypeScript interfaces and fetchers for `v_workforce_pool_employees`, `workforce_pool_types`, `workforce_assignments`, `v_workforce_store_temporary_coverage`, `v_workforce_slot_reviews`, and `workforce_headcount_requests`.
+   - Added query hooks for analytics RPCs: `fn_workforce_pool_overview`, `fn_workforce_deployment_analytics`, `fn_workforce_coverage_demand_analytics`, `fn_workforce_conversion_analytics`, `fn_workforce_slot_review_analytics`, `fn_workforce_health_summary`, `fn_workforce_executive_summary`, and `get_plantilla_import_incidents`.
+   - Re-exported all definitions in `src/lib/queries/plantilla.ts`.
+
+4. **Integration in Main Page (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Integrated segmented view switcher pill bar (`Store Plantilla`, `Moses HQ Pool`, `Workforce Analytics`).
+   - Synchronized view mode via `?view=moses_pool` and `?view=analytics`.
+   - Pool account rows clicked in Store Plantilla automatically route to Moses HQ Pool with contextual selection.
+   - All existing Store Plantilla roster, slot inspector, vacancy drawers, and quota overrides remain completely intact without regression.
+
+---
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors, 21 warnings in legacy files).
+- `npm run build`: **PASS** (Prerendered all 19 static routes, including `○ /plantilla`, in 18s).
+
+---
+
 ## Upgrade Web `/cencom` to Mobile's 5-Tab Architecture (ohm#w89p602d)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Parity Achieved)**

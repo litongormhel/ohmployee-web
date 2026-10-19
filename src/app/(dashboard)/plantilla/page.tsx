@@ -20,6 +20,7 @@ import {
   List,
   AlertCircle,
   UserMinus,
+  BarChart3,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
@@ -48,10 +49,15 @@ import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer"
 import { StoreStaffingOverviewDrawer } from "@/components/plantilla/StoreStaffingOverviewDrawer";
 import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
 import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
+import { MosesHqPoolView } from "@/components/plantilla/MosesHqPoolView";
+import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalyticsView";
 
 // ---------------------------------------------------------------------------
 // Types & Constants
 // ---------------------------------------------------------------------------
+
+export type PlantillaViewMode = "store" | "moses_pool" | "analytics";
+
 
 type DirectoryTab = "active" | "vacancy" | "inactive" | "needs_hr";
 type DisplayView = "table" | "cards";
@@ -127,6 +133,7 @@ function formatLeadershipName(user: TeamDirectoryUser): string {
 
 export default function PlantillaPage() {
   const [tab, setTab] = useState<DirectoryTab>("active");
+  const [viewMode, setViewMode] = useState<PlantillaViewMode>("store");
   const [displayView, setDisplayView] = useState<DisplayView>("table");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -239,9 +246,18 @@ export default function PlantillaPage() {
     if (!userContextQuery.data) return;
 
     const urlAccountId = searchParams.get("accountId");
+    const viewParam = searchParams.get("view") || searchParams.get("tab");
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (viewParam === "moses_pool" || viewParam === "pool" || viewParam === "moses") {
+      setViewMode("moses_pool");
+    } else if (viewParam === "analytics" || viewParam === "workforce_analytics") {
+      setViewMode("analytics");
+    } else {
+      setViewMode("store");
+    }
+
     const user = userContextQuery.data.currentUser;
 
-    /* eslint-disable react-hooks/set-state-in-effect */
     if (urlAccountId) {
       setAccountId(urlAccountId);
     } else if (user) {
@@ -253,6 +269,7 @@ export default function PlantillaPage() {
     setIsHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [userContextQuery.data, searchParams]);
+
 
   // Stores under current account for dropdown & city/province lookup
   const storesUnderAccountQuery = useQuery({
@@ -491,7 +508,25 @@ export default function PlantillaPage() {
     return { required: 0, actual: 0, hrProcess: 0, vacant: 0 };
   }
 
+  function handleSwitchView(mode: PlantillaViewMode) {
+    setViewMode(mode);
+    const params = new URLSearchParams(searchParams.toString());
+    if (mode === "store") {
+      params.delete("view");
+      params.delete("tab");
+    } else {
+      params.set("view", mode);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   function handleSelectAccount(accId: string) {
+    const acc = allowedAccountsQuery.data?.find((a) => a.id === accId);
+    if (acc?.isPoolAccount || acc?.name.trim().toLowerCase() === "moses hq") {
+      handleSwitchView("moses_pool");
+      return;
+    }
+
     setAccountId(accId);
     setSearch("");
     setStoreId("");
@@ -502,6 +537,7 @@ export default function PlantillaPage() {
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("accountId", accId);
+    params.delete("view");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -518,6 +554,63 @@ export default function PlantillaPage() {
     params.delete("accountId");
     router.push(`${pathname}?${params.toString()}`);
   }
+
+  function renderViewSwitcher() {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default pb-3">
+        <div className="flex items-center gap-1.5 p-1 bg-surface-subtle border border-border-default rounded-xl w-fit">
+          <button
+            type="button"
+            onClick={() => handleSwitchView("store")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              viewMode === "store"
+                ? "bg-white text-brand-700 shadow-xs border border-border-default"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Store Plantilla</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchView("moses_pool")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              viewMode === "moses_pool"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Moses HQ Pool</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchView("analytics")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              viewMode === "analytics"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Workforce Analytics</span>
+          </button>
+        </div>
+
+        {viewMode !== "store" && (
+          <button
+            type="button"
+            onClick={() => handleSwitchView("store")}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 transition cursor-pointer"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Return to Store Plantilla</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
 
   function handleResetFilters() {
     setSearch("");
@@ -807,6 +900,38 @@ export default function PlantillaPage() {
     currentUser?.accountScope.mode === "all" ||
     (currentUser?.accountScope.mode === "scoped" && currentUser?.accountScope.ids.length > 1);
 
+  if (viewMode === "moses_pool") {
+    return (
+      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
+        <AdminPageHeader
+          categoryTag="ADMIN PANEL"
+          moduleName="Plantilla"
+          title="Moses HQ Pool Management"
+          subtitle="Tracking, filtering, and managing non-plantilla pooled personnel (Relievers, Commandos, Seasonals)."
+          icon={Users}
+        />
+        {renderViewSwitcher()}
+        <MosesHqPoolView />
+      </div>
+    );
+  }
+
+  if (viewMode === "analytics") {
+    return (
+      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
+        <AdminPageHeader
+          categoryTag="ADMIN PANEL"
+          moduleName="Plantilla"
+          title="Workforce Analytics Dashboard"
+          subtitle="7-Tab executive workforce analytics: Overview, Deployment, Coverage, Conversion, Slots, Health, Executive."
+          icon={BarChart3}
+        />
+        {renderViewSwitcher()}
+        <WorkforceAnalyticsView />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
       {!accountId ? (
@@ -818,6 +943,7 @@ export default function PlantillaPage() {
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
             icon={Building2}
           />
+          {renderViewSwitcher()}
           {renderAccountSelectionContent()}
         </>
       ) : (
@@ -881,6 +1007,8 @@ export default function PlantillaPage() {
               </div>
             }
           />
+          {renderViewSwitcher()}
+
 
           {/* 2. Executive KPI & Leadership Team Bar */}
           <section aria-label="Plantilla summary metrics" className="space-y-3">
