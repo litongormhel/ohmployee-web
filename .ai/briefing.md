@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w89p602d**: Upgrade Web `/cencom` to Mobile's 5-Tab Architecture (Overview, Groups, Target Deployment / Area Aging, Deployment Activity & 18 Quick Reports) with URL Query Sync (`?tab=`)
 - **ohm#w89p602c**: Unify Web `/approvals` Hub — Port Plantilla Candidate Deployment Queue (`plantilla_approvals`) & Integrate Account Requests Tab (`account_requests`) with 100% Mobile Queue Parity
 - **ohm#w89p602b**: Port Mobile Operational Reports Suite to Web `/reports` Hub (Floating, Team Performance, Data Integrity, Custom Builder & Universal Report Viewer)
 - **ohm#w89p601e**: Wire Governance & Audit Tools (QA Center, Permission Matrix, Role Permissions, Drift, Security Events, Audit Logs) with Dedicated Modals & Deep Links

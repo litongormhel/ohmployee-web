@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Upgrade Web `/cencom` to Mobile's 5-Tab Architecture (ohm#w89p602d)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Parity Achieved)**
+
+### Objective
+Upgraded `src/app/(dashboard)/cencom/page.tsx` from its previous single flat view (35% parity) to the complete 5-tab architecture of Mobile's `cencom_screen.dart` (`d:\Projects\OHMployee\lib\features\cencom\cencom_screen.dart`). Ported the missing **Target Deployment / Vacancy Aging by Area & Province**, **Deployment Activity**, and **CENCOM Quick Reports** tabs, wired their respective Supabase queries and RPCs in `src/lib/queries/cencom.ts`, and established full URL query synchronization (`?tab=`).
+
+---
+
+### Implementation Details
+
+1. **5-Tab Command Center Architecture (`src/app/(dashboard)/cencom/page.tsx`)**:
+   - **Tab 1: `Overview` (`tab=overview`)**: Executive summary retaining MFR fulfillment KPIs, Plantilla Slot Authority normalization callout, monthly operational deployment summary card (`CencomDeploymentCard`), and quick navigation shortcuts.
+   - **Tab 2: `Groups` (`tab=groups`)**: Dedicated tab for `CencomGroupTable` with search across groups and accounts, health filter (`healthy`, `at_risk`, `critical`), sorting, and headcount/store drilldowns.
+   - **Tab 3: `Target Deployment` (`tab=target_deployment`)**: Ported Mobile's `_TargetDeploymentTab`. Displays:
+     - Executive summary KPIs (Operational Vacancies, Advance Vacancies, Average Aging Days, Critical Aging % >30d, Max Days Open).
+     - Aging Bucket Summary Cards matching Mobile (`1–15 DAYS`, `16–30 DAYS`, `31–60 DAYS`, `61–120 DAYS`, `>121 DAYS`, `ADVANCE VACANCY`) with percentage of operational total and advance vacancy explanatory callout.
+     - Province & Area Vacancy Aging Table with search, aging bracket dropdown, and store count.
+     - Interactive store-level drilldown (`CencomGroupedOutletVacancy`): Outlets grouped by `province||area||store||hrco`, showing open positions, oldest aging days badge, reliever status (`Has Reliever`, `No Reliever`, `Mixed`), and expandable individual vacancy cards with VCode, Urgency badge, and Target Fill Date.
+   - **Tab 4: `Deployment Activity` (`tab=deployments`)**: Ported Mobile's `_DeploymentTab`. Displays:
+     - Period selector ("This Month", "Last Month", "Last 90 Days", "All Time").
+     - Velocity KPIs: Period Deployments, Pending Emploc, Moved to Plantilla, Top Account, Top Store, Monthly Quotas from `fn_cencom_deployment_summary`.
+     - High-density table of deployed personnel from `hr_emploc` across stores, accounts, and positions with search, status filter, pagination, and CSV export.
+   - **Tab 5: `Quick Reports` (`tab=reports`)**: Ported Mobile's `_ReportsTab` (the 18 CENCOM operational reports). Features:
+     - 18 operational reports across 4 categories (Command Center, Separation & Leakage, Velocity & SLA, Workforce Audit).
+     - 1-click inline modal viewing using `ReportDetailView` or deep-linking directly into `/reports?tab=catalog&report=...` or `/cencom?tab=...`.
+     - Recently Generated Reports section, Report Schedules section, and Help Callout matching Mobile.
+
+2. **Supabase Models & TanStack Query Hooks (`src/lib/queries/cencom.ts`)**:
+   - Added `CencomAgingBucket`, `CencomOperationalVacancy`, `CencomGroupedOutletVacancy`, `CencomProvinceAgingSummary`, and `CencomTargetDeploymentData`.
+   - Implemented `computeAgingBucket(vacantDate)` enforcing exact day boundaries and future advance vacancy separation.
+   - Implemented `fetchCencomTargetDeployment()` and `useCencomTargetDeployment()` querying open vacancies with location snapshotting and `v_vacancy_deployment_indicators`.
+   - Added `CencomDeploymentRecord`, `CencomDeploymentActivityStats`, `CencomDeploymentActivityResult`, and `CencomDeploymentPeriod`.
+   - Implemented `fetchCencomDeploymentActivity(period)` and `useCencomDeploymentActivity(period)` querying `hr_emploc` for real-time deployed personnel and velocity metrics.
+
+---
+
+### Verification Results
+- `npx tsc --noEmit`: **PASS** (0 TypeScript errors).
+- `npm run lint`: **PASS** (0 errors, 26 legacy warnings in older files).
+- `npm run build`: **PASS** (Prerendered all 19 static routes, including `○ /cencom`, in 17s).
+
+---
+
 ## Unify Web `/approvals` Hub — Port Plantilla Deployment Queue & Integrate Account Requests Tab (ohm#w89p602c)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Queue Parity Achieved)**
