@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { ApprovalsDataState } from "@/components/approvals/ApprovalsDataState";
+import { AccountRequestDataTable } from "@/components/approvals/AccountRequestDataTable";
 import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
 import { ApplicantMovementDataTable } from "@/components/approvals/ApplicantMovementDataTable";
 import { CoverageDataTable } from "@/components/approvals/CoverageDataTable";
@@ -17,6 +18,7 @@ import { DeactivationDataTable } from "@/components/approvals/DeactivationDataTa
 import { HeadcountDataTable } from "@/components/approvals/HeadcountDataTable";
 import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeletionDataTable";
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
+import { PlantillaApprovalDataTable } from "@/components/approvals/PlantillaApprovalDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
 import {
@@ -39,9 +41,16 @@ import {
   useRelieverCounts,
   useCoverageRequests,
   useCoverageCounts,
+  usePlantillaApprovals,
+  usePlantillaApprovalCounts,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
+import {
+  useAccountApprovalQueue,
+  useAccountRequestCounts,
+  type AccountRequestStatus,
+} from "@/lib/queries/accountRequests";
 import {
   useEmplocDeletionRequests,
   useEmplocDeletionCounts,
@@ -213,6 +222,8 @@ export function ActiveQueueReviewPane({
   const [deactivationTab, setDeactivationTab] = useState<DeactivationStatusTab>("pending");
   const [transferTab, setTransferTab] = useState<ApprovalStatusTab>("pending");
   const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
+  const [plantillaTab, setPlantillaTab] = useState<ApprovalStatusTab>("pending");
+  const [accountTab, setAccountTab] = useState<AccountRequestStatus>("pending");
 
   // Search queries per queue
   const [searchQuery, setSearchQuery] = useState("");
@@ -224,6 +235,8 @@ export function ActiveQueueReviewPane({
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
+  const [plantillaSearchQuery, setPlantillaSearchQuery] = useState("");
+  const [accountSearchQuery, setAccountSearchQuery] = useState("");
 
   // ── Queries & Live Counts ───────────────────────────────────────────────
   // 1. Headcount
@@ -369,6 +382,38 @@ export function ActiveQueueReviewPane({
     isError: isCoverageCountsError,
     refetch: refetchCoverageCounts,
   } = useCoverageCounts();
+
+  // 10. Plantilla Approvals (Candidate Deployments)
+  const {
+    data: plantillaRequests = [],
+    isLoading: isPlantillaLoading,
+    isError: isPlantillaError,
+    refetch: refetchPlantilla,
+    isRefetching: isPlantillaRefetching,
+  } = usePlantillaApprovals(plantillaTab);
+
+  const {
+    data: plantillaCounts,
+    isLoading: isPlantillaCountsLoading,
+    isError: isPlantillaCountsError,
+    refetch: refetchPlantillaCounts,
+  } = usePlantillaApprovalCounts();
+
+  // 11. Account Sign-Up Requests
+  const {
+    data: accountRequests = [],
+    isLoading: isAccountLoading,
+    isError: isAccountError,
+    refetch: refetchAccount,
+    isRefetching: isAccountRefetching,
+  } = useAccountApprovalQueue(accountTab);
+
+  const {
+    data: accountCounts,
+    isLoading: isAccountCountsLoading,
+    isError: isAccountCountsError,
+    refetch: refetchAccountCounts,
+  } = useAccountRequestCounts();
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -548,6 +593,39 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [rovingRequests, rovingSearchQuery]);
+
+  const filteredPlantillaRequests = useMemo(() => {
+    if (!plantillaSearchQuery.trim()) return plantillaRequests;
+    const q = plantillaSearchQuery.toLowerCase();
+    return plantillaRequests.filter((req) => {
+      return (
+        req.applicantName.toLowerCase().includes(q) ||
+        req.vcode.toLowerCase().includes(q) ||
+        req.account.toLowerCase().includes(q) ||
+        req.position.toLowerCase().includes(q) ||
+        req.emplocNo.toLowerCase().includes(q) ||
+        req.requestedBy.toLowerCase().includes(q) ||
+        (req.reviewedBy?.toLowerCase().includes(q) ?? false) ||
+        (req.remarks?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [plantillaRequests, plantillaSearchQuery]);
+
+  const filteredAccountRequests = useMemo(() => {
+    if (!accountSearchQuery.trim()) return accountRequests;
+    const q = accountSearchQuery.toLowerCase();
+    return accountRequests.filter((req) => {
+      return (
+        req.fullName.toLowerCase().includes(q) ||
+        req.email.toLowerCase().includes(q) ||
+        (req.mobileNumber && req.mobileNumber.toLowerCase().includes(q)) ||
+        (req.requestedRoleName && req.requestedRoleName.toLowerCase().includes(q)) ||
+        (req.notes && req.notes.toLowerCase().includes(q)) ||
+        (req.rejectionReason && req.rejectionReason.toLowerCase().includes(q)) ||
+        (req.reviewerDisplayName && req.reviewerDisplayName.toLowerCase().includes(q))
+      );
+    });
+  }, [accountRequests, accountSearchQuery]);
 
   // ── 1. New Store Requests Queue ──────────────────────────────────────────
   if (selectedCategory === "new_stores") {
@@ -826,6 +904,148 @@ export function ActiveQueueReviewPane({
             <HeadcountDataTable
               requests={filteredRequests}
               tab={headcountTab}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 5. Plantilla Placements Queue (Candidate Deployments) ─────────────────
+  if (selectedCategory === "plantilla_approvals") {
+    const handleRefresh = () => {
+      refetchPlantilla();
+      refetchPlantillaCounts();
+    };
+
+    return (
+      <div className="flex h-full flex-col">
+        <QueueToolbar
+          searchQuery={plantillaSearchQuery}
+          onSearchChange={setPlantillaSearchQuery}
+          searchPlaceholder="Search candidate, VCode, account, position, requester..."
+          currentTab={plantillaTab}
+          onTabChange={setPlantillaTab}
+          counts={plantillaCounts}
+          isCountsLoading={isPlantillaCountsLoading}
+          isCountsError={isPlantillaCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isPlantillaRefetching}
+          isLoading={isPlantillaLoading}
+        />
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
+          {isPlantillaLoading ? (
+            <ApprovalsDataState
+              kind="loading"
+              title="Loading Plantilla Deployments"
+              description="Fetching pending candidate deployment approvals..."
+            />
+          ) : isPlantillaError ? (
+            <ApprovalsDataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching candidate plantilla approvals."
+              onRetry={handleRefresh}
+            />
+          ) : filteredPlantillaRequests.length === 0 ? (
+            <ApprovalsDataState
+              kind="empty"
+              title={
+                plantillaSearchQuery
+                  ? "No Matching Requests"
+                  : plantillaTab === "pending"
+                  ? "No Pending Candidate Deployments"
+                  : plantillaTab === "approved"
+                  ? "No Approved Candidate Deployments"
+                  : "No Rejected Candidate Deployments"
+              }
+              description={
+                plantillaSearchQuery
+                  ? `No requests match "${plantillaSearchQuery}". Clear your search query to see all items.`
+                  : plantillaTab === "pending"
+                  ? "All candidate plantilla placement requests have been reviewed and processed."
+                  : plantillaTab === "approved"
+                  ? "No approved candidate deployments found in this queue."
+                  : "No rejected candidate deployments found in this queue."
+              }
+            />
+          ) : (
+            <PlantillaApprovalDataTable
+              requests={filteredPlantillaRequests}
+              tab={plantillaTab}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 6. Account Sign-Up Requests Queue ─────────────────────────────────────
+  if (selectedCategory === "account_requests") {
+    const handleRefresh = () => {
+      refetchAccount();
+      refetchAccountCounts();
+    };
+
+    return (
+      <div className="flex h-full flex-col">
+        <QueueToolbar<AccountRequestStatus>
+          searchQuery={accountSearchQuery}
+          onSearchChange={setAccountSearchQuery}
+          searchPlaceholder="Search applicant, email, phone, requested role..."
+          currentTab={accountTab}
+          onTabChange={setAccountTab}
+          counts={accountCounts}
+          isCountsLoading={isAccountCountsLoading}
+          isCountsError={isAccountCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isAccountRefetching}
+          isLoading={isAccountLoading}
+        />
+
+        {/* Requests List Area */}
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
+          {isAccountLoading ? (
+            <ApprovalsDataState
+              kind="loading"
+              title="Loading Account Sign-Up Requests"
+              description="Fetching pending user registration and access requests..."
+            />
+          ) : isAccountError ? (
+            <ApprovalsDataState
+              kind="error"
+              title="Failed to Load Queue"
+              description="An error occurred while fetching account sign-up requests."
+              onRetry={handleRefresh}
+            />
+          ) : filteredAccountRequests.length === 0 ? (
+            <ApprovalsDataState
+              kind="empty"
+              title={
+                accountSearchQuery
+                  ? "No Matching Requests"
+                  : accountTab === "pending"
+                  ? "No Pending Sign-Up Requests"
+                  : accountTab === "approved"
+                  ? "No Approved Sign-Up Requests"
+                  : "No Rejected Sign-Up Requests"
+              }
+              description={
+                accountSearchQuery
+                  ? `No requests match "${accountSearchQuery}". Clear your search query to see all items.`
+                  : accountTab === "pending"
+                  ? "All user registration requests have been reviewed and provisioned."
+                  : accountTab === "approved"
+                  ? "No approved account requests found in this queue."
+                  : "No rejected account requests found in this queue."
+              }
+            />
+          ) : (
+            <AccountRequestDataTable
+              requests={filteredAccountRequests}
+              tab={accountTab}
             />
           )}
         </div>

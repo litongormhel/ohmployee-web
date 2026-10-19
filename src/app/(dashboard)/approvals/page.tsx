@@ -14,6 +14,8 @@ import {
 const VALID_CATEGORIES = new Set<string>([
   "new_stores",
   "headcount",
+  "plantilla_approvals",
+  "account_requests",
   "coverage",
   "vacancy_closures",
   "hr_emploc_deletions",
@@ -47,6 +49,8 @@ function ApprovalsPageContent() {
     data: counts = {
       new_stores: 0,
       headcount: 0,
+      plantilla_approvals: 0,
+      account_requests: 0,
       coverage: 0,
       vacancy_closures: 0,
       hr_emploc_deletions: 0,

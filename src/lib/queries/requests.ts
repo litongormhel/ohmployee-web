@@ -5,6 +5,8 @@ import { formatPersonName } from "@/lib/utils/formatName";
 export type RequestCategoryKey =
   | "new_stores"
   | "headcount"
+  | "plantilla_approvals"
+  | "account_requests"
   | "coverage"
   | "vacancy_closures"
   | "hr_emploc_deletions"
@@ -32,6 +34,18 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     label: "Headcount",
     description: "Quota amendments, replacements, relievers, and capacity expansions",
     tableName: "headcount_requests",
+  },
+  {
+    key: "plantilla_approvals",
+    label: "Plantilla Placements",
+    description: "Candidate endorsements and slot deployment approvals to permanent plantilla",
+    tableName: "plantilla_approvals",
+  },
+  {
+    key: "account_requests",
+    label: "Account Sign-Ups",
+    description: "Staff and user registration approval and access provisioning queue",
+    tableName: "account_requests",
   },
   {
     key: "coverage",
@@ -144,6 +158,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   const results: RequestCategoryCounts = {
     new_stores: 0,
     headcount: 0,
+    plantilla_approvals: 0,
+    account_requests: 0,
     coverage: 0,
     vacancy_closures: 0,
     hr_emploc_deletions: 0,
@@ -185,7 +201,25 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
-    // 3. Coverage (Roving Coverage Groups)
+    // 3. Plantilla Approvals (Candidate deployment queue)
+    countItem(
+      "plantilla_approvals",
+      supabase
+        .from("plantilla_approvals")
+        .select("id", { count: "exact", head: true })
+        .ilike("status", "pending")
+    ),
+
+    // 4. Account Sign-Up Requests
+    countItem(
+      "account_requests",
+      supabase
+        .from("account_requests")
+        .select("id", { count: "exact", head: true })
+        .ilike("status", "pending")
+    ),
+
+    // 5. Coverage (Roving Coverage Groups)
     countItem(
       "coverage",
       supabase
@@ -195,7 +229,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .in("status", ["pending", "draft"])
     ),
 
-    // 4. Relievers (Workforce Pool Reliever Endorsements)
+    // 6. Relievers (Workforce Pool Reliever Endorsements)
     countItem(
       "relievers",
       supabase
@@ -204,7 +238,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .in("status", ["Pending", "pending", "For Review", "for review"])
     ),
 
-    // 4. Vacancy Closures
+    // 7. Vacancy Closures
     countItem(
       "vacancy_closures",
       supabase
@@ -213,7 +247,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 5. HR Emploc Deletions
+    // 8. HR Emploc Deletions
     countItem(
       "hr_emploc_deletions",
       supabase
@@ -222,7 +256,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 6. Deactivations
+    // 9. Deactivations
     countItem(
       "deactivations",
       supabase
@@ -231,7 +265,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 7. Applicant Movements
+    // 10. Applicant Movements
     countItem(
       "applicant_movements",
       supabase
@@ -240,7 +274,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 8. Account Group Transfers
+    // 11. Account Group Transfers
     countItem(
       "account_group_transfers",
       supabase
@@ -3078,6 +3112,237 @@ export function useRejectCoverageRequest() {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["cencom"] });
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plantilla Approvals (Candidate Endorsement & Deployment Queue)
+// Ported from Mobile: ApprovalService & ApprovalScreen
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PlantillaApprovalItem {
+  id: string;
+  hrEmplocId: string;
+  applicantName: string;
+  vcode: string;
+  account: string;
+  position: string;
+  emplocNo: string;
+  requestedBy: string;
+  status: "pending" | "approved" | "rejected";
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  remarks: string | null;
+  createdAt: string;
+}
+
+export async function fetchPlantillaApprovals(
+  tab: ApprovalStatusTab = "pending"
+): Promise<PlantillaApprovalItem[]> {
+  const supabase = createClient();
+
+  let query = supabase
+    .from("plantilla_approvals")
+    .select("id, hr_emploc_id, applicant_name, vcode, account, position, emploc_no, requested_by, status, reviewed_by, reviewed_at, remarks, created_at")
+    .order("created_at", { ascending: false });
+
+  if (tab === "pending") {
+    query = query.ilike("status", "pending");
+  } else if (tab === "approved") {
+    query = query.or("status.ilike.approved,status.ilike.completed");
+  } else if (tab === "rejected") {
+    query = query.or("status.ilike.rejected,status.ilike.cancelled");
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Access to plantilla approvals is restricted."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  if (!data) return [];
+
+  return (data as Array<{
+    id: string;
+    hr_emploc_id: string;
+    applicant_name: string;
+    vcode: string;
+    account: string;
+    position: string;
+    emploc_no: string;
+    requested_by: string;
+    status: string;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+    remarks: string | null;
+    created_at: string;
+  }>).map((r) => {
+    const rawStatus = (r.status || "").toLowerCase();
+    const normalizedStatus: "pending" | "approved" | "rejected" =
+      rawStatus === "approved" || rawStatus === "completed"
+        ? "approved"
+        : rawStatus === "rejected" || rawStatus === "cancelled"
+        ? "rejected"
+        : "pending";
+
+    return {
+      id: r.id,
+      hrEmplocId: r.hr_emploc_id,
+      applicantName: formatPersonName(r.applicant_name),
+      vcode: r.vcode,
+      account: r.account,
+      position: r.position,
+      emplocNo: r.emploc_no,
+      requestedBy: formatPersonName(r.requested_by),
+      status: normalizedStatus,
+      reviewedBy: r.reviewed_by ? formatPersonName(r.reviewed_by) : null,
+      reviewedAt: r.reviewed_at,
+      remarks: r.remarks,
+      createdAt: r.created_at,
+    };
+  });
+}
+
+export async function fetchPlantillaApprovalCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("plantilla_approvals")
+    .select("status");
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Access to plantilla approvals is restricted."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
+
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved" || s === "completed") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+
+  return { pending, approved, rejected };
+}
+
+export async function approvePlantillaRequest(approvalId: string): Promise<void> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("approve_plantilla_request", {
+    p_approval_id: approvalId,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Data Team (level 30+) or higher can approve candidate plantilla deployments."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  if (data && typeof data === "object" && (data as { ok?: boolean }).ok === false) {
+    throw new RequestDataError(
+      "generic",
+      (data as { error?: string }).error || "Failed to approve candidate plantilla deployment."
+    );
+  }
+}
+
+export async function rejectPlantillaRequest({
+  approvalId,
+  remarks,
+}: {
+  approvalId: string;
+  remarks: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const trimmed = remarks.trim();
+  if (!trimmed) {
+    throw new RequestDataError("validation", "A rejection reason/remarks is required.");
+  }
+
+  const { error } = await supabase.rpc("reject_plantilla_request", {
+    p_approval_id: approvalId,
+    p_remarks: trimmed,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        "Unauthorized: Only Data Team (level 30+) or higher can reject candidate plantilla deployments."
+      );
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+}
+
+export function usePlantillaApprovals(tab: ApprovalStatusTab = "pending") {
+  return useQuery({
+    queryKey: ["plantilla-approvals", tab],
+    queryFn: () => fetchPlantillaApprovals(tab),
+  });
+}
+
+export const usePendingPlantillaApprovals = () => usePlantillaApprovals("pending");
+
+export function usePlantillaApprovalCounts() {
+  return useQuery({
+    queryKey: ["plantilla-approval-counts"],
+    queryFn: () => fetchPlantillaApprovalCounts(),
+    retry: 1,
+  });
+}
+
+export function useApprovePlantillaRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (approvalId: string) => approvePlantillaRequest(approvalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-approval-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy"] });
+    },
+  });
+}
+
+export function useRejectPlantillaRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { approvalId: string; remarks: string }) =>
+      rejectPlantillaRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-approval-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy"] });
     },
   });
 }

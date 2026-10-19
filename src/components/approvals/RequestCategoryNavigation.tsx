@@ -2,11 +2,13 @@ import type { ComponentType } from "react";
 import {
   Archive,
   ArrowLeftRight,
+  Briefcase,
   Layers,
   MapPin,
   Store,
   UserCheck,
   UserMinus,
+  UserPlus,
   Users,
   UserX,
 } from "lucide-react";
@@ -19,6 +21,8 @@ import {
 const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: string }>> = {
   new_stores: Store,
   headcount: Users,
+  plantilla_approvals: Briefcase,
+  account_requests: UserPlus,
   coverage: MapPin,
   vacancy_closures: Archive,
   hr_emploc_deletions: UserX,

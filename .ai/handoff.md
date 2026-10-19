@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Unify Web `/approvals` Hub — Port Plantilla Deployment Queue & Integrate Account Requests Tab (ohm#w89p602c)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Queue Parity Achieved)**
+
+### Objective
+Achieved 100% Mobile-to-Web queue parity on `/approvals` (`src/app/(dashboard)/approvals/page.tsx`) by porting and integrating the two missing Mobile approval queues identified in `ohm#w89p602a-audit`:
+1. **Plantilla Candidate Deployment Approvals (`plantilla_approvals`)**: Ported from Mobile `d:\Projects\OHMployee\lib\features\approval\approval_screen.dart` and `approval_service.dart`.
+2. **Account Sign-Up Requests (`account_requests`)**: Integrated directly into `/approvals` horizontal category tab strip, supporting review, role/group/account scoping, and provisioning via backend RPC `approve_account_request_v2`.
+3. **Synchronized Pending Badges**: Both new queues are fully aggregated into `fetchRequestCategoryCounts` and reflected in the Left Sidebar approvals counter and `/approvals` tab strip.
+
+---
+
+### Implementation Details
+
+1. **Supabase Query & RPC Hooks (`src/lib/queries/requests.ts` & `src/lib/queries/accountRequests.ts`)**:
+   - Added `plantilla_approvals` and `account_requests` to `RequestCategoryKey`, `REQUEST_CATEGORIES`, and `fetchRequestCategoryCounts()` with safe failure fallback.
+   - Added TypeScript interfaces: `PlantillaApprovalItem`, `fetchPlantillaApprovals(tab)`, `fetchPlantillaApprovalCounts()`.
+   - Wired backend RPCs:
+     - `approve_plantilla_request(p_approval_id)` via `useApprovePlantillaRequest`.
+     - `reject_plantilla_request(p_approval_id, p_remarks)` via `useRejectPlantillaRequest` (mandates rejection remarks).
+   - In `accountRequests.ts`, implemented `fetchAccountRequestCounts()` and `useAccountRequestCounts()`, and added cache invalidation for `request-category-counts` on approve/reject.
+
+2. **High-Density Table Components (`src/components/approvals/`)**:
+   - Created `PlantillaApprovalDataTable.tsx`: High-density responsive data table matching `ApplicantMovementDataTable` and `ActiveQueueReviewPane`, displaying candidate name, target account, position, VCode slot, EMPLOC #, requester, date, and single/bulk Approve and Reject modals with required remarks.
+   - Created `AccountRequestDataTable.tsx`: High-density review table displaying applicant name, email, phone, requested role, scope (global/scoped groups), notes, submission date, and interactive Approve modal (assign role, toggle global/scoped, assign groups & accounts) and Reject modal.
+
+3. **Approvals Hub Integration (`src/app/(dashboard)/approvals/page.tsx` & `src/components/approvals/ActiveQueueReviewPane.tsx`)**:
+   - Added `plantilla_approvals` ("Plantilla Placements") and `account_requests` ("Account Sign-Ups") into `VALID_CATEGORIES` and category navigation tabs with icons `Briefcase` and `UserPlus`.
+   - Connected both review sections into `ActiveQueueReviewPane.tsx` with dedicated sub-tabs (Pending / Approved / Rejected) and search filters.
+   - Maintained global Left Sidebar counter consistency through unified React Query cache updates.
+
+---
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors, warnings are legacy unrelated modals).
+- `npm run build`: **PASS** (19/19 routes compiled with Turbopack, including `/approvals`).
+
+---
+
 ## Port Mobile Operational Reports Suite to Web `/reports` Hub (ohm#w89p602b)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Operational Reports Parity Achieved)**

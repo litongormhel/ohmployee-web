@@ -165,6 +165,32 @@ export async function rejectAccountRequest(payload: RejectAccountRequestPayload)
   }
 }
 
+export async function fetchAccountRequestCounts(): Promise<{ pending: number; approved: number; rejected: number }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("account_requests")
+    .select("status");
+
+  if (error) {
+    throw new Error(error.message || "Failed to fetch account request counts");
+  }
+
+  if (!data) return { pending: 0, approved: 0, rejected: 0 };
+
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  for (const row of data) {
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending") pending++;
+    else if (s === "approved") approved++;
+    else if (s === "rejected") rejected++;
+  }
+
+  return { pending, approved, rejected };
+}
+
 // ============================================================================
 // React Query Hooks
 // ============================================================================
@@ -177,12 +203,22 @@ export function useAccountApprovalQueue(status: AccountRequestStatus = "pending"
   });
 }
 
+export function useAccountRequestCounts() {
+  return useQuery({
+    queryKey: ["account-request-counts"],
+    queryFn: () => fetchAccountRequestCounts(),
+    retry: 1,
+  });
+}
+
 export function useApproveAccountRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: approveAccountRequest,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["account-approval-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["account-request-counts"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["users-list"] });
     },
@@ -194,7 +230,9 @@ export function useRejectAccountRequest() {
   return useMutation({
     mutationFn: rejectAccountRequest,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["account-approval-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["account-request-counts"] });
     },
   });
 }
