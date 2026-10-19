@@ -1,6 +1,7 @@
 # AI Briefing
 
 ## Last Completed Tasks
+- **ohm#w89p602b**: Port Mobile Operational Reports Suite to Web `/reports` Hub (Floating, Team Performance, Data Integrity, Custom Builder & Universal Report Viewer)
 - **ohm#w89p601e**: Wire Governance & Audit Tools (QA Center, Permission Matrix, Role Permissions, Drift, Security Events, Audit Logs) with Dedicated Modals & Deep Links
 - **ohm#w89p601d**: Phase 4 Web "More" Parity — Port OHM's Safespace, Switch Role, Roving Coverage Groups & Bulk Archive Execution
 - **ohm#w89p601c**: Phase 3 Web "More" Parity — Port Data Control Bulk Importers (Plantilla, Vacancy, MIKA, Payroll) & Payroll Review Center

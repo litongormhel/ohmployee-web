@@ -6,12 +6,12 @@
 $ErrorActionPreference = "Continue"
 
 $ROOT = (git rev-parse --show-toplevel 2>&1).Trim()
-$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w89p601e" }
+$PROMPT_ID = if ($env:OHM_PROMPT_ID) { $env:OHM_PROMPT_ID } else { "ohm#w89p602b" }
 $env:OHM_PROMPT_ID = $PROMPT_ID
 
 # Set default in-scope untracked files if not already specified
 if (-not $env:OHM_SCOPE_FILES) {
-    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:src/components/more/QaCenterModal.tsx:src/components/more/PermissionMatrixModal.tsx:src/components/more/RolePermissionsModal.tsx:src/components/more/PermissionDriftModal.tsx:src/components/more/SecurityEventsModal.tsx:src/components/more/AuditLogsModal.tsx:src/lib/queries/governance.ts"
+    $env:OHM_SCOPE_FILES = "scripts/ai-finish.ps1:src/components/reports:src/lib/queries/reports.ts:src/lib/utils/reports_export.ts"
 }
 
 Write-Host "======================================================"

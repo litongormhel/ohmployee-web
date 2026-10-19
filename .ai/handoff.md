@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Port Mobile Operational Reports Suite to Web `/reports` Hub (ohm#w89p602b)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Operational Reports Parity Achieved)**
+
+### Objective
+Replaced the `ModuleEmptyState` placeholder in `src/app/(dashboard)/reports/page.tsx` with the complete Operational Reports & Analytics Hub ported from Mobile `d:\Projects\OHMployee\lib\features\reports\` and `cencom_service.dart`. Delivered all 5 Mobile reporting surfaces:
+1. **Overview & Quick Reports** (`tab=catalog`) with Universal Report Viewer (`ReportDetailView.tsx`) covering Attrition, Resigned, AWOL, Terminated, Back-Out, Combined Leakage, Time-to-Fill, and HR Emploc Late Updates. Includes employee/store separation drilldown (`AttritionDrilldownModal.tsx`).
+2. **Floating Staff Report** (`tab=floating`) with duration tracking, aging buckets (<30d, 30–60d, >60d), account distribution breakdown, and full employee rows.
+3. **Team Performance Report** (`tab=team_performance`) with operational discipline rankings, SLA compliance, turnaround metrics, coordinator scorecards, and account-level issue drilldown (`TeamPerformanceIssuesModal.tsx`).
+4. **Data Integrity Report** (`tab=data_integrity`) surfacing delayed updates, vacancy delay, ghost occupancy, and pipeline anomalies across 4 audited sections with detail drilldowns (`DataIntegrityDetailModal.tsx`).
+5. **Custom Report Builder** (`tab=custom`) allowing users to choose data sources, toggle columns, scope multi-condition filters, preview high-density data, and export to XLSX/CSV.
+
+---
+
+### Implementation Details
+
+1. **Dedicated Supabase Reports Queries Module (`src/lib/queries/reports.ts`)**:
+   - Implemented typed queries and TanStack React Query hooks wiring the Supabase views, tables, and RPCs:
+     - `fetchReportFilterOptions` / `useReportFilterOptions`: Loads dynamic group and account scopes from `v_cencom_group_allocation_kpi` and `v_cencom_account_allocation_kpi`.
+     - `fetchUniversalGroupReport` / `useUniversalGroupReport`: Unified dispatcher querying operational reports (`report_attrition_by_group`, `report_resigned_by_group`, `report_awol_by_group`, `report_terminated_by_group`, `report_backout_by_group`, `report_backout_terminated_by_group`, `report_time_to_fill_by_group`, `report_hr_emploc_late_update_by_group`).
+     - `fetchAttritionDetails` / `useAttritionDetails`: Queries separated employees and store-level impacts via `fn_get_attrition_details`.
+     - `fetchFloatingReport` / `useFloatingReport`: Queries floating personnel duration and aging via `fn_report_floating_employees`.
+     - `fetchTeamPerformanceSummary` & `fetchTeamPerformanceDetail`: Queries group/account scorecards and detailed operational discipline breach logs via `fn_team_performance_summary` and `fn_team_performance_detail`.
+     - `fetchDataIntegritySummary` & `fetchDataIntegrityDetailBySection`: Queries workforce anomalies via `fn_data_integrity_summary`, `fn_data_integrity_late_hr_detail`, `fn_data_integrity_vacancy_delay_detail`, `fn_data_integrity_ghost_occupancy_detail`, and `fn_data_integrity_pipeline_no_vacancy_detail`.
+     - `fetchCustomReportPreview`: Queries ad-hoc datasets across Vacancy, HR Emploc, Plantilla, Deployment Summary, Data Integrity, and Team Performance.
+
+2. **Universal Export Engine (`src/lib/utils/reports_export.ts`)**:
+   - Developed client-side `exportToXlsx`, `exportMultiSheetXlsx`, and `exportToCsv` powered by `xlsx` with browser blob download streaming.
+
+3. **Multi-Tab Web `/reports` Hub (`src/app/(dashboard)/reports/page.tsx`)**:
+   - Preserved backward-compatible query redirects (`?tab=qa_center` -> `/more?open=qa_center`, `?tab=permission_drift` -> `/more?open=permission_drift`).
+   - Wired bidirectional URL `?tab=` synchronization across `catalog`, `floating`, `team_performance`, `data_integrity`, and `custom`.
+   - Wired `?report=` deep-linking to open the Universal Report Viewer directly into specific operational reports.
+
+4. **Component Architecture (`src/components/reports/`)**:
+   - `ReportsCatalogTab.tsx`: Categorized grid (Separation & Attrition, Recruitment Velocity & Turnaround, Workforce Health & Operational Audit).
+   - `ReportDetailView.tsx`: Universal reporting shell with dynamic KPIs, date range presets, group/account scoping, client-side sorting, searchable table, and XLSX/CSV export.
+   - `AttritionDrilldownModal.tsx`: Employee and store-level separation audit modal.
+   - `FloatingStaffTab.tsx`: Aging buckets (<30d, 30–60d, >60d), account distribution pills, detailed employee roster, and exports.
+   - `TeamPerformanceTab.tsx`: Operational discipline ranking leaderboard with progress badges, SLA metrics, and `TeamPerformanceIssuesModal.tsx`.
+   - `DataIntegrityTab.tsx`: 4 audit section cards with metrics and `DataIntegrityDetailModal.tsx`.
+   - `CustomReportTab.tsx`: 6 data sources, column toggles, condition filters, and preview table.
+
+---
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors).
+- `npm run build`: **PASS** (19/19 routes compiled with Turbopack, including `/reports`).
+
+---
+
 ## Wire Governance & Audit Tools with Dedicated Modals & Deep Links (ohm#w89p601e)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Governance Tools Parity Achieved)**

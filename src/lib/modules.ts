@@ -89,7 +89,7 @@ export const webModules: WebModule[] = [
     key: "reports",
     title: "Reports",
     href: "/reports",
-    purpose: "Reporting surface for future exports, metrics, and operational review.",
+    purpose: "Operational Reports & Analytics Hub covering Attrition, Floating Staff, Team Performance, Data Integrity, and Custom Query Builder.",
     icon: FileBarChart,
   },
   {
