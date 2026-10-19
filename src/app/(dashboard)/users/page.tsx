@@ -12,10 +12,14 @@ import { CreateUserModal } from "@/components/users/CreateUserModal";
 import { useCurrentUser } from "@/lib/auth";
 import {
   useUsersList,
+  useActiveTempPermissionsQuery,
   type UserProfileItem,
 } from "@/lib/queries/users";
-import { Users, UserPlus, ShieldAlert, UserCheck, UserX } from "lucide-react";
+import { Users, UserPlus, ShieldAlert, UserCheck, UserX, Clock } from "lucide-react";
 import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
+import { TempPermissionModal } from "@/components/users/TempPermissionModal";
+
+
 
 export default function UsersPage() {
   const currentUser = useCurrentUser();
@@ -45,9 +49,12 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserProfileItem | null>(null);
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [accountRequestsOpen, setAccountRequestsOpen] = useState(false);
+  const [tempPermissionOpen, setTempPermissionOpen] = useState(false);
 
-  // Users Query
+  // Users & Overrides Queries
   const { data: allUsers = [], isLoading, refetch } = useUsersList();
+  const { data: activeTempOverrides = [] } = useActiveTempPermissionsQuery();
+
 
   // Hierarchy Visibility Guard:
   // Head Admin cannot see or manage Super Admin profiles
@@ -153,6 +160,19 @@ export default function UsersPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setTempPermissionOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+            >
+              <Clock className="h-3.5 w-3.5 text-amber-600" />
+              <span>Temporary Overrides</span>
+              {activeTempOverrides.length > 0 && (
+                <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-amber-800">
+                  {activeTempOverrides.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => setAccountRequestsOpen(true)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
             >
@@ -172,6 +192,7 @@ export default function UsersPage() {
           </div>
         }
       />
+
 
       {/* Top KPI Metrics Grid */}
       <UserMetricsCards
@@ -315,6 +336,16 @@ export default function UsersPage() {
         onClose={() => setAccountRequestsOpen(false)}
         isSuperAdmin={isSuperAdmin}
       />
+
+      {/* Temporary Permission Overrides Management Modal */}
+      <TempPermissionModal
+        isOpen={tempPermissionOpen}
+        onClose={() => {
+          setTempPermissionOpen(false);
+          refetch();
+        }}
+      />
     </div>
   );
 }
+

@@ -14,6 +14,7 @@ import {
   KeyRound,
   Check,
   Search,
+  Clock,
 } from "lucide-react";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import type {
@@ -30,8 +31,11 @@ import {
   useResetUserPassword,
   useSetHrcoGlobalVisibility,
   friendlyUserError,
+  useActiveTempPermissionsQuery,
 } from "@/lib/queries/users";
 import { useCurrentUser } from "@/lib/auth";
+import { TempPermissionModal } from "@/components/users/TempPermissionModal";
+
 
 export interface UserDetailDrawerProps {
   user: UserProfileItem | null;
@@ -70,6 +74,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
   const [resetPwConfirmOpen, setResetPwConfirmOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [saveDiffConfirmOpen, setSaveDiffConfirmOpen] = useState(false);
+  const [tempPermissionModalOpen, setTempPermissionModalOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // State derivation when user changes:
@@ -90,6 +95,8 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
   const { data: groups = [] } = useGroupsQuery();
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsByGroupsQuery(selectedGroupIds);
   const { data: auditLogs = [], isLoading: logsLoading } = useUserAuditLogs(user?.id);
+  const { data: userTempOverrides = [] } = useActiveTempPermissionsQuery(user?.id);
+  const activeTempOverride = userTempOverrides[0];
 
   // Mutations
   const upsertMutation = useUpsertUser();
@@ -356,6 +363,17 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
             >
               {user.status}
             </span>
+            {activeTempOverride && (
+              <button
+                type="button"
+                onClick={() => setTempPermissionModalOpen(true)}
+                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-300 hover:bg-amber-100 transition cursor-pointer"
+                title="Active temporary permission override in effect"
+              >
+                <Clock className="h-3 w-3 text-amber-600" />
+                <span>{activeTempOverride.expiresLabel}</span>
+              </button>
+            )}
             {isTargetLocked && (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                 <Lock className="h-3 w-3" /> Protected
@@ -364,6 +382,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           </div>
         }
       >
+
         <div className="space-y-5">
           {/* Top Feedback Banner */}
           {feedbackNotice && (
@@ -520,8 +539,82 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 </div>
               </div>
 
+              {/* Temporary Overrides & Delegations Card */}
+              <div className="rounded-lg border border-amber-200/90 bg-amber-50/40 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    <Clock className="h-4 w-4 text-amber-600" />
+                    Temporary Permission Overrides
+                  </div>
+                  {activeTempOverride && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                      Active Override
+                    </span>
+                  )}
+                </div>
+
+                {activeTempOverride ? (
+                  <div className="space-y-2 rounded-md bg-white p-3 border border-amber-200/80 text-xs text-text-secondary">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-text-primary">
+                        Delegated Scope ({activeTempOverride.scopeType}):
+                      </span>
+                      <span className="font-mono text-amber-800 font-bold text-[11px]">
+                        {activeTempOverride.expiresLabel}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {activeTempOverride.additionalGroups.map((g) => (
+                        <span
+                          key={g}
+                          className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200"
+                        >
+                          <Layers className="h-2.5 w-2.5 text-blue-500" />
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-[11px] text-text-muted pt-1 border-t border-slate-100 flex items-center justify-between">
+                      <span>Granted by: {activeTempOverride.grantedBy}</span>
+                      <span>Expires: {new Date(activeTempOverride.expiresAt).toLocaleDateString()}</span>
+                    </div>
+                    {activeTempOverride.displayReason && (
+                      <p className="italic text-[11px] text-text-muted bg-slate-50 p-2 rounded border border-slate-100">
+                        &ldquo;{activeTempOverride.displayReason}&rdquo;
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTempPermissionModalOpen(true)}
+                      className="w-full mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition cursor-pointer"
+                    >
+                      Manage / Revoke Temporary Override
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-md bg-white p-3 border border-border-default text-xs gap-3">
+                    <div className="text-text-secondary">
+                      No active time-bound overrides. User operates strictly under assigned role scopes.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTempPermissionModalOpen(true)}
+                      className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition cursor-pointer"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      <span>Grant Override</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Danger Zone Card */}
               <div className="rounded-lg border border-red-200 bg-red-50/40 p-4 space-y-3">
+
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-700">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                   Danger Zone
@@ -963,6 +1056,13 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           </div>
         </div>
       )}
+      {/* MODAL 5: Temporary Permission Overrides */}
+      <TempPermissionModal
+        isOpen={tempPermissionModalOpen}
+        onClose={() => setTempPermissionModalOpen(false)}
+        presetUser={user}
+      />
     </>
   );
 }
+

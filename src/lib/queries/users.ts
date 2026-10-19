@@ -760,3 +760,9 @@ export function useSetHrcoGlobalVisibility() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Temporary Permission Overrides (Parity Re-exports)
+// ---------------------------------------------------------------------------
+export * from "./tempPermissions";
+

@@ -1,6 +1,56 @@
 # AI Handoff
 
+## Complete Final Sidebar Parity — Port Temporary Permission Overrides to Web `/users` Management Hub (ohm#w89p602f)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Full Mobile-to-Web Parity Achieved Across All Left Sidebar Modules)**
+
+### Objective
+Achieved 100% final feature parity between Mobile and Web across all Left Sidebar modules by porting the **Temporary Permission Overrides** system (`temp_permission_screen.dart` from Mobile) into the Web User Management Hub (`src/app/(dashboard)/users/page.tsx` and `src/components/users/UserDetailDrawer.tsx`), enabling Super Admins and Head Admins to grant, monitor, and revoke time-bound group/account/module scope delegations with expiration timers, live countdown badges, and mandatory audit justification reasons.
+
+---
+
+### Implementation Details
+
+1. **Supabase Data Layer (`src/lib/queries/tempPermissions.ts` & re-exported in `src/lib/queries/users.ts`)**:
+   - Integrated with Supabase table `temp_permission_overrides` and atomic backend RPCs:
+     - `grant_temp_permission_override`: Wraps scope insertion into `user_scopes`, audit logs, and in-app notifications.
+     - `revoke_temp_permission_override`: Atomically sets `is_active = false`, logs `revoked_by` and `revoked_at`, and cleans up temporary `user_scopes` while protecting permanent scopes.
+   - Built robust TypeScript models: `TempPermissionOverride`, `GrantTempPermissionParams`, `RevokeTempPermissionParams`, and `TempPermissionsQueryResult`.
+   - Added `computeExpiresLabel` helper calculating precise remaining duration (`Expires in 3d 4h`, `Expires in 45m`, `Expires soon`, `Expired`, `Revoked`).
+   - Added TanStack Query hooks: `useTempPermissionsQuery`, `useActiveTempPermissionsQuery`, `useGrantTempPermissionMutation`, and `useRevokeTempPermissionMutation` with automated cache invalidation across users list, counts, and audit logs.
+
+2. **Temporary Permission Manager Component (`src/components/users/TempPermissionModal.tsx`)**:
+   - **Active Overrides Tab**: Displays active temporary permission delegations with pulse dot indicators, countdown timers, delegated scope tags (Group vs Account vs Module), granting admin details, expiry timestamps, and quoted justification reasons.
+   - **History & Revocations Tab**: Tracks expired and administratively revoked overrides for compliance auditing, displaying revocation actor, timestamp, and audit trail.
+   - **Grant Override Form**:
+     - *Step 1: Target User*: Select from active users or preset directly from `UserDetailDrawer`. Displays user's current role and permanent scopes.
+     - *Step 2: Delegation Scope Type*: Segmented toggle between `Group Scope`, `Account Scope`, and `Module Scope`.
+       - *Group Scope*: Interactive multi-selection of operational groups (`groups` table).
+       - *Account Scope*: Searchable grid of active stores/accounts (`accounts` table) with automatic group mapping.
+       - *Module Scope*: Delegation of specific operational hubs (CENCOM, Approvals, Plantilla, HR Emploc, Reports, Users).
+     - *Step 3: Expiration Time Limit*: 1-click presets (`24 Hours`, `3 Days`, `7 Days`, `14 Days`, `30 Days Maximum`) plus custom date-time picker (capped at 30 days per database trigger security rule).
+     - *Step 4: Mandatory Audit Justification*: Enforces minimum 5-character reason logged directly into audit logs and notification payloads.
+     - *In-App Notification Toggle*: Dispatches real-time notification to the employee upon access grant.
+   - **One-Click Revoke Dialog**: Dedicated confirmation modal with optional revocation justification reason that calls `revoke_temp_permission_override` and cleans up temporary scopes.
+
+3. **User Management Hub & Drawer Integration (`src/app/(dashboard)/users/page.tsx` & `src/components/users/UserDetailDrawer.tsx`)**:
+   - **Top Header Action Trigger**: Added `Temporary Overrides` button with live active count badge directly in the `/users` page header actions.
+   - **Drawer Header / Subtitle Active Badge**: Added clickable live countdown badge in `UserDetailDrawer` whenever the selected employee has an active temporary override in effect.
+   - **Drawer Overview Section Card**: Added a dedicated "Temporary Permission Overrides" section in `UserDetailDrawer`'s Overview tab, displaying active delegation summaries, granted by, expiry, and direct triggers to manage, grant, or revoke overrides for that employee.
+
+4. **100% Sidebar Parity Confirmation**:
+   - All modules in the Left Sidebar (`/dashboard`, `/vacancies`, `/plantilla`, `/cencom`, `/hr-emploc`, `/approvals`, `/reports`, `/team-directory`, `/more`, `/users`, `/settings`) now have complete 100% functional parity with the Mobile application (`OHMployee`).
+
+---
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors, 21 warnings in legacy files).
+- `npm run build`: **PASS** (Prerendered all 19 static routes, including `○ /users`, in 18.5s).
+
+---
+
 ## Complete Web `/plantilla` Parity — Port Moses HQ Pool & 7-Tab Workforce Analytics Dashboard (ohm#w89p602e)
+
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile Parity Achieved on `/plantilla`)**
 
