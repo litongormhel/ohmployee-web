@@ -1,5 +1,82 @@
 # AI Handoff
 
+## Web Parity Check — Verify briefing.md Structure + Align AGENTS.md Workflow Block with Mobile (ohm#3f8j5k2w)
+
+**Status: COMPLETE — CLIENT-SIDE / DOCS-ONLY, MAIN BRANCH**
+
+### Objective
+Verified structure and parity of `.ai/briefing.md` against mobile rules and moved/aligned the `Core Workflow Rules` block in `AGENTS.md` to the top of the file outside all Next.js auto-managed comment markers to ensure it can never be overwritten by tooling.
+
+---
+
+### Verification of `.ai/briefing.md`
+1. **Mandatory Workflow Rules section**: Exists and sits BEFORE "Last Completed Tasks" (PASS).
+2. **`## Last Completed Tasks` heading**: Exists directly after workflow rules (PASS).
+3. **Task list numbering**: Was unnumbered bullets (`- **...**`); surgically fixed to numbered `1.` to `5.`, newest first (FIXED).
+4. **Trim note**: Was missing; added explicit note matching dropped entry `ohm#w89p602c` and earlier entries (FIXED).
+5. **Approval & Regression Gate wording**: "present plan + regression risk, STOP, wait for approval" with NO "non-trivial" qualifier (PASS).
+6. **Checklist Item 4**: Specifies AI only reports the branch; Ohm verifies (`npm run lint` / `npm run build` / manual test), merges to `main`, and deletes it (PASS).
+
+---
+
+### Implementation Details
+
+1. **`AGENTS.md` Alignment**:
+   - Relocated `Core Workflow Rules` block to the top of `AGENTS.md`, before and outside any `<!-- BEGIN:nextjs-agent-rules -->` / `<!-- END:nextjs-agent-rules -->` markers.
+   - Replaced block text to align with mobile specification:
+     - Clarified post-prompt documentation update checklist reference (`.ai/briefing.md § After Every Completed Prompt`).
+     - Aligned Approval & Regression Gate and Branch Policy instructions (`main` only; Ohm verifies, merges, deletes environment-created branches).
+   - Preserved Next.js comment block and text with zero alterations.
+
+2. **`.ai/briefing.md` Updates**:
+   - Numbered "Last Completed Tasks" strictly 1 to 5 with newest first.
+   - Prepended `ohm#3f8j5k2w`: `1. **ohm#3f8j5k2w**: Web parity check + AGENTS.md alignment`.
+   - Updated trim note to record dropping `ohm#w89p602c` and earlier entries.
+
+---
+
+### Verification
+- `git diff AGENTS.md .ai/briefing.md`: Clean, surgical alignment.
+- `git diff --stat AGENTS.md .ai/briefing.md .ai/handoff.md`: Confirmed modifications isolated to documentation only.
+- Working branch: `main` only. No branches created, merged, pushed, or deleted.
+- Regression Risk: None (docs-only changes).
+
+---
+
+## Wire Mandatory Workflow Rules into ohmployee-web (ohm#9c4t1w6e)
+
+**Status: COMPLETE — CLIENT-SIDE / DOCS-ONLY, MAIN BRANCH**
+
+### Objective
+Wired mandatory workflow rules into `ohmployee-web` to establish complete operational parity between Antigravity and Claude agents. Established `.ai/briefing.md` as the single canonical source of truth for repository workflow rules (Approval & Regression Gate, Branch Policy, and Post-Prompt Documentation Checklist) and added a thin pointer in `AGENTS.md` (which Antigravity auto-loads at start as user rules, and Claude imports via `CLAUDE.md`).
+
+---
+
+### Implementation Details
+
+1. **Canonical Source of Truth (`.ai/briefing.md`)**:
+   - Added `Mandatory Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)` section near the top of `.ai/briefing.md`.
+   - Included the Approval & Regression Gate (plan + regression risk assessment, STOP and WAIT for approval before code/schema changes).
+   - Included the Branch Policy (work on `main` only, no branches unless explicitly asked).
+   - Included the After Every Completed Prompt checklist (`.ai/briefing.md`, `.ai/handoff.md`, `docs/state/`, and branch reporting).
+   - Pruned "Last Completed Tasks" to retain the top 5 entries, prepending `ohm#9c4t1w6e`.
+
+2. **Auto-Load Agent Pointer (`AGENTS.md`)**:
+   - Appended a 4-line `Core Workflow Rules` block below and outside the auto-managed Next.js comment block.
+   - Points agents to `.ai/briefing.md`, mandates post-prompt docs updates, enforces the Approval & Regression Gate, and directs agents to work on `main` only.
+   - Claude auto-inherits this behavior via `CLAUDE.md` (`@AGENTS.md`), ensuring parity without file modifications or duplicated rule text.
+
+---
+
+### Verification
+- `git diff --stat`: Shows exactly 3 touched files (`AGENTS.md`, `.ai/briefing.md`, `.ai/handoff.md`).
+- Existing Next.js block in `AGENTS.md` remains intact.
+- No code, schema, dependency, or configuration files modified.
+- Branch check: Working directly on `main`; no new branches created.
+- Regression Risk: None.
+
+---
+
 ## Complete Final Sidebar Parity — Port Temporary Permission Overrides to Web `/users` Management Hub (ohm#w89p602f)
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Full Mobile-to-Web Parity Achieved Across All Left Sidebar Modules)**
