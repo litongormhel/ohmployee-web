@@ -49,6 +49,13 @@ import { PayrollReviewCenterModal } from "@/components/more/PayrollReviewCenterM
 import { OhmsSafespaceModal } from "@/components/more/OhmsSafespaceModal";
 import { SwitchRoleModal } from "@/components/more/SwitchRoleModal";
 import { RovingCoverageGroupsModal } from "@/components/more/RovingCoverageGroupsModal";
+import { QaCenterModal } from "@/components/more/QaCenterModal";
+import { PermissionMatrixModal } from "@/components/more/PermissionMatrixModal";
+import { RolePermissionsModal } from "@/components/more/RolePermissionsModal";
+import { PermissionDriftModal } from "@/components/more/PermissionDriftModal";
+import { SecurityEventsModal } from "@/components/more/SecurityEventsModal";
+import { AuditLogsModal } from "@/components/more/AuditLogsModal";
+
 
 // ============================================================================
 // Types & Definitions
@@ -117,21 +124,58 @@ function MorePageContent() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const targetModal = searchParams.get("open") || searchParams.get("modal") || searchParams.get("tool");
+
   // Modal Open States
-  const [dataArchivalOpen, setDataArchivalOpen] = useState(false);
-  const [editLockOpen, setEditLockOpen] = useState(false);
-  const [tempPermissionOpen, setTempPermissionOpen] = useState(false);
-  const [accessControlOpen, setAccessControlOpen] = useState(false);
+  const [dataArchivalOpen, setDataArchivalOpen] = useState(
+    () => targetModal === "data_archival" || targetModal === "data_archival_center"
+  );
+  const [editLockOpen, setEditLockOpen] = useState(
+    () => targetModal === "edit_lock" || targetModal === "edit_lock_control"
+  );
+  const [tempPermissionOpen, setTempPermissionOpen] = useState(
+    () => targetModal === "temp_permission"
+  );
+  const [accessControlOpen, setAccessControlOpen] = useState(
+    () => targetModal === "access_control" || targetModal === "access_control_center"
+  );
   const [storeTransferOpen, setStoreTransferOpen] = useState(false);
-  const [accountRequestsOpen, setAccountRequestsOpen] = useState(false);
+  const [accountRequestsOpen, setAccountRequestsOpen] = useState(
+    () => targetModal === "account_requests"
+  );
   const [plantillaImportOpen, setPlantillaImportOpen] = useState(false);
   const [vacancyImportOpen, setVacancyImportOpen] = useState(false);
   const [mikaImportOpen, setMikaImportOpen] = useState(false);
   const [payrollImportOpen, setPayrollImportOpen] = useState(false);
   const [payrollReviewCenterOpen, setPayrollReviewCenterOpen] = useState(false);
-  const [ohmsSafespaceOpen, setOhmsSafespaceOpen] = useState(false);
-  const [switchRoleOpen, setSwitchRoleOpen] = useState(false);
+  const [ohmsSafespaceOpen, setOhmsSafespaceOpen] = useState(
+    () => targetModal === "ohms_safespace"
+  );
+  const [switchRoleOpen, setSwitchRoleOpen] = useState(
+    () => targetModal === "switch_role"
+  );
   const [rovingCoverageOpen, setRovingCoverageOpen] = useState(false);
+
+  // Governance Modals (QA Center, Permission Matrix, Role Permissions, Drift, Security Events, Audit Logs)
+  const [qaCenterOpen, setQaCenterOpen] = useState(
+    () => targetModal === "qa_center"
+  );
+  const [permissionMatrixOpen, setPermissionMatrixOpen] = useState(
+    () => targetModal === "permission_matrix"
+  );
+  const [rolePermissionsOpen, setRolePermissionsOpen] = useState(
+    () => targetModal === "role_permissions"
+  );
+  const [permissionDriftOpen, setPermissionDriftOpen] = useState(
+    () => targetModal === "permission_drift"
+  );
+  const [securityEventsOpen, setSecurityEventsOpen] = useState(
+    () => targetModal === "security_events"
+  );
+  const [auditLogsOpen, setAuditLogsOpen] = useState(
+    () => targetModal === "audit_logs"
+  );
+
 
   // Tab State with URL query synchronization
   const rawTab = searchParams.get("tab");
@@ -292,7 +336,7 @@ function MorePageContent() {
         title: "QA Center",
         description: "Read QA health, runs, findings, schedules, and reports",
         icon: CheckCircle2,
-        href: "/reports",
+        onClick: () => setQaCenterOpen(true),
         badgeLabel: "LEVEL 100",
         badgeVariant: "rose",
         minRoleLevel: 100,
@@ -329,7 +373,7 @@ function MorePageContent() {
         title: "Permission Matrix",
         description: "Edit role permissions with audited overrides",
         icon: Key,
-        href: "/settings",
+        onClick: () => setPermissionMatrixOpen(true),
         badgeLabel: "SUPER ADMIN",
         badgeVariant: "purple",
         minRoleLevel: 100,
@@ -339,7 +383,7 @@ function MorePageContent() {
         title: "Role Permissions",
         description: "Read-only backend authorization matrix",
         icon: ShieldCheck,
-        href: "/settings",
+        onClick: () => setRolePermissionsOpen(true),
         badgeLabel: "SUPER ADMIN",
         badgeVariant: "purple",
         minRoleLevel: 100,
@@ -349,7 +393,7 @@ function MorePageContent() {
         title: "Permission Drift",
         description: "Authorization gap and mismatch findings",
         icon: TrendingUp,
-        href: "/reports",
+        onClick: () => setPermissionDriftOpen(true),
         badgeLabel: "SUPER ADMIN",
         badgeVariant: "purple",
         minRoleLevel: 100,
@@ -376,7 +420,7 @@ function MorePageContent() {
         title: "Security Events",
         description: "Security activity, threat indicators, and auth alerts",
         icon: Shield,
-        href: "/settings",
+        onClick: () => setSecurityEventsOpen(true),
         badgeLabel: "SUPER ADMIN",
         badgeVariant: "purple",
         minRoleLevel: 100,
@@ -396,12 +440,13 @@ function MorePageContent() {
         title: "Audit Logs",
         description: "System activity, audit trails, and data changes",
         icon: History,
-        href: "/settings",
+        onClick: () => setAuditLogsOpen(true),
         badgeLabel: "SUPER ADMIN",
         badgeVariant: "purple",
         minRoleLevel: 100,
       },
     ],
+
     []
   );
 
@@ -859,7 +904,44 @@ function MorePageContent() {
         isOpen={rovingCoverageOpen}
         onClose={() => setRovingCoverageOpen(false)}
       />
+
+      <QaCenterModal
+        isOpen={qaCenterOpen}
+        onClose={() => setQaCenterOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <PermissionMatrixModal
+        isOpen={permissionMatrixOpen}
+        onClose={() => setPermissionMatrixOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <RolePermissionsModal
+        isOpen={rolePermissionsOpen}
+        onClose={() => setRolePermissionsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <PermissionDriftModal
+        isOpen={permissionDriftOpen}
+        onClose={() => setPermissionDriftOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <SecurityEventsModal
+        isOpen={securityEventsOpen}
+        onClose={() => setSecurityEventsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <AuditLogsModal
+        isOpen={auditLogsOpen}
+        onClose={() => setAuditLogsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
     </div>
+
   );
 }
 

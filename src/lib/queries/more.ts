@@ -1929,3 +1929,7 @@ export function useRollbackArchiveBatch() {
     },
   });
 }
+
+// Re-export governance queries & types
+export * from "./governance";
+

@@ -1,6 +1,59 @@
 # AI Handoff
 
+## Wire Governance & Audit Tools with Dedicated Modals & Deep Links (ohm#w89p601e)
+
+**Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Governance Tools Parity Achieved)**
+
+### Objective
+Audited and completed the functional targets for the 6 cards in `/more` (`System Hub & Governance Tools`) that previously routed generically to `/settings` or `/reports`:
+1. `QA Center` (`v_qa_*` telemetry, runs, findings, schedules, reports)
+2. `Permission Matrix` (editable role permissions with atomic overrides via `apply_permission_overrides`)
+3. `Role Permissions` (read-only backend authorization matrix via `fn_get_permission_matrix`)
+4. `Permission Drift` (authorization gap and enforcement mismatch detector via `fn_get_permission_drift_findings`)
+5. `Security Events` (live realtime stream of security notices and session terminations via `security_events`)
+6. `Audit Logs` (system activity and forensic change trails via `audit_logs` with before/after diffs)
+
+---
+
+### Implementation Details
+
+1. **Governance Queries & Mutations Layer (`src/lib/queries/governance.ts` & `src/lib/queries/more.ts`)**:
+   - Implemented dedicated types and TanStack React Query hooks wired directly to Supabase views, tables, and RPCs:
+     - **QA Center**: `useQaCenterSnapshot`, `useRunQaCoreDetectionSuite`, `useRunQaScenario`, `useGenerateDailyQaReport` (backed by `v_qa_detection_run_summary`, `v_qa_open_findings`, `v_qa_schedules`, `v_qa_run_queue`, `v_qa_daily_reports`, `v_qa_health_metrics`, `v_qa_unstable_modules`, and `v_qa_flaky_tests`).
+     - **Permission Matrix**: `useGovernanceRoles`, `useEffectivePermissionMatrix`, `useApplyPermissionOverrides` (backed by `get_effective_permission_matrix` and `apply_permission_overrides`).
+     - **Role Permissions**: `useRolePermissionMatrix` (backed by `fn_get_permission_matrix`).
+     - **Permission Drift**: `usePermissionDriftSummary`, `usePermissionDriftFindings` (backed by `fn_get_permission_drift_summary` and `fn_get_permission_drift_findings`).
+     - **Security Events**: `useSecurityEvents` (backed by `security_events` table with user profile joins, severity filtering, and live Postgres realtime changes channel `gov_sec_events`).
+     - **Audit Logs**: `useSystemAuditLogs` (backed by `audit_logs` table with actor profile joins, module/action/search filtering, date presets, and forensic diff payloads).
+   - Re-exported all governance queries and types from `@/lib/queries/more`.
+
+2. **Dedicated Governance Modals (`src/components/more/`)**:
+   - **`QaCenterModal.tsx`**: Ported from Flutter's `qa_center_screen.dart` and `qa_center_service.dart`. Features 5 tabs (`Overview`, `Runs`, `Findings`, `Schedules & Queue`, `Daily Reports`), top KPI cards, module stability rankings, and execution action buttons ("Run Core Suite", "Run Scenario", "Generate Daily Report").
+   - **`PermissionMatrixModal.tsx`**: Ported from Flutter's `permission_matrix_screen.dart`. Features role selection, Super Admin `SA_PROTECTED` lockout protection banner, expandable module groupings, permission Allow/Deny interactive toggles, bottom staging bar with count, and a transactional commit modal requiring audit reason justification.
+   - **`RolePermissionsModal.tsx`**: Ported from Flutter's `role_permissions_screen.dart`. Quick-switch role pills, search/filter controls, sensitive/locked flags, and detailed enforcement tier inspection.
+   - **`PermissionDriftModal.tsx`**: Ported from Flutter's `permission_drift_screen.dart`. Displays KPI summaries, severity and module filters, expected vs. observed enforcement comparative grids, recommendations, and code evidence traces.
+   - **`SecurityEventsModal.tsx`**: Ported from Flutter's `security_dashboard_screen.dart`. Live realtime Postgres feed, KPI cards for critical incidents and terminated sessions, severity filters, search, and formatted JSON details payload viewer.
+   - **`AuditLogsModal.tsx`**: Ported from Flutter's `audit_logs_screen.dart`. Forensic change history with actor attribution, module and action filters, search, date range presets, and expandable side-by-side JSON diffs (`old_data` vs `new_data`).
+
+3. **Routing & Deep-Link Synchronization**:
+   - **`/more/page.tsx`**:
+     - Updated all 6 cards (`qa_center`, `permission_matrix`, `role_permissions`, `permission_drift`, `security_events`, `audit_logs`) to open their dedicated modals on click.
+     - Added deep-link query parameter listener on mount (`?open=...`, `?modal=...`, `?tool=...`) allowing direct deep-linking (e.g. `/more?open=qa_center`, `/more?open=permission_matrix`, `/more?open=audit_logs`).
+   - **`/settings/page.tsx`**:
+     - Converted `activeTab` to derive directly from URL `?tab=` query parameter (`profile`, `preferences`, `security`, `diagnostics`), enabling seamless deep-links (e.g. `/settings?tab=security`).
+   - **`/reports/page.tsx`**:
+     - Added deep-link auto-router redirecting `/reports?tab=qa_center` and `/reports?tab=permission_drift` directly to `/more?open=qa_center` and `/more?open=permission_drift`.
+
+---
+
+### Verification Results
+- `npm run lint`: **PASS** (0 errors).
+- `npm run build`: **PASS** (19/19 routes generated with Turbopack).
+
+---
+
 ## Phase 4 Web "More" Parity — Port OHM's Safespace, Switch Role, Roving Coverage Groups & Bulk Archive Execution (ohm#w89p601d)
+
 
 **Status: COMPLETE — CLIENT-SIDE ONLY, MAIN BRANCH (100% Mobile-to-Web "More" Module Parity Achieved)**
 
