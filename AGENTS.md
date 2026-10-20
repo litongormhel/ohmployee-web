@@ -9,6 +9,8 @@
   merge, push, or delete a branch on your own. If the environment created a branch, report it
   in the handoff entry; Ohm verifies (`npm run lint` / `npm run build` / manual test), merges
   to `main`, and deletes it.
+- After items 1-3 of the checklist, make a LOCAL commit of only the files this prompt changed
+  (explicit paths, never `git add .`). NEVER push. Rules: `.ai/briefing.md` § Local Commit Rule.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know

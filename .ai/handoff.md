@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Add Local Auto-Commit Step (No Push) to Mandatory Workflow Rules (ohm#2k9w4t7e)
+
+**Status: COMPLETE — DOCS-ONLY, LOCAL AUTO-COMMIT WORKFLOW RULE, MAIN BRANCH**
+
+### Objective
+Integrated a local auto-commit step (explicit paths only, strictly never push) into the mandatory post-prompt workflow checklist and documentation rules across `.ai/briefing.md` and `AGENTS.md`.
+
+---
+
+### Implementation Details
+1. **`.ai/briefing.md`**:
+   - Updated "After Every Completed Prompt" checklist to 5 items:
+     1. `.ai/briefing.md`
+     2. `.ai/handoff.md`
+     3. `docs/state/<module>_state.md`
+     4. Local commit (see "Local Commit Rule" below)
+     5. Branch close-out
+   - Added new section `### Local Commit Rule (every prompt, after items 1-3)` specifying local commits on `main`, strictly no push/merge/rebase, explicit paths staging (never `git add .`), pre-commit clean status check, verification gate (`npm run lint` for code changes), and reporting requirements.
+   - Updated "Last Completed Tasks" to prepend `ohm#2k9w4t7e: Add local auto-commit rule (web)` and trim to 5 tasks.
+2. **`AGENTS.md`**:
+   - Added rule bullet to Core Workflow Rules block referencing `.ai/briefing.md` § Local Commit Rule and prohibiting pushing or wildcard staging.
+3. **Verification**:
+   - Verified `git diff AGENTS.md .ai/briefing.md`.
+   - Verified `git diff --stat` touches only `AGENTS.md`, `.ai/briefing.md`, and `.ai/handoff.md`.
+
+---
+
 ## Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity (ohm#p7f2a1b9)
 
 **Status: COMPLETE — CLIENT-SIDE SUSPENSE BOUNDARY & URL DERIVATION, MAIN BRANCH**
