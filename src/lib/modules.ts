@@ -112,12 +112,31 @@ export function getModuleByHref(href: string) {
   return webModules.find((module) => module.href === href);
 }
 
-export function getActiveModule(pathname: string, modules: WebModule[] = webModules) {
+/**
+ * Matches a pathname to a known WebModule in the catalog.
+ * Returns null if the pathname does not correspond to any known module.
+ * Does NOT fall back to default module.
+ */
+export function getMatchedModule(
+  pathname: string,
+  catalog: WebModule[] = webModules,
+): WebModule | null {
+  if (pathname === "/vacancies" || pathname.startsWith("/vacancies/")) {
+    return catalog.find((m) => m.key === "vacancy") ?? null;
+  }
   return (
-    modules.find((module) =>
+    catalog.find((module) =>
       module.href === "/dashboard"
         ? pathname === module.href
-        : pathname.startsWith(module.href),
-    ) ?? modules[0] ?? webModules[0]
+        : pathname === module.href || pathname.startsWith(`${module.href}/`),
+    ) ?? null
   );
+}
+
+export function getActiveModule(
+  pathname: string,
+  modules: WebModule[] = webModules,
+): WebModule {
+  const matched = getMatchedModule(pathname, modules);
+  return matched ?? modules[0] ?? webModules[0];
 }

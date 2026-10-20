@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useMemo, useState, type ComponentType } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -30,6 +30,13 @@ import {
   Wrench,
 } from "lucide-react";
 import { useCurrentUser } from "@/lib/auth";
+import {
+  getRoleLevel,
+  hasFullAccess,
+  isOwner,
+  normalizeRole,
+  AppRole,
+} from "@/lib/rbac";
 import { useActiveTempPermission } from "@/lib/queries/more";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
@@ -201,38 +208,43 @@ function MorePageContent() {
     router.replace(query ? `/more?${query}` : "/more", { scroll: false });
   };
 
-  // Derive Normalized Role & Levels
+  // Derive Normalized Role & Levels using unified rbac gatekeeper
   const roleName = currentUser?.roleName ?? currentUser?.roleKey ?? "Viewer";
-  const normalizedRole = roleName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const role = normalizeRole(roleName);
+  const roleLevel = getRoleLevel(currentUser);
+  const isSuperAdmin = roleLevel >= 100 || isOwner(currentUser);
+  const isHeadAdmin = roleLevel >= 90;
+  const isEncoder = role === AppRole.ENCODER;
+  const isOperationsManager = role === AppRole.OM;
 
-  const isSuperAdmin =
-    normalizedRole === "super_admin" ||
-    normalizedRole.includes("superadmin") ||
-    normalizedRole === "owner";
+  const visibleTabs = useMemo(() => {
+    return MORE_TABS.filter((tab) => {
+      switch (tab.key) {
+        case "overview":
+          return true;
+        case "admin_tools":
+          return isSuperAdmin;
+        case "permissions":
+          return isHeadAdmin;
+        case "audit":
+          return isSuperAdmin;
+        case "data_control":
+          return isHeadAdmin || isEncoder;
+        default:
+          return false;
+      }
+    });
+  }, [isSuperAdmin, isHeadAdmin, isEncoder]);
 
-  const isHeadAdmin =
-    isSuperAdmin ||
-    normalizedRole === "head_admin" ||
-    normalizedRole.includes("headadmin");
-
-  const isEncoder = normalizedRole === "encoder";
-  const isOperationsManager =
-    normalizedRole === "om" || normalizedRole === "operations_manager";
-  const isOpsTeam =
-    isOperationsManager ||
-    normalizedRole === "atl" ||
-    normalizedRole === "tl" ||
-    normalizedRole === "hrco";
-
-  const roleLevel = isSuperAdmin
-    ? 100
-    : isHeadAdmin
-    ? 90
-    : isEncoder
-    ? 30
-    : isOpsTeam
-    ? 50
-    : 10;
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === activeTab)) {
+      setActiveTab("overview");
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tab");
+      const query = params.toString();
+      router.replace(query ? `/more?${query}` : "/more", { scroll: false });
+    }
+  }, [activeTab, visibleTabs, searchParams, router]);
 
   // Sign out handler
   const handleLogout = useCallback(async () => {
@@ -247,9 +259,11 @@ function MorePageContent() {
   }, [router]);
 
   // ── Tab 1: Overview Shortcuts ─────────────────────────────────────────────
-  const overviewTiles: MoreFeatureTile[] = useMemo(
-    () => [
-      {
+  const overviewTiles: MoreFeatureTile[] = useMemo(() => {
+    const tiles: MoreFeatureTile[] = [];
+
+    if (isHeadAdmin) {
+      tiles.push({
         id: "user_management",
         title: "User Management",
         description: "Password reset, role management, and account transfers",
@@ -257,8 +271,8 @@ function MorePageContent() {
         href: "/users",
         badgeLabel: "ADMIN",
         badgeVariant: "purple",
-      },
-      {
+      });
+      tiles.push({
         id: "account_requests",
         title: "Account Requests",
         description: "Review, approve, or reject pending employee account registrations",
@@ -266,37 +280,55 @@ function MorePageContent() {
         onClick: () => setAccountRequestsOpen(true),
         badgeLabel: "APPROVALS",
         badgeVariant: "blue",
-      },
-      {
-        id: "team_directory",
-        title: "Team Directory",
-        description: "Find and contact Ops, Recruitment, and Data Team users",
-        icon: Users2,
-        href: "/team-directory",
-        badgeLabel: "DIRECTORY",
-        badgeVariant: "blue",
-      },
-      {
-        id: "account_settings",
-        title: "Account Settings",
-        description: "Preferences, appearance, notifications, and session timeout controls",
-        icon: Settings,
-        href: "/settings",
-        badgeLabel: "CONFIG",
+      });
+    }
+
+    tiles.push({
+      id: "team_directory",
+      title: "Team Directory",
+      description: "Find and contact Ops, Recruitment, and Data Team users",
+      icon: Users2,
+      href: "/team-directory",
+      badgeLabel: "DIRECTORY",
+      badgeVariant: "blue",
+    });
+
+    // In Mobile, Payroll Review Center is accessible to Super Admin, Head Admin, Encoder, and OM.
+    // For OM, who does not have access to the Data Control tab, surface it in Overview.
+    if (isOperationsManager || isHeadAdmin || isEncoder) {
+      tiles.push({
+        id: "payroll_review_center_overview",
+        title: "Payroll Review Center",
+        description: "Verify and approve payroll reconciliations and variance discrepancies",
+        icon: FileText,
+        onClick: () => setPayrollReviewCenterOpen(true),
+        badgeLabel: "REVIEWS",
         badgeVariant: "purple",
-      },
-      {
-        id: "sign_out",
-        title: "Sign Out",
-        description: "Safely terminate active Supabase session and return to login screen",
-        icon: LogOut,
-        onClick: handleLogout,
-        badgeLabel: "SESSION",
-        badgeVariant: "rose",
-      },
-    ],
-    [handleLogout]
-  );
+      });
+    }
+
+    tiles.push({
+      id: "account_settings",
+      title: "Account Settings",
+      description: "Preferences, appearance, notifications, and session timeout controls",
+      icon: Settings,
+      href: "/settings",
+      badgeLabel: "CONFIG",
+      badgeVariant: "purple",
+    });
+
+    tiles.push({
+      id: "sign_out",
+      title: "Sign Out",
+      description: "Safely terminate active Supabase session and return to login screen",
+      icon: LogOut,
+      onClick: handleLogout,
+      badgeLabel: "SESSION",
+      badgeVariant: "rose",
+    });
+
+    return tiles;
+  }, [isHeadAdmin, isOperationsManager, isEncoder, handleLogout]);
 
   // ── Tab 2: Admin Tools (Level 100) ────────────────────────────────────────
   const adminTiles: MoreFeatureTile[] = useMemo(
@@ -549,6 +581,37 @@ function MorePageContent() {
     []
   );
 
+  const visibleAdminTiles = useMemo(() => {
+    return adminTiles.filter((t) => isSuperAdmin && (!t.minRoleLevel || roleLevel >= t.minRoleLevel));
+  }, [adminTiles, isSuperAdmin, roleLevel]);
+
+  const visiblePermissionTiles = useMemo(() => {
+    return permissionTiles.filter((t) => !t.minRoleLevel || roleLevel >= t.minRoleLevel);
+  }, [permissionTiles, roleLevel]);
+
+  const visibleAuditTiles = useMemo(() => {
+    return auditTiles.filter((t) => isSuperAdmin && (!t.minRoleLevel || roleLevel >= t.minRoleLevel));
+  }, [auditTiles, isSuperAdmin, roleLevel]);
+
+  const visibleDataControlTiles = useMemo(() => {
+    return dataControlTiles.filter((tile) => {
+      if (tile.minRoleLevel && roleLevel < tile.minRoleLevel) return false;
+      if (tile.id === "payroll_review_center") {
+        return isHeadAdmin || isEncoder || isOperationsManager;
+      }
+      if (
+        tile.id === "import_hr_emploc" ||
+        tile.id === "import_plantilla" ||
+        tile.id === "import_vacancy" ||
+        tile.id === "import_mika" ||
+        tile.id === "roving_coverage_groups"
+      ) {
+        return isHeadAdmin || isEncoder;
+      }
+      return isHeadAdmin;
+    });
+  }, [dataControlTiles, roleLevel, isHeadAdmin, isEncoder, isOperationsManager]);
+
   return (
     <div className="space-y-6">
       {/* Standard Admin Header */}
@@ -567,7 +630,7 @@ function MorePageContent() {
           aria-label="More Navigation Tabs"
           role="tablist"
         >
-          {MORE_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
 
@@ -752,7 +815,7 @@ function MorePageContent() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {adminTiles.map((tile) => (
+              {visibleAdminTiles.map((tile) => (
                 <TileCard key={tile.id} tile={tile} />
               ))}
             </div>
@@ -774,7 +837,7 @@ function MorePageContent() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {permissionTiles.map((tile) => (
+              {visiblePermissionTiles.map((tile) => (
                 <TileCard key={tile.id} tile={tile} />
               ))}
             </div>
@@ -796,7 +859,7 @@ function MorePageContent() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {auditTiles.map((tile) => (
+              {visibleAuditTiles.map((tile) => (
                 <TileCard key={tile.id} tile={tile} />
               ))}
             </div>
@@ -818,7 +881,7 @@ function MorePageContent() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {dataControlTiles.map((tile) => (
+              {visibleDataControlTiles.map((tile) => (
                 <TileCard key={tile.id} tile={tile} />
               ))}
             </div>

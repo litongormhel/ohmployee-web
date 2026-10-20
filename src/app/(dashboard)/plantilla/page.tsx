@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   ArrowLeft,
@@ -219,15 +219,30 @@ export default function PlantillaPage() {
     enabled: !!currentUser,
   });
 
-  const allowedAccountIds = allowedAccountsQuery.data?.map((a) => a.id) ?? [];
-
-  const accountSummaries = useQueries({
-    queries: allowedAccountIds.map((accId) => ({
-      queryKey: ["plantilla", "summary-account", accId],
-      queryFn: () => getPlantillaSummary({ accountId: accId }),
-      staleTime: 30000,
-      enabled: allowedAccountIds.length > 0,
-    })),
+  const accountMetricsQuery = useQuery({
+    queryKey: ["plantilla", "account-allocation-kpi"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("v_account_allocation_kpi")
+        .select("account_id, actual_hc, slot_vacant_hc, pipeline_count, required_hc");
+      if (error) {
+        console.warn("[Plantilla] Could not fetch batch account metrics from v_account_allocation_kpi:", error);
+        return new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number }>();
+      }
+      const map = new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number }>();
+      (data ?? []).forEach((row) => {
+        const actual = Number(row.actual_hc ?? 0);
+        const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
+        const hrProcess = Number(row.pipeline_count ?? 0);
+        const required = actual + vacant;
+        const fillRate = required > 0 ? Math.round((actual / required) * 100) : 0;
+        map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate });
+      });
+      return map;
+    },
+    enabled: isHydrated && !accountId && viewMode === "store",
+    staleTime: 60000,
   });
 
   const uniqueGroups = useMemo(() => {
@@ -498,14 +513,10 @@ export default function PlantillaPage() {
   // -------------------------------------------------------------------------
 
   function getAccountSummary(accId: string) {
-    const queryIndex = allowedAccountIds.indexOf(accId);
-    if (queryIndex !== -1) {
-      const q = accountSummaries[queryIndex];
-      if (q && q.data) {
-        return q.data;
-      }
+    if (accountMetricsQuery.data?.has(accId)) {
+      return accountMetricsQuery.data.get(accId)!;
     }
-    return { required: 0, actual: 0, hrProcess: 0, vacant: 0 };
+    return { required: 0, actual: 0, hrProcess: 0, vacant: 0, fillRate: 0 };
   }
 
   function handleSwitchView(mode: PlantillaViewMode) {
@@ -637,13 +648,12 @@ export default function PlantillaPage() {
   }
 
   function renderAccountSelectionContent() {
-    const isSummariesLoading = accountSummaries.some((q) => q.isLoading);
-    if (allowedAccountsQuery.isLoading || isSummariesLoading) {
+    if (allowedAccountsQuery.isLoading) {
       return (
         <DataState
           kind="loading"
           title="Loading Accounts"
-          description="Fetching your authorized accounts and staffing metrics..."
+          description="Fetching your authorized accounts..."
         />
       );
     }
@@ -656,7 +666,7 @@ export default function PlantillaPage() {
           description="An error occurred while fetching your authorized billing accounts."
           onRetry={() => {
             allowedAccountsQuery.refetch();
-            accountSummaries.forEach((q) => q.refetch());
+            accountMetricsQuery.refetch();
           }}
         />
       );

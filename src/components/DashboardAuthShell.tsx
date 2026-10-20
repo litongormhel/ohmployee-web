@@ -12,7 +12,8 @@ import {
   type WebBlockedAccess,
   type WebCurrentUserContext,
 } from "@/lib/auth";
-import { getActiveModule } from "@/lib/modules";
+import { getActiveModule, getMatchedModule } from "@/lib/modules";
+import { isModuleAllowedForUser } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveActingSession, useStopActingSession } from "@/lib/queries/more";
 
@@ -48,14 +49,31 @@ function AuthenticatedShell({
     () => getVisibleModules(currentUser),
     [currentUser],
   );
-  const activeModule = getActiveModule(pathname, visibleModules);
-  const canViewActiveModule = visibleModules.some(
-    (module) => module.key === activeModule.key,
+
+  const matchedModule = useMemo(
+    () => getMatchedModule(pathname),
+    [pathname],
   );
+
+  const activeModule = useMemo(
+    () => getActiveModule(pathname, visibleModules),
+    [pathname, visibleModules],
+  );
+
+  const canViewActiveModule = useMemo(() => {
+    if (!matchedModule) {
+      return true;
+    }
+    const isVisibleInList = visibleModules.some(
+      (module) => module.key === matchedModule.key,
+    );
+    const isAllowedByRbac = isModuleAllowedForUser(matchedModule.key, currentUser);
+    return isVisibleInList && isAllowedByRbac;
+  }, [matchedModule, visibleModules, currentUser]);
 
   useEffect(() => {
     if (visibleModules.length > 0 && !canViewActiveModule) {
-      const fallbackTarget = visibleModules[0]?.href ?? "/vacancy";
+      const fallbackTarget = visibleModules[0]?.href ?? "/dashboard";
       if (pathname !== fallbackTarget) {
         router.replace(fallbackTarget);
       }

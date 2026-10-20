@@ -4,6 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { webModules, type WebModule } from "@/lib/modules";
+import { isModuleAllowedForUser } from "@/lib/rbac";
 
 export type WebModuleAccess = {
   visible: boolean;
@@ -371,7 +372,9 @@ export function getVisibleModules(
   }
 
   return webModules.filter(
-    (module) => currentUser.moduleAccess[module.key]?.visible === true,
+    (module) =>
+      currentUser.moduleAccess[module.key]?.visible === true &&
+      isModuleAllowedForUser(module.key, currentUser),
   );
 }
 
@@ -464,5 +467,20 @@ export function isVacancyExportRole(roleKeyOrName?: string | null): boolean {
     normalized === "admin"
   );
 }
+
+/**
+ * Checks if the role is Encoder or Data Team.
+ */
+export function isEncoder(roleKeyOrName?: string | null): boolean {
+  if (!roleKeyOrName) return false;
+  const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    normalized === "encoder" ||
+    normalized.includes("encoder") ||
+    normalized === "data_team" ||
+    normalized.includes("data_team")
+  );
+}
+
 
 

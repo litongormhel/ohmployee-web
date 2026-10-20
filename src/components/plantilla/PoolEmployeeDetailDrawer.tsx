@@ -19,6 +19,14 @@ import {
 } from "@/lib/queries/workforcePool";
 import { RequestRelieverCoverageModal } from "@/components/plantilla/RequestRelieverCoverageModal";
 import { RequestPoolConversionModal } from "@/components/plantilla/RequestPoolConversionModal";
+import { useCurrentUser } from "@/lib/auth";
+import {
+  isOpsTeam,
+  isDataTeam,
+  hasFullAccess,
+  normalizeRole,
+  AppRole,
+} from "@/lib/rbac";
 
 export interface PoolEmployeeDetailDrawerProps {
   employee: WorkforcePoolEmployee | null;
@@ -70,6 +78,13 @@ export function PoolEmployeeDetailDrawer({
   const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
   const [closingAssignmentId, setClosingAssignmentId] = useState<string | null>(null);
   const [closingNotes, setClosingNotes] = useState<string>("");
+
+  const currentUser = useCurrentUser();
+  const canMutate = Boolean(
+    currentUser &&
+      (isOpsTeam(currentUser) || isDataTeam(currentUser) || hasFullAccess(currentUser)) &&
+      normalizeRole(currentUser.roleKey || currentUser.roleName) !== AppRole.VIEWER
+  );
 
   const detailQuery = useWorkforcePoolEmployeeDetail(employee?.id ?? null);
   const closeAssignmentMutation = useCloseWorkforceAssignment();
@@ -163,22 +178,24 @@ export function PoolEmployeeDetailDrawer({
             </div>
 
             {/* Action Bar */}
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setIsCoverageModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-xs"
-              >
-                <UserCheck className="h-3.5 w-3.5" /> Request Coverage Deployment
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsConversionModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
-              >
-                <ArrowRightLeft className="h-3.5 w-3.5" /> Convert to Regular Plantilla
-              </button>
-            </div>
+            {canMutate && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCoverageModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-xs"
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Request Coverage Deployment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsConversionModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" /> Convert to Regular Plantilla
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Active Deployments Section */}
@@ -222,7 +239,7 @@ export function PoolEmployeeDetailDrawer({
                       <span>
                         Dates: {dep.startDate || "—"} &rarr; {dep.endDate || "Ongoing"}
                       </span>
-                      {closingAssignmentId !== dep.id && (
+                      {canMutate && closingAssignmentId !== dep.id && (
                         <button
                           type="button"
                           onClick={() => setClosingAssignmentId(dep.id)}
@@ -234,7 +251,7 @@ export function PoolEmployeeDetailDrawer({
                     </div>
 
                     {/* Inline Close Assignment form */}
-                    {closingAssignmentId === dep.id && (
+                    {canMutate && closingAssignmentId === dep.id && (
                       <div className="p-3 bg-red-50/60 border border-red-200 rounded-lg space-y-2 mt-2">
                         <label className="block text-xs font-semibold text-red-900">
                           Reason for closing deployment:
@@ -297,14 +314,16 @@ export function PoolEmployeeDetailDrawer({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <StatusBadge variant="warning">{req.status}</StatusBadge>
-                      <button
-                        type="button"
-                        onClick={() => handleWithdrawRequest(req)}
-                        disabled={withdrawMutation.isPending}
-                        className="text-xs font-medium text-red-600 hover:text-red-800 hover:underline"
-                      >
-                        Withdraw
-                      </button>
+                      {canMutate && (
+                        <button
+                          type="button"
+                          onClick={() => handleWithdrawRequest(req)}
+                          disabled={withdrawMutation.isPending}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 hover:underline"
+                        >
+                          Withdraw
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

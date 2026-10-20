@@ -38,6 +38,7 @@ interface RequestCategoryNavigationProps {
   counts: RequestCategoryCounts;
   acknowledgedCategories: Set<RequestCategoryKey>;
   isLoadingCounts?: boolean;
+  allowedCategories?: RequestCategoryKey[];
 }
 
 export function RequestCategoryNavigation({
@@ -46,14 +47,19 @@ export function RequestCategoryNavigation({
   counts,
   acknowledgedCategories,
   isLoadingCounts = false,
+  allowedCategories,
 }: RequestCategoryNavigationProps) {
+  const categories = allowedCategories
+    ? REQUEST_CATEGORIES.filter((cat) => allowedCategories.includes(cat.key))
+    : REQUEST_CATEGORIES;
+
   return (
     <nav
       aria-label="Approval types"
       role="tablist"
       className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none p-1"
     >
-      {REQUEST_CATEGORIES.map((cat) => {
+      {categories.map((cat) => {
         const Icon = CATEGORY_ICONS[cat.key];
         const isSelected = selectedCategory === cat.key;
         const rawCount = counts[cat.key] ?? 0;

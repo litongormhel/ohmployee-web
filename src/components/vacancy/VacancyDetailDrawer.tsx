@@ -43,6 +43,12 @@ import {
   isQuotaOverrideRole,
   useCurrentUser,
 } from "@/lib/auth";
+import {
+  canAddApplicant,
+  canManageApplicantPipeline,
+  canReviewVacancyClosures,
+  canRequestVacancyClosure,
+} from "@/lib/rbac";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
 import { AddApplicantModal } from "@/components/vacancy/AddApplicantModal";
@@ -133,8 +139,12 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
-  const canReviseQuota = !userRole || isQuotaOverrideRole(userRole);
-  const canRequestAdjustment = !userRole || isOpsAmendmentRole(userRole);
+  const canReviseQuota = Boolean(userRole && isQuotaOverrideRole(userRole));
+  const canRequestAdjustment = Boolean(userRole && isOpsAmendmentRole(userRole));
+  const userCanAddApplicant = canAddApplicant(currentUser);
+  const userCanManagePipeline = canManageApplicantPipeline(currentUser);
+  const userCanReviewClosures = canReviewVacancyClosures(currentUser);
+  const userCanRequestClosure = canRequestVacancyClosure(currentUser);
 
   const {
     data: detail,
@@ -307,6 +317,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Add Applicant",
                 isAvailable:
+                  userCanAddApplicant &&
                   !isPendingClosure &&
                   (detail.rowCapabilities?.canUpdateApplicantStatus === true ||
                     detail.derivedStatus?.toLowerCase() === "open" ||
@@ -318,6 +329,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Update Stage",
                 isAvailable:
+                  userCanManagePipeline &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
                   detail.derivedStatus?.toLowerCase() !== "hired" &&
@@ -343,6 +355,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Mark Hired",
                 isAvailable:
+                  userCanManagePipeline &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
                   detail.derivedStatus?.toLowerCase() !== "hired" &&
@@ -368,6 +381,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Reopen Slot",
                 isAvailable:
+                  userCanManagePipeline &&
                   !isPendingClosure &&
                   (detail.derivedStatus?.toLowerCase() === "failed_backout" ||
                     detail.derivedStatus?.toLowerCase() === "rejected" ||
@@ -393,13 +407,17 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               },
               {
                 label: "Approve Vacancy",
-                isAvailable: !isPendingClosure && detail.rowCapabilities?.canApprove === true,
+                isAvailable:
+                  userCanReviewClosures &&
+                  !isPendingClosure &&
+                  detail.rowCapabilities?.canApprove === true,
                 icon: CheckCheck,
                 variant: "success",
               },
               {
                 label: "Edit Hired Date",
                 isAvailable:
+                  userCanManagePipeline &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
                   (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),
@@ -425,6 +443,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Drop / Backout",
                 isAvailable:
+                  userCanManagePipeline &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
                   detail.derivedStatus?.toLowerCase() !== "hired" &&
@@ -450,6 +469,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Request Closure",
                 isAvailable:
+                  userCanRequestClosure &&
                   !isPendingClosure &&
                   detail.derivedStatus?.toLowerCase() !== "closed",
                 onClick: () => setIsRequestClosureModalOpen(true),
@@ -868,7 +888,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           </div>
 
                           {/* Quick action buttons for this candidate (Only for active pipeline, not hired) */}
-                          {!isCandidateHired && (
+                          {!isCandidateHired && userCanManagePipeline && (
                             <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50">
                               <button
                                 type="button"

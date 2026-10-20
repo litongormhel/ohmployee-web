@@ -50,6 +50,7 @@ import {
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
 import { isVacancyExportRole, useCurrentUser } from "@/lib/auth";
+import { canReviewVacancyClosures } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 
 const statusTabs: Array<{
@@ -265,6 +266,9 @@ export default function VacancyPage() {
     statusTabs.find((tab) => tab.value === status)?.label ?? "Open";
 
   const currentUser = useCurrentUser();
+  const canReviewClosures = useMemo(() => {
+    return canReviewVacancyClosures(currentUser);
+  }, [currentUser]);
   const canExport = useMemo(() => {
     return isVacancyExportRole(currentUser?.roleKey || currentUser?.roleName);
   }, [currentUser]);
@@ -889,31 +893,33 @@ export default function VacancyPage() {
               <strong>Closure Queue:</strong> Requisitions flagged for cessation or slot cancellation.
             </span>
           </div>
-          <button
-            type="button"
-            disabled={approveAllClosuresMutation.isPending || rows.length === 0}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Are you sure you want to approve all pending vacancy closure requests? This will close matching requisitions.",
-                )
-              ) {
-                approveAllClosuresMutation.mutate(undefined, {
-                  onSuccess: () => {
-                    setSuccessToast({
-                      message: "All pending closure requests approved successfully.",
-                    });
-                    retryVacancyReads();
-                  },
-                });
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition shadow-xs"
-          >
-            {approveAllClosuresMutation.isPending
-              ? "Approving..."
-              : "Approve All Pending Closures"}
-          </button>
+          {canReviewClosures && (
+            <button
+              type="button"
+              disabled={approveAllClosuresMutation.isPending || rows.length === 0}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Are you sure you want to approve all pending vacancy closure requests? This will close matching requisitions.",
+                  )
+                ) {
+                  approveAllClosuresMutation.mutate(undefined, {
+                    onSuccess: () => {
+                      setSuccessToast({
+                        message: "All pending closure requests approved successfully.",
+                      });
+                      retryVacancyReads();
+                    },
+                  });
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition shadow-xs"
+            >
+              {approveAllClosuresMutation.isPending
+                ? "Approving..."
+                : "Approve All Pending Closures"}
+            </button>
+          )}
         </div>
       )}
 

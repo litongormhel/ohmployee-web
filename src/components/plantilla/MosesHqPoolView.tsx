@@ -35,6 +35,14 @@ import { PoolOpenSlotsDrawer } from "@/components/plantilla/PoolOpenSlotsDrawer"
 import { PoolReviewQueueDrawer } from "@/components/plantilla/PoolReviewQueueDrawer";
 import { PoolRequestHistoryDrawer } from "@/components/plantilla/PoolRequestHistoryDrawer";
 import { RequestPoolHeadcountModal } from "@/components/plantilla/RequestPoolHeadcountModal";
+import { useCurrentUser } from "@/lib/auth";
+import {
+  isOpsTeam,
+  isDataTeam,
+  hasFullAccess,
+  normalizeRole,
+  AppRole,
+} from "@/lib/rbac";
 
 function getAvailabilityVariant(status: string): BadgeVariant {
   switch (status.toLowerCase().trim()) {
@@ -83,6 +91,16 @@ export function MosesHqPoolView() {
   const [isReviewQueueOpen, setIsReviewQueueOpen] = useState<boolean>(false);
   const [isRequestHistoryOpen, setIsRequestHistoryOpen] = useState<boolean>(false);
   const [isHeadcountModalOpen, setIsHeadcountModalOpen] = useState<boolean>(false);
+
+  const currentUser = useCurrentUser();
+  const canMutatePool = Boolean(
+    currentUser &&
+      (isOpsTeam(currentUser) || isDataTeam(currentUser) || hasFullAccess(currentUser)) &&
+      normalizeRole(currentUser.roleKey || currentUser.roleName) !== AppRole.VIEWER
+  );
+  const canExportPool = Boolean(
+    currentUser && normalizeRole(currentUser.roleKey || currentUser.roleName) !== AppRole.VIEWER
+  );
 
   // Queries
   const poolTypesQuery = useWorkforcePoolTypes();
@@ -169,13 +187,15 @@ export function MosesHqPoolView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsHeadcountModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition shadow-xs"
-          >
-            <Plus className="h-3.5 w-3.5" /> Request Pool Headcount
-          </button>
+          {canMutatePool && (
+            <button
+              type="button"
+              onClick={() => setIsHeadcountModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition shadow-xs"
+            >
+              <Plus className="h-3.5 w-3.5" /> Request Pool Headcount
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsOpenSlotsOpen(true)}
@@ -197,14 +217,16 @@ export function MosesHqPoolView() {
           >
             <History className="h-3.5 w-3.5" /> Request History
           </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={employees.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white/90 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition disabled:opacity-40"
-          >
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
+          {canExportPool && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={employees.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white/90 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+          )}
         </div>
       </div>
 

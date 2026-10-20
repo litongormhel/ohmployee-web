@@ -24,6 +24,12 @@ import type {
   VacancyStatus,
 } from "@/lib/queries/vacancy";
 import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
+import { useCurrentUser } from "@/lib/auth";
+import {
+  canAddApplicant,
+  canManageApplicantPipeline,
+  canReviewVacancyClosures,
+} from "@/lib/rbac";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
@@ -227,6 +233,11 @@ export function VacancyTable({
   onPageChange,
   onPageSizeChange,
 }: VacancyTableProps) {
+  const currentUser = useCurrentUser();
+  const userCanAddApplicant = canAddApplicant(currentUser);
+  const userCanManagePipeline = canManageApplicantPipeline(currentUser);
+  const userCanReviewClosures = canReviewVacancyClosures(currentUser);
+
   const errorCopy = getErrorCopy(errorKind);
   const activeColumns = getTableColumns(status);
 
@@ -543,7 +554,7 @@ export function VacancyTable({
                         {/* 10. ACTIONS */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {status === "open" && (
+                            {status === "open" && userCanAddApplicant && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -562,7 +573,7 @@ export function VacancyTable({
                               </button>
                             )}
 
-                            {status === "pipeline" && (
+                            {status === "pipeline" && userCanManagePipeline && (
                               <>
                                 {onAdvancePipeline && (
                                   <button
@@ -611,7 +622,7 @@ export function VacancyTable({
 
                             {status === "closure" && (
                               <div className="flex items-center gap-1">
-                                {onReviewClosure && (
+                                {userCanReviewClosures && onReviewClosure && (
                                   <>
                                     <button
                                       type="button"
@@ -642,7 +653,7 @@ export function VacancyTable({
                               </div>
                             )}
 
-                            {status === "failed_backout" && onReopenVacancy && (
+                            {status === "failed_backout" && userCanManagePipeline && onReopenVacancy && (
                               <button
                                 type="button"
                                 onClick={(e) => {

@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import {
+  canViewCencom,
+  canViewVacancy,
+  canViewHrEmploc,
+  canViewPlantilla,
+  canViewReports,
+  canManageUsers,
+} from "@/lib/rbac";
 
 // ============================================================================
 // Types: Active Temp Permission
@@ -697,24 +705,24 @@ export function getRoleModuleDefault(roleName: string, roleLevel: number, key: s
   const normRole = roleName.toLowerCase().replace(/[^a-z0-9]/g, "_");
   const isSuperAdmin = normRole.includes("super_admin") || normRole === "owner" || roleLevel >= 100;
   const isHeadAdmin = isSuperAdmin || normRole.includes("head_admin") || roleLevel >= 90;
-  const isEncoder = normRole === "encoder" || roleLevel === 30;
-  const isOpsTeam = isHeadAdmin || isEncoder || roleLevel >= 50;
+
+  const userContext = { roleName, roleLevel };
 
   switch (key) {
     case "cencom.view":
-      return isOpsTeam;
+      return canViewCencom(userContext);
     case "vacancy.view":
-      return true;
+      return canViewVacancy(userContext);
     case "hr_emploc.view":
-      return isOpsTeam;
+      return canViewHrEmploc(userContext);
     case "plantilla.view":
-      return isOpsTeam;
+      return canViewPlantilla(userContext);
     case "reports.view":
-      return isOpsTeam;
+      return canViewReports(userContext);
     case "user_management.view":
-      return isHeadAdmin;
+      return canManageUsers(userContext);
     case "imports.view":
-      return isHeadAdmin;
+      return isHeadAdmin || normRole === "encoder" || roleLevel === 30;
     case "security.view":
       return isSuperAdmin;
     default:

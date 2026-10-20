@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCheck, RefreshCw } from "lucide-react";
+import { CheckCheck, RefreshCw, ShieldAlert } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { RequestCategoryNavigation } from "@/components/approvals/RequestCategoryNavigation";
 import { ActiveQueueReviewPane } from "@/components/approvals/ActiveQueueReviewPane";
@@ -10,6 +10,9 @@ import {
   useRequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
+import { useCurrentUser } from "@/lib/auth";
+import { canViewApprovalsHub, getAllowedApprovalCategories } from "@/lib/rbac";
+import { DataState } from "@/components/shared/DataState";
 
 const VALID_CATEGORIES = new Set<string>([
   "new_stores",
@@ -26,17 +29,39 @@ const VALID_CATEGORIES = new Set<string>([
 ]);
 
 function ApprovalsPageContent() {
+  const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
+
+  const isAuthorized = canViewApprovalsHub(currentUser);
+  const allowedCategories = useMemo(
+    () => (currentUser ? getAllowedApprovalCategories(currentUser) : []),
+    [currentUser]
+  );
+
+  const defaultCategory: RequestCategoryKey =
+    allowedCategories.includes("headcount")
+      ? "headcount"
+      : allowedCategories[0] ?? "headcount";
+
   const paramTab = searchParams.get("tab") || searchParams.get("category");
   const urlCategory =
-    paramTab && VALID_CATEGORIES.has(paramTab)
+    paramTab &&
+    VALID_CATEGORIES.has(paramTab) &&
+    (allowedCategories.length === 0 || allowedCategories.includes(paramTab as RequestCategoryKey))
       ? (paramTab as RequestCategoryKey)
       : null;
 
   const [localCategory, setLocalCategory] =
-    useState<RequestCategoryKey>("headcount");
+    useState<RequestCategoryKey>(defaultCategory);
 
-  const selectedCategory = urlCategory ?? localCategory;
+  // Sync default category if user loads or changes
+  useEffect(() => {
+    if (allowedCategories.length > 0 && !allowedCategories.includes(localCategory)) {
+      setLocalCategory(defaultCategory);
+    }
+  }, [allowedCategories, defaultCategory, localCategory]);
+
+  const selectedCategory = urlCategory ?? (allowedCategories.includes(localCategory) ? localCategory : defaultCategory);
 
   // Clear-on-Click / Acknowledgment:
   // When a user selects/clicks a request category, temporarily clear or acknowledge
@@ -79,6 +104,27 @@ function ApprovalsPageContent() {
     await refetchCounts();
   };
 
+  if (currentUser && (!isAuthorized || allowedCategories.length === 0)) {
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader
+          categoryTag="ADMIN PANEL"
+          moduleName="Approvals"
+          title="Request Center"
+          subtitle="Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments."
+          icon={CheckCheck}
+        />
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-12">
+          <DataState
+            kind="access_denied"
+            title="Access Restricted"
+            message="Your role does not have permission to review or process approval requests. To submit a request, use the respective operational forms."
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -103,6 +149,7 @@ function ApprovalsPageContent() {
           counts={counts}
           acknowledgedCategories={acknowledgedCategories}
           isLoadingCounts={isLoadingCounts}
+          allowedCategories={allowedCategories}
         />
       </div>
 

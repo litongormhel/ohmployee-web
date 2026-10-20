@@ -50,6 +50,8 @@ import {
   type HrEmplocSavedView,
 } from "@/components/hr-emploc/useHrEmplocSavedViews";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/lib/auth";
+import { hasFullAccess, isEncoder } from "@/lib/rbac";
 
 const queueTabs: Array<{
   value: HrEmplocQueue;
@@ -119,6 +121,10 @@ export default function HrEmplocPage() {
   // Notifications
   const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
   const [errorToast, setErrorToast] = useState<{ message: string } | null>(null);
+  const currentUser = useCurrentUser();
+  const canBulkDeployAndExport = Boolean(
+    currentUser && (hasFullAccess(currentUser) || isEncoder(currentUser))
+  );
 
   const bulkMoveMutation = useBulkMoveToPlantilla();
 
@@ -544,78 +550,80 @@ export default function HrEmplocPage() {
           </button>
 
           {/* Export Data dropdown */}
-          <div className="relative" ref={exportDropdownRef}>
-            <button
-              type="button"
-              disabled={isExporting}
-              onClick={() => setIsExportMenuOpen((prev) => !prev)}
-              aria-expanded={isExportMenuOpen}
-              aria-haspopup="menu"
-              className="h-9 text-xs font-semibold border border-border-subtle bg-surface hover:bg-surface-hover px-3 flex items-center gap-1.5 rounded-lg text-text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {isExporting ? (
-                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-brand-600" />
-              ) : (
-                <Download className="w-4 h-4 shrink-0 text-text-secondary" />
-              )}
-              <span>{isExporting ? "Exporting..." : "Export Data"}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 shrink-0 text-text-muted transition-transform duration-150 ${
-                  isExportMenuOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isExportMenuOpen && (
-              <div
-                role="menu"
-                aria-label="Export options"
-                className="absolute right-0 top-full mt-1.5 w-64 rounded-lg border border-border-subtle bg-surface p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+          {canBulkDeployAndExport && (
+            <div className="relative" ref={exportDropdownRef}>
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={() => setIsExportMenuOpen((prev) => !prev)}
+                aria-expanded={isExportMenuOpen}
+                aria-haspopup="menu"
+                className="h-9 text-xs font-semibold border border-border-subtle bg-surface hover:bg-surface-hover px-3 flex items-center gap-1.5 rounded-lg text-text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => handleExport("current_view")}
-                  disabled={isExporting}
-                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-semibold group-hover:text-brand-700">
-                      Export Current View
-                    </span>
-                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
-                      {summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-text-muted mt-0.5">
-                    {activeQueueLabel} queue ({summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)} records)
-                  </span>
-                </button>
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 shrink-0 animate-spin text-brand-600" />
+                ) : (
+                  <Download className="w-4 h-4 shrink-0 text-text-secondary" />
+                )}
+                <span>{isExporting ? "Exporting..." : "Export Data"}</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 shrink-0 text-text-muted transition-transform duration-150 ${
+                    isExportMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-                <div className="my-1 border-t border-border-subtle" />
-
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => handleExport("masterlist")}
-                  disabled={isExporting}
-                  className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+              {isExportMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Export options"
+                  className="absolute right-0 top-full mt-1.5 w-64 rounded-lg border border-border-subtle bg-surface p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-semibold group-hover:text-brand-700">
-                      Export Masterlist
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleExport("current_view")}
+                    disabled={isExporting}
+                    className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-semibold group-hover:text-brand-700">
+                        Export Current View
+                      </span>
+                      <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                        {summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-text-muted mt-0.5">
+                      {activeQueueLabel} queue ({summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)} records)
                     </span>
-                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
-                      {summaryQuery.isLoading ? "–" : totalMasterlistCount}
+                  </button>
+
+                  <div className="my-1 border-t border-border-subtle" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleExport("masterlist")}
+                    disabled={isExporting}
+                    className="w-full flex flex-col items-start px-3 py-2 text-left rounded-md hover:bg-surface-hover transition-colors group cursor-pointer text-text-primary"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-semibold group-hover:text-brand-700">
+                        Export Masterlist
+                      </span>
+                      <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                        {summaryQuery.isLoading ? "–" : totalMasterlistCount}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-text-muted mt-0.5">
+                      All queues: Pending to Ready / Transferred
                     </span>
-                  </div>
-                  <span className="text-[11px] text-text-muted mt-0.5">
-                    All queues: Pending to Ready / Transferred
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -713,7 +721,7 @@ export default function HrEmplocPage() {
 
         {/* Action Endcap */}
         <div className="flex items-center gap-2 shrink-0">
-          {queue === "ready" && (
+          {queue === "ready" && canBulkDeployAndExport && (
             <button
               className="inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={bulkMoveMutation.isPending || rows.length === 0}

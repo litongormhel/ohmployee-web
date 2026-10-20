@@ -363,7 +363,14 @@ function RequestHeadcountModalDialog({
           const rawProvinces = provincesRes.value.data.map(
             (p: { province: string | null }) => p.province?.trim() || ""
           );
-          const uniqueProvinces = Array.from(new Set(rawProvinces.filter(Boolean))).sort();
+          const uniqueProvincesMap = new Map<string, string>();
+          rawProvinces.filter(Boolean).forEach((p: string) => {
+            const key = p.toLowerCase();
+            if (!uniqueProvincesMap.has(key)) {
+              uniqueProvincesMap.set(key, p);
+            }
+          });
+          const uniqueProvinces = Array.from(uniqueProvincesMap.values()).sort((a, b) => a.localeCompare(b));
           const mmIndex = uniqueProvinces.findIndex(
             (p) => p.toLowerCase() === "metro manila"
           );
@@ -373,14 +380,14 @@ function RequestHeadcountModalDialog({
           }
           setProvinces(uniqueProvinces);
         } else {
-          const storeProvinces = Array.from(
-            new Set(
-              loadedStores
-                .map((s) => s.province || s.area_province || "")
-                .filter(Boolean)
-            )
-          ).sort();
-          setProvinces(storeProvinces);
+          const storeProvincesMap = new Map<string, string>();
+          loadedStores.forEach((s) => {
+            const p = (s.province || s.area_province || "").trim();
+            if (p && !storeProvincesMap.has(p.toLowerCase())) {
+              storeProvincesMap.set(p.toLowerCase(), p);
+            }
+          });
+          setProvinces(Array.from(storeProvincesMap.values()).sort((a, b) => a.localeCompare(b)));
         }
 
         // Process Freeze
@@ -427,22 +434,32 @@ function RequestHeadcountModalDialog({
 
         if (!error && data && data.length > 0) {
           const rawCities = data.map((c: { city: string | null }) => c.city?.trim() || "");
-          const uniqueCities = Array.from(new Set(rawCities.filter(Boolean))).sort();
+          const uniqueCitiesMap = new Map<string, string>();
+          rawCities.filter(Boolean).forEach((c: string) => {
+            const key = c.toLowerCase();
+            if (!uniqueCitiesMap.has(key)) {
+              uniqueCitiesMap.set(key, c);
+            }
+          });
+          const uniqueCities = Array.from(uniqueCitiesMap.values()).sort((a, b) => a.localeCompare(b));
           setCities(uniqueCities);
         } else {
-          const storeCities = Array.from(
-            new Set(
-              stores
-                .filter(
-                  (s) =>
-                    (s.province || s.area_province || "").toLowerCase() ===
-                    selectedProvince.toLowerCase()
-                )
-                .map((s) => s.area_city || "")
-                .filter(Boolean)
+          const storeCitiesMap = new Map<string, string>();
+          stores
+            .filter(
+              (s) =>
+                (s.province || s.area_province || "").toLowerCase() ===
+                selectedProvince.toLowerCase()
             )
-          ).sort();
-          setCities(storeCities);
+            .map((s) => (s.area_city || "").trim())
+            .filter(Boolean)
+            .forEach((c: string) => {
+              const key = c.toLowerCase();
+              if (!storeCitiesMap.has(key)) {
+                storeCitiesMap.set(key, c);
+              }
+            });
+          setCities(Array.from(storeCitiesMap.values()).sort((a, b) => a.localeCompare(b)));
         }
       } catch {
         if (isMounted) setCities([]);

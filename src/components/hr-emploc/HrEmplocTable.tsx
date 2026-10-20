@@ -348,7 +348,7 @@ export function HrEmplocTable({
                         {/* ── Pending Queue Actions ──────────────── */}
                         {queue === "pending" && (
                           <>
-                            {handleAddEmploc && (
+                            {row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -363,7 +363,7 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {onForCorrection && (
+                            {row.rowCapabilities.canTagDeficiency && onForCorrection && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -383,7 +383,7 @@ export function HrEmplocTable({
                         {/* ── Correction Queue Actions ───────────── */}
                         {queue === "correction" && (
                           <>
-                            {showUploadButton && onUploadAttachment && (
+                            {row.rowCapabilities.canSubmitCorrection && showUploadButton && onUploadAttachment && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -399,7 +399,7 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {onSubmitCorrection && (
+                            {row.rowCapabilities.canSubmitCorrection && onSubmitCorrection && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -420,7 +420,7 @@ export function HrEmplocTable({
                         {/* ── Review Queue Actions ───────────────── */}
                         {queue === "review" && (
                           <>
-                            {onApproveReview && (
+                            {(row.rowCapabilities.canReviewCorrection || row.rowCapabilities.canApproveCorrection) && onApproveReview && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -436,7 +436,7 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {onRevertReview && (
+                            {(row.rowCapabilities.canReviewCorrection || row.rowCapabilities.canRevertCorrection) && onRevertReview && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -457,7 +457,7 @@ export function HrEmplocTable({
                         {/* ── Ready Queue Actions ────────────────── */}
                         {queue === "ready" && (
                           <>
-                            {onMoveToPlantilla && (
+                            {row.rowCapabilities.canMoveToPlantilla && onMoveToPlantilla && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -473,7 +473,7 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {!row.employeeNo && onAssignEmployeeNo && (
+                            {row.rowCapabilities.canAssignEmployeeNo && !row.employeeNo && onAssignEmployeeNo && (
                               <button
                                 type="button"
                                 onClick={(e) => {

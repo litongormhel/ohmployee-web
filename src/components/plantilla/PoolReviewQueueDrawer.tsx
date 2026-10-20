@@ -10,6 +10,8 @@ import {
   useReopenPoolSlotReview,
   useClosePoolSlotReview,
 } from "@/lib/queries/workforcePool";
+import { useCurrentUser } from "@/lib/auth";
+import { hasFullAccess, isEncoder } from "@/lib/rbac";
 
 export interface PoolReviewQueueDrawerProps {
   isOpen: boolean;
@@ -21,6 +23,11 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState<string>("");
   const [actionType, setActionType] = useState<"reopen" | "close" | null>(null);
+
+  const currentUser = useCurrentUser();
+  const canReviewSlots = Boolean(
+    currentUser && (hasFullAccess(currentUser) || isEncoder(currentUser))
+  );
 
   const reviewsQuery = useSlotReviewQueue();
   const reopenMutation = useReopenPoolSlotReview();
@@ -87,7 +94,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
         </div>
 
         {/* Action Dialog if open */}
-        {selectedReviewId && actionType && (
+        {canReviewSlots && selectedReviewId && actionType && (
           <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -175,7 +182,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
                   </p>
                 )}
 
-                {rev.status.toLowerCase() === "pending" && (
+                {canReviewSlots && rev.status.toLowerCase() === "pending" && (
                   <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-50">
                     <button
                       type="button"
