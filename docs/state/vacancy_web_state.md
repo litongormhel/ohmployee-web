@@ -699,4 +699,25 @@ Validation:
 - **UI Modal Binding Safety**:
   - `VacancyDetailDrawer.tsx` resolves `applicantId` directly on the candidate record, avoiding fallback to `vacancyId` when opening `FailBackoutModal`.
 
+## HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping & Hierarchical HRCO Resolution (ohm#h8k3m2x5)
+
+- **Headcount Fraction Computation (`Filled / Total`)**:
+  - In `vw_vacancy_list` and `vw_vacancy_detail` (migration `20262606000048_hc_fraction_moses_hq_and_hrco_resolution.sql`), headcount is computed as `hc_filled` (`COALESCE(astat.confirmed_onboard_count, 0)`), `hc_total` (`COALESCE(v.headcount, 1)`), and formatted fraction `hc_display` (`format('%s/%s', ...)`).
+  - `list_web_vacancies` and `get_web_vacancy_detail` RPCs project `hc_filled`, `hc_total`, `hc_display`, `confirmed_onboard_count`, and `required_headcount` inside `row_capabilities jsonb`, maintaining backward-compatible PostgreSQL `RETURNS TABLE` signatures.
+  - Normalization layers in `src/lib/queries/vacancy.ts` extract `hcFilled`, `hcTotal`, and `hcDisplay` into `VacancyListItem` and `VacancyDetailItem`.
+  - `VacancyTable.tsx` renders the HC column as `row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`` (e.g. `0/7`, `1/8`, `3/3`).
+- **Moses HQ Outlet Mapping for Pool Vacancies**:
+  - `vw_vacancy_list` and `vw_vacancy_detail` coalesce null/empty store names with `'Moses HQ'` when requisitions originate from internal/pool pipelines (`is_pool_vacancy = true`, `source = 'pool'`, `vcode LIKE '%GHQ%'`, `account = 'Moses HQ'`, or `home_account_id = '3946ffdd-d826-4fc7-bb9e-356a32dcd152'`).
+  - Frontend fallback in `src/lib/queries/vacancy.ts` and `src/components/vacancy/VacancyDetailDrawer.tsx` defaults `storeName` and `storesList` to `'Moses HQ'` for pool requisitions.
+- **Hierarchical HRCO Resolution**:
+  - `vw_vacancy_list` and `vw_vacancy_detail` resolve HRCO assignments in order of priority:
+    1. Direct vacancy assignment (`v.hrco_user_id`).
+    2. Store-assigned HRCO (`user_scopes` / `account_assignments` matching `v.store_id`).
+    3. Account-assigned HRCO (`accounts.hrco_user_id`).
+    4. User Management account scopes (`user_scopes` matching `scope_type = 'account'` and `account_id = v.account_id`).
+    5. User Management group scopes (`user_scopes` matching `scope_type = 'group'` and `group_id = v.group_id`).
+    6. Legacy text fallback (`v.hrco_name`).
+  - `getVacancyDetail` enriches drawer hydration with a secondary `user_scopes` lookup when direct view join resolves null.
+
+
 

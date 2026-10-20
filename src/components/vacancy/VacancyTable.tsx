@@ -615,7 +615,7 @@ export function VacancyTable({
 
                         {/* 9. HC */}
                         <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
-                          {typeof row.headcount === "number" ? row.headcount : 1}
+                          {row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`}
                         </td>
 
                         {/* 10. ACTIONS */}

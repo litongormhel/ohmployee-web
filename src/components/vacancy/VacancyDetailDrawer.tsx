@@ -563,6 +563,15 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     }
                   }
                 }
+                if (storesList.length === 0) {
+                  const isPool =
+                    detail.vcode?.includes("GHQ") ||
+                    detail.accountName?.toLowerCase() === "moses hq" ||
+                    detail.source === "pool";
+                  if (isPool) {
+                    storesList.push("Moses HQ");
+                  }
+                }
 
                 const hiredCount = detail.confirmedOnboardCount ?? 0;
                 const totalHc = detail.headcount ?? 1;

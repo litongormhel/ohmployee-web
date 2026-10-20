@@ -94,6 +94,9 @@ export type VacancyListItem = {
   penaltyExposure: number;
   penaltyAmount: number | null;
   headcount?: number;
+  hcFilled?: number;
+  hcTotal?: number;
+  hcDisplay?: string;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   totalCount: number;
@@ -178,6 +181,9 @@ export type VacancyDetailItem = {
   penaltyExposure: number;
   penaltyAmount: number | null;
   headcount?: number;
+  hcFilled?: number;
+  hcTotal?: number;
+  hcDisplay?: string;
   applicantId?: string | null;
   applicantLastName: string | null;
   applicantFirstName: string | null;
@@ -511,16 +517,40 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     else agingBucket = "31_plus";
   }
 
+  const accountName = asString(row.account_name ?? row.account);
+  const rawStoreName = asString(row.store_name ?? row.store);
+  const isMosesPool =
+    Boolean(vcode && vcode.includes("GHQ")) ||
+    Boolean(cgCode && cgCode.includes("GHQ")) ||
+    (accountName && accountName.toLowerCase() === "moses hq") ||
+    asString(row.source)?.toLowerCase() === "pool" ||
+    asBoolean(row.is_pool_vacancy);
+  const storeName =
+    rawStoreName && rawStoreName !== "—" && rawStoreName !== "-"
+      ? rawStoreName
+      : isMosesPool
+      ? "Moses HQ"
+      : rawStoreName;
+
+  const rowCaps = asObject(row.row_capabilities);
+  const hcFilled =
+    asNumber(row.hc_filled ?? rowCaps.hc_filled) ??
+    asCount(row.confirmed_onboard_count);
+  const hcTotal =
+    asNumber(row.hc_total ?? rowCaps.hc_total ?? row.required_headcount ?? row.headcount ?? row.hc) ?? 1;
+  const hcDisplay =
+    asString(row.hc_display ?? rowCaps.hc_display) ?? `${hcFilled}/${hcTotal}`;
+
   return {
     id,
     vcode,
     cgCode,
     accountId: asString(row.account_id),
-    accountName: asString(row.account_name ?? row.account),
+    accountName,
     groupId: asString(row.group_id),
-    groupName: formatGroupName(asString(row.group_name), asString(row.account_name ?? row.account)) || null,
+    groupName: formatGroupName(asString(row.group_name), accountName) || null,
     storeId: asString(row.store_id),
-    storeName: asString(row.store_name ?? row.store),
+    storeName,
     storeLocation,
     position_title: asString(row.position_title),
     department: asString(row.department ?? row.business_unit),
@@ -529,7 +559,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     pipelineStatus: asString(row.pipeline_status),
     derivedStatus: asString(row.derived_status),
     activeApplicantCount: asCount(row.active_applicant_count),
-    confirmedOnboardCount: asCount(row.confirmed_onboard_count),
+    confirmedOnboardCount: hcFilled,
     hasRecentHire: asBoolean(row.has_recent_hire),
     hasPendingClosure: asBoolean(row.has_pending_closure),
     closureRequestStatus: asString(row.closure_request_status),
@@ -556,7 +586,10 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hasPenalty,
     penaltyExposure,
     penaltyAmount,
-    headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
+    headcount: hcTotal,
+    hcFilled,
+    hcTotal,
+    hcDisplay,
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -749,6 +782,30 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     else agingBucket = "31_plus";
   }
 
+  const accountName = asString(row.account_name ?? row.account);
+  const rawStoreName = asString(row.store_name ?? row.store);
+  const isMosesPool =
+    Boolean(vcode && vcode.includes("GHQ")) ||
+    Boolean(cgCode && cgCode.includes("GHQ")) ||
+    (accountName && accountName.toLowerCase() === "moses hq") ||
+    asString(row.source)?.toLowerCase() === "pool" ||
+    asBoolean(row.is_pool_vacancy);
+  const storeName =
+    rawStoreName && rawStoreName !== "—" && rawStoreName !== "-"
+      ? rawStoreName
+      : isMosesPool
+      ? "Moses HQ"
+      : rawStoreName;
+
+  const rowCaps = asObject(row.row_capabilities);
+  const hcFilled =
+    asNumber(row.hc_filled ?? rowCaps.hc_filled ?? row.confirmed_onboard_count ?? rowCaps.confirmed_onboard_count) ??
+    asCount(row.confirmed_onboard_count);
+  const hcTotal =
+    asNumber(row.hc_total ?? rowCaps.hc_total ?? row.required_headcount ?? rowCaps.required_headcount ?? row.headcount ?? row.hc) ?? 1;
+  const hcDisplay =
+    asString(row.hc_display ?? rowCaps.hc_display) ?? `${hcFilled}/${hcTotal}`;
+
   return {
     vacancyId: id,
     vcode,
@@ -762,11 +819,11 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     vacancyType: asString(row.vacancy_type),
     createdAt: asString(row.created_at),
     accountId: asString(row.account_id),
-    accountName: asString(row.account_name ?? row.account),
+    accountName,
     groupId: asString(row.group_id),
-    groupName: formatGroupName(asString(row.group_name), asString(row.account_name ?? row.account)) || null,
+    groupName: formatGroupName(asString(row.group_name), accountName) || null,
     storeId: asString(row.store_id),
-    storeName: asString(row.store_name ?? row.store),
+    storeName,
     position_title: asString(row.position_title),
     department: asString(row.department ?? row.business_unit),
     employmentType: asString(row.employment_type),
@@ -774,7 +831,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     pipelineStatus: asString(row.pipeline_status),
     derivedStatus: asString(row.derived_status ?? row.pipeline_status),
     activeApplicantCount: asCount(row.active_applicant_count),
-    confirmedOnboardCount: asCount(row.confirmed_onboard_count),
+    confirmedOnboardCount: hcFilled,
     hasRecentHire: asBoolean(row.has_recent_hire),
     hasPendingClosure:
       asBoolean(row.has_pending_closure) ||
@@ -802,7 +859,10 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     hasPenalty,
     penaltyExposure,
     penaltyAmount,
-    headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
+    headcount: hcTotal,
+    hcFilled,
+    hcTotal,
+    hcDisplay,
     applicantId: asString(row.applicant_id ?? row.applicantId) ?? primaryApplicant?.applicantId ?? null,
     applicantLastName,
     applicantFirstName,
@@ -1126,6 +1186,10 @@ export async function listVacancies(params: VacancyListParams) {
           const account = asString(h.account);
           const groupName = formatGroupName(asString(h.group_name), account);
 
+          const hcTotal = asNumber(h.required_headcount ?? h.headcount) ?? 1;
+          const hcFilled = 1;
+          const hcDisplay = `${hcFilled}/${hcTotal}`;
+
           return {
             id: asString(h.id) ?? `hired-${idx}`,
             vcode,
@@ -1143,7 +1207,7 @@ export async function listVacancies(params: VacancyListParams) {
             pipelineStatus: "Hired",
             derivedStatus: "Hired",
             activeApplicantCount: 0,
-            confirmedOnboardCount: 1,
+            confirmedOnboardCount: hcFilled,
             hasRecentHire: true,
             hasPendingClosure: false,
             closureRequestStatus: null,
@@ -1164,7 +1228,10 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
-            headcount: asNumber(h.required_headcount ?? h.headcount) ?? 1,
+            headcount: hcTotal,
+            hcFilled,
+            hcTotal,
+            hcDisplay,
             lastActivityAt: asString(h.hired_at),
             rowCapabilities: {
               canViewDetail: true,
@@ -1192,7 +1259,10 @@ export async function listVacancies(params: VacancyListParams) {
               for (const row of hiredRows) {
                 if (vacMap.has(row.vcode)) {
                   const v = vacMap.get(row.vcode)!;
-                  row.storeName = v.store_name || v.store_branch || null;
+                  const isPool =
+                    v.vcode?.includes("GHQ") ||
+                    String(v.account || "").toLowerCase() === "moses hq";
+                  row.storeName = v.store_name || v.store_branch || (isPool ? "Moses HQ" : null);
                   row.vacantDate = v.vacant_date || v.created_at?.substring(0, 10) || null;
                   row.daysToFill = calculateDaysToFill(row.vacantDate, row.hiredDate);
                   row.accountId = v.account_id || row.accountId;
@@ -1323,9 +1393,18 @@ export async function listVacancies(params: VacancyListParams) {
         const closureRows: VacancyListItem[] = closureVacs.map((vac: Record<string, unknown>, idx: number) => {
           const vcode = asString(vac.vcode) ?? "Uncoded";
           const cr = requestMap.get(vcode);
-          const storeName = asString(vac.store_name ?? vac.store_branch);
-          const position = asString(vac.position) ?? "—";
           const account = asString(vac.account);
+          let storeName = asString(vac.store_name ?? vac.store_branch);
+          if (
+            !storeName &&
+            (vcode.includes("GHQ") ||
+              account?.toLowerCase() === "moses hq" ||
+              vac.source === "pool" ||
+              asBoolean(vac.is_pool_vacancy))
+          ) {
+            storeName = "Moses HQ";
+          }
+          const position = asString(vac.position) ?? "—";
           const loc = [asString(vac.area_city), asString(vac.province)]
             .filter(Boolean)
             .join(" • ") || null;
@@ -1344,6 +1423,9 @@ export async function listVacancies(params: VacancyListParams) {
             asString(vac.closure_requested_at) ??
             asString(vac.updated_at);
           const closureRequestId = asString(cr?.id) ?? null;
+          const hcTotal = asNumber(vac.required_headcount ?? vac.headcount) ?? 1;
+          const hcFilled = 0;
+          const hcDisplay = `${hcFilled}/${hcTotal}`;
 
           return {
             id: asString(vac.id) ?? asString(cr?.id) ?? `closure-${idx}`,
@@ -1383,7 +1465,10 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
-            headcount: asNumber(vac.required_headcount ?? vac.headcount) ?? 1,
+            headcount: hcTotal,
+            hcFilled,
+            hcTotal,
+            hcDisplay,
             lastActivityAt: closureRequestedAt,
             rowCapabilities: {
               canViewDetail: true,
@@ -1495,9 +1580,19 @@ export async function listVacancies(params: VacancyListParams) {
           const fName = asString(d.first_name);
           const fFull = asString(d.full_name);
           const candidateName = formatPersonName(fName, lName, null, fFull || "Candidate");
-          const storeName = asString(vac?.store_name ?? vac?.store_branch);
           const position = asString(vac?.position) ?? "—";
           const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || null;
+          let storeName = asString(vac?.store_name ?? vac?.store_branch);
+          const account = asString(vac?.account);
+          if (
+            !storeName &&
+            (vcode.includes("GHQ") ||
+              account?.toLowerCase() === "moses hq" ||
+              vac?.source === "pool" ||
+              asBoolean(vac?.is_pool_vacancy))
+          ) {
+            storeName = "Moses HQ";
+          }
           const status = asString(d.status) || "Failed / Backout";
           const dropoutReason = asString(d.backout_reason) || status;
           const rawDropoutDate = asString(d.backout_date ?? d.updated_at ?? d.created_at);
@@ -1525,11 +1620,15 @@ export async function listVacancies(params: VacancyListParams) {
             else agingBucket = "31_plus";
           }
 
+          const hcTotal = asNumber(vac?.required_headcount ?? vac?.headcount ?? d.required_headcount) ?? 1;
+          const hcFilled = 0;
+          const hcDisplay = `${hcFilled}/${hcTotal}`;
+
           return {
             id: asString(vac?.id) ?? asString(d.id) ?? `failed-${idx}`,
             vcode,
             accountId: asString(vac?.account_id),
-            accountName: asString(vac?.account),
+            accountName: account,
             groupId: asString(vac?.group_id),
             groupName: null,
             storeId: asString(vac?.store_id),
@@ -1561,7 +1660,10 @@ export async function listVacancies(params: VacancyListParams) {
             hasPenalty: false,
             penaltyExposure: 0,
             penaltyAmount: null,
-            headcount: asNumber(vac?.required_headcount ?? vac?.headcount ?? d.required_headcount) ?? 1,
+            headcount: hcTotal,
+            hcFilled,
+            hcTotal,
+            hcDisplay,
             lastActivityAt: asString(d.updated_at ?? d.created_at),
             rowCapabilities: {
               canViewDetail: true,
@@ -2257,6 +2359,41 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             }
           }
         }
+
+        if (!normalized.hrcoName) {
+          const accId = normalized.accountId || rawAccount?.id;
+          const grpId = normalized.groupId || rawAccount?.group_id;
+          if (accId || grpId) {
+            try {
+              let scopeQuery = supabase
+                .from("user_scopes")
+                .select("user_id, account_id, group_id, users_profile!inner(id, full_name, is_active, archived_at, roles!inner(role_name))")
+                .eq("users_profile.is_active", true)
+                .is("users_profile.archived_at", null)
+                .eq("users_profile.roles.role_name", "HRCO")
+                .order("created_at", { ascending: true })
+                .limit(1);
+
+              if (accId) {
+                scopeQuery = scopeQuery.eq("account_id", accId);
+              } else if (grpId) {
+                scopeQuery = scopeQuery.eq("group_id", grpId).is("account_id", null);
+              }
+
+              const { data: scopedUser } = await scopeQuery.maybeSingle();
+              if (scopedUser?.users_profile) {
+                const up = Array.isArray(scopedUser.users_profile)
+                  ? scopedUser.users_profile[0]
+                  : (scopedUser.users_profile as unknown as { full_name?: string });
+                if (up?.full_name) {
+                  normalized.hrcoName = up.full_name;
+                }
+              }
+            } catch {
+              // fallback
+            }
+          }
+        }
       }
     } catch {
       // Graceful fallback
@@ -2308,6 +2445,8 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
         if (!normalized.vacantDate && vacCheck.vacant_date) normalized.vacantDate = vacCheck.vacant_date;
         if ((!normalized.headcount || normalized.headcount <= 1) && vacCheck.required_headcount) {
           normalized.headcount = Number(vacCheck.required_headcount);
+          normalized.hcTotal = normalized.headcount;
+          normalized.hcDisplay = `${normalized.hcFilled ?? normalized.confirmedOnboardCount ?? 0}/${normalized.hcTotal}`;
         }
       }
     } catch {

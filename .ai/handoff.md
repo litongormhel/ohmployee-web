@@ -1,5 +1,55 @@
 # AI Handoff
 
+## HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping, & HRCO Sync Audit (ohm#h8k3m2x5)
+
+**Status: COMPLETE — MIGRATION 20262606000048 APPLIED, HC FRACTION DISPLAY COMPUTED IN VIEWS & RPCS, MOSES HQ OUTLET FALLBACK CONFIGURED, HIERARCHICAL HRCO RESOLUTION ACTIVE, VERIFIED CLEAN LINT & BUILD**
+
+### Objective
+1. **HC Column Format (`Filled / Total`):** In the Vacancy table and views (`vw_vacancy_list`, `vw_vacancy_detail`), update the headcount/slot calculation so that instead of rendering a static integer (`1`), it correctly computes and displays as `Filled / Total` (e.g., `0/7`, `1/8`, `3/3`) based on confirmed onboard hires vs total required plantilla slots.
+2. **Moses HQ Outlet Name Mapping:** For requisitions originating from the Moses HQ pool or internal general pools, ensure the `outlet_name` correctly resolves and displays as **"Moses HQ"** instead of blank or dash (`—`).
+3. **HRCO Resolution Audit & Fix:** Investigate why certain specific accounts show a blank HRCO (`—` or `Unassigned`) even after being assigned in User Management. Audit the join between `vacancies`, `accounts`, and `user_scopes` / `account_assignments` in `vw_vacancy_list` and `src/lib/queries/vacancy.ts` so assignments propagate and display correctly.
+
+---
+
+### Root Causes
+1. **Headcount Format (`Filled / Total`):** `list_web_vacancies` previously did not expose `confirmed_onboard_count` or `required_headcount`, and frontend normalized headcount to a default static `1`.
+2. **Moses HQ Outlet Mapping:** Pool vacancies (e.g., `SEA-00005`, `BUN-GHQ-00011`, `BUN-GHQ-00014`) have `store_name: NULL` and `home_account_id = '3946ffdd-d826-4fc7-bb9e-356a32dcd152'` (Moses HQ), causing `store_name` to be blank/dash without a pool outlet fallback.
+3. **HRCO Resolution:** `vw_vacancy_list` joined HRCO strictly via `v.hrco_user_id`. In the database, only 96 of 324 vacancies had `v.hrco_user_id` populated directly, whereas 279 accounts were assigned HRCOs through User Management in `user_scopes` (`scope_type = 'account'`).
+
+---
+
+### Key Implementations
+1. **Database Migration (`supabase/migrations/20262606000048_hc_fraction_moses_hq_and_hrco_resolution.sql`)**:
+   - **`vw_vacancy_list` & `vw_vacancy_detail`**:
+     - `store_name`: Added COALESCE with `'Moses HQ'` when store name is null and requisition belongs to Moses HQ / internal pool (`is_pool_vacancy`, `source = 'pool'`, `vcode LIKE '%GHQ%'`, `account = 'Moses HQ'`, or `home_account_id = '3946ffdd-d826-4fc7-bb9e-356a32dcd152'`).
+     - `hrco_name`: Added hierarchical resolution fallback: (1) direct vacancy `v.hrco_user_id`, (2) store assigned HRCO, (3) account assigned HRCO, (4) User Management account scopes (`user_scopes` with `scope_type = 'account'`), (5) Group scopes (`user_scopes` with `scope_type = 'group'`), (6) legacy `v.hrco_name`.
+     - `hc_filled`, `hc_total`, `hc_display`: Computed as `COALESCE(astat.confirmed_onboard_count, 0)`, `COALESCE(v.headcount, 1)`, and `format('%s/%s', COALESCE(astat.confirmed_onboard_count, 0), COALESCE(v.headcount, 1))`.
+   - **`list_web_vacancies` & `get_web_vacancy_detail`**:
+     - Exposed `hc_filled`, `hc_total`, `hc_display`, `confirmed_onboard_count`, `required_headcount` inside `row_capabilities jsonb` (preserving existing Postgres `RETURNS TABLE` RPC signature without requiring destructive `DROP FUNCTION`).
+   - Applied cleanly to remote Supabase instance.
+2. **Frontend Adaptation (`src/lib/queries/vacancy.ts`, `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`)**:
+   - **`src/lib/queries/vacancy.ts`**:
+     - Added `hcFilled`, `hcTotal`, `hcDisplay` to `VacancyListItem` and `VacancyDetailItem`.
+     - Normalized `hc_filled`, `hc_total`, `hc_display` from `row_capabilities` across `normalizeListRow` and `normalizeDetailRow`.
+     - Added Moses HQ pool fallback and HC fraction calculation across `hired`, `closure`, and `failed_backout` tab pipelines.
+     - Added `user_scopes` fallback query in `getVacancyDetail` for single-record drawer hydration.
+   - **`src/components/vacancy/VacancyTable.tsx`**:
+     - Updated HC column rendering: `row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}``.
+   - **`src/components/vacancy/VacancyDetailDrawer.tsx`**:
+     - Added Moses HQ pool fallback when `storesList` is empty for pool vacancies.
+
+---
+
+### Verification
+- Verified `vw_vacancy_list` in database:
+  - Moses HQ requisitions (e.g., `BUN-GHQ-00011`, `SEA-00005`) resolve `store_name` to `'Moses HQ'`.
+  - HRCO resolves dynamically via `user_scopes` (e.g., `BK-G1-0053` resolves to `Jane Bilaro`, `VCAG2_0025` to `UAT Test 1`).
+  - HC computes as fractional values (e.g., `0/7`, `0/13`, `3/3`, `1/8`).
+- Ran `npm run lint`: 0 errors.
+- Ran `npm run build`: Next.js Turbopack build succeeded with 0 errors.
+
+---
+
 ## Fix Backout Workflow, Prevent Pipeline Leakage, and Clean Up Vcode Duplication (ohm#x5w9k3b7)
 
 **Status: COMPLETE — MIGRATION 20262606000047 APPLIED, VIEW AND SLOT SYNC HARDENED, MUTATION ARCHIVAL AND SLOT RECONCILIATION WIRED, VERIFIED CLEAN LINT & BUILD**
