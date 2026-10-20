@@ -1,6 +1,52 @@
 # AI Handoff
 
-## Fix Account Group Displaying as General / Direct Instead of Assigned Client Group / MOSES HQ (ohm#g8f4a1c2)
+## Fix Backout Workflow, Prevent Pipeline Leakage, and Clean Up Vcode Duplication (ohm#x5w9k3b7)
+
+**Status: COMPLETE — MIGRATION 20262606000047 APPLIED, VIEW AND SLOT SYNC HARDENED, MUTATION ARCHIVAL AND SLOT RECONCILIATION WIRED, VERIFIED CLEAN LINT & BUILD**
+
+### Objective
+Resolve the regression in Vacancy Management where:
+1. Tagging an applicant (e.g., Lando Norris / Selena Gomez) as **Backout** left or retained a ghost record in the **Pipeline** tab instead of cleanly moving exclusively to the **Failed / Backout** tab.
+2. The corresponding store requisition (`vcode`) was not returned to the **Open** tab completely blank/unassigned.
+3. Requisitions like `VCAG5_0056` accumulated multiple duplicate backout entries because previous actions did not archive or terminate the specific applicant record, cluttering active store slots in `plantilla_slots` and `vw_vacancy_list`.
+
+---
+
+### Root Causes
+1. `failBackoutApplicant` set `is_archived: false`. Because `is_archived` was `false`, views and slot synchronization functions continued treating terminal candidates as active.
+2. Direct table update to `status` right before calling `fn_update_applicant_pipeline` caused the RPC to raise an unhandled exception (`status already terminal` / `no fields changed`), which was caught and silenced, bypassing `fn_release_applicant_slot` and `fn_sync_vacancy_slot_open_pipeline`.
+3. `vw_vacancy_list` and `vw_vacancy_detail` omitted `'Rejected'` from their active applicant filter arrays and performed case-sensitive comparisons, causing `LEWIS HAMILTON` (`status: Rejected`) on `VCAG5_0056` to count as active (`active_applicant_count = 1`), forcing `derived_status = 'Pipeline'`.
+4. `fn_sync_vacancy_slot_open_pipeline` fetched only 1 slot via `LIMIT 1`. On multi-headcount requisitions (such as `VCAG5_0056`), slot 1 was open while slot 2 remained stuck in `pipeline`.
+5. `VacancyDetailDrawer.tsx` fell back to `detail.vacancyId` when opening `FailBackoutModal` without a sub-candidate selected, targeting the vacancy ID in the `applicants` table.
+
+---
+
+### Key Implementations
+1. **Database Migration (`supabase/migrations/20262606000047_fix_backout_workflow_and_slot_sync.sql`)**:
+   - **`vw_vacancy_list` & `vw_vacancy_detail`**: Updated `applicant_stats` to robustly exclude all terminal statuses (`'failed', 'backout', 'rejected', 'did_not_report', 'rejected_by_ops', 'withdrew', 'confirmed_onboard'`) using case/whitespace-insensitive normalization.
+   - **`fn_sync_vacancy_slot_open_pipeline`**: When active applicant count is 0, loops over and releases **all** unoccupied pipeline slots for that vcode back to `'open'`.
+   - **Data Cleanup**: Cleaned up unarchived/orphaned dropouts across all active vacancies (`is_archived = true`, `slot_id = NULL`). For `VCAG5_0056`, retained `LANDO NORRIS` as the sole canonical backout record, recorded missing history in `applicant_status_history`, reset unoccupied `pipeline` slots in `plantilla_slots` to `'open'`, and set `vacancies.status = 'Open'`.
+   - Applied cleanly to remote Supabase instance.
+2. **Backend Mutation Hardening (`src/lib/queries/vacancy.ts`)**:
+   - In `failBackoutApplicant`: Defensively resolves `applicantId` (falling back to the active applicant on `vcode` if caller passed vacancy ID). Updates applicant row with `status = params.status`, `backout_reason`, `backout_date`, **`is_archived: true`**, and **`slot_id: null`**.
+   - Records audit entry in `applicant_status_history`.
+   - Invokes `fn_release_applicant_slot` and `fn_sync_vacancy_slot_open_pipeline`.
+   - Performs quota-aware status transition: sets `vacancies.status = 'Open'` if 0 active candidates and unfilled quota remains, or `'Filled'` if quota is satisfied.
+   - In `updateApplicantPipeline`: In fallback handler, marks `is_archived: true` and `slot_id: null` on terminal statuses.
+   - In `failedPromise` and `listVacancies` (`currentTab === "failed_backout"`): Removed `.eq("is_archived", false)` requirement so archived terminal dropouts cleanly appear in the `Failed / Backout` tab.
+3. **UI Binding Hardening (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Ensured top action bar and modal fallbacks bind to `detail.applicantId` instead of `detail.vacancyId`.
+   - Added `applicantId?: string | null` to `VacancyDetailItem` and populated it in `normalizeDetailRow`.
+
+---
+
+### Verification
+- Verified `VCAG5_0056` in `vw_vacancy_list`: `status = 'Open'`, `derived_status = 'Open'`, `active_applicant_count = 0`.
+- Verified all 8 slots in `plantilla_slots` for `VCAG5_0056`: all `slot_status = 'open'`.
+- Verified `VCAG5_0056` in `Failed / Backout`: exactly 1 clean row for `LANDO NORRIS` (`Backout`, `Found another job`, `2026-10-20`).
+- Verified `VCAG5_0056` does not appear in `Pipeline` tab.
+- Ran `npm run lint`: 0 errors.
+- Ran `npm run build`: compiled and type-checked cleanly with 0 errors.
 
 **Status: COMPLETE — MIGRATION 20262606000046 APPLIED TO STAGING & PROD, TRIGGER AND VIEW HARDENING INSTALLED, GROUP ENRICHMENT & FORMATTING WIRED ON WEB**
 

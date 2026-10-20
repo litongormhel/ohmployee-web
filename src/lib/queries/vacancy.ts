@@ -178,6 +178,7 @@ export type VacancyDetailItem = {
   penaltyExposure: number;
   penaltyAmount: number | null;
   headcount?: number;
+  applicantId?: string | null;
   applicantLastName: string | null;
   applicantFirstName: string | null;
   applicantMiddleName: string | null;
@@ -802,6 +803,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     penaltyExposure,
     penaltyAmount,
     headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
+    applicantId: asString(row.applicant_id ?? row.applicantId) ?? primaryApplicant?.applicantId ?? null,
     applicantLastName,
     applicantFirstName,
     applicantMiddleName,
@@ -1015,13 +1017,12 @@ export async function getVacancySummary(
     }
   })();
 
-  // Failed / Backout tab count: restricted to active dropout applicants on active vacancies
+  // Failed / Backout tab count: restricted to dropout applicants on active vacancies
   const failedPromise = (async () => {
     try {
       const { data: dropouts, error } = await supabase
         .from("applicants")
         .select("id, vacancy_vcode, status, is_archived")
-        .eq("is_archived", false)
         .in("status", [
           "Backout", "backout",
           "Rejected", "rejected",
@@ -1439,7 +1440,7 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   if (currentTab === "failed_backout") {
-    // 4. Failed / Backout Tab: Display active dropout / failed / backout records from active vacancies
+    // 4. Failed / Backout Tab: Display dropout / failed / backout records from active vacancies
     try {
       const { data: dropoutsData, error: dropoutsError } = await supabase
         .from("applicants")
@@ -1456,7 +1457,6 @@ export async function listVacancies(params: VacancyListParams) {
           created_at,
           updated_at
         `)
-        .eq("is_archived", false)
         .in("status", [
           "Backout", "backout",
           "Rejected", "rejected",
@@ -2605,6 +2605,15 @@ export async function updateApplicantPipeline(
     if (params.recruitmentRemarks !== undefined) updates.recruitment_remarks = params.recruitmentRemarks;
     if (params.opsRemarks !== undefined) updates.ops_remarks = params.opsRemarks;
     if (params.followUpDate !== undefined) updates.follow_up_date = params.followUpDate;
+    const isTerminal =
+      params.newStatus?.toLowerCase() === "backout" ||
+      params.newStatus?.toLowerCase() === "rejected" ||
+      params.newStatus?.toLowerCase() === "failed";
+
+    if (isTerminal) {
+      updates.is_archived = true;
+      updates.slot_id = null;
+    }
     if (params.newStatus === "backout" || params.newStatus === "Backout") {
       updates.backout_date = new Date().toISOString().substring(0, 10);
     }
@@ -2737,33 +2746,109 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
   const statusCode =
     params.status.toLowerCase() === "backout" ? "backout" : "rejected";
 
+  // 1. Resolve target applicant ID defensively (if caller accidentally passed a vacancy ID)
+  let targetApplicantId = params.applicantId;
+  const { data: existingApp } = await supabase
+    .from("applicants")
+    .select("id, status, slot_id, vacancy_vcode")
+    .eq("id", targetApplicantId)
+    .maybeSingle();
+
+  if (!existingApp && params.vcode) {
+    const { data: activeApp } = await supabase
+      .from("applicants")
+      .select("id, status, slot_id, vacancy_vcode")
+      .eq("vacancy_vcode", params.vcode)
+      .eq("is_archived", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeApp) {
+      targetApplicantId = activeApp.id;
+    }
+  }
+
+  const prevStatus = existingApp?.status || null;
+  const boundSlotId = existingApp?.slot_id || null;
+
+  // 2. Mark applicant record strictly as terminal, archived, and unlink slot
   const { error } = await supabase
     .from("applicants")
     .update({
       status: params.status,
       backout_reason: params.reason,
       backout_date: new Date().toISOString().substring(0, 10),
-      is_archived: false,
+      is_archived: true,
+      slot_id: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", params.applicantId);
+    .eq("id", targetApplicantId);
 
   if (error) {
     throw new VacancyDataError("generic", error.message);
   }
 
-  // Also record in applicant_status_history if available
+  // 3. Record status history in applicant_status_history
   try {
-    await supabase.rpc("fn_update_applicant_pipeline", {
-      p_applicant_id: params.applicantId,
-      p_new_status: statusCode,
-      p_reason_id: params.reasonId || null,
-      p_reason_type: statusCode,
+    const { data: userRes } = await supabase.auth.getUser();
+    let profileId: string | null = null;
+    let profileName: string | null = null;
+
+    if (userRes?.user?.id) {
+      const { data: profile } = await supabase
+        .from("users_profile")
+        .select("id, full_name")
+        .eq("auth_user_id", userRes.user.id)
+        .maybeSingle();
+      if (profile) {
+        profileId = profile.id;
+        profileName = profile.full_name;
+      }
+    }
+
+    await supabase.from("applicant_status_history").insert({
+      applicant_id: targetApplicantId,
+      from_status: prevStatus,
+      to_status: params.status,
+      reason_id: params.reasonId || null,
+      reason_type: statusCode,
+      remarks: params.reason,
+      changed_by: profileId,
+      changed_by_name: profileName,
+      source_module: "vacancy",
+      update_type: "status_change",
+      changed_field: "status",
+      old_value: prevStatus,
+      new_value: params.status,
     });
   } catch {
     // Non-fatal if history logging fails
   }
 
+  // 4. Release bound slot and reconcile vacancy slots
+  if (boundSlotId) {
+    try {
+      await supabase.rpc("fn_release_applicant_slot", {
+        p_slot_id: boundSlotId,
+        p_performed_by: null,
+      });
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  try {
+    await supabase.rpc("fn_sync_vacancy_slot_open_pipeline", {
+      p_vcode: params.vcode,
+      p_performed_by: null,
+      p_source_fn: "failBackoutApplicant",
+    });
+  } catch {
+    // Non-fatal
+  }
+
+  // 5. Quota-aware vacancy status transition:
   // If this vacancy now has 0 remaining active pipeline candidates, check if required quota is still unfilled before returning to 'Open'
   try {
     const { data: vac } = await supabase
@@ -2777,8 +2862,8 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
         .from("applicants")
         .select("id, status")
         .eq("vacancy_vcode", params.vcode)
-        .or("is_archived.is.null,is_archived.eq.false")
-        .neq("id", params.applicantId);
+        .eq("is_archived", false)
+        .neq("id", targetApplicantId);
 
       const activeList = activeApps ?? [];
       const confirmedCount = activeList.filter(
@@ -2792,6 +2877,7 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
           s !== "rejected" &&
           s !== "did not report" &&
           s !== "rejected by ops" &&
+          s !== "withdrew" &&
           s !== "confirmed onboard"
         );
       }).length;

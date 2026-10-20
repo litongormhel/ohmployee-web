@@ -658,8 +658,7 @@ Validation:
 ## Backout Archival Hardening, React Composite Keying & Column Schema Synchronization (ohm#b8k2w7x4)
 
 - **Backout Candidate Archival Guard**:
-  - `failBackoutApplicant` in `src/lib/queries/vacancy.ts` explicitly maintains `is_archived: false`. Dropped/failed applicants remain active records with terminal statuses (`Backout`, `Rejected`) to ensure they appear in the `Failed / Backout` tab queue and KPI counters.
-  - Removed `updates.is_archived = true` fallback in `updateApplicantPipeline`.
+  - Dropped/failed applicants remain records with terminal statuses (`Backout`, `Rejected`) to ensure they appear in the `Failed / Backout` tab queue and KPI counters.
   - `failBackoutApplicant` performs quota-aware vacancy status transition: only resets `vacancies.status = 'Open'` if remaining active pipeline candidates count is 0 AND confirmed onboard count is less than required headcount (`confirmedCount < requiredHc`). If quota is already filled (e.g. `BUN-GHQ-00014`), status transitions to `'Filled'` and is excluded from Open/Pipeline views.
 - **React Composite Keying on Table Rows**:
   - `VacancyTable.tsx` keys rows using composite identifier `<tr key={`${row.id}-${row.applicantId ?? row.vcode}-${index}`}>`.
@@ -685,4 +684,19 @@ Validation:
 - **Dynamic Aging Calculation**:
   - In `src/lib/queries/vacancy.ts` (`listVacancies` under `currentTab === "failed_backout"`), included `created_at` in vacancy query and dynamically computes `agingDays` and `agingBucket` from `vacant_date ?? created_at ?? d.created_at` relative to `Date.now()`.
   - In `VacancyTable.tsx`, renders non-blank aging badge with dynamic day count and color coding (≤15d green, ≤30d amber, >30d rose).
+
+## Backout Workflow, Pipeline Leakage Prevention & Vcode Duplication Cleanup (ohm#x5w9k3b7)
+
+- **Strict Terminal Candidate Archival**:
+  - In `failBackoutApplicant` (`src/lib/queries/vacancy.ts`), executing a Backout marks `is_archived = true`, `slot_id = null`, and status strictly terminal (`Backout` / `Rejected`).
+  - Terminal candidates are excluded from active pipeline counts across views (`vw_vacancy_list`, `vw_vacancy_detail`) via case-insensitive normalization (`NOT IN ('failed', 'backout', 'rejected', 'did_not_report', 'rejected_by_ops', 'withdrew', 'confirmed_onboard')`).
+  - Dropped applicants are cleanly displayed in the `Failed / Backout` tab by selecting terminal statuses without restricting `is_archived = false`.
+- **Comprehensive Slot Release**:
+  - In `fn_sync_vacancy_slot_open_pipeline` (`supabase/migrations/20262606000047_fix_backout_workflow_and_slot_sync.sql`), when active applicant count is 0, all unoccupied pipeline slots for that vcode are transitioned back to `'open'` (fixing multi-headcount slot abandonment where `LIMIT 1` left remaining slots in `pipeline`).
+- **Clean Vcode Store State**:
+  - Stores with 0 active pipeline candidates safely return to the `Open` tab completely unassigned with 0 applicants.
+  - Duplicate/orphaned dropout rows on `VCAG5_0056` cleaned up with backout audit history preserved in `applicant_status_history` and unoccupied slots reset to `'open'`.
+- **UI Modal Binding Safety**:
+  - `VacancyDetailDrawer.tsx` resolves `applicantId` directly on the candidate record, avoiding fallback to `vacancyId` when opening `FailBackoutModal`.
+
 

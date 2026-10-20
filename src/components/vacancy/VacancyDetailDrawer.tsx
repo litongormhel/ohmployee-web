@@ -453,15 +453,28 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   detail.derivedStatus?.toLowerCase() !== "hired" &&
                   detail.derivedStatus?.toLowerCase() !== "closed",
                 onClick: () => {
-                  if (detail.activeApplicantsList?.[0]) {
+                  const firstCandidate = detail.activeApplicantsList?.[0];
+                  if (firstCandidate) {
                     setSelectedCandidate({
-                      id: detail.activeApplicantsList[0].applicantId,
-                      fullName: detail.activeApplicantsList[0].displayName,
-                      lastName: detail.activeApplicantsList[0].lastName,
-                      firstName: detail.activeApplicantsList[0].firstName,
-                      middleName: detail.activeApplicantsList[0].middleName,
-                      contactNumber: detail.activeApplicantsList[0].contactNumber,
-                      status: detail.activeApplicantsList[0].statusLabel,
+                      id: firstCandidate.applicantId,
+                      fullName: firstCandidate.displayName,
+                      lastName: firstCandidate.lastName,
+                      firstName: firstCandidate.firstName,
+                      middleName: firstCandidate.middleName,
+                      contactNumber: firstCandidate.contactNumber,
+                      status: firstCandidate.statusLabel,
+                      vcode: detail.vcode,
+                      positionTitle: detail.position_title,
+                    });
+                  } else if (detail.applicantId) {
+                    setSelectedCandidate({
+                      id: detail.applicantId,
+                      fullName: detail.applicantName || "Candidate",
+                      lastName: detail.applicantLastName,
+                      firstName: detail.applicantFirstName,
+                      middleName: detail.applicantMiddleName,
+                      contactNumber: detail.contactNumber,
+                      status: detail.pipelineStatus || "pipeline",
                       vcode: detail.vcode,
                       positionTitle: detail.position_title,
                     });
@@ -1147,7 +1160,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   }}
                   applicant={
                     selectedCandidate || {
-                      id: detail.vacancyId,
+                      id: detail.applicantId || detail.vacancyId,
                       fullName: detail.applicantName || "Candidate",
                       status: detail.pipelineStatus || "pipeline",
                       vcode: detail.vcode,
