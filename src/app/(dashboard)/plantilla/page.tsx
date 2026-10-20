@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
@@ -23,7 +23,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { loadCurrentUserContext, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
+import { useCurrentUser, isQuotaOverrideRole, isOpsAmendmentRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
@@ -132,8 +132,22 @@ function formatLeadershipName(user: TeamDirectoryUser): string {
 // ---------------------------------------------------------------------------
 
 export default function PlantillaPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="h-14 border-b border-border-subtle bg-surface-base animate-pulse" />
+          <div className="h-64 rounded-xl border border-border-default bg-surface-base animate-pulse" />
+        </div>
+      }
+    >
+      <PlantillaPageContent />
+    </Suspense>
+  );
+}
+
+function PlantillaPageContent() {
   const [tab, setTab] = useState<DirectoryTab>("active");
-  const [viewMode, setViewMode] = useState<PlantillaViewMode>("store");
   const [displayView, setDisplayView] = useState<DisplayView>("table");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -148,15 +162,11 @@ export default function PlantillaPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Hydration state
-  const [isHydrated, setIsHydrated] = useState(false);
-
   // Search query specifically for the account selector list
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
   // Directory filter state
-  const [accountId, setAccountId] = useState("");
   const [search, setSearch] = useState("");
   const [storeId, setStoreId] = useState("");
   const [status, setStatus] = useState("");
@@ -166,16 +176,27 @@ export default function PlantillaPage() {
   // User Context and Account Lists
   // -------------------------------------------------------------------------
 
-  const userContextQuery = useQuery({
-    queryKey: ["currentUserContext"],
-    queryFn: () => loadCurrentUserContext(),
-    staleTime: Infinity,
-  });
-
-  const currentUser = userContextQuery.data?.currentUser;
+  const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
   const canReviseQuota = isQuotaOverrideRole(userRole);
   const canRequestAdjustment = isOpsAmendmentRole(userRole);
+
+  // Derive viewMode directly from searchParams
+  const viewParam = searchParams.get("view") || searchParams.get("tab");
+  const viewMode: PlantillaViewMode =
+    viewParam === "moses_pool" || viewParam === "pool" || viewParam === "moses"
+      ? "moses_pool"
+      : viewParam === "analytics" || viewParam === "workforce_analytics"
+      ? "analytics"
+      : "store";
+
+  // Derive accountId directly from URL or user single scoped account
+  const urlAccountId = searchParams.get("accountId") ?? "";
+  const singleScopedId =
+    currentUser?.accountScope.mode === "scoped" && currentUser.accountScope.ids.length === 1
+      ? currentUser.accountScope.ids[0]
+      : "";
+  const accountId = urlAccountId || singleScopedId;
 
   const allowedAccountsQuery = useQuery({
     queryKey: ["plantilla", "allowed-accounts", currentUser?.accountScope],
@@ -241,7 +262,7 @@ export default function PlantillaPage() {
       });
       return map;
     },
-    enabled: isHydrated && !accountId && viewMode === "store",
+    enabled: !!currentUser && !accountId && viewMode === "store",
     staleTime: 60000,
   });
 
@@ -255,36 +276,6 @@ export default function PlantillaPage() {
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [allowedAccountsQuery.data]);
-
-  // Deep-linking hydration and auto-select/auto-fire logic
-  useEffect(() => {
-    if (!userContextQuery.data) return;
-
-    const urlAccountId = searchParams.get("accountId");
-    const viewParam = searchParams.get("view") || searchParams.get("tab");
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (viewParam === "moses_pool" || viewParam === "pool" || viewParam === "moses") {
-      setViewMode("moses_pool");
-    } else if (viewParam === "analytics" || viewParam === "workforce_analytics") {
-      setViewMode("analytics");
-    } else {
-      setViewMode("store");
-    }
-
-    const user = userContextQuery.data.currentUser;
-
-    if (urlAccountId) {
-      setAccountId(urlAccountId);
-    } else if (user) {
-      const { accountScope } = user;
-      if (accountScope.mode === "scoped" && accountScope.ids.length === 1) {
-        setAccountId(accountScope.ids[0]);
-      }
-    }
-    setIsHydrated(true);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [userContextQuery.data, searchParams]);
-
 
   // Stores under current account for dropdown & city/province lookup
   const storesUnderAccountQuery = useQuery({
@@ -333,7 +324,7 @@ export default function PlantillaPage() {
         accountId: accountId || undefined,
         groupId: selectorGroupId || undefined,
       }),
-    enabled: isHydrated && !!currentUser && !!accountId,
+    enabled: !!currentUser && !!accountId,
   });
 
   // Query for leadership roles: OM, TL, ATL, HRCO
@@ -520,7 +511,6 @@ export default function PlantillaPage() {
   }
 
   function handleSwitchView(mode: PlantillaViewMode) {
-    setViewMode(mode);
     const params = new URLSearchParams(searchParams.toString());
     if (mode === "store") {
       params.delete("view");
@@ -538,7 +528,6 @@ export default function PlantillaPage() {
       return;
     }
 
-    setAccountId(accId);
     setSearch("");
     setStoreId("");
     setStatus("");
@@ -553,7 +542,6 @@ export default function PlantillaPage() {
   }
 
   function handleBackToSelection() {
-    setAccountId("");
     setSearch("");
     setStoreId("");
     setStatus("");
@@ -635,7 +623,7 @@ export default function PlantillaPage() {
   // Render Selection Screen / Main Roster
   // -------------------------------------------------------------------------
 
-  if (userContextQuery.isLoading || !isHydrated) {
+  if (!currentUser) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <DataState

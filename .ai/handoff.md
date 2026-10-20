@@ -1,5 +1,111 @@
 # AI Handoff
 
+## Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity (ohm#p7f2a1b9)
+
+**Status: COMPLETE — CLIENT-SIDE SUSPENSE BOUNDARY & URL DERIVATION, MAIN BRANCH**
+
+### Objective
+Diagnosed and resolved the issue where navigating to `/plantilla` remained permanently frozen on "Rendering..." / "Loading User Workspace", bringing the module into 100% architectural parity with `/vacancy`, `/hr-emploc`, `/approvals`, and `/cencom`.
+
+---
+
+### Root Cause Diagnosis & Technical Findings
+1. **Missing Suspense Boundary**: `useSearchParams()` was called directly inside root `PlantillaPage` without a Next.js `<Suspense>` boundary. In Next.js App Router, this triggers a CSR bail-out that hangs client-side rendering with a permanent "Rendering..." banner.
+2. **Hydration Deadlock Gate**: The component gated all rendering behind `if (userContextQuery.isLoading || !isHydrated)`. If `userContextQuery` encountered any error or null resolution, `setIsHydrated(true)` was never reached due to an early return in `useEffect`, permanently trapping the view in `<DataState kind="loading" title="Loading User Workspace" ...>`.
+3. **Cascading State Updates in `useEffect`**: Synchronous state updates (`setViewMode`, `setAccountId`, `setIsHydrated`) inside `useEffect` caused cascading re-renders and fought against router URL navigation (`router.push`).
+4. **Duplicate User Context Loading**: Unlike other modules that utilize the shared `useCurrentUser()` hook, `PlantillaPage` ran a redundant `loadCurrentUserContext()` query with `staleTime: Infinity`.
+
+---
+
+### Implementation Details
+1. **`<Suspense>` Boundary (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Wrapped the default `PlantillaPage` export in `<Suspense>` with a clean, animated loading skeleton matching `/approvals` and `/cencom`.
+   - Renamed inner implementation to `PlantillaPageContent`.
+2. **Canonical `useCurrentUser()` Hook**:
+   - Replaced redundant `userContextQuery` with canonical `useCurrentUser()` from `@/lib/auth`.
+   - Removed the deadlocking `isHydrated` state flag and its conditional check.
+3. **URL-Derived State (`viewMode` & `accountId`)**:
+   - Derived `viewMode` directly from `searchParams` (`view` or `tab` query param), removing `setViewMode` state.
+   - Derived `accountId` directly from `searchParams.get("accountId")` with fallback to `currentUser.accountScope.ids[0]` for single-scoped accounts, eliminating state desync and navigation fighting.
+   - Updated `handleSwitchView`, `handleSelectAccount`, and `handleBackToSelection` to operate directly on URL search parameters via `router.push`.
+4. **Query Gating Cleanup**:
+   - Updated `accountMetricsQuery` and `summaryQuery` to depend on `!!currentUser` instead of `isHydrated`.
+5. **Verification**:
+   - `npm run lint` passed with 0 errors and 0 warnings for `src/app/(dashboard)/plantilla/page.tsx`.
+   - `npm run build` compiled all 19 static routes successfully (including `/plantilla`) with exit code 0.
+
+---
+
+## Data Control Sub-Tab Separation (Operations & Governance + Batch Imports) (ohm#d4c8t2b1)
+
+**Status: COMPLETE — CLIENT-SIDE SUB-TAB NAVIGATION & STATE, MAIN BRANCH**
+
+### Objective
+Separated the Data Control section within the Admin Panel (`/more?tab=data_control`) into dedicated sub-tabs: **Operations & Governance** and **Batch Imports**, providing a cleaner workflow, clearer operational division, and smooth view transitions.
+
+---
+
+### Implementation Details
+1. **Sub-Tab Partitioning & Types (`src/app/(dashboard)/more/page.tsx`)**:
+   - Defined `DataControlSubTab = "operations" | "batch_imports"`.
+   - Partitioned feature tiles into:
+     - **Operations & Governance** (`operationsTiles`): *Edit Lock Control* (`SECURITY`, Amber), *Data Archival / Recovery* (`LEVEL 100`, Rose), *Global Store Transfer* (`TRANSFER`, Blue), *Roving Coverage Groups* (`ROVING`, Blue), and *Payroll Review Center* (`REVIEWS`, Purple).
+     - **Batch Imports** (`batchImportTiles`): *Import HR Emploc* (`EXCEL`, Emerald), *Import Plantilla* (`BASELINE`, Purple), *Import Vacancy* (`INTAKE`, Purple), *Import MIKA* (`BIOMETRIC`, Purple), and *Import Payroll* (`CHECKER`, Purple).
+2. **State Management & Router URL Synchronization**:
+   - Sub-tab selection is derived directly from `searchParams.get("subtab")`, defaulting to `"operations"`.
+   - `handleSubTabChange` synchronizes state with the URL query parameters (`/more?tab=data_control&subtab=batch_imports` vs default `/more?tab=data_control`) using Next.js shallow routing without page reload.
+   - Main tab navigation cleans up `subtab` params when switching away from Data Control.
+3. **UI / Styling & Animation**:
+   - Rendered a secondary pill-style sub-tab navigation bar directly underneath the Data Control section header with active tab styling and real-time visible tile counter badges.
+   - Smooth entrance transitions on sub-tab switches using `transition-all duration-200 ease-in-out` and `animate-in fade-in-50 duration-200`.
+   - Preserved all original card styling, badge variants, and RBAC role-level gating.
+4. **Verification**:
+   - `npx eslint src/app/(dashboard)/more/page.tsx` passed with 0 errors and 0 warnings.
+   - `npx tsc --noEmit` passed with 0 errors.
+
+---
+
+## Implement `qa_run_scenario` 6-Role AI Agent Workflow Relay Migration (ohm#q4r8s9x2)
+
+**Status: COMPLETE — SUPABASE MIGRATION CREATED, MAIN BRANCH**
+
+### Objective
+Implemented the missing `public.qa_run_scenario(p_scenario_code text)` database function in a dedicated Supabase migration to complete the 6-Role AI Agent Workflow Relay for OHMployee. Resolves 42883 function missing errors when invoking QA scenarios from the Web and Mobile QA Center modal (`QaCenterModal`).
+
+---
+
+### Implementation Details
+1. **Migration Artifact (`supabase/migrations/20262606000045_qa_role_relay_engine.sql`)**:
+   - Sequenced as `20262606000045_qa_role_relay_engine.sql` immediately following `20262606000044_rbac_parity_mobile_web.sql`.
+   - Defined `public.qa_run_scenario(p_scenario_code text DEFAULT 'FULL_E2E_RELAY'::text) RETURNS jsonb`.
+   - Configured with `SECURITY DEFINER`, `SET search_path TO 'public'`, and authorized to role `authenticated`.
+   - Security Guard: Enforces `public.i_have_full_access() OR public.get_my_role_level() >= 90`.
+2. **6-Role Sequence Simulation**:
+   - **Head Admin** (`role_level >= 90`): Authorizes headcount quotas and initializes vacancy `vcode`.
+   - **Encoder** (`role_level 30`): Allocates plantilla slot and tests slot vacancy transitions.
+   - **Recruitment** (`role_level 20`): Inserts applicant and updates status to `Screening`.
+   - **HRCO / Operations** (`role_level 45/70`): Simulates candidate endorsement and onboarding confirmation (`Confirmed Onboard`).
+   - **HR Personnel** (`role_level 25`): Allocates HR Emploc entry, assigns employee number, and verifies unique constraint indexing.
+   - **Back Office** (`role_level 15`): Simulates plantilla movement remarks and executes a negative permission barrier test (attempts unauthorized Head Admin action to verify RLS rejection).
+3. **Scenario Dispatching**:
+   - Supports `VAC_ARCHIVE_001` (Vacancy archival isolation & active query exclusion).
+   - Supports `PLANTILLA_001` (Plantilla slot allocation & status transition).
+   - Supports `HR_EMPLOC_001` (HR Emploc unique index & collision detection).
+   - Supports `CENCOM_001` (CENCOM quota & edit lock verification).
+   - Supports `AUTH_MATRIX_001` (Authorization matrix hierarchy drift audit).
+   - Supports `FULL_E2E_RELAY` (Full 6-role workflow relay simulation).
+4. **Zero-Pollution Subtransaction Rollback**:
+   - Caches original caller JWT claims at start and restores them unconditionally upon exit.
+   - Wraps all mutation steps in an atomic subtransaction terminated with `RAISE EXCEPTION 'QA_SANDBOX_ROLLBACK_SUCCESS'`.
+   - Catches controlled rollback exception, guaranteeing 0 production records are persisted or polluted in business tables.
+5. **Telemetry Persistence**:
+   - Run start logged via `public.qa_start_detection_run` (`public.qa_agent_runs`).
+   - Failures and permission barrier leaks logged via `public.qa_log_detection_finding` (`public.qa_agent_findings`).
+   - Run completion and summary recorded via `public.qa_complete_detection_run`.
+   - Returns structured JSON payload with execution trace, pass/fail status, and finding counts.
+
+---
+
 ## Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports to Web (ohm#r7b9w2k1)
 
 **Status: COMPLETE — CLIENT-SIDE 1:1 MOBILE PARITY, MAIN BRANCH**

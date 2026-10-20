@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { Suspense, useCallback, useMemo, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -32,7 +32,6 @@ import {
 import { useCurrentUser } from "@/lib/auth";
 import {
   getRoleLevel,
-  hasFullAccess,
   isOwner,
   normalizeRole,
   AppRole,
@@ -69,6 +68,7 @@ import { AuditLogsModal } from "@/components/more/AuditLogsModal";
 // ============================================================================
 
 export type MoreTabKey = "overview" | "admin_tools" | "permissions" | "audit" | "data_control";
+export type DataControlSubTab = "operations" | "batch_imports";
 
 export interface MoreFeatureTile {
   id: string;
@@ -184,30 +184,6 @@ function MorePageContent() {
   );
 
 
-  // Tab State with URL query synchronization
-  const rawTab = searchParams.get("tab");
-  const initialTab: MoreTabKey =
-    rawTab === "admin_tools" ||
-    rawTab === "permissions" ||
-    rawTab === "audit" ||
-    rawTab === "data_control"
-      ? rawTab
-      : "overview";
-
-  const [activeTab, setActiveTab] = useState<MoreTabKey>(initialTab);
-
-  const handleTabChange = (tab: MoreTabKey) => {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "overview") {
-      params.delete("tab");
-    } else {
-      params.set("tab", tab);
-    }
-    const query = params.toString();
-    router.replace(query ? `/more?${query}` : "/more", { scroll: false });
-  };
-
   // Derive Normalized Role & Levels using unified rbac gatekeeper
   const roleName = currentUser?.roleName ?? currentUser?.roleKey ?? "Viewer";
   const role = normalizeRole(roleName);
@@ -236,15 +212,44 @@ function MorePageContent() {
     });
   }, [isSuperAdmin, isHeadAdmin, isEncoder]);
 
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.key === activeTab)) {
-      setActiveTab("overview");
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("tab");
-      const query = params.toString();
-      router.replace(query ? `/more?${query}` : "/more", { scroll: false });
+  // Tab State derived from URL query synchronization & permissions
+  const rawTab = searchParams.get("tab") as MoreTabKey | null;
+  const activeTab: MoreTabKey = useMemo(() => {
+    if (rawTab && visibleTabs.some((t) => t.key === rawTab)) {
+      return rawTab;
     }
-  }, [activeTab, visibleTabs, searchParams, router]);
+    return "overview";
+  }, [rawTab, visibleTabs]);
+
+  // Data Control Sub-Tab State derived from URL query synchronization
+  const rawSubTab = searchParams.get("subtab");
+  const dataControlSubTab: DataControlSubTab =
+    rawSubTab === "batch_imports" ? "batch_imports" : "operations";
+
+  const handleTabChange = (tab: MoreTabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    if (tab !== "data_control") {
+      params.delete("subtab");
+    }
+    const query = params.toString();
+    router.replace(query ? `/more?${query}` : "/more", { scroll: false });
+  };
+
+  const handleSubTabChange = (subtab: DataControlSubTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (subtab === "operations") {
+      params.delete("subtab");
+    } else {
+      params.set("subtab", subtab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/more?${query}` : "/more", { scroll: false });
+  };
 
   // Sign out handler
   const handleLogout = useCallback(async () => {
@@ -482,18 +487,9 @@ function MorePageContent() {
     []
   );
 
-  // ── Tab 5: Data Control (Parity with Mobile Data Control) ─────────────────
-  const dataControlTiles: MoreFeatureTile[] = useMemo(
+  // ── Tab 5: Data Control (Split: Operations & Governance + Batch Imports) ─
+  const operationsTiles: MoreFeatureTile[] = useMemo(
     () => [
-      {
-        id: "import_hr_emploc",
-        title: "Import HR Emploc",
-        description: "Bulk upload HR Emploc records via XLSX with HA/SA approval",
-        icon: Upload,
-        href: "/hr-emploc/import",
-        badgeLabel: "EXCEL",
-        badgeVariant: "emerald",
-      },
       {
         id: "edit_lock_control",
         title: "Edit Lock Control",
@@ -533,6 +529,30 @@ function MorePageContent() {
         badgeVariant: "blue",
       },
       {
+        id: "payroll_review_center",
+        title: "Payroll Review Center",
+        description: "Verify and approve payroll reconciliations and variance discrepancies",
+        icon: FileText,
+        onClick: () => setPayrollReviewCenterOpen(true),
+        badgeLabel: "REVIEWS",
+        badgeVariant: "purple",
+      },
+    ],
+    []
+  );
+
+  const batchImportTiles: MoreFeatureTile[] = useMemo(
+    () => [
+      {
+        id: "import_hr_emploc",
+        title: "Import HR Emploc",
+        description: "Bulk upload HR Emploc records via XLSX with HA/SA approval",
+        icon: Upload,
+        href: "/hr-emploc/import",
+        badgeLabel: "EXCEL",
+        badgeVariant: "emerald",
+      },
+      {
         id: "import_plantilla",
         title: "Import Plantilla",
         description: "Bulk master plantilla baseline ingestion (CSV/XLSX parser staging)",
@@ -568,15 +588,6 @@ function MorePageContent() {
         badgeLabel: "CHECKER",
         badgeVariant: "purple",
       },
-      {
-        id: "payroll_review_center",
-        title: "Payroll Review Center",
-        description: "Verify and approve payroll reconciliations and variance discrepancies",
-        icon: FileText,
-        onClick: () => setPayrollReviewCenterOpen(true),
-        badgeLabel: "REVIEWS",
-        badgeVariant: "purple",
-      },
     ],
     []
   );
@@ -593,24 +604,34 @@ function MorePageContent() {
     return auditTiles.filter((t) => isSuperAdmin && (!t.minRoleLevel || roleLevel >= t.minRoleLevel));
   }, [auditTiles, isSuperAdmin, roleLevel]);
 
-  const visibleDataControlTiles = useMemo(() => {
-    return dataControlTiles.filter((tile) => {
+  const visibleOperationsTiles = useMemo(() => {
+    return operationsTiles.filter((tile) => {
       if (tile.minRoleLevel && roleLevel < tile.minRoleLevel) return false;
       if (tile.id === "payroll_review_center") {
         return isHeadAdmin || isEncoder || isOperationsManager;
       }
+      if (tile.id === "roving_coverage_groups") {
+        return isHeadAdmin || isEncoder;
+      }
+      return isHeadAdmin;
+    });
+  }, [operationsTiles, roleLevel, isHeadAdmin, isEncoder, isOperationsManager]);
+
+  const visibleBatchImportTiles = useMemo(() => {
+    return batchImportTiles.filter((tile) => {
+      if (tile.minRoleLevel && roleLevel < tile.minRoleLevel) return false;
       if (
         tile.id === "import_hr_emploc" ||
         tile.id === "import_plantilla" ||
         tile.id === "import_vacancy" ||
         tile.id === "import_mika" ||
-        tile.id === "roving_coverage_groups"
+        tile.id === "import_payroll"
       ) {
         return isHeadAdmin || isEncoder;
       }
       return isHeadAdmin;
     });
-  }, [dataControlTiles, roleLevel, isHeadAdmin, isEncoder, isOperationsManager]);
+  }, [batchImportTiles, roleLevel, isHeadAdmin, isEncoder]);
 
   return (
     <div className="space-y-6">
@@ -868,7 +889,8 @@ function MorePageContent() {
 
         {/* Tab 5: Data Control */}
         {activeTab === "data_control" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Main Header / Description */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
@@ -880,10 +902,79 @@ function MorePageContent() {
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visibleDataControlTiles.map((tile) => (
-                <TileCard key={tile.id} tile={tile} />
-              ))}
+
+            {/* Secondary Pill-Style Sub-Tab Navigation Bar */}
+            <div className="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 gap-1 self-start">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dataControlSubTab === "operations"}
+                onClick={() => handleSubTabChange("operations")}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dataControlSubTab === "operations"
+                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+                <span>Operations & Governance</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    dataControlSubTab === "operations"
+                      ? "bg-slate-100 text-slate-900"
+                      : "bg-slate-200/70 text-slate-600"
+                  }`}
+                >
+                  {visibleOperationsTiles.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dataControlSubTab === "batch_imports"}
+                onClick={() => handleSubTabChange("batch_imports")}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dataControlSubTab === "batch_imports"
+                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent"
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <span>Batch Imports</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    dataControlSubTab === "batch_imports"
+                      ? "bg-slate-100 text-slate-900"
+                      : "bg-slate-200/70 text-slate-600"
+                  }`}
+                >
+                  {visibleBatchImportTiles.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Card Grid with smooth transitions */}
+            <div className="pt-1 transition-all duration-200 ease-in-out">
+              {dataControlSubTab === "operations" ? (
+                <div
+                  key="operations-grid"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in-50 duration-200"
+                >
+                  {visibleOperationsTiles.map((tile) => (
+                    <TileCard key={tile.id} tile={tile} />
+                  ))}
+                </div>
+              ) : (
+                <div
+                  key="batch-imports-grid"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in-50 duration-200"
+                >
+                  {visibleBatchImportTiles.map((tile) => (
+                    <TileCard key={tile.id} tile={tile} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

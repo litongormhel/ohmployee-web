@@ -195,7 +195,7 @@ Visibility must be resolved from existing Mobile RBAC semantics and backend-prov
 | Notifications | `/notifications` | Visible when backend exposes Notifications capability. | User/profile scope | Delivery/read state remains backend-owned. |
 | Reports | `/reports` | Visible when backend exposes Reports capability. | Group/account/report scope | Export/report access must be enforced server-side. |
 | Settings | `/settings` | Visible when backend exposes Settings capability. | Account/admin scope | Configuration mutations require backend authority. |
-| More | `/more` | Visible when at least one overflow module is visible or the shell needs an overflow landing. | Derived from visible module set | Should not reveal hidden modules. |
+| More | `/more` | Visible when at least one overflow module is visible or the shell needs an overflow landing. Data Control (`tab=data_control`) organizes tools into `Operations & Governance` and `Batch Imports` sub-tabs with URL sync (`subtab=batch_imports`). | Derived from visible module set | Should not reveal hidden modules. |
 
 ## Implementation Phases
 
@@ -266,3 +266,24 @@ Validation:
 - Verify authenticated active users receive only their own context.
 - Verify unauthenticated, missing-profile, inactive, disabled, and unauthorized-web cases fail closed.
 - Update `docs/state/web_auth_rbac_state.md`, `docs/state/web_foundation_state.md`, `.ai/handoff.md`, and `.ai/current_state.md` with the final RPC/view names and status semantics after implementation.
+
+---
+
+## QA Center & 6-Role Workflow Relay Contract
+
+### `public.qa_run_scenario(p_scenario_code text)`
+- **Purpose**: Executes automated QA role workflow scenarios (`VAC_ARCHIVE_001`, `PLANTILLA_001`, `HR_EMPLOC_001`, `CENCOM_001`, `AUTH_MATRIX_001`, `FULL_E2E_RELAY`) in an isolated sandbox with zero production data commitment.
+- **Security & Authorization Guard**:
+  - `SECURITY DEFINER`, `search_path = public`.
+  - Enforces `public.i_have_full_access() OR public.get_my_role_level() >= 90`. Non-admin callers are strictly rejected with an exception.
+- **Rollback Sandbox Pattern**:
+  - Entire simulation sequence executes inside a PL/pgSQL subtransaction terminated with `RAISE EXCEPTION 'QA_SANDBOX_ROLLBACK_SUCCESS'`.
+  - Guarantees 100% rollback of test entities across `vacancies`, `plantilla`, `applicants`, and `hr_emploc`.
+- **Role Impersonation & Negative Barrier Verification**:
+  - Impersonates contexts for all 6 roles (Head Admin, Encoder, Recruitment, HRCO/Ops, HR Personnel, Back Office) via `request.jwt.claims`.
+  - Caches caller's original JWT claims and restores them unconditionally upon function exit.
+  - Negative barrier probe: verifies that Back Office role cannot execute Head Admin actions; unauthorized leaks trigger critical severity findings.
+- **Telemetry Persistence**:
+  - Runs registered in `public.qa_agent_runs` (`qa_start_detection_run`, `qa_complete_detection_run`).
+  - Findings persisted in `public.qa_agent_findings` (`qa_log_detection_finding`).
+

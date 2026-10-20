@@ -571,6 +571,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Account Selector UI:** Multi-account or broad-access users are presented with a selection dashboard displaying a grid of account cards showing placement status counts (Active, Transfer, Separation, Suspended) aggregated via `get_plantilla_account_status_counts` RPC.
   - **Back Navigation:** Multi-account users can reset selection via a "← Back to Account Selection" button which clears the URL query parameter and filters.
 - All four `DataState` boundaries (loading, empty, access_denied, retryable error with retry callback) are active.
+- **Next.js `<Suspense>` & Canonical Auth Parity (ohm#p7f2a1b9):**
+  - Wrapped page export in `<Suspense fallback={<PlantillaSkeleton />}>` to avoid CSR bail-out freezes when reading `useSearchParams()`.
+  - Replaced ad-hoc `userContextQuery` with canonical `useCurrentUser()` from `@/lib/auth`, matching `/vacancy`, `/hr-emploc`, and `/approvals`.
+  - Removed fragile `isHydrated` latch and derived `viewMode` and `accountId` directly from `searchParams` / single-scoped context, eliminating cascading re-render loops and URL navigation race conditions.
 
 ### Phase 4: Detail Drawer ✅ COMPLETE
 - `src/components/plantilla/PlantillaDetailDrawer.tsx` is fully implemented.

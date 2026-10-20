@@ -79,6 +79,72 @@ export function useDataControlAccounts(groupId: string | null) {
 // 1. Plantilla Bulk Import Queries & Mutations
 // ============================================================================
 
+export interface RollbackReasonOption {
+  code: string;
+  label: string;
+}
+
+export const IMPORT_ROLLBACK_REASONS: RollbackReasonOption[] = [
+  { code: "wrong_batch", label: "Wrong batch imported" },
+  { code: "wrong_group_account", label: "Wrong Group/Account" },
+  { code: "wrong_vcode_list", label: "Wrong VCODE list" },
+  { code: "wrong_applicant_pipeline", label: "Wrong applicant pipeline data" },
+  { code: "duplicate_migration_correction", label: "Duplicate/migration correction" },
+  { code: "uploaded_by_mistake", label: "Uploaded by mistake" },
+  { code: "other", label: "Other" },
+];
+
+export function formatRollbackRemaining(seconds?: number | null): string {
+  const total = seconds ?? 0;
+  if (total <= 0) return "0h";
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  if (days > 0) return `${days}d ${hours}h`;
+  return `${hours}h`;
+}
+
+export function humanizeRollbackError(raw?: string | null): string {
+  if (!raw || !raw.trim()) return "Rollback operation could not be completed.";
+  const lower = raw.toLowerCase();
+  if (lower.includes("records modified after import approval")) {
+    return "Rollback blocked because imported records were modified after approval.";
+  }
+  if (lower.includes("rollback_window_expired")) {
+    return "Rollback window expired.";
+  }
+  if (lower.includes("already in progress") || lower.includes("lock")) {
+    return "Another rollback is already in progress. Please wait and retry.";
+  }
+  if (lower.includes("snapshot") || lower.includes("missing snapshot")) {
+    return "Allocation snapshot is missing. Rollback cannot restore previous state.";
+  }
+  if (lower.includes("dependency") || lower.includes("foreign key")) {
+    return "Rollback cannot continue due to dependent records.";
+  }
+  if (lower.includes("constraint") || lower.includes("violation")) {
+    return "Rollback cannot continue due to data integrity constraints.";
+  }
+  return raw.replace(/^Exception:\s*/, "");
+}
+
+export interface PlantillaImportRollbackHistory {
+  batchId: string;
+  rollbackStatus?: string;
+  rollbackReason?: string;
+  rollbackReasonCode?: string;
+  rollbackReasonNote?: string;
+  rollbackRequestedBy?: string;
+  rollbackRequestedByName?: string;
+  rollbackRequestedAt?: string;
+  rollbackApprovedBy?: string;
+  rollbackApprovedByName?: string;
+  rollbackApprovedAt?: string;
+  rollbackCompletedAt?: string;
+  rollbackErrorDetail?: string;
+  rolledBackBy?: string;
+  rolledBackAt?: string;
+}
+
 export interface PlantillaImportBatch {
   id: string;
   fileName: string;
@@ -89,11 +155,34 @@ export interface PlantillaImportBatch {
   uploadedRole?: string;
   uploadedAt?: string;
   approvedAt?: string;
+  approvedBy?: string;
   rejectionReason?: string;
+  rejectionReasonCode?: string;
+  rejectionReasonNote?: string;
   totalRows: number;
   validRows: number;
   blockedRows: number;
   flaggedRows: number;
+  // Two-step rollback & window fields
+  rollbackStatus?: string;
+  rollbackReason?: string;
+  rollbackReasonCode?: string;
+  rollbackReasonNote?: string;
+  rollbackRequestedBy?: string;
+  rollbackRequestedAt?: string;
+  rollbackApprovedBy?: string;
+  rollbackApprovedAt?: string;
+  rollbackCompletedAt?: string;
+  rollbackErrorDetail?: string;
+  rolledBackBy?: string;
+  rolledBackAt?: string;
+  rollbackWindowStartedAt?: string;
+  rollbackExpiresAt?: string;
+  rollbackRemainingSeconds?: number;
+  rollbackAllowed: boolean;
+  rollbackUiState?: string;
+  rollbackBlockReason?: string;
+  canEmergencyRollback: boolean;
 }
 
 export interface PlantillaImportPreviewRow {
@@ -126,11 +215,42 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     uploadedRole: row.uploaded_role ? String(row.uploaded_role) : undefined,
     uploadedAt: String(row.uploaded_at ?? row.created_at ?? ""),
     approvedAt: row.approved_at ? String(row.approved_at) : undefined,
+    approvedBy: row.approved_by_name ? String(row.approved_by_name) : row.approved_by ? String(row.approved_by) : undefined,
     rejectionReason: row.rejection_reason ? String(row.rejection_reason) : undefined,
+    rejectionReasonCode: row.rejection_reason_code ? String(row.rejection_reason_code) : undefined,
+    rejectionReasonNote: row.rejection_reason_note ? String(row.rejection_reason_note) : undefined,
     totalRows: Number(row.total_rows ?? 0),
     validRows: Number(row.valid_rows ?? 0),
     blockedRows: Number(row.blocked_rows ?? row.invalid_rows ?? 0),
     flaggedRows: Number(row.flagged_rows ?? 0),
+    // Rollback mapping
+    rollbackStatus: row.rollback_status ? String(row.rollback_status) : undefined,
+    rollbackReason: row.rollback_reason ? String(row.rollback_reason) : undefined,
+    rollbackReasonCode: row.rollback_reason_code ? String(row.rollback_reason_code) : undefined,
+    rollbackReasonNote: row.rollback_reason_note ? String(row.rollback_reason_note) : undefined,
+    rollbackRequestedBy: row.rollback_requested_by_name
+      ? String(row.rollback_requested_by_name)
+      : row.rollback_requested_by
+      ? String(row.rollback_requested_by)
+      : undefined,
+    rollbackRequestedAt: row.rollback_requested_at ? String(row.rollback_requested_at) : undefined,
+    rollbackApprovedBy: row.rollback_approved_by_name
+      ? String(row.rollback_approved_by_name)
+      : row.rollback_approved_by
+      ? String(row.rollback_approved_by)
+      : undefined,
+    rollbackApprovedAt: row.rollback_approved_at ? String(row.rollback_approved_at) : undefined,
+    rollbackCompletedAt: row.rollback_completed_at ? String(row.rollback_completed_at) : undefined,
+    rollbackErrorDetail: row.rollback_error_detail ? String(row.rollback_error_detail) : undefined,
+    rolledBackBy: row.rolled_back_by ? String(row.rolled_back_by) : undefined,
+    rolledBackAt: row.rolled_back_at ? String(row.rolled_back_at) : undefined,
+    rollbackWindowStartedAt: row.rollback_window_started_at ? String(row.rollback_window_started_at) : undefined,
+    rollbackExpiresAt: row.rollback_expires_at ? String(row.rollback_expires_at) : undefined,
+    rollbackRemainingSeconds: typeof row.rollback_remaining_seconds === "number" ? row.rollback_remaining_seconds : 0,
+    rollbackAllowed: row.rollback_allowed === true,
+    rollbackUiState: row.rollback_ui_state ? String(row.rollback_ui_state) : undefined,
+    rollbackBlockReason: row.rollback_block_reason ? String(row.rollback_block_reason) : undefined,
+    canEmergencyRollback: row.can_emergency_rollback === true,
   }));
 }
 
@@ -232,6 +352,80 @@ export async function rejectPlantillaImportBatch(params: {
   if (error) throw error;
 }
 
+export async function requestPlantillaImportRollback(params: {
+  batchId: string;
+  reasonCode: string;
+  reasonNote: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("request_plantilla_import_rollback", {
+    p_batch_id: params.batchId,
+    p_reason_code: params.reasonCode,
+    p_reason_note: params.reasonNote,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function approvePlantillaImportRollback(batchId: string): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("approve_plantilla_import_rollback", {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function emergencyRollbackPlantillaImport(params: {
+  batchId: string;
+  reason: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("emergency_rollback_plantilla_import", {
+    p_batch_id: params.batchId,
+    p_reason: params.reason,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function fetchPlantillaImportRollbackHistory(
+  batchId: string
+): Promise<PlantillaImportRollbackHistory | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_plantilla_import_rollback_history", {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const row = data[0] as Record<string, unknown>;
+  return {
+    batchId: String(row.batch_id ?? batchId),
+    rollbackStatus: row.rollback_status ? String(row.rollback_status) : undefined,
+    rollbackReason: row.rollback_reason ? String(row.rollback_reason) : undefined,
+    rollbackReasonCode: row.rollback_reason_code ? String(row.rollback_reason_code) : undefined,
+    rollbackReasonNote: row.rollback_reason_note ? String(row.rollback_reason_note) : undefined,
+    rollbackRequestedBy: row.rollback_requested_by ? String(row.rollback_requested_by) : undefined,
+    rollbackRequestedByName: row.rollback_requested_by_name ? String(row.rollback_requested_by_name) : undefined,
+    rollbackRequestedAt: row.rollback_requested_at ? String(row.rollback_requested_at) : undefined,
+    rollbackApprovedBy: row.rollback_approved_by ? String(row.rollback_approved_by) : undefined,
+    rollbackApprovedByName: row.rollback_approved_by_name ? String(row.rollback_approved_by_name) : undefined,
+    rollbackApprovedAt: row.rollback_approved_at ? String(row.rollback_approved_at) : undefined,
+    rollbackCompletedAt: row.rollback_completed_at ? String(row.rollback_completed_at) : undefined,
+    rollbackErrorDetail: row.rollback_error_detail ? String(row.rollback_error_detail) : undefined,
+    rolledBackBy: row.rolled_back_by ? String(row.rolled_back_by) : undefined,
+    rolledBackAt: row.rolled_back_at ? String(row.rolled_back_at) : undefined,
+  };
+}
+
+export function usePlantillaImportRollbackHistory(batchId: string | null) {
+  return useQuery({
+    queryKey: ["plantilla-import-rollback-history", batchId],
+    queryFn: () => (batchId ? fetchPlantillaImportRollbackHistory(batchId) : Promise.resolve(null)),
+    enabled: !!batchId,
+  });
+}
+
 export function usePlantillaImportBatches(status?: string) {
   return useQuery({
     queryKey: ["plantilla-import-batches", status],
@@ -251,6 +445,22 @@ export function usePlantillaImportRows(batchId: string | null) {
 // 2. Vacancy Bulk Import Queries & Mutations
 // ============================================================================
 
+export interface VacancyImportRollbackHistory {
+  batchId?: string;
+  status?: string;
+  reason?: string;
+  reasonCode?: string;
+  reasonNote?: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  completedAt?: string;
+  errorDetail?: string;
+  vacanciesCount?: number;
+  applicantsCount?: number;
+}
+
 export interface VacancyImportBatch {
   id: string;
   fileName: string;
@@ -260,10 +470,35 @@ export interface VacancyImportBatch {
   uploadedBy?: string;
   uploadedRole?: string;
   createdAt?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  rejectionReasonCode?: string;
+  rejectionReasonNote?: string;
   totalRows: number;
   validRows: number;
   blockedRows: number;
   flaggedRows: number;
+  // Two-step rollback & window fields
+  rollbackStatus?: string;
+  rollbackReason?: string;
+  rollbackReasonCode?: string;
+  rollbackReasonNote?: string;
+  rollbackRequestedBy?: string;
+  rollbackRequestedAt?: string;
+  rollbackApprovedBy?: string;
+  rollbackApprovedAt?: string;
+  rollbackCompletedAt?: string;
+  rollbackErrorDetail?: string;
+  rollbackVacanciesCount?: number;
+  rollbackApplicantsCount?: number;
+  rollbackWindowStartedAt?: string;
+  rollbackExpiresAt?: string;
+  rollbackRemainingSeconds?: number;
+  rollbackAllowed: boolean;
+  rollbackUiState?: string;
+  rollbackBlockReason?: string;
+  canEmergencyRollback: boolean;
 }
 
 export interface VacancyImportPreviewRow {
@@ -294,10 +529,43 @@ export async function fetchVacancyImportBatches(status?: string): Promise<Vacanc
     uploadedBy: String(row.uploader_name ?? row.uploaded_by ?? ""),
     uploadedRole: row.uploaded_role ? String(row.uploaded_role) : undefined,
     createdAt: String(row.created_at ?? row.uploaded_at ?? ""),
+    approvedAt: row.approved_at ? String(row.approved_at) : undefined,
+    approvedBy: row.approved_by_name ? String(row.approved_by_name) : row.approved_by ? String(row.approved_by) : undefined,
+    rejectionReason: row.rejection_reason ? String(row.rejection_reason) : undefined,
+    rejectionReasonCode: row.rejection_reason_code ? String(row.rejection_reason_code) : undefined,
+    rejectionReasonNote: row.rejection_reason_note ? String(row.rejection_reason_note) : undefined,
     totalRows: Number(row.total_rows ?? 0),
     validRows: Number(row.valid_rows ?? 0),
     blockedRows: Number(row.blocked_rows ?? row.invalid_rows ?? 0),
     flaggedRows: Number(row.flagged_rows ?? 0),
+    // Rollback mapping
+    rollbackStatus: row.rollback_status ? String(row.rollback_status) : undefined,
+    rollbackReason: row.rollback_reason ? String(row.rollback_reason) : undefined,
+    rollbackReasonCode: row.rollback_reason_code ? String(row.rollback_reason_code) : undefined,
+    rollbackReasonNote: row.rollback_reason_note ? String(row.rollback_reason_note) : undefined,
+    rollbackRequestedBy: row.rollback_requested_by_name
+      ? String(row.rollback_requested_by_name)
+      : row.rollback_requested_by
+      ? String(row.rollback_requested_by)
+      : undefined,
+    rollbackRequestedAt: row.rollback_requested_at ? String(row.rollback_requested_at) : undefined,
+    rollbackApprovedBy: row.rollback_approved_by_name
+      ? String(row.rollback_approved_by_name)
+      : row.rollback_approved_by
+      ? String(row.rollback_approved_by)
+      : undefined,
+    rollbackApprovedAt: row.rollback_approved_at ? String(row.rollback_approved_at) : undefined,
+    rollbackCompletedAt: row.rollback_completed_at ? String(row.rollback_completed_at) : undefined,
+    rollbackErrorDetail: row.rollback_error_detail ? String(row.rollback_error_detail) : undefined,
+    rollbackVacanciesCount: typeof row.rollback_vacancies_count === "number" ? row.rollback_vacancies_count : 0,
+    rollbackApplicantsCount: typeof row.rollback_applicants_count === "number" ? row.rollback_applicants_count : 0,
+    rollbackWindowStartedAt: row.rollback_window_started_at ? String(row.rollback_window_started_at) : undefined,
+    rollbackExpiresAt: row.rollback_expires_at ? String(row.rollback_expires_at) : undefined,
+    rollbackRemainingSeconds: typeof row.rollback_remaining_seconds === "number" ? row.rollback_remaining_seconds : 0,
+    rollbackAllowed: row.rollback_allowed === true,
+    rollbackUiState: row.rollback_ui_state ? String(row.rollback_ui_state) : undefined,
+    rollbackBlockReason: row.rollback_block_reason ? String(row.rollback_block_reason) : undefined,
+    canEmergencyRollback: row.can_emergency_rollback === true,
   }));
 }
 
@@ -372,6 +640,114 @@ export async function rejectVacancyImportBatch(params: {
     p_reason_note: params.reasonNote,
   });
   if (error) throw error;
+}
+
+export async function requestVacancyImportRollback(params: {
+  batchId: string;
+  reasonCode: string;
+  reasonNote: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("request_vacancy_import_rollback", {
+    p_batch_id: params.batchId,
+    p_reason_code: params.reasonCode,
+    p_reason_note: params.reasonNote,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function approveVacancyImportRollback(batchId: string): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("approve_vacancy_import_rollback", {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function emergencyRollbackVacancyImport(params: {
+  batchId: string;
+  reason: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("emergency_rollback_vacancy_import", {
+    p_batch_id: params.batchId,
+    p_reason: params.reason,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function fetchVacancyImportRollbackHistory(
+  batchId: string
+): Promise<VacancyImportRollbackHistory | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_vacancy_import_rollback_history", {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const row = data[0] as Record<string, unknown>;
+  return {
+    batchId: String(row.batch_id ?? batchId),
+    status: row.rollback_status ? String(row.rollback_status) : row.status ? String(row.status) : undefined,
+    reason: row.rollback_reason ? String(row.rollback_reason) : row.reason ? String(row.reason) : undefined,
+    reasonCode: row.rollback_reason_code ? String(row.rollback_reason_code) : row.reason_code ? String(row.reason_code) : undefined,
+    reasonNote: row.rollback_reason_note ? String(row.rollback_reason_note) : row.reason_note ? String(row.reason_note) : undefined,
+    requestedBy: row.rollback_requested_by_name
+      ? String(row.rollback_requested_by_name)
+      : row.rollback_requested_by
+      ? String(row.rollback_requested_by)
+      : row.requested_by
+      ? String(row.requested_by)
+      : undefined,
+    requestedAt: row.rollback_requested_at
+      ? String(row.rollback_requested_at)
+      : row.requested_at
+      ? String(row.requested_at)
+      : undefined,
+    approvedBy: row.rollback_approved_by_name
+      ? String(row.rollback_approved_by_name)
+      : row.rollback_approved_by
+      ? String(row.rollback_approved_by)
+      : row.approved_by
+      ? String(row.approved_by)
+      : undefined,
+    approvedAt: row.rollback_approved_at
+      ? String(row.rollback_approved_at)
+      : row.approved_at
+      ? String(row.approved_at)
+      : undefined,
+    completedAt: row.rollback_completed_at
+      ? String(row.rollback_completed_at)
+      : row.completed_at
+      ? String(row.completed_at)
+      : undefined,
+    errorDetail: row.rollback_error_detail
+      ? String(row.rollback_error_detail)
+      : row.error_detail
+      ? String(row.error_detail)
+      : undefined,
+    vacanciesCount: typeof row.rollback_vacancies_count === "number"
+      ? row.rollback_vacancies_count
+      : typeof row.vacancies_count === "number"
+      ? row.vacancies_count
+      : undefined,
+    applicantsCount: typeof row.rollback_applicants_count === "number"
+      ? row.rollback_applicants_count
+      : typeof row.applicants_count === "number"
+      ? row.applicants_count
+      : undefined,
+  };
+}
+
+export function useVacancyImportRollbackHistory(batchId: string | null) {
+  return useQuery({
+    queryKey: ["vacancy-import-rollback-history", batchId],
+    queryFn: () => (batchId ? fetchVacancyImportRollbackHistory(batchId) : Promise.resolve(null)),
+    enabled: !!batchId,
+  });
 }
 
 export function useVacancyImportBatches(status?: string) {

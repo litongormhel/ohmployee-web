@@ -26,10 +26,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#r7b9w2k1**: Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports (1:1 Mobile Parity)
-2. **ohm#v4c9prod**: Restore Staging Supabase Fallback for Vercel Deployment
-3. **ohm#3f8j5k2w**: Web parity check + AGENTS.md alignment
-4. **ohm#9c4t1w6e**: Wire Mandatory Workflow Rules (web)
-5. **ohm#w89p602f**: Complete Final Sidebar Parity — Port Temporary Permission Overrides to Web `/users` Management Hub
+1. **ohm#p7f2a1b9**: Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity
+2. **ohm#d4c8t2b1**: Data Control Sub-Tab Separation (Operations & Governance + Batch Imports)
+3. **ohm#q4r8s9x2**: Implement `qa_run_scenario` 6-Role AI Agent Workflow Relay Migration
+4. **ohm#r7b9w2k1**: Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports (1:1 Mobile Parity)
+5. **ohm#v4c9prod**: Restore Staging Supabase Fallback for Vercel Deployment
 
-> Older entries trimmed 2026-10-20 (`ohm#r7b9w2k1`) to keep this list to 5 — dropped `ohm#w89p602e` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-20 (`ohm#p7f2a1b9`) to keep this list to 5 — dropped `ohm#3f8j5k2w` and earlier entries — see git history for that and earlier entries in full.
