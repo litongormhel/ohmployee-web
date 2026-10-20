@@ -648,3 +648,19 @@ Validation:
 - **Onboarding Confirmation & HR Emploc Persistence**:
   - `MarkHiredModal` binds inputs directly to `lastName`, `firstName`, and `middleName`.
   - On submission, `middleName` is passed through `confirmApplicantOnboard` (`p_middle_name`) and `p_full_name`, persisting cleanly to `applicants` and `hr_emploc`.
+
+## Backout Archival Hardening, React Composite Keying & Column Schema Synchronization (ohm#b8k2w7x4)
+
+- **Backout Candidate Archival Guard**:
+  - `failBackoutApplicant` in `src/lib/queries/vacancy.ts` explicitly maintains `is_archived: false`. Dropped/failed applicants remain active records with terminal statuses (`Backout`, `Rejected`) to ensure they appear in the `Failed / Backout` tab queue and KPI counters.
+  - Removed `updates.is_archived = true` fallback in `updateApplicantPipeline`.
+  - `failBackoutApplicant` performs quota-aware vacancy status transition: only resets `vacancies.status = 'Open'` if remaining active pipeline candidates count is 0 AND confirmed onboard count is less than required headcount (`confirmedCount < requiredHc`). If quota is already filled (e.g. `BUN-GHQ-00014`), status transitions to `'Filled'` and is excluded from Open/Pipeline views.
+- **React Composite Keying on Table Rows**:
+  - `VacancyTable.tsx` keys rows using composite identifier `<tr key={`${row.id}-${row.applicantId ?? row.vcode}-${index}`}>`.
+  - Preserves `row.id` as the vacancy UUID for detail drawer compatibility (`getVacancyDetail`), while using `row.applicantId` to uniquely identify each backout row, preventing virtual DOM key collisions, row multiplication, and candidate overwriting.
+- **Strict Tab Scoping & Column Alignment**:
+  - `listVacancies` strictly clears all candidate and dropout metadata (`applicantId`, `applicantName`, `contactNumber`, `stageBadge`, `dropoutReason`, `dropoutDate`) on `currentTab === "open"`.
+  - `VacancyTable.tsx` enforces strict column parity matching `getTableColumns(status)`: exactly 8 columns for `open`/`hired`, exactly 10 columns for `closure`/`pipeline`/`failed_backout`, preventing table cell shifting.
+- **Clean Date Formatting**:
+  - `VacancyTable.tsx` implements `formatDropoutDate` rendering humanized dates (e.g. `Aug 11, 2026`) accompanied by a calendar icon matching Hired tab parity.
+

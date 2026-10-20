@@ -1488,7 +1488,12 @@ export async function listVacancies(params: VacancyListParams) {
           const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || null;
           const status = asString(d.status) || "Failed / Backout";
           const dropoutReason = asString(d.backout_reason) || status;
-          const dropoutDate = asString(d.backout_date ?? d.updated_at ?? d.created_at);
+          const rawDropoutDate = asString(d.backout_date ?? d.updated_at ?? d.created_at);
+          const dropoutDate = rawDropoutDate
+            ? rawDropoutDate.includes("T")
+              ? rawDropoutDate.split("T")[0]
+              : rawDropoutDate
+            : null;
 
           return {
             id: asString(vac?.id) ?? asString(d.id) ?? `failed-${idx}`,
@@ -1935,6 +1940,8 @@ export async function listVacancies(params: VacancyListParams) {
       r.applicantName = null;
       r.contactNumber = null;
       r.stageBadge = null;
+      r.dropoutReason = null;
+      r.dropoutDate = null;
     }
   }
 
@@ -2511,7 +2518,6 @@ export async function updateApplicantPipeline(
     if (params.opsRemarks !== undefined) updates.ops_remarks = params.opsRemarks;
     if (params.followUpDate !== undefined) updates.follow_up_date = params.followUpDate;
     if (params.newStatus === "backout" || params.newStatus === "Backout") {
-      updates.is_archived = true;
       updates.backout_date = new Date().toISOString().substring(0, 10);
     }
 
@@ -2649,7 +2655,7 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
       status: params.status,
       backout_reason: params.reason,
       backout_date: new Date().toISOString().substring(0, 10),
-      is_archived: true,
+      is_archived: false,
       updated_at: new Date().toISOString(),
     })
     .eq("id", params.applicantId);
@@ -2670,22 +2676,62 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
     // Non-fatal if history logging fails
   }
 
-  // If this vacancy now has 0 remaining active pipeline candidates, return vacancy status to 'Open'
-  const { data: remainingActive } = await supabase
-    .from("applicants")
-    .select("id")
-    .eq("vacancy_vcode", params.vcode)
-    .or("is_archived.is.null,is_archived.eq.false")
-    .neq("id", params.applicantId);
-
-  if (!remainingActive || remainingActive.length === 0) {
-    await supabase
+  // If this vacancy now has 0 remaining active pipeline candidates, check if required quota is still unfilled before returning to 'Open'
+  try {
+    const { data: vac } = await supabase
       .from("vacancies")
-      .update({
-        status: "Open",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("vcode", params.vcode);
+      .select("id, required_headcount, status")
+      .eq("vcode", params.vcode)
+      .maybeSingle();
+
+    if (vac) {
+      const { data: activeApps } = await supabase
+        .from("applicants")
+        .select("id, status")
+        .eq("vacancy_vcode", params.vcode)
+        .or("is_archived.is.null,is_archived.eq.false")
+        .neq("id", params.applicantId);
+
+      const activeList = activeApps ?? [];
+      const confirmedCount = activeList.filter(
+        (a) => (a.status || "").toLowerCase().trim() === "confirmed onboard",
+      ).length;
+      const pipelineCount = activeList.filter((a) => {
+        const s = (a.status || "").toLowerCase().trim();
+        return (
+          s !== "backout" &&
+          s !== "failed" &&
+          s !== "rejected" &&
+          s !== "did not report" &&
+          s !== "rejected by ops" &&
+          s !== "confirmed onboard"
+        );
+      }).length;
+
+      const requiredHc = Number(vac.required_headcount ?? 1) || 1;
+
+      if (pipelineCount === 0) {
+        if (confirmedCount < requiredHc) {
+          await supabase
+            .from("vacancies")
+            .update({
+              status: "Open",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("vcode", params.vcode);
+        } else {
+          await supabase
+            .from("vacancies")
+            .update({
+              status: "Filled",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("vcode", params.vcode);
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if status check fails
   }
 
   return { success: true };

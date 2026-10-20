@@ -211,6 +211,30 @@ function formatOnboardDate(value: string | null | undefined): string {
   }).format(date);
 }
 
+function formatDropoutDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const parts = value.split("T")[0].split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    if (monthIndex >= 0 && monthIndex < 12 && !Number.isNaN(day) && !Number.isNaN(year)) {
+      return `${months[monthIndex]} ${day}, ${year}`;
+    }
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
 export function VacancyTable({
   status,
   statusDescription = status,
@@ -323,7 +347,7 @@ export function VacancyTable({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => {
+              rows.map((row, index) => {
                 const statusKey = (row.derivedStatus ?? row.vacancyStatus ?? "").toLowerCase();
                 return (
                   <tr
@@ -332,7 +356,7 @@ export function VacancyTable({
                     } ${
                       selectedId === row.id ? "bg-table-row-selected" : "hover:bg-table-row-hover"
                     }`}
-                    key={row.id}
+                    key={`${row.id}-${row.applicantId ?? row.vcode}-${index}`}
                     onClick={() => {
                       if (row.rowCapabilities.canViewDetail) {
                         onSelect(row);
@@ -483,8 +507,9 @@ export function VacancyTable({
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {row.dropoutDate && (
-                                    <span className="text-[11px] text-table-text-muted font-mono">
-                                      {row.dropoutDate}
+                                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
+                                      <Calendar className="h-3 w-3 shrink-0 text-table-text-muted" aria-hidden="true" />
+                                      <span>{formatDropoutDate(row.dropoutDate)}</span>
                                     </span>
                                   )}
                                 </div>

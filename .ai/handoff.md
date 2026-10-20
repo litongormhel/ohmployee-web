@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Fix Backout Row Leakage, Duplication, and Candidate Overwrite Across Vacancy Tabs (ohm#b8k2w7x4)
+
+**Status: COMPLETE — BACKOUT APPLICANT ARCHIVAL GUARD, REACT COMPOSITE KEYING & COLUMN SCHEMA SYNCHRONIZATION APPLIED, MAIN BRANCH**
+
+### Objective
+Audited and resolved the regression where tagging a candidate as Backout (e.g. `MAX VERSTAPPEN`) caused:
+1. Requisition `BUN-GHQ-00014` (`DQWF, WEDFWE EFE`, status `Backout`, action `Reopen`) to leak into every tab (`Open`, `Pipeline`, `Hired`, `Closure`) with misaligned table columns (pushing cells into unaligned columns).
+2. The candidate `MAX VERSTAPPEN` to be missing/overwritten in `Failed / Backout` tab, and `DQWF, WEDFWE EFE` to be duplicated 3 times due to React key collision.
+3. Raw unformatted ISO timestamp strings (`2026-08-11T07:56:51.33335+00:00`) rendered in the applicant subtitle.
+
+---
+
+### Key Implementations
+1. **Applicant Backout Archival Hardening (`src/lib/queries/vacancy.ts`)**:
+   - In `failBackoutApplicant`, removed `is_archived: true` (set `is_archived: false`). Dropped candidates must remain active records in `applicants` with terminal status (`Backout`/`Rejected`) so they appear in `Failed / Backout` and summary counters.
+   - Removed `updates.is_archived = true` fallback in `updateApplicantPipeline`.
+   - In `failBackoutApplicant`, replaced blind `status = 'Open'` reset with a quota-aware transition: only transitions vacancy to `'Open'` if unfilled slots remain (`confirmedCount < requiredHc`). If confirmed hires already satisfy the required headcount (e.g. `BUN-GHQ-00014` with 3/3 confirmed onboard), sets status to `'Filled'`.
+   - Restored database state for `MAX VERSTAPPEN` (`is_archived = false`) and `BUN-GHQ-00014` (`status = 'Filled'`).
+2. **React Key Collision & Candidate Identity Preservation (`src/components/vacancy/VacancyTable.tsx`)**:
+   - Preserved `row.id` as the vacancy UUID for seamless drawer compatibility (`getVacancyDetail`).
+   - Ensured `row.applicantId` is strictly bound to `d.id` on all dropout rows.
+   - Changed row React key in `VacancyTable.tsx` from `key={row.id}` to composite key `<tr key={`${row.id}-${row.applicantId ?? row.vcode}-${index}`}>`, eliminating virtual DOM key collisions, row multiplication, and candidate overwriting.
+3. **Strict Tab Scoping & Column Alignment (`src/lib/queries/vacancy.ts` & `src/components/vacancy/VacancyTable.tsx`)**:
+   - In `listVacancies`, enforced strict tab scoping so dropout fields (`dropoutReason`, `dropoutDate`, `applicantId`, `applicantName`, `contactNumber`, `stageBadge`) are explicitly reset on `currentTab === "open"`.
+   - In `VacancyTable.tsx`, verified that row rendering strictly matches the active tab's header column count (8 columns for `open`/`hired`, 10 columns for `closure`/`pipeline`/`failed_backout`), preventing cell shifting.
+4. **Clean Dropout Date Formatting (`src/components/vacancy/VacancyTable.tsx` & `src/lib/queries/vacancy.ts`)**:
+   - Sanitized `dropoutDate` in `listVacancies` to date string.
+   - Added `formatDropoutDate` helper in `VacancyTable.tsx` rendering humanized dates (e.g. `Aug 11, 2026`, `Oct 20, 2026`) accompanied by calendar icon matching `Hired` tab parity.
+5. **Cleaned Up Scratch Files**:
+   - Removed all temporary scratch test scripts.
+6. **Verification**:
+   - `npm run lint` clean (0 errors, 22 pre-existing warnings).
+   - `npm run build` (Next.js 16 production build with full TypeScript checking) compiled 19/19 routes with 0 errors.
+
+---
+
 ## Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow) (ohm#n7f3w9k2)
 
 **Status: COMPLETE — DISCRETE NAME FIELDS PERSISTED AND BOUND ACROSS VACANCY ENDORSE -> ONBOARDING FLOW, WITH HARDENED FALLBACK PARSER, MAIN BRANCH**

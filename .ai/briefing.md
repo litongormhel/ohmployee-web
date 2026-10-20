@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#n7f3w9k2**: Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow)
-2. **ohm#m5d8v2x4**: Plantilla Import Audit & Review Queue / Error Log Parity
-3. **ohm#a8b3p9g1**: Approvals Module Pagination & Table Controls (Vacancy Parity)
-4. **ohm#2k9w4t7e**: Add local auto-commit rule (web)
-5. **ohm#p7f2a1b9**: Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity
+1. **ohm#b8k2w7x4**: Fix Backout Row Leakage, Duplication, and Candidate Overwrite Across Vacancy Tabs
+2. **ohm#n7f3w9k2**: Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow)
+3. **ohm#m5d8v2x4**: Plantilla Import Audit & Review Queue / Error Log Parity
+4. **ohm#a8b3p9g1**: Approvals Module Pagination & Table Controls (Vacancy Parity)
+5. **ohm#2k9w4t7e**: Add local auto-commit rule (web)
 
-> Older entries trimmed 2026-10-20 (`ohm#n7f3w9k2`) to keep this list to 5 — dropped `ohm#d4c8t2b1` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-20 (`ohm#b8k2w7x4`) to keep this list to 5 — dropped `ohm#p7f2a1b9` and earlier entries — see git history for that and earlier entries in full.
