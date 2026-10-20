@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Calendar,
@@ -10,6 +10,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveRelieverCoverage,
   useRejectRelieverCoverage,
@@ -21,6 +22,11 @@ import { useCurrentUser } from "@/lib/auth";
 interface RelieverDataTableProps {
   requests: RelieverEndorsementItem[];
   tab: ApprovalStatusTab;
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -36,7 +42,24 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
+export function RelieverDataTable({
+  requests,
+  tab,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
+}: RelieverDataTableProps) {
+  const currentPage = page ?? 1;
+  const currentPageSize = pageSize ?? 10;
+  const count = totalCount ?? requests.length;
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return requests.slice(start, start + currentPageSize);
+  }, [requests, currentPage, currentPageSize]);
+
   const currentUser = useCurrentUser();
   const roleKey = currentUser?.roleKey?.toLowerCase() || "";
   const roleName = currentUser?.roleName?.toLowerCase() || "";
@@ -74,13 +97,23 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
   const approveMutation = useApproveRelieverCoverage();
   const rejectMutation = useRejectRelieverCoverage();
 
-  const isAllSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const isAllSelected =
+    paginatedRequests.length > 0 &&
+    paginatedRequests.every((r) => selectedIds.has(r.requestId));
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.delete(r.requestId));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(requests.map((r) => r.requestId)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.add(r.requestId));
+        return next;
+      });
     }
   };
 
@@ -372,7 +405,7 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {requests.map((request) => {
+              {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
                   tab === "pending" ||
@@ -533,6 +566,17 @@ export function RelieverDataTable({ requests, tab }: RelieverDataTableProps) {
             </tbody>
         </table>
       </div>
+
+      {onPageChange && (
+        <TablePagination
+          page={currentPage}
+          pageSize={currentPageSize}
+          totalCount={count}
+          pageSizeOptions={[10, 25, 50]}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+        />
+      )}
     </div>
 
       {/* Approve Modal */}

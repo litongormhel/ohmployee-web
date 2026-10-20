@@ -238,6 +238,10 @@ export function ActiveQueueReviewPane({
   const [plantillaSearchQuery, setPlantillaSearchQuery] = useState("");
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
 
+  // ── Unified Pagination State (Vacancy Parity) ───────────────────────────
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   // ── Queries & Live Counts ───────────────────────────────────────────────
   // 1. Headcount
   const {
@@ -638,10 +642,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={newStoreSearchQuery}
-          onSearchChange={setNewStoreSearchQuery}
+          onSearchChange={(val) => {
+            setNewStoreSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search store, account, city, province, requester..."
           currentTab={newStoreTab}
-          onTabChange={setNewStoreTab}
+          onTabChange={(tab) => {
+            setNewStoreTab(tab);
+            setPage(1);
+          }}
           counts={newStoreCounts}
           isCountsLoading={isNewStoreCountsLoading}
           isCountsError={isNewStoreCountsError}
@@ -691,6 +701,14 @@ export function ActiveQueueReviewPane({
             <NewStoreDataTable
               requests={filteredNewStoreRequests}
               tab={newStoreTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredNewStoreRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -709,10 +727,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={vacancyClosureSearchQuery}
-          onSearchChange={setVacancyClosureSearchQuery}
+          onSearchChange={(val) => {
+            setVacancyClosureSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search VCode, store, position, requester..."
           currentTab={vacancyClosureTab}
-          onTabChange={setVacancyClosureTab}
+          onTabChange={(tab) => {
+            setVacancyClosureTab(tab);
+            setPage(1);
+          }}
           counts={closureCounts}
           isCountsLoading={isClosureCountsLoading}
           isCountsError={isClosureCountsError}
@@ -762,6 +786,14 @@ export function ActiveQueueReviewPane({
             <VacancyClosureDataTable
               requests={filteredClosureRequests}
               tab={vacancyClosureTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredClosureRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -780,10 +812,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={deletionSearchQuery}
-          onSearchChange={setDeletionSearchQuery}
+          onSearchChange={(val) => {
+            setDeletionSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search employee, VCode, store, requester..."
           currentTab={hrEmplocTab}
-          onTabChange={setHrEmplocTab}
+          onTabChange={(tab) => {
+            setHrEmplocTab(tab);
+            setPage(1);
+          }}
           counts={deletionCounts}
           isCountsLoading={isDeletionCountsLoading}
           isCountsError={isDeletionCountsError}
@@ -833,6 +871,14 @@ export function ActiveQueueReviewPane({
             <HrEmplocDeletionDataTable
               requests={filteredDeletionRequests}
               tab={hrEmplocTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredDeletionRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -851,10 +897,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={(val) => {
+            setSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search store, VCode, position, requester..."
           currentTab={headcountTab}
-          onTabChange={setHeadcountTab}
+          onTabChange={(tab) => {
+            setHeadcountTab(tab);
+            setPage(1);
+          }}
           counts={headcountCounts}
           isCountsLoading={isHeadcountCountsLoading}
           isCountsError={isHeadcountCountsError}
@@ -904,6 +956,14 @@ export function ActiveQueueReviewPane({
             <HeadcountDataTable
               requests={filteredRequests}
               tab={headcountTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -922,10 +982,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={plantillaSearchQuery}
-          onSearchChange={setPlantillaSearchQuery}
+          onSearchChange={(val) => {
+            setPlantillaSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search candidate, VCode, account, position, requester..."
           currentTab={plantillaTab}
-          onTabChange={setPlantillaTab}
+          onTabChange={(tab) => {
+            setPlantillaTab(tab);
+            setPage(1);
+          }}
           counts={plantillaCounts}
           isCountsLoading={isPlantillaCountsLoading}
           isCountsError={isPlantillaCountsError}
@@ -975,6 +1041,14 @@ export function ActiveQueueReviewPane({
             <PlantillaApprovalDataTable
               requests={filteredPlantillaRequests}
               tab={plantillaTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredPlantillaRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -993,10 +1067,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar<AccountRequestStatus>
           searchQuery={accountSearchQuery}
-          onSearchChange={setAccountSearchQuery}
+          onSearchChange={(val) => {
+            setAccountSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search applicant, email, phone, requested role..."
           currentTab={accountTab}
-          onTabChange={setAccountTab}
+          onTabChange={(tab) => {
+            setAccountTab(tab);
+            setPage(1);
+          }}
           counts={accountCounts}
           isCountsLoading={isAccountCountsLoading}
           isCountsError={isAccountCountsError}
@@ -1046,6 +1126,14 @@ export function ActiveQueueReviewPane({
             <AccountRequestDataTable
               requests={filteredAccountRequests}
               tab={accountTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredAccountRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -1064,10 +1152,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={movementSearchQuery}
-          onSearchChange={setMovementSearchQuery}
+          onSearchChange={(val) => {
+            setMovementSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search applicant, VCode, store, requester..."
           currentTab={movementTab}
-          onTabChange={setMovementTab}
+          onTabChange={(tab) => {
+            setMovementTab(tab);
+            setPage(1);
+          }}
           counts={movementCounts}
           isCountsLoading={isMovementCountsLoading}
           isCountsError={isMovementCountsError}
@@ -1117,6 +1211,14 @@ export function ActiveQueueReviewPane({
             <ApplicantMovementDataTable
               requests={filteredMovementRequests}
               tab={movementTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredMovementRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -1135,10 +1237,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar<DeactivationStatusTab>
           searchQuery={deactivationSearchQuery}
-          onSearchChange={setDeactivationSearchQuery}
+          onSearchChange={(val) => {
+            setDeactivationSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search employee, ID, store, position, account..."
           currentTab={deactivationTab}
-          onTabChange={setDeactivationTab}
+          onTabChange={(tab) => {
+            setDeactivationTab(tab);
+            setPage(1);
+          }}
           counts={deactCounts}
           isCountsLoading={isDeactCountsLoading}
           isCountsError={isDeactCountsError}
@@ -1189,6 +1297,14 @@ export function ActiveQueueReviewPane({
             <DeactivationDataTable
               requests={filteredDeactivationRequests}
               tab={deactivationTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredDeactivationRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -1207,10 +1323,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={transferSearchQuery}
-          onSearchChange={setTransferSearchQuery}
+          onSearchChange={(val) => {
+            setTransferSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search account, group, AGT-#, requester..."
           currentTab={transferTab}
-          onTabChange={setTransferTab}
+          onTabChange={(tab) => {
+            setTransferTab(tab);
+            setPage(1);
+          }}
           counts={transferCounts}
           isCountsLoading={isTransferCountsLoading}
           isCountsError={isTransferCountsError}
@@ -1260,6 +1382,14 @@ export function ActiveQueueReviewPane({
             <AccountTransferDataTable
               requests={filteredTransferRequests}
               tab={transferTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredTransferRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -1278,10 +1408,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={rovingSearchQuery}
-          onSearchChange={setRovingSearchQuery}
+          onSearchChange={(val) => {
+            setRovingSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search group name, code, account, requester..."
           currentTab={coverageTab}
-          onTabChange={setCoverageTab}
+          onTabChange={(tab) => {
+            setCoverageTab(tab);
+            setPage(1);
+          }}
           counts={coverageCounts}
           isCountsLoading={isCoverageCountsLoading}
           isCountsError={isCoverageCountsError}
@@ -1331,6 +1467,14 @@ export function ActiveQueueReviewPane({
             <CoverageDataTable
               requests={filteredRovingRequests}
               tab={coverageTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredRovingRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>
@@ -1349,10 +1493,16 @@ export function ActiveQueueReviewPane({
       <div className="flex h-full flex-col">
         <QueueToolbar
           searchQuery={relieverSearchQuery}
-          onSearchChange={setRelieverSearchQuery}
+          onSearchChange={(val) => {
+            setRelieverSearchQuery(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search reliever name, ID, store, account, requester..."
           currentTab={relieverTab}
-          onTabChange={setRelieverTab}
+          onTabChange={(tab) => {
+            setRelieverTab(tab);
+            setPage(1);
+          }}
           counts={relieverCounts}
           isCountsLoading={isRelieverCountsLoading}
           isCountsError={isRelieverCountsError}
@@ -1402,6 +1552,14 @@ export function ActiveQueueReviewPane({
             <RelieverDataTable
               requests={filteredRelieverRequests}
               tab={relieverTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={filteredRelieverRequests.length}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
             />
           )}
         </div>

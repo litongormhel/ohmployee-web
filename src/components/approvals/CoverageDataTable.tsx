@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCheck,
@@ -9,6 +9,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveCoverageRequest,
   useRejectCoverageRequest,
@@ -19,6 +20,11 @@ import {
 interface CoverageDataTableProps {
   requests: CoverageGroupRequestItem[];
   tab: ApprovalStatusTab;
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -57,7 +63,24 @@ function humanizeRequestType(type: string): string {
   }
 }
 
-export function CoverageDataTable({ requests, tab }: CoverageDataTableProps) {
+export function CoverageDataTable({
+  requests,
+  tab,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
+}: CoverageDataTableProps) {
+  const currentPage = page ?? 1;
+  const currentPageSize = pageSize ?? 10;
+  const count = totalCount ?? requests.length;
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return requests.slice(start, start + currentPageSize);
+  }, [requests, currentPage, currentPageSize]);
+
   // Modal states for single actions
   const [selectedApproveRequest, setSelectedApproveRequest] =
     useState<CoverageGroupRequestItem | null>(null);
@@ -83,13 +106,22 @@ export function CoverageDataTable({ requests, tab }: CoverageDataTableProps) {
   const approveMutation = useApproveCoverageRequest();
   const rejectMutation = useRejectCoverageRequest();
 
-  const isAllSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const isAllSelected =
+    paginatedRequests.length > 0 && paginatedRequests.every((r) => selectedIds.has(r.id));
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.delete(r.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(requests.map((r) => r.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.add(r.id));
+        return next;
+      });
     }
   };
 
@@ -377,7 +409,7 @@ export function CoverageDataTable({ requests, tab }: CoverageDataTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {requests.map((request) => {
+              {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
                   tab === "pending" ||
@@ -507,6 +539,17 @@ export function CoverageDataTable({ requests, tab }: CoverageDataTableProps) {
             </tbody>
           </table>
         </div>
+
+        {onPageChange && (
+          <TablePagination
+            page={currentPage}
+            pageSize={currentPageSize}
+            totalCount={count}
+            pageSizeOptions={[10, 25, 50]}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
       </div>
 
       {/* Single Approve Modal */}

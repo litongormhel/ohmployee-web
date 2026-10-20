@@ -1262,7 +1262,8 @@ export type EmplocDeletionRequestItem = {
  * Fetches HR Emploc deletion requests joined with hr_emploc data, filtered by status tab.
  */
 export async function fetchEmplocDeletionRequests(
-  tab: "pending" | "approved" | "rejected" = "pending"
+  tab: "pending" | "approved" | "rejected" = "pending",
+  pagination?: { page?: number; limit?: number }
 ): Promise<EmplocDeletionRequestItem[]> {
   const supabase = createClient();
 
@@ -1302,7 +1303,15 @@ export async function fetchEmplocDeletionRequests(
     query = query.or("status.ilike.rejected,status.ilike.withdrawn");
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  let orderedQuery = query.order("created_at", { ascending: false });
+  if (pagination?.page && pagination?.limit) {
+    const page = Math.max(1, Math.trunc(pagination.page));
+    const limit = Math.max(1, Math.trunc(pagination.limit));
+    const offset = (page - 1) * limit;
+    orderedQuery = orderedQuery.range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await orderedQuery;
 
   if (error) {
     if (error.code === "42501") {
@@ -1417,11 +1426,12 @@ export async function rejectEmplocDeletion(
 
 
 export function useEmplocDeletionRequests(
-  tab: "pending" | "approved" | "rejected" = "pending"
+  tab: "pending" | "approved" | "rejected" = "pending",
+  pagination?: { page?: number; limit?: number }
 ) {
   return useQuery({
-    queryKey: ["emploc_deletion_requests", tab],
-    queryFn: () => fetchEmplocDeletionRequests(tab),
+    queryKey: ["emploc_deletion_requests", tab, pagination],
+    queryFn: () => fetchEmplocDeletionRequests(tab, pagination),
   });
 }
 

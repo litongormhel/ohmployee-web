@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Approvals Module Pagination & Table Controls (Vacancy Parity) (ohm#a8b3p9g1)
+
+**Status: COMPLETE — 1:1 VACANCY PAGINATION PARITY ACROSS ALL 11 APPROVAL QUEUES, MAIN BRANCH**
+
+### Objective
+Implemented pagination in the **Approvals module** (`/approvals`) matching the exact UI design, behavior, state management, and implementation pattern used in the **Vacancy module** (`/vacancy`).
+
+---
+
+### Key Changes
+1. **API / Query Layer**:
+   - Added `RequestPaginationParams` (`{ page?: number; limit?: number }`) and `applyPagination` helper in `src/lib/queries/requests.ts`.
+   - Updated `fetchHeadcountRequests`, `fetchNewStoreRequests`, `fetchVacancyClosureRequests`, `fetchApplicantMovementRequests`, `fetchDeactivationRequests`, `fetchAccountGroupTransfers`, `fetchRelieverEndorsements`, `fetchCoverageRequests`, and `fetchPlantillaApprovals` (plus corresponding hooks) to accept optional pagination options without breaking full-list client search.
+   - Updated `src/lib/queries/accountRequests.ts` (`fetchApprovalQueue`, `useAccountApprovalQueue`) and `src/lib/queries/hr_emploc.ts` (`fetchEmplocDeletionRequests`, `useEmplocDeletionRequests`) with optional pagination parameter support.
+2. **State Management & Dynamic Resets (`ActiveQueueReviewPane.tsx`)**:
+   - Centralized `page` (default `1`) and `pageSize` (default `10`) in `ActiveQueueReviewPane`.
+   - Configured `key={selectedCategory}` on `ActiveQueueReviewPane` in `src/app/(dashboard)/approvals/page.tsx` so changing sub-categories cleanly remounts the active review pane with fresh pagination state (`page: 1`).
+   - Attached `setPage(1)` to all `QueueToolbar` tab changes (`onTabChange`) and search queries (`onSearchChange`).
+   - Connected `onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }}` across all tables.
+3. **Approval DataTables (All 11 Sub-Categories)**:
+   - Updated props in:
+     - `NewStoreDataTable.tsx`
+     - `VacancyClosureDataTable.tsx`
+     - `HrEmplocDeletionDataTable.tsx`
+     - `HeadcountDataTable.tsx`
+     - `PlantillaApprovalDataTable.tsx`
+     - `AccountRequestDataTable.tsx`
+     - `ApplicantMovementDataTable.tsx`
+     - `DeactivationDataTable.tsx`
+     - `AccountTransferDataTable.tsx`
+     - `CoverageDataTable.tsx`
+     - `RelieverDataTable.tsx`
+   - Added `paginatedRequests` slicing `(page - 1) * pageSize` to `page * pageSize`.
+   - Updated `isAllSelected` and `toggleSelectAll` to operate cleanly on `paginatedRequests`.
+   - Embedded `<TablePagination>` directly at the bottom inside the table card (`border-t border-table-rule-section px-4 py-3`), displaying "Showing X–Y of Z records", "Rows per page: [10, 25, 50]", and page navigation controls identical to Vacancy.
+4. **Code Quality & Lint**:
+   - Cleaned up existing React 19 / Next.js ESLint warning in `approvals/page.tsx` (derived `selectedCategory` without synchronous `setState` in `useEffect`).
+   - `npm run lint` clean (0 errors).
+
+---
+
 ## Add Local Auto-Commit Step (No Push) to Mandatory Workflow Rules (ohm#2k9w4t7e)
 
 **Status: COMPLETE — DOCS-ONLY, LOCAL AUTO-COMMIT WORKFLOW RULE, MAIN BRANCH**

@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#2k9w4t7e**: Add local auto-commit rule (web)
-2. **ohm#p7f2a1b9**: Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity
-3. **ohm#d4c8t2b1**: Data Control Sub-Tab Separation (Operations & Governance + Batch Imports)
-4. **ohm#q4r8s9x2**: Implement `qa_run_scenario` 6-Role AI Agent Workflow Relay Migration
-5. **ohm#r7b9w2k1**: Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports (1:1 Mobile Parity)
+1. **ohm#a8b3p9g1**: Approvals Module Pagination & Table Controls (Vacancy Parity)
+2. **ohm#2k9w4t7e**: Add local auto-commit rule (web)
+3. **ohm#p7f2a1b9**: Fix Plantilla Module Permanent 'Rendering...' Freeze & Next.js CSR Suspense Parity
+4. **ohm#d4c8t2b1**: Data Control Sub-Tab Separation (Operations & Governance + Batch Imports)
+5. **ohm#q4r8s9x2**: Implement `qa_run_scenario` 6-Role AI Agent Workflow Relay Migration
 
-> Older entries trimmed 2026-10-20 (`ohm#2k9w4t7e`) to keep this list to 5 — dropped `ohm#v4c9prod` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-20 (`ohm#a8b3p9g1`) to keep this list to 5 — dropped `ohm#r7b9w2k1` and earlier entries — see git history for that and earlier entries in full.

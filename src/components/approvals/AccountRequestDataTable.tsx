@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Phone,
   RefreshCw,
 } from "lucide-react";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveAccountRequest,
   useRejectAccountRequest,
@@ -19,6 +20,11 @@ import { useRolesQuery, useGroupsQuery, useAccountsByGroupsQuery } from "@/lib/q
 interface AccountRequestDataTableProps {
   requests: AccountRequestItem[];
   tab: AccountRequestStatus;
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -39,7 +45,21 @@ function formatDate(dateStr: string | null): string {
 export function AccountRequestDataTable({
   requests,
   tab,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
 }: AccountRequestDataTableProps) {
+  const currentPage = page ?? 1;
+  const currentPageSize = pageSize ?? 10;
+  const count = totalCount ?? requests.length;
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return requests.slice(start, start + currentPageSize);
+  }, [requests, currentPage, currentPageSize]);
+
   // Modal states for single action
   const [selectedApproveRequest, setSelectedApproveRequest] =
     useState<AccountRequestItem | null>(null);
@@ -191,7 +211,7 @@ export function AccountRequestDataTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {requests.map((request) => {
+              {paginatedRequests.map((request) => {
                 const isPending = tab === "pending" || request.status === "pending";
                 const isApproved = tab === "approved" || request.status === "approved";
 
@@ -293,6 +313,17 @@ export function AccountRequestDataTable({
             </tbody>
           </table>
         </div>
+
+        {onPageChange && (
+          <TablePagination
+            page={currentPage}
+            pageSize={currentPageSize}
+            totalCount={count}
+            pageSizeOptions={[10, 25, 50]}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
       </div>
 
       {/* Approve Modal Dialog */}

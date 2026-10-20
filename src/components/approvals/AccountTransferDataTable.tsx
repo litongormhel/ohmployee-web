@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -11,6 +11,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveAccountGroupTransfer,
   useRejectAccountGroupTransfer,
@@ -22,6 +23,11 @@ import { useCurrentUser } from "@/lib/auth";
 interface AccountTransferDataTableProps {
   requests: AccountGroupTransferItem[];
   tab: ApprovalStatusTab;
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -42,7 +48,21 @@ function formatDate(dateStr: string | null): string {
 export function AccountTransferDataTable({
   requests,
   tab,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
 }: AccountTransferDataTableProps) {
+  const currentPage = page ?? 1;
+  const currentPageSize = pageSize ?? 10;
+  const count = totalCount ?? requests.length;
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return requests.slice(start, start + currentPageSize);
+  }, [requests, currentPage, currentPageSize]);
+
   const currentUser = useCurrentUser();
   const roleKey = currentUser?.roleKey?.toLowerCase() || "";
   const roleName = currentUser?.roleName?.toLowerCase() || "";
@@ -77,13 +97,22 @@ export function AccountTransferDataTable({
   const approveMutation = useApproveAccountGroupTransfer();
   const rejectMutation = useRejectAccountGroupTransfer();
 
-  const isAllSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const isAllSelected =
+    paginatedRequests.length > 0 && paginatedRequests.every((r) => selectedIds.has(r.id));
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.delete(r.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(requests.map((r) => r.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.add(r.id));
+        return next;
+      });
     }
   };
 
@@ -366,7 +395,7 @@ export function AccountTransferDataTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {requests.map((request) => {
+              {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
                   tab === "pending" ||
@@ -508,6 +537,17 @@ export function AccountTransferDataTable({
             </tbody>
           </table>
         </div>
+
+        {onPageChange && (
+          <TablePagination
+            page={currentPage}
+            pageSize={currentPageSize}
+            totalCount={count}
+            pageSizeOptions={[10, 25, 50]}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
       </div>
 
       {/* Single Approve Modal */}

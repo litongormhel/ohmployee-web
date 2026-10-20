@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCheck,
@@ -11,6 +11,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveNewStoreRequest,
   useRejectNewStoreRequest,
@@ -21,6 +22,11 @@ import {
 interface NewStoreDataTableProps {
   requests: NewStoreRequestItem[];
   tab: ApprovalStatusTab;
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (newPage: number) => void;
+  onPageSizeChange?: (newPageSize: number) => void;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -38,7 +44,24 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
+export function NewStoreDataTable({
+  requests,
+  tab,
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
+}: NewStoreDataTableProps) {
+  const currentPage = page ?? 1;
+  const currentPageSize = pageSize ?? 10;
+  const count = totalCount ?? requests.length;
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * currentPageSize;
+    return requests.slice(start, start + currentPageSize);
+  }, [requests, currentPage, currentPageSize]);
+
   // Modal states for single actions
   const [selectedApproveRequest, setSelectedApproveRequest] =
     useState<NewStoreRequestItem | null>(null);
@@ -63,13 +86,22 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
   const approveMutation = useApproveNewStoreRequest();
   const rejectMutation = useRejectNewStoreRequest();
 
-  const isAllSelected = requests.length > 0 && selectedIds.size === requests.length;
+  const isAllSelected =
+    paginatedRequests.length > 0 && paginatedRequests.every((r) => selectedIds.has(r.id));
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.delete(r.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(requests.map((r) => r.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedRequests.forEach((r) => next.add(r.id));
+        return next;
+      });
     }
   };
 
@@ -359,7 +391,7 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {requests.map((request) => {
+              {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
                   tab === "pending" ||
@@ -515,6 +547,17 @@ export function NewStoreDataTable({ requests, tab }: NewStoreDataTableProps) {
             </tbody>
           </table>
         </div>
+
+        {onPageChange && (
+          <TablePagination
+            page={currentPage}
+            pageSize={currentPageSize}
+            totalCount={count}
+            pageSizeOptions={[10, 25, 50]}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
       </div>
 
       {/* Single Approve Modal */}

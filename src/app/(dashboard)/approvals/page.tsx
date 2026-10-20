@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCheck, RefreshCw, ShieldAlert } from "lucide-react";
+import { CheckCheck, RefreshCw } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { RequestCategoryNavigation } from "@/components/approvals/RequestCategoryNavigation";
 import { ActiveQueueReviewPane } from "@/components/approvals/ActiveQueueReviewPane";
@@ -52,16 +52,14 @@ function ApprovalsPageContent() {
       : null;
 
   const [localCategory, setLocalCategory] =
-    useState<RequestCategoryKey>(defaultCategory);
+    useState<RequestCategoryKey | null>(null);
 
-  // Sync default category if user loads or changes
-  useEffect(() => {
-    if (allowedCategories.length > 0 && !allowedCategories.includes(localCategory)) {
-      setLocalCategory(defaultCategory);
-    }
-  }, [allowedCategories, defaultCategory, localCategory]);
+  const activeCategory =
+    localCategory && allowedCategories.includes(localCategory)
+      ? localCategory
+      : defaultCategory;
 
-  const selectedCategory = urlCategory ?? (allowedCategories.includes(localCategory) ? localCategory : defaultCategory);
+  const selectedCategory = urlCategory ?? activeCategory;
 
   // Clear-on-Click / Acknowledgment:
   // When a user selects/clicks a request category, temporarily clear or acknowledge
@@ -156,6 +154,7 @@ function ApprovalsPageContent() {
       {/* Active Queue Review Pane - 100% Full Width */}
       <div className="w-full min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-6">
         <ActiveQueueReviewPane
+          key={selectedCategory}
           selectedCategory={selectedCategory}
           onSelectCategory={handleSelectCategory}
           counts={counts}

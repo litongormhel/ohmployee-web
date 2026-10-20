@@ -60,7 +60,10 @@ export interface RejectAccountRequestPayload {
 // Queries
 // ============================================================================
 
-export async function fetchApprovalQueue(status: AccountRequestStatus = "pending"): Promise<AccountRequestItem[]> {
+export async function fetchApprovalQueue(
+  status: AccountRequestStatus = "pending",
+  pagination?: { page?: number; limit?: number }
+): Promise<AccountRequestItem[]> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_approval_queue", {
     p_status: status,
@@ -70,7 +73,13 @@ export async function fetchApprovalQueue(status: AccountRequestStatus = "pending
     throw new Error(error.message || "Failed to fetch account approval queue");
   }
 
-  const rows = (data as unknown as Record<string, unknown>[]) || [];
+  let rows = (data as unknown as Record<string, unknown>[]) || [];
+  if (pagination?.page && pagination?.limit) {
+    const page = Math.max(1, Math.trunc(pagination.page));
+    const limit = Math.max(1, Math.trunc(pagination.limit));
+    const offset = (page - 1) * limit;
+    rows = rows.slice(offset, offset + limit);
+  }
 
   return rows.map((r) => ({
     id: String(r.id),
@@ -195,10 +204,13 @@ export async function fetchAccountRequestCounts(): Promise<{ pending: number; ap
 // React Query Hooks
 // ============================================================================
 
-export function useAccountApprovalQueue(status: AccountRequestStatus = "pending") {
+export function useAccountApprovalQueue(
+  status: AccountRequestStatus = "pending",
+  pagination?: { page?: number; limit?: number }
+) {
   return useQuery({
-    queryKey: ["account-approval-queue", status],
-    queryFn: () => fetchApprovalQueue(status),
+    queryKey: ["account-approval-queue", status, pagination],
+    queryFn: () => fetchApprovalQueue(status, pagination),
     refetchInterval: 30000,
   });
 }

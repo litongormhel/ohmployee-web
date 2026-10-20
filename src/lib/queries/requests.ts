@@ -101,6 +101,24 @@ export type RequestStatusCounts = {
   rejected: number;
 };
 
+export interface RequestPaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+function applyPagination<T extends { range: (from: number, to: number) => T }>(
+  query: T,
+  pagination?: RequestPaginationParams
+): T {
+  if (pagination?.page && pagination?.limit) {
+    const page = Math.max(1, Math.trunc(pagination.page));
+    const limit = Math.max(1, Math.trunc(pagination.limit));
+    const offset = (page - 1) * limit;
+    return query.range(offset, offset + limit - 1);
+  }
+  return query;
+}
+
 export type HeadcountRequestItem = {
   id: string;
   requestType: string;
@@ -298,7 +316,8 @@ export const getRequestSummaryCounters = fetchRequestCategoryCounts;
  * Fetches headcount requests including quota amendment requests, filtered by status tab.
  */
 export async function fetchHeadcountRequests(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<HeadcountRequestItem[]> {
   const supabase = createClient();
 
@@ -344,7 +363,10 @@ export async function fetchHeadcountRequests(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query.order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -617,10 +639,13 @@ export function useRequestCategoryCounts() {
   });
 }
 
-export function useHeadcountRequests(tab: ApprovalStatusTab = "pending") {
+export function useHeadcountRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["headcount-requests", tab],
-    queryFn: () => fetchHeadcountRequests(tab),
+    queryKey: ["headcount-requests", tab, pagination],
+    queryFn: () => fetchHeadcountRequests(tab, pagination),
   });
 }
 
@@ -900,7 +925,8 @@ interface NewStoreDbRow {
 }
 
 export async function fetchNewStoreRequests(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<NewStoreRequestItem[]> {
   const supabase = createClient();
 
@@ -956,9 +982,12 @@ export async function fetchNewStoreRequests(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await query
-    .eq("is_archived", false)
-    .order("requested_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query
+      .eq("is_archived", false)
+      .order("requested_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -1087,10 +1116,13 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
   return data;
 }
 
-export function useNewStoreRequests(tab: ApprovalStatusTab = "pending") {
+export function useNewStoreRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["new-store-requests", tab],
-    queryFn: () => fetchNewStoreRequests(tab),
+    queryKey: ["new-store-requests", tab, pagination],
+    queryFn: () => fetchNewStoreRequests(tab, pagination),
   });
 }
 
@@ -1252,7 +1284,8 @@ interface VacancyClosureDbRow {
 }
 
 export async function fetchVacancyClosureRequests(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<VacancyClosureRequestItem[]> {
   const supabase = createClient();
 
@@ -1286,7 +1319,10 @@ export async function fetchVacancyClosureRequests(
     query = query.or("status.ilike.rejected,status.ilike.withdrawn");
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query.order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -1394,10 +1430,13 @@ export async function approveAllVacancyClosureRequests() {
   return data as { approved_count: number; skipped_count: number };
 }
 
-export function useVacancyClosureRequests(tab: ApprovalStatusTab = "pending") {
+export function useVacancyClosureRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["vacancy-closure-requests", tab],
-    queryFn: () => fetchVacancyClosureRequests(tab),
+    queryKey: ["vacancy-closure-requests", tab, pagination],
+    queryFn: () => fetchVacancyClosureRequests(tab, pagination),
   });
 }
 
@@ -1535,7 +1574,8 @@ interface AmrDbRow {
 }
 
 export async function fetchApplicantMovementRequests(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<ApplicantMovementRequestItem[]> {
   const supabase = createClient();
 
@@ -1578,7 +1618,10 @@ export async function fetchApplicantMovementRequests(
     query = query.or("status.ilike.rejected,status.ilike.withdrawn");
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query.order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -1754,10 +1797,13 @@ export async function rejectApplicantMovementRequest({
   return data;
 }
 
-export function useApplicantMovementRequests(tab: ApprovalStatusTab = "pending") {
+export function useApplicantMovementRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["applicant-movement-requests", tab],
-    queryFn: () => fetchApplicantMovementRequests(tab),
+    queryKey: ["applicant-movement-requests", tab, pagination],
+    queryFn: () => fetchApplicantMovementRequests(tab, pagination),
   });
 }
 
@@ -1911,7 +1957,8 @@ export async function fetchDeactivationCounts(): Promise<DeactivationStatusCount
 }
 
 export async function fetchDeactivationRequests(
-  tabOrFilter: DeactivationStatusTab | { status?: DeactivationStatusTab } = "pending"
+  tabOrFilter: DeactivationStatusTab | { status?: DeactivationStatusTab } = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<DeactivationRequestItem[]> {
   const supabase = createClient();
   const statusTab = typeof tabOrFilter === "string" ? tabOrFilter : tabOrFilter?.status ?? "pending";
@@ -1946,7 +1993,10 @@ export async function fetchDeactivationRequests(
     query = query.in("status", ["Rejected", "rejected", "cancelled"]);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query.order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -2245,10 +2295,13 @@ export async function rejectEmployeeDeactivation({
   return batchData;
 }
 
-export function useDeactivationRequests(status: DeactivationStatusTab = "pending") {
+export function useDeactivationRequests(
+  status: DeactivationStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["deactivation-requests", status],
-    queryFn: () => fetchDeactivationRequests(status),
+    queryKey: ["deactivation-requests", status, pagination],
+    queryFn: () => fetchDeactivationRequests(status, pagination),
   });
 }
 
@@ -2347,7 +2400,8 @@ export interface AccountGroupTransferItem {
 }
 
 export async function fetchAccountGroupTransfers(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<AccountGroupTransferItem[]> {
   const supabase = createClient();
 
@@ -2368,7 +2422,10 @@ export async function fetchAccountGroupTransfers(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query.order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -2509,10 +2566,13 @@ export async function rejectAccountGroupTransfer({
   }
 }
 
-export function useAccountGroupTransfers(tab: ApprovalStatusTab = "pending") {
+export function useAccountGroupTransfers(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["account-group-transfers", tab],
-    queryFn: () => fetchAccountGroupTransfers(tab),
+    queryKey: ["account-group-transfers", tab, pagination],
+    queryFn: () => fetchAccountGroupTransfers(tab, pagination),
   });
 }
 
@@ -2622,7 +2682,8 @@ export type CoverageGroupRequestItem = {
 };
 
 export async function fetchRelieverEndorsements(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<RelieverEndorsementItem[]> {
   const supabase = createClient();
 
@@ -2661,9 +2722,12 @@ export async function fetchRelieverEndorsements(
     query = query.in("status", ["Rejected", "rejected", "Cancelled", "cancelled"]);
   }
 
-  const { data, error } = await query
-    .order("request_age_days", { ascending: false })
-    .order("created_at", { ascending: true });
+  const { data, error } = await applyPagination(
+    query
+      .order("request_age_days", { ascending: false })
+      .order("created_at", { ascending: true }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -2727,7 +2791,8 @@ export async function fetchRelieverCounts(): Promise<RequestStatusCounts> {
  * Fetches Coverage Requests (roving coverage structures) joined with accounts and coverage groups.
  */
 export async function fetchCoverageRequests(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<CoverageGroupRequestItem[]> {
   const supabase = createClient();
 
@@ -2776,9 +2841,12 @@ export async function fetchCoverageRequests(
     query = query.in("status", ["rejected", "cancelled"]);
   }
 
-  const { data, error } = await query
-    .is("archived_at", null)
-    .order("created_at", { ascending: false });
+  const { data, error } = await applyPagination(
+    query
+      .is("archived_at", null)
+      .order("created_at", { ascending: false }),
+    pagination
+  );
 
   if (error) {
     if (error.code === "42501") {
@@ -3004,10 +3072,13 @@ export async function rejectCoverageRequest({
   }
 }
 
-export function useRelieverEndorsements(tab: ApprovalStatusTab = "pending") {
+export function useRelieverEndorsements(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["reliever-endorsements", tab],
-    queryFn: () => fetchRelieverEndorsements(tab),
+    queryKey: ["reliever-endorsements", tab, pagination],
+    queryFn: () => fetchRelieverEndorsements(tab, pagination),
   });
 }
 
@@ -3021,10 +3092,13 @@ export function useRelieverCounts() {
   });
 }
 
-export function useCoverageRequests(tab: ApprovalStatusTab = "pending") {
+export function useCoverageRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["coverage-group-requests", tab],
-    queryFn: () => fetchCoverageRequests(tab),
+    queryKey: ["coverage-group-requests", tab, pagination],
+    queryFn: () => fetchCoverageRequests(tab, pagination),
   });
 }
 
@@ -3138,7 +3212,8 @@ export interface PlantillaApprovalItem {
 }
 
 export async function fetchPlantillaApprovals(
-  tab: ApprovalStatusTab = "pending"
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
 ): Promise<PlantillaApprovalItem[]> {
   const supabase = createClient();
 
@@ -3155,7 +3230,7 @@ export async function fetchPlantillaApprovals(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await query;
+  const { data, error } = await applyPagination(query, pagination);
 
   if (error) {
     if (error.code === "42501") {
@@ -3297,10 +3372,13 @@ export async function rejectPlantillaRequest({
   }
 }
 
-export function usePlantillaApprovals(tab: ApprovalStatusTab = "pending") {
+export function usePlantillaApprovals(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams
+) {
   return useQuery({
-    queryKey: ["plantilla-approvals", tab],
-    queryFn: () => fetchPlantillaApprovals(tab),
+    queryKey: ["plantilla-approvals", tab, pagination],
+    queryFn: () => fetchPlantillaApprovals(tab, pagination),
   });
 }
 
