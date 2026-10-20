@@ -163,6 +163,7 @@ export interface PlantillaImportBatch {
   validRows: number;
   blockedRows: number;
   flaggedRows: number;
+  errorSummary?: Record<string, number>;
   // Two-step rollback & window fields
   rollbackStatus?: string;
   rollbackReason?: string;
@@ -185,6 +186,12 @@ export interface PlantillaImportBatch {
   canEmergencyRollback: boolean;
 }
 
+export interface PlantillaRowValidationError {
+  field?: string;
+  conflictType?: string;
+  msg: string;
+}
+
 export interface PlantillaImportPreviewRow {
   rowNumber: number;
   vcode: string;
@@ -195,6 +202,19 @@ export interface PlantillaImportPreviewRow {
   employmentType: string;
   validationStatus: string;
   validationMessages: string[];
+  validationErrors?: PlantillaRowValidationError[];
+  validationFlags?: Array<{ flag?: string; msg?: string; conflictType?: string }>;
+}
+
+export interface SubmitPlantillaImportResult {
+  batchId: string;
+  status: string;
+  totalRows: number;
+  validRows: number;
+  flaggedRows: number;
+  skippedRows: number;
+  blockedRows: number;
+  errorSummary?: Record<string, number>;
 }
 
 export async function fetchPlantillaImportBatches(status?: string): Promise<PlantillaImportBatch[]> {
@@ -223,6 +243,9 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     validRows: Number(row.valid_rows ?? 0),
     blockedRows: Number(row.blocked_rows ?? row.invalid_rows ?? 0),
     flaggedRows: Number(row.flagged_rows ?? 0),
+    errorSummary: row.error_summary && typeof row.error_summary === "object"
+      ? (row.error_summary as Record<string, number>)
+      : undefined,
     // Rollback mapping
     rollbackStatus: row.rollback_status ? String(row.rollback_status) : undefined,
     rollbackReason: row.rollback_reason ? String(row.rollback_reason) : undefined,
@@ -265,10 +288,41 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
   if (!Array.isArray(data)) return [];
 
   return (data as Record<string, unknown>[]).map((row) => {
-    const rawMsgs = row.validation_messages ?? row.validation_errors ?? row.messages ?? [];
-    const messages = Array.isArray(rawMsgs)
-      ? rawMsgs.map((m) => (typeof m === "object" && m !== null && "msg" in m ? String((m as { msg: unknown }).msg) : String(m)))
-      : [];
+    const rawErrors = Array.isArray(row.validation_errors) ? row.validation_errors : [];
+    const validationErrors: PlantillaRowValidationError[] = rawErrors.map((e) => {
+      if (typeof e === "object" && e !== null) {
+        const item = e as Record<string, unknown>;
+        return {
+          field: item.field ? String(item.field) : undefined,
+          conflictType: item.conflict_type ? String(item.conflict_type) : undefined,
+          msg: String(item.msg ?? item.message ?? ""),
+        };
+      }
+      return { msg: String(e) };
+    });
+
+    const rawFlags = Array.isArray(row.validation_flags) ? row.validation_flags : [];
+    const validationFlags = rawFlags.map((f) => {
+      if (typeof f === "object" && f !== null) {
+        const item = f as Record<string, unknown>;
+        return {
+          flag: item.flag ? String(item.flag) : undefined,
+          conflictType: item.conflict_type ? String(item.conflict_type) : undefined,
+          msg: String(item.msg ?? item.message ?? ""),
+        };
+      }
+      return { msg: String(f) };
+    });
+
+    const rawFallbackMsgs = row.validation_messages ?? row.messages ?? [];
+    const fallbackList = Array.isArray(rawFallbackMsgs) ? rawFallbackMsgs.map((m) => String(m)) : [];
+
+    const messages: string[] = [
+      ...validationErrors.map((e) => (e.field ? `[${e.field}] ${e.msg}` : e.msg)),
+      ...validationFlags.map((f) => (f.flag ? `(Warning: ${f.flag}) ${f.msg}` : f.msg)),
+    ].filter((m) => m.trim().length > 0);
+
+    const finalMessages = messages.length > 0 ? messages : fallbackList;
 
     return {
       rowNumber: Number(row.row_number ?? 0),
@@ -279,7 +333,9 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
       position: String(row.position ?? ""),
       employmentType: String(row.employment_type ?? ""),
       validationStatus: String(row.validation_status ?? row.status ?? "valid"),
-      validationMessages: messages,
+      validationMessages: finalMessages,
+      validationErrors,
+      validationFlags,
     };
   });
 }
@@ -289,7 +345,7 @@ export async function submitPlantillaBaselineImport(params: {
   groupId: string;
   accountId: string;
   rows: Record<string, string>[];
-}): Promise<string> {
+}): Promise<SubmitPlantillaImportResult> {
   const supabase = createClient();
   const rpcRows = params.rows.map((r) => ({
     VCODE: r.VCODE ?? "",
@@ -323,11 +379,29 @@ export async function submitPlantillaBaselineImport(params: {
     p_rows: rpcRows,
   });
   if (error) throw error;
-  if (typeof data === "string") return data;
-  if (data && typeof data === "object" && "batch_id" in data) {
-    return String((data as { batch_id: unknown }).batch_id);
-  }
-  return String(data);
+
+  const res = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  const batchId = String(res.batch_id ?? (typeof data === "string" ? data : ""));
+  const status = String(res.status ?? "draft_uploaded");
+  const totalRows = Number(res.total_rows ?? params.rows.length);
+  const validRows = Number(res.valid_rows ?? 0);
+  const flaggedRows = Number(res.flagged_rows ?? 0);
+  const skippedRows = Number(res.skipped_rows ?? 0);
+  const blockedRows = Number(res.blocked_rows ?? 0);
+  const errorSummary = res.error_summary && typeof res.error_summary === "object"
+    ? (res.error_summary as Record<string, number>)
+    : undefined;
+
+  return {
+    batchId,
+    status,
+    totalRows,
+    validRows,
+    flaggedRows,
+    skippedRows,
+    blockedRows,
+    errorSummary,
+  };
 }
 
 export async function approvePlantillaImportBatch(batchId: string): Promise<void> {

@@ -25,6 +25,7 @@ import {
   downloadPlantillaImportTemplate,
   parseSpreadsheetToRows,
   PLANTILLA_REQUIRED_HEADERS,
+  validateSpreadsheetScopeContext,
 } from "@/lib/utils/data_control_xlsx";
 import {
   approvePlantillaImportBatch,
@@ -37,6 +38,7 @@ import {
   rejectPlantillaImportBatch,
   requestPlantillaImportRollback,
   submitPlantillaBaselineImport,
+  SubmitPlantillaImportResult,
   useDataControlAccounts,
   useDataControlGroups,
   usePlantillaImportBatches,
@@ -85,12 +87,28 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   const [rollbackActionError, setRollbackActionError] = useState<string | null>(null);
   const [rollbackActionSuccess, setRollbackActionSuccess] = useState<string | null>(null);
 
+  type RowFilterType = "all" | "blocked" | "flagged" | "valid";
+  const [rowFilter, setRowFilter] = useState<RowFilterType>("all");
+  const [historyRowFilter, setHistoryRowFilter] = useState<RowFilterType>("all");
+  const [reviewNotice, setReviewNotice] = useState<{ type: "error" | "warning" | "success"; message: string } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: groups = [] } = useDataControlGroups();
   const { data: accounts = [], isLoading: isLoadingAccounts } = useDataControlAccounts(selectedGroupId || null);
   const { data: batches = [], refetch: refetchBatches, isLoading: isLoadingBatches } = usePlantillaImportBatches();
   const { data: previewRows = [], isLoading: isLoadingPreviewRows } = usePlantillaImportRows(selectedBatchId);
+  const { data: historyRows = [], isLoading: isLoadingHistoryRows } = usePlantillaImportRows(historySelectedBatch?.id || null);
+
+  const filteredPreviewRows = useMemo(() => {
+    if (rowFilter === "all") return previewRows;
+    return previewRows.filter((r) => r.validationStatus === rowFilter);
+  }, [previewRows, rowFilter]);
+
+  const filteredHistoryRows = useMemo(() => {
+    if (historyRowFilter === "all") return historyRows;
+    return historyRows.filter((r) => r.validationStatus === historyRowFilter);
+  }, [historyRows, historyRowFilter]);
 
   // RBAC resolution
   const roleStr = useMemo(() => {
@@ -116,6 +134,19 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   const canRequestRollback = useMemo(() => {
     return isSuperAdmin || isHeadAdmin || isEncoder;
   }, [isSuperAdmin, isHeadAdmin, isEncoder]);
+
+  const reviewableStatuses = useMemo(
+    () => new Set(["draft_uploaded", "pending_approval", "validation_failed", "blocked", "partially_blocked"]),
+    []
+  );
+  const pendingBatches = useMemo(
+    () => batches.filter((b) => reviewableStatuses.has(b.status)),
+    [batches, reviewableStatuses]
+  );
+  const historyBatches = useMemo(
+    () => batches.filter((b) => !reviewableStatuses.has(b.status)),
+    [batches, reviewableStatuses]
+  );
 
   if (!isOpen) return null;
 
@@ -155,23 +186,53 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
       return;
     }
 
+    const currentGroup = groups.find((g) => g.id === selectedGroupId);
+    const currentAccount = accounts.find((a) => a.id === selectedAccountId);
+    const scopeCheck = validateSpreadsheetScopeContext(
+      parsedRows,
+      currentGroup?.label,
+      currentAccount?.name
+    );
+    if (!scopeCheck.valid) {
+      setParseError(scopeCheck.errors.join(" | "));
+      return;
+    }
+
     setIsSubmitting(true);
     setParseError(null);
+    setReviewNotice(null);
     try {
-      const batchId = await submitPlantillaBaselineImport({
+      const result: SubmitPlantillaImportResult = await submitPlantillaBaselineImport({
         fileName: file.name,
         groupId: selectedGroupId,
         accountId: selectedAccountId,
         rows: parsedRows,
       });
 
-      setSubmitSuccess(`Plantilla batch #${batchId} submitted successfully for review.`);
+      if (result.status === "validation_failed" || result.blockedRows > 0) {
+        setSubmitSuccess(null);
+        setReviewNotice({
+          type: "error",
+          message: `Plantilla batch #${result.batchId.slice(0, 8)} uploaded but has ${result.blockedRows} row(s) failing validation. Review row details below.`,
+        });
+        setRowFilter("blocked");
+      } else {
+        setSubmitSuccess(
+          `Plantilla batch #${result.batchId} submitted successfully for review (${result.validRows} valid rows).`
+        );
+        setReviewNotice({
+          type: "success",
+          message: `Plantilla batch #${result.batchId.slice(0, 8)} submitted successfully for review (${result.validRows} valid rows).`,
+        });
+        setRowFilter("all");
+      }
+
       setFile(null);
       setParsedRows([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       refetchBatches();
       setActiveTab("review");
-      setSelectedBatchId(batchId);
+      setSelectedBatchId(result.batchId);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : "Failed to submit plantilla import batch.");
     } finally {
@@ -193,18 +254,24 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
     }
   };
 
-  const handleRejectBatch = async (batchId: string) => {
-    if (!actionReason.trim()) {
-      setActionError("Please provide an audited reason note for rejection.");
-      return;
-    }
+  const handleRejectBatch = async (batchId: string, isValidationFailed?: boolean) => {
     setIsActionPending(true);
     setActionError(null);
     try {
+      const note = actionReason.trim()
+        ? actionReason.trim()
+        : isValidationFailed
+        ? "Dismissed: Batch failed ADR-001 or row validation checks."
+        : "";
+      if (!note && !isValidationFailed) {
+        setActionError("Please provide an audited reason note for rejection.");
+        setIsActionPending(false);
+        return;
+      }
       await rejectPlantillaImportBatch({
         batchId,
-        reasonCode: "other",
-        reasonNote: actionReason.trim(),
+        reasonCode: isValidationFailed ? "invalid_csv" : "other",
+        reasonNote: note,
       });
       refetchBatches();
       setSelectedBatchId(null);
@@ -279,9 +346,6 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
       setRollbackActionBusy(false);
     }
   };
-
-  const pendingBatches = batches.filter((b) => b.status === "draft_uploaded" || b.status === "pending_approval");
-  const historyBatches = batches.filter((b) => b.status !== "draft_uploaded" && b.status !== "pending_approval");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto">
@@ -531,15 +595,37 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
 
           {activeTab === "review" && (
             <div className="space-y-4">
+              {reviewNotice && (
+                <div
+                  className={`rounded-xl border p-3.5 flex items-start gap-3 ${
+                    reviewNotice.type === "error"
+                      ? "border-rose-200 bg-rose-50/90 text-rose-800"
+                      : reviewNotice.type === "warning"
+                      ? "border-amber-200 bg-amber-50/90 text-amber-800"
+                      : "border-emerald-200 bg-emerald-50/90 text-emerald-800"
+                  }`}
+                >
+                  {reviewNotice.type === "error" ? (
+                    <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                  ) : reviewNotice.type === "warning" ? (
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                  )}
+                  <p className="text-xs font-medium">{reviewNotice.message}</p>
+                </div>
+              )}
+
               {actionError && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
                   <p className="text-xs font-medium text-rose-800">{actionError}</p>
                 </div>
               )}
+
               <div className="flex items-center justify-between">
                 <p className="text-xs text-text-secondary">
-                  Pending plantilla baseline batches awaiting administrative approval.
+                  Pending plantilla baseline batches awaiting administrative approval or validation error review.
                 </p>
                 <button
                   onClick={() => refetchBatches()}
@@ -556,120 +642,345 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                 </div>
               ) : pendingBatches.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border-subtle p-8 text-center text-xs text-text-muted">
-                  No batches currently awaiting approval.
+                  No batches currently awaiting approval or validation review.
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {pendingBatches.map((batch) => (
-                    <div
-                      key={batch.id}
-                      className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs text-text-primary">{batch.fileName}</span>
-                          <span className="rounded-md bg-amber-100 text-amber-800 text-3xs font-bold px-2 py-0.5">
-                            {batch.status.toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="text-2xs text-text-muted flex flex-wrap gap-x-3 gap-y-1">
-                          <span>Batch #{batch.id.slice(0, 8)}</span>
-                          <span>Scope: {batch.groupName || "Group"} / {batch.accountName || "Account"}</span>
-                          <span>Uploaded by: {batch.uploadedBy || "System"}</span>
-                          <span>Rows: {batch.totalRows}</span>
-                        </div>
-                      </div>
+                <div className="space-y-4">
+                  {pendingBatches.map((batch) => {
+                    const isSelected = selectedBatchId === batch.id;
+                    const isValidationFailed =
+                      batch.status === "validation_failed" || batch.blockedRows > 0;
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
-                          className="h-8 px-3 rounded-lg border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-hover transition"
-                        >
-                          {selectedBatchId === batch.id ? "Hide Rows" : "Inspect Rows"}
-                        </button>
+                    return (
+                      <div
+                        key={batch.id}
+                        className={`rounded-xl border bg-surface p-4 transition ${
+                          isSelected ? "border-purple-300 ring-1 ring-purple-200" : "border-border-subtle"
+                        }`}
+                      >
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-xs text-text-primary">{batch.fileName}</span>
+                              <span
+                                className={`rounded-md text-3xs font-bold px-2 py-0.5 uppercase ${
+                                  isValidationFailed
+                                    ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                    : "bg-amber-100 text-amber-800 border border-amber-200"
+                                }`}
+                              >
+                                {batch.status.replace("_", " ")}
+                              </span>
+                              {batch.blockedRows > 0 && (
+                                <span className="rounded-md bg-rose-50 text-rose-700 text-3xs font-semibold px-2 py-0.5 border border-rose-200">
+                                  {batch.blockedRows} Blocked
+                                </span>
+                              )}
+                              {batch.flaggedRows > 0 && (
+                                <span className="rounded-md bg-amber-50 text-amber-700 text-3xs font-semibold px-2 py-0.5 border border-amber-200">
+                                  {batch.flaggedRows} Flagged
+                                </span>
+                              )}
+                              {batch.validRows > 0 && (
+                                <span className="rounded-md bg-emerald-50 text-emerald-700 text-3xs font-semibold px-2 py-0.5 border border-emerald-200">
+                                  {batch.validRows} Valid
+                                </span>
+                              )}
+                            </div>
 
-                        {canApprove && (
-                          <>
+                            <div className="text-2xs text-text-muted flex flex-wrap gap-x-3 gap-y-1">
+                              <span>Batch #{batch.id.slice(0, 8)}</span>
+                              <span>Scope: {batch.groupName || "Group"} / {batch.accountName || "Account"}</span>
+                              <span>Uploaded by: {batch.uploadedBy || "System"}</span>
+                              <span>Rows: {batch.totalRows}</span>
+                            </div>
+
+                            {batch.errorSummary && Object.keys(batch.errorSummary).length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                <span className="text-3xs text-rose-700 font-bold uppercase">Errors:</span>
+                                {Object.entries(batch.errorSummary).map(([f, cnt]) => (
+                                  <span
+                                    key={f}
+                                    className="rounded-md bg-rose-100 text-rose-800 text-3xs font-mono font-semibold px-2 py-0.5"
+                                  >
+                                    {f}: {cnt}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
-                              onClick={() => handleApproveBatch(batch.id)}
-                              disabled={isActionPending}
-                              className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-50"
+                              onClick={() => setSelectedBatchId(isSelected ? null : batch.id)}
+                              className={`h-8 px-3 rounded-lg border text-xs font-semibold transition ${
+                                isSelected
+                                  ? "bg-purple-100 text-purple-800 border-purple-300"
+                                  : "border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                              }`}
                             >
-                              Approve & Apply
+                              {isSelected ? "Hide Rows" : "Inspect Rows"}
                             </button>
-                            <button
-                              onClick={() => handleRejectBatch(batch.id)}
-                              disabled={isActionPending}
-                              className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
-                          </>
+
+                            {canApprove && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveBatch(batch.id)}
+                                  disabled={isActionPending || isValidationFailed}
+                                  title={
+                                    isValidationFailed
+                                      ? `Cannot approve batch: ${batch.blockedRows} row(s) failed validation.`
+                                      : "Approve & Apply batch"
+                                  }
+                                  className={`h-8 px-3 rounded-lg text-white text-xs font-semibold transition ${
+                                    isValidationFailed
+                                      ? "bg-emerald-600/40 cursor-not-allowed text-white/70"
+                                      : "bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                                  }`}
+                                >
+                                  Approve & Apply
+                                </button>
+                                <button
+                                  onClick={() => handleRejectBatch(batch.id, isValidationFailed)}
+                                  disabled={isActionPending}
+                                  className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50"
+                                >
+                                  {isValidationFailed ? "Dismiss / Reject" : "Reject"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Batch Row Inspection Drawer */}
+                        {isSelected && (
+                          <div className="mt-4 pt-4 border-t border-purple-200 bg-purple-50/20 rounded-xl p-3.5 space-y-3 animate-in fade-in duration-150">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <h4 className="text-xs font-bold text-text-primary">
+                                Inspect Batch Rows (#{batch.id.slice(0, 8)})
+                              </h4>
+
+                              {/* Quick Filter Pills */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-2xs font-semibold text-text-secondary mr-1">Filter:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setRowFilter("all")}
+                                  className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                                    rowFilter === "all"
+                                      ? "bg-purple-600 text-white shadow-xs"
+                                      : "bg-surface border border-border-subtle text-text-secondary hover:text-text-primary"
+                                  }`}
+                                >
+                                  All ({previewRows.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRowFilter("blocked")}
+                                  className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                                    rowFilter === "blocked"
+                                      ? "bg-rose-600 text-white shadow-xs"
+                                      : "bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100"
+                                  }`}
+                                >
+                                  Blocked ({previewRows.filter((r) => r.validationStatus === "blocked").length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRowFilter("flagged")}
+                                  className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                                    rowFilter === "flagged"
+                                      ? "bg-amber-600 text-white shadow-xs"
+                                      : "bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
+                                  }`}
+                                >
+                                  Flagged ({previewRows.filter((r) => r.validationStatus === "flagged").length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRowFilter("valid")}
+                                  className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                                    rowFilter === "valid"
+                                      ? "bg-emerald-600 text-white shadow-xs"
+                                      : "bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                                  }`}
+                                >
+                                  Valid ({previewRows.filter((r) => r.validationStatus === "valid").length})
+                                </button>
+                              </div>
+                            </div>
+
+                            {isLoadingPreviewRows ? (
+                              <div className="flex justify-center p-6 text-xs text-text-muted">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
+                              </div>
+                            ) : filteredPreviewRows.length === 0 ? (
+                              <div className="rounded-lg border border-dashed border-border-subtle p-6 text-center text-xs text-text-muted">
+                                No rows match the selected filter ({rowFilter}).
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-border-subtle bg-surface overflow-x-auto max-h-72">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
+                                    <tr>
+                                      <th className="py-2 px-3 w-12">#</th>
+                                      <th className="py-2 px-3 w-24">Status</th>
+                                      <th className="py-2 px-3 w-28">VCode</th>
+                                      <th className="py-2 px-3">Store</th>
+                                      <th className="py-2 px-3">Employee</th>
+                                      <th className="py-2 px-3">Position</th>
+                                      <th className="py-2 px-3">Validation Issues & Guidance</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border-subtle">
+                                    {filteredPreviewRows.map((r) => {
+                                      const isRowBlocked = r.validationStatus === "blocked";
+                                      const isRowFlagged = r.validationStatus === "flagged";
+                                      const isRowValid = r.validationStatus === "valid";
+
+                                      return (
+                                        <tr
+                                          key={r.rowNumber}
+                                          className={`${
+                                            isRowBlocked
+                                              ? "bg-rose-50/70 hover:bg-rose-50"
+                                              : isRowFlagged
+                                              ? "bg-amber-50/70 hover:bg-amber-50"
+                                              : "hover:bg-surface-hover/50"
+                                          }`}
+                                        >
+                                          <td className="py-2 px-3 font-mono text-text-muted">{r.rowNumber}</td>
+                                          <td className="py-2 px-3">
+                                            <span
+                                              className={`rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase ${
+                                                isRowBlocked
+                                                  ? "bg-rose-200 text-rose-900"
+                                                  : isRowFlagged
+                                                  ? "bg-amber-200 text-amber-900"
+                                                  : isRowValid
+                                                  ? "bg-emerald-100 text-emerald-800"
+                                                  : "bg-slate-100 text-slate-700"
+                                              }`}
+                                            >
+                                              {r.validationStatus}
+                                            </span>
+                                          </td>
+                                          <td className="py-2 px-3 font-semibold font-mono text-text-primary">
+                                            {r.vcode || "—"}
+                                          </td>
+                                          <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
+                                          <td className="py-2 px-3">
+                                            <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
+                                            {r.employeeNo && (
+                                              <div className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</div>
+                                            )}
+                                          </td>
+                                          <td className="py-2 px-3 text-text-secondary">
+                                            <div>{r.position || "—"}</div>
+                                            {r.employmentType && (
+                                              <div className="text-3xs text-text-muted uppercase">{r.employmentType}</div>
+                                            )}
+                                          </td>
+                                          <td className="py-2 px-3">
+                                            {isRowBlocked && (
+                                              <div className="space-y-1">
+                                                {r.validationErrors && r.validationErrors.length > 0 ? (
+                                                  r.validationErrors.map((err, errIdx) => (
+                                                    <div
+                                                      key={errIdx}
+                                                      className="flex items-start gap-1.5 text-rose-800 text-2xs"
+                                                    >
+                                                      {err.conflictType && (
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                          {err.conflictType}
+                                                        </span>
+                                                      )}
+                                                      {!err.conflictType && err.field && (
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                          {err.field}
+                                                        </span>
+                                                      )}
+                                                      <span className="font-medium leading-tight">{err.msg}</span>
+                                                    </div>
+                                                  ))
+                                                ) : (
+                                                  r.validationMessages.map((msg, mIdx) => (
+                                                    <div key={mIdx} className="text-rose-800 text-2xs font-medium">
+                                                      • {msg}
+                                                    </div>
+                                                  ))
+                                                )}
+                                              </div>
+                                            )}
+                                            {isRowFlagged && (
+                                              <div className="space-y-1">
+                                                {r.validationFlags && r.validationFlags.length > 0 ? (
+                                                  r.validationFlags.map((flag, fIdx) => (
+                                                    <div
+                                                      key={fIdx}
+                                                      className="flex items-start gap-1.5 text-amber-800 text-2xs"
+                                                    >
+                                                      {flag.flag && (
+                                                        <span className="rounded bg-amber-200 text-amber-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                          {flag.flag}
+                                                        </span>
+                                                      )}
+                                                      <span className="font-medium leading-tight">{flag.msg}</span>
+                                                    </div>
+                                                  ))
+                                                ) : (
+                                                  r.validationMessages.map((msg, mIdx) => (
+                                                    <div key={mIdx} className="text-amber-800 text-2xs font-medium">
+                                                      • {msg}
+                                                    </div>
+                                                  ))
+                                                )}
+                                              </div>
+                                            )}
+                                            {isRowValid && (
+                                              <span className="inline-flex items-center gap-1 text-emerald-700 text-2xs font-semibold">
+                                                <CheckCircle2 className="h-3 w-3" /> Ready for import
+                                              </span>
+                                            )}
+                                            {!isRowBlocked && !isRowFlagged && !isRowValid && (
+                                              <span className="text-text-muted text-2xs">Skipped</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {canApprove && (
+                              <div className="pt-2 flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder={
+                                    isValidationFailed
+                                      ? "Audit note (optional: default will be used if left blank)..."
+                                      : "Rejection note or audit remarks (required if rejecting)..."
+                                  }
+                                  value={actionReason}
+                                  onChange={(e) => setActionReason(e.target.value)}
+                                  className="flex-1 h-8 rounded-lg border border-border-subtle bg-surface px-3 text-xs text-text-primary focus:outline-hidden"
+                                />
+                                <button
+                                  onClick={() => handleRejectBatch(batch.id, isValidationFailed)}
+                                  disabled={isActionPending}
+                                  className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50 shrink-0"
+                                >
+                                  {isValidationFailed ? "Dismiss Batch" : "Reject Batch"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-
-                  {/* Batch Row Inspection Drawer */}
-                  {selectedBatchId && (
-                    <div className="rounded-xl border border-purple-200 bg-purple-50/20 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-text-primary">
-                          Inspect Batch Rows (#{selectedBatchId.slice(0, 8)})
-                        </h4>
-                        <span className="text-2xs text-text-muted">{previewRows.length} rows loaded</span>
-                      </div>
-
-                      {isLoadingPreviewRows ? (
-                        <div className="flex justify-center p-6 text-xs text-text-muted">
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-border-subtle bg-surface overflow-x-auto max-h-56">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
-                              <tr>
-                                <th className="py-2 px-3">#</th>
-                                <th className="py-2 px-3">Status</th>
-                                <th className="py-2 px-3">VCode</th>
-                                <th className="py-2 px-3">Store</th>
-                                <th className="py-2 px-3">Employee</th>
-                                <th className="py-2 px-3">Position</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border-subtle">
-                              {previewRows.map((r) => (
-                                <tr key={r.rowNumber}>
-                                  <td className="py-1.5 px-3 text-text-muted">{r.rowNumber}</td>
-                                  <td className="py-1.5 px-3">
-                                    <span className="rounded-md bg-slate-100 text-slate-800 text-3xs font-bold px-1.5 py-0.5">
-                                      {r.validationStatus}
-                                    </span>
-                                  </td>
-                                  <td className="py-1.5 px-3 font-semibold">{r.vcode}</td>
-                                  <td className="py-1.5 px-3">{r.storeName}</td>
-                                  <td className="py-1.5 px-3">{r.employeeName || r.employeeNo || "—"}</td>
-                                  <td className="py-1.5 px-3 text-text-secondary">{r.position}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {canApprove && (
-                        <div className="pt-2">
-                          <input
-                            type="text"
-                            placeholder="Rejection note or audit remarks (required if rejecting)..."
-                            value={actionReason}
-                            onChange={(e) => setActionReason(e.target.value)}
-                            className="w-full h-8 rounded-lg border border-border-subtle bg-surface px-3 text-xs text-text-primary focus:outline-hidden"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -727,7 +1038,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                     : "bg-rose-100 text-rose-800"
                                 }`}
                               >
-                                {b.status}
+                                {b.status.replace("_", " ")}
                               </span>
                             </td>
                             <td className="py-2.5 px-4">
@@ -773,148 +1084,437 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                 </div>
               )}
 
-              {/* Rollback Governance & Detail Drawer */}
-              {historySelectedBatch && (
-                <div className="rounded-xl border border-purple-200 bg-purple-50/20 p-4 space-y-4 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-                    <div className="flex items-center gap-2">
-                      <RotateCcw className="h-4 w-4 text-purple-700" />
-                      <h4 className="text-xs font-bold text-text-primary">
-                        Rollback Governance — #{historySelectedBatch.id.slice(0, 8)} ({historySelectedBatch.fileName})
-                      </h4>
+              {/* DRAWER OPTION A: Import Failure Audit & Error Log Drawer for validation_failed or rejected batches */}
+              {historySelectedBatch &&
+                (historySelectedBatch.status === "validation_failed" ||
+                  historySelectedBatch.status === "rejected") && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50/20 p-4 space-y-4 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-rose-700" />
+                        <h4 className="text-xs font-bold text-text-primary">
+                          Import Failure Audit & Error Log — #{historySelectedBatch.id.slice(0, 8)} (
+                          {historySelectedBatch.fileName})
+                        </h4>
+                      </div>
+                      <button
+                        onClick={() => setHistorySelectedBatch(null)}
+                        className="text-text-muted hover:text-text-primary text-xs"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setHistorySelectedBatch(null)}
-                      className="text-text-muted hover:text-text-primary text-xs"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
 
-                  {/* Summary / Meta */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-2xs">
-                    <div className="p-2 rounded-lg bg-surface border border-border-subtle">
-                      <span className="text-text-muted block">Batch Status</span>
-                      <span className="font-bold text-text-primary uppercase mt-0.5 block">
-                        {historySelectedBatch.status}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-surface border border-border-subtle">
-                      <span className="text-text-muted block">Rollback Status</span>
-                      <span className="font-bold text-text-primary uppercase mt-0.5 block">
-                        {historySelectedBatch.rollbackStatus || "None"}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-surface border border-border-subtle">
-                      <span className="text-text-muted block">Governance Window</span>
-                      <span className="font-semibold text-text-primary mt-0.5 block">
-                        {historySelectedBatch.rollbackAllowed
-                          ? `Active (${formatRollbackRemaining(historySelectedBatch.rollbackRemainingSeconds)} left)`
-                          : "Expired / Inactive"}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-surface border border-border-subtle">
-                      <span className="text-text-muted block">Total Headcount Rows</span>
-                      <span className="font-bold text-text-primary mt-0.5 block">
-                        {historySelectedBatch.totalRows} rows
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Block / Notice Warnings */}
-                  {historySelectedBatch.rollbackBlockReason && (
-                    <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-start gap-2 font-medium">
-                      <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                      <div>{humanizeRollbackError(historySelectedBatch.rollbackBlockReason)}</div>
-                    </div>
-                  )}
-
-                  {historySelectedBatch.rollbackErrorDetail && (
-                    <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                      <div>
-                        Rollback attempt failed: {humanizeRollbackError(historySelectedBatch.rollbackErrorDetail)}
+                    {/* Summary / Meta */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-2xs">
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Batch Status</span>
+                        <span className="font-bold text-rose-700 uppercase mt-0.5 block">
+                          {historySelectedBatch.status.replace("_", " ")}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Scope</span>
+                        <span className="font-bold text-text-primary mt-0.5 block truncate">
+                          {historySelectedBatch.groupName || "—"} / {historySelectedBatch.accountName || "—"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Failed / Blocked Rows</span>
+                        <span className="font-bold text-rose-700 mt-0.5 block">
+                          {historySelectedBatch.blockedRows} / {historySelectedBatch.totalRows} rows
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Valid Rows</span>
+                        <span className="font-bold text-emerald-700 mt-0.5 block">
+                          {historySelectedBatch.validRows} rows
+                        </span>
                       </div>
                     </div>
-                  )}
 
-                  {rollbackActionSuccess && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>{rollbackActionSuccess}</span>
-                    </div>
-                  )}
-
-                  {rollbackActionError && (
-                    <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                      <span>{rollbackActionError}</span>
-                    </div>
-                  )}
-
-                  {/* Actions Bar */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {/* View History Button */}
-                    <button
-                      onClick={() => setIsRollbackHistoryOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface text-xs font-semibold text-text-primary hover:bg-surface-hover shadow-xs transition"
-                    >
-                      <History className="h-3.5 w-3.5 text-text-secondary" />
-                      View Rollback History
-                    </button>
-
-                    {/* Step 1: Request Rollback Button */}
-                    {canRequestRollback &&
-                      historySelectedBatch.rollbackAllowed &&
-                      historySelectedBatch.rollbackStatus !== "requested" &&
-                      historySelectedBatch.rollbackStatus !== "completed" && (
-                        <button
-                          onClick={() => {
-                            setSelectedRollbackReason("wrong_batch");
-                            setRollbackRemarks("");
-                            setRollbackActionError(null);
-                            setIsRequestRollbackOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50/60 text-xs font-semibold text-rose-800 hover:bg-rose-100/80 shadow-xs transition"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5 text-rose-700" />
-                          Request Rollback
-                        </button>
-                      )}
-
-                    {/* Step 2: Approve & Execute Rollback Button (Super Admin Only) */}
-                    {isSuperAdmin &&
-                      historySelectedBatch.status.toLowerCase().includes("approved") &&
-                      historySelectedBatch.rollbackStatus === "requested" && (
-                        <button
-                          onClick={() => {
-                            setRollbackActionError(null);
-                            setIsApproveRollbackConfirmOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 shadow-xs transition"
-                        >
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                          Approve & Execute Rollback
-                        </button>
-                      )}
-
-                    {/* Emergency Rollback Override (Super Admin Only) */}
-                    {isSuperAdmin && historySelectedBatch.canEmergencyRollback && (
-                      <button
-                        onClick={() => {
-                          setEmergencyReason("");
-                          setRollbackActionError(null);
-                          setIsEmergencyRollbackOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950 text-xs font-semibold text-rose-100 hover:bg-black shadow-xs transition"
-                      >
-                        <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
-                        Emergency Rollback Override
-                      </button>
+                    {(historySelectedBatch.rejectionReasonNote ||
+                      historySelectedBatch.rejectionReason) && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 space-y-1">
+                        <div className="font-bold uppercase text-3xs text-rose-900">Rejection Reason / Note:</div>
+                        <div>
+                          {historySelectedBatch.rejectionReasonNote ||
+                            historySelectedBatch.rejectionReason}
+                        </div>
+                      </div>
                     )}
+
+                    {historySelectedBatch.errorSummary &&
+                      Object.keys(historySelectedBatch.errorSummary).length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-surface border border-border-subtle">
+                          <span className="text-3xs text-rose-700 font-bold uppercase">
+                            Field error breakdown:
+                          </span>
+                          {Object.entries(historySelectedBatch.errorSummary).map(([f, cnt]) => (
+                            <span
+                              key={f}
+                              className="rounded-md bg-rose-100 text-rose-800 text-3xs font-mono font-semibold px-2 py-0.5"
+                            >
+                              {f}: {cnt}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                    {/* Row Inspection in History */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h5 className="text-xs font-bold text-text-primary">
+                          Row Error Breakdown ({historyRows.length} total rows)
+                        </h5>
+
+                        {/* Quick Filter Pills */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-2xs font-semibold text-text-secondary mr-1">Filter:</span>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryRowFilter("all")}
+                            className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                              historyRowFilter === "all"
+                                ? "bg-purple-600 text-white shadow-xs"
+                                : "bg-surface border border-border-subtle text-text-secondary hover:text-text-primary"
+                            }`}
+                          >
+                            All ({historyRows.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryRowFilter("blocked")}
+                            className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                              historyRowFilter === "blocked"
+                                ? "bg-rose-600 text-white shadow-xs"
+                                : "bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100"
+                            }`}
+                          >
+                            Blocked ({historyRows.filter((r) => r.validationStatus === "blocked").length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryRowFilter("flagged")}
+                            className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                              historyRowFilter === "flagged"
+                                ? "bg-amber-600 text-white shadow-xs"
+                                : "bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
+                            }`}
+                          >
+                            Flagged ({historyRows.filter((r) => r.validationStatus === "flagged").length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryRowFilter("valid")}
+                            className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                              historyRowFilter === "valid"
+                                ? "bg-emerald-600 text-white shadow-xs"
+                                : "bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            Valid ({historyRows.filter((r) => r.validationStatus === "valid").length})
+                          </button>
+                        </div>
+                      </div>
+
+                      {isLoadingHistoryRows ? (
+                        <div className="flex justify-center p-6 text-xs text-text-muted">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
+                        </div>
+                      ) : filteredHistoryRows.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-border-subtle p-6 text-center text-xs text-text-muted">
+                          No rows match the selected filter ({historyRowFilter}).
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-border-subtle bg-surface overflow-x-auto max-h-72">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
+                              <tr>
+                                <th className="py-2 px-3 w-12">#</th>
+                                <th className="py-2 px-3 w-24">Status</th>
+                                <th className="py-2 px-3 w-28">VCode</th>
+                                <th className="py-2 px-3">Store</th>
+                                <th className="py-2 px-3">Employee</th>
+                                <th className="py-2 px-3">Position</th>
+                                <th className="py-2 px-3">Validation Issues & Guidance</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y border-border-subtle">
+                              {filteredHistoryRows.map((r) => {
+                                const isRowBlocked = r.validationStatus === "blocked";
+                                const isRowFlagged = r.validationStatus === "flagged";
+                                const isRowValid = r.validationStatus === "valid";
+
+                                return (
+                                  <tr
+                                    key={r.rowNumber}
+                                    className={`${
+                                      isRowBlocked
+                                        ? "bg-rose-50/70 hover:bg-rose-50"
+                                        : isRowFlagged
+                                        ? "bg-amber-50/70 hover:bg-amber-50"
+                                        : "hover:bg-surface-hover/50"
+                                    }`}
+                                  >
+                                    <td className="py-2 px-3 font-mono text-text-muted">{r.rowNumber}</td>
+                                    <td className="py-2 px-3">
+                                      <span
+                                        className={`rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase ${
+                                          isRowBlocked
+                                            ? "bg-rose-200 text-rose-900"
+                                            : isRowFlagged
+                                            ? "bg-amber-200 text-amber-900"
+                                            : isRowValid
+                                            ? "bg-emerald-100 text-emerald-800"
+                                            : "bg-slate-100 text-slate-700"
+                                        }`}
+                                      >
+                                        {r.validationStatus}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-3 font-semibold font-mono text-text-primary">
+                                      {r.vcode || "—"}
+                                    </td>
+                                    <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
+                                    <td className="py-2 px-3">
+                                      <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
+                                      {r.employeeNo && (
+                                        <div className="text-3xs font-mono text-purple-700">
+                                          ID: {r.employeeNo}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-2 px-3 text-text-secondary">
+                                      <div>{r.position || "—"}</div>
+                                      {r.employmentType && (
+                                        <div className="text-3xs text-text-muted uppercase">
+                                          {r.employmentType}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      {isRowBlocked && (
+                                        <div className="space-y-1">
+                                          {r.validationErrors && r.validationErrors.length > 0 ? (
+                                            r.validationErrors.map((err, errIdx) => (
+                                              <div
+                                                key={errIdx}
+                                                className="flex items-start gap-1.5 text-rose-800 text-2xs"
+                                              >
+                                                {err.conflictType && (
+                                                  <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                    {err.conflictType}
+                                                  </span>
+                                                )}
+                                                {!err.conflictType && err.field && (
+                                                  <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                    {err.field}
+                                                  </span>
+                                                )}
+                                                <span className="font-medium leading-tight">{err.msg}</span>
+                                              </div>
+                                            ))
+                                          ) : (
+                                            r.validationMessages.map((msg, mIdx) => (
+                                              <div key={mIdx} className="text-rose-800 text-2xs font-medium">
+                                                • {msg}
+                                              </div>
+                                            ))
+                                          )}
+                                        </div>
+                                      )}
+                                      {isRowFlagged && (
+                                        <div className="space-y-1">
+                                          {r.validationFlags && r.validationFlags.length > 0 ? (
+                                            r.validationFlags.map((flag, fIdx) => (
+                                              <div
+                                                key={fIdx}
+                                                className="flex items-start gap-1.5 text-amber-800 text-2xs"
+                                              >
+                                                {flag.flag && (
+                                                  <span className="rounded bg-amber-200 text-amber-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                    {flag.flag}
+                                                  </span>
+                                                )}
+                                                <span className="font-medium leading-tight">{flag.msg}</span>
+                                              </div>
+                                            ))
+                                          ) : (
+                                            r.validationMessages.map((msg, mIdx) => (
+                                              <div key={mIdx} className="text-amber-800 text-2xs font-medium">
+                                                • {msg}
+                                              </div>
+                                            ))
+                                          )}
+                                        </div>
+                                      )}
+                                      {isRowValid && (
+                                        <span className="inline-flex items-center gap-1 text-emerald-700 text-2xs font-semibold">
+                                          <CheckCircle2 className="h-3 w-3" /> Valid slot
+                                        </span>
+                                      )}
+                                      {!isRowBlocked && !isRowFlagged && !isRowValid && (
+                                        <span className="text-text-muted text-2xs">Skipped</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+              {/* DRAWER OPTION B: Rollback Governance Drawer for approved / rolled back batches */}
+              {historySelectedBatch &&
+                historySelectedBatch.status !== "validation_failed" &&
+                historySelectedBatch.status !== "rejected" && (
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/20 p-4 space-y-4 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+                      <div className="flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4 text-purple-700" />
+                        <h4 className="text-xs font-bold text-text-primary">
+                          Rollback Governance — #{historySelectedBatch.id.slice(0, 8)} (
+                          {historySelectedBatch.fileName})
+                        </h4>
+                      </div>
+                      <button
+                        onClick={() => setHistorySelectedBatch(null)}
+                        className="text-text-muted hover:text-text-primary text-xs"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {/* Summary / Meta */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-2xs">
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Batch Status</span>
+                        <span className="font-bold text-text-primary uppercase mt-0.5 block">
+                          {historySelectedBatch.status}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Rollback Status</span>
+                        <span className="font-bold text-text-primary uppercase mt-0.5 block">
+                          {historySelectedBatch.rollbackStatus || "None"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Governance Window</span>
+                        <span className="font-semibold text-text-primary mt-0.5 block">
+                          {historySelectedBatch.rollbackAllowed
+                            ? `Active (${formatRollbackRemaining(historySelectedBatch.rollbackRemainingSeconds)} left)`
+                            : "Expired / Inactive"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-surface border border-border-subtle">
+                        <span className="text-text-muted block">Total Headcount Rows</span>
+                        <span className="font-bold text-text-primary mt-0.5 block">
+                          {historySelectedBatch.totalRows} rows
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Block / Notice Warnings */}
+                    {historySelectedBatch.rollbackBlockReason && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-start gap-2 font-medium">
+                        <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>{humanizeRollbackError(historySelectedBatch.rollbackBlockReason)}</div>
+                      </div>
+                    )}
+
+                    {historySelectedBatch.rollbackErrorDetail && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          Rollback attempt failed:{" "}
+                          {humanizeRollbackError(historySelectedBatch.rollbackErrorDetail)}
+                        </div>
+                      </div>
+                    )}
+
+                    {rollbackActionSuccess && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>{rollbackActionSuccess}</span>
+                      </div>
+                    )}
+
+                    {rollbackActionError && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                        <span>{rollbackActionError}</span>
+                      </div>
+                    )}
+
+                    {/* Actions Bar */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {/* View History Button */}
+                      <button
+                        onClick={() => setIsRollbackHistoryOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface text-xs font-semibold text-text-primary hover:bg-surface-hover shadow-xs transition"
+                      >
+                        <History className="h-3.5 w-3.5 text-text-secondary" />
+                        View Rollback History
+                      </button>
+
+                      {/* Step 1: Request Rollback Button */}
+                      {canRequestRollback &&
+                        historySelectedBatch.rollbackAllowed &&
+                        historySelectedBatch.rollbackStatus !== "requested" &&
+                        historySelectedBatch.rollbackStatus !== "completed" && (
+                          <button
+                            onClick={() => {
+                              setSelectedRollbackReason("wrong_batch");
+                              setRollbackRemarks("");
+                              setRollbackActionError(null);
+                              setIsRequestRollbackOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50/60 text-xs font-semibold text-rose-800 hover:bg-rose-100/80 shadow-xs transition"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 text-rose-700" />
+                            Request Rollback
+                          </button>
+                        )}
+
+                      {/* Step 2: Approve & Execute Rollback Button (Super Admin Only) */}
+                      {isSuperAdmin &&
+                        historySelectedBatch.status.toLowerCase().includes("approved") &&
+                        historySelectedBatch.rollbackStatus === "requested" && (
+                          <button
+                            onClick={() => {
+                              setRollbackActionError(null);
+                              setIsApproveRollbackConfirmOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 shadow-xs transition"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Approve & Execute Rollback
+                          </button>
+                        )}
+
+                      {/* Emergency Rollback Override (Super Admin Only) */}
+                      {isSuperAdmin && historySelectedBatch.canEmergencyRollback && (
+                        <button
+                          onClick={() => {
+                            setEmergencyReason("");
+                            setRollbackActionError(null);
+                            setIsEmergencyRollbackOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950 text-xs font-semibold text-rose-100 hover:bg-black shadow-xs transition"
+                        >
+                          <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
+                          Emergency Rollback Override
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
         </div>

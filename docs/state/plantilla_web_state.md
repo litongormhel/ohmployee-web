@@ -599,3 +599,19 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Initiate separation workflow (Resignation / Termination / Backout).
   - Update separation clearance checkboxes and upload clearance forms.
 - Configure cache invalidation policies to automatically reload active roster tables and metrics summary bars after every mutation.
+
+### Phase 6: Plantilla Bulk Baseline Import & Mobile Governance Parity (`PlantillaImportModal.tsx`) ✅ COMPLETE
+- **Client-Side Pre-Validation (`data_control_xlsx.ts`)**:
+  - Validates `GROUP_NAME` and `ACCOUNT_NAME` against the user's active UI scope dropdown selection before triggering backend RPC calls. If values mismatch, returns row-level guidance (`Row #X: GROUP_NAME does not match selected group`).
+  - Updated sample row in `PLANTILLA_SAMPLE_ROW` to use clean, non-colliding mock identifiers (`SLOT-SAMPLE-001`, `EMP-SAMPLE-001`) preventing false ADR-001 collision on sample template downloads.
+- **Review Queue State Machine (`PlantillaImportModal.tsx`)**:
+  - `pendingBatches` includes reviewable non-terminal statuses: `draft_uploaded`, `pending_approval`, `validation_failed`, `blocked`, and `partially_blocked`.
+  - On upload, if `status === 'validation_failed'` or `blockedRows > 0`, the UI avoids premature green success toasts, switches to the Review Queue, auto-expands the newly created batch, and defaults the row filter to `blocked`.
+  - "Approve & Apply" is safely disabled for `validation_failed` batches or batches with blocked rows.
+  - "Dismiss Batch" enables clean dismissal/rejection for `validation_failed` batches with automated fallback reason notes (`invalid_csv` reason code).
+- **Row-Level Error Inspector & Filter Pills**:
+  - Implemented interactive row inspector in Review Queue with quick filter pills (`All`, `Blocked`, `Flagged`, `Valid`).
+  - Displays rich validation error pills (`conflictType`, `field`) and guidance bullet points (`r.validationMessages`).
+- **Historical Audit & Error Logs**:
+  - In `Import History`, selecting a `validation_failed` or `rejected` batch opens the **Import Failure Audit & Error Log Drawer** displaying batch stats, error breakdown pills, filter pills, and row-level conflict logs.
+  - Approved/rolled back batches retain the standard 72-hour Rollback Governance drawer.

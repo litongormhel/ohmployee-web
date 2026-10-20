@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Plantilla Import Audit & Review Queue / Error Log Parity (ohm#m5d8v2x4)
+
+**Status: COMPLETE — FULL MOBILE STORE IMPORT PARITY WITH ADR-001 VALIDATION, REVIEW QUEUE ROUTING, ROW ERROR INSPECTOR, AND AUDIT LOGS, MAIN BRANCH**
+
+### Objective
+Conducted full architectural trace and resolved critical parity regressions in the Web "Import Plantilla (Bulk Baseline)" modal (`PlantillaImportModal.tsx`):
+1. Eliminated premature green success toasts on failed validation batches.
+2. Restored review queue routing for `validation_failed`, `blocked`, and `partially_blocked` batches.
+3. Provided comprehensive row-level error breakdown and guidance in both Review Queue and Import History tabs.
+4. Added client-side scope pre-validation (`GROUP_NAME` / `ACCOUNT_NAME` vs. UI dropdowns) and clean dismissal for dead batches.
+
+---
+
+### Key Changes
+1. **Spreadsheet Scope Pre-Validation & Sample Data (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Implemented `validateSpreadsheetScopeContext` to check `GROUP_NAME` and `ACCOUNT_NAME` against the user's active UI scope dropdown selection before submitting to the backend, blocking mismatched scopes with row numbers and exact values.
+   - Updated `PLANTILLA_SAMPLE_ROW` with clean mock identifiers (`SLOT-SAMPLE-001`, `EMP-SAMPLE-001`) preventing instant ADR-001 collision on official template test uploads.
+2. **API & Data Layer (`src/lib/queries/dataControl.ts`)**:
+   - Enriched `SubmitPlantillaImportResult` to return `{ batchId, status, totalRows, validRows, flaggedRows, skippedRows, blockedRows, errorSummary }`.
+   - Updated `PlantillaImportBatch` and `fetchPlantillaImportBatches` to parse `errorSummary: Record<string, number>`.
+   - Updated `PlantillaImportPreviewRow` and `fetchPlantillaImportRows` to parse `validation_errors`, `validation_flags`, and unified `validationMessages` with field and conflict classification tags.
+3. **Review Queue State Machine & Auto-Focus (`src/components/more/PlantillaImportModal.tsx`)**:
+   - `pendingBatches` now includes all reviewable statuses: `draft_uploaded`, `pending_approval`, `validation_failed`, `blocked`, `partially_blocked`.
+   - On submission, if `status === 'validation_failed'` or `blockedRows > 0`, the UI avoids premature green success toasts, switches directly to the Review Queue tab, auto-expands the new batch inspector, and defaults the filter to `blocked`.
+   - "Approve & Apply" button is safely disabled for `validation_failed` batches.
+   - Added clean "Dismiss Batch" support using fallback default rejection remarks (`invalid_csv` code).
+4. **Interactive Row Inspector & Filter Pills**:
+   - Implemented row filter pills (`All`, `Blocked`, `Flagged`, `Valid`) in both Review Queue and Import History drawers.
+   - Rendered rich row-level guidance with red conflict pills (`conflictType`, `field`) and bulleted validation error messages.
+5. **Historical Failure Audit Log**:
+   - In `Import History`, selecting a `validation_failed` or `rejected` batch displays an **Import Failure Audit & Error Log Drawer** displaying batch stats, rejection remarks, error summary tags, and full row inspection.
+6. **Verification**:
+   - `npm run lint` clean (0 errors, 22 pre-existing warnings).
+   - `npx tsc --noEmit` clean (0 errors).
+
+---
+
 ## Approvals Module Pagination & Table Controls (Vacancy Parity) (ohm#a8b3p9g1)
 
 **Status: COMPLETE — 1:1 VACANCY PAGINATION PARITY ACROSS ALL 11 APPROVAL QUEUES, MAIN BRANCH**

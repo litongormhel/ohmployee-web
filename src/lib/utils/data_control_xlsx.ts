@@ -37,27 +37,27 @@ export const PLANTILLA_OPTIONAL_HEADERS = [
 export const PLANTILLA_SAMPLE_ROW = [
   "GROUP 2",
   "SUPER 8",
-  "PG-DAU-001",
-  "Super 8 Dau",
+  "SLOT-SAMPLE-001",
+  "Super 8 Sample Branch",
   "Pampanga",
   "Angeles",
   "Merchandiser",
   "stationary",
   "1",
   "yes",
-  "10001",
+  "EMP-SAMPLE-001",
   "DELA CRUZ",
   "JUAN",
   "SANTOS",
-  "2020-01-15",
+  "2026-01-15",
   "SINGLE",
   "600.00",
-  "1990-05-15",
+  "1995-05-15",
   "09171234567",
   "123 Sample St Brgy Example",
   "MON-SAT",
   "SUN",
-  "Juan Coordinator",
+  "Operations Coordinator",
   "",
 ];
 
@@ -104,6 +104,56 @@ export function downloadPlantillaImportTemplate(): void {
 
   const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   triggerBrowserDownload(new Uint8Array(arrayBuffer), "plantilla_import_template.xlsx");
+}
+
+export interface ScopeContextValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export function validateSpreadsheetScopeContext(
+  rows: Record<string, string>[],
+  expectedGroupName?: string,
+  expectedAccountName?: string
+): ScopeContextValidationResult {
+  const errors: string[] = [];
+  if (!rows || rows.length === 0) return { valid: true, errors };
+
+  const norm = (s?: string) => (s ?? "").trim().toUpperCase();
+  const expectedGroupNorm = norm(expectedGroupName);
+  const expectedAccountNorm = norm(expectedAccountName);
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2; // 1-based index, row 1 is header
+    const rowGroup = norm(row.GROUP_NAME);
+    const rowAccount = norm(row.ACCOUNT_NAME);
+
+    if (expectedGroupNorm && rowGroup && rowGroup !== expectedGroupNorm) {
+      if (errors.length < 5) {
+        errors.push(
+          `Row #${rowNum}: GROUP_NAME "${row.GROUP_NAME}" does not match selected group "${expectedGroupName}".`
+        );
+      }
+    }
+
+    if (expectedAccountNorm && rowAccount && rowAccount !== expectedAccountNorm) {
+      if (errors.length < 5) {
+        errors.push(
+          `Row #${rowNum}: ACCOUNT_NAME "${row.ACCOUNT_NAME}" does not match selected account "${expectedAccountName}".`
+        );
+      }
+    }
+  }
+
+  if (errors.length >= 5) {
+    errors.push("Additional scope mismatch rows truncated...");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 // ============================================================================
