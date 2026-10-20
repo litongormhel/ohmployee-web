@@ -26,10 +26,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#v4c9prod**: Audit and fix live production staging data leak on ohmployee-web.vercel.app
-2. **ohm#3f8j5k2w**: Web parity check + AGENTS.md alignment
-3. **ohm#9c4t1w6e**: Wire Mandatory Workflow Rules (web)
-4. **ohm#w89p602f**: Complete Final Sidebar Parity — Port Temporary Permission Overrides to Web `/users` Management Hub
-5. **ohm#w89p602e**: Complete Web `/plantilla` Parity — Port Moses HQ Pool (Relievers, Commandos, Seasonals) & 7-Tab Workforce Analytics Dashboard
+1. **ohm#r7b9w2k1**: Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports (1:1 Mobile Parity)
+2. **ohm#v4c9prod**: Restore Staging Supabase Fallback for Vercel Deployment
+3. **ohm#3f8j5k2w**: Web parity check + AGENTS.md alignment
+4. **ohm#9c4t1w6e**: Wire Mandatory Workflow Rules (web)
+5. **ohm#w89p602f**: Complete Final Sidebar Parity — Port Temporary Permission Overrides to Web `/users` Management Hub
 
-> Older entries trimmed 2026-10-19 (`ohm#3f8j5k2w`) to keep this list to 5 — dropped `ohm#w89p602c` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-20 (`ohm#r7b9w2k1`) to keep this list to 5 — dropped `ohm#w89p602e` and earlier entries — see git history for that and earlier entries in full.

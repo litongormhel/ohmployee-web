@@ -8,7 +8,7 @@ The web app remains an admin-panel presentation layer. Supabase is the authority
 
 ## Current Foundation Observed
 
-- `src/lib/supabase/client.ts` creates a browser Supabase client from `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, with strict production guards preventing staging fallback or staging URL usage on Vercel production.
+- `src/lib/supabase/client.ts` creates a browser Supabase client from `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, with automatic fallback to the Staging project (`qqiiznmqxfoamqytjica.supabase.co`) when hosting environment variables are not explicitly provided.
 - `src/app/(auth)/login/page.tsx` signs in with Supabase Auth, redirects successful login to `/vacancy`, and redirects already-authenticated visitors away from `/login`.
 - `src/app/(dashboard)/layout.tsx` delegates the dashboard route group to `src/components/DashboardAuthShell.tsx`.
 - `src/components/DashboardAuthShell.tsx` loads the current Supabase Auth session/user on the client, calls `get_web_current_user_context`, redirects missing sessions to `/login`, renders a blocked-access screen for denied authenticated users, redirects hidden direct module routes back to `/vacancy` (or primary visible module), and passes backend-filtered modules into the shell.

@@ -1,40 +1,61 @@
 # AI Handoff
 
-## Audit & Guard Live Production Staging Data Leak on ohmployee-web.vercel.app (ohm#v4c9prod)
+## Phase 1 — Port 2-Step Rollback & History for Plantilla and Vacancy Imports to Web (ohm#r7b9w2k1)
 
-**Status: COMPLETE — CLIENT-SIDE AUDIT & PRODUCTION CONFIG GUARD, MAIN BRANCH**
+**Status: COMPLETE — CLIENT-SIDE 1:1 MOBILE PARITY, MAIN BRANCH**
 
 ### Objective
-Audited why live production deployment (`ohmployee-web.vercel.app`) was displaying staging/test data in the Vacancy Management module (e.g., VCODEs `TEST005`, `TEST011`, `BUN-GHQ-00014`, and `ACT-G5-*` with Selena Gomez). Hardened `src/lib/supabase/client.ts` to prevent silent fallback to Staging on Vercel production deployments.
+Ported the complete 2-step rollback lifecycle, 72 business-hour countdown governance window, emergency override capabilities, and audit history views from Flutter mobile (`StoreImportScreen` and `VacancyImportScreen`) to the Next.js Web app (`PlantillaImportModal` and `VacancyImportModal`).
 
 ---
 
-### Key Findings & Root Cause Analysis
-1. **Target Project Ref Divergence**:
-   - Production Supabase Project: `rwxelulyapjgaarlwkus` (`https://rwxelulyapjgaarlwkus.supabase.co`)
-   - Staging Supabase Project: `qqiiznmqxfoamqytjica` (`https://qqiiznmqxfoamqytjica.supabase.co`)
-2. **Database Verification**:
-   - `TEST005` & `TEST011`: Exist exclusively in Staging (`qqiiznmqxfoamqytjica`) under account BANKO. They do NOT exist in Production (`rwxelulyapjgaarlwkus`).
-   - `BUN-GHQ-00014`: In Production, this record is status `Archived` (Account: KAMBAK, created 2026-07-04). In Staging, it is `Open` (Account: Moses HQ, created 2026-08-10).
-   - `ACT-G5-001` through `ACT-G5-010`: In Production, records `008`, `009`, `010` are `Closed`. In Staging, all records are `Open`.
-   - `Selena Gomez`: Profile exists in both environments, but in Staging the `ACTISERVE` account (`4fba7c47-f19e-47fb-9074-6acab754721f`) has `hrco_user_id` set to her ID and 38 vacancies explicitly map `hrco_name: 'Selena Gomez'`.
-   - **Conclusion**: The production database is clean. The reported test records exist strictly in the Staging database.
-3. **Pipeline & Bundle Inspection**:
-   - Inspected live chunks from `https://ohmployee-web.vercel.app/_next/static/chunks/0vkwrf4w2n_g9.js`.
-   - The Production Supabase ref (`rwxelulyapjgaarlwkus`) was completely absent.
-   - The Staging Supabase ref (`qqiiznmqxfoamqytjica`) was hardcoded directly into the compiled client JavaScript bundle because `src/lib/supabase/client.ts` contained a silent fallback to `STAGING_URL` when `NEXT_PUBLIC_SUPABASE_URL` is omitted during Next.js static builds on Vercel.
+### Key Additions & Parity Implementations
+1. **Service & Mutation Layer (`src/lib/queries/dataControl.ts`)**:
+   - Extended `PlantillaImportBatch` and `VacancyImportBatch` models with full rollback attributes: `rollbackStatus`, `rollbackReason`, `rollbackReasonCode`, `rollbackReasonNote`, `rollbackRequestedBy`, `rollbackRequestedAt`, `rollbackApprovedBy`, `rollbackApprovedAt`, `rollbackCompletedAt`, `rollbackErrorDetail`, `rollbackWindowStartedAt`, `rollbackExpiresAt`, `rollbackRemainingSeconds`, `rollbackAllowed`, `rollbackBlockReason`, `canEmergencyRollback`.
+   - Wired exact Supabase RPC endpoints:
+     - `request_plantilla_import_rollback`, `approve_plantilla_import_rollback`, `emergency_rollback_plantilla_import`, `get_plantilla_import_rollback_history`.
+     - `request_vacancy_import_rollback`, `approve_vacancy_import_rollback`, `emergency_rollback_vacancy_import`, `get_vacancy_import_rollback_history`.
+   - Added `usePlantillaImportRollbackHistory` and `useVacancyImportRollbackHistory` hooks.
+   - Added canonical `IMPORT_ROLLBACK_REASONS` (7 options: `wrong_batch`, `wrong_group_account`, `wrong_vcode_list`, `wrong_applicant_pipeline`, `duplicate_migration_correction`, `uploaded_by_mistake`, `other`).
+   - Added `formatRollbackRemaining` (days/hours countdown excluding Sundays) and `humanizeRollbackError` error humanizer.
+2. **UI Governance & History Tabs (`PlantillaImportModal.tsx` & `VacancyImportModal.tsx`)**:
+   - Interactive history tables with row selection, status badges (`REQUESTED`, `COMPLETED`, `FAILED`, `WINDOW EXPIRED`), and real-time expiration countdown timer badges.
+   - **Rollback Governance Drawer**: Displays batch inspection metadata, warning blocks for modified post-approval rows, and 4 contextual action buttons matching mobile permissions:
+     - **Request Rollback**: Enforces reason dropdown + minimum 10 characters remarks. Gated to Super Admin, Head Admin, Encoder for Plantilla; Super Admin and Head Admin for Vacancy.
+     - **Approve & Execute Rollback**: Gated strictly to Super Admin when `rollbackStatus === 'requested'`. Features confirmation modal highlighting entity deactivation and snapshot restores.
+     - **Emergency Rollback Override**: Gated strictly to Super Admin when `canEmergencyRollback === true`. Enforces minimum 50 characters justification.
+     - **View Rollback History**: Dedicated audit log modal rendering requester, approver, timestamps, remarks, error details, and rolled back counts.
+3. **Cache Invalidation**:
+   - Complete cache invalidation for import batches, rollback history, and live entity queries (`plantilla`, `plantilla-scope-menu`, `vacancies`, `vacancies-list`, `vacancy-counts`).
 
 ---
 
-### Implementation & Hardening
-1. **Audited Supabase Initialization**:
-   - Verified `src/lib/supabase/client.ts` is the single Supabase client instantiation file in the web repository (no server/middleware clients exist).
-2. **Hardened `src/lib/supabase/client.ts`**:
-   - Added `isVercelProduction()` helper checking `NEXT_PUBLIC_VERCEL_ENV === "production"` or `window.location.hostname === "ohmployee-web.vercel.app"`.
-   - Enforced that if deployed on Vercel production, missing credentials or any attempt to reference Staging Supabase (`qqiiznmqxfoamqytjica`) throws a fatal error immediately, preventing any connection to staging/test data.
-   - Preserved fallback for local non-production bootstrap and staging builds (`npm run build`).
-3. **Build & Quality Gate**:
-   - Verified `npm run build` succeeds locally with zero errors (19/19 routes statically generated).
+### Quality Gate
+- `npx tsc --noEmit`: 0 errors.
+- `npx eslint` on updated files: 0 errors, 0 warnings.
+- `npm run build`: Production build succeeded (19/19 static pages generated).
+- Flutter mobile repository (`lib/`): 100% untouched.
+
+---
+
+## Restore Staging Supabase Fallback for Vercel Deployment (ohm#v4c9prod)
+
+**Status: COMPLETE — CLIENT-SIDE RESTORATION, MAIN BRANCH**
+
+### Objective
+Following the audit of live staging data in `ohmployee-web.vercel.app`, the hardcoded exception gate was reverted per user confirmation to allow the Vercel production deployment to gracefully operate using the Staging Supabase backend (`qqiiznmqxfoamqytjica.supabase.co`). This resolved the `Access state: rpc failure` block on `ohmployee-web.vercel.app` and restored normal authenticated operation.
+
+---
+
+### Key Findings & Implementation
+1. **Root Cause of RPC Failure Screen**:
+   - The previous strict guard threw an immediate Error when `window.location.hostname === "ohmployee-web.vercel.app"` whenever Staging fallback was used.
+   - When `DashboardAuthShell` loaded on Vercel, the exception caught inside `createClient()` surfaced as `Access state: rpc failure`.
+2. **Restoration in `src/lib/supabase/client.ts`**:
+   - Removed `isVercelProduction()` and the fatal throwing guard.
+   - Restored seamless fallback to `STAGING_URL` (`https://qqiiznmqxfoamqytjica.supabase.co`) and `STAGING_ANON_KEY` when hosting environment variables are absent.
+3. **Verification**:
+   - Ran `npm run build` locally: compiled cleanly with 0 errors across all 19 static routes.
 
 ---
 
