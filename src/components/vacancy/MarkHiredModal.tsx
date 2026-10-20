@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useConfirmApplicantOnboard } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
-import { formatPersonName } from "@/lib/utils/formatName";
+import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
 
 export interface MarkHiredModalProps {
   isOpen: boolean;
@@ -56,16 +56,16 @@ function MarkHiredModalContent({
   const currentUser = useCurrentUser();
   const confirmOnboardMutation = useConfirmApplicantOnboard();
 
-  // Name splitting
-  const rawParts = applicant.fullName.split(/,\s*|\s+/);
-  const defaultLastName =
-    applicant.lastName || (rawParts.length > 1 ? rawParts[0] : applicant.fullName);
-  const defaultFirstName =
-    applicant.firstName || (rawParts.length > 1 ? rawParts[1] : "");
+  // Name binding and fallback parsing
+  const initialNames = parseCandidateFullName(applicant.fullName, {
+    firstName: applicant.firstName,
+    lastName: applicant.lastName,
+    middleName: applicant.middleName,
+  });
 
-  const [lastName, setLastName] = useState(defaultLastName);
-  const [firstName, setFirstName] = useState(defaultFirstName);
-  const [middleName, setMiddleName] = useState(applicant.middleName || "");
+  const [lastName, setLastName] = useState(initialNames.lastName);
+  const [firstName, setFirstName] = useState(initialNames.firstName);
+  const [middleName, setMiddleName] = useState(initialNames.middleName);
   const [contactNumber, setContactNumber] = useState(
     applicant.contactNumber || "",
   );

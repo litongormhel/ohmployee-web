@@ -631,3 +631,20 @@ Validation:
 - Test as Super Admin, Head Admin, OM/ATL/TL/HRCO/Recruitment scoped users, Viewer, unauthorized active user, and unauthenticated caller.
 - Verify detail fields and active candidate statuses match their authoritative sources in the database.
 - Verify access is denied with a clear Postgres RLS exception if the caller is out of scope.
+
+## Candidate Name Field Binding & Parsing (Endorse -> Confirm Onboarding Flow) (ohm#n7f3w9k2)
+
+- **Discrete Name Field Transmission**:
+  - `VacancyDetailItem` exposes `applicantMiddleName: string | null;` in tandem with `applicantLastName` and `applicantFirstName`.
+  - `normalizeDetailRow` and `normalizeActiveApplicant` extract and preserve discrete `firstName`, `lastName`, and `middleName`.
+  - `VacancyDetailDrawer` passes `middleName` across all `setSelectedCandidate` actions and into the `MarkHiredModal` applicant target.
+  - `page.tsx` forwards `applicantMiddleName` via `markHiredTargetCandidate` when triggering "Mark Hired" directly from the table view.
+- **Hardened Candidate Name Fallback Parser (`parseCandidateFullName`)**:
+  - Defined in `src/lib/utils/formatName.ts`.
+  - Prioritizes discrete structured properties (`firstName`, `lastName`, `middleName`) when present.
+  - Comma-first splitting on `"LASTNAME, FIRSTNAME MIDDLENAME"` isolates multi-word surnames (e.g. `DELA CRUZ`, `SAN JOSE`) cleanly.
+  - Suffix tokens (`JR`, `JR.`, `SR`, `SR.`, `II`, `III`, `IV`, `V`) are attached to the surname and excluded from the middle name.
+  - Common compound surname prefixes (`DELA`, `DE`, `DEL`, `DELOS`, `SAN`, `STA`, `STA.`, `SANTO`) are preserved attached to the middle name when preceding the trailing token.
+- **Onboarding Confirmation & HR Emploc Persistence**:
+  - `MarkHiredModal` binds inputs directly to `lastName`, `firstName`, and `middleName`.
+  - On submission, `middleName` is passed through `confirmApplicantOnboard` (`p_middle_name`) and `p_full_name`, persisting cleanly to `applicants` and `hr_emploc`.

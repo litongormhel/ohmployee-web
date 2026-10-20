@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow) (ohm#n7f3w9k2)
+
+**Status: COMPLETE — DISCRETE NAME FIELDS PERSISTED AND BOUND ACROSS VACANCY ENDORSE -> ONBOARDING FLOW, WITH HARDENED FALLBACK PARSER, MAIN BRANCH**
+
+### Objective
+In the Vacancy Module, resolved the issue where transitioning an endorsed candidate to the **Confirm Onboarding / Mark Hired** modal left `MIDDLE NAME` empty and corrupted multi-word surnames (e.g. `DELA CRUZ` being split into Last: `DELA` and First: `CRUZ`). Ensured discrete structured fields (`firstName`, `lastName`, `middleName`) are preserved and bound throughout the flow, and hardened the fallback name parser for legacy formatted strings.
+
+---
+
+### Key Changes
+1. **Hardened Candidate Name Parser (`src/lib/utils/formatName.ts`)**:
+   - Implemented `parseCandidateFullName(fullName, structured)`.
+   - Binds directly to structured properties (`firstName`, `lastName`, `middleName`) when present.
+   - For formatted strings `"LASTNAME, FIRSTNAME MIDDLENAME"`, splits on the first comma (`,`) to isolate the full `LAST_NAME`, preserving multi-word surnames like `DELA CRUZ` and `SAN JOSE`.
+   - Excludes suffix tokens (`JR`, `JR.`, `SR`, `SR.`, `II`, `III`, `IV`, `V`) from middle names, attaching them to the surname instead.
+   - Handles compound middle name prefixes (`DELA`, `DE`, `DEL`, `DELOS`, `SAN`, `STA`, `STA.`, `SANTO`) by keeping them attached to the middle name rather than pushing into the first name.
+2. **Vacancy Query & Normalizer Layer (`src/lib/queries/vacancy.ts`)**:
+   - Added `applicantMiddleName: string | null;` to `VacancyDetailItem` interface.
+   - Updated `normalizeDetailRow` to return `applicantMiddleName` and use `parseCandidateFullName` if discrete names are absent.
+   - Updated `normalizeActiveApplicant` to check `obj.middle_name ?? obj.applicant_middle_name` and populate fallback parsed names.
+   - Updated `normalizeVacancyRow` to populate `applicantMiddleName`, `applicantLastName`, and `applicantFirstName` using `parseCandidateFullName` as fallback.
+   - Updated `getVacancyList` active applicant enrichment loop to assign `row.applicantLastName`, `row.applicantFirstName`, and `row.applicantMiddleName`.
+   - Updated `getVacancyDetail` fallback hired applicant lookup to include `applicantMiddleName` and `middleName`.
+3. **Vacancy Detail Drawer (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Included `middleName` in all `setSelectedCandidate(...)` state updates (Update Stage, Mark Hired, Edit Hired Date, Drop/Backout).
+   - In `<MarkHiredModal applicant={...}>`, passed `middleName: detail.applicantMiddleName`.
+4. **Vacancy Table View & Page Controller (`src/app/(dashboard)/vacancy/page.tsx`)**:
+   - Verified that `handleMarkHired` forwards `middleName: row.applicantMiddleName` into `markHiredTargetCandidate`.
+5. **Confirm Onboarding Modal (`src/components/vacancy/MarkHiredModal.tsx`)**:
+   - Replaced naive regex split with `parseCandidateFullName(applicant.fullName, { firstName, lastName, middleName })`.
+   - Directly binds `lastName`, `firstName`, and `middleName` states to discrete candidate properties.
+   - Verified that `handleSubmit` sends discrete `trimmedMiddle` via `confirmApplicantOnboard` (`p_middle_name`), properly updating `applicants` and `hr_emploc`.
+6. **Verification**:
+   - `npm run lint` clean (0 errors, 22 pre-existing warnings).
+   - `npm run build` (Next.js production build with full TypeScript type check) passed cleanly.
+   - Standalone test matrix covering single names, multi-word surnames, suffixes, and compound middle names passed.
+
+---
+
 ## Plantilla Import Audit & Review Queue / Error Log Parity (ohm#m5d8v2x4)
 
 **Status: COMPLETE — FULL MOBILE STORE IMPORT PARITY WITH ADR-001 VALIDATION, REVIEW QUEUE ROUTING, ROW ERROR INSPECTOR, AND AUDIT LOGS, MAIN BRANCH**

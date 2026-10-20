@@ -1,4 +1,14 @@
 const SUFFIXES = new Set(["JR", "JR.", "SR", "SR.", "II", "III", "IV", "V"]);
+const COMPOUND_PREFIXES = new Set([
+  "DELA",
+  "DE",
+  "DEL",
+  "DELOS",
+  "SAN",
+  "STA",
+  "STA.",
+  "SANTO",
+]);
 
 /**
  * Standardizes person names strictly to UPPERCASE:
@@ -132,6 +142,146 @@ export function parseFullNameString(name: string): string {
   const firstParts = tokens.slice(0, lastIdx).join(" ");
 
   return `${lastPart}, ${firstParts}`.toUpperCase();
+}
+
+/**
+ * Parses candidate name components from either structured inputs or a full-name string.
+ * Prioritizes discrete structured properties if provided.
+ *
+ * For formatted strings ("LASTNAME, FIRSTNAME MIDDLENAME"):
+ * - Splits on the first comma to preserve multi-word surnames (e.g. "DELA CRUZ").
+ * - Handles trailing suffix tokens (JR, SR, etc.) without misinterpreting them as middle names.
+ * - Keeps compound surname prefixes (DELA, DE, SAN, etc.) attached to the middle name.
+ */
+export function parseCandidateFullName(
+  fullName?: string | null,
+  structured?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    middleName?: string | null;
+  },
+): {
+  firstName: string;
+  lastName: string;
+  middleName: string;
+} {
+  const structuredFirst = structured?.firstName?.trim() || "";
+  const structuredLast = structured?.lastName?.trim() || "";
+  const structuredMiddle = structured?.middleName?.trim() || "";
+
+  // If all structured fields are present, return them immediately
+  if (structuredFirst && structuredLast && structuredMiddle) {
+    return {
+      firstName: structuredFirst,
+      lastName: structuredLast,
+      middleName: structuredMiddle,
+    };
+  }
+
+  const raw = fullName?.trim() || "";
+  if (!raw) {
+    return {
+      firstName: structuredFirst,
+      lastName: structuredLast,
+      middleName: structuredMiddle,
+    };
+  }
+
+  // Handle placeholders
+  const lower = raw.toLowerCase();
+  if (
+    lower === "candidate" ||
+    lower === "anonymous" ||
+    lower === "hired worker" ||
+    lower === "unassigned" ||
+    lower === "—" ||
+    lower === "-"
+  ) {
+    return {
+      firstName: structuredFirst,
+      lastName: structuredLast || raw,
+      middleName: structuredMiddle,
+    };
+  }
+
+  let parsedLast = "";
+  let parsedFirst = "";
+  let parsedMiddle = "";
+
+  if (raw.includes(",")) {
+    const commaIndex = raw.indexOf(",");
+    let lastSegment = raw.slice(0, commaIndex).trim();
+    const restSegment = raw.slice(commaIndex + 1).trim();
+
+    const tokens = restSegment.split(/\s+/).filter(Boolean);
+
+    // Check if trailing token in restSegment is a suffix (e.g. "DELA CRUZ, JUANCO SANTOS JR.")
+    if (tokens.length > 0 && SUFFIXES.has(tokens[tokens.length - 1].toUpperCase())) {
+      const suffix = tokens.pop()!;
+      if (!lastSegment.toUpperCase().includes(suffix.toUpperCase())) {
+        lastSegment = `${lastSegment} ${suffix}`;
+      }
+    }
+
+    parsedLast = lastSegment;
+
+    if (tokens.length === 1) {
+      parsedFirst = tokens[0];
+      parsedMiddle = "";
+    } else if (tokens.length >= 2) {
+      // Check if second-to-last token is a compound prefix (e.g. "DELA", "SAN", etc.)
+      const secondToLast = tokens[tokens.length - 2].toUpperCase();
+      if (tokens.length >= 3 && COMPOUND_PREFIXES.has(secondToLast)) {
+        parsedMiddle = `${tokens[tokens.length - 2]} ${tokens[tokens.length - 1]}`;
+        parsedFirst = tokens.slice(0, tokens.length - 2).join(" ");
+      } else {
+        parsedMiddle = tokens[tokens.length - 1];
+        parsedFirst = tokens.slice(0, -1).join(" ");
+      }
+    }
+  } else {
+    // No comma: e.g. "JUANCO SANTOS DELA CRUZ"
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    let suffix = "";
+    if (tokens.length >= 3 && SUFFIXES.has(tokens[tokens.length - 1].toUpperCase())) {
+      suffix = ` ${tokens.pop()}`;
+    }
+
+    if (tokens.length === 1) {
+      parsedLast = tokens[0] + suffix;
+    } else if (tokens.length === 2) {
+      parsedFirst = tokens[0];
+      parsedLast = tokens[1] + suffix;
+    } else {
+      const secondToLast = tokens[tokens.length - 2].toUpperCase();
+      let surnameTokensCount = 1;
+      if (COMPOUND_PREFIXES.has(secondToLast)) {
+        surnameTokensCount = 2;
+      }
+      const lastTokens = tokens.slice(tokens.length - surnameTokensCount);
+      parsedLast = lastTokens.join(" ") + suffix;
+
+      const remainingTokens = tokens.slice(0, tokens.length - surnameTokensCount);
+      if (remainingTokens.length === 1) {
+        parsedFirst = remainingTokens[0];
+      } else if (remainingTokens.length >= 2) {
+        const midPrefix = remainingTokens[remainingTokens.length - 2].toUpperCase();
+        if (remainingTokens.length >= 3 && COMPOUND_PREFIXES.has(midPrefix)) {
+          parsedMiddle = `${remainingTokens[remainingTokens.length - 2]} ${remainingTokens[remainingTokens.length - 1]}`;
+          parsedFirst = remainingTokens.slice(0, remainingTokens.length - 2).join(" ");
+        } else {
+          parsedMiddle = remainingTokens[remainingTokens.length - 1];
+          parsedFirst = remainingTokens.slice(0, -1).join(" ");
+        }
+      }
+    }
+  }
+
+  return {
+    firstName: structuredFirst || parsedFirst,
+    lastName: structuredLast || parsedLast,
+    middleName: structuredMiddle || parsedMiddle,
+  };
 }
 
 /**

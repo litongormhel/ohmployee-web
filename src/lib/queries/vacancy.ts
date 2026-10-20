@@ -1,7 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { formatPersonName } from "@/lib/utils/formatName";
+import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
 
 export type VacancyStatus =
   | "open"
@@ -180,6 +180,7 @@ export type VacancyDetailItem = {
   headcount?: number;
   applicantLastName: string | null;
   applicantFirstName: string | null;
+  applicantMiddleName: string | null;
   applicantName: string | null;
   storeLocation: string | null;
   areaCity: string | null;
@@ -423,9 +424,9 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     return null;
   }
 
-  const applicantLastName = asString(row.applicant_last_name ?? row.last_name);
-  const applicantFirstName = asString(row.applicant_first_name ?? row.first_name);
-  const applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name);
+  let applicantLastName = asString(row.applicant_last_name ?? row.last_name);
+  let applicantFirstName = asString(row.applicant_first_name ?? row.first_name);
+  let applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name);
   const rawApplicantName = asString(
     row.applicant_name ??
     row.applicant_full_name ??
@@ -438,6 +439,17 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     applicantMiddleName,
     rawApplicantName,
   ) || null;
+
+  if ((!applicantLastName || !applicantFirstName) && (applicantName || rawApplicantName)) {
+    const parsed = parseCandidateFullName(applicantName || rawApplicantName, {
+      firstName: applicantFirstName,
+      lastName: applicantLastName,
+      middleName: applicantMiddleName,
+    });
+    applicantLastName = applicantLastName || parsed.lastName || null;
+    applicantFirstName = applicantFirstName || parsed.firstName || null;
+    applicantMiddleName = applicantMiddleName || parsed.middleName || null;
+  }
 
   const penaltyAmount = asNumber(row.penalty_amount ?? row.penalty_exposure);
   const hasPenalty =
@@ -540,11 +552,22 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
 
 function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
   const obj = asObject(item);
-  const lastName = asString(obj.last_name ?? obj.applicant_last_name);
-  const firstName = asString(obj.first_name ?? obj.applicant_first_name);
-  const middleName = asString(obj.middle_name);
+  let lastName = asString(obj.last_name ?? obj.applicant_last_name);
+  let firstName = asString(obj.first_name ?? obj.applicant_first_name);
+  let middleName = asString(obj.middle_name ?? obj.applicant_middle_name);
   const rawDisplayName = asString(obj.display_name ?? obj.full_name ?? obj.name);
   const displayName = formatPersonName(firstName, lastName, middleName, rawDisplayName) || "Anonymous";
+
+  if ((!lastName || !firstName) && (displayName !== "Anonymous" || rawDisplayName)) {
+    const parsed = parseCandidateFullName(displayName !== "Anonymous" ? displayName : rawDisplayName, {
+      firstName,
+      lastName,
+      middleName,
+    });
+    lastName = lastName || parsed.lastName || null;
+    firstName = firstName || parsed.firstName || null;
+    middleName = middleName || parsed.middleName || null;
+  }
 
   return {
     applicantId: asString(obj.applicant_id ?? obj.id) ?? "",
@@ -590,9 +613,9 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
   const activityHistory = rawHistory.map(normalizeActivityHistory);
 
   const primaryApplicant = activeApplicantsList[0];
-  const applicantLastName = asString(row.applicant_last_name ?? row.last_name) ?? primaryApplicant?.lastName ?? null;
-  const applicantFirstName = asString(row.applicant_first_name ?? row.first_name) ?? primaryApplicant?.firstName ?? null;
-  const applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name) ?? primaryApplicant?.middleName ?? null;
+  let applicantLastName = asString(row.applicant_last_name ?? row.last_name) ?? primaryApplicant?.lastName ?? null;
+  let applicantFirstName = asString(row.applicant_first_name ?? row.first_name) ?? primaryApplicant?.firstName ?? null;
+  let applicantMiddleName = asString(row.applicant_middle_name ?? row.middle_name) ?? primaryApplicant?.middleName ?? null;
   const rawApplicantName = asString(
     row.applicant_name ??
     row.applicant_full_name ??
@@ -605,6 +628,23 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     applicantMiddleName,
     rawApplicantName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous" ? primaryApplicant.displayName : null),
   ) || null;
+
+  if (
+    (!applicantLastName || !applicantFirstName) &&
+    (applicantName || rawApplicantName || (primaryApplicant && primaryApplicant.displayName !== "Anonymous"))
+  ) {
+    const parsed = parseCandidateFullName(
+      applicantName || rawApplicantName || (primaryApplicant ? primaryApplicant.displayName : ""),
+      {
+        firstName: applicantFirstName,
+        lastName: applicantLastName,
+        middleName: applicantMiddleName,
+      },
+    );
+    applicantLastName = applicantLastName || parsed.lastName || null;
+    applicantFirstName = applicantFirstName || parsed.firstName || null;
+    applicantMiddleName = applicantMiddleName || parsed.middleName || null;
+  }
 
   const contactNumber = asString(
     row.contact_number ??
@@ -752,6 +792,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     headcount: asNumber(row.required_headcount ?? row.headcount ?? row.hc) ?? 1,
     applicantLastName,
     applicantFirstName,
+    applicantMiddleName,
     applicantName,
     storeLocation: [asString(row.area_city), asString(row.area_province ?? row.area_name ?? row.province)].filter(Boolean).join(" • ") || null,
     areaCity: asString(row.area_city),
@@ -1783,10 +1824,23 @@ export async function listVacancies(params: VacancyListParams) {
               row.applicantId = asString(active.id);
               row.contactNumber = row.contactNumber || asString(active.contact_number);
               row.hiredDate = row.hiredDate || asString(active.hired_date);
-              const lName = asString(active.last_name);
-              const fName = asString(active.first_name);
-              const mName = asString(active.middle_name);
+              let lName = asString(active.last_name);
+              let fName = asString(active.first_name);
+              let mName = asString(active.middle_name);
               const fFull = asString(active.full_name);
+              if ((!lName || !fName) && fFull) {
+                const parsed = parseCandidateFullName(fFull, {
+                  firstName: fName,
+                  lastName: lName,
+                  middleName: mName,
+                });
+                lName = lName || parsed.lastName || null;
+                fName = fName || parsed.firstName || null;
+                mName = mName || parsed.middleName || null;
+              }
+              row.applicantLastName = lName;
+              row.applicantFirstName = fName;
+              row.applicantMiddleName = mName;
               row.applicantName = formatPersonName(fName, lName, mName, fFull || row.applicantName);
               row.stageBadge = asString(active.status) || "In Pipeline";
             }
@@ -1990,6 +2044,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               headcount: 1,
               applicantLastName: lName,
               applicantFirstName: fName,
+              applicantMiddleName: mName,
               applicantName: workerName,
               storeLocation,
               areaCity,
@@ -2012,6 +2067,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
                   displayName: workerName,
                   lastName: lName,
                   firstName: fName,
+                  middleName: mName,
                   contactNumber: asString(match.contact_number),
                   statusLabel: "Confirmed Onboard",
                   onboardDate: hiredDate,
