@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#c9k4w1x2**: Vacancy Failed/Backout Tab Layout Refinement (Date of Backout, Dynamic Aging, Simplified Status)
-2. **ohm#b8k2w7x4**: Fix Backout Row Leakage, Duplication, and Candidate Overwrite Across Vacancy Tabs
-3. **ohm#n7f3w9k2**: Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow)
-4. **ohm#m5d8v2x4**: Plantilla Import Audit & Review Queue / Error Log Parity
-5. **ohm#a8b3p9g1**: Approvals Module Pagination & Table Controls (Vacancy Parity)
+1. **ohm#g8f4a1c2**: Fix Account Group Displaying as General / Direct Instead of Assigned Client Group / MOSES HQ
+2. **ohm#c9k4w1x2**: Vacancy Failed/Backout Tab Layout Refinement (Date of Backout, Dynamic Aging, Simplified Status)
+3. **ohm#b8k2w7x4**: Fix Backout Row Leakage, Duplication, and Candidate Overwrite Across Vacancy Tabs
+4. **ohm#n7f3w9k2**: Fix Candidate Name Field Binding & Parsing in Vacancy Module (Endorse -> Confirm Onboarding Flow)
+5. **ohm#m5d8v2x4**: Plantilla Import Audit & Review Queue / Error Log Parity
 
-> Older entries trimmed 2026-10-20 (`ohm#c9k4w1x2`) to keep this list to 5 — dropped `ohm#2k9w4t7e` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-20 (`ohm#g8f4a1c2`) to keep this list to 5 — dropped `ohm#a8b3p9g1` and earlier entries — see git history for that and earlier entries in full.

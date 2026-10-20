@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
+  formatGroupName,
   getVacancyDetail,
   VacancyDataError,
 } from "@/lib/queries/vacancy";
@@ -301,7 +302,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
           <>
             <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
             <span className="truncate">
-              {[detail.accountName, detail.groupName || "General / Direct", detail.storeName]
+              {[detail.accountName, formatGroupName(detail.groupName, detail.accountName) || "General / Direct", detail.storeName]
                 .filter(Boolean)
                 .join(" / ") || "Global Account"}
             </span>
@@ -587,8 +588,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
                         <div>
                           <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Group</span>
-                          <span className="font-semibold text-text-primary block truncate" title={detail.groupName || "General / Direct"}>
-                            {detail.groupName || "General / Direct"}
+                          <span className="font-semibold text-text-primary block truncate" title={formatGroupName(detail.groupName, detail.accountName) || "General / Direct"}>
+                            {formatGroupName(detail.groupName, detail.accountName) || "General / Direct"}
                           </span>
                         </div>
                         <div>

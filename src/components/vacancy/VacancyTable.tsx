@@ -17,10 +17,11 @@ import {
 } from "lucide-react";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import { TablePagination } from "@/components/shared/TablePagination";
-import type {
-  VacancyDataErrorKind,
-  VacancyListItem,
-  VacancyStatus,
+import {
+  formatGroupName,
+  type VacancyDataErrorKind,
+  type VacancyListItem,
+  type VacancyStatus,
 } from "@/lib/queries/vacancy";
 import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
 import { useCurrentUser } from "@/lib/auth";
@@ -396,7 +397,7 @@ export function VacancyTable({
                         {row.accountName ?? "—"}
                       </div>
                       <div className="text-xs text-table-text-muted">
-                        {row.groupName || "General / Direct"}
+                        {formatGroupName(row.groupName, row.accountName) || "General / Direct"}
                       </div>
                     </td>
 

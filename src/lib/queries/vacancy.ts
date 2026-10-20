@@ -417,6 +417,18 @@ export function calculateDaysToFill(
   return Math.max(0, diffDays);
 }
 
+export function formatGroupName(groupName?: string | null, accountName?: string | null): string {
+  if (accountName && accountName.trim().toLowerCase() === "moses hq") {
+    return "MOSES HQ";
+  }
+  if (!groupName) return "";
+  const trimmed = groupName.trim();
+  if (trimmed.toLowerCase() === "global hq" || trimmed.toLowerCase() === "ghq") {
+    return "MOSES HQ";
+  }
+  return trimmed;
+}
+
 function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const id = asString(row.vacancy_id ?? row.id);
 
@@ -505,7 +517,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
     groupId: asString(row.group_id),
-    groupName: asString(row.group_name),
+    groupName: formatGroupName(asString(row.group_name), asString(row.account_name ?? row.account)) || null,
     storeId: asString(row.store_id),
     storeName: asString(row.store_name ?? row.store),
     storeLocation,
@@ -751,7 +763,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     accountId: asString(row.account_id),
     accountName: asString(row.account_name ?? row.account),
     groupId: asString(row.group_id),
-    groupName: asString(row.group_name),
+    groupName: formatGroupName(asString(row.group_name), asString(row.account_name ?? row.account)) || null,
     storeId: asString(row.store_id),
     storeName: asString(row.store_name ?? row.store),
     position_title: asString(row.position_title),
@@ -1110,8 +1122,8 @@ export async function listVacancies(params: VacancyListParams) {
           const hiredDate = asString(h.hired_date ?? h.hired_at);
           const position = asString(h.position_name ?? h.position);
           const vcode = asString(h.vacancy_vcode) ?? "Uncoded";
-          const groupName = asString(h.group_name);
           const account = asString(h.account);
+          const groupName = formatGroupName(asString(h.group_name), account);
 
           return {
             id: asString(h.id) ?? `hired-${idx}`,
@@ -1800,6 +1812,58 @@ export async function listVacancies(params: VacancyListParams) {
     }
   }
 
+  // Enrich missing group names via accounts & groups tables lookup
+  const rowsMissingGroup = rows.filter((r) => !r.groupName);
+  if (rowsMissingGroup.length > 0) {
+    try {
+      const acctIds = Array.from(new Set(rowsMissingGroup.map((r) => r.accountId).filter(Boolean) as string[]));
+      const acctNames = Array.from(new Set(rowsMissingGroup.map((r) => r.accountName).filter(Boolean) as string[]));
+
+      let acctQuery = supabase
+        .from("accounts")
+        .select("id, account_name, group_id, groups(group_name)");
+
+      if (acctIds.length > 0) {
+        acctQuery = acctQuery.in("id", acctIds);
+      } else if (acctNames.length > 0) {
+        acctQuery = acctQuery.in("account_name", acctNames);
+      }
+
+      const { data: acctsWithGroup } = await acctQuery;
+      if (acctsWithGroup && acctsWithGroup.length > 0) {
+        const idGroupMap = new Map<string, { groupId: string; groupName: string }>();
+        const nameGroupMap = new Map<string, { groupId: string; groupName: string }>();
+
+        for (const item of acctsWithGroup as Array<Record<string, unknown>>) {
+          const gId = asString(item.group_id);
+          const grp = item.groups as Record<string, unknown> | Array<Record<string, unknown>> | null;
+          const rawGName = Array.isArray(grp) ? asString(grp[0]?.group_name) : asString(grp?.group_name);
+          const acctName = asString(item.account_name);
+          const resolvedName = formatGroupName(rawGName, acctName);
+
+          if (gId || resolvedName) {
+            const entry = { groupId: gId || "", groupName: resolvedName };
+            if (item.id) idGroupMap.set(String(item.id), entry);
+            if (acctName) nameGroupMap.set(acctName.toLowerCase().trim(), entry);
+          }
+        }
+
+        for (const row of rows) {
+          if (!row.groupName) {
+            const match = (row.accountId ? idGroupMap.get(row.accountId) : null) ||
+                          (row.accountName ? nameGroupMap.get(row.accountName.toLowerCase().trim()) : null);
+            if (match) {
+              row.groupName = match.groupName || row.groupName;
+              if (!row.groupId && match.groupId) row.groupId = match.groupId;
+            }
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   // Enrich applicant details based on active applicants:
   const allVcodes = Array.from(new Set(rows.map((r) => r.vcode).filter(Boolean)));
 
@@ -2148,16 +2212,22 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
     }
   }
 
-  // Enrich leadership team (OM, TL, ATL, HRCO) from accounts and users_profile
+  // Enrich leadership team (OM, TL, ATL, HRCO) and group from accounts and users_profile
   if (normalized.accountId || normalized.accountName) {
     try {
       const { data: rawAccount } = await supabase
         .from("accounts")
-        .select("id, account_name, hrco_user_id, om_user_id, atl_user_id, om_name, atl_name")
+        .select("id, account_name, group_id, hrco_user_id, om_user_id, atl_user_id, om_name, atl_name, groups(group_name)")
         .eq(normalized.accountId ? "id" : "account_name", normalized.accountId || normalized.accountName)
         .maybeSingle();
 
       if (rawAccount) {
+        if (!normalized.groupName) {
+          const grp = rawAccount.groups as Record<string, unknown> | Array<Record<string, unknown>> | null;
+          const rawGName = Array.isArray(grp) ? asString(grp[0]?.group_name) : asString(grp?.group_name);
+          normalized.groupName = formatGroupName(rawGName, rawAccount.account_name) || normalized.groupName;
+          if (!normalized.groupId && rawAccount.group_id) normalized.groupId = asString(rawAccount.group_id);
+        }
         if (!normalized.omName && rawAccount.om_name) normalized.omName = rawAccount.om_name;
         if (!normalized.atlName && rawAccount.atl_name) normalized.atlName = rawAccount.atl_name;
 
@@ -3326,8 +3396,8 @@ async function fetchAllHiredVacancies(
       const hiredDate = asString(h.hired_date ?? h.hired_at);
       const position = asString(h.position_name ?? h.position);
       const vcode = asString(h.vacancy_vcode) ?? "Uncoded";
-      const groupName = asString(h.group_name);
       const account = asString(h.account);
+      const groupName = formatGroupName(asString(h.group_name), account);
 
       return {
         id: asString(h.id) ?? `hired-${idx}`,

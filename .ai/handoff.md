@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Fix Account Group Displaying as General / Direct Instead of Assigned Client Group / MOSES HQ (ohm#g8f4a1c2)
+
+**Status: COMPLETE — MIGRATION 20262606000046 APPLIED TO STAGING & PROD, TRIGGER AND VIEW HARDENING INSTALLED, GROUP ENRICHMENT & FORMATTING WIRED ON WEB**
+
+### Objective
+Resolve issue where accounts such as **BANKO** and **ACTISERVE** were displaying **"General / Direct"** under the **ACCOUNT / GROUP** column in Vacancy Management instead of their assigned client groups (`Group 1` to `Group 5`) or `MOSES HQ`.
+
+---
+
+### Root Cause
+1. In PostgreSQL, `vacancies` table had rows where `group_id IS NULL` (including test vacancies for `BANKO` like `TEST005`–`TEST011` and other accounts), despite their `account_id` referencing active accounts with assigned groups (`Group 1` for BANKO, `Group 5` for ACTISERVE, `Global HQ` for Moses HQ).
+2. Database views `vw_vacancy_list` and `vw_vacancy_detail` joined `groups g ON g.id = v.group_id` without falling back to `a.group_id` from `public.accounts`. When `v.group_id` was null, `g.group_name` evaluated to null.
+3. The frontend data fetching layer (`src/lib/queries/vacancy.ts`) lacked account-group fallback enrichment (unlike store locations and HRCO names).
+4. `VacancyTable.tsx` and `VacancyDetailDrawer.tsx` defaulted to `"General / Direct"` whenever `row.groupName` was null/empty.
+
+---
+
+### Key Implementations
+1. **Database Migration (`supabase/migrations/20262606000046_fix_vacancy_group_resolution.sql`)**:
+   - **Data Backfill**: Updated existing `public.vacancies` where `group_id IS NULL` by setting `group_id = a.group_id` from `public.accounts` (matching `v.account_id = a.id` or account name). Verified 0 remaining null group IDs across both staging and production.
+   - **Auto-Assignment Trigger**: Added `trg_fn_auto_assign_vacancy_group_id` as a `BEFORE INSERT OR UPDATE` trigger on `public.vacancies` to automatically populate `NEW.group_id` from `accounts` whenever `NEW.group_id IS NULL`.
+   - **View Hardening**: Recreated `vw_vacancy_list` and `vw_vacancy_detail` joining `accounts a` and coalescing `COALESCE(v.group_id, a.group_id)` and `COALESCE(g.group_name, ga.group_name)`. Re-applied grants for `authenticated`, `postgres`, and `service_role`.
+   - **Deployment**: Applied cleanly to both Staging (`qqiiznmqxfoamqytjica`) and Production (`rwxelulyapjgaarlwkus`).
+2. **Frontend Helper & Enrichment (`src/lib/queries/vacancy.ts`)**:
+   - Implemented and exported `formatGroupName(groupName, accountName)`:
+     - Formats `Global HQ` / `GHQ` (or `Moses HQ` account) into `MOSES HQ`.
+     - Preserves `Group 1` through `Group 5`.
+     - Returns empty string only when unassigned.
+   - Updated `normalizeListRow` and `normalizeDetailRow` to use `formatGroupName(asString(row.group_name), asString(row.account_name ?? row.account))`.
+   - Added batch enrichment in `fetchVacancies`: for any row missing `groupName`, queries `accounts` with `groups(group_name)` and maps group info by account ID or account name.
+   - In `getVacancyDetail`: enriched `groupName` and `groupId` from `accounts` + `groups(group_name)`.
+   - In `fetchHiredVacancies` and `fetchFailedBackoutVacancies`: updated group name formatting with `formatGroupName`.
+3. **UI Presentation (`src/components/vacancy/VacancyTable.tsx` & `VacancyDetailDrawer.tsx`)**:
+   - Updated table column 3: `{formatGroupName(row.groupName, row.accountName) || "General / Direct"}`.
+   - Updated detail drawer subtitle and overview metadata card to display formatted group names.
+4. **Verification**:
+   - `npm run lint` clean (0 errors, 23 pre-existing warnings in unrelated files).
+   - `npm run build` passed cleanly across all 19 routes.
+   - Verified in database: 0 vacancies with null `group_id` or `group_name` in both staging and production.
+
+---
+
 ## Vacancy Failed/Backout Tab Layout Refinement (Date of Backout, Dynamic Aging, Simplified Status) (ohm#c9k4w1x2)
 
 **Status: COMPLETE — DEDICATED 9-COLUMN SCHEMA, DYNAMIC AGING CALCULATION, DATE OF BACKOUT COLUMN, AND SIMPLIFIED STATUS APPLIED, MAIN BRANCH**
