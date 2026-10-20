@@ -10,7 +10,6 @@ import {
   LockKeyhole,
   Phone,
   RefreshCw,
-  RotateCcw,
   TrendingUp,
   UserMinus,
   UserPlus,
@@ -70,6 +69,19 @@ function getTableColumns(status: VacancyStatus): string[] {
       "APPLICANT",
       "ONBOARD DATE",
       "DAYS TO FILL",
+    ];
+  }
+  if (status === "failed_backout") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "APPLICANT",
+      "DATE OF BACKOUT",
+      "STATUS",
+      "AGING",
     ];
   }
   return [
@@ -250,9 +262,9 @@ export function VacancyTable({
   onAdvancePipeline,
   onMarkHired,
   onFailBackout,
-  onReopenVacancy,
+  onReopenVacancy: _onReopenVacancy,
   onReviewClosure,
-  onEditHiredDate,
+  onEditHiredDate: _onEditHiredDate,
   onRetry,
   onPageChange,
   onPageSizeChange,
@@ -481,6 +493,54 @@ export function VacancyTable({
                           )}
                         </td>
                       </>
+                    ) : status === "failed_backout" ? (
+                      <>
+                        {/* 6. APPLICANT */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          <div className="font-semibold text-table-text">
+                            {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Candidate"}
+                          </div>
+                        </td>
+
+                        {/* 7. DATE OF BACKOUT */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-xs text-table-text-muted font-mono">
+                          {formatDropoutDate(row.dropoutDate)}
+                        </td>
+
+                        {/* 8. STATUS (simple typography, no pill) */}
+                        <td className="border-b border-table-rule px-4 py-2.5">
+                          <span className="text-xs font-medium text-rose-700">
+                            {row.dropoutReason || "Failed / Backout"}
+                          </span>
+                        </td>
+
+                        {/* 9. AGING */}
+                        <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
+                          {row.agingDays !== null && row.agingDays !== undefined ? (
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
+                                row.agingDays <= 15
+                                  ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
+                                  : row.agingDays <= 30
+                                  ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
+                                  : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
+                              }`}
+                            >
+                              {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
+                            </span>
+                          ) : row.agingBucket === "advance" ? (
+                            <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              Advance
+                            </span>
+                          ) : row.agingBucket ? (
+                            <span className="inline-flex items-center rounded-md border border-table-rule bg-table-row px-2 py-0.5 text-xs text-table-text-muted">
+                              {formatAgingBucket(row.agingBucket)}
+                            </span>
+                          ) : (
+                            <span className="text-table-text-muted">—</span>
+                          )}
+                        </td>
+                      </>
                     ) : (
                       <>
                         {/* 6. APPLICANT */}
@@ -499,21 +559,6 @@ export function VacancyTable({
                                   </div>
                                 ) : null}
                               </div>
-                            ) : status === "failed_backout" ? (
-                              /* Failed / Backout Tab: Display Candidate Full Name, Dropout / Failure Reason, and Date */
-                              <div className="flex flex-col gap-1">
-                                <div className="font-semibold text-table-text">
-                                  {row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "Candidate"}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {row.dropoutDate && (
-                                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-table-text-muted">
-                                      <Calendar className="h-3 w-3 shrink-0 text-table-text-muted" aria-hidden="true" />
-                                      <span>{formatDropoutDate(row.dropoutDate)}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
                             ) : (
                               row.applicantName ? formatPersonName(null, null, null, row.applicantName) : "—"
                             )}
@@ -527,10 +572,6 @@ export function VacancyTable({
                               <StatusBadge variant="info">
                                 {row.stageBadge || "In Pipeline"}
                               </StatusBadge>
-                            ) : status === "failed_backout" ? (
-                              <StatusBadge variant="danger">
-                                {row.dropoutReason || "Failed / Backout"}
-                              </StatusBadge>
                             ) : (
                               <StatusBadge variant={getVacancyStatusVariant(statusKey)}>
                                 {getStatusLabel(row)}
@@ -541,8 +582,8 @@ export function VacancyTable({
                       </>
                     )}
 
-                    {/* Columns 8, 9, 10: AGING, HC, ACTIONS (Omitted for Hired tab) */}
-                    {status !== "hired" && (
+                    {/* Columns 8, 9, 10: AGING, HC, ACTIONS (Omitted for Hired and Failed / Backout tabs) */}
+                    {status !== "hired" && status !== "failed_backout" && (
                       <>
                         {/* 8. AGING */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
@@ -676,21 +717,6 @@ export function VacancyTable({
                                   </>
                                 )}
                               </div>
-                            )}
-
-                            {status === "failed_backout" && userCanManagePipeline && onReopenVacancy && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onReopenVacancy(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
-                                title={`Reopen slot for ${row.vcode}`}
-                              >
-                                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">Reopen</span>
-                              </button>
                             )}
 
                             <button

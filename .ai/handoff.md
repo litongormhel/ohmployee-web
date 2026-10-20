@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Vacancy Failed/Backout Tab Layout Refinement (Date of Backout, Dynamic Aging, Simplified Status) (ohm#c9k4w1x2)
+
+**Status: COMPLETE — DEDICATED 9-COLUMN SCHEMA, DYNAMIC AGING CALCULATION, DATE OF BACKOUT COLUMN, AND SIMPLIFIED STATUS APPLIED, MAIN BRANCH**
+
+### Objective
+Refine the `Failed / Backout` tab layout in the Vacancy module based on UI feedback:
+1. Remove `HC` column from `Failed / Backout`.
+2. Remove `ACTIONS` column from `Failed / Backout` (row clicks retain drawer trigger).
+3. Compute dynamic `Aging` days so it is never blank (`—`).
+4. Relocate date of backout from underneath candidate name into its own dedicated `DATE OF BACKOUT` column.
+5. Simplify `STATUS` column display by removing rounded pill/badge chip and rendering clean typography.
+
+---
+
+### Key Implementations
+1. **Dynamic Aging Calculation (`src/lib/queries/vacancy.ts`)**:
+   - In `listVacancies` under `currentTab === "failed_backout"`, added `created_at` to the `vacancies` query select list.
+   - Dynamically calculated `agingDays` and `agingBucket` from `vac?.vacant_date ?? vac?.created_at ?? d.created_at` against `Date.now()`, ensuring dropouts show actual aging days and matching aging badges (≤15d green, ≤30d amber, >30d rose).
+2. **Dedicated Table Schema (`src/components/vacancy/VacancyTable.tsx`)**:
+   - In `getTableColumns(status)`, added dedicated branch for `status === "failed_backout"` returning exactly 9 columns: `["VCODE", "POSITION", "ACCOUNT / GROUP", "OUTLET NAME", "HRCO", "APPLICANT", "DATE OF BACKOUT", "STATUS", "AGING"]`.
+   - Omitted `HC` and `ACTIONS` columns from header.
+3. **Table Body Cell Alignment (`src/components/vacancy/VacancyTable.tsx`)**:
+   - Created dedicated `status === "failed_backout"` rendering block for columns 6–9:
+     - **APPLICANT (Col 6)**: Formatted candidate name (`formatPersonName`) with secondary date subtitle removed.
+     - **DATE OF BACKOUT (Col 7)**: Dedicated column rendering `formatDropoutDate(row.dropoutDate)` with clean font-mono styling.
+     - **STATUS (Col 8)**: Simplified typography `<span className="text-xs font-medium text-rose-700">{row.dropoutReason || "Failed / Backout"}</span>` without circular badge chip.
+     - **AGING (Col 9)**: Dynamic badge display showing calculated days count.
+   - Updated trailing column block `{status !== "hired" && status !== "failed_backout" && (` so `HC` and `ACTIONS` are completely omitted on `failed_backout`, matching table header length (9 columns).
+   - Cleaned up unused `RotateCcw` import and parameter warnings.
+4. **Verification**:
+   - `npm run lint` clean (0 errors).
+   - `npm run build` passed with all 19/19 routes compiled cleanly in Next.js 16.
+
+---
+
 ## Fix Backout Row Leakage, Duplication, and Candidate Overwrite Across Vacancy Tabs (ohm#b8k2w7x4)
 
 **Status: COMPLETE — BACKOUT APPLICANT ARCHIVAL GUARD, REACT COMPOSITE KEYING & COLUMN SCHEMA SYNCHRONIZATION APPLIED, MAIN BRANCH**

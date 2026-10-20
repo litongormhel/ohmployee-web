@@ -660,7 +660,23 @@ Validation:
   - Preserves `row.id` as the vacancy UUID for detail drawer compatibility (`getVacancyDetail`), while using `row.applicantId` to uniquely identify each backout row, preventing virtual DOM key collisions, row multiplication, and candidate overwriting.
 - **Strict Tab Scoping & Column Alignment**:
   - `listVacancies` strictly clears all candidate and dropout metadata (`applicantId`, `applicantName`, `contactNumber`, `stageBadge`, `dropoutReason`, `dropoutDate`) on `currentTab === "open"`.
-  - `VacancyTable.tsx` enforces strict column parity matching `getTableColumns(status)`: exactly 8 columns for `open`/`hired`, exactly 10 columns for `closure`/`pipeline`/`failed_backout`, preventing table cell shifting.
+  - `VacancyTable.tsx` enforces strict column parity matching `getTableColumns(status)`: exactly 8 columns for `open`/`hired`, exactly 10 columns for `closure`/`pipeline`, preventing table cell shifting.
 - **Clean Date Formatting**:
-  - `VacancyTable.tsx` implements `formatDropoutDate` rendering humanized dates (e.g. `Aug 11, 2026`) accompanied by a calendar icon matching Hired tab parity.
+  - `VacancyTable.tsx` implements `formatDropoutDate` rendering humanized dates (e.g. `Aug 11, 2026`).
+
+## Failed / Backout Tab Column & Layout Refinement (ohm#c9k4w1x2)
+
+- **Dedicated Column Layout (9 Columns)**:
+  - `getTableColumns("failed_backout")` in `src/components/vacancy/VacancyTable.tsx` defines exactly 9 columns: `["VCODE", "POSITION", "ACCOUNT / GROUP", "OUTLET NAME", "HRCO", "APPLICANT", "DATE OF BACKOUT", "STATUS", "AGING"]`.
+  - Removed `HC` column (omitted).
+  - Removed `ACTIONS` column (omitted). Row click retains `canViewDetail` triggering the vacancy detail drawer.
+- **Date of Backout Relocation**:
+  - Moved the backout timestamp from below the applicant name into its own dedicated column (`DATE OF BACKOUT`), rendered via `formatDropoutDate(row.dropoutDate)`.
+  - The `APPLICANT` column displays candidate full name cleanly without secondary subtitles.
+- **Simplified Status Presentation**:
+  - Removed circular `<StatusBadge>` pill/chip styling.
+  - Rendered status cleanly as simple colored typography (`<span className="text-xs font-medium text-rose-700">{row.dropoutReason || "Failed / Backout"}</span>`).
+- **Dynamic Aging Calculation**:
+  - In `src/lib/queries/vacancy.ts` (`listVacancies` under `currentTab === "failed_backout"`), included `created_at` in vacancy query and dynamically computes `agingDays` and `agingBucket` from `vacant_date ?? created_at ?? d.created_at` relative to `Date.now()`.
+  - In `VacancyTable.tsx`, renders non-blank aging badge with dynamic day count and color coding (≤15d green, ≤30d amber, >30d rose).
 

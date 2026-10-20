@@ -1458,7 +1458,7 @@ export async function listVacancies(params: VacancyListParams) {
         const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
         let vacQuery = supabase
           .from("vacancies")
-          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
+          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
           .in("vcode", dropoutVcodes)
           .eq("is_archived", false)
           .is("deleted_at", null);
@@ -1495,6 +1495,24 @@ export async function listVacancies(params: VacancyListParams) {
               : rawDropoutDate
             : null;
 
+          const vDateStr = asString(vac?.vacant_date ?? vac?.created_at ?? d.created_at);
+          let agingDays: number | null = null;
+          if (vDateStr) {
+            const vDate = new Date(vDateStr);
+            if (!isNaN(vDate.getTime())) {
+              const diffMs = Date.now() - vDate.getTime();
+              agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+            }
+          }
+
+          let agingBucket: string | null = null;
+          if (agingDays !== null) {
+            if (agingDays <= 7) agingBucket = "0_7";
+            else if (agingDays <= 14) agingBucket = "8_14";
+            else if (agingDays <= 30) agingBucket = "15_30";
+            else agingBucket = "31_plus";
+          }
+
           return {
             id: asString(vac?.id) ?? asString(d.id) ?? `failed-${idx}`,
             vcode,
@@ -1517,8 +1535,8 @@ export async function listVacancies(params: VacancyListParams) {
             hasPendingClosure: false,
             closureRequestStatus: null,
             vacantDate: asString(vac?.vacant_date),
-            agingDays: null,
-            agingBucket: null,
+            agingDays,
+            agingBucket,
             targetFillDate: asString(vac?.target_fill_date),
             urgencyLevel: asString(vac?.urgency_level),
             hrcoName: asString(vac?.hrco_name) ?? "—",
