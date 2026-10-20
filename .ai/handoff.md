@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Audit & Guard Live Production Staging Data Leak on ohmployee-web.vercel.app (ohm#v4c9prod)
+
+**Status: COMPLETE — CLIENT-SIDE AUDIT & PRODUCTION CONFIG GUARD, MAIN BRANCH**
+
+### Objective
+Audited why live production deployment (`ohmployee-web.vercel.app`) was displaying staging/test data in the Vacancy Management module (e.g., VCODEs `TEST005`, `TEST011`, `BUN-GHQ-00014`, and `ACT-G5-*` with Selena Gomez). Hardened `src/lib/supabase/client.ts` to prevent silent fallback to Staging on Vercel production deployments.
+
+---
+
+### Key Findings & Root Cause Analysis
+1. **Target Project Ref Divergence**:
+   - Production Supabase Project: `rwxelulyapjgaarlwkus` (`https://rwxelulyapjgaarlwkus.supabase.co`)
+   - Staging Supabase Project: `qqiiznmqxfoamqytjica` (`https://qqiiznmqxfoamqytjica.supabase.co`)
+2. **Database Verification**:
+   - `TEST005` & `TEST011`: Exist exclusively in Staging (`qqiiznmqxfoamqytjica`) under account BANKO. They do NOT exist in Production (`rwxelulyapjgaarlwkus`).
+   - `BUN-GHQ-00014`: In Production, this record is status `Archived` (Account: KAMBAK, created 2026-07-04). In Staging, it is `Open` (Account: Moses HQ, created 2026-08-10).
+   - `ACT-G5-001` through `ACT-G5-010`: In Production, records `008`, `009`, `010` are `Closed`. In Staging, all records are `Open`.
+   - `Selena Gomez`: Profile exists in both environments, but in Staging the `ACTISERVE` account (`4fba7c47-f19e-47fb-9074-6acab754721f`) has `hrco_user_id` set to her ID and 38 vacancies explicitly map `hrco_name: 'Selena Gomez'`.
+   - **Conclusion**: The production database is clean. The reported test records exist strictly in the Staging database.
+3. **Pipeline & Bundle Inspection**:
+   - Inspected live chunks from `https://ohmployee-web.vercel.app/_next/static/chunks/0vkwrf4w2n_g9.js`.
+   - The Production Supabase ref (`rwxelulyapjgaarlwkus`) was completely absent.
+   - The Staging Supabase ref (`qqiiznmqxfoamqytjica`) was hardcoded directly into the compiled client JavaScript bundle because `src/lib/supabase/client.ts` contained a silent fallback to `STAGING_URL` when `NEXT_PUBLIC_SUPABASE_URL` is omitted during Next.js static builds on Vercel.
+
+---
+
+### Implementation & Hardening
+1. **Audited Supabase Initialization**:
+   - Verified `src/lib/supabase/client.ts` is the single Supabase client instantiation file in the web repository (no server/middleware clients exist).
+2. **Hardened `src/lib/supabase/client.ts`**:
+   - Added `isVercelProduction()` helper checking `NEXT_PUBLIC_VERCEL_ENV === "production"` or `window.location.hostname === "ohmployee-web.vercel.app"`.
+   - Enforced that if deployed on Vercel production, missing credentials or any attempt to reference Staging Supabase (`qqiiznmqxfoamqytjica`) throws a fatal error immediately, preventing any connection to staging/test data.
+   - Preserved fallback for local non-production bootstrap and staging builds (`npm run build`).
+3. **Build & Quality Gate**:
+   - Verified `npm run build` succeeds locally with zero errors (19/19 routes statically generated).
+
+---
+
 ## Web Parity Check — Verify briefing.md Structure + Align AGENTS.md Workflow Block with Mobile (ohm#3f8j5k2w)
 
 **Status: COMPLETE — CLIENT-SIDE / DOCS-ONLY, MAIN BRANCH**

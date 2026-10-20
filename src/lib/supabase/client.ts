@@ -20,6 +20,16 @@ function isValidHttpUrl(candidate?: string | null): boolean {
   }
 }
 
+function isVercelProduction(): boolean {
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") {
+    return true;
+  }
+  if (typeof window !== "undefined" && window.location.hostname === "ohmployee-web.vercel.app") {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Checks whether Supabase environment variables are present and validly formatted.
  */
@@ -31,8 +41,8 @@ export function isSupabaseConfigured(): boolean {
 
 /**
  * Returns a cached browser SupabaseClient instance.
- * Fails loudly with actionable warnings if environment variables are missing or malformed,
- * while applying a graceful fallback to STAGING to prevent unhandled app crashes on deployed hosts.
+ * When on Vercel production, missing credentials or staging references throw immediately
+ * to guarantee production never operates against staging/test data.
  */
 export function createClient(): SupabaseClient {
   if (cachedClient) {
@@ -41,6 +51,21 @@ export function createClient(): SupabaseClient {
 
   let finalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   let finalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (isVercelProduction()) {
+    if (!finalUrl || !finalKey || !isValidHttpUrl(finalUrl)) {
+      const errMsg =
+        "[supabase] FATAL: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be configured on Vercel production. Staging fallback is disabled in production.";
+      console.error(errMsg);
+      throw new Error(errMsg);
+    }
+    if (finalUrl.includes("qqiiznmqxfoamqytjica")) {
+      const errMsg =
+        "[supabase] FATAL: Staging Supabase URL detected on Vercel production. Production must point to production Supabase (rwxelulyapjgaarlwkus).";
+      console.error(errMsg);
+      throw new Error(errMsg);
+    }
+  }
 
   if (!finalUrl || !finalKey || !isValidHttpUrl(finalUrl)) {
     console.error(
@@ -54,7 +79,7 @@ export function createClient(): SupabaseClient {
     );
 
     console.warn(
-      `[supabase] Applying graceful fallback to STAGING (${STAGING_URL}) to allow workspace bootstrap.`
+      `[supabase] Applying graceful fallback to STAGING (${STAGING_URL}) for non-production workspace bootstrap.`
     );
 
     finalUrl = STAGING_URL;
