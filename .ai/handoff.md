@@ -1,6 +1,78 @@
 # AI Handoff
 
-## Fix Missing Dropout Records on Filled/Archived Requisitions & Backout Reason Sanity Audit (ohm#j2k9v4x8)
+## Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity) (ohm#m4p8x2c1)
+
+**Status: COMPLETE — MIGRATION 20262606000049 APPLIED TO STAGING & PRODUCTION, DERIVED_STATUS CAPACITY-AWARE (OPEN WHILE HC_FILLED < HC_TOTAL), PIPELINE MULTI-CANDIDATE EXPANSION ACTIVE, AUTOMATED REOPEN ON SLOT OCCUPANCY TRANSITION INSTALLED, CLEAN LINT & BUILD VERIFIED**
+
+### Objective
+1. **Multi-Headcount Requisitions Stay in `Open` Tab Until Fully Fulfilled:**
+   - A store requisition (`vcode`) with multiple required headcount (e.g. `VCAG5_0056` with 7 HC) must remain visible and actionable (`+ Applicant`) in the **Open** tab as long as `hc_filled < hc_total` (i.e. `confirmed_onboard_count < required_headcount`), regardless of how many candidates are currently in `Pipeline`.
+   - Adding 1 applicant to a 7-HC vacancy means 1 slot is in Pipeline and 6 slots are still Open. The requisition must NOT vanish from Open until all required slots are fulfilled/onboarded (`hc_filled >= hc_total`).
+2. **Simultaneous Visibility & Candidate Row Expansion in `Pipeline` Tab:**
+   - The requisition remains in the Open tab for HRCOs to endorse remaining slots, while its active candidates appear simultaneously in the **Pipeline** tab.
+   - For multi-headcount requisitions with multiple active applicants in pipeline, the Pipeline tab expands into 1 row per active candidate so each candidate can be advanced, hired, or backed out individually.
+   - Badge counts (`total_open` and `with_applicant` / `pipeline`) match the table rows 100%.
+3. **Automatic Re-appearance on Backout or Resignation:**
+   - When a candidate in Pipeline or Hired backs out or resigns, releasing a slot so `hc_filled < hc_total`, the requisition remains/reappears in the **Open** tab with updated `hc_display` (`Filled / Total`).
+   - Plantilla slot transitions (`slot_status = 'open'`) trigger automatic reset of `vacancies.status = 'Open'` and `is_archived = false`.
+
+---
+
+### Root Causes
+1. **Premature Status Overwrite in `endorseApplicant` (`src/lib/queries/vacancy.ts`):**
+   - Endorsing an applicant executed an unconditional `UPDATE vacancies SET status = 'Pipeline' WHERE vcode = ...`.
+   - In `vacancies`, `'Pipeline'` is an applicant queue state rather than a canonical vacancy lifecycle status (`Draft`, `Pending Approval`, `Open`, `On Hold`, `Filled`, `Closed`). Overwriting `status = 'Pipeline'` forced the entire vacancy out of `Open` queues.
+2. **Binary Applicant Count Check in `vw_vacancy_list` & `vw_vacancy_detail`:**
+   - `derived_status` evaluated `WHEN COALESCE(s.active_applicant_count, 0) > 0 THEN 'Pipeline'::text` BEFORE checking whether the vacancy had remaining open quota (`hc_filled < hc_total`).
+3. **Backend RPC Filters (`list_web_vacancies` & `get_web_vacancy_summary`):**
+   - `p_status = 'Open'` filtered strictly on `pipeline_status = 'Open'` (or `vacancy_status = 'Open'`), which excluded any requisition that had `active_applicant_count > 0` even when only 1 out of 7 slots had an applicant.
+4. **Shadow View Evaluation (`vw_slot_derived_vacancy_shadow`):**
+   - Evaluated `pipeline_count > 0` before checking `open_count > 0`, diverging shadow views from Open queue capacity.
+5. **Frontend Client-Side Tab Filter (`listVacancies`):**
+   - Open tab filter checked `!hasActive`, aggressively stripping rows with `activeApplicantCount > 0`.
+6. **Pipeline Single-Candidate Flattening:**
+   - Pipeline tab enrichment only took `actives[0]`, rendering a single candidate row even when a requisition had multiple active candidates.
+
+---
+
+### Key Implementations
+1. **Database Migration (`supabase/migrations/20262606000049_multi_hc_open_pipeline_visibility_parity.sql`):**
+   - **Section 1 (`fn_is_valid_vacancy_transition`)**: Permitted `Pipeline -> Open` and `Closed -> Open` transitions.
+   - **Section 2 (`vw_vacancy_list`) & Section 3 (`vw_vacancy_detail`)**: Updated `derived_status` to evaluate capacity-awareness:
+     `WHEN COALESCE(s.confirmed_onboard_count, 0) < GREATEST(COALESCE(v.required_headcount, 1), 1) THEN 'Open'::text`.
+   - **Section 4 (`list_web_vacancies`)**:
+     - `p_status = 'open'`: Includes requisitions where `s.hc_filled < s.hc_total` (unfulfilled quota).
+     - `p_status = 'pipeline'`: Includes requisitions where `s.active_applicant_count > 0`.
+   - **Section 5 (`get_web_vacancy_summary`)**:
+     - `total_open`: Counts all non-closure, non-archived vacancies where `hc_filled < hc_total`.
+     - `with_applicant`: Sums `active_pipeline_count` across all scoped requisitions.
+   - **Section 6 (`vw_slot_derived_vacancy_shadow`)**:
+     - Reordered `vacancy_tab` CASE expression to evaluate open capacity before pipeline.
+   - **Section 7 (`trg_reopen_vacancy_on_slot_open`)**:
+     - Automatically resets `vacancies.status = 'Open'`, `is_archived = false`, `archived_at = NULL` whenever a `plantilla_slots` row transitions to `slot_status = 'open'`.
+   - **Section 8 (Data Repair)**:
+     - Repaired `VCAG5_0056` status back to `'Open'`.
+   - **Applied to both Staging (`qqiiznmqxfoamqytjica`) and Production (`rwxelulyapjgaarlwkus`).**
+2. **Frontend Queries (`src/lib/queries/vacancy.ts`):**
+   - **`endorseApplicant`**: Removed blind `UPDATE vacancies SET status = 'Pipeline'`. Status remains `'Open'` until all slots are confirmed onboard.
+   - **`listVacancies` (Open Tab)**: Replaced `!hasActive` filter with `isUnfulfilled = hcFilled < hcTotal` (and non-closure), keeping partially filled multi-HC vacancies in Open with applicant fields cleared for store requisition presentation.
+   - **`listVacancies` (Pipeline Tab)**: Expanded multi-headcount requisitions with active candidates into 1 row per active applicant (`activeByVcode`), populating `applicantId`, `applicantName`, `contactNumber`, and `stageBadge` so each candidate is independently actionable.
+   - **`failBackoutApplicant`**: Ensured that when `confirmedCount < requiredHc`, the requisition status is set to `'Open'` and `is_archived = false`, regardless of remaining pipeline count.
+
+---
+
+### Verification
+- **Staging Database Verification**:
+  - `VCAG5_0056`: `status = 'Open'`, `derived_status = 'Open'`, `hc_filled = 0`, `hc_total = 7`, `hc_display = '0/7'`, `active_applicant_count = 1`.
+  - Requisition is simultaneously active in Open tab and represented in Pipeline tab.
+- **Production Database Verification**:
+  - Migration applied cleanly across all functions, views, and triggers.
+- **`npm run lint`**: Clean build (0 errors; existing warnings in unrelated modals preserved).
+- **`npm run build`**: Next.js Turbopack build succeeded with 0 errors across all 19 static routes.
+
+---
+
+
 
 **Status: COMPLETE — VACANCY ARCHIVE PREDICATE REMOVED FROM DROPOUT QUERIES, BACKOUT WORKFLOW HARDENED, DRAWER SCOPE FALLBACK ADDED, ALL TESTS PASSING, CLEAN LINT & BUILD**
 

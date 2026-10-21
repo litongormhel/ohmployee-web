@@ -1966,6 +1966,7 @@ export async function listVacancies(params: VacancyListParams) {
 
   // Enrich applicant details based on active applicants:
   const allVcodes = Array.from(new Set(rows.map((r) => r.vcode).filter(Boolean)));
+  const activeByVcode = new Map<string, Array<Record<string, unknown>>>();
 
   if (allVcodes.length > 0) {
     try {
@@ -1978,19 +1979,19 @@ export async function listVacancies(params: VacancyListParams) {
 
       if (applicantsData && applicantsData.length > 0) {
         // Group active applicants by vcode
-        const activeByVcode = new Map<string, Array<Record<string, unknown>>>();
-
         for (const app of applicantsData) {
           const vcode = app.vacancy_vcode;
           const status = (app.status || "").toLowerCase().trim();
-          const isDropout =
+          const isNonPipeline =
             status === "backout" ||
             status === "rejected" ||
             status === "failed" ||
             status === "did not report" ||
-            status === "rejected by ops";
+            status === "rejected by ops" ||
+            status === "withdrew" ||
+            status === "confirmed onboard";
 
-          if (!isDropout) {
+          if (!isNonPipeline) {
             if (!activeByVcode.has(vcode)) activeByVcode.set(vcode, []);
             activeByVcode.get(vcode)!.push(app);
           }
@@ -1998,13 +1999,13 @@ export async function listVacancies(params: VacancyListParams) {
 
         for (const row of rows) {
           if (currentTab === "open") {
-            // Open tab: Vacancies strictly without active candidate.
+            // Open tab: Store requisition level, applicant fields cleared.
             row.applicantId = null;
             row.applicantName = null;
             row.contactNumber = null;
             row.stageBadge = null;
-          } else {
-            // Pipeline, etc.
+          } else if (currentTab !== "pipeline") {
+            // Default for other tabs: attach first active candidate if present
             const actives = activeByVcode.get(row.vcode);
             const active = actives && actives[0];
             if (active) {
@@ -2100,22 +2101,24 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   // Final Tab Scoping Enforcement:
-  // For Open Tab: Exclude any vacancy that has an active candidate assigned, active applicant count > 0,
-  // or active in-flight closure requests (hasPendingClosure, closureRequestStatus = 'Pending', derivedStatus = 'For Closure')
+  // For Open Tab: Stays visible until quota is completely fulfilled (hcFilled < hcTotal) and not closed/archived.
+  // Active pipeline candidates do not remove the requisition from Open tab.
   let finalRows = rows;
   if (currentTab === "open") {
     finalRows = rows.filter((r) => {
-      const hasActive =
-        (r.activeApplicantCount && r.activeApplicantCount > 0) ||
-        Boolean(r.applicantName);
+      const hcFilled = r.hcFilled ?? 0;
+      const hcTotal = r.hcTotal ?? r.headcount ?? 1;
+      const isUnfulfilled = hcFilled < hcTotal;
       const isPendingClosure =
         r.hasPendingClosure === true ||
         (r.closureRequestStatus && r.closureRequestStatus.toLowerCase() === "pending") ||
         r.derivedStatus?.toLowerCase() === "for closure" ||
         r.derivedStatus?.toLowerCase() === "closure" ||
         r.vacancyStatus?.toLowerCase() === "for_closure" ||
-        r.vacancyStatus?.toLowerCase() === "closure";
-      return !hasActive && !isPendingClosure;
+        r.vacancyStatus?.toLowerCase() === "closure" ||
+        r.vacancyStatus?.toLowerCase() === "closed" ||
+        r.vacancyStatus?.toLowerCase() === "archived";
+      return isUnfulfilled && !isPendingClosure;
     });
     for (const r of finalRows) {
       r.applicantId = null;
@@ -2125,11 +2128,52 @@ export async function listVacancies(params: VacancyListParams) {
       r.dropoutReason = null;
       r.dropoutDate = null;
     }
+  } else if (currentTab === "pipeline") {
+    // Pipeline Tab: Multi-candidate expansion so each endorsed applicant renders as an actionable row
+    const expanded: VacancyListItem[] = [];
+    for (const row of rows) {
+      const actives = activeByVcode.get(row.vcode) || [];
+      if (actives.length > 0) {
+        for (const active of actives) {
+          let lName = asString(active.last_name);
+          let fName = asString(active.first_name);
+          let mName = asString(active.middle_name);
+          const fFull = asString(active.full_name);
+          if ((!lName || !fName) && fFull) {
+            const parsed = parseCandidateFullName(fFull, {
+              firstName: fName,
+              lastName: lName,
+              middleName: mName,
+            });
+            lName = lName || parsed.lastName || null;
+            fName = fName || parsed.firstName || null;
+            mName = mName || parsed.middleName || null;
+          }
+          expanded.push({
+            ...row,
+            applicantId: asString(active.id),
+            contactNumber: asString(active.contact_number) || row.contactNumber,
+            hiredDate: asString(active.hired_date) || row.hiredDate,
+            applicantLastName: lName,
+            applicantFirstName: fName,
+            applicantMiddleName: mName,
+            applicantName: formatPersonName(fName, lName, mName, fFull || row.applicantName),
+            stageBadge: asString(active.status) || "In Pipeline",
+          });
+        }
+      } else {
+        expanded.push(row);
+      }
+    }
+    finalRows = expanded;
   }
 
   return {
     data: finalRows,
-    totalCount: getTotalCount(finalRows) || getTotalCount(rows),
+    totalCount:
+      currentTab === "pipeline" && finalRows.length > (getTotalCount(rows) || 0)
+        ? finalRows.length
+        : getTotalCount(finalRows) || getTotalCount(rows),
     page,
     pageSize,
   };
@@ -2827,20 +2871,8 @@ export async function endorseApplicant(
     throw new VacancyDataError("generic", insertError.message);
   }
 
-  // 3. Status transition: Update vacancy status to 'Pipeline' / 'with_applicant' if it is 'Open'
-  if (vac.status === "Open" || vac.status === "open") {
-    const { error: updateVacError } = await supabase
-      .from("vacancies")
-      .update({
-        status: "Pipeline",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("vcode", vcode);
-
-    if (updateVacError) {
-      console.warn("Failed to transition vacancy status to Pipeline:", updateVacError.message);
-    }
-  }
+  // 3. Status transition: Requisitions remain 'Open' until all required headcount is confirmed onboard.
+  // We do not overwrite vacancies.status to 'Pipeline' so multi-headcount vacancies stay actionable in Open tab.
 
   return {
     id: insertedApp.id,
@@ -3171,42 +3203,30 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
       const confirmedCount = activeList.filter(
         (a) => (a.status || "").toLowerCase().trim() === "confirmed onboard",
       ).length;
-      const pipelineCount = activeList.filter((a) => {
-        const s = (a.status || "").toLowerCase().trim();
-        return (
-          s !== "backout" &&
-          s !== "failed" &&
-          s !== "rejected" &&
-          s !== "did not report" &&
-          s !== "rejected by ops" &&
-          s !== "withdrew" &&
-          s !== "confirmed onboard"
-        );
-      }).length;
 
       const requiredHc = Number(vac.required_headcount ?? 1) || 1;
 
-      if (pipelineCount === 0) {
-        if (confirmedCount < requiredHc) {
-          await supabase
-            .from("vacancies")
-            .update({
-              status: "Open",
-              is_archived: false,
-              archived_at: null,
-              archived_by: null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("vcode", params.vcode);
-        } else {
-          await supabase
-            .from("vacancies")
-            .update({
-              status: "Filled",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("vcode", params.vcode);
-        }
+      // Multi-headcount rule: as long as confirmed onboard count < required headcount,
+      // the requisition has remaining open slots and must stay/reappear in Open tab.
+      if (confirmedCount < requiredHc) {
+        await supabase
+          .from("vacancies")
+          .update({
+            status: "Open",
+            is_archived: false,
+            archived_at: null,
+            archived_by: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("vcode", params.vcode);
+      } else {
+        await supabase
+          .from("vacancies")
+          .update({
+            status: "Filled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("vcode", params.vcode);
       }
     }
   } catch {

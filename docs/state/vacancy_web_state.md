@@ -30,6 +30,13 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - Frontend helper `formatGroupName(groupName, accountName)` maps `Global HQ` / `GHQ` or `Moses HQ` accounts cleanly to `MOSES HQ`, and preserves `Group 1`–`Group 5`.
   - `fetchVacancies` enriches missing group names via batch `accounts` + `groups(group_name)` lookup; `VacancyTable` and `VacancyDetailDrawer` render the resolved group names instead of falling back to `"General / Direct"`.
 
+- **Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (`ohm#m4p8x2c1`)**:
+  - Migration `20262606000049_multi_hc_open_pipeline_visibility_parity.sql` establishes capacity-aware queue membership across Web and Mobile.
+  - **Open Tab Rule**: A store requisition stays visible and actionable (`+ Applicant`) in the **Open** tab as long as its quota is not completely filled (`confirmed_onboard_count < required_headcount` / `hc_filled < hc_total`). Endorsing candidates into Pipeline does NOT hide the store requisition from Open until all required slots are fulfilled/hired.
+  - **Pipeline Tab Rule**: Requisitions with active applicants (`active_applicant_count > 0`) simultaneously appear in the **Pipeline** tab. In `listVacancies`, multi-headcount requisitions expand into 1 row per active applicant, populating candidate full name, contact phone number, and stage badge so each candidate is individually actionable (advance, hire, or backout).
+  - **Automatic Reopen on Slot Vacancy**: Installed trigger `trg_reopen_vacancy_on_slot_open` on `plantilla_slots` to automatically restore `vacancies.status = 'Open'` and clear `is_archived` when a slot transitions back to `'open'` due to employee separation or backout. In `failBackoutApplicant`, `status = 'Open'` and `is_archived = false` are asserted whenever `confirmedCount < requiredHc`.
+  - Updated `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, `get_web_vacancy_summary`, and `vw_slot_derived_vacancy_shadow` to align badge counts, queue predicates, and shadow views with the capacity-aware rules.
+
 ## Read-Only Emergency Mode Enforcement (OHM2026_1132)
 
 - **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):
