@@ -37,6 +37,20 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - **Automatic Reopen on Slot Vacancy**: Installed trigger `trg_reopen_vacancy_on_slot_open` on `plantilla_slots` to automatically restore `vacancies.status = 'Open'` and clear `is_archived` when a slot transitions back to `'open'` due to employee separation or backout. In `failBackoutApplicant`, `status = 'Open'` and `is_archived = false` are asserted whenever `confirmedCount < requiredHc`.
   - Updated `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, `get_web_vacancy_summary`, and `vw_slot_derived_vacancy_shadow` to align badge counts, queue predicates, and shadow views with the capacity-aware rules.
 
+- **Mobile vs. Web Workflow & UI Parity (`ohm#p9v2k4m7`)**:
+  - **Edit Applicant Profile Workflow**:
+    - Ported authoritative RPC `fn_update_applicant_profile_once` and sibling propagation `propagateApplicantIdentityToLinked` to Web query layer (`updateApplicantProfileOnce` and `useUpdateApplicantProfile`).
+    - Enforced one-time edit policy (`profile_edit_count = 0` for non-admins, full bypass for Super Admin / Head Admin), uppercase name normalization, contact number verification, and mandatory edit audit reason.
+    - Added `EditApplicantModal.tsx` modal component and wired "Edit Details" action into `VacancyDetailDrawer` candidate cards and `VacancyTable` Pipeline tab rows.
+    - Added RBAC gate `canEditApplicantProfile(user)`: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20). Denied to Encoder (30), HR Personnel (25), Backoffice (15), Viewer (10).
+  - **Pre-Intake Candidate Duplicate Check**:
+    - Integrated `check_candidate_duplicate` RPC wrapper (`checkCandidateDuplicate`) into `endorseApplicant` with non-blocking defensive error handling to prevent intake failures if RPC is temporarily unavailable.
+  - **Withdraw Vacancy Closure Request**:
+    - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
+    - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
+  - **Super Admin Post-Onboard Dropout Bypass**:
+    - Removed hardcoded `derivedStatus !== 'hired'` lockout in `VacancyDetailDrawer` action bar for Super Admin / Head Admin (`hasFullAccess`), allowing administrative drop/backout of post-onboard dropouts directly from drawer.
+
 ## Read-Only Emergency Mode Enforcement (OHM2026_1132)
 
 - **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):

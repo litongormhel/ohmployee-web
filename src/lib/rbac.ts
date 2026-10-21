@@ -181,6 +181,18 @@ export function canManageApplicantPipeline(userOrRole?: RoleIdentifiable | strin
 }
 
 /**
+ * Can edit applicant profile details (first name, last name, middle name, contact number).
+ * Strictly mirrors fn_update_applicant_profile_once & Mobile vacancyCanEditApplicantPipeline:
+ * Allowed: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20).
+ * Denied: Encoder (30), HR Personnel (25), Backoffice Personnel (15), Viewer (10).
+ */
+export function canEditApplicantProfile(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (hasFullAccess(userOrRole)) return true;
+  const role = normalizeRole(extractRoleString(userOrRole));
+  return isOpsTeam(userOrRole) || role === AppRole.RECRUITMENT;
+}
+
+/**
  * Can review/approve/reject vacancy closures.
  * Restricted strictly to Super Admin, Head Admin, and Encoder.
  */

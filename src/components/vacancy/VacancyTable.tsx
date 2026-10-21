@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ClipboardList,
+  Edit3,
   Eye,
   LockKeyhole,
   Phone,
@@ -27,8 +28,10 @@ import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/util
 import { useCurrentUser } from "@/lib/auth";
 import {
   canAddApplicant,
+  canEditApplicantProfile,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
+  hasFullAccess,
 } from "@/lib/rbac";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
@@ -112,6 +115,7 @@ type VacancyTableProps = {
   errorKind: VacancyDataErrorKind | null;
   onSelect: (vacancy: VacancyListItem) => void;
   onAddApplicant?: (vacancy: VacancyListItem) => void;
+  onEditApplicant?: (vacancy: VacancyListItem) => void;
   onAdvancePipeline?: (vacancy: VacancyListItem) => void;
   onMarkHired?: (vacancy: VacancyListItem) => void;
   onFailBackout?: (vacancy: VacancyListItem) => void;
@@ -260,6 +264,7 @@ export function VacancyTable({
   errorKind,
   onSelect,
   onAddApplicant,
+  onEditApplicant,
   onAdvancePipeline,
   onMarkHired,
   onFailBackout,
@@ -274,6 +279,8 @@ export function VacancyTable({
   const userCanAddApplicant = canAddApplicant(currentUser);
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
+  const userCanEditApplicant = canEditApplicantProfile(currentUser);
+  const userHasFullAccess = hasFullAccess(currentUser);
 
   const errorCopy = getErrorCopy(errorKind);
   const activeColumns = getTableColumns(status);
@@ -640,9 +647,23 @@ export function VacancyTable({
                               </button>
                             )}
 
-                            {status === "pipeline" && userCanManagePipeline && (
+                            {status === "pipeline" && (userCanManagePipeline || userCanEditApplicant) && (
                               <>
-                                {onAdvancePipeline && (
+                                {onEditApplicant && userCanEditApplicant && (userHasFullAccess || (row.profileEditCount ?? 0) === 0) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onEditApplicant(row);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs cursor-pointer"
+                                    title={`Edit details for ${row.applicantName || row.vcode}`}
+                                  >
+                                    <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Edit</span>
+                                  </button>
+                                )}
+                                {userCanManagePipeline && onAdvancePipeline && (
                                   <button
                                     type="button"
                                     onClick={(e) => {

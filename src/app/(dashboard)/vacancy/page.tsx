@@ -32,6 +32,10 @@ import { FailBackoutModal } from "@/components/vacancy/FailBackoutModal";
 import { ReopenVacancyModal } from "@/components/vacancy/ReopenVacancyModal";
 import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyClosureModal";
 import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
+import {
+  EditApplicantModal,
+  type EditApplicantTarget,
+} from "@/components/vacancy/EditApplicantModal";
 import { SavedViewsModal } from "@/components/vacancy/SavedViewsModal";
 import {
   useVacancySavedViews,
@@ -152,6 +156,8 @@ export default function VacancyPage() {
     vcode: string;
     hiredDate?: string | null;
   } | null>(null);
+  const [isEditApplicantModalOpen, setIsEditApplicantModalOpen] = useState(false);
+  const [editApplicantTargetCandidate, setEditApplicantTargetCandidate] = useState<EditApplicantTarget | null>(null);
   const [successToast, setSuccessToast] = useState<{ message: string } | null>(null);
   const [errorToast, setErrorToast] = useState<{ message: string } | null>(null);
 
@@ -524,6 +530,22 @@ export default function VacancyPage() {
       hiredDate: row.hiredDate,
     });
     setIsEditHiredDateModalOpen(true);
+  }
+
+  function handleEditApplicant(row: VacancyListItem) {
+    setEditApplicantTargetCandidate({
+      applicantId: row.applicantId || row.id,
+      displayName: row.applicantName || "Candidate",
+      firstName: row.applicantFirstName,
+      middleName: row.applicantMiddleName,
+      lastName: row.applicantLastName,
+      contactNumber: row.contactNumber,
+      profileEditCount: row.profileEditCount,
+      statusLabel: typeof row.pipelineStatus === "string" ? row.pipelineStatus : row.derivedStatus,
+      vcode: row.vcode,
+      positionTitle: row.position_title,
+    });
+    setIsEditApplicantModalOpen(true);
   }
 
   function retryVacancyReads() {
@@ -935,6 +957,7 @@ export default function VacancyPage() {
         onRetry={retryVacancyReads}
         onSelect={selectVacancy}
         onAddApplicant={handleOpenAddApplicant}
+        onEditApplicant={handleEditApplicant}
         onAdvancePipeline={handleAdvancePipeline}
         onMarkHired={handleMarkHired}
         onFailBackout={handleFailBackout}
@@ -1078,6 +1101,25 @@ export default function VacancyPage() {
             setEditHiredDateTargetCandidate(null);
             setSuccessToast({
               message: `Hired date updated successfully. 15-day display window recalibrated.`,
+            });
+            retryVacancyReads();
+          }}
+        />
+      )}
+
+      {isEditApplicantModalOpen && editApplicantTargetCandidate && (
+        <EditApplicantModal
+          isOpen={isEditApplicantModalOpen}
+          onClose={() => {
+            setIsEditApplicantModalOpen(false);
+            setEditApplicantTargetCandidate(null);
+          }}
+          applicant={editApplicantTargetCandidate}
+          onSuccess={(updatedName) => {
+            setIsEditApplicantModalOpen(false);
+            setEditApplicantTargetCandidate(null);
+            setSuccessToast({
+              message: `Applicant profile for ${updatedName} updated successfully.`,
             });
             retryVacancyReads();
           }}

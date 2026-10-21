@@ -1,5 +1,60 @@
 # AI Handoff
 
+## Execute Vacancy Module Mobile vs. Web Parity (ohm#p9v2k4m7)
+
+**Status: COMPLETE — EDIT APPLICANT DETAILS, DUPLICATE CHECK, WITHDRAW CLOSURE, AND SUPER ADMIN DROPOUT PARITY FULLY WIRED & VERIFIED ON MAIN (ZERO LINT ERRORS, CLEAN NEXT.JS PRODUCTION BUILD)**
+
+### Objective
+Achieve 100% functional and UI parity between Mobile (`d:\Projects\OHMployee`) and Web (`d:\Projects\ohmployee-web`) for the Vacancy module:
+1. **Edit Applicant Details**: Port the Mobile one-time applicant profile correction workflow (`fn_update_applicant_profile_once` + `propagateApplicantIdentityToLinked`) to Web with uppercase normalization, contact number verification, mandatory audit reason, one-time edit policy, and Super Admin override capability.
+2. **Pre-Intake Candidate Duplicate Check**: Integrate `check_candidate_duplicate` RPC wrapper into applicant intake (`endorseApplicant` / `AddApplicantModal`) with defensive non-blocking fallbacks.
+3. **Withdraw Closure Request**: Integrate `withdraw_vacancy_closure_request` RPC wrapper into the detail drawer action bar and in-flight clearance banner to enable ops/requesters to restore requisition pipeline flow.
+4. **Post-Onboard Dropout Handling**: Unblock Super Admin / Head Admin (`hasFullAccess`) from handling post-onboard dropouts/backouts directly from the `VacancyDetailDrawer` action bar.
+5. **UI Surface Integration**: Expose "Edit Details" actions across both `VacancyDetailDrawer` candidate cards and `VacancyTable` Pipeline tab rows, gated by unified RBAC (`canEditApplicantProfile`).
+
+---
+
+### Key Implementations
+1. **RBAC Gating (`src/lib/rbac.ts`)**:
+   - Added `canEditApplicantProfile(userOrRole)`: Strictly mirrors Mobile `vacancyCanEditApplicantPipeline` and `fn_update_applicant_profile_once` permissions.
+   - Allowed: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20).
+   - Denied: Encoder (30), HR Personnel (25), Backoffice Personnel (15), Viewer (10).
+
+2. **Backend RPC Wrappers & Normalizers (`src/lib/queries/vacancy.ts`)**:
+   - `checkCandidateDuplicate`: Calls `check_candidate_duplicate` RPC with first name, last name, middle name, and contact number. Integrated into `endorseApplicant` with defensive try/catch.
+   - `updateApplicantProfileOnce`: Invokes authoritative `fn_update_applicant_profile_once` RPC to update first/last/middle name, contact number, and record audit reason in `applicant_audit_logs`.
+   - `propagateApplicantIdentityToLinked`: Queries sibling applicant rows with matching normalized contact number and updates names in parallel, mirroring Mobile `ApplicantService.propagateApplicantIdentityToLinked`.
+   - `useUpdateApplicantProfile`: Mutation hook invalidating `vacancies`, `vacancy-list`, `vacancy-counts`, `vacancy-summary`, and `vacancy-detail`.
+   - `withdrawVacancyClosureRequest` & `useWithdrawVacancyClosureRequest`: Calls `withdraw_vacancy_closure_request` RPC with fallback direct-table update and query cache invalidation.
+   - Enriched `VacancyListItem`, `VacancyDetail`, and `ActiveApplicantItem` with `profileEditCount`.
+
+3. **UI Modals & Surface Integration**:
+   - `src/components/vacancy/EditApplicantModal.tsx`: Brand new modal component featuring:
+     - Form state initialized from props via React key remounting.
+     - Uppercase normalization on First, Middle, and Last Name.
+     - Philippine 11-digit mobile number format validation (`09...`).
+     - One-time edit policy enforcement (`profileEditCount >= 1` disables submission with badge unless user has Super Admin / Head Admin full access).
+     - Reason field requirement (minimum 5 characters).
+     - Confirmation dialog overlay preventing accidental submission.
+   - `src/components/vacancy/VacancyDetailDrawer.tsx`:
+     - Added "Edit Details" button on active applicant cards (`activeApplicantsList.map` and fallback `detail.applicantName`).
+     - Added "Withdraw Closure" action in `CapabilityActionBar` and in the in-flight clearance alert banner.
+     - Updated "Drop / Backout" action availability condition to `(isUserFullAccess || detail.derivedStatus?.toLowerCase() !== "hired")` to unblock Super Admin handling of post-onboard dropouts.
+     - Rendered `<EditApplicantModal>` at drawer root.
+   - `src/components/vacancy/VacancyTable.tsx`:
+     - Added `onEditApplicant` prop.
+     - Rendered "Edit" button (`Edit3` icon) on Pipeline tab rows for authorized users.
+   - `src/app/(dashboard)/vacancy/page.tsx`:
+     - Wired `handleEditApplicant` into `VacancyTable` and rendered `<EditApplicantModal>` with success toasts.
+
+---
+
+### Verification
+- `npm run lint`: Clean pass (23 warnings across unrelated legacy modals, 0 errors).
+- `npm run build`: Clean production build pass (`✓ Compiled successfully in 25.3s`, TypeScript pass in 52s, all 19 static routes generated cleanly).
+
+---
+
 ## Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity) (ohm#m4p8x2c1)
 
 **Status: COMPLETE — MIGRATION 20262606000049 APPLIED TO STAGING & PRODUCTION, DERIVED_STATUS CAPACITY-AWARE (OPEN WHILE HC_FILLED < HC_TOTAL), PIPELINE MULTI-CANDIDATE EXPANSION ACTIVE, AUTOMATED REOPEN ON SLOT OCCUPANCY TRANSITION INSTALLED, CLEAN LINT & BUILD VERIFIED**

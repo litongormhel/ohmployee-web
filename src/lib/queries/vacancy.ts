@@ -99,6 +99,7 @@ export type VacancyListItem = {
   hcDisplay?: string;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
+  profileEditCount?: number | null;
   totalCount: number;
 };
 
@@ -114,6 +115,7 @@ export type ActiveApplicantItem = {
   updatedAt: string | null;
   recruiterName: string | null;
   deployedByName: string | null;
+  profileEditCount?: number | null;
 };
 
 export type ActivityHistoryItem = {
@@ -210,6 +212,7 @@ export type VacancyDetailItem = {
   closureRequestedAt: string | null;
   closureRequestedBy: string | null;
   closureReason: string | null;
+  profileEditCount?: number | null;
   activeApplicantsList: ActiveApplicantItem[];
   activityHistory: ActivityHistoryItem[];
 };
@@ -576,6 +579,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     applicantMiddleName,
     contactNumber,
     hiredDate,
+    profileEditCount: asNumber(row.profile_edit_count ?? row.applicant_profile_edit_count) ?? 0,
     stageBadge: asString(row.stage_badge ?? row.stage ?? row.top_applicant_status),
     closureReason: asString(row.closure_reason ?? row.reason),
     closureRequestedBy: asString(row.closure_requested_by ?? row.requested_by ?? row.requested_by_name),
@@ -627,6 +631,7 @@ function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
     updatedAt: asString(obj.updated_at ?? obj.created_at),
     recruiterName: formatPersonName(null, null, null, asString(obj.recruiter_name ?? obj.recruited_by_name)) || null,
     deployedByName: formatPersonName(null, null, null, asString(obj.deployed_by_name ?? obj.deployed_by)) || null,
+    profileEditCount: typeof obj.profile_edit_count === "number" ? obj.profile_edit_count : typeof obj.profile_edit_count === "string" ? parseInt(obj.profile_edit_count, 10) : 0,
   };
 }
 
@@ -889,6 +894,7 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     closureRequestedAt: asString(row.closure_requested_at),
     closureRequestedBy: asString(row.closure_requested_by),
     closureReason: asString(row.closure_reason),
+    profileEditCount: primaryApplicant?.profileEditCount ?? asNumber(row.profile_edit_count ?? row.applicant_profile_edit_count) ?? 0,
     activeApplicantsList,
     activityHistory,
   };
@@ -2766,6 +2772,221 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
   return normalized;
 }
 
+// ── Candidate Duplicate Verification ──────────────────────────
+export type CandidateDuplicateCheckResult = {
+  isBlocked: boolean;
+  conflictType?: "Pipeline" | "HR Emploc" | "Plantilla" | null;
+  status?: string | null;
+  vcode?: string | null;
+  storeName?: string | null;
+  account?: string | null;
+  message?: string | null;
+};
+
+export async function checkCandidateDuplicate(params: {
+  firstName: string;
+  lastName: string;
+  contactNumber?: string | null;
+  currentApplicantId?: string | null;
+}): Promise<CandidateDuplicateCheckResult> {
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase.rpc("check_candidate_duplicate", {
+      p_first_name: params.firstName.trim(),
+      p_last_name: params.lastName.trim(),
+      p_contact: params.contactNumber?.trim() || null,
+      p_current_applicant_id: params.currentApplicantId || null,
+    });
+    if (error) {
+      console.warn("check_candidate_duplicate RPC warning:", error.message);
+      return { isBlocked: false };
+    }
+    if (data && typeof data === "object") {
+      const res = data as Record<string, unknown>;
+      return {
+        isBlocked: res.is_blocked === true,
+        conflictType: (res.conflict_type as CandidateDuplicateCheckResult["conflictType"]) ?? null,
+        status: (res.status as string) ?? null,
+        vcode: (res.vcode as string) ?? null,
+        storeName: (res.store_name as string) ?? null,
+        account: (res.account as string) ?? null,
+        message: (res.message as string) ?? null,
+      };
+    }
+    return { isBlocked: false };
+  } catch (err) {
+    console.warn("checkCandidateDuplicate exception (non-blocking):", err);
+    return { isBlocked: false };
+  }
+}
+
+// ── Edit Applicant Details (fn_update_applicant_profile_once) ──
+export type UpdateApplicantProfileParams = {
+  applicantId: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
+  contactNumber: string;
+  reason: string;
+  vcode?: string;
+};
+
+export type UpdateApplicantProfileResult = {
+  success: boolean;
+  applicantId: string;
+  linkedPropagatedCount: number;
+};
+
+export async function updateApplicantProfileOnce(
+  params: UpdateApplicantProfileParams,
+): Promise<UpdateApplicantProfileResult> {
+  const supabase = createClient();
+  const applicantId = params.applicantId.trim();
+  const firstName = params.firstName.trim().toUpperCase();
+  const lastName = params.lastName.trim().toUpperCase();
+  const rawMiddle = params.middleName?.trim();
+  const middleName =
+    rawMiddle && !["", "NA", "N/A", "NONE", "N.A."].includes(rawMiddle.toUpperCase())
+      ? rawMiddle.toUpperCase()
+      : null;
+  const reason = params.reason.trim();
+
+  // Normalize contact number: 11 digits starting with 09
+  const cleanContact = params.contactNumber.replace(/[^0-9]/g, "");
+  const normalizedContact =
+    cleanContact.length === 10 && cleanContact.startsWith("9")
+      ? `0${cleanContact}`
+      : cleanContact;
+
+  if (!applicantId) {
+    throw new VacancyDataError("validation", "Applicant ID is required.");
+  }
+  if (!firstName || !lastName) {
+    throw new VacancyDataError("validation", "First Name and Last Name are required.");
+  }
+  if (!normalizedContact || !/^09[0-9]{9}$/.test(normalizedContact)) {
+    throw new VacancyDataError(
+      "validation",
+      "Contact number must be 11 digits starting with 09 (e.g. 09171234567).",
+    );
+  }
+  if (!reason) {
+    throw new VacancyDataError("validation", "Reason / comments for editing profile are required.");
+  }
+
+  const { error } = await supabase.rpc("fn_update_applicant_profile_once", {
+    p_applicant_id: applicantId,
+    p_first_name: firstName,
+    p_last_name: lastName,
+    p_contact_number: normalizedContact,
+    p_middle_name: middleName,
+    p_reason: reason,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new VacancyDataError("access_denied", error.message || "Permission denied to edit applicant details.");
+    }
+    throw new VacancyDataError("generic", error.message);
+  }
+
+  // Propagate identity fields to other active pipeline rows with the same contact number
+  let linkedPropagatedCount = 0;
+  try {
+    linkedPropagatedCount = await propagateApplicantIdentityToLinked({
+      applicantId,
+      firstName,
+      lastName,
+      middleName,
+      contactNumber: normalizedContact,
+    });
+  } catch (propError) {
+    console.warn("propagateApplicantIdentityToLinked error (non-fatal):", propError);
+  }
+
+  return {
+    success: true,
+    applicantId,
+    linkedPropagatedCount,
+  };
+}
+
+export async function propagateApplicantIdentityToLinked(params: {
+  applicantId: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
+  contactNumber: string;
+}): Promise<number> {
+  const supabase = createClient();
+  const normalizedContact = params.contactNumber.trim();
+  if (!normalizedContact) return 0;
+
+  const lockedStatuses = [
+    "confirmed_onboard",
+    "transferred",
+    "hired",
+    "Confirmed Onboard",
+    "Transferred",
+    "Hired",
+  ];
+
+  const { data: rows, error: selectError } = await supabase
+    .from("applicants")
+    .select("id, status")
+    .eq("contact_number", normalizedContact)
+    .neq("id", params.applicantId)
+    .or("is_archived.is.null,is_archived.eq.false");
+
+  if (selectError || !Array.isArray(rows)) return 0;
+
+  const eligibleIds = rows
+    .filter((r) => !lockedStatuses.includes(String(r.status)))
+    .map((r) => r.id as string)
+    .filter(Boolean);
+
+  if (eligibleIds.length === 0) return 0;
+
+  const fullName = formatPersonName(params.firstName, params.lastName, params.middleName);
+
+  const { error: updateError } = await supabase
+    .from("applicants")
+    .update({
+      first_name: params.firstName,
+      last_name: params.lastName,
+      middle_name: params.middleName || null,
+      contact_number: normalizedContact,
+      full_name: fullName,
+      updated_at: new Date().toISOString(),
+    })
+    .in("id", eligibleIds);
+
+  if (updateError) {
+    console.warn("propagateApplicantIdentityToLinked update failed:", updateError.message);
+    return 0;
+  }
+
+  return eligibleIds.length;
+}
+
+export function useUpdateApplicantProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateApplicantProfileParams) => updateApplicantProfileOnce(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      if (variables.vcode) {
+        queryClient.invalidateQueries({
+          queryKey: ["vacancy-detail", variables.vcode],
+        });
+      }
+    },
+  });
+}
+
 export type EndorseApplicantParams = {
   vcode: string;
   firstName: string;
@@ -2834,6 +3055,20 @@ export async function endorseApplicant(
   }
   if (vac.has_pending_closure) {
     throw new VacancyDataError("validation", `Vacancy ${vcode} is locked pending closure.`);
+  }
+
+  // Pre-insert candidate duplicate check (Pipeline, HR Emploc, Plantilla)
+  const dupCheck = await checkCandidateDuplicate({
+    firstName,
+    lastName,
+    contactNumber: normalizedContact,
+  });
+  if (dupCheck.isBlocked) {
+    throw new VacancyDataError(
+      "validation",
+      dupCheck.message ||
+        "Candidate is already active in another requisition, HR Emploc processing, or Plantilla slot. Duplicate creation is blocked.",
+    );
   }
 
   // 2. Insert applicant record (matching mobile VacancyService.addApplicant direct insert)
@@ -3427,6 +3662,76 @@ export function useReviewClosureRequest() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+      if (variables.vcode) {
+        queryClient.invalidateQueries({
+          queryKey: ["vacancy-detail", variables.vcode],
+        });
+      }
+    },
+  });
+}
+
+export type WithdrawVacancyClosureParams = {
+  vcode: string;
+  userId?: string | null;
+};
+
+export async function withdrawVacancyClosureRequest(params: WithdrawVacancyClosureParams) {
+  const supabase = createClient();
+  const vcode = params.vcode.trim();
+  if (!vcode) {
+    throw new VacancyDataError("validation", "Target VCode is required.");
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("withdraw_vacancy_closure_request", {
+      p_vcode: vcode,
+    });
+    if (error) throw error;
+    return data;
+  } catch {
+    // Fallback: direct table update matching mobile service
+    const { error: updateError } = await supabase
+      .from("vacancy_closure_requests")
+      .update({
+        status: "Withdrawn",
+        withdrawn_by_user_id: params.userId || null,
+        withdrawn_at: new Date().toISOString(),
+      })
+      .eq("vacancy_vcode", vcode)
+      .eq("status", "Pending");
+
+    if (updateError) {
+      throw new VacancyDataError("generic", updateError.message);
+    }
+
+    // Clear pending closure flag on vacancy
+    await supabase
+      .from("vacancies")
+      .update({
+        has_pending_closure: false,
+        closure_request_status: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("vcode", vcode);
+
+    return { success: true };
+  }
+}
+
+export function useWithdrawVacancyClosureRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: WithdrawVacancyClosureParams) => withdrawVacancyClosureRequest(params),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
       if (variables.vcode) {
         queryClient.invalidateQueries({
           queryKey: ["vacancy-detail", variables.vcode],

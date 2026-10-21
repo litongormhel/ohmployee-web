@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
+  Edit3,
   FileText,
   History,
   Lock,
@@ -34,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatGroupName,
   getVacancyDetail,
+  useWithdrawVacancyClosureRequest,
   VacancyDataError,
 } from "@/lib/queries/vacancy";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
@@ -46,9 +48,12 @@ import {
 } from "@/lib/auth";
 import {
   canAddApplicant,
+  canEditApplicantProfile,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
   canRequestVacancyClosure,
+  hasFullAccess,
+  isOpsTeam,
 } from "@/lib/rbac";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
@@ -59,6 +64,10 @@ import { FailBackoutModal } from "@/components/vacancy/FailBackoutModal";
 import { ReopenVacancyModal } from "@/components/vacancy/ReopenVacancyModal";
 import { RequestVacancyClosureModal } from "@/components/vacancy/RequestVacancyClosureModal";
 import { EditHiredDateModal } from "@/components/vacancy/EditHiredDateModal";
+import {
+  EditApplicantModal,
+  type EditApplicantTarget,
+} from "@/components/vacancy/EditApplicantModal";
 
 type VacancyDetailDrawerProps = {
   vacancyId: string | null;
@@ -125,6 +134,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const [isReopenVacancyModalOpen, setIsReopenVacancyModalOpen] = useState(false);
   const [isRequestClosureModalOpen, setIsRequestClosureModalOpen] = useState(false);
   const [isEditHiredDateModalOpen, setIsEditHiredDateModalOpen] = useState(false);
+  const [isEditApplicantModalOpen, setIsEditApplicantModalOpen] = useState(false);
+  const [selectedCandidateForEdit, setSelectedCandidateForEdit] = useState<EditApplicantTarget | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<{
     id: string;
     fullName: string;
@@ -142,10 +153,15 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
   const canReviseQuota = Boolean(userRole && isQuotaOverrideRole(userRole));
   const canRequestAdjustment = Boolean(userRole && isOpsAmendmentRole(userRole));
+  const isUserFullAccess = hasFullAccess(currentUser);
+  const userCanEditApplicant = canEditApplicantProfile(currentUser);
+  const userIsOps = isOpsTeam(currentUser);
   const userCanAddApplicant = canAddApplicant(currentUser);
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userCanRequestClosure = canRequestVacancyClosure(currentUser);
+
+  const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
 
   const {
     data: detail,
@@ -450,7 +466,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   userCanManagePipeline &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                  detail.derivedStatus?.toLowerCase() !== "hired" &&
+                  (isUserFullAccess || detail.derivedStatus?.toLowerCase() !== "hired") &&
                   detail.derivedStatus?.toLowerCase() !== "closed",
                 onClick: () => {
                   const firstCandidate = detail.activeApplicantsList?.[0];
@@ -492,6 +508,30 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   detail.derivedStatus?.toLowerCase() !== "closed",
                 onClick: () => setIsRequestClosureModalOpen(true),
                 icon: XCircle,
+                variant: "warning",
+              },
+              {
+                label: withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure",
+                isAvailable:
+                  isPendingClosure &&
+                  (isUserFullAccess || userIsOps || userCanRequestClosure),
+                onClick: async () => {
+                  if (!detail?.vcode) return;
+                  const confirmed = window.confirm(
+                    `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await withdrawClosureMutation.mutateAsync({
+                      vcode: detail.vcode,
+                      userId: currentUser?.authUserId || currentUser?.profileId || null,
+                    });
+                    refetch();
+                  } catch (err: unknown) {
+                    alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                  }
+                },
+                icon: RotateCcw,
                 variant: "warning",
               },
             ]}
@@ -536,6 +576,34 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       <div className="text-[11px] text-amber-700">
                         Requested by {detail.closureRequestedBy}
                         {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
+                      </div>
+                    )}
+                    {(isUserFullAccess || userIsOps || userCanRequestClosure) && (
+                      <div className="pt-1.5">
+                        <button
+                          type="button"
+                          disabled={withdrawClosureMutation.isPending}
+                          onClick={async () => {
+                            if (!detail?.vcode) return;
+                            const confirmed = window.confirm(
+                              `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                            );
+                            if (!confirmed) return;
+                            try {
+                              await withdrawClosureMutation.mutateAsync({
+                                vcode: detail.vcode,
+                                userId: currentUser?.authUserId || currentUser?.profileId || null,
+                              });
+                              refetch();
+                            } catch (err: unknown) {
+                              alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-2 py-0.5 text-[11px] font-semibold transition"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -915,80 +983,134 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           </div>
 
                           {/* Quick action buttons for this candidate (Only for active pipeline, not hired) */}
-                          {!isCandidateHired && userCanManagePipeline && (
-                            <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCandidate({
-                                    id: candidate.applicantId,
-                                    fullName: candidate.displayName,
-                                    lastName: candidate.lastName,
-                                    firstName: candidate.firstName,
-                                    middleName: candidate.middleName,
-                                    contactNumber: candidate.contactNumber,
-                                    status: candidate.statusLabel,
-                                    vcode: detail.vcode,
-                                    positionTitle: detail.position_title,
-                                  });
-                                  setIsAdvancePipelineModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
-                              >
-                                Update Stage
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCandidate({
-                                    id: candidate.applicantId,
-                                    fullName: candidate.displayName,
-                                    lastName: candidate.lastName,
-                                    firstName: candidate.firstName,
-                                    middleName: candidate.middleName,
-                                    contactNumber: candidate.contactNumber,
-                                    status: candidate.statusLabel,
-                                    vcode: detail.vcode,
-                                    positionTitle: detail.position_title,
-                                  });
-                                  setIsMarkHiredModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
-                              >
-                                Mark Hired
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCandidate({
-                                    id: candidate.applicantId,
-                                    fullName: candidate.displayName,
-                                    lastName: candidate.lastName,
-                                    firstName: candidate.firstName,
-                                    middleName: candidate.middleName,
-                                    contactNumber: candidate.contactNumber,
-                                    status: candidate.statusLabel,
-                                    vcode: detail.vcode,
-                                    positionTitle: detail.position_title,
-                                  });
-                                  setIsFailBackoutModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
-                              >
-                                Drop / Backout
-                              </button>
+                          {!isCandidateHired && (userCanManagePipeline || userCanEditApplicant) && (
+                            <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50 flex-wrap">
+                              {userCanEditApplicant && (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCandidateForEdit({
+                                      applicantId: candidate.applicantId,
+                                      displayName: candidate.displayName,
+                                      lastName: candidate.lastName,
+                                      firstName: candidate.firstName,
+                                      middleName: candidate.middleName,
+                                      contactNumber: candidate.contactNumber,
+                                      profileEditCount: candidate.profileEditCount,
+                                      statusLabel: candidate.statusLabel,
+                                      vcode: detail.vcode,
+                                      positionTitle: detail.position_title,
+                                    });
+                                    setIsEditApplicantModalOpen(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                  Edit Details
+                                </button>
+                              )}
+                              {userCanManagePipeline && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidate({
+                                        id: candidate.applicantId,
+                                        fullName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        status: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: detail.position_title,
+                                      });
+                                      setIsAdvancePipelineModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
+                                  >
+                                    Update Stage
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidate({
+                                        id: candidate.applicantId,
+                                        fullName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        status: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: detail.position_title,
+                                      });
+                                      setIsMarkHiredModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                                  >
+                                    Mark Hired
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidate({
+                                        id: candidate.applicantId,
+                                        fullName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        status: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: detail.position_title,
+                                      });
+                                      setIsFailBackoutModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
+                                  >
+                                    Drop / Backout
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
                       );
                     })
                   ) : detail.applicantName ? (
-                    <div className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs">
+                    <div className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs space-y-1.5">
                       <div className="font-semibold text-text-primary">{detail.applicantName}</div>
                       {detail.contactNumber && (
-                        <div className="mt-1 flex items-center gap-1 text-[11px] text-text-secondary">
+                        <div className="flex items-center gap-1 text-[11px] text-text-secondary">
                           <Phone className="h-3 w-3 text-text-muted" />
                           <span>{detail.contactNumber}</span>
+                        </div>
+                      )}
+                      {!isHired && userCanEditApplicant && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && detail.applicantId && (
+                        <div className="pt-1 border-t border-border-subtle/50 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCandidateForEdit({
+                                applicantId: detail.applicantId!,
+                                displayName: detail.applicantName,
+                                firstName: detail.applicantFirstName,
+                                middleName: detail.applicantMiddleName,
+                                lastName: detail.applicantLastName,
+                                contactNumber: detail.contactNumber,
+                                profileEditCount: detail.profileEditCount,
+                                statusLabel: detail.pipelineStatus,
+                                vcode: detail.vcode,
+                                positionTitle: detail.position_title,
+                              });
+                              setIsEditApplicantModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            Edit Details
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1203,6 +1325,23 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   onSuccess={() => {
                     setIsEditHiredDateModalOpen(false);
                     setSelectedCandidate(null);
+                    refetch();
+                  }}
+                />
+              )}
+
+              {/* Edit Applicant Profile Modal */}
+              {isEditApplicantModalOpen && selectedCandidateForEdit && (
+                <EditApplicantModal
+                  isOpen={isEditApplicantModalOpen}
+                  onClose={() => {
+                    setIsEditApplicantModalOpen(false);
+                    setSelectedCandidateForEdit(null);
+                  }}
+                  applicant={selectedCandidateForEdit}
+                  onSuccess={() => {
+                    setIsEditApplicantModalOpen(false);
+                    setSelectedCandidateForEdit(null);
                     refetch();
                   }}
                 />

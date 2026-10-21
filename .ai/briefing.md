@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#m4p8x2c1**: Fix Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity)
-2. **ohm#j2k9v4x8**: Fix Missing Dropout Records on Filled/Archived Requisitions & Backout Reason Sanity Audit
-3. **ohm#h8k3m2x5**: HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping, & HRCO Sync Audit
-4. **ohm#x5w9k3b7**: Fix Backout Workflow, Prevent Pipeline Leakage, and Clean Up Vcode Duplication
-5. **ohm#g8f4a1c2**: Fix Account Group Displaying as General / Direct Instead of Assigned Client Group / MOSES HQ
+1. **ohm#p9v2k4m7**: Execute Vacancy Module Mobile vs. Web Parity (Edit Applicant Details, Duplicate Check, Withdraw Closure)
+2. **ohm#m4p8x2c1**: Fix Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity)
+3. **ohm#j2k9v4x8**: Fix Missing Dropout Records on Filled/Archived Requisitions & Backout Reason Sanity Audit
+4. **ohm#h8k3m2x5**: HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping, & HRCO Sync Audit
+5. **ohm#x5w9k3b7**: Fix Backout Workflow, Prevent Pipeline Leakage, and Clean Up Vcode Duplication
 
-> Older entries trimmed 2026-10-21 (`ohm#m4p8x2c1`) to keep this list to 5 — dropped `ohm#c9k4w1x2` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-21 (`ohm#p9v2k4m7`) to keep this list to 5 — dropped `ohm#g8f4a1c2` and earlier entries — see git history for that and earlier entries in full.
