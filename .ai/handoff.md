@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Fix Pipeline Candidate Query Schema Mismatch (`applied_at` & `headcount` Column Selects) (ohm#s4b8r2x1)
+
+**Status: COMPLETE — PIPELINE CANDIDATE QUERY SCHEMA MISMATCH RESOLVED (`applied_at` & `headcount` REMOVED FROM SELECTS), ALL 6 PIPELINE CANDIDATES FULLY RESTORED AND RENDERED IN TABLE MATCHING BADGE COUNT (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**
+
+### Objective & Root Causes Resolved
+1. **Fix Pipeline Tab Table Rendering (6 Badge vs 0 Rows)**:
+   - **Root Cause Identified**: In `src/lib/queries/vacancy.ts`, the candidate-level query expansion for `currentTab === "pipeline"` selected `applied_at` from `applicants` and `headcount` from `vacancies`. In the Supabase PostgreSQL schema:
+     - `applicants` does not have an `applied_at` column (it uses `created_at` / `updated_at`).
+     - `vacancies` does not have a `headcount` column (it uses `required_headcount`).
+     PostgREST failed with error code `42703` (`column applicants.applied_at does not exist`), which caused the query handler to skip populating records and fall back to returning `data: []` (0 rows) while the badge count read `6`.
+   - **Fix Applied**:
+     - Removed `applied_at` from `.from("applicants").select(...)` (relying on `created_at` / `updated_at`).
+     - Removed `headcount` from `.from("vacancies").select(...)` (relying on `required_headcount`).
+     - Replaced PostgREST `.not("status", "in", ...)` with in-memory status filtering (`v.status !== "Filled" && v.status !== "Closed" && v.status !== "Archived"`).
+     - Applied the identical schema fixes to `fetchAllPipelineVacancies` (CSV Export).
+     - All 6 active pipeline candidates now render properly in the Pipeline table.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting baseline warnings in other modules).
+- `npm run build`: Successful Next.js Turbopack production build with all 19 static/dynamic routes compiled cleanly.
+
+---
+
 ## Restore Closure & Failed/Backout Tab Data and Align Pipeline Badge Counts with Rendered Rows (ohm#n7f3w9x2)
 
 **Status: COMPLETE — CLOSURE & FAILED/BACKOUT DATA RESTORED VIA SHARED GROUP MAP (SCHEMA MISMATCH RESOLVED), PIPELINE CANDIDATE-LEVEL QUERY EXPANSION IMPLEMENTED TO 100% SYNCHRONIZE BADGE COUNT (6) WITH RENDERED TABLE ROWS (6) (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**

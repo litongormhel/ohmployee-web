@@ -1224,7 +1224,6 @@ export async function listVacancies(params: VacancyListParams) {
           status,
           created_at,
           updated_at,
-          applied_at,
           profile_edit_count,
           is_archived
         `)
@@ -1264,7 +1263,6 @@ export async function listVacancies(params: VacancyListParams) {
             is_archived,
             deleted_at,
             required_headcount,
-            headcount,
             has_pending_closure,
             closure_request_status,
             employment_type,
@@ -1273,8 +1271,7 @@ export async function listVacancies(params: VacancyListParams) {
           `)
           .in("vcode", vcodes)
           .eq("is_archived", false)
-          .is("deleted_at", null)
-          .not("status", "in", '("Filled","Closed","Archived")');
+          .is("deleted_at", null);
 
         if (params.accountId) {
           vacQuery = vacQuery.eq("account_id", params.accountId);
@@ -1297,7 +1294,14 @@ export async function listVacancies(params: VacancyListParams) {
           fetchGroupMap(supabase),
         ]);
 
-        const vacMap = new Map((vacRes.data ?? []).map((v) => [v.vcode, v]));
+        const vacMap = new Map(
+          (vacRes.data ?? [])
+            .filter((v) => {
+              const st = (v.status || "").toLowerCase().trim();
+              return st !== "filled" && st !== "closed" && st !== "archived";
+            })
+            .map((v) => [v.vcode, v]),
+        );
         const validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
 
         const pipelineRows: VacancyListItem[] = validCandidates.map((c: Record<string, unknown>, idx: number) => {
@@ -1341,7 +1345,7 @@ export async function listVacancies(params: VacancyListParams) {
             else agingBucket = "31_plus";
           }
 
-          const hcTotal = asNumber(vac?.required_headcount ?? vac?.headcount) ?? 1;
+          const hcTotal = asNumber(vac?.required_headcount) ?? 1;
           const hcFilled = 0;
           const hcDisplay = `${hcFilled}/${hcTotal}`;
           const rawGroupName = vac?.group_id ? groupMap.get(asString(vac.group_id)!) : null;
@@ -4407,7 +4411,6 @@ async function fetchAllPipelineVacancies(
         status,
         created_at,
         updated_at,
-        applied_at,
         profile_edit_count,
         is_archived
       `)
@@ -4450,7 +4453,6 @@ async function fetchAllPipelineVacancies(
         is_archived,
         deleted_at,
         required_headcount,
-        headcount,
         has_pending_closure,
         closure_request_status,
         employment_type,
@@ -4459,8 +4461,7 @@ async function fetchAllPipelineVacancies(
       `)
       .in("vcode", vcodes)
       .eq("is_archived", false)
-      .is("deleted_at", null)
-      .not("status", "in", '("Filled","Closed","Archived")');
+      .is("deleted_at", null);
 
     if (filters.accountId) {
       vacQuery = vacQuery.eq("account_id", filters.accountId);
@@ -4483,7 +4484,14 @@ async function fetchAllPipelineVacancies(
       fetchGroupMap(supabase),
     ]);
 
-    const vacMap = new Map((vacRes.data ?? []).map((v) => [v.vcode, v]));
+    const vacMap = new Map(
+      (vacRes.data ?? [])
+        .filter((v) => {
+          const st = (v.status || "").toLowerCase().trim();
+          return st !== "filled" && st !== "closed" && st !== "archived";
+        })
+        .map((v) => [v.vcode, v]),
+    );
     const validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
 
     const rows = validCandidates.map((c: Record<string, unknown>) => {

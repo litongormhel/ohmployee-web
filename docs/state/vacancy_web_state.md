@@ -49,6 +49,11 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
     - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
     - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
 
+- **Pipeline Candidate Query Schema Mismatch Fix (`ohm#s4b8r2x1`)**:
+  - Removed non-existent `applied_at` column from `applicants` queries and non-existent `headcount` column from `vacancies` queries in `src/lib/queries/vacancy.ts` (`listVacancies` and `fetchAllPipelineVacancies`).
+  - Switched to in-memory vacancy status filtering (`Filled`, `Closed`, `Archived`) to avoid PostgREST query errors.
+  - Fully restored all 6 active candidates in the Pipeline table view and CSV export, matching the badge count 1:1.
+
 - **Closure/Failed Tab Data Restoration & Pipeline Synchronization (`ohm#n7f3w9x2`)**:
   - **Shared Group Map Lookup (`fetchGroupMap`)**:
     - Removed non-existent `group_name` column selects from `vacancies` queries across Closure, Failed/Backout, and export functions in `src/lib/queries/vacancy.ts`, preventing PostgREST error `42703`.
