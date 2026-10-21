@@ -26,7 +26,6 @@ import {
   SlidersHorizontal,
   User,
   UserCheck,
-  UserMinus,
   UserPlus,
   Users,
   XCircle,
@@ -344,60 +343,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 variant: "primary",
               },
               {
-                label: "Update Stage",
-                isAvailable:
-                  userCanManagePipeline &&
-                  !isPendingClosure &&
-                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                  detail.derivedStatus?.toLowerCase() !== "hired" &&
-                  detail.derivedStatus?.toLowerCase() !== "closed",
-                onClick: () => {
-                  if (detail.activeApplicantsList?.[0]) {
-                    setSelectedCandidate({
-                      id: detail.activeApplicantsList[0].applicantId,
-                      fullName: detail.activeApplicantsList[0].displayName,
-                      lastName: detail.activeApplicantsList[0].lastName,
-                      firstName: detail.activeApplicantsList[0].firstName,
-                      middleName: detail.activeApplicantsList[0].middleName,
-                      contactNumber: detail.activeApplicantsList[0].contactNumber,
-                      status: detail.activeApplicantsList[0].statusLabel,
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    });
-                  }
-                  setIsAdvancePipelineModalOpen(true);
-                },
-                icon: ArrowRightCircle,
-                variant: "primary",
-              },
-              {
-                label: "Mark Hired",
-                isAvailable:
-                  userCanManagePipeline &&
-                  !isPendingClosure &&
-                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                  detail.derivedStatus?.toLowerCase() !== "hired" &&
-                  detail.derivedStatus?.toLowerCase() !== "closed",
-                onClick: () => {
-                  if (detail.activeApplicantsList?.[0]) {
-                    setSelectedCandidate({
-                      id: detail.activeApplicantsList[0].applicantId,
-                      fullName: detail.activeApplicantsList[0].displayName,
-                      lastName: detail.activeApplicantsList[0].lastName,
-                      firstName: detail.activeApplicantsList[0].firstName,
-                      middleName: detail.activeApplicantsList[0].middleName,
-                      contactNumber: detail.activeApplicantsList[0].contactNumber,
-                      status: detail.activeApplicantsList[0].statusLabel,
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    });
-                  }
-                  setIsMarkHiredModalOpen(true);
-                },
-                icon: CheckCircle2,
-                variant: "success",
-              },
-              {
                 label: "Reopen Slot",
                 isAvailable:
                   userCanManagePipeline &&
@@ -409,20 +354,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 onClick: () => setIsReopenVacancyModalOpen(true),
                 icon: RotateCcw,
                 variant: "primary",
-              },
-              {
-                label: "Adjust Quota",
-                isAvailable: canReviseQuota,
-                onClick: () => setIsReviseQuotaModalOpen(true),
-                icon: SlidersHorizontal,
-                variant: "secondary",
-              },
-              {
-                label: "Request HC Adjustment",
-                isAvailable: canRequestAdjustment,
-                onClick: () => setIsRequestAdjustmentModalOpen(true),
-                icon: FileText,
-                variant: "secondary",
               },
               {
                 label: "Approve Vacancy",
@@ -459,80 +390,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 },
                 icon: Calendar,
                 variant: "secondary",
-              },
-              {
-                label: "Drop / Backout",
-                isAvailable:
-                  userCanManagePipeline &&
-                  !isPendingClosure &&
-                  Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
-                  (isUserFullAccess || detail.derivedStatus?.toLowerCase() !== "hired") &&
-                  detail.derivedStatus?.toLowerCase() !== "closed",
-                onClick: () => {
-                  const firstCandidate = detail.activeApplicantsList?.[0];
-                  if (firstCandidate) {
-                    setSelectedCandidate({
-                      id: firstCandidate.applicantId,
-                      fullName: firstCandidate.displayName,
-                      lastName: firstCandidate.lastName,
-                      firstName: firstCandidate.firstName,
-                      middleName: firstCandidate.middleName,
-                      contactNumber: firstCandidate.contactNumber,
-                      status: firstCandidate.statusLabel,
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    });
-                  } else if (detail.applicantId) {
-                    setSelectedCandidate({
-                      id: detail.applicantId,
-                      fullName: detail.applicantName || "Candidate",
-                      lastName: detail.applicantLastName,
-                      firstName: detail.applicantFirstName,
-                      middleName: detail.applicantMiddleName,
-                      contactNumber: detail.contactNumber,
-                      status: detail.pipelineStatus || "pipeline",
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    });
-                  }
-                  setIsFailBackoutModalOpen(true);
-                },
-                icon: UserMinus,
-                variant: "danger",
-              },
-              {
-                label: "Request Closure",
-                isAvailable:
-                  userCanRequestClosure &&
-                  !isPendingClosure &&
-                  detail.derivedStatus?.toLowerCase() !== "closed",
-                onClick: () => setIsRequestClosureModalOpen(true),
-                icon: XCircle,
-                variant: "warning",
-              },
-              {
-                label: withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure",
-                isAvailable:
-                  isPendingClosure &&
-                  (isUserFullAccess || userIsOps || userCanRequestClosure),
-                onClick: async () => {
-                  if (!detail?.vcode) return;
-                  const confirmed = window.confirm(
-                    `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
-                  );
-                  if (!confirmed) return;
-                  try {
-                    await withdrawClosureMutation.mutateAsync({
-                      vcode: detail.vcode,
-                      userId: currentUser?.authUserId || currentUser?.profileId || null,
-                    });
-                    refetch();
-                  } catch (err: unknown) {
-                    alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
-                  }
-                },
-                icon: RotateCcw,
-                variant: "warning",
               },
             ]}
           />
@@ -918,23 +775,101 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 </div>
               )}
 
-              {/* Pipeline / Candidate Summary (omitted for Open vacancies) */}
-              {!(status === "open" || detail.derivedStatus?.toLowerCase() === "open" || detail.vacancyStatus?.toLowerCase() === "open") && (
-                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                      <span>Applicant & Pipeline</span>
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-[11px] text-text-secondary font-medium">
-                      <span>{detail.activeApplicantCount} Active</span>
-                      <span>&bull;</span>
-                      <span>{detail.confirmedOnboardCount} Onboarded</span>
-                    </div>
+              {/* 5. Requisition & Quota Management Section */}
+              <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                    <span>Requisition & Quota Management</span>
                   </div>
+                  <div className="text-[11px] font-medium text-text-secondary">
+                    Quota: <span className="font-bold text-text-primary">{detail.confirmedOnboardCount ?? 0}/{detail.headcount ?? 1}</span>
+                  </div>
+                </div>
 
-                {/* Active Candidate cards */}
-                <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {canReviseQuota && (
+                    <button
+                      type="button"
+                      onClick={() => setIsReviseQuotaModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                      title="Directly revise headcount quota for this requisition slot"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
+                      <span>Adjust Quota</span>
+                    </button>
+                  )}
+
+                  {canRequestAdjustment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestAdjustmentModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                      title="Submit a formal headcount quota adjustment request"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Request HC Adjustment</span>
+                    </button>
+                  )}
+
+                  {userCanRequestClosure && !isPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed" && (
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestClosureModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition shadow-xs cursor-pointer"
+                      title="Request store or vacancy closure clearance"
+                    >
+                      <XCircle className="h-3.5 w-3.5 text-amber-600" />
+                      <span>Request Closure</span>
+                    </button>
+                  )}
+
+                  {isPendingClosure && (isUserFullAccess || userIsOps || userCanRequestClosure) && (
+                    <button
+                      type="button"
+                      disabled={withdrawClosureMutation.isPending}
+                      onClick={async () => {
+                        if (!detail?.vcode) return;
+                        const confirmed = window.confirm(
+                          `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                        );
+                        if (!confirmed) return;
+                        try {
+                          await withdrawClosureMutation.mutateAsync({
+                            vcode: detail.vcode,
+                            userId: currentUser?.authUserId || currentUser?.profileId || null,
+                          });
+                          refetch();
+                        } catch (err: unknown) {
+                          alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition shadow-xs cursor-pointer"
+                      title="Withdraw in-flight closure clearance request"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+                      <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 6. Applicant & Pipeline Section with Candidate Cards */}
+              <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                    <span>Applicant & Pipeline</span>
+                  </h3>
+                  <div className="flex items-center gap-1.5 text-[11px] text-text-secondary font-medium">
+                    <span>{detail.activeApplicantCount} Active</span>
+                    <span>&bull;</span>
+                    <span>{detail.confirmedOnboardCount} Onboarded</span>
+                  </div>
+                </div>
+
+                {/* Candidate cards */}
+                <div className="space-y-2.5">
                   {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
                     detail.activeApplicantsList.map((candidate, index) => {
                       const isCandidateHired =
@@ -942,49 +877,74 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         candidate.statusLabel.toLowerCase().includes("hired") ||
                         candidate.statusLabel.toLowerCase().includes("confirm");
 
+                      // Candidate aging in current stage or requisition aging
+                      const candidateAging = candidate.agingDays ?? detail.agingDays ?? null;
+
                       return (
                         <div
                           key={candidate.applicantId || `candidate-${index}`}
-                          className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs hover:bg-surface-muted/70 transition space-y-1.5"
+                          className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs hover:bg-surface-muted/60 transition space-y-2.5"
                         >
-                          <div className="flex items-center justify-between">
+                          {/* Candidate Top Header */}
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[9px]">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[10px]">
                                 {candidate.displayName.charAt(0)}
                               </div>
-                              <div className="font-semibold text-text-primary">
+                              <div className="font-bold text-text-primary text-xs">
                                 {candidate.displayName}
                               </div>
                             </div>
-                            <Badge
-                              className={`text-[10px] py-0 ${
-                                isCandidateHired
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-purple-200 bg-purple-50 text-purple-700"
-                              }`}
-                            >
-                              {candidate.statusLabel}
-                            </Badge>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Badge
+                                className={`text-[10px] py-0.5 px-2 font-semibold ${
+                                  isCandidateHired
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-purple-200 bg-purple-50 text-purple-700"
+                                }`}
+                              >
+                                {candidate.statusLabel}
+                              </Badge>
+                              {candidateAging !== null && (
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
+                                    candidateAging <= 7
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                      : candidateAging <= 14
+                                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                                      : "border-rose-200 bg-rose-50 text-rose-700"
+                                  }`}
+                                  title="Candidate Aging in Stage"
+                                >
+                                  <Clock3 className="h-2.5 w-2.5" />
+                                  <span>{candidateAging}d</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
-                            {candidate.contactNumber && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3 text-text-muted" />
-                                <span>{candidate.contactNumber}</span>
+                          {/* Candidate Metadata Row */}
+                          <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                            <div className="flex items-center gap-1 truncate">
+                              <Phone className="h-3 w-3 text-text-muted shrink-0" />
+                              <span className="truncate">{candidate.contactNumber || "No contact recorded"}</span>
+                            </div>
+                            {candidate.onboardDate ? (
+                              <div className="flex items-center gap-1 truncate">
+                                <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+                                <span className="truncate">Onboard: {formatDate(candidate.onboardDate)}</span>
                               </div>
-                            )}
-                            {candidate.onboardDate && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3 text-text-muted" />
-                                <span>Onboard: {formatDate(candidate.onboardDate)}</span>
+                            ) : candidate.recruiterName ? (
+                              <div className="flex items-center gap-1 truncate">
+                                <User className="h-3 w-3 text-text-muted shrink-0" />
+                                <span className="truncate">Recruiter: {candidate.recruiterName}</span>
                               </div>
-                            )}
+                            ) : null}
                           </div>
 
-                          {/* Quick action buttons for this candidate (Only for active pipeline, not hired) */}
+                          {/* Consolidated Candidate Action Buttons */}
                           {!isCandidateHired && (userCanManagePipeline || userCanEditApplicant) && (
-                            <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border-subtle/50 flex-wrap">
+                            <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
                               {userCanEditApplicant && (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0) && (
                                 <button
                                   type="button"
@@ -1003,12 +963,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     });
                                     setIsEditApplicantModalOpen(true);
                                   }}
-                                  className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                                  className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs cursor-pointer"
+                                  title="Edit applicant profile details"
                                 >
                                   <Edit3 className="h-3 w-3" />
-                                  Edit Details
+                                  <span>Edit Details</span>
                                 </button>
                               )}
+
                               {userCanManagePipeline && (
                                 <>
                                   <button
@@ -1027,10 +989,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       });
                                       setIsAdvancePipelineModalOpen(true);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
+                                    className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                    title="Advance stage or select terminal backout/dropout reason"
                                   >
-                                    Update Stage
+                                    <ArrowRightCircle className="h-3 w-3" />
+                                    <span>Update Stage / Backout</span>
                                   </button>
+
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1047,29 +1012,11 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       });
                                       setIsMarkHiredModalOpen(true);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                                    className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                    title="Approve and mark candidate as hired"
                                   >
-                                    Mark Hired
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedCandidate({
-                                        id: candidate.applicantId,
-                                        fullName: candidate.displayName,
-                                        lastName: candidate.lastName,
-                                        firstName: candidate.firstName,
-                                        middleName: candidate.middleName,
-                                        contactNumber: candidate.contactNumber,
-                                        status: candidate.statusLabel,
-                                        vcode: detail.vcode,
-                                        positionTitle: detail.position_title,
-                                      });
-                                      setIsFailBackoutModalOpen(true);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
-                                  >
-                                    Drop / Backout
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span>Mark Hired</span>
                                   </button>
                                 </>
                               )}
@@ -1079,53 +1026,150 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       );
                     })
                   ) : detail.applicantName ? (
-                    <div className="rounded-md border border-border-subtle bg-surface-muted/40 p-2 text-xs space-y-1.5">
-                      <div className="font-semibold text-text-primary">{detail.applicantName}</div>
-                      {detail.contactNumber && (
-                        <div className="flex items-center gap-1 text-[11px] text-text-secondary">
-                          <Phone className="h-3 w-3 text-text-muted" />
-                          <span>{detail.contactNumber}</span>
+                    /* Fallback Single Candidate Card */
+                    <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[10px]">
+                            {detail.applicantName.charAt(0)}
+                          </div>
+                          <div className="font-bold text-text-primary text-xs">
+                            {detail.applicantName}
+                          </div>
                         </div>
-                      )}
-                      {!isHired && userCanEditApplicant && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && detail.applicantId && (
-                        <div className="pt-1 border-t border-border-subtle/50 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedCandidateForEdit({
-                                applicantId: detail.applicantId!,
-                                displayName: detail.applicantName,
-                                firstName: detail.applicantFirstName,
-                                middleName: detail.applicantMiddleName,
-                                lastName: detail.applicantLastName,
-                                contactNumber: detail.contactNumber,
-                                profileEditCount: detail.profileEditCount,
-                                statusLabel: detail.pipelineStatus,
-                                vcode: detail.vcode,
-                                positionTitle: detail.position_title,
-                              });
-                              setIsEditApplicantModalOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge
+                            className={`text-[10px] py-0.5 px-2 font-semibold ${
+                              isHired
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-purple-200 bg-purple-50 text-purple-700"
+                            }`}
                           >
-                            <Edit3 className="h-3 w-3" />
-                            Edit Details
-                          </button>
+                            {detail.pipelineStatus || "In Pipeline"}
+                          </Badge>
+                          {detail.agingDays !== null && (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
+                                detail.agingDays <= 7
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : detail.agingDays <= 14
+                                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                                  : "border-rose-200 bg-rose-50 text-rose-700"
+                              }`}
+                              title="Aging in Pipeline"
+                            >
+                              <Clock3 className="h-2.5 w-2.5" />
+                              <span>{detail.agingDays}d</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                        <div className="flex items-center gap-1 truncate">
+                          <Phone className="h-3 w-3 text-text-muted shrink-0" />
+                          <span className="truncate">{detail.contactNumber || "No contact recorded"}</span>
+                        </div>
+                        {detail.onboardDate && (
+                          <div className="flex items-center gap-1 truncate">
+                            <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+                            <span className="truncate">Onboard: {formatDate(detail.onboardDate)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {!isHired && (userCanManagePipeline || userCanEditApplicant) && (
+                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
+                          {userCanEditApplicant && detail.applicantId && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCandidateForEdit({
+                                  applicantId: detail.applicantId!,
+                                  displayName: detail.applicantName,
+                                  firstName: detail.applicantFirstName,
+                                  middleName: detail.applicantMiddleName,
+                                  lastName: detail.applicantLastName,
+                                  contactNumber: detail.contactNumber,
+                                  profileEditCount: detail.profileEditCount,
+                                  statusLabel: detail.pipelineStatus,
+                                  vcode: detail.vcode,
+                                  positionTitle: detail.position_title,
+                                });
+                                setIsEditApplicantModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs cursor-pointer"
+                              title="Edit applicant profile details"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                              <span>Edit Details</span>
+                            </button>
+                          )}
+
+                          {userCanManagePipeline && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate({
+                                    id: detail.applicantId || detail.vacancyId,
+                                    fullName: detail.applicantName || "Candidate",
+                                    lastName: detail.applicantLastName,
+                                    firstName: detail.applicantFirstName,
+                                    middleName: detail.applicantMiddleName,
+                                    contactNumber: detail.contactNumber,
+                                    status: detail.pipelineStatus || "pipeline",
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsAdvancePipelineModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                title="Advance stage or select terminal backout/dropout reason"
+                              >
+                                <ArrowRightCircle className="h-3 w-3" />
+                                <span>Update Stage / Backout</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate({
+                                    id: detail.applicantId || detail.vacancyId,
+                                    fullName: detail.applicantName || "Candidate",
+                                    lastName: detail.applicantLastName,
+                                    firstName: detail.applicantFirstName,
+                                    middleName: detail.applicantMiddleName,
+                                    contactNumber: detail.contactNumber,
+                                    status: detail.pipelineStatus || "pipeline",
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsMarkHiredModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                title="Approve and mark candidate as hired"
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>Mark Hired</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-3 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
+                    <div className="text-center py-4 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
                       No active applicants in pipeline.
                     </div>
                   )}
                 </div>
-                <div className="text-[10px] text-text-muted flex items-start gap-1">
+
+                <div className="text-[10px] text-text-muted flex items-start gap-1 pt-1">
                   <Lock className="h-3 w-3 shrink-0 mt-0.5 text-text-muted" />
                   <span>PII Guard active: Candidate personal contact details subject to operational scope.</span>
                 </div>
               </div>
-            )}
 
               {/* Headcount Origin & Approvals Context - Hidden if completely empty */}
               {hasHeadcountContext && (

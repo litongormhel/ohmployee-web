@@ -116,6 +116,8 @@ export type ActiveApplicantItem = {
   recruiterName: string | null;
   deployedByName: string | null;
   profileEditCount?: number | null;
+  createdAt?: string | null;
+  agingDays?: number | null;
 };
 
 export type ActivityHistoryItem = {
@@ -632,6 +634,8 @@ function normalizeActiveApplicant(item: unknown): ActiveApplicantItem {
     recruiterName: formatPersonName(null, null, null, asString(obj.recruiter_name ?? obj.recruited_by_name)) || null,
     deployedByName: formatPersonName(null, null, null, asString(obj.deployed_by_name ?? obj.deployed_by)) || null,
     profileEditCount: typeof obj.profile_edit_count === "number" ? obj.profile_edit_count : typeof obj.profile_edit_count === "string" ? parseInt(obj.profile_edit_count, 10) : 0,
+    createdAt: asString(obj.created_at ?? obj.applied_at),
+    agingDays: asNumber(obj.aging_days),
   };
 }
 
@@ -2765,6 +2769,47 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
         normalized.closureRequestedBy = closureReq.requested_by || normalized.closureRequestedBy;
         normalized.closureRequestedAt = closureReq.created_at || normalized.closureRequestedAt;
         normalized.closureRequestStatus = closureReq.status || normalized.closureRequestStatus;
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  if (normalized.activeApplicantsList && normalized.activeApplicantsList.length > 0) {
+    try {
+      const appIds = normalized.activeApplicantsList.map((a) => a.applicantId).filter(Boolean);
+      if (appIds.length > 0) {
+        const { data: appsData } = await supabase
+          .from("applicants")
+          .select("id, contact_number, first_name, last_name, middle_name, profile_edit_count, created_at, updated_at")
+          .in("id", appIds);
+        if (Array.isArray(appsData)) {
+          const appMap = new Map(appsData.map((a: Record<string, unknown>) => [asString(a.id), a]));
+          for (const cand of normalized.activeApplicantsList) {
+            const rawApp = appMap.get(cand.applicantId);
+            if (rawApp) {
+              if (!cand.contactNumber && rawApp.contact_number) cand.contactNumber = asString(rawApp.contact_number);
+              if (!cand.firstName && rawApp.first_name) cand.firstName = asString(rawApp.first_name);
+              if (!cand.lastName && rawApp.last_name) cand.lastName = asString(rawApp.last_name);
+              if (!cand.middleName && rawApp.middle_name) cand.middleName = asString(rawApp.middle_name);
+              if (rawApp.profile_edit_count !== undefined && rawApp.profile_edit_count !== null) {
+                cand.profileEditCount = Number(rawApp.profile_edit_count);
+              }
+              if (!cand.createdAt && rawApp.created_at) cand.createdAt = asString(rawApp.created_at);
+              if (!cand.updatedAt && rawApp.updated_at) cand.updatedAt = asString(rawApp.updated_at);
+            }
+
+            if (cand.agingDays === undefined || cand.agingDays === null) {
+              const ts = cand.createdAt || cand.updatedAt;
+              if (ts) {
+                const diffMs = Date.now() - new Date(ts).getTime();
+                if (!isNaN(diffMs)) {
+                  cand.agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+                }
+              }
+            }
+          }
+        }
       }
     } catch {
       // Graceful fallback

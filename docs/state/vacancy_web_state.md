@@ -49,6 +49,25 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
     - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
     - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
 
+- **Vacancy Detail Drawer Layout Integration (`ohm#d8r2m6k1`)**:
+  - **Requisition & Quota Management Section**:
+    - Added dedicated, prominent requisition management panel inside `VacancyDetailDrawer.tsx` directly below store/ownership cards.
+    - Features direct action buttons with strict RBAC:
+      - `Adjust Quota` (`ReviseHeadcountQuotaModal`) — gated by `canReviseQuota` (Super Admin, Head Admin, Encoder).
+      - `Request HC Adjustment` (`RequestHeadcountAdjustmentModal`) — gated by `canRequestAdjustment` (Super Admin, Head Admin, OM, HRCO, ATL, TL).
+      - `Request Closure` (`RequestVacancyClosureModal`) — gated by `userCanRequestClosure`.
+      - `Withdraw Closure` — visible when `isPendingClosure` is true for Ops/Requesters/Admins.
+  - **Candidate Cards & Consolidated Actions**:
+    - For each candidate in `activeApplicantsList` (or fallback single applicant), displays candidate avatar initial, display name, contact phone number, stage badge, status, and candidate aging in stage.
+    - Integrated direct action buttons per card:
+      - `Edit Details` (`EditApplicantModal`) — gated by one-time edit rule for non-admins.
+      - `Update Stage / Backout` (`AdvancePipelineModal`) — consolidated modal handling progressive advancements and terminal dropouts.
+      - `Mark Hired` (`MarkHiredModal`) — placement confirmation.
+    - Enriched applicant phone number and timestamps in `src/lib/queries/vacancy.ts` during normalization, precomputing `agingDays` outside of React render.
+  - **Clean Drawer Footer & Tables**:
+    - Drawer footer focused strictly on primary requisition lifecycle (`Add Applicant`, `Reopen Slot`, `Approve Vacancy`, `Edit Hired Date`).
+    - Open and Pipeline tables preserved clean with only essential actions (`+ Applicant`, `Update`, `Approve`), with row clicks opening the drawer.
+
 - **Vacancy Detail Drawer Fix, Occupied HC Fraction, Pipeline Cleanup, & Terminal Consolidation (`ohm#q7w1k9b3`)**:
   - Migration `20262606000050_fix_vacancy_detail_recruiter_and_occupied_hc.sql` applied to both **Staging** and **Production**:
     - Fixed `get_web_vacancy_detail` SQL crash (`column a.assigned_recruiter_id does not exist`) by joining `public.users_profile` via `COALESCE(a.created_by, v_raw.assigned_encoder_id)`.

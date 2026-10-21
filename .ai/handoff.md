@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Integrate Approved Vacancy Detail Drawer Layout (Requisition & Quota Management, Candidate Cards, & Consolidated Actions) (ohm#d8r2m6k1)
+
+**Status: COMPLETE — DEDICATED REQUISITION & QUOTA MANAGEMENT SECTION INSTALLED IN DRAWER, CANDIDATE CARDS FULLY EQUIPPED WITH DIRECT ACTIONS & AGING, FOOTER ACTION BAR STREAMLINED, TABLE CLEANLINESS PRESERVED (ZERO LINT ERRORS, CLEAN NEXT.JS PRODUCTION BUILD ON MAIN)**
+
+### Objective
+Refactor `src/components/vacancy/VacancyDetailDrawer.tsx` to match the approved HTML mockup structure:
+1. **Dedicated Requisition & Quota Management Section**:
+   - Integrated a clean, prominent management panel inside the drawer directly below the core store & ownership metadata cards.
+   - Housed four key action controls with strict RBAC guards:
+     - **Adjust Quota** (`ReviseHeadcountQuotaModal`) — guarded by `canReviseQuota` (Super Admin, Head Admin, Encoder).
+     - **Request HC Adjustment** (`RequestHeadcountAdjustmentModal`) — guarded by `canRequestAdjustment` (Super Admin, Head Admin, OM, HRCO, ATL, TL).
+     - **Request Closure** (`RequestVacancyClosureModal`) — guarded by `userCanRequestClosure`, visible when not already closed or pending closure.
+     - **Withdraw Closure** — visible when `isPendingClosure` is true, enabling Ops/Requesters/Admins to cancel an in-flight closure request with confirmation and automatic cache refresh.
+2. **Candidate Cards & Consolidated Actions in Drawer**:
+   - For every active candidate in `detail.activeApplicantsList` (with graceful fallback to single-applicant records):
+     - Displays avatar initial circle, candidate display name, contact phone number (with phone icon), stage badge, and candidate aging in stage.
+     - Direct action buttons on each candidate card:
+       - **Edit Details** (`EditApplicantModal`): Gated by `userCanEditApplicant` and one-time edit policy for non-admins.
+       - **Update Stage / Backout** (`AdvancePipelineModal`): Consolidated modal handling progressive pipeline advancements and terminal dropouts (`Backout`, `Failed / Rejected by Ops`, `Rejected`, `Did Not Report`).
+       - **Mark Hired** (`MarkHiredModal`): Instant placement approval and onboard date entry.
+   - Enriched active applicants in `src/lib/queries/vacancy.ts` by fetching missing contact numbers, timestamps, and edit counts from `public.applicants`, computing candidate aging during data normalization without violating React hooks purity rules.
+3. **Clean Table View Preservation**:
+   - Maintained clean, uncluttered tables across tabs:
+     - **Open** tab: single essential `+ Applicant` button.
+     - **Pipeline** tab: `Update` (and `Approve` where onboard status reached).
+     - Full row clicks reliably open `VacancyDetailDrawer`.
+4. **Clean Footer Action Bar**:
+   - Streamlined the bottom drawer footer to focus on requisition slot lifecycle (`Add Applicant`, `Reopen Slot`, `Approve Vacancy`, `Edit Hired Date`), eliminating redundant action duplicates.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting baseline warnings in other modules).
+- `npm run build`: Successful Next.js Turbopack production build with all 19 static/dynamic routes compiled.
+
+---
+
 ## Fix Vacancy Drawer SQL Error, Occupied HC Fraction (`1/7`), Pipeline 1:1 Column Cleanup, Consolidate Backout into Update Modal, Move Edit to Drawer Only, & Remove Eye Icons Globally (ohm#q7w1k9b3)
 
 **Status: COMPLETE — MIGRATION 50 APPLIED TO STAGING & PROD, VACANCY DETAIL RPC ERROR RESOLVED, OCCUPIED HC FRACTION RESTORED TO OPEN TAB, PIPELINE TAB REFINED, BACKOUT CONSOLIDATED INTO ADVANCE PIPELINE MODAL, & REDUNDANT EYE ICONS REMOVED (LINT CLEAN, BUILD CLEAN ON MAIN)**
