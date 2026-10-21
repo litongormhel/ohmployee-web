@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#d8r2m6k1**: Integrate Approved Vacancy Detail Drawer Layout (Requisition & Quota Management, Candidate Cards, & Consolidated Actions)
-2. **ohm#q7w1k9b3**: Fix Vacancy Drawer SQL Error, Occupied HC Fraction (`1/7`), Pipeline 1:1 Column Cleanup, Consolidate Backout into Update Modal, Move Edit to Drawer Only, & Remove Eye Icons Globally
-3. **ohm#p9v2k4m7**: Execute Vacancy Module Mobile vs. Web Parity (Edit Applicant Details, Duplicate Check, Withdraw Closure)
-4. **ohm#m4p8x2c1**: Fix Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity)
-5. **ohm#j2k9v4x8**: Fix Missing Dropout Records on Filled/Archived Requisitions & Backout Reason Sanity Audit
+1. **ohm#v3k8n2m5**: Fix 7 Vacancy Module Bugs & RBAC Adjustments (Closure Blocking, Tab-Specific Actions, HC/Quota RBAC, Human-Readable Activity History, Withdraw Action, & Group Filtering)
+2. **ohm#d8r2m6k1**: Integrate Approved Vacancy Detail Drawer Layout (Requisition & Quota Management, Candidate Cards, & Consolidated Actions)
+3. **ohm#q7w1k9b3**: Fix Vacancy Drawer SQL Error, Occupied HC Fraction (`1/7`), Pipeline 1:1 Column Cleanup, Consolidate Backout into Update Modal, Move Edit to Drawer Only, & Remove Eye Icons Globally
+4. **ohm#p9v2k4m7**: Execute Vacancy Module Mobile vs. Web Parity (Edit Applicant Details, Duplicate Check, Withdraw Closure)
+5. **ohm#m4p8x2c1**: Fix Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (Mobile & Web Parity)
 
-> Older entries trimmed 2026-10-21 (`ohm#d8r2m6k1`) to keep this list to 5 — dropped `ohm#h8k3m2x5` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-21 (`ohm#v3k8n2m5`) to keep this list to 5 — dropped `ohm#j2k9v4x8` and earlier entries — see git history for that and earlier entries in full.

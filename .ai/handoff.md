@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Fix 7 Vacancy Module Bugs & Permission Adjustments (Closure Blocking, Tab-Specific Actions, HC/Quota RBAC, Human-Readable Activity History, Withdraw Action, & Group Filtering) (ohm#v3k8n2m5)
+
+**Status: COMPLETE — 7 BUGS FULLY RESOLVED, STRICT RBAC ENFORCED FOR QUOTA & HC ADJUSTMENT, CLOSURE BLOCKING GATED BY ACTIVE PIPELINE, ACTIVITY LOGS TRANSLATED TO HUMAN-READABLE SENTENCES, WITHDRAW WIRE-UP IN CLOSURE TAB, AND GROUP FILTER RESTRICTED (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**
+
+### Objective
+Resolve 7 Vacancy Module functional bugs and RBAC adjustments across drawer, table, query layer, and page components:
+1. **Bug 1: Block "Request Closure" When Store Has Active Applicants**:
+   - In `src/components/vacancy/VacancyDetailDrawer.tsx`, evaluated active pipeline counts (`activeApplicantCount > 0` or active applicants list length > 0).
+   - If active applicants exist and user does not belong to exempted Ops (`isOpsTeam`), Recruitment (`AppRole.RECRUITMENT`), or Super Admin (`hasFullAccess`), the **Request Closure** button is disabled with grayed styling and a clear explanatory tooltip: *"Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."*
+2. **Bug 2: Hide Quota & Closure Actions in Hired Tab**:
+   - In `src/components/vacancy/VacancyDetailDrawer.tsx`, suppressed the entire *Requisition & Quota Management* section (Adjust Quota, Request HC Adjustment, Request Closure) when viewing a requisition in the Hired tab or when status is `Hired` / `Filled`.
+3. **Bug 3: Restrict "Request HC Adjustment" strictly to Super Admin**:
+   - In `src/lib/rbac.ts`, introduced `canRequestHeadcountAdjustment(userOrRole)` which restricts access strictly to Super Admin (`isOwner` / level 100), hiding the action from Data Team (Head Admin, Encoder) and regular Ops.
+   - Connected `canRequestAdjustment` in `VacancyDetailDrawer.tsx` to `canRequestHeadcountAdjustment(currentUser)`.
+4. **Bug 4: Restrict "Adjust Quota" to Data Team & Super Admin Only**:
+   - In `src/lib/rbac.ts`, introduced `canReviseHeadcountQuota(userOrRole)` which gates direct quota adjustments strictly to Data Team members (Head Admin, Encoder) and Super Admin, hiding it from Ops and Recruitment.
+   - Connected `canReviseQuota` in `VacancyDetailDrawer.tsx` to `canReviseHeadcountQuota(currentUser)`.
+5. **Bug 5: Make Activity History Simple & Human-Readable**:
+   - In `src/components/vacancy/VacancyDetailDrawer.tsx`, added `formatActivityHistorySummary(item)` translator that converts raw database audit actions (`INSERT`, `UPDATE`, `APPROVAL`) and modules (`vacancies`, `applicants`, `VACANCY_MODULE`, etc.) into natural, human-readable sentence summaries (e.g., *"Vacancy created and opened for sourcing"*, *"Applicant added to recruitment pipeline"*, *"Pipeline stage updated"*, *"Headcount quota revised"*, *"Requisition approved"*).
+6. **Bug 6: Role-Gated Actions in Closure Tab**:
+   - In `src/components/vacancy/VacancyTable.tsx` under the Closure tab Actions column:
+     - Shows the **Withdraw** button exclusively for Ops roles (`userIsOps`).
+     - Shows **Approve** and **Reject** buttons exclusively for Data Team / Admins (`userCanReviewClosures`).
+   - Wired `handleWithdrawClosure` in `src/app/(dashboard)/vacancy/page.tsx` using `useWithdrawVacancyClosureRequest()` mutation with confirmation and query invalidation.
+7. **Bug 7: Fix Group Filter Options in Closure & Failed/Backout Tabs**:
+   - In `src/lib/queries/vacancy.ts`:
+     - Added `group_name` selection to `vacQuery` in `listVacancies` for both Closure and Failed/Backout tabs, and in export queries (`fetchAllClosureVacancies` and `fetchAllFailedVacancies`).
+     - Formatted group names using `formatGroupName(vac.group_name, account)`.
+   - In `src/app/(dashboard)/vacancy/page.tsx`:
+     - Filtered `uniqueGroups` to strictly include Group 1 through Group 5 and Moses HQ, eliminating any `"General / Direct"` options.
+   - In `VacancyTable.tsx` and `VacancyDetailDrawer.tsx`:
+     - Replaced `"General / Direct"` fallback labels with clean em-dashes `"—"` / `"--"`.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting baseline warnings in other modules).
+- `npm run build`: Successful Next.js Turbopack production build with all 19 static/dynamic routes compiled.
+
+---
+
 ## Integrate Approved Vacancy Detail Drawer Layout (Requisition & Quota Management, Candidate Cards, & Consolidated Actions) (ohm#d8r2m6k1)
 
 **Status: COMPLETE — DEDICATED REQUISITION & QUOTA MANAGEMENT SECTION INSTALLED IN DRAWER, CANDIDATE CARDS FULLY EQUIPPED WITH DIRECT ACTIONS & AGING, FOOTER ACTION BAR STREAMLINED, TABLE CLEANLINESS PRESERVED (ZERO LINT ERRORS, CLEAN NEXT.JS PRODUCTION BUILD ON MAIN)**

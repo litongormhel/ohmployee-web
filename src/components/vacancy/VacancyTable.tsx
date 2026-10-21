@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   Phone,
   RefreshCw,
+  RotateCcw,
   TrendingUp,
   UserPlus,
   X,
@@ -27,6 +28,7 @@ import {
   canAddApplicant,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
+  isOpsTeam,
 } from "@/lib/rbac";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
@@ -130,6 +132,7 @@ type VacancyTableProps = {
   onReopenVacancy?: (vacancy: VacancyListItem) => void;
   onRequestClosure?: (vacancy: VacancyListItem) => void;
   onReviewClosure?: (vacancy: VacancyListItem, decision: "Approved" | "Rejected") => void;
+  onWithdrawClosure?: (vacancy: VacancyListItem) => void;
   onEditHiredDate?: (vacancy: VacancyListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
@@ -278,6 +281,7 @@ export function VacancyTable({
   onFailBackout: _onFailBackout,
   onReopenVacancy: _onReopenVacancy,
   onReviewClosure,
+  onWithdrawClosure,
   onEditHiredDate: _onEditHiredDate,
   onRetry,
   onPageChange,
@@ -287,6 +291,7 @@ export function VacancyTable({
   const userCanAddApplicant = canAddApplicant(currentUser);
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
+  const userIsOps = isOpsTeam(currentUser);
 
   const errorCopy = getErrorCopy(errorKind);
   const activeColumns = getTableColumns(status);
@@ -410,7 +415,7 @@ export function VacancyTable({
                         {row.accountName ?? "—"}
                       </div>
                       <div className="text-xs text-table-text-muted">
-                        {formatGroupName(row.groupName, row.accountName) || "General / Direct"}
+                        {formatGroupName(row.groupName, row.accountName) || "—"}
                       </div>
                     </td>
 
@@ -690,6 +695,20 @@ export function VacancyTable({
 
                             {status === "closure" && (
                               <div className="flex items-center gap-1">
+                                {userIsOps && onWithdrawClosure && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onWithdrawClosure(row);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 border border-amber-300 hover:bg-amber-100 transition shadow-xs cursor-pointer"
+                                    title={`Withdraw closure request for ${row.vcode}`}
+                                  >
+                                    <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                                    <span className="hidden sm:inline">Withdraw</span>
+                                  </button>
+                                )}
                                 {userCanReviewClosures && onReviewClosure && (
                                   <>
                                     <button
@@ -698,7 +717,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Approved");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs"
+                                      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
                                       title={`Approve closure request for ${row.vcode}`}
                                     >
                                       <Check className="h-3 w-3" aria-hidden="true" />
@@ -710,7 +729,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Rejected");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs"
+                                      className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
                                       title={`Reject closure request for ${row.vcode}`}
                                     >
                                       <X className="h-3 w-3" aria-hidden="true" />

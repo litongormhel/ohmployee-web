@@ -213,6 +213,25 @@ export function canRequestVacancyClosure(userOrRole?: RoleIdentifiable | string 
   return isOpsTeam(userOrRole) || role === AppRole.ENCODER || getRoleLevel(userOrRole) === 30;
 }
 
+/**
+ * Can submit headcount quota adjustment request.
+ * Restricted strictly to Super Admin (hasFullAccess / level 100).
+ * Hidden from Data Team (Head Admin, Encoder), Ops, and Recruitment.
+ */
+export function canRequestHeadcountAdjustment(userOrRole?: RoleIdentifiable | string | null): boolean {
+  return isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100;
+}
+
+/**
+ * Can directly adjust/revise headcount quota.
+ * Restricted strictly to Data Team (Head Admin, Encoder) and Super Admin.
+ * Hidden from Ops, Recruitment, HR Personnel, Viewer, etc.
+ */
+export function canReviseHeadcountQuota(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+  return isDataTeam(userOrRole);
+}
+
 function extractRoleString(userOrRole?: RoleIdentifiable | string | null): string | null {
   if (!userOrRole) return null;
   if (typeof userOrRole === "string") return userOrRole;

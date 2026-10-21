@@ -49,6 +49,23 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
     - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
     - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
 
+- **Vacancy Bug Fixes & RBAC Adjustments (`ohm#v3k8n2m5`)**:
+  - **Closure Blocking on Active Candidates**:
+    - In `VacancyDetailDrawer.tsx`, blocked `Request Closure` if `activeApplicantCount > 0` (or active applicants list is non-empty), unless user belongs to exempted Ops (`isOpsTeam`), Recruitment (`AppRole.RECRUITMENT`), or Super Admin (`hasFullAccess`).
+  - **Hired Tab Action Suppression**:
+    - Suppressed the entire *Requisition & Quota Management* section in `VacancyDetailDrawer.tsx` when viewing records in the Hired tab or with filled/hired status.
+  - **Headcount Adjustment & Quota RBAC Realignment**:
+    - Added `canRequestHeadcountAdjustment(user)` in `src/lib/rbac.ts`: restricted strictly to Super Admin (100 / `isOwner`), hidden from Data Team (Head Admin, Encoder) and regular Ops.
+    - Added `canReviseHeadcountQuota(user)` in `src/lib/rbac.ts`: restricted strictly to Data Team (Head Admin, Encoder) and Super Admin.
+  - **Human-Readable Activity History Summaries**:
+    - Built `formatActivityHistorySummary` in `VacancyDetailDrawer.tsx` translating raw database audit actions (`INSERT`, `UPDATE`, `APPROVAL`) and modules (`vacancies`, `applicants`, `VACANCY_MODULE`, etc.) into natural, human-readable sentence summaries.
+  - **Closure Tab Role-Gated Actions**:
+    - In `VacancyTable.tsx` under the Closure tab, rendered the `Withdraw` button exclusively for Ops roles (`userIsOps`) and `Approve` / `Reject` buttons exclusively for Data Team / Admins (`userCanReviewClosures`).
+    - Wired `handleWithdrawClosure` in `page.tsx` with user confirmation and query cache invalidation.
+  - **Group Filter & Display Cleanup**:
+    - Added `group_name` selection to `vacQuery` in `src/lib/queries/vacancy.ts` for Closure and Failed/Backout queues and export functions, applying `formatGroupName`.
+    - Restricted `uniqueGroups` choices in `page.tsx` strictly to Group 1 through Group 5 and Moses HQ, eliminating `"General / Direct"` options across table and drawer displays.
+
 - **Vacancy Detail Drawer Layout Integration (`ohm#d8r2m6k1`)**:
   - **Requisition & Quota Management Section**:
     - Added dedicated, prominent requisition management panel inside `VacancyDetailDrawer.tsx` directly below store/ownership cards.

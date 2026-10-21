@@ -46,10 +46,12 @@ import {
   VacancyDataError,
   downloadCsv,
   fetchVacanciesForExport,
+  formatGroupName,
   getVacancySummary,
   listVacancies,
   useApproveAllClosureRequests,
   useReviewClosureRequest,
+  useWithdrawVacancyClosureRequest,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
@@ -170,6 +172,7 @@ export default function VacancyPage() {
 
   const approveAllClosuresMutation = useApproveAllClosureRequests();
   const reviewClosureMutation = useReviewClosureRequest();
+  const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
 
 
   const queryParams = useMemo(
@@ -329,10 +332,18 @@ export default function VacancyPage() {
     const map = new Map<string, string>();
     for (const a of accounts) {
       if (a.groupId && a.groupName) {
-        map.set(a.groupId, a.groupName);
+        const resolved = formatGroupName(a.groupName, a.name);
+        if (resolved && resolved !== "General / Direct" && resolved !== "General/Direct") {
+          map.set(a.groupId, resolved);
+        }
       }
     }
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    // Restrict strictly to Group 1 through Group 5 and Moses HQ
+    const allowedGroupPatterns = [/group\s*[1-5]/i, /moses\s*hq/i, /global\s*hq/i];
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .filter((g) => allowedGroupPatterns.some((pattern) => pattern.test(g.name)))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   }, [accounts]);
 
   const filteredAccounts = useMemo(() => {
@@ -516,6 +527,35 @@ export default function VacancyPage() {
               message: `Closure request for ${row.vcode} ${decision.toLowerCase()} successfully.`,
             });
             retryVacancyReads();
+          },
+        },
+      );
+    }
+  }
+
+  function handleWithdrawClosure(row: VacancyListItem) {
+    if (!row.vcode) return;
+    if (
+      window.confirm(
+        `Are you sure you want to withdraw the pending closure request for ${row.vcode}? This will restore normal sourcing and pipeline operations.`,
+      )
+    ) {
+      withdrawClosureMutation.mutate(
+        {
+          vcode: row.vcode,
+          userId: currentUser?.authUserId || currentUser?.profileId || null,
+        },
+        {
+          onSuccess: () => {
+            setSuccessToast({
+              message: `Closure request for ${row.vcode} withdrawn successfully.`,
+            });
+            retryVacancyReads();
+          },
+          onError: (err) => {
+            setErrorToast({
+              message: err instanceof Error ? err.message : "Failed to withdraw closure request.",
+            });
           },
         },
       );
@@ -964,6 +1004,7 @@ export default function VacancyPage() {
         onReopenVacancy={handleReopenVacancy}
         onRequestClosure={handleRequestClosure}
         onReviewClosure={handleReviewClosure}
+        onWithdrawClosure={handleWithdrawClosure}
         onEditHiredDate={handleEditHiredDate}
         page={page}
         pageSize={pageSize}

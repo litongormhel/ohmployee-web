@@ -40,19 +40,19 @@ import {
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useCurrentUser } from "@/lib/auth";
 import {
-  isOpsAmendmentRole,
-  isQuotaOverrideRole,
-  useCurrentUser,
-} from "@/lib/auth";
-import {
+  AppRole,
   canAddApplicant,
   canEditApplicantProfile,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
   canRequestVacancyClosure,
+  canRequestHeadcountAdjustment,
+  canReviseHeadcountQuota,
   hasFullAccess,
   isOpsTeam,
+  normalizeRole,
 } from "@/lib/rbac";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
@@ -123,6 +123,97 @@ function CompactSection({
   );
 }
 
+function formatActivityHistorySummary(item: {
+  eventLabel?: string | null;
+  eventDescription?: string | null;
+  profileName?: string | null;
+}): { title: string } {
+  const action = (item.eventLabel || "").toUpperCase().trim();
+  const rawModule = (item.eventDescription || "").toLowerCase().trim();
+
+  // 1. Specific domain events
+  if (action.includes("CLOSURE")) {
+    if (action.includes("WITHDRAW")) {
+      return { title: "Closure request withdrawn" };
+    }
+    if (action.includes("APPROV")) {
+      return { title: "Vacancy closure approved" };
+    }
+    if (action.includes("REJECT")) {
+      return { title: "Vacancy closure rejected" };
+    }
+    return { title: "Vacancy closure requested" };
+  }
+
+  if (action.includes("HEADCOUNT") || action.includes("QUOTA")) {
+    if (action.includes("REVISE") || action.includes("OVERRIDE") || action.includes("UPDATE")) {
+      return { title: "Headcount quota revised" };
+    }
+    if (action.includes("REQUEST")) {
+      return { title: "Headcount adjustment requested" };
+    }
+    return { title: "Headcount allocation updated" };
+  }
+
+  // 2. Applicants & pipeline events
+  if (rawModule.includes("applicant") || rawModule.includes("pipeline")) {
+    if (action === "INSERT") {
+      return { title: "Applicant added to recruitment pipeline" };
+    }
+    if (action === "UPDATE") {
+      return { title: "Applicant pipeline stage updated" };
+    }
+    if (action === "DELETE") {
+      return { title: "Applicant removed from pipeline" };
+    }
+    if (action.includes("HIRED") || action.includes("ONBOARD")) {
+      return { title: "Candidate confirmed onboard and hired" };
+    }
+    if (action.includes("BACKOUT") || action.includes("FAILED") || action.includes("DROPOUT")) {
+      return { title: "Candidate backout / dropout recorded" };
+    }
+  }
+
+  // 3. Vacancy module events
+  if (rawModule.includes("vacanc") || rawModule === "plantilla") {
+    if (action === "INSERT") {
+      return { title: "Vacancy created and opened for sourcing" };
+    }
+    if (action === "UPDATE") {
+      return { title: "Vacancy requisition details updated" };
+    }
+    if (action === "DELETE") {
+      return { title: "Vacancy requisition archived / removed" };
+    }
+    if (action === "APPROVAL" || action === "APPROVE") {
+      return { title: "Vacancy requisition approved" };
+    }
+    if (action === "REJECT") {
+      return { title: "Vacancy requisition rejected" };
+    }
+  }
+
+  // 4. Canonical database action fallbacks
+  switch (action) {
+    case "INSERT":
+      return { title: rawModule ? `New ${rawModule.replace(/[_-]/g, " ")} record created` : "Record created" };
+    case "UPDATE":
+      return { title: rawModule ? `${rawModule.replace(/[_-]/g, " ")} details updated` : "Details updated" };
+    case "DELETE":
+      return { title: rawModule ? `${rawModule.replace(/[_-]/g, " ")} record removed` : "Record removed" };
+    case "APPROVAL":
+    case "APPROVE":
+      return { title: "Requisition approved" };
+    case "REJECT":
+    case "REJECTION":
+      return { title: "Request rejected" };
+    default:
+      return {
+        title: action ? action.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : "Activity logged",
+      };
+  }
+}
+
 export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false, status }: VacancyDetailDrawerProps) {
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
@@ -150,8 +241,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
-  const canReviseQuota = Boolean(userRole && isQuotaOverrideRole(userRole));
-  const canRequestAdjustment = Boolean(userRole && isOpsAmendmentRole(userRole));
+  const canReviseQuota = canReviseHeadcountQuota(currentUser);
+  const canRequestAdjustment = canRequestHeadcountAdjustment(currentUser);
   const isUserFullAccess = hasFullAccess(currentUser);
   const userCanEditApplicant = canEditApplicantProfile(currentUser);
   const userIsOps = isOpsTeam(currentUser);
@@ -159,6 +250,11 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userCanRequestClosure = canRequestVacancyClosure(currentUser);
+  const isExemptFromClosureApplicantBlock = Boolean(
+    isUserFullAccess ||
+    userIsOps ||
+    normalizeRole(userRole) === AppRole.RECRUITMENT
+  );
 
   const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
 
@@ -225,13 +321,25 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     detail?.derivedStatus === "For Closure"
   );
 
-  const isHired = Boolean(
+  const isHiredTab = Boolean(
     status === "hired" ||
     detail?.derivedStatus?.toLowerCase() === "hired" ||
     detail?.pipelineStatus?.toLowerCase() === "hired" ||
-    detail?.vacancyStatus?.toLowerCase() === "filled" ||
+    detail?.vacancyStatus?.toLowerCase() === "filled"
+  );
+
+  const isHired = Boolean(
+    isHiredTab ||
     (detail?.confirmedOnboardCount ?? 0) > 0
   );
+
+  const hasActiveApplicants = Boolean(
+    detail &&
+    ((detail.activeApplicantCount ?? 0) > 0 ||
+      (detail.activeApplicantsList && detail.activeApplicantsList.length > 0))
+  );
+
+  const isClosureBlockedByApplicants = hasActiveApplicants && !isExemptFromClosureApplicantBlock;
 
   const statusLabel = isPendingClosure
     ? "Pending Clearance"
@@ -317,7 +425,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
           <>
             <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
             <span className="truncate">
-              {[detail.accountName, formatGroupName(detail.groupName, detail.accountName) || "General / Direct", detail.storeName]
+              {[detail.accountName, formatGroupName(detail.groupName, detail.accountName), detail.storeName]
                 .filter(Boolean)
                 .join(" / ") || "Global Account"}
             </span>
@@ -535,8 +643,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
                         <div>
                           <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Group</span>
-                          <span className="font-semibold text-text-primary block truncate" title={formatGroupName(detail.groupName, detail.accountName) || "General / Direct"}>
-                            {formatGroupName(detail.groupName, detail.accountName) || "General / Direct"}
+                          <span className="font-semibold text-text-primary block truncate" title={formatGroupName(detail.groupName, detail.accountName) || "--"}>
+                            {formatGroupName(detail.groupName, detail.accountName) || "--"}
                           </span>
                         </div>
                         <div>
@@ -775,84 +883,98 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                 </div>
               )}
 
-              {/* 5. Requisition & Quota Management Section */}
-              <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
-                    <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                    <span>Requisition & Quota Management</span>
+              {/* 5. Requisition & Quota Management Section - Suppressed in Hired tab or filled status (Bug 2) */}
+              {!isHiredTab && (
+                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                      <span>Requisition & Quota Management</span>
+                    </div>
+                    <div className="text-[11px] font-medium text-text-secondary">
+                      Quota: <span className="font-bold text-text-primary">{detail.confirmedOnboardCount ?? 0}/{detail.headcount ?? 1}</span>
+                    </div>
                   </div>
-                  <div className="text-[11px] font-medium text-text-secondary">
-                    Quota: <span className="font-bold text-text-primary">{detail.confirmedOnboardCount ?? 0}/{detail.headcount ?? 1}</span>
-                  </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                  {canReviseQuota && (
-                    <button
-                      type="button"
-                      onClick={() => setIsReviseQuotaModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
-                      title="Directly revise headcount quota for this requisition slot"
-                    >
-                      <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
-                      <span>Adjust Quota</span>
-                    </button>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    {canReviseQuota && (
+                      <button
+                        type="button"
+                        onClick={() => setIsReviseQuotaModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                        title="Directly revise headcount quota for this requisition slot"
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
+                        <span>Adjust Quota</span>
+                      </button>
+                    )}
 
-                  {canRequestAdjustment && (
-                    <button
-                      type="button"
-                      onClick={() => setIsRequestAdjustmentModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
-                      title="Submit a formal headcount quota adjustment request"
-                    >
-                      <FileText className="h-3.5 w-3.5 text-blue-600" />
-                      <span>Request HC Adjustment</span>
-                    </button>
-                  )}
+                    {canRequestAdjustment && (
+                      <button
+                        type="button"
+                        onClick={() => setIsRequestAdjustmentModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                        title="Submit a formal headcount quota adjustment request"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-blue-600" />
+                        <span>Request HC Adjustment</span>
+                      </button>
+                    )}
 
-                  {userCanRequestClosure && !isPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed" && (
-                    <button
-                      type="button"
-                      onClick={() => setIsRequestClosureModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition shadow-xs cursor-pointer"
-                      title="Request store or vacancy closure clearance"
-                    >
-                      <XCircle className="h-3.5 w-3.5 text-amber-600" />
-                      <span>Request Closure</span>
-                    </button>
-                  )}
-
-                  {isPendingClosure && (isUserFullAccess || userIsOps || userCanRequestClosure) && (
-                    <button
-                      type="button"
-                      disabled={withdrawClosureMutation.isPending}
-                      onClick={async () => {
-                        if (!detail?.vcode) return;
-                        const confirmed = window.confirm(
-                          `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
-                        );
-                        if (!confirmed) return;
-                        try {
-                          await withdrawClosureMutation.mutateAsync({
-                            vcode: detail.vcode,
-                            userId: currentUser?.authUserId || currentUser?.profileId || null,
-                          });
-                          refetch();
-                        } catch (err: unknown) {
-                          alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                    {userCanRequestClosure && !isPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed" && (
+                      <button
+                        type="button"
+                        disabled={isClosureBlockedByApplicants}
+                        onClick={() => {
+                          if (isClosureBlockedByApplicants) return;
+                          setIsRequestClosureModalOpen(true);
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition shadow-xs ${
+                          isClosureBlockedByApplicants
+                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                            : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100 hover:border-amber-300 cursor-pointer"
+                        }`}
+                        title={
+                          isClosureBlockedByApplicants
+                            ? "Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."
+                            : "Request store or vacancy closure clearance"
                         }
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition shadow-xs cursor-pointer"
-                      title="Withdraw in-flight closure clearance request"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
-                      <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
-                    </button>
-                  )}
+                      >
+                        <XCircle className={`h-3.5 w-3.5 ${isClosureBlockedByApplicants ? "text-gray-400" : "text-amber-600"}`} />
+                        <span>Request Closure</span>
+                      </button>
+                    )}
+
+                    {isPendingClosure && (isUserFullAccess || userIsOps || userCanRequestClosure) && (
+                      <button
+                        type="button"
+                        disabled={withdrawClosureMutation.isPending}
+                        onClick={async () => {
+                          if (!detail?.vcode) return;
+                          const confirmed = window.confirm(
+                            `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                          );
+                          if (!confirmed) return;
+                          try {
+                            await withdrawClosureMutation.mutateAsync({
+                              vcode: detail.vcode,
+                              userId: currentUser?.authUserId || currentUser?.profileId || null,
+                            });
+                            refetch();
+                          } catch (err: unknown) {
+                            alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition shadow-xs cursor-pointer"
+                        title="Withdraw in-flight closure clearance request"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+                        <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 6. Applicant & Pipeline Section with Candidate Cards */}
               <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
@@ -1230,26 +1352,26 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <span>Activity History</span>
                   </div>
                   <div className="relative pl-4 space-y-2.5 border-l-2 border-border-subtle ml-1.5 mt-2">
-                    {detail.activityHistory!.map((item, index) => (
-                      <div key={item.eventId || `activity-${index}`} className="relative text-xs">
-                        {/* Timeline dot */}
-                        <div className="absolute -left-[21px] top-0.5 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-500" />
-                        <div className="flex justify-between">
-                          <span className="font-semibold text-text-primary">{item.eventLabel}</span>
-                          <span className="text-[10px] text-text-muted">
-                            {formatDate(item.createdAt)}
-                          </span>
-                        </div>
-                        {item.eventDescription && (
-                          <p className="mt-0.5 text-text-secondary">{item.eventDescription}</p>
-                        )}
-                        {item.profileName && (
-                          <div className="mt-0.5 text-[10px] text-text-muted">
-                            By {item.profileName}
+                    {detail.activityHistory!.map((item, index) => {
+                      const summary = formatActivityHistorySummary(item);
+                      return (
+                        <div key={item.eventId || `activity-${index}`} className="relative text-xs">
+                          {/* Timeline dot */}
+                          <div className="absolute -left-[21px] top-0.5 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-500" />
+                          <div className="flex justify-between items-baseline gap-2">
+                            <span className="font-semibold text-text-primary leading-tight">{summary.title}</span>
+                            <span className="text-[10px] text-text-muted shrink-0">
+                              {formatDate(item.createdAt)}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {item.profileName && (
+                            <div className="mt-0.5 text-[10px] text-text-muted">
+                              By {item.profileName}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -1365,6 +1365,7 @@ export async function listVacancies(params: VacancyListParams) {
           account,
           account_id,
           group_id,
+          group_name,
           area_city,
           province,
           is_archived,
@@ -1442,7 +1443,7 @@ export async function listVacancies(params: VacancyListParams) {
             accountId: asString(vac.account_id),
             accountName: account,
             groupId: asString(vac.group_id),
-            groupName: null,
+            groupName: formatGroupName(asString(vac.group_name), account) || null,
             storeId: null,
             storeName,
             storeLocation: loc,
@@ -1564,7 +1565,7 @@ export async function listVacancies(params: VacancyListParams) {
         const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
         let vacQuery = supabase
           .from("vacancies")
-          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
+          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, group_name, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
           .in("vcode", dropoutVcodes)
           .is("deleted_at", null);
 
@@ -1638,7 +1639,7 @@ export async function listVacancies(params: VacancyListParams) {
             accountId: asString(vac?.account_id),
             accountName: account,
             groupId: asString(vac?.group_id),
-            groupName: null,
+            groupName: formatGroupName(asString(vac?.group_name), account) || null,
             storeId: asString(vac?.store_id),
             storeName,
             storeLocation: loc,
@@ -4350,7 +4351,7 @@ async function fetchAllClosureVacancies(
       const storeName = asString(vac.store_name ?? vac.store_branch);
       const position = asString(vac.position) ?? "—";
       const account = asString(vac.account);
-      const groupName = asString(vac.group_name);
+      const groupName = formatGroupName(asString(vac.group_name), account) || null;
       const loc = [asString(vac.area_city), asString(vac.province)]
         .filter(Boolean)
         .join(" • ") || null;
@@ -4509,7 +4510,7 @@ async function fetchAllFailedVacancies(
         accountId: asString(vac?.account_id),
         accountName: asString(vac?.account),
         groupId: asString(vac?.group_id),
-        groupName: asString(vac?.group_name),
+        groupName: formatGroupName(asString(vac?.group_name), asString(vac?.account)) || null,
         storeName,
         storeLocation: loc,
         position_title: position,
