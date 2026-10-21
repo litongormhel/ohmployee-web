@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Restore Closure & Failed/Backout Tab Data and Align Pipeline Badge Counts with Rendered Rows (ohm#n7f3w9x2)
+
+**Status: COMPLETE — CLOSURE & FAILED/BACKOUT DATA RESTORED VIA SHARED GROUP MAP (SCHEMA MISMATCH RESOLVED), PIPELINE CANDIDATE-LEVEL QUERY EXPANSION IMPLEMENTED TO 100% SYNCHRONIZE BADGE COUNT (6) WITH RENDERED TABLE ROWS (6) (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**
+
+### Objective & Root Causes Resolved
+1. **Restore Data in Closure & Failed/Backout Tabs**:
+   - **Root Cause Identified**: In `src/lib/queries/vacancy.ts`, queries to the `vacancies` table explicitly selected `group_name`. However, in the Supabase PostgreSQL schema, the `vacancies` table has `group_id` (UUID), but does not have a `group_name` column. This caused Supabase / PostgREST to fail with error `42703` (`column vacancies.group_name does not exist`), resulting in silent empty array fallbacks in both the Closure and Failed/Backout tabs regardless of filter selection.
+   - **Fix Applied**:
+     - Removed `group_name` from `.select(...)` queries on `vacancies` across `listVacancies` (Closure and Failed/Backout tabs) and export functions (`fetchAllClosureVacancies`, `fetchAllFailedVacancies`).
+     - Added a shared helper `fetchGroupMap(supabase)` that retrieves `id, group_name` from the `groups` table into an in-memory map.
+     - Resolved `groupName` for each vacancy record using `groupMap.get(vac.group_id)` with safe fallback through `formatGroupName(...)`.
+     - Group filtering by Group 1–5 or Moses HQ (and clearing filters) now correctly filters on `vacancies.group_id` and renders all matching records without errors.
+
+2. **Align Pipeline Badge Count with Rendered Table Rows (6 vs 4 Mismatch)**:
+   - **Root Cause Identified**: The `get_web_vacancy_summary()` RPC calculates the Pipeline badge count by rolling up all active non-terminal candidates across active non-archived vacancies (`sum(ar.active_pipeline_count) = 6`). However, `listVacancies` for `currentTab === "pipeline"` previously relied on `list_web_vacancies(p_status => 'pipeline')`, which operated at the vacancy requisition level and excluded vacancies with `has_pending_closure = true` or `closure_request_status = 'pending'`. As a result, vacancies `VCAG5_0056` (2 active candidates) and `TEST011` (1 active candidate) were excluded from the table, dropping 3 active candidates and producing a count mismatch.
+   - **Fix Applied**:
+     - In `src/lib/queries/vacancy.ts`, implemented dedicated candidate-level query expansion for `currentTab === "pipeline"` / `"with_applicant"` (matching the pattern used by Hired and Failed/Backout).
+     - Queries non-archived active candidates from `applicants` whose status is non-terminal, joins to active non-archived vacancies, maps each candidate to a distinct table row (`VacancyListItem`) with individual candidate info (`applicantId`, `applicantName`, `contactNumber`, `stageBadge`, `agingDays`, actions), and paginates cleanly.
+     - Implemented matching export support via `fetchAllPipelineVacancies(filters)`.
+     - Pipeline table rows now precisely match the badge count (all 6 active candidates are rendered).
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting baseline warnings in other modules).
+- `npm run build`: Successful Next.js Turbopack production build with all 19 static/dynamic routes compiled cleanly.
+
+---
+
 ## Fix 7 Vacancy Module Bugs & Permission Adjustments (Closure Blocking, Tab-Specific Actions, HC/Quota RBAC, Human-Readable Activity History, Withdraw Action, & Group Filtering) (ohm#v3k8n2m5)
 
 **Status: COMPLETE — 7 BUGS FULLY RESOLVED, STRICT RBAC ENFORCED FOR QUOTA & HC ADJUSTMENT, CLOSURE BLOCKING GATED BY ACTIVE PIPELINE, ACTIVITY LOGS TRANSLATED TO HUMAN-READABLE SENTENCES, WITHDRAW WIRE-UP IN CLOSURE TAB, AND GROUP FILTER RESTRICTED (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**

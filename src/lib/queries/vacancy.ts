@@ -441,6 +441,23 @@ export function formatGroupName(groupName?: string | null, accountName?: string 
   return trimmed;
 }
 
+export async function fetchGroupMap(supabase: ReturnType<typeof createClient>): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const { data } = await supabase.from("groups").select("id, group_name");
+    if (Array.isArray(data)) {
+      for (const g of data) {
+        if (g.id && g.group_name) {
+          map.set(String(g.id), String(g.group_name));
+        }
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+  return map;
+}
+
 function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
   const id = asString(row.vacancy_id ?? row.id);
 
@@ -1177,6 +1194,255 @@ export async function listVacancies(params: VacancyListParams) {
   const offset = (page - 1) * pageSize;
   const currentTab = params.status;
 
+  if (currentTab === "pipeline" || currentTab === "with_applicant") {
+    // 1. Pipeline Tab: Candidate-level expansion so each active candidate is a distinct row matching the badge count
+    try {
+      const TERMINAL_STATUSES = [
+        "failed",
+        "backout",
+        "rejected",
+        "did_not_report",
+        "did not report",
+        "rejected_by_ops",
+        "rejected by ops",
+        "withdrew",
+        "confirmed_onboard",
+        "confirmed onboard",
+        "hired",
+      ];
+
+      const { data: pipelineApplicants, error: appsError } = await supabase
+        .from("applicants")
+        .select(`
+          id,
+          vacancy_vcode,
+          first_name,
+          last_name,
+          middle_name,
+          full_name,
+          contact_number,
+          status,
+          created_at,
+          updated_at,
+          applied_at,
+          profile_edit_count,
+          is_archived
+        `)
+        .eq("is_archived", false)
+        .order("created_at", { ascending: false });
+
+      if (!appsError && Array.isArray(pipelineApplicants)) {
+        const activeCandidates = pipelineApplicants.filter((a) => {
+          const normStatus = (asString(a.status) || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+          return !TERMINAL_STATUSES.some((t) => t.replace(/[\s-]+/g, "_") === normStatus);
+        });
+
+        const vcodes = Array.from(
+          new Set(activeCandidates.map((c) => asString(c.vacancy_vcode)).filter(Boolean)),
+        ) as string[];
+
+        let vacQuery = supabase
+          .from("vacancies")
+          .select(`
+            id,
+            vcode,
+            store_name,
+            store_branch,
+            store_id,
+            position,
+            account,
+            account_id,
+            group_id,
+            area_city,
+            province,
+            hrco_name,
+            vacant_date,
+            created_at,
+            target_fill_date,
+            urgency_level,
+            status,
+            is_archived,
+            deleted_at,
+            required_headcount,
+            headcount,
+            has_pending_closure,
+            closure_request_status,
+            employment_type,
+            source,
+            is_pool_vacancy
+          `)
+          .in("vcode", vcodes)
+          .eq("is_archived", false)
+          .is("deleted_at", null)
+          .not("status", "in", '("Filled","Closed","Archived")');
+
+        if (params.accountId) {
+          vacQuery = vacQuery.eq("account_id", params.accountId);
+        }
+        if (params.groupId) {
+          vacQuery = vacQuery.eq("group_id", params.groupId);
+        }
+        if (params.urgency) {
+          vacQuery = vacQuery.ilike("urgency_level", params.urgency);
+        }
+        if (params.vacantFrom) {
+          vacQuery = vacQuery.gte("vacant_date", params.vacantFrom);
+        }
+        if (params.vacantTo) {
+          vacQuery = vacQuery.lte("vacant_date", params.vacantTo);
+        }
+
+        const [vacRes, groupMap] = await Promise.all([
+          vacQuery,
+          fetchGroupMap(supabase),
+        ]);
+
+        const vacMap = new Map((vacRes.data ?? []).map((v) => [v.vcode, v]));
+        const validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
+
+        const pipelineRows: VacancyListItem[] = validCandidates.map((c: Record<string, unknown>, idx: number) => {
+          const vcode = asString(c.vacancy_vcode) ?? "Uncoded";
+          const vac = vacMap.get(vcode) as Record<string, unknown> | undefined;
+          const lName = asString(c.last_name);
+          const fName = asString(c.first_name);
+          const mName = asString(c.middle_name);
+          const fFull = asString(c.full_name);
+          const candidateName = formatPersonName(fName, lName, mName, fFull || "Candidate");
+          const position = asString(vac?.position) ?? "—";
+          const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || null;
+          let storeName = asString(vac?.store_name ?? vac?.store_branch);
+          const account = asString(vac?.account);
+          if (
+            !storeName &&
+            (vcode.includes("GHQ") ||
+              account?.toLowerCase() === "moses hq" ||
+              vac?.source === "pool" ||
+              asBoolean(vac?.is_pool_vacancy))
+          ) {
+            storeName = "Moses HQ";
+          }
+
+          const stageBadge = asString(c.status) || "In Pipeline";
+          const vDateStr = asString(vac?.vacant_date ?? vac?.created_at ?? c.created_at);
+          let agingDays: number | null = null;
+          if (vDateStr) {
+            const vDate = new Date(vDateStr);
+            if (!isNaN(vDate.getTime())) {
+              const diffMs = Date.now() - vDate.getTime();
+              agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+            }
+          }
+
+          let agingBucket: string | null = null;
+          if (agingDays !== null) {
+            if (agingDays <= 7) agingBucket = "0_7";
+            else if (agingDays <= 14) agingBucket = "8_14";
+            else if (agingDays <= 30) agingBucket = "15_30";
+            else agingBucket = "31_plus";
+          }
+
+          const hcTotal = asNumber(vac?.required_headcount ?? vac?.headcount) ?? 1;
+          const hcFilled = 0;
+          const hcDisplay = `${hcFilled}/${hcTotal}`;
+          const rawGroupName = vac?.group_id ? groupMap.get(asString(vac.group_id)!) : null;
+
+          return {
+            id: asString(vac?.id) ?? asString(c.id) ?? `pipeline-${idx}`,
+            vcode,
+            accountId: asString(vac?.account_id),
+            accountName: account,
+            groupId: asString(vac?.group_id),
+            groupName: formatGroupName(rawGroupName, account) || null,
+            storeId: asString(vac?.store_id),
+            storeName,
+            storeLocation: loc,
+            position_title: position,
+            department: null,
+            employmentType: asString(vac?.employment_type),
+            vacancyStatus: asString(vac?.status) ?? "Open",
+            pipelineStatus: stageBadge,
+            derivedStatus: "Pipeline",
+            activeApplicantCount: 1,
+            confirmedOnboardCount: 0,
+            hasRecentHire: false,
+            hasPendingClosure: asBoolean(vac?.has_pending_closure),
+            closureRequestStatus: asString(vac?.closure_request_status),
+            vacantDate: asString(vac?.vacant_date),
+            agingDays,
+            agingBucket,
+            targetFillDate: asString(vac?.target_fill_date),
+            urgencyLevel: asString(vac?.urgency_level),
+            hrcoName: asString(vac?.hrco_name) ?? "—",
+            applicantId: asString(c.id),
+            applicantName: candidateName,
+            applicantFirstName: fName,
+            applicantLastName: lName,
+            applicantMiddleName: mName,
+            contactNumber: asString(c.contact_number),
+            hiredDate: null,
+            stageBadge,
+            profileEditCount: asNumber(c.profile_edit_count) ?? 0,
+            hasPenalty: false,
+            penaltyExposure: 0,
+            penaltyAmount: null,
+            headcount: hcTotal,
+            hcFilled,
+            hcTotal,
+            hcDisplay,
+            lastActivityAt: asString(c.updated_at ?? c.created_at),
+            rowCapabilities: {
+              canViewDetail: true,
+              canApprove: false,
+              canUpdateApplicantStatus: true,
+              canRequestClosure: true,
+              raw: {},
+            },
+            totalCount: validCandidates.length,
+          };
+        });
+
+        let filteredPipeline = pipelineRows;
+        if (params.search) {
+          const q = params.search.toLowerCase();
+          filteredPipeline = filteredPipeline.filter(
+            (r) =>
+              r.vcode.toLowerCase().includes(q) ||
+              (r.applicantName && r.applicantName.toLowerCase().includes(q)) ||
+              (r.position_title && r.position_title.toLowerCase().includes(q)) ||
+              (r.storeName && r.storeName.toLowerCase().includes(q)) ||
+              (r.accountName && r.accountName.toLowerCase().includes(q)) ||
+              (r.stageBadge && r.stageBadge.toLowerCase().includes(q)),
+          );
+        }
+
+        if (params.agingBucket) {
+          filteredPipeline = filteredPipeline.filter((r) => r.agingBucket === params.agingBucket);
+        }
+
+        const paginatedPipeline = filteredPipeline.slice(offset, offset + pageSize);
+        for (const r of paginatedPipeline) {
+          r.totalCount = filteredPipeline.length;
+        }
+
+        return {
+          data: paginatedPipeline,
+          totalCount: filteredPipeline.length,
+          page,
+          pageSize,
+        };
+      }
+    } catch {
+      // Graceful fallback
+    }
+
+    return {
+      data: [],
+      totalCount: 0,
+      page,
+      pageSize,
+    };
+  }
+
   if (currentTab === "hired") {
     // 2. Hired Tab: Populate rows using the hired applicants source (fn_get_hired_applicants)
     try {
@@ -1365,7 +1631,6 @@ export async function listVacancies(params: VacancyListParams) {
           account,
           account_id,
           group_id,
-          group_name,
           area_city,
           province,
           is_archived,
@@ -1386,7 +1651,12 @@ export async function listVacancies(params: VacancyListParams) {
         vacQuery = vacQuery.eq("group_id", params.groupId);
       }
 
-      const { data: activeVacs, error: vacError } = await vacQuery;
+      const [vacRes, groupMap] = await Promise.all([
+        vacQuery,
+        fetchGroupMap(supabase),
+      ]);
+      const activeVacs = vacRes.data;
+      const vacError = vacRes.error;
 
       if (!vacError && Array.isArray(activeVacs)) {
         const closureVacs = activeVacs.filter((vac: Record<string, unknown>) => {
@@ -1436,6 +1706,7 @@ export async function listVacancies(params: VacancyListParams) {
           const hcTotal = asNumber(vac.required_headcount ?? vac.headcount) ?? 1;
           const hcFilled = 0;
           const hcDisplay = `${hcFilled}/${hcTotal}`;
+          const rawGroupName = vac.group_id ? groupMap.get(asString(vac.group_id)!) : null;
 
           return {
             id: asString(vac.id) ?? asString(cr?.id) ?? `closure-${idx}`,
@@ -1443,7 +1714,7 @@ export async function listVacancies(params: VacancyListParams) {
             accountId: asString(vac.account_id),
             accountName: account,
             groupId: asString(vac.group_id),
-            groupName: formatGroupName(asString(vac.group_name), account) || null,
+            groupName: formatGroupName(rawGroupName, account) || null,
             storeId: null,
             storeName,
             storeLocation: loc,
@@ -1565,7 +1836,7 @@ export async function listVacancies(params: VacancyListParams) {
         const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
         let vacQuery = supabase
           .from("vacancies")
-          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, group_name, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
+          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
           .in("vcode", dropoutVcodes)
           .is("deleted_at", null);
 
@@ -1576,7 +1847,11 @@ export async function listVacancies(params: VacancyListParams) {
           vacQuery = vacQuery.eq("group_id", params.groupId);
         }
 
-        const { data: vacsData } = await vacQuery;
+        const [vacsRes, groupMap] = await Promise.all([
+          vacQuery,
+          fetchGroupMap(supabase),
+        ]);
+        const vacsData = vacsRes.data;
         const vacMap = new Map((vacsData ?? []).map((v) => [v.vcode, v]));
 
         // Filter dropouts to only those linked to valid, non-deleted vacancies
@@ -1632,6 +1907,7 @@ export async function listVacancies(params: VacancyListParams) {
           const hcTotal = asNumber(vac?.required_headcount ?? vac?.headcount ?? d.required_headcount) ?? 1;
           const hcFilled = 0;
           const hcDisplay = `${hcFilled}/${hcTotal}`;
+          const rawGroupName = vac?.group_id ? groupMap.get(asString(vac.group_id)!) : null;
 
           return {
             id: asString(vac?.id) ?? asString(d.id) ?? `failed-${idx}`,
@@ -1639,7 +1915,7 @@ export async function listVacancies(params: VacancyListParams) {
             accountId: asString(vac?.account_id),
             accountName: account,
             groupId: asString(vac?.group_id),
-            groupName: formatGroupName(asString(vac?.group_name), account) || null,
+            groupName: formatGroupName(rawGroupName, account) || null,
             storeId: asString(vac?.store_id),
             storeName,
             storeLocation: loc,
@@ -2015,7 +2291,7 @@ export async function listVacancies(params: VacancyListParams) {
             row.applicantName = null;
             row.contactNumber = null;
             row.stageBadge = null;
-          } else if (currentTab !== "pipeline") {
+          } else {
             // Default for other tabs: attach first active candidate if present
             const actives = activeByVcode.get(row.vcode);
             const active = actives && actives[0];
@@ -2139,52 +2415,11 @@ export async function listVacancies(params: VacancyListParams) {
       r.dropoutReason = null;
       r.dropoutDate = null;
     }
-  } else if (currentTab === "pipeline") {
-    // Pipeline Tab: Multi-candidate expansion so each endorsed applicant renders as an actionable row
-    const expanded: VacancyListItem[] = [];
-    for (const row of rows) {
-      const actives = activeByVcode.get(row.vcode) || [];
-      if (actives.length > 0) {
-        for (const active of actives) {
-          let lName = asString(active.last_name);
-          let fName = asString(active.first_name);
-          let mName = asString(active.middle_name);
-          const fFull = asString(active.full_name);
-          if ((!lName || !fName) && fFull) {
-            const parsed = parseCandidateFullName(fFull, {
-              firstName: fName,
-              lastName: lName,
-              middleName: mName,
-            });
-            lName = lName || parsed.lastName || null;
-            fName = fName || parsed.firstName || null;
-            mName = mName || parsed.middleName || null;
-          }
-          expanded.push({
-            ...row,
-            applicantId: asString(active.id),
-            contactNumber: asString(active.contact_number) || row.contactNumber,
-            hiredDate: asString(active.hired_date) || row.hiredDate,
-            applicantLastName: lName,
-            applicantFirstName: fName,
-            applicantMiddleName: mName,
-            applicantName: formatPersonName(fName, lName, mName, fFull || row.applicantName),
-            stageBadge: asString(active.status) || "In Pipeline",
-          });
-        }
-      } else {
-        expanded.push(row);
-      }
-    }
-    finalRows = expanded;
   }
 
   return {
     data: finalRows,
-    totalCount:
-      currentTab === "pipeline" && finalRows.length > (getTotalCount(rows) || 0)
-        ? finalRows.length
-        : getTotalCount(finalRows) || getTotalCount(rows),
+    totalCount: getTotalCount(finalRows) || getTotalCount(rows),
     page,
     pageSize,
   };
@@ -4140,6 +4375,189 @@ async function fetchAllRpcVacancies(
   });
 }
 
+async function fetchAllPipelineVacancies(
+  filters: VacancyExportFilters,
+): Promise<VacancyExportRowData[]> {
+  const supabase = createClient();
+  try {
+    const TERMINAL_STATUSES = [
+      "failed",
+      "backout",
+      "rejected",
+      "did_not_report",
+      "did not report",
+      "rejected_by_ops",
+      "rejected by ops",
+      "withdrew",
+      "confirmed_onboard",
+      "confirmed onboard",
+      "hired",
+    ];
+
+    const { data: pipelineApplicants, error: appsError } = await supabase
+      .from("applicants")
+      .select(`
+        id,
+        vacancy_vcode,
+        first_name,
+        last_name,
+        middle_name,
+        full_name,
+        contact_number,
+        status,
+        created_at,
+        updated_at,
+        applied_at,
+        profile_edit_count,
+        is_archived
+      `)
+      .eq("is_archived", false)
+      .order("created_at", { ascending: false });
+
+    if (appsError || !Array.isArray(pipelineApplicants)) {
+      return [];
+    }
+
+    const activeCandidates = pipelineApplicants.filter((a) => {
+      const normStatus = (asString(a.status) || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+      return !TERMINAL_STATUSES.some((t) => t.replace(/[\s-]+/g, "_") === normStatus);
+    });
+
+    const vcodes = Array.from(
+      new Set(activeCandidates.map((c) => asString(c.vacancy_vcode)).filter(Boolean)),
+    ) as string[];
+
+    let vacQuery = supabase
+      .from("vacancies")
+      .select(`
+        id,
+        vcode,
+        store_name,
+        store_branch,
+        store_id,
+        position,
+        account,
+        account_id,
+        group_id,
+        area_city,
+        province,
+        hrco_name,
+        vacant_date,
+        created_at,
+        target_fill_date,
+        urgency_level,
+        status,
+        is_archived,
+        deleted_at,
+        required_headcount,
+        headcount,
+        has_pending_closure,
+        closure_request_status,
+        employment_type,
+        source,
+        is_pool_vacancy
+      `)
+      .in("vcode", vcodes)
+      .eq("is_archived", false)
+      .is("deleted_at", null)
+      .not("status", "in", '("Filled","Closed","Archived")');
+
+    if (filters.accountId) {
+      vacQuery = vacQuery.eq("account_id", filters.accountId);
+    }
+    if (filters.groupId) {
+      vacQuery = vacQuery.eq("group_id", filters.groupId);
+    }
+    if (filters.urgency) {
+      vacQuery = vacQuery.ilike("urgency_level", filters.urgency);
+    }
+    if (filters.dateFrom || filters.vacantFrom) {
+      vacQuery = vacQuery.gte("vacant_date", (filters.dateFrom || filters.vacantFrom)!);
+    }
+    if (filters.dateTo || filters.vacantTo) {
+      vacQuery = vacQuery.lte("vacant_date", (filters.dateTo || filters.vacantTo)!);
+    }
+
+    const [vacRes, groupMap] = await Promise.all([
+      vacQuery,
+      fetchGroupMap(supabase),
+    ]);
+
+    const vacMap = new Map((vacRes.data ?? []).map((v) => [v.vcode, v]));
+    const validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
+
+    const rows = validCandidates.map((c: Record<string, unknown>) => {
+      const vcode = asString(c.vacancy_vcode) ?? "Uncoded";
+      const vac = vacMap.get(vcode) as Record<string, unknown> | undefined;
+      const lName = asString(c.last_name);
+      const fName = asString(c.first_name);
+      const mName = asString(c.middle_name);
+      const fFull = asString(c.full_name);
+      const candidateName = formatPersonName(fName, lName, mName, fFull || "Candidate");
+      const position = asString(vac?.position) ?? "—";
+      const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || "";
+      let storeName = asString(vac?.store_name ?? vac?.store_branch);
+      const account = asString(vac?.account);
+      if (
+        !storeName &&
+        (vcode.includes("GHQ") ||
+          account?.toLowerCase() === "moses hq" ||
+          vac?.source === "pool" ||
+          asBoolean(vac?.is_pool_vacancy))
+      ) {
+        storeName = "Moses HQ";
+      }
+
+      const stageBadge = asString(c.status) || "In Pipeline";
+      const vDateStr = asString(vac?.vacant_date ?? vac?.created_at ?? c.created_at);
+      let agingDays: number | null = null;
+      if (vDateStr) {
+        const vDate = new Date(vDateStr);
+        if (!isNaN(vDate.getTime())) {
+          const diffMs = Date.now() - vDate.getTime();
+          agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        }
+      }
+
+      const rawGroupName = vac?.group_id ? groupMap.get(asString(vac.group_id)!) : null;
+      const groupName = formatGroupName(rawGroupName, account) || "";
+
+      return {
+        vcode,
+        positionTitle: position,
+        lifecycleStatus: "Pipeline",
+        accountName: account || "",
+        groupName,
+        storeName: storeName || "",
+        storeLocation: loc,
+        hrcoName: asString(vac?.hrco_name) || "",
+        agingDays: agingDays !== null ? String(agingDays) : "",
+        urgencyLevel: asString(vac?.urgency_level) || "",
+        createdDate: vDateStr ? (vDateStr.includes("T") ? vDateStr.split("T")[0] : vDateStr) : "",
+        applicantName: candidateName,
+        applicantContact: asString(c.contact_number) || "",
+        pipelineStage: stageBadge,
+      };
+    });
+
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      return rows.filter(
+        (r) =>
+          r.vcode.toLowerCase().includes(q) ||
+          r.positionTitle.toLowerCase().includes(q) ||
+          r.accountName.toLowerCase().includes(q) ||
+          r.storeName.toLowerCase().includes(q) ||
+          (r.applicantName && r.applicantName.toLowerCase().includes(q)),
+      );
+    }
+
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchAllHiredVacancies(
   filters: VacancyExportFilters,
 ): Promise<VacancyExportRowData[]> {
@@ -4306,7 +4724,6 @@ async function fetchAllClosureVacancies(
         account,
         account_id,
         group_id,
-        group_name,
         area_city,
         province,
         is_archived,
@@ -4329,7 +4746,13 @@ async function fetchAllClosureVacancies(
       vacQuery = vacQuery.eq("group_id", filters.groupId);
     }
 
-    const { data: activeVacs, error: vacError } = await vacQuery;
+    const [vacRes, groupMap] = await Promise.all([
+      vacQuery,
+      fetchGroupMap(supabase),
+    ]);
+    const activeVacs = vacRes.data;
+    const vacError = vacRes.error;
+
     if (vacError || !Array.isArray(activeVacs)) {
       return [];
     }
@@ -4351,7 +4774,8 @@ async function fetchAllClosureVacancies(
       const storeName = asString(vac.store_name ?? vac.store_branch);
       const position = asString(vac.position) ?? "—";
       const account = asString(vac.account);
-      const groupName = formatGroupName(asString(vac.group_name), account) || null;
+      const rawGroupName = vac.group_id ? groupMap.get(asString(vac.group_id)!) : null;
+      const groupName = formatGroupName(rawGroupName, account) || null;
       const loc = [asString(vac.area_city), asString(vac.province)]
         .filter(Boolean)
         .join(" • ") || null;
@@ -4474,7 +4898,7 @@ async function fetchAllFailedVacancies(
     const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
     let vacQuery = supabase
       .from("vacancies")
-      .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, group_name, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at")
+      .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at")
       .in("vcode", dropoutVcodes)
       .is("deleted_at", null);
 
@@ -4485,7 +4909,11 @@ async function fetchAllFailedVacancies(
       vacQuery = vacQuery.eq("group_id", filters.groupId);
     }
 
-    const { data: vacsData } = await vacQuery;
+    const [vacsRes, groupMap] = await Promise.all([
+      vacQuery,
+      fetchGroupMap(supabase),
+    ]);
+    const vacsData = vacsRes.data;
     const vacMap = new Map((vacsData ?? []).map((v) => [v.vcode, v]));
 
     const validDropouts = dropoutsData.filter((d) => vacMap.has(d.vacancy_vcode));
@@ -4503,6 +4931,7 @@ async function fetchAllFailedVacancies(
       const status = asString(d.status) || "Failed / Backout";
       const dropoutReason = asString(d.backout_reason) || status;
       const dropoutDate = asString(d.backout_date ?? d.updated_at ?? d.created_at);
+      const rawGroupName = vac?.group_id ? groupMap.get(asString(vac.group_id)!) : null;
 
       return {
         id: asString(vac?.id) ?? asString(d.id) ?? `failed-${idx}`,
@@ -4510,7 +4939,7 @@ async function fetchAllFailedVacancies(
         accountId: asString(vac?.account_id),
         accountName: asString(vac?.account),
         groupId: asString(vac?.group_id),
-        groupName: formatGroupName(asString(vac?.group_name), asString(vac?.account)) || null,
+        groupName: formatGroupName(rawGroupName, asString(vac?.account)) || null,
         storeName,
         storeLocation: loc,
         position_title: position,
@@ -4589,7 +5018,7 @@ export async function fetchVacanciesForExport(
   if (scope === "all_statuses") {
     const [openRows, pipelineRows, hiredRows, closureRows, failedRows] = await Promise.all([
       fetchAllRpcVacancies("Open", filters, "Open"),
-      fetchAllRpcVacancies("Pipeline", filters, "Pipeline"),
+      fetchAllPipelineVacancies(filters),
       fetchAllHiredVacancies(filters),
       fetchAllClosureVacancies(filters),
       fetchAllFailedVacancies(filters),
@@ -4610,7 +5039,7 @@ export async function fetchVacanciesForExport(
         break;
       case "pipeline":
       case "with_applicant":
-        exportRows = await fetchAllRpcVacancies("Pipeline", filters, "Pipeline");
+        exportRows = await fetchAllPipelineVacancies(filters);
         break;
       case "hired":
         exportRows = await fetchAllHiredVacancies(filters);

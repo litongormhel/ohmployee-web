@@ -49,6 +49,16 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
     - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
     - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
 
+- **Closure/Failed Tab Data Restoration & Pipeline Synchronization (`ohm#n7f3w9x2`)**:
+  - **Shared Group Map Lookup (`fetchGroupMap`)**:
+    - Removed non-existent `group_name` column selects from `vacancies` queries across Closure, Failed/Backout, and export functions in `src/lib/queries/vacancy.ts`, preventing PostgREST error `42703`.
+    - Implemented shared `fetchGroupMap(supabase)` to resolve `group_id -> group_name` from the `groups` table in memory, ensuring 100% stable group resolution and filtering across Group 1–5 and Moses HQ.
+  - **Pipeline Candidate-Level Query Expansion**:
+    - In `src/lib/queries/vacancy.ts`, implemented dedicated candidate-level query expansion for `currentTab === "pipeline"` / `"with_applicant"`.
+    - Queries active non-terminal applicants from `applicants`, joins with active vacancies, and builds individual rows (`VacancyListItem`) per candidate.
+    - Synchronized table row rendering 1:1 with `get_web_vacancy_summary()` badge count (all 6 active candidates rendered and actionable).
+    - Implemented matching export handler `fetchAllPipelineVacancies` for unpaginated CSV export.
+
 - **Vacancy Bug Fixes & RBAC Adjustments (`ohm#v3k8n2m5`)**:
   - **Closure Blocking on Active Candidates**:
     - In `VacancyDetailDrawer.tsx`, blocked `Request Closure` if `activeApplicantCount > 0` (or active applicants list is non-empty), unless user belongs to exempted Ops (`isOpsTeam`), Recruitment (`AppRole.RECRUITMENT`), or Super Admin (`hasFullAccess`).
