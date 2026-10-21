@@ -1,5 +1,55 @@
 # AI Handoff
 
+## Fix Missing Dropout Records on Filled/Archived Requisitions & Backout Reason Sanity Audit (ohm#j2k9v4x8)
+
+**Status: COMPLETE — VACANCY ARCHIVE PREDICATE REMOVED FROM DROPOUT QUERIES, BACKOUT WORKFLOW HARDENED, DRAWER SCOPE FALLBACK ADDED, ALL TESTS PASSING, CLEAN LINT & BUILD**
+
+### Objective
+1. **Investigate Missing Backout Candidate (Justin Agila Santos):** Candidate `Justin Agila Santos` was tagged as `Backout` with reason `"Location Issue"` on requisition `VCTG2_0005`, but was missing from the **Failed / Backout** tab.
+2. **Backout Reason Sanity Audit:** Ensure that any supported backout reason (e.g., *Location issue*, *Salary issue / Compensation*, *Personal reason*, *Found another job*, custom write-ins) properly executes the complete terminal workflow:
+   - Applicant updates to terminal status (`Backout`), `is_archived = true`, `archived_at = now()`, `slot_id = null`.
+   - Plantilla slot resets to `'open'`.
+   - Vacancy status resets correctly (`'Open'` if headcount is unfulfilled, or `'Filled'` if quota is complete).
+   - Candidate appears cleanly in the **Failed / Backout** tab without runtime errors or duplicate rows.
+   - Detail drawer opens seamlessly even if the parent requisition is filled or archived.
+
+---
+
+### Root Causes
+1. **Archive Filtering on Vacancies in Failed / Backout Queries:**
+   - In `src/lib/queries/vacancy.ts`, `listVacancies` (`currentTab === "failed_backout"`) and `getVacancySummary` (`failedPromise`) queried `vacancies` matching dropout candidate vcodes with `.eq("is_archived", false)`.
+   - When a vacancy reaches full headcount capacity (e.g. `VCTG2_0005` with `required_headcount = 1` and `Juan Dela Cruz` Confirmed Onboard), `failBackoutApplicant` transitioned the vacancy status to `'Filled'`.
+   - The Postgres trigger `on_vacancy_filled_archive` automatically sets `is_archived = true` on `vacancies` when status becomes `'Filled'`.
+   - Because `VCTG2_0005` had `is_archived: true`, the query omitted `VCTG2_0005`, causing `validDropouts = dropoutsData.filter((d) => vacMap.has(d.vacancy_vcode))` to drop `Justin Agila Santos`.
+2. **Export Query Inconsistency:**
+   - `fetchAllFailedVacancies` incorrectly checked `applicants.is_archived = false` (preventing archived dropouts from exporting) and `vacancies.is_archived = false`.
+3. **Detail Drawer 42501 Exception on Archived/Filled Requisitions:**
+   - The RPC `get_web_vacancy_detail` raises SQLSTATE `42501` for vacancies that are `is_archived = true` or `Filled`/`Closed`. `getVacancyDetail` previously only fell back to `fn_get_hired_applicants`, which caused drawer crashes when opening details for a dropout on a filled requisition.
+
+---
+
+### Key Implementations
+1. **Query Layer Alignment (`src/lib/queries/vacancy.ts`)**:
+   - **`listVacancies` (`currentTab === "failed_backout"`)**: Removed `.eq("is_archived", false)` from `vacQuery` while preserving `.is("deleted_at", null)`. All non-deleted requisition dropouts now populate the table.
+   - **`getVacancySummary` (`failedPromise`)**: Removed `.eq("is_archived", false)` from `vacQuery` so badge counts accurately tally all dropouts on non-deleted requisitions.
+   - **`fetchAllFailedVacancies`**: Removed `.eq("is_archived", false)` from both `applicants` and `vacancies` queries so CSV exports accurately include all backout and failed applicants.
+   - **`failBackoutApplicant`**:
+     - Added `archived_at: new Date().toISOString()` when archiving the dropout applicant.
+     - When resetting vacancy status to `'Open'` (when remaining pipeline candidates is 0 and confirmed count < required headcount), explicitly cleared `is_archived: false`, `archived_at: null`, and `archived_by: null`.
+   - **`getVacancyDetail`**:
+     - Added a direct fallback to `vacancies` and `applicants` tables when `get_web_vacancy_detail` throws `42501` (forbidden/out of scope) for filled or archived vacancies, cleanly hydrating drawer information for dropouts without crashes.
+
+---
+
+### Verification
+- **Database Inspection**: Confirmed `Justin Agila Santos` exists in `applicants` (`status: 'Backout'`, `backout_reason: 'Location issue'`, `is_archived: true`, `slot_id: null`) linked to `VCTG2_0005` (`status: 'Filled'`, `is_archived: true`, `deleted_at: null`).
+- **Query Verification**: Verified that with `.eq("is_archived", false)` removed, `VCTG2_0005` and `Justin Agila Santos` are included in `validDropouts` and appear with Date of Backout (`2026-10-20`), reason (`Location issue`), and correct outlet details (`SM CALOOCAN 1`).
+- **Slot State**: Plantilla slot for `VCTG2_0005` is verified released to `'open'`.
+- **`npm run lint`**: 0 errors (23 pre-existing warnings in unrelated files).
+- **`npm run build`**: Next.js Turbopack build succeeded with 0 errors.
+
+---
+
 ## HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping, & HRCO Sync Audit (ohm#h8k3m2x5)
 
 **Status: COMPLETE — MIGRATION 20262606000048 APPLIED, HC FRACTION DISPLAY COMPUTED IN VIEWS & RPCS, MOSES HQ OUTLET FALLBACK CONFIGURED, HIERARCHICAL HRCO RESOLUTION ACTIVE, VERIFIED CLEAN LINT & BUILD**

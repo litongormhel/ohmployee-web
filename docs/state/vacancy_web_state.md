@@ -719,5 +719,18 @@ Validation:
     6. Legacy text fallback (`v.hrco_name`).
   - `getVacancyDetail` enriches drawer hydration with a secondary `user_scopes` lookup when direct view join resolves null.
 
+## Filled/Archived Vacancy Dropout Visibility & Backout Sanity Audit (ohm#j2k9v4x8)
+
+- **Dropout Preservation Across Filled/Archived Requisitions**:
+  - In `src/lib/queries/vacancy.ts`, removed `.eq("is_archived", false)` from the `vacQuery` in both `listVacancies` (`currentTab === "failed_backout"`) and `getVacancySummary` (`failedPromise`).
+  - Preserved `.is("deleted_at", null)` so soft-deleted requisitions remain excluded while requisitions marked `is_archived = true` (via auto-archive triggers upon reaching full headcount capacity, such as `VCTG2_0005`) retain their historical backout/failed candidates in the **Failed / Backout** queue and badge counts.
+- **Export Query Hardening**:
+  - In `fetchAllFailedVacancies`, removed `.eq("is_archived", false)` from the `applicants` table query (which previously dropped backout records because backout candidates are explicitly archived) and the `vacancies` query.
+- **Vacancy Status Reset Cleansing**:
+  - In `failBackoutApplicant`, when 0 pipeline candidates remain and confirmed count is less than required headcount, the vacancy update to `'Open'` explicitly resets `is_archived: false`, `archived_at: null`, and `archived_by: null`.
+- **Drawer Detail Hydration Resilience**:
+  - In `getVacancyDetail`, when `get_web_vacancy_detail` raises SQLSTATE `42501` (forbidden/out of scope for filled/archived vacancies), added a direct fallback lookup against `vacancies` and `applicants` tables, allowing backout candidate details to open cleanly in the drawer without permission errors.
+
+
 
 

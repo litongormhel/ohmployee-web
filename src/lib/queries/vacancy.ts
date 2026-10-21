@@ -1077,7 +1077,7 @@ export async function getVacancySummary(
     }
   })();
 
-  // Failed / Backout tab count: restricted to dropout applicants on active vacancies
+  // Failed / Backout tab count: all dropout applicants on non-deleted vacancies
   const failedPromise = (async () => {
     try {
       const { data: dropouts, error } = await supabase
@@ -1100,7 +1100,6 @@ export async function getVacancySummary(
         .from("vacancies")
         .select("vcode, account_id, group_id")
         .in("vcode", vcodes)
-        .eq("is_archived", false)
         .is("deleted_at", null);
 
       if (params.accountId) {
@@ -1557,7 +1556,6 @@ export async function listVacancies(params: VacancyListParams) {
           .from("vacancies")
           .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
           .in("vcode", dropoutVcodes)
-          .eq("is_archived", false)
           .is("deleted_at", null);
 
         if (params.accountId) {
@@ -1570,7 +1568,7 @@ export async function listVacancies(params: VacancyListParams) {
         const { data: vacsData } = await vacQuery;
         const vacMap = new Map((vacsData ?? []).map((v) => [v.vcode, v]));
 
-        // Filter dropouts to only those linked to active, non-archived vacancies
+        // Filter dropouts to only those linked to valid, non-deleted vacancies
         const validDropouts = dropoutsData.filter((d) => vacMap.has(d.vacancy_vcode));
 
         const failedRows: VacancyListItem[] = validDropouts.map((d: Record<string, unknown>, idx: number) => {
@@ -2271,6 +2269,170 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             };
           }
         }
+
+        // 2. Direct fallback for Filled / Closed / Archived vacancies (including dropouts)
+        let vacRow: Record<string, unknown> | null = null;
+        let targetVcode: string | null = null;
+
+        // Check if vacancyId is an applicant id
+        const { data: directApp } = await supabase
+          .from("applicants")
+          .select("*")
+          .eq("id", vacancyId)
+          .maybeSingle();
+
+        if (directApp?.vacancy_vcode) {
+          targetVcode = directApp.vacancy_vcode as string;
+        }
+
+        // Fetch vacancy by ID or vcode
+        if (targetVcode) {
+          const { data: vData } = await supabase
+            .from("vacancies")
+            .select("*")
+            .eq("vcode", targetVcode)
+            .is("deleted_at", null)
+            .maybeSingle();
+          vacRow = vData;
+        } else {
+          const { data: vData } = await supabase
+            .from("vacancies")
+            .select("*")
+            .eq("id", vacancyId)
+            .is("deleted_at", null)
+            .maybeSingle();
+          vacRow = vData;
+          if (vacRow?.vcode) {
+            targetVcode = vacRow.vcode as string;
+          }
+        }
+
+        if (vacRow) {
+          const vcode = asString(vacRow.vcode) ?? targetVcode ?? "Uncoded";
+          const { data: allApps } = await supabase
+            .from("applicants")
+            .select("*")
+            .eq("vacancy_vcode", vcode)
+            .order("created_at", { ascending: false });
+
+          const appsList = (allApps ?? []) as Array<Record<string, unknown>>;
+          const primaryApp = directApp || appsList[0] || null;
+
+          const areaCity = asString(vacRow.area_city);
+          const areaProvince = asString(vacRow.area_province ?? vacRow.province);
+          const storeLocation = [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
+          const vacDate = asString(vacRow.vacant_date ?? vacRow.created_at);
+
+          const lName = asString(primaryApp?.last_name);
+          const fName = asString(primaryApp?.first_name);
+          const mName = asString(primaryApp?.middle_name);
+          const rawFull = asString(primaryApp?.full_name);
+          const candidateName = formatPersonName(fName, lName, mName, rawFull || "Candidate");
+
+          const isMosesPool =
+            vcode.includes("GHQ") ||
+            String(vacRow.account || "").toLowerCase() === "moses hq" ||
+            vacRow.source === "pool" ||
+            asBoolean(vacRow.is_pool_vacancy);
+
+          const storeName =
+            asString(vacRow.store_name ?? vacRow.store_branch) || (isMosesPool ? "Moses HQ" : null);
+
+          const confirmedCount = appsList.filter(
+            (a) => (asString(a.status) || "").toLowerCase().trim() === "confirmed onboard",
+          ).length;
+          const reqHc = asNumber(vacRow.required_headcount ?? vacRow.headcount) ?? 1;
+
+          return {
+            vacancyId: asString(vacRow.id) ?? vacancyId,
+            vcode,
+            accountId: asString(vacRow.account_id),
+            accountName: asString(vacRow.account),
+            groupId: asString(vacRow.group_id),
+            groupName: asString(vacRow.group_name),
+            storeId: asString(vacRow.store_id),
+            storeName,
+            position_title: asString(vacRow.position),
+            department: asString(vacRow.department ?? vacRow.business_unit),
+            employmentType: asString(vacRow.employment_type),
+            vacancyStatus: asString(vacRow.status),
+            pipelineStatus: asString(vacRow.status),
+            derivedStatus: asString(vacRow.status),
+            activeApplicantCount: appsList.filter((a) => !asBoolean(a.is_archived)).length,
+            confirmedOnboardCount: confirmedCount,
+            hasRecentHire: confirmedCount > 0,
+            hasPendingClosure: asBoolean(vacRow.has_pending_closure),
+            closureRequestStatus: asString(vacRow.closure_request_status),
+            vacantDate: vacDate,
+            daysToFill: null,
+            agingDays: null,
+            agingBucket: null,
+            targetFillDate: asString(vacRow.target_fill_date),
+            urgencyLevel: asString(vacRow.urgency_level),
+            hrcoName: asString(vacRow.hrco_name) ?? "—",
+            lastActivityAt: asString(vacRow.updated_at ?? vacRow.created_at),
+            rowCapabilities: {
+              canViewDetail: true,
+              canApprove: false,
+              canUpdateApplicantStatus: false,
+              canRequestClosure: false,
+              raw: {},
+            },
+            contactNumber: asString(primaryApp?.contact_number),
+            onboardDate: asString(primaryApp?.hired_at ?? primaryApp?.hired_date),
+            relieverOnDuty: null,
+            hasReliever: false,
+            hrcoRemarks: null,
+            recruiterName: null,
+            deployedByName: null,
+            hasPenalty: false,
+            penaltyExposure: 0,
+            penaltyAmount: null,
+            headcount: reqHc,
+            hcFilled: confirmedCount,
+            hcTotal: reqHc,
+            hcDisplay: `${confirmedCount}/${reqHc}`,
+            applicantLastName: lName,
+            applicantFirstName: fName,
+            applicantMiddleName: mName,
+            applicantName: candidateName,
+            applicantId: asString(primaryApp?.id),
+            storeLocation,
+            areaCity,
+            areaProvince,
+            storeBranch: asString(vacRow.store_branch),
+            requestedById: null,
+            requestedByName: null,
+            approvedById: null,
+            approvedByName: null,
+            approvedAt: null,
+            headcountRequestId: null,
+            vacancyReason: null,
+            jobDescription: null,
+            closureRequestedAt: null,
+            closureRequestedBy: null,
+            closureReason: null,
+            activeApplicantsList: appsList.map((a: Record<string, unknown>) => ({
+              applicantId: asString(a.id) ?? "",
+              displayName: formatPersonName(
+                asString(a.first_name),
+                asString(a.last_name),
+                asString(a.middle_name),
+                asString(a.full_name) || "Applicant",
+              ),
+              lastName: asString(a.last_name),
+              firstName: asString(a.first_name),
+              middleName: asString(a.middle_name),
+              contactNumber: asString(a.contact_number),
+              statusLabel: asString(a.status) || "Active",
+              onboardDate: asString(a.hired_at ?? a.hired_date),
+              updatedAt: asString(a.updated_at),
+              recruiterName: null,
+              deployedByName: null,
+            })),
+            activityHistory: [],
+          };
+        }
       } catch {
         // Fall through to original error throw
       }
@@ -2919,6 +3081,7 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
       backout_reason: params.reason,
       backout_date: new Date().toISOString().substring(0, 10),
       is_archived: true,
+      archived_at: new Date().toISOString(),
       slot_id: null,
       updated_at: new Date().toISOString(),
     })
@@ -3029,6 +3192,9 @@ export async function failBackoutApplicant(params: FailBackoutParams) {
             .from("vacancies")
             .update({
               status: "Open",
+              is_archived: false,
+              archived_at: null,
+              archived_by: null,
               updated_at: new Date().toISOString(),
             })
             .eq("vcode", params.vcode);
@@ -3919,7 +4085,6 @@ async function fetchAllFailedVacancies(
         created_at,
         updated_at
       `)
-      .eq("is_archived", false)
       .in("status", [
         "Backout", "backout",
         "Rejected", "rejected",
@@ -3938,7 +4103,6 @@ async function fetchAllFailedVacancies(
       .from("vacancies")
       .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, group_name, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at")
       .in("vcode", dropoutVcodes)
-      .eq("is_archived", false)
       .is("deleted_at", null);
 
     if (filters.accountId) {
