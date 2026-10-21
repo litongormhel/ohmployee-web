@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Fix Vacancy Drawer SQL Error, Occupied HC Fraction (`1/7`), Pipeline 1:1 Column Cleanup, Consolidate Backout into Update Modal, Move Edit to Drawer Only, & Remove Eye Icons Globally (ohm#q7w1k9b3)
+
+**Status: COMPLETE — MIGRATION 50 APPLIED TO STAGING & PROD, VACANCY DETAIL RPC ERROR RESOLVED, OCCUPIED HC FRACTION RESTORED TO OPEN TAB, PIPELINE TAB REFINED, BACKOUT CONSOLIDATED INTO ADVANCE PIPELINE MODAL, & REDUNDANT EYE ICONS REMOVED (LINT CLEAN, BUILD CLEAN ON MAIN)**
+
+### Objective
+1. **Fix Vacancy Detail Drawer SQL Crash (`column a.assigned_recruiter_id does not exist`)**:
+   - Repair `get_web_vacancy_detail` where `public.applicants` was joined using non-existent column `a.assigned_recruiter_id`.
+   - Update join to `up_a_rec ON up_a_rec.id = COALESCE(a.created_by, v_raw.assigned_encoder_id)`.
+   - Also fixed safe candidate display formatting and audit log timestamp column resolution (`al.timestamp`).
+   - Applied migration to both **Staging** (`qqiiznmqxfoamqytjica`) and **Production** (`rwxelulyapjgaarlwkus`).
+2. **Occupied HC Fraction (`1/7` Immediately When Applicant Is Added)**:
+   - Updated `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, and `get_web_vacancy_summary` so `hc_filled` reflects occupied slots: `COALESCE(confirmed_onboard_count, 0) + COALESCE(active_applicant_count, 0)`.
+   - Updated `hc_display` to format as `format('%s/%s', hc_filled, hc_total)`, displaying `1/7` immediately when 1 applicant is active for a 7-headcount vacancy.
+   - Preserved **Safeguard**: Multi-headcount requisition stays visible in **Open** tab while occupied slots `hc_filled < hc_total`. Only transitions `derived_status` to `Hired` when `confirmed_onboard_count >= hc_total`.
+3. **Remove `HC` Column from `Pipeline` Tab**:
+   - Omitted `"HC"` from `getTableColumns("pipeline")` and conditionally omitted corresponding `<td>` cell in `src/components/vacancy/VacancyTable.tsx` for 1:1 candidate row rendering.
+4. **Move `Edit` Applicant Button Strictly Inside `VacancyDetailDrawer`**:
+   - Removed the in-row `Edit` button from `VacancyTable.tsx` in the Pipeline tab, keeping `Edit Details` exclusively on candidate cards inside `VacancyDetailDrawer.tsx`.
+5. **Consolidate `Backout` into `AdvancePipelineModal.tsx`**:
+   - Removed standalone red `Backout` button from `VacancyTable.tsx` pipeline rows.
+   - Enhanced `AdvancePipelineModal.tsx` to include progressive pipeline stages plus terminal dropout options (`Backout`, `Failed / Rejected by Ops`, `Rejected`, `Did Not Report`).
+   - Dynamically renders reasons dropdown (fetched via `fetchBackoutReasons` / `fetchRejectedReasons`) with custom write-in field, routing submissions through canonical `failBackoutApplicant`.
+6. **Remove Redundant Eye Icon (`View Details`) Button Globally**:
+   - Removed redundant `<Eye />` action icon buttons in tables where clicking the row itself navigates/opens the drawer: `VacancyTable.tsx`, `HrEmplocTable.tsx`, and `UsersTable.tsx`.
+   - Preserved legitimate password visibility toggle `<Eye />`/`<EyeOff />` icons.
+
+---
+
 ## Execute Vacancy Module Mobile vs. Web Parity (ohm#p9v2k4m7)
 
 **Status: COMPLETE — EDIT APPLICANT DETAILS, DUPLICATE CHECK, WITHDRAW CLOSURE, AND SUPER ADMIN DROPOUT PARITY FULLY WIRED & VERIFIED ON MAIN (ZERO LINT ERRORS, CLEAN NEXT.JS PRODUCTION BUILD)**

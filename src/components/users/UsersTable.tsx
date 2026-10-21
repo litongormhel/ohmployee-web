@@ -2,7 +2,6 @@
 
 import {
   User,
-  Eye,
   Lock,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -154,7 +153,6 @@ export function UsersTable({
                         }}
                         className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-2.5 py-1.5 text-xs font-semibold text-text-secondary shadow-xs hover:bg-surface-hover hover:text-text-primary"
                       >
-                        <Eye className="h-3.5 w-3.5" />
                         Inspect
                       </button>
                     ) : (

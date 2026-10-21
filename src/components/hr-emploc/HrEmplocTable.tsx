@@ -2,7 +2,6 @@
 "use client";
 
 import {
-  Eye,
   LockKeyhole,
   AlertTriangle,
   UserCheck,
@@ -497,21 +496,6 @@ export function HrEmplocTable({
                             <LockKeyhole className="h-3.5 w-3.5 text-status-danger-text" />
                           </span>
                         )}
-
-                        {/* Inspect Candidate Detail */}
-                        <button
-                          aria-label={`Inspect candidate ${row.applicantName}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-table-rule-section bg-table-row text-table-text-muted hover:bg-table-row-hover hover:text-table-text-sub transition cursor-pointer"
-                          disabled={!row.rowCapabilities.canViewDetail}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(row);
-                          }}
-                          type="button"
-                          title="View Details"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
                       </div>
                     </td>
                   </tr>

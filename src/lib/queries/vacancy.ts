@@ -2391,7 +2391,9 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
           const confirmedCount = appsList.filter(
             (a) => (asString(a.status) || "").toLowerCase().trim() === "confirmed onboard",
           ).length;
+          const activeCount = appsList.filter((a) => !asBoolean(a.is_archived)).length;
           const reqHc = asNumber(vacRow.required_headcount ?? vacRow.headcount) ?? 1;
+          const occupiedCount = confirmedCount + activeCount;
 
           return {
             vacancyId: asString(vacRow.id) ?? vacancyId,
@@ -2408,7 +2410,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             vacancyStatus: asString(vacRow.status),
             pipelineStatus: asString(vacRow.status),
             derivedStatus: asString(vacRow.status),
-            activeApplicantCount: appsList.filter((a) => !asBoolean(a.is_archived)).length,
+            activeApplicantCount: activeCount,
             confirmedOnboardCount: confirmedCount,
             hasRecentHire: confirmedCount > 0,
             hasPendingClosure: asBoolean(vacRow.has_pending_closure),
@@ -2439,9 +2441,9 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             penaltyExposure: 0,
             penaltyAmount: null,
             headcount: reqHc,
-            hcFilled: confirmedCount,
+            hcFilled: occupiedCount,
             hcTotal: reqHc,
-            hcDisplay: `${confirmedCount}/${reqHc}`,
+            hcDisplay: `${occupiedCount}/${reqHc}`,
             applicantLastName: lName,
             applicantFirstName: fName,
             applicantMiddleName: mName,

@@ -41,13 +41,25 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - **Edit Applicant Profile Workflow**:
     - Ported authoritative RPC `fn_update_applicant_profile_once` and sibling propagation `propagateApplicantIdentityToLinked` to Web query layer (`updateApplicantProfileOnce` and `useUpdateApplicantProfile`).
     - Enforced one-time edit policy (`profile_edit_count = 0` for non-admins, full bypass for Super Admin / Head Admin), uppercase name normalization, contact number verification, and mandatory edit audit reason.
-    - Added `EditApplicantModal.tsx` modal component and wired "Edit Details" action into `VacancyDetailDrawer` candidate cards and `VacancyTable` Pipeline tab rows.
+    - Added `EditApplicantModal.tsx` modal component and wired "Edit Details" action into `VacancyDetailDrawer` candidate cards.
     - Added RBAC gate `canEditApplicantProfile(user)`: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20). Denied to Encoder (30), HR Personnel (25), Backoffice (15), Viewer (10).
   - **Pre-Intake Candidate Duplicate Check**:
     - Integrated `check_candidate_duplicate` RPC wrapper (`checkCandidateDuplicate`) into `endorseApplicant` with non-blocking defensive error handling to prevent intake failures if RPC is temporarily unavailable.
   - **Withdraw Vacancy Closure Request**:
     - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
     - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
+
+- **Vacancy Detail Drawer Fix, Occupied HC Fraction, Pipeline Cleanup, & Terminal Consolidation (`ohm#q7w1k9b3`)**:
+  - Migration `20262606000050_fix_vacancy_detail_recruiter_and_occupied_hc.sql` applied to both **Staging** and **Production**:
+    - Fixed `get_web_vacancy_detail` SQL crash (`column a.assigned_recruiter_id does not exist`) by joining `public.users_profile` via `COALESCE(a.created_by, v_raw.assigned_encoder_id)`.
+    - Resolved `format_applicant_name_safe` with `COALESCE(NULLIF(TRIM(CONCAT_WS(' ', a.first_name, a.last_name)), ''), a.full_name)` and corrected `audit_logs` timestamp reference to `al.timestamp`.
+    - Computed occupied headcount `hc_filled` as `COALESCE(confirmed_onboard_count, 0) + COALESCE(active_applicant_count, 0)`.
+    - Formatted `hc_display` as `format('%s/%s', hc_filled, hc_total)` so endorsing 1 applicant into a 7-slot vacancy displays `1/7` immediately in the **Open** tab.
+    - Safeguard enforced: `derived_status = 'Hired'` only when `confirmed_onboard_count >= hc_total` (confirmed onboards fulfill quota). Active pipeline candidates occupy capacity in **Open** without prematurely triggering auto-archiving.
+  - **Pipeline Tab Refinement**: Removed the redundant `HC` column from the 1:1 candidate rows in `VacancyTable.tsx`.
+  - **Edit Details Scoping**: Removed in-row `Edit` button from `VacancyTable.tsx`, housing `EditApplicantModal` strictly inside `VacancyDetailDrawer.tsx`.
+  - **Terminal Status Consolidation**: Enhanced `AdvancePipelineModal.tsx` to handle progressive pipeline stages alongside terminal dropout statuses (`Backout`, `Failed / Rejected by Ops`, `Rejected`, `Did Not Report`), loading reasons dynamically from `fetchBackoutReasons` / `fetchRejectedReasons` with mandatory reason check and routing via canonical `failBackoutApplicant`. Removed standalone red `Backout` button from `VacancyTable.tsx` rows.
+  - **Global Eye Icon Cleanup**: Removed redundant `<Eye />` view detail icon buttons across `VacancyTable.tsx`, `HrEmplocTable.tsx`, and `UsersTable.tsx` in favor of standard full row-click drawer/modal navigation.
   - **Super Admin Post-Onboard Dropout Bypass**:
     - Removed hardcoded `derivedStatus !== 'hired'` lockout in `VacancyDetailDrawer` action bar for Super Admin / Head Admin (`hasFullAccess`), allowing administrative drop/backout of post-onboard dropouts directly from drawer.
 

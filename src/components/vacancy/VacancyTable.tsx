@@ -6,13 +6,10 @@ import {
   Check,
   CheckCircle2,
   ClipboardList,
-  Edit3,
-  Eye,
   LockKeyhole,
   Phone,
   RefreshCw,
   TrendingUp,
-  UserMinus,
   UserPlus,
   X,
 } from "lucide-react";
@@ -28,10 +25,8 @@ import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/util
 import { useCurrentUser } from "@/lib/auth";
 import {
   canAddApplicant,
-  canEditApplicantProfile,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
-  hasFullAccess,
 } from "@/lib/rbac";
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
@@ -86,6 +81,19 @@ function getTableColumns(status: VacancyStatus): string[] {
       "DATE OF BACKOUT",
       "STATUS",
       "AGING",
+    ];
+  }
+  if (status === "pipeline") {
+    return [
+      "VCODE",
+      "POSITION",
+      "ACCOUNT / GROUP",
+      "OUTLET NAME",
+      "HRCO",
+      "APPLICANT",
+      "STATUS",
+      "AGING",
+      "ACTIONS",
     ];
   }
   return [
@@ -264,10 +272,10 @@ export function VacancyTable({
   errorKind,
   onSelect,
   onAddApplicant,
-  onEditApplicant,
+  onEditApplicant: _onEditApplicant,
   onAdvancePipeline,
   onMarkHired,
-  onFailBackout,
+  onFailBackout: _onFailBackout,
   onReopenVacancy: _onReopenVacancy,
   onReviewClosure,
   onEditHiredDate: _onEditHiredDate,
@@ -279,8 +287,6 @@ export function VacancyTable({
   const userCanAddApplicant = canAddApplicant(currentUser);
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
-  const userCanEditApplicant = canEditApplicantProfile(currentUser);
-  const userHasFullAccess = hasFullAccess(currentUser);
 
   const errorCopy = getErrorCopy(errorKind);
   const activeColumns = getTableColumns(status);
@@ -620,10 +626,12 @@ export function VacancyTable({
                           )}
                         </td>
 
-                        {/* 9. HC */}
-                        <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
-                          {row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`}
-                        </td>
+                        {/* 9. HC (Omitted in Pipeline tab where 1 row = 1 candidate) */}
+                        {status !== "pipeline" && (
+                          <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
+                            {row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`}
+                          </td>
+                        )}
 
                         {/* 10. ACTIONS */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-right">
@@ -647,23 +655,9 @@ export function VacancyTable({
                               </button>
                             )}
 
-                            {status === "pipeline" && (userCanManagePipeline || userCanEditApplicant) && (
+                            {status === "pipeline" && userCanManagePipeline && (
                               <>
-                                {onEditApplicant && userCanEditApplicant && (userHasFullAccess || (row.profileEditCount ?? 0) === 0) && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onEditApplicant(row);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs cursor-pointer"
-                                    title={`Edit details for ${row.applicantName || row.vcode}`}
-                                  >
-                                    <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
-                                    <span className="hidden sm:inline">Edit</span>
-                                  </button>
-                                )}
-                                {userCanManagePipeline && onAdvancePipeline && (
+                                {onAdvancePipeline && (
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -689,20 +683,6 @@ export function VacancyTable({
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                                     <span className="hidden sm:inline">Approve</span>
-                                  </button>
-                                )}
-                                {onFailBackout && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onFailBackout(row);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
-                                    title={`Dropout / backout candidate for ${row.vcode}`}
-                                  >
-                                    <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
-                                    <span className="hidden sm:inline">Backout</span>
                                   </button>
                                 )}
                               </>
@@ -740,20 +720,6 @@ export function VacancyTable({
                                 )}
                               </div>
                             )}
-
-                            <button
-                              aria-label={`Select vacancy ${row.vcode}`}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-table-rule-section text-table-text-muted hover:bg-table-row transition"
-                              disabled={!row.rowCapabilities.canViewDetail}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelect(row);
-                              }}
-                              type="button"
-                              title="View Details"
-                            >
-                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
                           </div>
                         </td>
                       </>
