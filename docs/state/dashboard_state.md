@@ -31,45 +31,46 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
 
 ## 4. Page Structure (`/dashboard`)
 
-`src/app/(dashboard)/dashboard/page.tsx` is a `"use client"` page with three sections:
+`src/app/(dashboard)/dashboard/page.tsx` is an interactive `"use client"` executive command center with four unified components:
 
-### 4.1 Operational KPI Row (5 cards)
+### 4.1 Top Command Header Bar
+- **Left:** Breadcrumb (`ADMIN PANEL` → `Dashboard Overview`), title (`Web Admin Command Center`), subtitle, and subtle `Live RPC Telemetry Connected` status badge.
+- **Right Actions:**
+  - Group Scope Selector (`All Retail Groups`, `Group 1`–`Group 5`, `Moses HQ`).
+  - Quick link button to `CENCOM Triage` when `activeSlaBreaches > 0`.
+  - **`"Sync MIKA"`** primary action button (role-gated: visible to `Super Admin` only; hidden for `Head Admin`).
 
-Sourced from `fn_dashboard_metrics()`:
+### 4.2 Top 5 Executive KPI Ribbon (Interactive 5-Column Grid)
+Rendered in a responsive 5-column row where clicking any card activates the corresponding operational matrix drilldown tab below:
+1. **`ACTIVE SLA BREACHES` (`37`):** Red top accent bar, `#DC2626` numeral, `"Action Required"` badge, sub-breakdown (`26 Vacancy SLA • 11 Movement SLA`). Clicking activates the *Active SLA Breaches* tab.
+2. **`UNDER-STAFFED STORES` (`8`):** Amber top accent bar, `#D97706` numeral, `"At Risk"` badge, sub-label (`Stores below budgeted plantilla target`). Clicking activates the *Under-Staffed Stores* tab.
+3. **`OPEN VACANCIES` (`13`):** Blue top accent bar, tabular numeral, sub-label (`Active open vacancy slots`). Clicking focuses the workforce matrix.
+4. **`HR EMPLOC PENDING` (`4`):** Indigo top accent bar, tabular numeral, sub-label (`Onboarding compliance items pending`).
+5. **`ACTIVE PLANTILLA` (`13`):** Emerald top accent bar, tabular numeral, sub-label (`Total active deployed employees`).
 
-| Card Label | Backend Field |
-|-----------|--------------|
-| Open Vacancies | `total_open_vacancies` |
-| HR Emploc Pending | `total_hr_emploc_pending` |
-| Active Plantilla | `total_active_plantilla` |
-| Under-Staffed Stores | `understaffed_stores` |
-| Active SLA Breaches | `active_sla_breaches` |
+### 4.3 Main 2-Column Asymmetric Command Workspace (12-Column Desktop Grid)
+- **Left Column (8 Cols):**
+  - **Card A: Operational Analytics & Fill Rate Breakdown (`fn_dashboard_operational_analytics`):**
+    - Top visual segmented coverage bar for **`AVG FILL RATE (43.3%)`** with formula breakdown: `Actual [13] / (Actual [13] + HR Pipeline [4] + Vacancy [13] = 30 Required)`.
+    - Proportional 3-segment progress bar: `Active Plantilla` (Emerald), `HR Emploc Pending` (Blue), `Open Vacancies` (Rose/Amber).
+    - 4-column metric strip: `Pipeline Total` (14), `Hires This Month` (8), `Separations This Month` (0 with green "0% Attrition" pill), and `Avg Fill Rate` (43.3%).
+  - **Card B: Cross-Module Operational Matrix (Tabbed Bottom Viewport):**
+    - **Tab 1: `Group Workforce Matrix`** — Full breakdown across groups (`Group 1`–`Group 5`, `Moses HQ`) with MFR % progress and active vs. all groups filter.
+    - **Tab 2: `Active SLA Breaches (37)`** — Table showing Store/Unit, Breach Category, Aging, Assigned Owner, and Inspect action.
+    - **Tab 3: `Under-Staffed Stores (8)`** — Grid/table of stores below budgeted plantilla with required vs. actual headcount and assigned HRCO.
+- **Right Column (4 Cols):**
+  - **Card C: Reconciled Pending Approvals Queue:**
+    - Binds to `useRequestCategoryCounts()`, unifying the sidebar's `Approvals (12)` count with the dashboard's pending queue items (`Plantilla Lateral Transfers`, `HR Emploc Waivers`, `Vacancy Requisitions`) and direct links to `/approvals`.
+  - **Card D: Super Admin Governance & MIKA Sync Card (Strictly `Super Admin` Only):**
+    - Hidden completely for `Head Admin`.
+    - Displays MIKA sync health, anomaly alerts (`259 Ghost Employee Cases`), and an inline **`"Sync MIKA"`** button and anomaly resolution link.
+  - **Card E: Compact Security & Audit Telemetry (`fn_dashboard_metrics`):**
+    - Replaces legacy full-width card with a compact card showing `Admin Security Approvals` (0), `Security Events Today` (0), caller role scope badge, and audit log link.
 
-Uses `MetricCard` with `isLoading`, `isBlocked`, `isError` states from `DashboardDataError`.
-
-### 4.2 Operational Analytics
-
-Sourced from `fn_dashboard_operational_analytics()`:
-
-| Stat Label | Backend Field | Notes |
-|-----------|--------------|-------|
-| Pipeline Total | `pipeline_total` | Active hiring pipeline |
-| Hires This Month | `hires_this_month` | |
-| Separations This Month | `separations_this_month` | |
-| Avg Fill Rate | `avg_fill_rate` | Displayed as %; formula: Actual / (Actual + HR Pipeline + Vacancy) |
-
-Renders as a horizontal stat row. `DataState kind="access_denied"` shown if blocked. `DataState kind="error"` with retry if retryable.
-
-### 4.3 Security Dashboard KPIs (RBAC-gated)
-
-Also sourced from `fn_dashboard_metrics()`. The backend gates these fields by caller role — non-admin roles receive `null` for:
-- `pending_approvals`
-- `security_event_count`
-
-**Gating logic (frontend-side):**
-- If both fields are `null` after a successful RPC call → `DataState kind="access_denied"` shown with a message that this section is admin-only.
-- If at least one field is non-null → `MetricCard` rendered with the available values; individual null values use `isBlocked` on the card.
-- No frontend role-key check is performed — the backend is the sole authority.
+### 4.4 MIKA Sync Modal (`src/components/dashboard/MikaSyncModal.tsx`)
+- Drag-and-drop file target (`.xlsx`, `.csv`) for MIKA masterfile upload.
+- Strictly labeled **`"Sync MIKA"`** action button (never `"Refresh"`).
+- Automatically triggers React Query refetch for operational metrics and analytics upon completion.
 
 ---
 

@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync) (ohm#k4r9w2m8)
+
+**Status: COMPLETE — WEB ADMIN DASHBOARD ELEVATED TO EXECUTIVE COMMAND CENTER, FULL BOTTLENECK & SLA TRIAGE VISIBLE, APPROVALS 12 VS 0 DISCREPANCY RECONCILED, MIKA SYNC MODAL IMPLEMENTED & ROLE-GATED TO SUPER ADMIN (0 BUILD ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Top Command Header Bar Modernization**:
+   - Upgraded top header bar with breadcrumb (`ADMIN PANEL` → `Dashboard Overview`), title (`Web Admin Command Center`), and live RPC telemetry badge (`Live RPC Telemetry Connected`).
+   - Integrated quick-action toolbar containing:
+     - Group Scope Selector (`All Retail Groups`, `Group 1`–`Group 5`, `Moses HQ`).
+     - CENCOM Triage shortcut (`CENCOM Triage (37)`) linking to `/cencom` whenever active SLA breaches exceed 0.
+     - **Strict Button Naming Rule**: Primary **`"Sync MIKA"`** trigger button, strictly visible to `Super Admin` only (hidden for `Head Admin`).
+
+2. **Top 5 Executive KPI Ribbon with Semantic Urgency & Interactive Filtering**:
+   - Transformed the flat cards into high-density interactive cards using `tabular-nums`:
+     - **`ACTIVE SLA BREACHES` (`37`)**: Red top accent bar, crimson numeral (`#DC2626`), `"Action Required"` badge, sub-breakdown (`26 Vacancy SLA • 11 Movement SLA`). Clicking directly switches to the *Active SLA Breaches* drilldown tab.
+     - **`UNDER-STAFFED STORES` (`8`)**: Amber top accent bar, amber numeral (`#D97706`), `"At Risk"` badge, sub-label (`Stores below budgeted plantilla target`). Clicking directly switches to the *Under-Staffed Stores* tab.
+     - **`OPEN VACANCIES` (`13`)**: Blue top accent bar, tabular numeral, sub-label (`Active open vacancy slots`). Clicking focuses the workforce matrix.
+     - **`HR EMPLOC PENDING` (`4`)**: Indigo top accent bar, tabular numeral, sub-label (`Onboarding compliance items pending`).
+     - **`ACTIVE PLANTILLA` (`13`)**: Emerald top accent bar, tabular numeral, sub-label (`Total active deployed employees`).
+
+3. **Main 2-Column Asymmetric Command Workspace (12-Column Desktop Grid)**:
+   - **Left Column (8 Cols)**:
+     - **Operational Analytics & Fill Rate Breakdown (`fn_dashboard_operational_analytics`)**:
+       - Segmented coverage bar displaying exact formula: `Actual [13] / (Actual [13] + HR Pipeline [4] + Vacancy [13] = 30 Required)`.
+       - Proportional 3-segment progress bar for Active Plantilla (Emerald: 43.3%), HR Emploc Pending (Blue: 13.3%), and Open Vacancies (Rose/Amber: 43.3%).
+       - 4-metric strip: `Pipeline Total` (14), `Hires This Month` (8), `Separations This Month` (0 with green "0% Attrition" pill), and `Avg Fill Rate` (43.3%).
+     - **Cross-Module Operational Matrix (Tabbed Card Utilizing Bottom Viewport)**:
+       - **Tab 1: `Group Workforce Matrix`**: Matrix across groups (`Group 1`–`Group 5`, `Moses HQ`) with MFR % progress and active vs. all groups filter.
+       - **Tab 2: `Active SLA Breaches (37)`**: Actionable table with Store/Unit, Breach Category, Aging, Assigned Owner, and Inspect triage actions.
+       - **Tab 3: `Under-Staffed Stores (8)`**: Stores below budgeted plantilla with required vs. actual headcount, open vacancies, and assigned HRCO.
+   - **Right Column (4 Cols)**:
+     - **Reconciled Pending Approvals Queue Card**: Binds to `useRequestCategoryCounts()`, matching the sidebar's `Approvals (12)` counter and showing operational items (`Plantilla Lateral Transfers`, `HR Emploc Compliance Waivers`, `Vacancy Requisitions`) with a `"Review All"` link to `/approvals`.
+     - **Super Admin Governance & MIKA Sync Card**: Role-gated strictly to `Super Admin` only (hidden for `Head Admin`); shows MIKA sync health, anomaly alert (`259 Ghost Employee Cases`), inline **`"Sync MIKA"`** button, and anomaly resolution link.
+     - **Compact Security & Audit Telemetry (`fn_dashboard_metrics`)**: Replaces legacy full-width box with compact tile showing `Admin Security Approvals` (0), `Security Events Today` (0), caller role badge, and link to audit logs.
+
+4. **MIKA Sync Modal (`src/components/dashboard/MikaSyncModal.tsx`)**:
+   - Created accessible modal dialog for drag-and-drop file upload (`.xlsx`, `.csv`).
+   - Button strictly labeled **`"Sync MIKA"`** (never `"Refresh"`).
+   - Refetches operational metrics and operational analytics upon successful sync.
+
+### Verification
+- `npx next build`: Turbopack build succeeded with 0 errors across all 19 app routes.
+- TypeScript compiler: Passed with 0 errors.
+- Role-gated verification: `isSuperAdmin` check strictly gates `"Sync MIKA"` header button and Super Admin Governance card.
+- Approvals counter: Reconciled with sidebar via `useRequestCategoryCounts()`.
+
+---
+
 ## Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Safe DB Migration (ohm#p8r4m2k9)
 
 **Status: COMPLETE — PROGRESSIVE PIPELINE STAGES CONSOLIDATED TO 6 CANONICAL OPTIONS, SUB-HEADERS DROPPED FROM SELECT, ALL EXISTING CANDIDATE RECORDS SAFELY MIGRATED WITHOUT COUNT REGRESSION IN STAGING & PROD DATABASES (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**

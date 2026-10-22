@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#p8r4m2k9**: Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Execute Safe DB Migration
-2. **ohm#s4b8r2x1**: Fix Pipeline Candidate Query Schema Mismatch (`applied_at` & `headcount` Column Selects)
-3. **ohm#n7f3w9x2**: Restore Closure & Failed/Backout Tab Data and Align Pipeline Badge Counts with Rendered Rows
-4. **ohm#v3k8n2m5**: Fix 7 Vacancy Module Bugs & RBAC Adjustments (Closure Blocking, Tab-Specific Actions, HC/Quota RBAC, Human-Readable Activity History, Withdraw Action, & Group Filtering)
-5. **ohm#d8r2m6k1**: Integrate Approved Vacancy Detail Drawer Layout (Requisition & Quota Management, Candidate Cards, & Consolidated Actions)
+1. **ohm#k4r9w2m8**: Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync)
+2. **ohm#p8r4m2k9**: Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Execute Safe DB Migration
+3. **ohm#s4b8r2x1**: Fix Pipeline Candidate Query Schema Mismatch (`applied_at` & `headcount` Column Selects)
+4. **ohm#n7f3w9x2**: Restore Closure & Failed/Backout Tab Data and Align Pipeline Badge Counts with Rendered Rows
+5. **ohm#v3k8n2m5**: Fix 7 Vacancy Module Bugs & RBAC Adjustments (Closure Blocking, Tab-Specific Actions, HC/Quota RBAC, Human-Readable Activity History, Withdraw Action, & Group Filtering)
 
-> Older entries trimmed 2026-10-22 (`ohm#p8r4m2k9`) to keep this list to 5 — dropped `ohm#q7w1k9b3` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-22 (`ohm#k4r9w2m8`) to keep this list to 5 — dropped `ohm#d8r2m6k1` and earlier entries — see git history for that and earlier entries in full.
