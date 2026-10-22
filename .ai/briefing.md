@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#q8v2n4k7**: Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping
-2. **ohm#x7m2p9w4**: Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring)
-3. **ohm#k4r9w2m8**: Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync)
-4. **ohm#p8r4m2k9**: Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Execute Safe DB Migration
-5. **ohm#s4b8r2x1**: Fix Pipeline Candidate Query Schema Mismatch (`applied_at` & `headcount` Column Selects)
+1. **ohm#d8m4x2w9**: Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish)
+2. **ohm#q8v2n4k7**: Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping
+3. **ohm#x7m2p9w4**: Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring)
+4. **ohm#k4r9w2m8**: Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync)
+5. **ohm#p8r4m2k9**: Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Execute Safe DB Migration
 
-> Older entries trimmed 2026-10-22 (`ohm#q8v2n4k7`) to keep this list to 5 — dropped `ohm#n7f3w9x2` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-22 (`ohm#d8m4x2w9`) to keep this list to 5 — dropped `ohm#s4b8r2x1` and earlier entries — see git history for that and earlier entries in full.

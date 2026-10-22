@@ -13,13 +13,17 @@ import { createClient } from "@/lib/supabase/client";
 export type DashboardMetrics = {
   // Operational (all authorized web roles)
   totalOpenVacancies: number;
+  unassignedVacancies: number;
+  assignedVacancies: number;
   totalHrEmplocPending: number;
   totalActivePlantilla: number;
   understaffedStores: number;
   activeSlaBreaches: number;
   // Security KPIs — null when backend gates by caller role
   pendingApprovals: number | null;
+  adminSecurityApprovals: number | null;
   securityEventCount: number | null;
+  ghostEmployeeCount: number;
 };
 
 /**
@@ -116,13 +120,17 @@ function normalizeMetrics(data: unknown): DashboardMetrics {
 
   return {
     totalOpenVacancies: asCount(row.total_open_vacancies),
+    unassignedVacancies: asCount(row.unassigned_vacancies),
+    assignedVacancies: asCount(row.assigned_vacancies),
     totalHrEmplocPending: asCount(row.total_hr_emploc_pending),
     totalActivePlantilla: asCount(row.total_active_plantilla),
     understaffedStores: asCount(row.understaffed_stores),
     activeSlaBreaches: asCount(row.active_sla_breaches),
     // Security KPIs gated by backend role check
     pendingApprovals: asNullableCount(row.pending_approvals),
+    adminSecurityApprovals: asNullableCount(row.admin_security_approvals),
     securityEventCount: asNullableCount(row.security_event_count),
+    ghostEmployeeCount: asCount(row.ghost_employee_count),
   };
 }
 
@@ -208,6 +216,157 @@ export function useDashboardOperationalAnalytics(
       params?.groupId ?? null,
     ],
     queryFn: () => getDashboardOperationalAnalytics(params),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SLA Breaches & Understaffed Stores Live Queries
+// ---------------------------------------------------------------------------
+
+export interface DashboardSlaBreachItem {
+  id: string;
+  storeName: string;
+  category: "Vacancy SLA" | "Movement SLA" | "Deactivation SLA";
+  group: string;
+  owner: string;
+  breachCount: number;
+  aging: string;
+  actionLabel: string;
+  actionHref: string;
+}
+
+export async function fetchDashboardSlaBreaches(): Promise<DashboardSlaBreachItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("sla_breach_logs")
+    .select("id, account, breach_type, days_elapsed, vcode, created_at")
+    .order("days_elapsed", { ascending: false })
+    .limit(30);
+
+  if (error || !data) return [];
+
+  return data.map((b) => {
+    const isMovement =
+      b.breach_type?.includes("movement") || b.breach_type?.includes("transfer");
+    const isDeac =
+      b.breach_type?.includes("deactivation") || b.breach_type?.includes("inactive");
+    const category: "Vacancy SLA" | "Movement SLA" | "Deactivation SLA" = isMovement
+      ? "Movement SLA"
+      : isDeac
+      ? "Deactivation SLA"
+      : "Vacancy SLA";
+    const days = b.days_elapsed ?? 0;
+
+    return {
+      id: b.id,
+      storeName: `${b.account ?? "Store"} (${b.vcode ?? "General Staff"})`,
+      category,
+      group: b.account ?? "Retail Scope",
+      owner: "Operations OM",
+      breachCount: 1,
+      aging: `${days}d`,
+      actionLabel: isDeac ? "Review Deactivations" : isMovement ? "Review Movements" : "Inspect Lane",
+      actionHref: isDeac || isMovement ? "/approvals" : "/vacancy",
+    };
+  });
+}
+
+export function useDashboardSlaBreaches() {
+  return useQuery({
+    queryKey: ["dashboard", "sla-breaches"],
+    queryFn: fetchDashboardSlaBreaches,
+    staleTime: 30000,
+  });
+}
+
+export interface DashboardUnderstaffedStoreItem {
+  id: string;
+  storeName: string;
+  group: string;
+  actualHc: number;
+  budgetedHc: number;
+  openVacancies: number;
+  assignedHrco: string;
+  coveragePct: number;
+}
+
+export async function fetchDashboardUnderstaffedStores(): Promise<DashboardUnderstaffedStoreItem[]> {
+  const supabase = createClient();
+  const { data: vacancies, error } = await supabase
+    .from("vacancies")
+    .select(`
+      id,
+      store_id,
+      hrco_name,
+      stores (
+        id,
+        store_name,
+        account_id,
+        accounts (
+          account_name,
+          groups (
+            group_name
+          )
+        )
+      )
+    `)
+    .eq("status", "Open")
+    .is("deleted_at", null)
+    .not("store_id", "is", null);
+
+  if (error || !vacancies) return [];
+
+  const storeMap = new Map<string, DashboardUnderstaffedStoreItem>();
+
+  type StoreRelation = {
+    id?: string;
+    store_name?: string | null;
+    accounts?: {
+      account_name?: string | null;
+      groups?: {
+        group_name?: string | null;
+      } | null;
+    } | null;
+  } | null;
+
+  for (const v of vacancies) {
+    const s = v.stores as StoreRelation;
+    if (!s || !s.id) continue;
+    const storeId = s.id;
+    const storeName = s.store_name ?? "Store";
+    const acc = s.accounts;
+    const groupName =
+      acc?.groups?.group_name ?? acc?.account_name ?? "Retail Group";
+    const hrco = v.hrco_name && v.hrco_name.trim().length > 0 ? v.hrco_name.trim() : "Unassigned";
+
+    if (!storeMap.has(storeId)) {
+      storeMap.set(storeId, {
+        id: storeId,
+        storeName,
+        group: groupName,
+        actualHc: 0,
+        budgetedHc: 0,
+        openVacancies: 0,
+        assignedHrco: hrco,
+        coveragePct: 0,
+      });
+    }
+
+    const item = storeMap.get(storeId)!;
+    item.openVacancies += 1;
+    item.budgetedHc = item.actualHc + item.openVacancies;
+    item.coveragePct =
+      item.budgetedHc > 0 ? Math.round((item.actualHc / item.budgetedHc) * 100) : 0;
+  }
+
+  return Array.from(storeMap.values());
+}
+
+export function useDashboardUnderstaffedStores() {
+  return useQuery({
+    queryKey: ["dashboard", "understaffed-stores"],
+    queryFn: fetchDashboardUnderstaffedStores,
+    staleTime: 30000,
   });
 }
 

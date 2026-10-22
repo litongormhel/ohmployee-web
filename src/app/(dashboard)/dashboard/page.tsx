@@ -7,9 +7,6 @@ import {
   LayoutDashboard,
   Briefcase,
   Users,
-  AlertTriangle,
-  Clock,
-  ArrowUpRight,
   CheckSquare,
   ShieldCheck,
   CloudUpload,
@@ -19,7 +16,6 @@ import {
   Store,
   Layers,
   ArrowRight,
-  Database,
   ExternalLink,
   Sparkles,
   CheckCircle2,
@@ -29,11 +25,11 @@ import { useCurrentUser } from "@/lib/auth";
 import {
   getDashboardMetrics,
   getDashboardOperationalAnalytics,
-  DashboardDataError,
+  useDashboardSlaBreaches,
+  useDashboardUnderstaffedStores,
 } from "@/lib/queries/dashboard";
-import { useRequestCategoryCounts, type RequestCategoryCounts } from "@/lib/queries/requests";
+import { useRequestCategoryCounts } from "@/lib/queries/requests";
 import { useCencomGroupKpi } from "@/lib/queries/cencom";
-import { DataState } from "@/components/shared/DataState";
 import { MikaSyncModal } from "@/components/dashboard/MikaSyncModal";
 
 // ---------------------------------------------------------------------------
@@ -57,211 +53,6 @@ interface GroupWorkforceRow {
   slaStatus: "Compliant" | "At Risk" | "Critical" | "Standby";
   isActiveGroup: boolean;
 }
-
-const DEFAULT_GROUP_MATRIX: GroupWorkforceRow[] = [
-  {
-    groupName: "Group 5",
-    plantilla: 2,
-    pipeline: 1,
-    vacancy: 6,
-    understaffedCount: 4,
-    fillRatePct: 18.2,
-    slaStatus: "Critical",
-    isActiveGroup: true,
-  },
-  {
-    groupName: "Group 2",
-    plantilla: 4,
-    pipeline: 2,
-    vacancy: 5,
-    understaffedCount: 3,
-    fillRatePct: 41.7,
-    slaStatus: "At Risk",
-    isActiveGroup: true,
-  },
-  {
-    groupName: "Group 1",
-    plantilla: 7,
-    pipeline: 1,
-    vacancy: 2,
-    understaffedCount: 1,
-    fillRatePct: 85.7,
-    slaStatus: "Compliant",
-    isActiveGroup: true,
-  },
-  {
-    groupName: "Moses HQ",
-    plantilla: 0,
-    pipeline: 0,
-    vacancy: 0,
-    understaffedCount: 0,
-    fillRatePct: 100.0,
-    slaStatus: "Compliant",
-    isActiveGroup: true,
-  },
-  {
-    groupName: "Group 3",
-    plantilla: 0,
-    pipeline: 0,
-    vacancy: 0,
-    understaffedCount: 0,
-    fillRatePct: null,
-    slaStatus: "Standby",
-    isActiveGroup: false,
-  },
-  {
-    groupName: "Group 4",
-    plantilla: 0,
-    pipeline: 0,
-    vacancy: 0,
-    understaffedCount: 0,
-    fillRatePct: null,
-    slaStatus: "Standby",
-    isActiveGroup: false,
-  },
-];
-
-interface SlaBreachRow {
-  id: string;
-  storeName: string;
-  category: "Vacancy SLA" | "Movement SLA";
-  group: string;
-  owner: string;
-  breachCount: number;
-  aging: string;
-  actionLabel: string;
-  actionHref: string;
-}
-
-const DEFAULT_SLA_BREACHES: SlaBreachRow[] = [
-  {
-    id: "breach-1",
-    storeName: "SM North EDSA, Trinoma (Store Crew & Cashier)",
-    category: "Vacancy SLA",
-    group: "Group 5",
-    owner: "Unassigned",
-    breachCount: 12,
-    aging: "34d",
-    actionLabel: "Assign Owner",
-    actionHref: "/vacancy",
-  },
-  {
-    id: "breach-2",
-    storeName: "SM Megamall, Galleria (Cashier & Sales Crew)",
-    category: "Vacancy SLA",
-    group: "Group 2",
-    owner: "Min Peng",
-    breachCount: 14,
-    aging: "26d",
-    actionLabel: "Inspect Lane",
-    actionHref: "/vacancy",
-  },
-  {
-    id: "breach-3",
-    storeName: "Cross-Branch Lateral Transfers (OM Pending)",
-    category: "Movement SLA",
-    group: "Group 1 & 2",
-    owner: "Selena Gomez",
-    breachCount: 11,
-    aging: "14d",
-    actionLabel: "Review Movements",
-    actionHref: "/approvals",
-  },
-];
-
-interface UnderstaffedStoreRow {
-  id: string;
-  storeName: string;
-  group: string;
-  actualHc: number;
-  budgetedHc: number;
-  openVacancies: number;
-  assignedHrco: string;
-  coveragePct: number;
-}
-
-const DEFAULT_UNDERSTAFFED_STORES: UnderstaffedStoreRow[] = [
-  {
-    id: "store-1",
-    storeName: "SM North EDSA",
-    group: "Group 5",
-    actualHc: 1,
-    budgetedHc: 4,
-    openVacancies: 3,
-    assignedHrco: "Unassigned",
-    coveragePct: 25,
-  },
-  {
-    id: "store-2",
-    storeName: "SM Megamall",
-    group: "Group 2",
-    actualHc: 1,
-    budgetedHc: 3,
-    openVacancies: 2,
-    assignedHrco: "Min Peng",
-    coveragePct: 33,
-  },
-  {
-    id: "store-3",
-    storeName: "SM Mall of Asia",
-    group: "Group 2",
-    actualHc: 2,
-    budgetedHc: 4,
-    openVacancies: 2,
-    assignedHrco: "Min Peng",
-    coveragePct: 50,
-  },
-  {
-    id: "store-4",
-    storeName: "Trinoma Mall",
-    group: "Group 5",
-    actualHc: 1,
-    budgetedHc: 2,
-    openVacancies: 1,
-    assignedHrco: "Unassigned",
-    coveragePct: 50,
-  },
-  {
-    id: "store-5",
-    storeName: "Robinsons Galleria",
-    group: "Group 2",
-    actualHc: 1,
-    budgetedHc: 3,
-    openVacancies: 2,
-    assignedHrco: "Selena Gomez",
-    coveragePct: 33,
-  },
-  {
-    id: "store-6",
-    storeName: "Alabang Town Center",
-    group: "Group 1",
-    actualHc: 2,
-    budgetedHc: 3,
-    openVacancies: 1,
-    assignedHrco: "Selena Gomez",
-    coveragePct: 67,
-  },
-  {
-    id: "store-7",
-    storeName: "Glorietta 4",
-    group: "Group 1",
-    actualHc: 2,
-    budgetedHc: 3,
-    openVacancies: 1,
-    assignedHrco: "Selena Gomez",
-    coveragePct: 67,
-  },
-  {
-    id: "store-8",
-    storeName: "Market! Market!",
-    group: "Group 2",
-    actualHc: 1,
-    budgetedHc: 2,
-    openVacancies: 1,
-    assignedHrco: "Min Peng",
-    coveragePct: 50,
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -292,7 +83,10 @@ export default function DashboardPage() {
     }, 3200);
   };
 
-  // Queries
+  // -------------------------------------------------------------------------
+  // Live Queries
+  // -------------------------------------------------------------------------
+
   const metricsQuery = useQuery({
     queryKey: ["dashboard", "metrics", selectedGroupScope === "all" ? null : selectedGroupScope],
     queryFn: () => getDashboardMetrics(),
@@ -308,24 +102,67 @@ export default function DashboardPage() {
   });
 
   // Live Group KPI from CENCOM view
-  const { data: groupKpiData } = useCencomGroupKpi();
+  const { data: groupKpiData, isLoading: isGroupKpiLoading } = useCencomGroupKpi();
 
   // Reconciled Approvals Count from useRequestCategoryCounts
-  const { data: requestCounts } = useRequestCategoryCounts();
+  const { data: requestCounts, isLoading: isRequestCountsLoading } = useRequestCategoryCounts();
 
-  // Live Category-level Approvals Breakdown
+  // Live SLA Breaches query
+  const { data: slaBreachesData, isLoading: isSlaBreachesLoading } = useDashboardSlaBreaches();
+
+  // Live Understaffed Stores query
+  const { data: understaffedStoresData, isLoading: isUnderstaffedStoresLoading } =
+    useDashboardUnderstaffedStores();
+
+  // -------------------------------------------------------------------------
+  // Derived Live Metrics
+  // -------------------------------------------------------------------------
+
+  const metrics = metricsQuery.data;
+  const analytics = analyticsQuery.data;
+
+  // Live KPI Values
+  const activeSlaBreaches = metrics?.activeSlaBreaches ?? 0;
+  const understaffedStores = metrics?.understaffedStores ?? 0;
+  const totalOpenVacancies = metrics?.totalOpenVacancies ?? 0;
+  const unassignedVacancies = metrics?.unassignedVacancies ?? 0;
+  const assignedVacancies = metrics?.assignedVacancies ?? 0;
+  const totalHrEmplocPending = metrics?.totalHrEmplocPending ?? 0;
+  const totalActivePlantilla = metrics?.totalActivePlantilla ?? 0;
+  const ghostEmployeeCount = metrics?.ghostEmployeeCount ?? 0;
+
+  // Operational Analytics Values
+  const pipelineTotal = analytics?.pipelineTotal ?? 0;
+  const hiresThisMonth = analytics?.hiresThisMonth ?? 0;
+  const separationsThisMonth = analytics?.separationsThisMonth ?? 0;
+  const avgFillRateNum = analytics?.avgFillRate ?? 0;
+  const avgFillRateFormatted = pct(avgFillRateNum);
+
+  // Dynamic Scoped Demand Denominator: Actual + HR Pipeline + Vacancy
+  const totalScopedDemand = totalActivePlantilla + totalHrEmplocPending + totalOpenVacancies;
+  const plantillaTarget = totalActivePlantilla + totalOpenVacancies;
+
+  const activePlantillaWidthPct =
+    totalScopedDemand > 0 ? ((totalActivePlantilla / totalScopedDemand) * 100).toFixed(1) : "0.0";
+  const hrEmplocWidthPct =
+    totalScopedDemand > 0 ? ((totalHrEmplocPending / totalScopedDemand) * 100).toFixed(1) : "0.0";
+  const vacanciesWidthPct =
+    totalScopedDemand > 0 ? ((totalOpenVacancies / totalScopedDemand) * 100).toFixed(1) : "0.0";
+
+  // Reconciled Approvals Count: 100% live derived from categories, no mock fallback
+  const totalReconciledApprovals = useMemo(() => {
+    if (!requestCounts) return metrics?.pendingApprovals ?? 0;
+    return Object.values(requestCounts).reduce((acc, c) => acc + c, 0);
+  }, [requestCounts, metrics?.pendingApprovals]);
+
+  // Live Category-level Approvals Breakdown: 100% dynamic, no fake fallback rows
   const liveApprovalItems = useMemo(() => {
-    if (!requestCounts) {
-      return [
-        { title: "Plantilla Lateral Transfers", sub: "Group 1 & Group 2 movements • SLA 14d", count: 7, href: "/approvals?tab=applicant_movements" },
-        { title: "HR Emploc Compliance Waivers", sub: "Pending document exceptions for new hires", count: 3, href: "/approvals?tab=hr_emploc_deletions" },
-        { title: "Vacancy Requisition Creation", sub: "Store cashier additions for SM North EDSA", count: 2, href: "/approvals?tab=headcount" },
-      ];
-    }
+    if (!requestCounts) return [];
 
     const items: Array<{ title: string; sub: string; count: number; href: string }> = [];
 
-    const movements = (requestCounts.applicant_movements || 0) + (requestCounts.plantilla_approvals || 0);
+    const movements =
+      (requestCounts.applicant_movements || 0) + (requestCounts.plantilla_approvals || 0);
     if (movements > 0) {
       items.push({
         title: "Plantilla Deployments & Movements",
@@ -375,32 +212,12 @@ export default function DashboardPage() {
       });
     }
 
-    // If zero items exist in requestCounts, fallback to standard queue or empty
-    if (items.length === 0) {
-      return [
-        { title: "Plantilla Lateral Transfers", sub: "Group 1 & Group 2 movements • SLA 14d", count: 7, href: "/approvals?tab=applicant_movements" },
-        { title: "HR Emploc Compliance Waivers", sub: "Pending document exceptions for new hires", count: 3, href: "/approvals?tab=hr_emploc_deletions" },
-        { title: "Vacancy Requisition Creation", sub: "Store cashier additions for SM North EDSA", count: 2, href: "/approvals?tab=headcount" },
-      ];
-    }
-
     return items;
   }, [requestCounts]);
 
-  const totalReconciledApprovals = useMemo(() => {
-    if (!requestCounts) return 12; // Reconciled default fallback
-    const count = Object.values(requestCounts).reduce((acc, c) => acc + c, 0);
-    return count > 0 ? count : 12;
-  }, [requestCounts]);
-
-  const metrics = metricsQuery.data;
-  const analytics = analyticsQuery.data;
-
-  // Live Group Workforce Matrix mapping
+  // Live Group Workforce Matrix mapping: strictly from v_cencom_group_allocation_kpi
   const liveGroupRows: GroupWorkforceRow[] = useMemo(() => {
-    if (!groupKpiData || groupKpiData.length === 0) {
-      return DEFAULT_GROUP_MATRIX;
-    }
+    if (!groupKpiData || groupKpiData.length === 0) return [];
 
     return groupKpiData.map((g) => {
       const fillPct = g.required > 0 ? Math.round((g.actual / g.required) * 1000) / 10 : null;
@@ -437,27 +254,13 @@ export default function DashboardPage() {
   // Dynamically compute lowest MFR group
   const worstMfrGroupName = useMemo(() => {
     const active = liveGroupRows.filter((r) => r.fillRatePct !== null && r.isActiveGroup);
-    if (active.length === 0) return "Group 5 & 2";
+    if (active.length === 0) return "N/A";
     const sorted = [...active].sort((a, b) => (a.fillRatePct ?? 0) - (b.fillRatePct ?? 0));
-    return sorted[0]?.groupName ?? "Group 5";
+    return sorted[0]?.groupName ?? "N/A";
   }, [liveGroupRows]);
 
-  // Live KPI Values
-  const activeSlaBreaches = metrics?.activeSlaBreaches ?? 37;
-  const understaffedStores = metrics?.understaffedStores ?? 8;
-  const totalOpenVacancies = metrics?.totalOpenVacancies ?? 13;
-  const totalHrEmplocPending = metrics?.totalHrEmplocPending ?? 4;
-  const totalActivePlantilla = metrics?.totalActivePlantilla ?? 13;
-
-  // Analytics Values
-  const pipelineTotal = analytics?.pipelineTotal ?? 14;
-  const hiresThisMonth = analytics?.hiresThisMonth ?? 8;
-  const separationsThisMonth = analytics?.separationsThisMonth ?? 0;
-  const avgFillRateNum = analytics?.avgFillRate ?? 0.433;
-  const avgFillRateFormatted = pct(avgFillRateNum);
-
   return (
-    <div className="flex flex-col gap-5 text-slate-900 pb-16 sm:pb-20">
+    <div className="flex flex-col gap-5 text-slate-900 pb-8 sm:pb-12">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -507,7 +310,9 @@ export default function DashboardPage() {
               value={selectedGroupScope}
               onChange={(e) => {
                 setSelectedGroupScope(e.target.value);
-                showToast(`Dashboard scoped to: ${e.target.value === "all" ? "All Retail Groups" : e.target.value}`);
+                showToast(
+                  `Dashboard scoped to: ${e.target.value === "all" ? "All Retail Groups" : e.target.value}`
+                );
               }}
               className="cursor-pointer bg-transparent font-bold text-slate-800 focus:outline-none"
             >
@@ -552,7 +357,7 @@ export default function DashboardPage() {
         aria-label="Executive KPI Ribbon"
         className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-5"
       >
-        {/* KPI 1: ACTIVE SLA BREACHES (37) */}
+        {/* KPI 1: ACTIVE SLA BREACHES */}
         <div
           onClick={() => setActiveMatrixTab("breaches")}
           className={`group relative cursor-pointer overflow-hidden rounded-2xl border-2 p-3.5 transition-all hover:shadow-md ${
@@ -580,14 +385,13 @@ export default function DashboardPage() {
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-600">Pending movements or vacancy SLA breaches</p>
-          <div className="mt-2.5 flex items-center justify-between border-t border-rose-100 pt-2 text-[11px] font-semibold">
-            <span className="text-rose-700">26 Vacancy SLA</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-amber-700">11 Movement SLA</span>
+          <div className="mt-2.5 flex items-center justify-between border-t border-rose-100 pt-2 text-[11px] font-semibold text-rose-700">
+            <span>{activeSlaBreaches} Logged Inactivity Breaches</span>
+            <span className="font-mono text-slate-500">Aging: {slaBreachesData?.[0]?.aging ?? "—"}</span>
           </div>
         </div>
 
-        {/* KPI 2: UNDER-STAFFED STORES (8) */}
+        {/* KPI 2: UNDER-STAFFED STORES */}
         <div
           onClick={() => setActiveMatrixTab("stores")}
           className={`group relative cursor-pointer overflow-hidden rounded-2xl border p-3.5 transition-all hover:shadow-md ${
@@ -616,13 +420,15 @@ export default function DashboardPage() {
           <p className="mt-1 text-xs text-slate-500">Stores below budgeted plantilla target</p>
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
             <span>
-              Worst: <strong className="text-slate-800">{worstMfrGroupName}</strong>
+              Lowest MFR: <strong className="text-slate-800">{worstMfrGroupName}</strong>
             </span>
-            <span className="font-semibold text-amber-700">67% cluster alert</span>
+            <span className="font-semibold text-amber-700">
+              {understaffedStores > 0 ? "Staffing Deficit Alert" : "All Stores Staffed"}
+            </span>
           </div>
         </div>
 
-        {/* KPI 3: OPEN VACANCIES (13) */}
+        {/* KPI 3: OPEN VACANCIES */}
         <div
           onClick={() => setActiveMatrixTab("matrix")}
           className={`group relative cursor-pointer overflow-hidden rounded-2xl border p-3.5 transition-all hover:shadow-md ${
@@ -645,17 +451,17 @@ export default function DashboardPage() {
               {metricsQuery.isLoading ? "--" : totalOpenVacancies}
             </span>
             <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-600">
-              3 Unassigned
+              {unassignedVacancies} Unassigned
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-500">Active open vacancy slots</p>
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>10 Assigned to HRCO</span>
+            <span>{assignedVacancies} Assigned to HRCO</span>
             <span className="font-semibold text-blue-600">{avgFillRateFormatted} Fill</span>
           </div>
         </div>
 
-        {/* KPI 4: HR EMPLOC PENDING (4) */}
+        {/* KPI 4: HR EMPLOC PENDING */}
         <div
           onClick={() => setActiveMatrixTab("matrix")}
           className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3.5 transition-all hover:border-indigo-300 hover:shadow-md"
@@ -679,14 +485,12 @@ export default function DashboardPage() {
           </div>
           <p className="mt-1 text-xs text-slate-500">Onboarding compliance items pending</p>
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>
-              Applicant SLA: <strong className="text-emerald-600">94%</strong>
-            </span>
-            <span>0 Corrections</span>
+            <span>Onboarding Pipeline</span>
+            <span className="font-semibold text-indigo-600">Pending Review</span>
           </div>
         </div>
 
-        {/* KPI 5: ACTIVE PLANTILLA (13) */}
+        {/* KPI 5: ACTIVE PLANTILLA */}
         <div
           onClick={() => setActiveMatrixTab("matrix")}
           className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3.5 transition-all hover:border-emerald-300 hover:shadow-md"
@@ -705,17 +509,15 @@ export default function DashboardPage() {
               {metricsQuery.isLoading ? "--" : totalActivePlantilla}
             </span>
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              of 30 Target
+              of {plantillaTarget} Target
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-500">Total active deployed employees</p>
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
             <span>
-              Resignations: <strong className="text-emerald-600">0</strong>
+              Monthly Losses: <strong className="text-emerald-600">{separationsThisMonth}</strong>
             </span>
-            <span>
-              Plantilla SLA: <strong className="text-emerald-600">100%</strong>
-            </span>
+            <span className="font-semibold text-emerald-700">Verified Active</span>
           </div>
         </div>
       </section>
@@ -750,7 +552,7 @@ export default function DashboardPage() {
                   Avg Fill Rate: {avgFillRateFormatted}
                 </span>
                 <span className="font-mono text-[11px] text-amber-700">
-                  (13 Actual / 30 Required)
+                  ({totalActivePlantilla} Actual / {totalScopedDemand} Required)
                 </span>
               </div>
             </div>
@@ -765,7 +567,9 @@ export default function DashboardPage() {
                   <span className="text-2xl font-extrabold tabular-nums text-slate-900">
                     {analyticsQuery.isLoading ? "--" : pipelineTotal}
                   </span>
-                  <span className="text-[11px] font-semibold text-blue-600">4 Emploc • 10 App</span>
+                  <span className="text-[11px] font-semibold text-blue-600">
+                    {totalHrEmplocPending} Emploc • {Math.max(0, pipelineTotal - totalHrEmplocPending)} App
+                  </span>
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">Active candidates in funnel</div>
               </div>
@@ -779,7 +583,7 @@ export default function DashboardPage() {
                     {analyticsQuery.isLoading ? "--" : hiresThisMonth}
                   </span>
                   <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                    +26% vs last mo
+                    Current Intake
                   </span>
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">Confirmed &amp; deployed</div>
@@ -794,10 +598,10 @@ export default function DashboardPage() {
                     {analyticsQuery.isLoading ? "--" : separationsThisMonth}
                   </span>
                   <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                    0% Attrition
+                    {separationsThisMonth === 0 ? "Zero Loss" : `${separationsThisMonth} Separated`}
                   </span>
                 </div>
-                <div className="mt-0.5 text-[11px] text-slate-500">Zero resignation loss</div>
+                <div className="mt-0.5 text-[11px] text-slate-500">Recorded monthly turnover</div>
               </div>
 
               <div className="p-3.5 bg-amber-50/20">
@@ -812,7 +616,7 @@ export default function DashboardPage() {
                     Target 80%
                   </span>
                 </div>
-                <div className="mt-0.5 text-[11px] text-slate-500">Actual / Scoped Demand</div>
+                <div className="mt-0.5 text-[11px] text-slate-500">Actual / Total Scoped Demand</div>
               </div>
             </div>
 
@@ -820,38 +624,38 @@ export default function DashboardPage() {
             <div className="border-t border-slate-100 bg-slate-50/80 px-5 py-3">
               <div className="mb-1.5 flex flex-wrap items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700">
-                  Total Scoped Demand Breakdown (30 Required Seats)
+                  Total Scoped Demand Breakdown ({totalScopedDemand} Required Seats)
                 </span>
                 <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold">
                   <span className="flex items-center gap-1.5 text-emerald-700">
                     <span className="h-2.5 w-2.5 rounded-xs bg-emerald-500" />
-                    13 Active Plantilla (43.3%)
+                    {totalActivePlantilla} Active Plantilla ({activePlantillaWidthPct}%)
                   </span>
                   <span className="flex items-center gap-1.5 text-blue-700">
                     <span className="h-2.5 w-2.5 rounded-xs bg-blue-500" />
-                    4 HR Emploc Pending (13.3%)
+                    {totalHrEmplocPending} HR Emploc Pending ({hrEmplocWidthPct}%)
                   </span>
                   <span className="flex items-center gap-1.5 text-rose-700">
                     <span className="h-2.5 w-2.5 rounded-xs bg-rose-500" />
-                    13 Open Vacancies (43.3%)
+                    {totalOpenVacancies} Open Vacancies ({vacanciesWidthPct}%)
                   </span>
                 </div>
               </div>
               <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-slate-200 p-0.5">
                 <div
-                  style={{ width: "43.3%" }}
+                  style={{ width: `${activePlantillaWidthPct}%` }}
                   className="rounded-l-full bg-emerald-500 transition-all duration-300"
-                  title="Active Plantilla: 13 (43.3%)"
+                  title={`Active Plantilla: ${totalActivePlantilla} (${activePlantillaWidthPct}%)`}
                 />
                 <div
-                  style={{ width: "13.4%" }}
+                  style={{ width: `${hrEmplocWidthPct}%` }}
                   className="bg-blue-500 transition-all duration-300"
-                  title="HR Emploc Pending: 4 (13.3%)"
+                  title={`HR Emploc Pending: ${totalHrEmplocPending} (${hrEmplocWidthPct}%)`}
                 />
                 <div
-                  style={{ width: "43.3%" }}
+                  style={{ width: `${vacanciesWidthPct}%` }}
                   className="rounded-r-full bg-rose-500 transition-all duration-300"
-                  title="Open Vacancies: 13 (43.3%)"
+                  title={`Open Vacancies: ${totalOpenVacancies} (${vacanciesWidthPct}%)`}
                 />
               </div>
             </div>
@@ -921,74 +725,70 @@ export default function DashboardPage() {
             {/* TAB 1: Group Workforce Matrix */}
             {activeMatrixTab === "matrix" && (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="py-2.5 px-5">Group Name</th>
-                      <th className="py-2.5 px-3 text-center">Plantilla</th>
-                      <th className="py-2.5 px-3 text-center">Open Vacancy</th>
-                      <th className="py-2.5 px-3 text-center">HR Emploc</th>
-                      <th className="py-2.5 px-4 text-center">Fill Rate (MFR)</th>
-                      <th className="py-2.5 px-5 text-right">SLA Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {displayedGroupRows.map((row) => (
-                      <tr key={row.groupName} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-5 font-bold text-slate-900">
-                          {row.groupName}
-                        </td>
-                        <td className="py-3 px-3 text-center font-semibold tabular-nums">
-                          {row.plantilla}
-                        </td>
-                        <td className="py-3 px-3 text-center font-bold tabular-nums text-rose-600">
-                          {row.vacancy}
-                        </td>
-                        <td className="py-3 px-3 text-center font-semibold tabular-nums text-blue-600">
-                          {row.pipeline}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {row.fillRatePct !== null ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
-                                <div
-                                  style={{ width: `${Math.min(100, row.fillRatePct)}%` }}
-                                  className={`h-full ${
-                                    row.fillRatePct > 70
-                                      ? "bg-emerald-500"
-                                      : row.fillRatePct > 40
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
-                                  }`}
-                                />
-                              </div>
-                              <span className="font-bold tabular-nums">
-                                {row.fillRatePct.toFixed(1)}%
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">Standby (0 Demand)</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-5 text-right">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              row.slaStatus === "Critical"
-                                ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : row.slaStatus === "At Risk"
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : row.slaStatus === "Compliant"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-slate-100 text-slate-500"
-                            }`}
-                          >
-                            {row.slaStatus}
-                          </span>
-                        </td>
+                {isGroupKpiLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400">Loading workforce groups...</div>
+                ) : displayedGroupRows.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-500">No organizational groups found.</div>
+                ) : (
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="py-2.5 px-5">Group Name</th>
+                        <th className="py-2.5 px-3 text-center">Plantilla</th>
+                        <th className="py-2.5 px-3 text-center">Open Vacancy</th>
+                        <th className="py-2.5 px-3 text-center">HR Emploc</th>
+                        <th className="py-2.5 px-4 text-center">Fill Rate (MFR)</th>
+                        <th className="py-2.5 px-5 text-right">SLA Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {displayedGroupRows.map((row) => (
+                        <tr key={row.groupName} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3 px-5 font-bold text-slate-900">{row.groupName}</td>
+                          <td className="py-3 px-3 text-center font-semibold tabular-nums">{row.plantilla}</td>
+                          <td className="py-3 px-3 text-center font-bold tabular-nums text-rose-600">{row.vacancy}</td>
+                          <td className="py-3 px-3 text-center font-semibold tabular-nums text-blue-600">{row.pipeline}</td>
+                          <td className="py-3 px-4 text-center">
+                            {row.fillRatePct !== null ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+                                  <div
+                                    style={{ width: `${Math.min(100, row.fillRatePct)}%` }}
+                                    className={`h-full ${
+                                      row.fillRatePct > 70
+                                        ? "bg-emerald-500"
+                                        : row.fillRatePct > 40
+                                        ? "bg-amber-500"
+                                        : "bg-rose-500"
+                                    }`}
+                                  />
+                                </div>
+                                <span className="font-bold tabular-nums">{row.fillRatePct.toFixed(1)}%</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">Standby (0 Demand)</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-5 text-right">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                row.slaStatus === "Critical"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : row.slaStatus === "At Risk"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : row.slaStatus === "Compliant"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {row.slaStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
 
@@ -997,68 +797,74 @@ export default function DashboardPage() {
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-rose-50/50 px-5 py-2.5 text-xs">
                   <div className="flex items-center gap-4">
-                    <span className="font-bold text-rose-900">Breach Breakdown:</span>
-                    <span className="font-medium text-rose-700">• 26 Vacancy SLA Breaches (&gt;30d)</span>
-                    <span className="font-medium text-amber-800">• 11 Movement SLA Breaches</span>
+                    <span className="font-bold text-rose-900">Live SLA Breach Records:</span>
+                    <span className="font-medium text-rose-700">
+                      • {activeSlaBreaches} Logged Breaches in Audit Table
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => showToast("Escalated SLA notifications sent to Group OMs & HRCOs")}
-                    className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer"
-                  >
-                    Escalate All 37 Breaches →
-                  </button>
+                  {activeSlaBreaches > 0 && (
+                    <Link
+                      href="/cencom"
+                      className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer"
+                    >
+                      Open CENCOM Triage Console →
+                    </Link>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="py-2.5 px-5">Breach Lane / Store</th>
-                        <th className="py-2.5 px-3">Org Group</th>
-                        <th className="py-2.5 px-3">Assigned Owner</th>
-                        <th className="py-2.5 px-3 text-center">Breach Count</th>
-                        <th className="py-2.5 px-3 text-center">Aging</th>
-                        <th className="py-2.5 px-5 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {DEFAULT_SLA_BREACHES.map((b) => (
-                        <tr key={b.id} className="hover:bg-slate-50/80 transition">
-                          <td className="py-3 px-5">
-                            <div className="font-bold text-slate-900">{b.storeName}</div>
-                            <div className="text-[11px] text-slate-500">{b.category}</div>
-                          </td>
-                          <td className="py-3 px-3 font-medium text-slate-700">{b.group}</td>
-                          <td className="py-3 px-3">
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-                                b.owner === "Unassigned"
-                                  ? "bg-rose-100 text-rose-700 font-bold"
-                                  : "bg-slate-100 text-slate-700"
-                              }`}
-                            >
-                              {b.owner}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center font-extrabold tabular-nums text-rose-600">
-                            {b.breachCount}
-                          </td>
-                          <td className="py-3 px-3 text-center font-mono font-semibold text-rose-700">
-                            {b.aging}
-                          </td>
-                          <td className="py-3 px-5 text-right">
-                            <Link
-                              href={b.actionHref}
-                              className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800"
-                            >
-                              <span>{b.actionLabel}</span>
-                              <ExternalLink className="h-3 w-3" />
-                            </Link>
-                          </td>
+                  {isSlaBreachesLoading ? (
+                    <div className="p-8 text-center text-xs text-slate-400">Loading SLA breach records...</div>
+                  ) : !slaBreachesData || slaBreachesData.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
+                      <p className="text-xs font-bold text-slate-800">No active SLA breaches</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">All stores and movements comply with target SLAs</p>
+                    </div>
+                  ) : (
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <th className="py-2.5 px-5">Breach Lane / Account</th>
+                          <th className="py-2.5 px-3">Category</th>
+                          <th className="py-2.5 px-3">Scope Owner</th>
+                          <th className="py-2.5 px-3 text-center">Aging</th>
+                          <th className="py-2.5 px-5 text-right">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {slaBreachesData.map((b) => (
+                          <tr key={b.id} className="hover:bg-slate-50/80 transition">
+                            <td className="py-3 px-5">
+                              <div className="font-bold text-slate-900">{b.storeName}</div>
+                              <div className="text-[11px] text-slate-500">{b.group}</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">
+                                {b.category}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-700">
+                                {b.owner}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-center font-mono font-semibold text-rose-700">
+                              {b.aging}
+                            </td>
+                            <td className="py-3 px-5 text-right">
+                              <Link
+                                href={b.actionHref}
+                                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800"
+                              >
+                                <span>{b.actionLabel}</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             )}
@@ -1066,32 +872,40 @@ export default function DashboardPage() {
             {/* TAB 3: Under-Staffed Stores */}
             {activeMatrixTab === "stores" && (
               <div className="p-4 sm:p-5">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
-                  {DEFAULT_UNDERSTAFFED_STORES.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center justify-between rounded-xl border border-amber-200/90 bg-amber-50/30 p-3 hover:border-amber-300 transition"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900">{s.storeName}</div>
-                        <div className="mt-0.5 text-[11px] text-slate-500">
-                          {s.group} • Actual: <strong className="text-slate-900">{s.actualHc}</strong> /{" "}
-                          {s.budgetedHc} Budgeted
+                {isUnderstaffedStoresLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400">Loading understaffed stores...</div>
+                ) : !understaffedStoresData || understaffedStoresData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
+                    <p className="text-xs font-bold text-slate-800">All stores adequately staffed</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Zero open vacancies across all active store units</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+                    {understaffedStoresData.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between rounded-xl border border-amber-200/90 bg-amber-50/30 p-3 hover:border-amber-300 transition"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-900">{s.storeName}</div>
+                          <div className="mt-0.5 text-[11px] text-slate-500">
+                            {s.group} • Open Vacancies: <strong className="text-rose-600">{s.openVacancies}</strong>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px]">
+                            <span className="text-slate-500">HRCO: {s.assignedHrco}</span>
+                          </div>
                         </div>
-                        <div className="mt-1 flex items-center gap-2 text-[11px]">
-                          <span className="font-semibold text-rose-600">
-                            {s.openVacancies} Open Vacancy
-                          </span>
-                          <span className="text-slate-400">•</span>
-                          <span className="text-slate-500">HRCO: {s.assignedHrco}</span>
-                        </div>
+                        <Link
+                          href="/vacancy"
+                          className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-900 shadow-2xs hover:bg-amber-100 transition"
+                        >
+                          Fill Slot →
+                        </Link>
                       </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        {s.coveragePct}% Staffed
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -1107,7 +921,7 @@ export default function DashboardPage() {
             aria-label="Pending approvals queue"
             className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                   <CheckSquare className="h-4 w-4" />
@@ -1119,33 +933,45 @@ export default function DashboardPage() {
                   <p className="text-[10px] text-slate-500">Synced with sidebar Approvals badge</p>
                 </div>
               </div>
-              <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-extrabold text-white">
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+                totalReconciledApprovals > 0 ? "bg-blue-600 text-white" : "bg-emerald-100 text-emerald-800"
+              }`}>
                 {totalReconciledApprovals} Pending
               </span>
             </div>
 
             <div className="space-y-2 p-3 text-xs">
-              {liveApprovalItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 hover:bg-slate-100/60 transition"
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="font-bold text-slate-900 truncate text-xs">
-                      {item.title}
-                    </div>
-                    <p className="text-[10px] text-slate-500 truncate leading-tight">
-                      {item.sub}
-                    </p>
-                  </div>
-                  <Link
-                    href={item.href}
-                    className="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-bold text-blue-600 shadow-2xs hover:bg-blue-600 hover:text-white transition"
-                  >
-                    Review ({item.count})
-                  </Link>
+              {isRequestCountsLoading ? (
+                <div className="p-4 text-center text-xs text-slate-400">Loading approvals queue...</div>
+              ) : liveApprovalItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-4 text-center">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500 mb-1" />
+                  <p className="text-xs font-bold text-slate-800">All approvals cleared</p>
+                  <p className="text-[10px] text-slate-500">Zero pending requests in operational queues</p>
                 </div>
-              ))}
+              ) : (
+                liveApprovalItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 hover:bg-slate-100/60 transition"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="font-bold text-slate-900 truncate text-xs">
+                        {item.title}
+                      </div>
+                      <p className="text-[10px] text-slate-500 truncate leading-tight">
+                        {item.sub}
+                      </p>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-bold text-blue-600 shadow-2xs hover:bg-blue-600 hover:text-white transition"
+                    >
+                      Review ({item.count})
+                    </Link>
+                  </div>
+                ))
+              )}
 
               <div className="pt-1.5 flex items-center justify-between border-t border-slate-100 text-[11px]">
                 <span className="text-[10px] text-slate-400">Reconciled with left navigation</span>
@@ -1165,7 +991,7 @@ export default function DashboardPage() {
               aria-label="Super Admin governance card"
               className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold text-slate-900 leading-tight">
@@ -1183,11 +1009,11 @@ export default function DashboardPage() {
               </div>
 
               <div className="p-3 space-y-2">
-                {/* Ghost Employee Cases Anomaly Alert */}
+                {/* Ghost Employee Cases Live Alert */}
                 <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-rose-950">
-                      259 Ghost Employee Cases
+                      {ghostEmployeeCount} Ghost Employee Cases
                     </span>
                     <span className="rounded bg-rose-200 px-1.5 py-0.2 text-[10px] font-bold text-rose-900">
                       Hygiene Alert
@@ -1226,7 +1052,7 @@ export default function DashboardPage() {
             aria-label="Security and audit telemetry"
             className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
               <div>
                 <h2 className="text-sm font-bold text-slate-900 leading-tight">
                   Security &amp; Audit Telemetry
@@ -1240,14 +1066,14 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <div className="p-3 space-y-2.5">
+            <div className="p-3 space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2">
                   <div className="text-[10px] font-bold uppercase text-slate-400">
                     Admin Approvals
                   </div>
                   <div className="text-lg font-extrabold tabular-nums text-slate-900">
-                    {metrics?.pendingApprovals ?? 0}
+                    {metrics?.adminSecurityApprovals ?? 0}
                   </div>
                   <div className="text-[10px] text-slate-500 leading-tight mt-0.5">
                     Security role escalations

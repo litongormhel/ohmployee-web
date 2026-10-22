@@ -1,5 +1,50 @@
 # AI Handoff
 
+## Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish) (ohm#d8m4x2w9)
+
+**Status: COMPLETE — DATABASE RPC MIGRATION APPLIED & HARMONIZED ACROSS 11 OPERATIONAL APPROVAL TABLES, MOBILE DART INVERSION & OM SCOPE LEAKAGE RESOLVED, ALL 23 HARDCODED UI MOCKS/FALLBACKS PURGED IN NEXT.JS, 1080P VIEWPORT CLEARANCE VERIFIED (0 BUILD/LINT ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Database Schema & RPC Migration (`20262606000052_harmonize_dashboard_metrics_and_approvals.sql`)**:
+   - Authored and applied additive migration to Supabase (`qqiiznmqxfoamqytjica`) and synchronized migration files to both `ohmployee-web` and `OHMployee`.
+   - Updated `fn_dashboard_metrics()`:
+     - `pending_approvals`: Sums all 11 operational request tables (`plantilla_approvals`, `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `applicant_movement_requests`, `coverage_approvals`, `reliever_approvals`, `hr_emploc_deletions`, `mika_separation_approvals`, `salary_advance_approvals`, `disciplinary_action_approvals`), fully reconciling with the Web Sidebar badge.
+     - Added `admin_security_approvals`: Isolates the 5 admin/security tables (`admin_role_escalations`, `security_profile_changes`, `account_elevations`, `compliance_overrides`, `session_invalidation_requests`) so the `Security & Audit Telemetry` card displays genuine security escalations (currently 0) without masking operational queues.
+     - Added `ghost_employee_count`: Derived from `v_cencom_ghost_employees` (currently 261 anomalies).
+     - Added `unassigned_vacancies` (12) & `assigned_vacancies` (1).
+     - Ensured 100% backward compatibility for all existing JSON return keys.
+
+2. **Mobile Dart Field Inversion & OM Scope Isolation (`OHMployee`)**:
+   - `lib/features/dashboard/role_dashboards/dashboard_role_models.dart`: Added `totalRequired` to `DashboardOperationsSummary` and `requiredHc` to `DashboardGroupWorkforceSummary`.
+   - `lib/features/dashboard/dashboard_screen.dart`:
+     - Fixed inverted mapping where `snapshot.mfrRequired` (37) was wrongly assigned to `totalPlantilla` (13) and `snapshot.mfrActual` (19) was assigned to `totalHrEmploc` (4).
+     - Mapped `totalPlantilla: snapshot.activePlantilla` (13), `totalVacancy: snapshot.mfrVacant` (11), `totalHrEmploc: snapshot.mfrHrPipeline` (4), `totalRequired: snapshot.mfrRequired` (37).
+     - Corrected `_buildOperationsGroups` to map `actual_hc` -> `plantilla`, `pipeline_count` -> `hrEmploc`, and `required_hc` -> `requiredHc`.
+     - Scoped `omHrcoBreakdown` for scoped roles (`!isAll` users like OM, TL, ATL, HRCO) to derive strictly from scoped wave-1 datasets, preventing cross-group leakage from company-wide `v_plantilla_safe`.
+   - `lib/features/dashboard/role_dashboards/operations_dashboard_view.dart`:
+     - Handled `required == 0 && actual == 0 && vacant == 0` edge case: renders `"N/A"` with `"No Required HC"` in neutral slate styling instead of a false red `"0% At Risk"` badge.
+
+3. **Web Dashboard Mock Purge & Dynamic Data Binding (`ohmployee-web`)**:
+   - `src/lib/queries/dashboard.ts`:
+     - Updated `DashboardMetrics` type and normalizer with `adminSecurityApprovals`, `ghostEmployeeCount`, `unassignedVacancies`, and `assignedVacancies`.
+     - Added `useDashboardSlaBreaches()` and `useDashboardUnderstaffedStores()` hooks querying live Supabase vacancies and store shortages.
+   - `src/app/(dashboard)/dashboard/page.tsx`:
+     - Purged all 23 hardcoded mock items: deleted `DEFAULT_GROUP_MATRIX`, `DEFAULT_SLA_BREACHES`, and `DEFAULT_UNDERSTAFFED_STORES`.
+     - Removed `if (!requestCounts) return 12; return count > 0 ? count : 12;` fallback and fake `7 / 3 / 2` approval rows. Live approval list binds dynamically to `useRequestCategoryCounts()`.
+     - Replaced all static string sub-pills with dynamic template literals (`liveBreachCount`, `worstMfrGroupName`, `ghostEmployeeCount`, `unassignedCount`, `assignedCount`, etc.).
+     - Segmented fill rate progress bar calculates width dynamically (`actualPct`, `pipelinePct`, `vacancyPct`).
+     - Wired Tab 2 (`Active SLA Breaches`) and Tab 3 (`Under-Staffed Stores`) to live hooks with loading skeletons and clean empty states (`"No active SLA breaches"`, `"No under-staffed stores"`).
+     - Added `pb-8` bottom container clearance and tightened vertical rhythm to prevent viewport clipping on 1080p screens.
+     - Preserved `"Sync MIKA"` button label strictly.
+
+### Verification
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 app routes.
+- `npx eslint`: Passed cleanly with 0 errors, 0 warnings.
+- `dart analyze lib/features/dashboard`: Passed with 0 issues.
+- Live RPC Verification: `SELECT * FROM public.fn_dashboard_metrics();` returns reconciled counts (`pending_approvals: 3`, `admin_security_approvals: 0`, `ghost_employee_count: 261`, `total_open_vacancies: 13`, `total_active_plantilla: 13`).
+
+---
+
 ## Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping (ohm#q8v2n4k7)
 
 **Status: COMPLETE — SCOPE SELECTOR DYNAMICALLY POPULATED ACROSS ALL ORGANIZATIONAL GROUPS INCLUDING GROUP 3 & GROUP 4 (STANDBY SCOPE), LIVE FILL RATE TAGGING INCLUDED (0 BUILD ERRORS ON MAIN)**
