@@ -1,27 +1,28 @@
 # Approvals Module (Web) State
 
 ## 1. Overview & Architecture
-The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 11 functional categories:
-1. `new_stores` — New Store Requests
-2. `headcount` — Headcount Quota Amendments & Requests
-3. `plantilla_approvals` — Plantilla Placements & Deployments
-4. `account_requests` — Account Sign-Ups & Provisioning
-5. `coverage` — Roving Coverage Group Requests
-6. `vacancy_closures` — Vacancy Closure Requests
+The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 11 functional categories, arranged in alphabetical order (A-Z):
+1. `account_group_transfers` — Account Group Transfers
+2. `account_requests` — Account Sign-Ups & Provisioning
+3. `applicant_movements` — Applicant Movements & Cross-Store Transfers
+4. `coverage` — Roving Coverage Group Requests
+5. `deactivations` — Employee Deactivation & Separation Clearance
+6. `headcount` — Headcount Quota Amendments & Requests
 7. `hr_emploc_deletions` — HR Emploc Deletion Requests
-8. `deactivations` — Employee Deactivation & Separation Clearance
-9. `applicant_movements` — Applicant Movements & Cross-Store Transfers
-10. `account_group_transfers` — Account Group Transfers
-11. `relievers` — Reliever Coverage Endorsements
+8. `new_stores` — New Store Requests
+9. `plantilla_approvals` — Plantilla Placements & Deployments
+10. `relievers` — Reliever Coverage Endorsements
+11. `vacancy_closures` — Vacancy Closure Requests
 
 ---
 
 ## 2. UI Layout & Navigation
 - **Header**: `AdminPageHeader` with title, subtitle, refresh button, and module category tag.
-- **Top Tab Strip**: `RequestCategoryNavigation` rendering pill tabs with live counts and acknowledgment badges for authorized categories (`canViewApprovalsHub`, `getAllowedApprovalCategories`).
+- **Top Tab Strip**: `RequestCategoryNavigation` rendering pill tabs in alphabetical sequence (A-Z) with live counts and acknowledgment badges for authorized categories (`canViewApprovalsHub`, `getAllowedApprovalCategories`).
 - **Main Review Pane**: `ActiveQueueReviewPane` rendered with `key={selectedCategory}` for immediate state isolation and clean tab remounting.
-  - Sub-Tabs: Pending, Approved, Rejected (or Deactivated for deactivations) with real-time badges.
-  - Search Toolbar: Client-side keyword search across multiple metadata fields with auto-reset to page 1 on input change.
+  - **Inline Toolbar (`QueueToolbar`)**: A single horizontal row containing:
+    - Left side: Search input alongside status filter tabs (`Pending`, `Approved`, `Rejected` / `Deactivated`) with live count badges.
+    - Right side: `Refresh` button.
   - Data States: Loading, error with retry, and contextual empty states via `ApprovalsDataState`.
 
 ---

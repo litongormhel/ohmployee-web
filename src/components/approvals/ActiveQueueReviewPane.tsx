@@ -127,25 +127,78 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
 
   return (
     <div className="border-b border-[var(--line)] pb-3">
-      {/* Search / Filter Strip with Refresh */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative w-72 sm:w-80">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--muted)]" />
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="h-8 w-full rounded-[9px] border border-[var(--line)] bg-[var(--bg)] pl-8 pr-3 text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--text)] focus:outline-hidden"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Left cluster: Search input + Status Tabs inline */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="relative w-64 sm:w-72">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--muted)]" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="h-8 w-full rounded-[9px] border border-[var(--line)] bg-[var(--bg)] pl-8 pr-3 text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--text)] focus:outline-hidden"
+            />
+          </div>
+
+          {/* Sub-Tabs directly inline with search */}
+          <div
+            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none"
+            role="tablist"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={currentTab === "pending"}
+              onClick={() => onTabChange("pending" as T)}
+              className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                currentTab === "pending"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <span>Pending</span>
+              {renderBadge(counts?.pending, "pending" as T)}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={currentTab === "approved"}
+              onClick={() => onTabChange("approved" as T)}
+              className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                currentTab === "approved"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <span>{approvedLabel}</span>
+              {renderBadge(counts?.approved, "approved" as T)}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={currentTab === "rejected"}
+              onClick={() => onTabChange("rejected" as T)}
+              className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                currentTab === "rejected"
+                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <span>Rejected</span>
+              {renderBadge(counts?.rejected, "rejected" as T)}
+            </button>
+          </div>
         </div>
 
-        {/* Refresh */}
+        {/* Right cluster: Refresh button */}
         <button
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing || isLoading}
-          className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] disabled:opacity-50 transition cursor-pointer"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] disabled:opacity-50 transition cursor-pointer"
         >
           <RefreshCw
             className={`h-3 w-3 ${
@@ -153,54 +206,6 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
             }`}
           />
           <span>Refresh</span>
-        </button>
-      </div>
-
-      {/* Sub-Tabs directly below the search/filter strip */}
-      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={currentTab === "pending"}
-          onClick={() => onTabChange("pending" as T)}
-          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-            currentTab === "pending"
-              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-          }`}
-        >
-          <span>Pending</span>
-          {renderBadge(counts?.pending, "pending" as T)}
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={currentTab === "approved"}
-          onClick={() => onTabChange("approved" as T)}
-          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-            currentTab === "approved"
-              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-          }`}
-        >
-          <span>{approvedLabel}</span>
-          {renderBadge(counts?.approved, "approved" as T)}
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={currentTab === "rejected"}
-          onClick={() => onTabChange("rejected" as T)}
-          className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-            currentTab === "rejected"
-              ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-              : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-          }`}
-        >
-          <span>Rejected</span>
-          {renderBadge(counts?.rejected, "rejected" as T)}
         </button>
       </div>
     </div>
@@ -422,7 +427,8 @@ export function ActiveQueueReviewPane({
   const currentCategoryConfig = useMemo(() => {
     return (
       REQUEST_CATEGORIES.find((c) => c.key === selectedCategory) ??
-      REQUEST_CATEGORIES[1]
+      REQUEST_CATEGORIES.find((c) => c.key === "headcount") ??
+      REQUEST_CATEGORIES[0]
     );
   }, [selectedCategory]);
 

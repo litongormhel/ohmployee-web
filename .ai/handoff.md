@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (ohm#a7k2m9x4)
+
+**Status: COMPLETE — APPROVALS CATEGORY NAVIGATION TABS REORDERED ALPHABETICALLY (A-Z), SEARCH AND STATUS TABS INLINED IN A SINGLE HORIZONTAL ROW WITH REFRESH BUTTON, ZERO LINT/BUILD REGRESSIONS**
+
+### Objective & Changes Delivered
+1. **Alphabetical Ordering of Category Navigation Tabs (A-Z)**:
+   - Updated `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts` to arrange all 11 operational request categories alphabetically by their display label:
+     1. Account Group Transfers (`account_group_transfers`)
+     2. Account Sign-Ups (`account_requests`)
+     3. Applicant Movements (`applicant_movements`)
+     4. Coverage (`coverage`)
+     5. Deactivations (`deactivations`)
+     6. Headcount (`headcount`)
+     7. HR Emploc Deletions (`hr_emploc_deletions`)
+     8. New Stores (`new_stores`)
+     9. Plantilla Placements (`plantilla_approvals`)
+     10. Relievers (`relievers`)
+     11. Vacancy Closures (`vacancy_closures`)
+   - `RequestCategoryNavigation` dynamically consumes `REQUEST_CATEGORIES`, rendering all pill navigation tabs in this exact alphabetical sequence.
+   - Refactored `currentCategoryConfig` in `src/components/approvals/ActiveQueueReviewPane.tsx` from index-based fallback (`REQUEST_CATEGORIES[1]`) to key-based search (`REQUEST_CATEGORIES.find(c => c.key === "headcount") ?? REQUEST_CATEGORIES[0]`) to ensure resilience.
+
+2. **Single Horizontal Row Inline Toolbar**:
+   - Refactored `QueueToolbar` in `src/components/approvals/ActiveQueueReviewPane.tsx`:
+     - Grouped Search input and Status filter tabs (`Pending`, `Approved`, `Rejected`) side-by-side in a unified left cluster (`flex items-center gap-3 sm:gap-4`).
+     - Aligned `[Refresh]` button on the far right within `flex flex-wrap items-center justify-between gap-3`.
+     - Removed the detached secondary sub-tab row beneath the search bar.
+     - Preserved all live badge counts, loading skeletons, and active tab highlights.
+
+### Verification
+- `npm run lint`: Clean with 0 errors.
+- `npx tsc --noEmit`: Clean with 0 errors.
+- Verified single-row toolbar layout and responsive wrapping across viewport breakpoints.
+
+---
+
 ## Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish) (ohm#d8m4x2w9)
 
 **Status: COMPLETE — DATABASE RPC MIGRATION APPLIED & HARMONIZED ACROSS 11 OPERATIONAL APPROVAL TABLES, MOBILE DART INVERSION & OM SCOPE LEAKAGE RESOLVED, ALL 23 HARDCODED UI MOCKS/FALLBACKS PURGED IN NEXT.JS, 1080P VIEWPORT CLEARANCE VERIFIED (0 BUILD/LINT ERRORS ON MAIN)**

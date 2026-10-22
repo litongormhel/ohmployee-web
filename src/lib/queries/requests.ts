@@ -24,22 +24,10 @@ export interface RequestCategoryConfig {
 
 export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
   {
-    key: "new_stores",
-    label: "New Stores",
-    description: "Store registry additions and branch onboarding requests",
-    tableName: "new_store_requests",
-  },
-  {
-    key: "headcount",
-    label: "Headcount",
-    description: "Quota amendments, replacements, relievers, and capacity expansions",
-    tableName: "headcount_requests",
-  },
-  {
-    key: "plantilla_approvals",
-    label: "Plantilla Placements",
-    description: "Candidate endorsements and slot deployment approvals to permanent plantilla",
-    tableName: "plantilla_approvals",
+    key: "account_group_transfers",
+    label: "Account Group Transfers",
+    description: "Account reassignments across operational management groups",
+    tableName: "account_group_transfer_requests",
   },
   {
     key: "account_requests",
@@ -48,22 +36,16 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     tableName: "account_requests",
   },
   {
+    key: "applicant_movements",
+    label: "Applicant Movements",
+    description: "Cross-store applicant transfers, swap approvals, and slot reassignment",
+    tableName: "applicant_movement_requests",
+  },
+  {
     key: "coverage",
     label: "Coverage",
     description: "Roving store allocation groups and roving schedule requests",
     tableName: "coverage_requests",
-  },
-  {
-    key: "vacancy_closures",
-    label: "Vacancy Closures",
-    description: "Position requisition retirement and closed-slot clearance requests",
-    tableName: "vacancy_closure_requests",
-  },
-  {
-    key: "hr_emploc_deletions",
-    label: "HR Emploc Deletions",
-    description: "Employee location link and assignment expungement requests",
-    tableName: "hr_emploc_deletion_requests",
   },
   {
     key: "deactivations",
@@ -72,22 +54,40 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     tableName: "v_deactivation_requests",
   },
   {
-    key: "applicant_movements",
-    label: "Applicant Movements",
-    description: "Cross-store applicant transfers, swap approvals, and slot reassignment",
-    tableName: "applicant_movement_requests",
+    key: "headcount",
+    label: "Headcount",
+    description: "Quota amendments, replacements, relievers, and capacity expansions",
+    tableName: "headcount_requests",
   },
   {
-    key: "account_group_transfers",
-    label: "Account Group Transfers",
-    description: "Account reassignments across operational management groups",
-    tableName: "account_group_transfer_requests",
+    key: "hr_emploc_deletions",
+    label: "HR Emploc Deletions",
+    description: "Employee location link and assignment expungement requests",
+    tableName: "hr_emploc_deletion_requests",
+  },
+  {
+    key: "new_stores",
+    label: "New Stores",
+    description: "Store registry additions and branch onboarding requests",
+    tableName: "new_store_requests",
+  },
+  {
+    key: "plantilla_approvals",
+    label: "Plantilla Placements",
+    description: "Candidate endorsements and slot deployment approvals to permanent plantilla",
+    tableName: "plantilla_approvals",
   },
   {
     key: "relievers",
     label: "Relievers",
     description: "Temporary reliever pool deployments and workforce coverage",
     tableName: "v_workforce_assignment_request_queue",
+  },
+  {
+    key: "vacancy_closures",
+    label: "Vacancy Closures",
+    description: "Position requisition retirement and closed-slot clearance requests",
+    tableName: "vacancy_closure_requests",
   },
 ];
 
