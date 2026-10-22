@@ -55,17 +55,17 @@ Rendered in a responsive 5-column row where clicking any card activates the corr
     - Proportional 3-segment progress bar: `Active Plantilla` (Emerald), `HR Emploc Pending` (Blue), `Open Vacancies` (Rose/Amber).
     - 4-column metric strip: `Pipeline Total` (14), `Hires This Month` (8), `Separations This Month` (0 with green "0% Attrition" pill), and `Avg Fill Rate` (43.3%).
   - **Card B: Cross-Module Operational Matrix (Tabbed Bottom Viewport):**
-    - **Tab 1: `Group Workforce Matrix`** — Full breakdown across groups (`Group 1`–`Group 5`, `Moses HQ`) with MFR % progress and active vs. all groups filter.
+    - **Tab 1: `Group Workforce Matrix`** — Sourced live from `v_cencom_group_allocation_kpi` via `useCencomGroupKpi()`, displaying actual plantilla, open vacancies, pipeline, and fill rate % across database groups (`Group 1`–`Group 5`, `Moses HQ`) with an active groups filter toggle.
     - **Tab 2: `Active SLA Breaches (37)`** — Table showing Store/Unit, Breach Category, Aging, Assigned Owner, and Inspect action.
     - **Tab 3: `Under-Staffed Stores (8)`** — Grid/table of stores below budgeted plantilla with required vs. actual headcount and assigned HRCO.
-- **Right Column (4 Cols):**
+- **Right Column (4 Cols — Tightened 12px Vertical Rhythm for 1080p Viewport Clearance):**
   - **Card C: Reconciled Pending Approvals Queue:**
-    - Binds to `useRequestCategoryCounts()`, unifying the sidebar's `Approvals (12)` count with the dashboard's pending queue items (`Plantilla Lateral Transfers`, `HR Emploc Waivers`, `Vacancy Requisitions`) and direct links to `/approvals`.
+    - Binds dynamically to `useRequestCategoryCounts()`, showing live non-zero pending categories (`Plantilla Deployments & Movements`, `HR Emploc Compliance & Deletions`, `Store Headcount & Requisitions`, `Coverage & Reliever Approvals`, `Vacancy Closures`) with direct links to `/approvals?tab=<category>`.
   - **Card D: Super Admin Governance & MIKA Sync Card (Strictly `Super Admin` Only):**
     - Hidden completely for `Head Admin`.
     - Displays MIKA sync health, anomaly alerts (`259 Ghost Employee Cases`), and an inline **`"Sync MIKA"`** button and anomaly resolution link.
   - **Card E: Compact Security & Audit Telemetry (`fn_dashboard_metrics`):**
-    - Replaces legacy full-width card with a compact card showing `Admin Security Approvals` (0), `Security Events Today` (0), caller role scope badge, and audit log link.
+    - High-density compact card showing `Admin Security Approvals` (0), `Security Events Today` (0), caller role scope badge, and audit log link. Fits 100% above the fold without clipping on 1080p and 900p displays.
 
 ### 4.4 MIKA Sync Modal (`src/components/dashboard/MikaSyncModal.tsx`)
 - Drag-and-drop file target (`.xlsx`, `.csv`) for MIKA masterfile upload.

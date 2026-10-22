@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring) (ohm#x7m2p9w4)
+
+**Status: COMPLETE — RIGHT-RAIL VERTICAL RHYTHM TIGHTENED (100% ABOVE-THE-FOLD ON 1080P/900P), LIVE CENCOM GROUP ALLOCATION BINDINGS INTEGRATED, PENDING APPROVALS QUEUE DYNAMICALLY WIRED TO LIVE CATEGORIES (0 BUILD ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Right-Rail Viewport Clearance (1080p & 900p Optimization)**:
+   - Added generous bottom padding (`pb-16 sm:pb-20`) to the main dashboard container, ensuring bottom card borders and box shadows are fully visible with clear breathing room.
+   - Tightened the vertical gap between the 3 right-column stacked cards from `space-y-6` (24px) down to `space-y-3` (12px).
+   - Compacted internal padding across the right-rail components:
+     - `Pending Approvals Queue`: Header `px-4 py-3`, item padding `px-3 py-2`, tighter typography.
+     - `Super Admin Governance & MIKA`: Header `px-4 py-3`, anomaly alert box `p-2.5`.
+     - `Security & Audit Telemetry`: Header `px-4 py-3`, 2x2 metric tiles `px-3 py-2`, clean text sizes.
+   - Verified that all 3 stacked right-rail cards fit 100% above the fold on a standard 1080p screen without viewport clipping.
+
+2. **Live Group Workforce Matrix Data Bindings**:
+   - Replaced static fallback group rows with live database binding to `useCencomGroupKpi()` (`v_cencom_group_allocation_kpi`).
+   - Renders live `actual` (Plantilla), `vacant` (Open Vacancies), `pipeline` (HR Emploc), and `mfrPercent` (Fill Rate %) across active groups.
+   - Wired the `Showing Active Groups` / `Showing All Groups` toggle dynamically, automatically filtering groups where `required === 0 && actual === 0 && vacant === 0`.
+
+3. **Dynamic Wiring for Pending Approvals Queue Rows**:
+   - Wired live category rows from `useRequestCategoryCounts()`:
+     - `Plantilla Deployments & Movements` (matching `applicant_movements` + `plantilla_approvals`)
+     - `HR Emploc Compliance & Deletions` (matching `hr_emploc_deletions`)
+     - `Store Headcount & Requisitions` (matching `headcount` + `new_stores`)
+     - `Coverage & Reliever Approvals` (matching `coverage` + `relievers`)
+     - `Vacancy Closures` (matching `vacancy_closures`)
+   - Wired each category's review button to deep-link directly to `/approvals?tab=<category>`.
+
+4. **Dynamic Top 5 KPI Sub-Pills**:
+   - Dynamically derived the lowest MFR group name (`worstMfrGroupName`) from loaded group allocation data rather than static text.
+   - Formatted live SLA metrics and vacancy fill percentages dynamically.
+
+### Verification
+- `npx next build`: Turbopack build succeeded with 0 errors across all 19 app routes.
+- TypeScript compiler: Passed with 0 errors in 55s.
+- Right-rail layout clearance: Verified at 1920x1080 and 1440x900 viewports without clipping.
+
+---
+
 ## Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync) (ohm#k4r9w2m8)
 
 **Status: COMPLETE — WEB ADMIN DASHBOARD ELEVATED TO EXECUTIVE COMMAND CENTER, FULL BOTTLENECK & SLA TRIAGE VISIBLE, APPROVALS 12 VS 0 DISCREPANCY RECONCILED, MIKA SYNC MODAL IMPLEMENTED & ROLE-GATED TO SUPER ADMIN (0 BUILD ERRORS ON MAIN)**
