@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Consolidate Candidate Pipeline Stages to 6 Target Workflow Options & Safe DB Migration (ohm#p8r4m2k9)
+
+**Status: COMPLETE — PROGRESSIVE PIPELINE STAGES CONSOLIDATED TO 6 CANONICAL OPTIONS, SUB-HEADERS DROPPED FROM SELECT, ALL EXISTING CANDIDATE RECORDS SAFELY MIGRATED WITHOUT COUNT REGRESSION IN STAGING & PROD DATABASES (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Consolidated Target Progressive Pipeline Stages (6 Stages)**:
+   - Updated `AdvancePipelineModal.tsx` to render strictly the final 6 progressive options:
+     1. `For Interview / Intro` (`for_interview_intro`)
+     2. `For Requirements` (`for_requirements`)
+     3. `For Medical` (`for_medical`)
+     4. `Pending Approval` (`pending_approval`)
+     5. `For Deployment` (`for_deployment`)
+     6. `For Onboard` (`for_onboard`)
+   - Removed the non-clickable `<optgroup label="Progressive Pipeline Stages">` separator so the 6 target stages render directly at the top level of the `<select>`.
+   - Kept the `<optgroup label="Terminal Dropout / Backout">` intact so recruiters retain dropout capabilities (`Backout`, `Failed / Rejected by Ops`, `Rejected`, `Did Not Report`) along with standard reason dynamic loading.
+   - Retained the `Ops Remarks` text input for manual feedback and scheduling specifics.
+   - Updated `initialStage` resolution with defensive regex normalization and legacy stage fallback mapping.
+
+2. **Database Migration Applied to Staging & Production (`20262606000051_consolidate_candidate_pipeline_stages.sql`)**:
+   - **`fn_is_active_vacancy_applicant_status`**: Upgraded normalization to handle slashes (`'/'`) and special characters; included `for_interview_intro` and `pending_approval` to safeguard against active vacancy count or slot occupancy drops.
+   - **`applicants.status` Migration**:
+     - `'For Interview'`, `'For Online Intro'`, `'For Face-to-Face Intro'` $\rightarrow$ `'For Interview / Intro'`
+     - `'Done Intro'` $\rightarrow$ `'For Requirements'`
+     - `'Waiting SCO Schedule'`, `'Waiting Approval'`, `'Endorsed to Ops'`, `'Endorsed'` $\rightarrow$ `'Pending Approval'`
+     - Retained `'For Requirements'`, `'For Medical'`, `'For Deployment'`, `'For Onboard'`.
+   - **`applicant_status_options`**:
+     - Deactivated deprecated stage options (`for_interview`, `for_online_intro`, `for_face_to_face_intro`, `done_intro`, `waiting_sco_schedule`, `waiting_approval`, `endorsed`).
+     - Upserted the 6 canonical stages with unified sort orders (30 to 60).
+     - Preserved terminal and system-only options.
+   - **`vw_applicant_funnel` View**: Added `'For Interview / Intro'` to filter arrays.
+
+3. **Template & Parity Updates**:
+   - `src/lib/utils/data_control_xlsx.ts`: Updated sample template data row to use `"For Interview / Intro"`.
+
+### Verification
+- Database queries against Supabase staging (`qqiiznmqxfoamqytjica`) and prod (`rwxelulyapjgaarlwkus`):
+  - In staging: 27 candidates in `For Interview / Intro`, 1 candidate in `Pending Approval`; active applicant counts (`v_vacancy_pipeline_status`) preserved at 6 pipeline vacancies.
+  - In prod: 23 candidates in `For Interview / Intro`, 1 candidate in `Pending Approval`; zero records lost or blanked.
+- `npx eslint src/components/vacancy/AdvancePipelineModal.tsx src/lib/utils/data_control_xlsx.ts`: Clean (0 errors, 0 warnings).
+- `npm run build`: Clean Next.js Turbopack production build with all 19 routes compiled.
+
+---
+
 ## Fix Pipeline Candidate Query Schema Mismatch (`applied_at` & `headcount` Column Selects) (ohm#s4b8r2x1)
 
 **Status: COMPLETE — PIPELINE CANDIDATE QUERY SCHEMA MISMATCH RESOLVED (`applied_at` & `headcount` REMOVED FROM SELECTS), ALL 6 PIPELINE CANDIDATES FULLY RESTORED AND RENDERED IN TABLE MATCHING BADGE COUNT (0 LINT ERRORS, 0 BUILD ERRORS ON MAIN)**

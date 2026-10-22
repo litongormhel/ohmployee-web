@@ -209,7 +209,7 @@ export const VACANCY_SAMPLE_ROW = [
   "DELA CRUZ",
   "JUAN",
   "SANTOS",
-  "For Interview",
+  "For Interview / Intro",
   "facebook",
   "Google Sheets",
   "Imported from legacy tracker",

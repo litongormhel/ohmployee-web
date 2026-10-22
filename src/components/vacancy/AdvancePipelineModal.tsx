@@ -27,15 +27,10 @@ export interface AdvancePipelineModalProps {
 }
 
 const PROGRESSIVE_STAGES = [
-  { value: "for_interview", label: "For Interview" },
-  { value: "for_online_intro", label: "For Online Intro" },
-  { value: "for_face_to_face_intro", label: "For Face-to-Face Intro" },
-  { value: "done_intro", label: "Done Intro" },
+  { value: "for_interview_intro", label: "For Interview / Intro" },
   { value: "for_requirements", label: "For Requirements" },
   { value: "for_medical", label: "For Medical" },
-  { value: "waiting_sco_schedule", label: "Waiting SCO Schedule" },
-  { value: "waiting_approval", label: "Waiting Approval" },
-  { value: "endorsed", label: "Endorsed to Ops" },
+  { value: "pending_approval", label: "Pending Approval" },
   { value: "for_deployment", label: "For Deployment" },
   { value: "for_onboard", label: "For Onboard" },
 ];
@@ -76,12 +71,30 @@ function AdvancePipelineModalContent({
   const updateMutation = useUpdateApplicantPipeline();
   const failBackoutMutation = useFailBackoutApplicant();
 
-  const initialStatusNorm = applicant.status.toLowerCase().replace(/\s+/g, "_");
-  const isInitialTerminal = TERMINAL_STAGES.some((t) => t.value === initialStatusNorm);
+  const resolveInitialStage = (status: string) => {
+    const raw = status
+      ? status.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+      : "";
+    if (TERMINAL_STAGES.some((t) => t.value === raw)) {
+      return raw;
+    }
+    if (raw === "for_interview" || raw === "for_online_intro" || raw === "for_face_to_face_intro") {
+      return "for_interview_intro";
+    }
+    if (raw === "done_intro") {
+      return "for_requirements";
+    }
+    if (raw === "waiting_sco_schedule" || raw === "waiting_approval" || raw === "endorsed") {
+      return "pending_approval";
+    }
+    if (PROGRESSIVE_STAGES.some((s) => s.value === raw)) {
+      return raw;
+    }
+    return "for_interview_intro";
+  };
 
-  const [selectedStage, setSelectedStage] = useState(
-    isInitialTerminal ? initialStatusNorm : initialStatusNorm || "for_interview",
-  );
+  const initialStage = resolveInitialStage(applicant.status);
+  const [selectedStage, setSelectedStage] = useState(initialStage);
   const [followUpDate, setFollowUpDate] = useState(
     applicant.followUpDate || new Date().toISOString().substring(0, 10),
   );
@@ -262,13 +275,11 @@ function AdvancePipelineModalContent({
                   : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
               }`}
             >
-              <optgroup label="Progressive Pipeline Stages">
-                {PROGRESSIVE_STAGES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </optgroup>
+              {PROGRESSIVE_STAGES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
               <optgroup label="Terminal Dropout / Backout">
                 {TERMINAL_STAGES.map((opt) => (
                   <option key={opt.value} value={opt.value}>

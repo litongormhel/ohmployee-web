@@ -136,7 +136,27 @@ This architecture pass inspected the authoritative Supabase sibling repo at `/Us
 Relevant existing Mobile/backend artifacts:
 
 - `public.vw_vacancy_list` and `public.vw_vacancy_detail` are the current Mobile read surfaces. They project `vacancies` with account/store/area/position/employment/status fields, vacancy source/request metadata, `vacant_date`, `aging_days`, `target_fill_date`, `urgency_level`, closure flags, active/confirmed applicant counts, `has_recent_hire`, `group_id/group_name`, and HRCO assignment.
-- `public.fn_is_active_vacancy_applicant_status(text)` is the canonical active-applicant predicate. Active statuses are `New`, `For Interview`, `For Requirements`, and `For Onboard` including normalized lowercase/snake_case equivalents.
+- `public.fn_is_active_vacancy_applicant_status(text)` is the canonical active-applicant predicate. Active statuses include `New`, `Sourcing`, `For Interview / Intro`, `For Requirements`, `For Medical`, `Pending Approval`, `For Deployment`, and `For Onboard`, normalized via `btrim(regexp_replace(lower(COALESCE(p_status, '')), '[^a-z0-9]+', '_', 'g'), '_')` with slash and special character tolerance.
+- **Candidate Pipeline Stages Consolidation (`ohm#p8r4m2k9`)**:
+  - Migration `20262606000051_consolidate_candidate_pipeline_stages.sql` applied to Staging and Production:
+    - Target progressive pipeline stages consolidated to 6 options:
+      1. `For Interview / Intro` (`for_interview_intro`)
+      2. `For Requirements` (`for_requirements`)
+      3. `For Medical` (`for_medical`)
+      4. `Pending Approval` (`pending_approval`)
+      5. `For Deployment` (`for_deployment`)
+      6. `For Onboard` (`for_onboard`)
+    - Existing records in `public.applicants` migrated:
+      - `'For Interview'`, `'For Online Intro'`, `'For Face-to-Face Intro'` $\rightarrow$ `'For Interview / Intro'`
+      - `'Done Intro'` $\rightarrow$ `'For Requirements'`
+      - `'Waiting SCO Schedule'`, `'Waiting Approval'`, `'Endorsed to Ops'`, `'Endorsed'` $\rightarrow$ `'Pending Approval'`
+    - Master lookup `public.applicant_status_options` pruned/deactivated for deprecated stage keys; canonical 6 stages upserted with sort orders 30 to 60.
+    - Updated `public.vw_applicant_funnel` view to track `'For Interview / Intro'`.
+  - In `AdvancePipelineModal.tsx`:
+    - Dropdown updated to render strictly the 6 progressive stages directly at the top of the select, dropping the non-clickable `"Progressive Pipeline Stages"` `<optgroup>` sub-header.
+    - Preserved `<optgroup label="Terminal Dropout / Backout">` for dropout logging with mandatory reason capture.
+    - Preserved `Ops Remarks` textarea input for manual recruiter/ops notes.
+    - Added legacy status normalizer for backward compatibility.
 - `public.v_vacancy_pipeline_status` classifies vacancy slot occupancy as `Pipeline` when the canonical active applicant count is greater than zero, otherwise `Open`.
 - Mobile Vacancy semantics distinguish slot status from recent hired-applicant visibility. `derived_status = 'Open'` may coexist with `has_recent_hire = true` after a reopened vacancy; the Hired tab is visibility-only and must not block Open-slot display.
 - `public.fn_vacancy_summary_counts(p_account_ids uuid[] default null)` exists in the remote schema, but it accepts caller-provided account ids. Web should not use that shape directly as an authority boundary.
