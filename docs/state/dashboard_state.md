@@ -36,7 +36,7 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
 ### 4.1 Top Command Header Bar
 - **Left:** Breadcrumb (`ADMIN PANEL` → `Dashboard Overview`), title (`Web Admin Command Center`), subtitle, and subtle `Live RPC Telemetry Connected` status badge.
 - **Right Actions:**
-  - Group Scope Selector (`All Retail Groups`, `Group 1`–`Group 5`, `Moses HQ`).
+  - Group Scope Selector dynamically populated across all organizational groups (`All Retail Groups`, `Group 1`, `Group 2`, `Group 3`, `Group 4`, `Group 5`, `Moses HQ`).
   - Quick link button to `CENCOM Triage` when `activeSlaBreaches > 0`.
   - **`"Sync MIKA"`** primary action button (role-gated: visible to `Super Admin` only; hidden for `Head Admin`).
 

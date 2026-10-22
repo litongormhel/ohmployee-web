@@ -511,11 +511,12 @@ export default function DashboardPage() {
               }}
               className="cursor-pointer bg-transparent font-bold text-slate-800 focus:outline-none"
             >
-              <option value="all">All Retail Groups (6)</option>
-              <option value="Group 1">Group 1 (85.7% MFR)</option>
-              <option value="Group 2">Group 2 (41.7% MFR)</option>
-              <option value="Group 5">Group 5 (18.2% MFR)</option>
-              <option value="Moses HQ">Moses HQ (100% MFR)</option>
+              <option value="all">All Retail Groups ({liveGroupRows.length})</option>
+              {liveGroupRows.map((g) => (
+                <option key={g.groupName} value={g.groupName}>
+                  {g.groupName} {g.fillRatePct !== null ? `(${g.fillRatePct.toFixed(1)}% MFR)` : "(Standby Scope)"}
+                </option>
+              ))}
             </select>
           </div>
 

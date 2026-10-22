@@ -1,5 +1,22 @@
 # AI Handoff
 
+## Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping (ohm#q8v2n4k7)
+
+**Status: COMPLETE — SCOPE SELECTOR DYNAMICALLY POPULATED ACROSS ALL ORGANIZATIONAL GROUPS INCLUDING GROUP 3 & GROUP 4 (STANDBY SCOPE), LIVE FILL RATE TAGGING INCLUDED (0 BUILD ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Scope Selector Dynamic Mapping**:
+   - Updated the header Scope `<select>` dropdown in `src/app/(dashboard)/dashboard/page.tsx` to dynamically map all organizational groups from `liveGroupRows` (`liveGroupRows.map(...)`), ensuring no group is omitted.
+   - Restored and included `Group 3` and `Group 4` (tagged as `(Standby Scope)`) alongside `Group 1`, `Group 2`, `Group 5`, and `Moses HQ`.
+   - Updated the total count label to reflect `All Retail Groups ({liveGroupRows.length})`.
+
+### Verification
+- `npx next build`: Turbopack build succeeded with 0 errors across all 19 app routes.
+- TypeScript compiler: Passed with 0 errors.
+- Dynamic Scope verification: All 6 groups render with appropriate MFR / Standby annotations.
+
+---
+
 ## Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring) (ohm#x7m2p9w4)
 
 **Status: COMPLETE — RIGHT-RAIL VERTICAL RHYTHM TIGHTENED (100% ABOVE-THE-FOLD ON 1080P/900P), LIVE CENCOM GROUP ALLOCATION BINDINGS INTEGRATED, PENDING APPROVALS QUEUE DYNAMICALLY WIRED TO LIVE CATEGORIES (0 BUILD ERRORS ON MAIN)**
