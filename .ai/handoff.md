@@ -1,5 +1,35 @@
 # AI Handoff
 
+## ExcelJS ADR-002 Plantilla Import Template Generator (ohm#e7m4x9w2)
+
+**Status: COMPLETE — EXCELJS TEMPLATE GENERATOR IMPLEMENTED, REQUIRED HEADERS HIGHLIGHTED (#FFC7CE / #9C0006), NATIVE EXCEL DROPDOWNS WIRED FOR SCHEDULE_DAYS, SCHEDULE_TIME & DAYOFF, 15-RULE VALIDATION GUIDE FORMATTED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Required & Conditional Header Styling**:
+   - Installed `exceljs` (`^4.4.0`) to generate binary `.xlsx` files with rich formatting directly in the browser.
+   - Styled the 8 Always Required Store Headers (`GROUP_NAME`, `ACCOUNT_NAME`, `MOTHER_ACCOUNT`, `VCODE`, `STORE_NAME`, `AREA_PROVINCE`, `AREA_CITY`, `POSITION`) and 5 Conditionally Required Employee Headers (`EMPLOYEE_NO`, `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `DATE_HIRED`) with:
+     - Soft red fill background: `#FFC7CE` (`ARGB: FFFFC7CE`)
+     - Bold dark red font: `#9C0006` (`ARGB: FF9C0006`)
+     - Alignment: Centered vertically and horizontally with wrap text
+     - Borders: Thin borders on all sides
+   - Optional headers (`CIVIL_STATUS`, `RATE`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`, `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, `COORDINATOR`, `HRCO_EMAIL`):
+     - Soft neutral fill (`#F3F4F6`), dark slate font (`#374151`), centered, thin borders.
+2. **Native Excel Data Validation Dropdowns (Rows 2–500)**:
+   - `SCHEDULE_DAYS` (Column S): Native list dropdown with presets (`MON-SAT`, `MON-FRI`, `TUE-SUN`, `MON,WED,FRI`, `TUE,THU,SAT`, `FLEXI`), non-blocking warning style.
+   - `SCHEDULE_TIME` (Column T): Native list dropdown with presets (`08:00 AM - 05:00 PM`, `09:00 AM - 06:00 PM`, `FLEXI (4 HRS)`, `FLEXI (6 HRS)`), free-text entry allowed.
+   - `DAYOFF` (Column U): Native list dropdown with presets (`SUN`, `SAT,SUN`, `MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`), custom entry allowed.
+3. **15-Rule Validation Guide Sheet (`VALIDATION_GUIDE`)**:
+   - Formatted secondary worksheet containing all 15 ADR-002 architectural invariants and column specifications with stylized indigo header row and lavender section separator.
+4. **Resilience & Non-Regression**:
+   - `parseSpreadsheetToRows` remains untouched on `xlsx`, preserving upload parsing stability.
+   - Replaced `aoa_to_sheet` in `downloadPlantillaImportTemplate()` with `workbook.xlsx.writeBuffer()`.
+
+### Verification
+- `npm run build`: Turbopack compilation succeeded with 0 errors across all 19 static routes.
+- `npm run lint`: Clean with 0 errors.
+
+---
+
 ## Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (ohm#p9x2w8m4)
 
 **Status: COMPLETE — ADR-002 AUTHORED & CROSS-REFERENCES UPDATED, DATABASE MIGRATION APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`), EXCEL TEMPLATE & 19-RULE GUIDE IMPLEMENTED, OPS SCHEDULE & DAYOFF CONTROLS INTEGRATED, ZERO-EDIT LOCK & VACANT-TO-OCCUPIED SLOT TRANSITIONS VERIFIED (0 BUILD/LINT ERRORS ON MAIN)**

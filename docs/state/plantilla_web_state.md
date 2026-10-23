@@ -610,6 +610,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - 5 Conditionally-Required Employee Columns: `EMPLOYEE_NO`, `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `DATE_HIRED` (blank employee fields create valid vacant store baseline slots; partial employee fields without `EMPLOYEE_NO` hard-blocked).
   - Derived fields: `EMPLOYMENT_TYPE` (auto-computed stationary vs roving $1/N$ headcount) and `WITH_PENALTY` (auto-derived from `mother_account_configs`) removed from required input; backward-compatible if present in legacy files.
   - Strict Middle Name Validation: single-character initials (`"S"`, `"S."`) hard-blocked; full middle names ($\ge 2$ alpha chars) or explicit case-insensitive `"NA"`/`"N/A"` accepted.
+  - ExcelJS Download Template Generator (`downloadPlantillaImportTemplate`):
+    - Styled 8 Always Required Store Headers and 5 Conditionally Required Employee Headers in soft red fill (`#FFC7CE`), dark red bold font (`#9C0006`), centered, thin border.
+    - Native Excel Data Validation dropdown lists on rows 2–500 for `SCHEDULE_DAYS` (presets with warning style), `SCHEDULE_TIME` (shifts/flexi with free-text allowed), and `DAYOFF` (presets with custom entry allowed).
+    - Secondary `VALIDATION_GUIDE` sheet detailing all 15 ADR-002 operational invariants.
   - Comprehensive 19-rule guide sheet included in downloadable Excel template (`downloadPlantillaImportTemplate`).
 - **Client-Side Pre-Validation (`data_control_xlsx.ts`)**:
   - Validates `GROUP_NAME` and `ACCOUNT_NAME` against the user's active UI scope dropdown selection before triggering backend RPC calls. If values mismatch, returns row-level guidance (`Row #X: GROUP_NAME does not match selected group`).

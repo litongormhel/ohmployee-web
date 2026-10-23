@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ============================================================================
 // 1. Plantilla Bulk Import Templates & Parser (ADR-002 Compliant)
@@ -80,23 +81,186 @@ export const PLANTILLA_SAMPLE_ROW = [
   "",
 ];
 
-export function downloadPlantillaImportTemplate(): void {
+export async function downloadPlantillaImportTemplate(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const wb = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "OHMployee Web";
+  workbook.lastModifiedBy = "OHMployee Web";
+  workbook.created = new Date();
+  workbook.modified = new Date();
 
-  // Template Sheet
-  const headers = [
-    ...PLANTILLA_BASELINE_STORE_HEADERS,
-    ...PLANTILLA_EMPLOYEE_HEADERS,
-    ...PLANTILLA_OPTIONAL_HEADERS,
+  // --------------------------------------------------------------------------
+  // 1. Template Sheet (IMPORT_TEMPLATE)
+  // --------------------------------------------------------------------------
+  const wsTemplate = workbook.addWorksheet("IMPORT_TEMPLATE", {
+    views: [{ showGridLines: true }],
+  });
+
+  const allHeaders = [
+    ...PLANTILLA_BASELINE_STORE_HEADERS, // 8 Always Required
+    ...PLANTILLA_EMPLOYEE_HEADERS,       // 5 Conditionally Required
+    ...PLANTILLA_OPTIONAL_HEADERS,       // 10 Optional
   ];
-  const wsTemplate = XLSX.utils.aoa_to_sheet([headers, PLANTILLA_SAMPLE_ROW]);
-  XLSX.utils.book_append_sheet(wb, wsTemplate, "IMPORT_TEMPLATE");
 
-  // Guide Sheet (ADR-002 Complete 19-Rule Validation Guide)
+  // Configure column keys and optimal widths
+  wsTemplate.columns = allHeaders.map((header) => {
+    let width = 18;
+    if (["GROUP_NAME", "ACCOUNT_NAME", "MOTHER_ACCOUNT", "VCODE", "STORE_NAME"].includes(header)) {
+      width = 24;
+    } else if (["AREA_PROVINCE", "AREA_CITY", "POSITION", "ADDRESS"].includes(header)) {
+      width = 22;
+    } else if (["SCHEDULE_DAYS", "SCHEDULE_TIME", "DAYOFF"].includes(header)) {
+      width = 24;
+    } else if (["HRCO_EMAIL", "COORDINATOR"].includes(header)) {
+      width = 26;
+    }
+    return { header, key: header, width };
+  });
+
+  // Style Header Row (Row 1)
+  const headerRow = wsTemplate.getRow(1);
+  headerRow.height = 28;
+
+  // First 13 columns are Required (8 Store) + Conditionally Required (5 Employee)
+  const requiredHeaderCount = PLANTILLA_BASELINE_STORE_HEADERS.length + PLANTILLA_EMPLOYEE_HEADERS.length; // 13
+
+  headerRow.eachCell((cell, colNumber) => {
+    const isRequiredOrConditional = colNumber <= requiredHeaderCount;
+
+    if (isRequiredOrConditional) {
+      // Required/Conditional: Soft red fill background (#FFC7CE), bold dark red font (#9C0006)
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFFC7CE" },
+      };
+      cell.font = {
+        name: "Calibri",
+        size: 11,
+        bold: true,
+        color: { argb: "FF9C0006" },
+      };
+    } else {
+      // Optional headers: subtle neutral fill (#F3F4F6), bold dark slate font (#374151)
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF3F4F6" },
+      };
+      cell.font = {
+        name: "Calibri",
+        size: 11,
+        bold: true,
+        color: { argb: "FF374151" },
+      };
+    }
+
+    cell.alignment = {
+      vertical: "middle",
+      horizontal: "center",
+      wrapText: true,
+    };
+
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFD1D5DB" } },
+      left: { style: "thin", color: { argb: "FFD1D5DB" } },
+      bottom: { style: "thin", color: { argb: "FF9CA3AF" } },
+      right: { style: "thin", color: { argb: "FFD1D5DB" } },
+    };
+  });
+
+  // Add Sample Row
+  const sampleRow = wsTemplate.addRow(PLANTILLA_SAMPLE_ROW);
+  sampleRow.height = 20;
+  sampleRow.eachCell((cell) => {
+    cell.font = { name: "Calibri", size: 10 };
+    cell.alignment = { vertical: "middle" };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFE5E7EB" } },
+      left: { style: "thin", color: { argb: "FFE5E7EB" } },
+      bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+      right: { style: "thin", color: { argb: "FFE5E7EB" } },
+    };
+  });
+
+  // Native Excel Data Validation Dropdowns (Rows 2..500)
+  // Column S (19): SCHEDULE_DAYS
+  // Column T (20): SCHEDULE_TIME
+  // Column U (21): DAYOFF
+  const scheduleDaysValidation: ExcelJS.DataValidation = {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"MON-SAT,MON-FRI,TUE-SUN,MON,WED,FRI,TUE,THU,SAT,FLEXI"'],
+    showErrorMessage: false,
+    errorStyle: "warning",
+    errorTitle: "Schedule Days Preset",
+    error: "Select a standard schedule preset or enter comma-separated days.",
+  };
+
+  const scheduleTimeValidation: ExcelJS.DataValidation = {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"08:00 AM - 05:00 PM,09:00 AM - 06:00 PM,FLEXI (4 HRS),FLEXI (6 HRS)"'],
+    showErrorMessage: false,
+    errorStyle: "information",
+    errorTitle: "Schedule Time Preset",
+    error: "Select a standard shift window or enter a custom duration/time.",
+  };
+
+  const dayoffValidation: ExcelJS.DataValidation = {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"SUN,SAT,SUN,MON,TUE,WED,THU,FRI,SAT"'],
+    showErrorMessage: false,
+    errorStyle: "information",
+    errorTitle: "Dayoff Preset",
+    error: "Select a standard day off or enter custom comma-separated days.",
+  };
+
+  for (let rowIdx = 2; rowIdx <= 500; rowIdx++) {
+    wsTemplate.getCell(`S${rowIdx}`).dataValidation = scheduleDaysValidation;
+    wsTemplate.getCell(`T${rowIdx}`).dataValidation = scheduleTimeValidation;
+    wsTemplate.getCell(`U${rowIdx}`).dataValidation = dayoffValidation;
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. Guide Sheet (VALIDATION_GUIDE — 15-Point ADR-002 Operational Guide)
+  // --------------------------------------------------------------------------
+  const wsGuide = workbook.addWorksheet("VALIDATION_GUIDE", {
+    views: [{ showGridLines: true }],
+  });
+
+  wsGuide.columns = [
+    { header: "COLUMN / RULE", key: "col", width: 38 },
+    { header: "REQUIRED / TYPE", key: "req", width: 26 },
+    { header: "DESCRIPTION / FORMAT / ADR-002 INVARIANT", key: "desc", width: 75 },
+  ];
+
+  const guideHeaderRow = wsGuide.getRow(1);
+  guideHeaderRow.height = 26;
+  guideHeaderRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4F46E5" }, // Indigo
+    };
+    cell.font = {
+      name: "Calibri",
+      size: 11,
+      bold: true,
+      color: { argb: "FFFFFFFF" },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FF3730A3" } },
+      left: { style: "thin", color: { argb: "FF3730A3" } },
+      bottom: { style: "medium", color: { argb: "FF1E1B4B" } },
+      right: { style: "thin", color: { argb: "FF3730A3" } },
+    };
+  });
+
   const guideData = [
-    ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT / ADR-002 SPECIFICATION"],
     ["GROUP_NAME", "YES", "Group scope (e.g. GROUP 2). Must match selected group context."],
     ["ACCOUNT_NAME", "YES", "Account client name under selected group (e.g. SUPER 8)."],
     ["MOTHER_ACCOUNT", "YES", "Mother billing entity (e.g. SUPER 8). Penalty rules derive automatically from this configuration."],
@@ -117,7 +281,7 @@ export function downloadPlantillaImportTemplate(): void {
     ["ADDRESS", "NO", "Full residential address."],
     ["SCHEDULE_DAYS", "NO", "Work week schedule days (e.g. MON-SAT, MON-FRI, or comma-separated MON,TUE,WED)."],
     ["SCHEDULE_TIME", "NO", "Shift window (e.g. 08:00 AM - 05:00 PM) or roving visit duration (e.g. FLEXI (4 HRS))."],
-    ["DAYOFF", "NO", "Designated day(s) off (e.g. SUN, SAT-SUN, or MON,TUE)."],
+    ["DAYOFF", "NO", "Designated day(s) off (e.g. SUN, SAT,SUN, or MON,TUE)."],
     ["COORDINATOR", "NO", "Designated Operations Coordinator."],
     ["HRCO_EMAIL", "NO", "Assigned HR Coordinator email. If blank, auto-assigned if Account has exactly 1 HRCO."],
     ["", "", ""],
@@ -138,11 +302,35 @@ export function downloadPlantillaImportTemplate(): void {
     ["14. Strict Zero-Edit Immutability Lock", "RULE", "If any record was modified in Plantilla post-approval, rollback is HARD BLOCKED for all roles."],
     ["15. Downstream VCODE Enforcement", "RULE", "Vacancy and HR Emploc imports reject any VCODE not already established in Plantilla."],
   ];
-  const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-  XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  triggerBrowserDownload(new Uint8Array(arrayBuffer), "plantilla_import_template.xlsx");
+  for (const r of guideData) {
+    const isSectionHeader = r[0].startsWith("ADR-002");
+    const addedRow = wsGuide.addRow(r);
+    addedRow.height = isSectionHeader ? 22 : 19;
+
+    addedRow.eachCell((cell) => {
+      if (isSectionHeader) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF3E8FF" }, // Soft purple
+        };
+        cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF6B21A8" } };
+      } else {
+        cell.font = { name: "Calibri", size: 10 };
+      }
+      cell.alignment = { vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE5E7EB" } },
+        left: { style: "thin", color: { argb: "FFE5E7EB" } },
+        bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+        right: { style: "thin", color: { argb: "FFE5E7EB" } },
+      };
+    });
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  triggerBrowserDownload(new Uint8Array(buffer), "plantilla_import_template.xlsx");
 }
 
 export interface ScopeContextValidationResult {
