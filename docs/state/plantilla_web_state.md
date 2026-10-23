@@ -658,3 +658,18 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Displays `Schedule & Store Visit Audit` section card in employee detail drawer (`Schedule Days`, `Schedule Time`, `Dayoff`).
   - Interactive `UpdateScheduleModal` enables Ops/lifecycle roles to update schedule days (multi-select MON-SUN with presets), schedule time (shift windows & flexi visit hours), and dayoff (multi-select MON-SUN).
   - Updates `plantilla` and `employee_store_allocations` and advances `updated_at`, actively enforcing the Zero-Edit Lock against uncoordinated rollbacks.
+- **Plantilla Import Completeness, Vacancy Tab Enhancements & Detail Drawer Cleanup (`ohm#v2k8w4m9`)**:
+  - **Import Completeness Fix (Migration `20262606000058`)**:
+    - Fixed `submit_plantilla_baseline_import` to prevent skipping vacant rows for existing stores (`IF v_emp IS NULL` now processed as valid vacant slots).
+    - Resolved loop state bleed bug by re-initializing `v_status := 'valid'` on every row iteration.
+    - Updated `approve_plantilla_import_batch` Phase B1 to provision all valid vacant rows with dynamic `slot_ordinal = COALESCE(MAX(slot_ordinal), 0) + 1` and synchronize `public.vacancies` (`status = 'Open'`, `vacant_date = CURRENT_DATE`).
+    - Guarded Phase B2 against claiming newly created batch vacant slots via `v_batch_created_slot_ids`.
+  - **Vacancy Tab Decoupling & Direct Import (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - Decoupled vacancy table rows and cards from `RequestHeadcountModal`; clicking now inspects via `VacancyDetailDrawer`.
+    - Added `Aging` column with color badges: emerald ($\le 15$d), amber ($16\text{--}30$d), rose ($> 30$d).
+    - Added `Action` column with `Inspect` button for active vacancies and `+ Direct Import` quick-action button for unlisted stores under the active account without forcing the import wizard.
+  - **Conditional `NEEDS HRCO` Badge**:
+    - Warning badge hidden across `PlantillaImportModal.tsx`, `EmployeeTable`, and `EmployeeCard` whenever the account has an assigned HRCO (`accounts.hrco_user_id IS NOT NULL`) or the row/employee has an assigned HRCO.
+  - **Inspect & Detail Drawers Cleanup**:
+    - `PlantillaDetailDrawer.tsx`: Compacted to `p-4 space-y-3`, suppressed redundant stationary coverage card (already in EmploymentGrid), and formatted Schedule Audit into a compact 3-column inline strip.
+    - `VacancyDetailDrawer.tsx`: Spacing tightened to `p-3.5 space-y-2`, removed duplicate quota label from Requisition & Quota controls header.

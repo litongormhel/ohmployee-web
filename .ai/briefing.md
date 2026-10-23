@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#m4k9w2x8**: Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (Store-Scoped `uq_plantilla_slots_active_occupant`, 3-Step Idempotent Phase B2 Slot Assignment, Rejection RPC State Expansion, Staging Cleanup `#8ba83c7f` Reset)
-2. **ohm#x7k4w9m2**: Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (Seed `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT`, Defensive `slot_history` Lookup Checks, Reset `#7d961dfc`, Compact `text-[10px]` Table Spacing & `useUsersList` Actor Resolution)
-3. **ohm#j9w4m2x8**: Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (Replaced Inline Inputs with High-Priority Dialog, Mandatory Audit Remarks Validation, Auto-Dismissing Toast Notification)
-4. **ohm#b4k9w2x7**: Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel Frozen Lockfile CI Deployments (`pnpm install --frozen-lockfile` Validated, 0 Build/Lint Regressions)
-5. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
+1. **ohm#v2k8w4m9**: Plantilla Import Completeness, Vacancy Tab Aging/Action & Direct Import, Conditional HRCO Badge & Details Drawer Cleanup (Migration `20262606000058` Applied to Staging, Vacancy Tab Non-Clickable to HC Request & Wired to Inspect Drawer, Aging Badge Column, Direct 1-Click Vacancy Import Action & Missing Store Detection, Conditional `NEEDS HRCO` Badge Hidden When Account/Row Assigned, Details Drawer Spacing & Redundancy Consolidation, 0 Build/Lint Errors on `main`)
+2. **ohm#m4k9w2x8**: Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (Store-Scoped `uq_plantilla_slots_active_occupant`, 3-Step Idempotent Phase B2 Slot Assignment, Rejection RPC State Expansion, Staging Cleanup `#8ba83c7f` Reset)
+3. **ohm#x7k4w9m2**: Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (Seed `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT`, Defensive `slot_history` Lookup Checks, Reset `#7d961dfc`, Compact `text-[10px]` Table Spacing & `useUsersList` Actor Resolution)
+4. **ohm#j9w4m2x8**: Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (Replaced Inline Inputs with High-Priority Dialog, Mandatory Audit Remarks Validation, Auto-Dismissing Toast Notification)
+5. **ohm#b4k9w2x7**: Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel Frozen Lockfile CI Deployments (`pnpm install --frozen-lockfile` Validated, 0 Build/Lint Regressions)
 
-> Older entries trimmed 2026-10-23 (`ohm#m4k9w2x8`) to keep this list to 5 — dropped `ohm#y8k4w2m9` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#v2k8w4m9`) to keep this list to 5 — dropped `ohm#r4k8m2w6` and earlier entries — see git history for that and earlier entries in full.

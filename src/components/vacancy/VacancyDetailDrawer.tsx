@@ -885,14 +885,11 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
               {/* 5. Requisition & Quota Management Section - Suppressed in Hired tab or filled status (Bug 2) */}
               {!isHiredTab && (
-                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
+                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
                       <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                      <span>Requisition & Quota Management</span>
-                    </div>
-                    <div className="text-[11px] font-medium text-text-secondary">
-                      Quota: <span className="font-bold text-text-primary">{detail.confirmedOnboardCount ?? 0}/{detail.headcount ?? 1}</span>
+                      <span>Requisition & Quota Controls</span>
                     </div>
                   </div>
 

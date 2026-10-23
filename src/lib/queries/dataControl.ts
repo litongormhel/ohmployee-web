@@ -151,6 +151,8 @@ export interface PlantillaImportBatch {
   status: string;
   groupName?: string;
   accountName?: string;
+  accountId?: string;
+  hrcoUserId?: string;
   uploadedBy?: string;
   uploadedRole?: string;
   uploadedAt?: string;
@@ -217,6 +219,8 @@ export interface PlantillaImportPreviewRow {
   scheduleTime?: string;
   dayoff?: string;
   needsHrco?: boolean;
+  resolvedHrcoUserId?: string;
+  hrcoEmail?: string;
   validationStatus: string;
   validationMessages: string[];
   validationErrors?: PlantillaRowValidationError[];
@@ -248,6 +252,8 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     status: String(row.status ?? "draft_uploaded"),
     groupName: row.group_name ? String(row.group_name) : undefined,
     accountName: row.account_name ? String(row.account_name) : undefined,
+    accountId: row.selected_account_id ? String(row.selected_account_id) : undefined,
+    hrcoUserId: row.hrco_user_id ? String(row.hrco_user_id) : undefined,
     uploadedBy: String(row.uploader_name ?? row.uploaded_by ?? ""),
     uploadedRole: row.uploaded_role ? String(row.uploaded_role) : undefined,
     uploadedAt: String(row.uploaded_at ?? row.created_at ?? ""),
@@ -373,7 +379,9 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
       scheduleDays: row.schedule_days ? String(row.schedule_days) : row.schedule ? String(row.schedule) : undefined,
       scheduleTime: row.schedule_time ? String(row.schedule_time) : undefined,
       dayoff: row.dayoff ? String(row.dayoff) : undefined,
-      needsHrco: row.needs_hrco === true,
+      needsHrco: row.needs_hrco === true && !row.resolved_hrco_user_id && (!row.hrco_email_raw || String(row.hrco_email_raw).trim() === ""),
+      resolvedHrcoUserId: row.resolved_hrco_user_id ? String(row.resolved_hrco_user_id) : undefined,
+      hrcoEmail: row.hrco_email_raw ? String(row.hrco_email_raw) : undefined,
       validationStatus: String(row.validation_status ?? row.status ?? "valid"),
       validationMessages: finalMessages,
       validationErrors,
@@ -684,6 +692,8 @@ export async function fetchVacancyImportBatches(status?: string): Promise<Vacanc
     status: String(row.status ?? "pending_approval"),
     groupName: row.group_name ? String(row.group_name) : undefined,
     accountName: row.account_name ? String(row.account_name) : undefined,
+    accountId: row.selected_account_id ? String(row.selected_account_id) : undefined,
+    hrcoUserId: row.hrco_user_id ? String(row.hrco_user_id) : undefined,
     uploadedBy: String(row.uploader_name ?? row.uploaded_by ?? ""),
     uploadedRole: row.uploaded_role ? String(row.uploaded_role) : undefined,
     createdAt: String(row.created_at ?? row.uploaded_at ?? ""),

@@ -19,8 +19,9 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { useUsersList } from "@/lib/queries/users";
 import {
   downloadPlantillaImportTemplate,
@@ -192,6 +193,33 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   const { data: batches = [], refetch: refetchBatches, isLoading: isLoadingBatches } = usePlantillaImportBatches();
   const { data: previewRows = [], isLoading: isLoadingPreviewRows } = usePlantillaImportRows(selectedBatchId);
   const { data: historyRows = [], isLoading: isLoadingHistoryRows } = usePlantillaImportRows(historySelectedBatch?.id || null);
+
+  const selectedBatch = useMemo(
+    () => batches.find((b) => b.id === selectedBatchId),
+    [batches, selectedBatchId]
+  );
+
+  const { data: batchAccountHrco } = useQuery({
+    queryKey: ["plantilla-import-batch-account-hrco", selectedBatch?.accountId],
+    queryFn: async () => {
+      if (!selectedBatch?.accountId) return null;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("accounts")
+        .select("hrco_user_id, hrco_name")
+        .eq("id", selectedBatch.accountId)
+        .single();
+      return data;
+    },
+    enabled: !!selectedBatch?.accountId,
+    staleTime: 60000,
+  });
+
+  const accountHasAssignedHrco = Boolean(
+    selectedBatch?.hrcoUserId ||
+    batchAccountHrco?.hrco_user_id ||
+    (batchAccountHrco?.hrco_name && batchAccountHrco.hrco_name.trim() !== "")
+  );
 
   const filteredPreviewRows = useMemo(() => {
     if (rowFilter === "all") return previewRows;
@@ -983,7 +1011,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                   {r.employeeNo && (
                                                     <span className="text-[11px] font-mono text-slate-500 leading-tight">ID: {r.employeeNo}</span>
                                                   )}
-                                                  {r.needsHrco && (
+                                                  {r.needsHrco && !accountHasAssignedHrco && !r.resolvedHrcoUserId && (!r.hrcoEmail || !r.hrcoEmail.trim()) && (
                                                     <span className="rounded bg-amber-100 text-amber-800 text-[10px] font-medium px-1.5 py-0.5 whitespace-nowrap leading-none">
                                                       NEEDS HRCO
                                                     </span>

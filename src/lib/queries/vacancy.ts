@@ -3827,6 +3827,116 @@ export function useReopenVacancy() {
   });
 }
 
+// ── 4b. Direct Import / Quick-Create Vacancy ─────────────────
+export type DirectImportVacancyParams = {
+  vcode: string;
+  storeName?: string | null;
+  storeId?: string | null;
+  accountId: string;
+  accountName?: string | null;
+  groupId?: string | null;
+  position?: string | null;
+  positionTitle?: string | null;
+  areaCity?: string | null;
+  province?: string | null;
+  areaProvince?: string | null;
+  requiredHeadcount?: number;
+};
+
+export async function directImportVacancy(params: DirectImportVacancyParams): Promise<void> {
+  const supabase = createClient();
+  const vcode = params.vcode.trim().toUpperCase();
+  if (!vcode) throw new Error("VCODE is required for direct import.");
+  if (!params.accountId) throw new Error("Account ID is required for direct import.");
+
+  let acctName = params.accountName || null;
+  let grpId = params.groupId || null;
+  let hrcoUserId: string | null = null;
+  let hrcoName: string | null = null;
+
+  const { data: acct } = await supabase
+    .from("accounts")
+    .select("id, account_name, group_id, hrco_user_id, hrco_name")
+    .eq("id", params.accountId)
+    .single();
+
+  if (acct) {
+    acctName = acctName || acct.account_name;
+    grpId = grpId || acct.group_id;
+    hrcoUserId = acct.hrco_user_id;
+    hrcoName = acct.hrco_name;
+  }
+
+  let storeId = params.storeId || null;
+  let storeName = params.storeName || null;
+  let areaCity = params.areaCity || null;
+  let province = params.province || params.areaProvince || null;
+
+  // Attempt store lookup by storeId or VCODE
+  let sQuery = supabase.from("stores").select("id, store_name, area_city, area_province, province");
+  if (storeId) {
+    sQuery = sQuery.eq("id", storeId);
+  } else {
+    sQuery = sQuery.eq("vcode", vcode).eq("status", "active");
+  }
+  const { data: storeData } = await sQuery.limit(1);
+  if (storeData && storeData[0]) {
+    const s = storeData[0];
+    storeId = storeId || (s.id as string);
+    storeName = storeName || (s.store_name as string);
+    areaCity = areaCity || (s.area_city as string);
+    province = province || ((s.area_province ?? s.province) as string);
+  }
+
+  const areaName = [province, areaCity].filter(Boolean).join(" - ") || null;
+  const position = (params.position || params.positionTitle)?.trim() || "Merchandiser";
+
+  const { error } = await supabase
+    .from("vacancies")
+    .upsert(
+      {
+        vcode,
+        account: acctName || "Unknown Account",
+        position,
+        store_name: storeName || vcode,
+        store_id: storeId,
+        account_id: params.accountId,
+        group_id: grpId,
+        area_city: areaCity,
+        province,
+        area_name: areaName,
+        required_headcount: params.requiredHeadcount || 1,
+        status: "Open",
+        source: "manual",
+        hrco_user_id: hrcoUserId,
+        hrco_name: hrcoName,
+        vacant_date: new Date().toISOString().slice(0, 10),
+        is_archived: false,
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "vcode" }
+    );
+
+  if (error) {
+    throw new Error(error.message || "Failed to direct import vacancy.");
+  }
+}
+
+export function useDirectImportVacancy() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: DirectImportVacancyParams) => directImportVacancy(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+    },
+  });
+}
+
 // ── 5. Vacancy Closure Management ────────────────────────────
 export type RequestVacancyClosureParams = {
   vcode: string;

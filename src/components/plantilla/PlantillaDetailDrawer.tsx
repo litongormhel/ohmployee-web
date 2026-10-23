@@ -168,6 +168,7 @@ export function PlantillaDetailDrawer({
         subtitle={subtitle}
         badge={headerBadge}
         widthClass="w-[var(--drawer-width-lg)] max-w-full"
+        contentClassName="p-4 space-y-3"
       >
         <DrawerBody
           isLoading={detailQuery.isLoading}
@@ -433,10 +434,12 @@ function DrawerBody({
         <EmploymentGrid data={data} />
       </SectionCard>
 
-      {/* Assignment Coverage */}
-      <SectionCard title="Assignment Coverage">
-        <AssignmentCoverageSection data={data} />
-      </SectionCard>
+      {/* Assignment Coverage - Only rendered for roving multi-store assignments to avoid redundancy */}
+      {(data.assignmentType ?? "").toLowerCase() === "roving" && (
+        <SectionCard title="Roving Store Coverage">
+          <AssignmentCoverageSection data={data} />
+        </SectionCard>
+      )}
 
       {/* Ops Schedule & Dayoff Audit (ADR-002 Invariant 8) */}
       <SectionCard
@@ -535,14 +538,14 @@ function SectionCard({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-border-default bg-surface-base">
-      <div className="border-b border-border-subtle px-4 py-2.5 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+    <div className="rounded-lg border border-border-default bg-surface-base shadow-2xs">
+      <div className="border-b border-border-subtle px-3.5 py-2 flex items-center justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
           {title}
         </h3>
         {action}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3.5">{children}</div>
     </div>
   );
 }
@@ -553,9 +556,9 @@ function SectionCard({
 
 function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
   return (
-    <div className="space-y-2 text-xs">
+    <div className="space-y-1.5 text-xs">
       <div className="grid grid-cols-3 gap-2">
-        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+        <div className="p-2 rounded-lg bg-surface-subtle border border-border-subtle">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
             Schedule Days
           </span>
@@ -563,7 +566,7 @@ function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
             {data.scheduleDays || "MON-SAT"}
           </span>
         </div>
-        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+        <div className="p-2 rounded-lg bg-surface-subtle border border-border-subtle">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
             Schedule Time
           </span>
@@ -571,7 +574,7 @@ function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
             {data.scheduleTime || "08:00 AM - 05:00 PM"}
           </span>
         </div>
-        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+        <div className="p-2 rounded-lg bg-surface-subtle border border-border-subtle">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
             Dayoff
           </span>
@@ -580,7 +583,7 @@ function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
           </span>
         </div>
       </div>
-      <p className="text-3xs text-text-muted">
+      <p className="text-[10px] text-text-muted">
         Shift and flexible visit windows recorded for operational store visit audits.
       </p>
     </div>

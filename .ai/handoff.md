@@ -1,5 +1,57 @@
 # AI Handoff
 
+## Plantilla Import Completeness, Vacancy Tab Aging/Action & Direct Import, Conditional HRCO Badge & Details Drawer Cleanup (ohm#v2k8w4m9)
+
+**Status: COMPLETE — MIGRATION `20262606000058` APPLIED TO LIVE STAGING, PLANTILLA BASELINE IMPORT RPC AUDITED & FIXED (LOOP STATUS BUG & VACANT ROW DISCARD RESOLVED), PHASE B1 MULTI-SLOT PROVISION WITH AUTO-INCREMENTING `slot_ordinal` & VACANCY SYNC DEPLOYED, VACANCY TAB DECOUPLED FROM HC REQUEST (CLICK OPENS DETAILS DRAWER), `AGING` & `ACTION` COLUMNS INSTALLED, DIRECT 1-CLICK VACANCY IMPORT ENABLED FOR UNLISTED STORES, CONDITIONAL `NEEDS HRCO` BADGE HIDDEN WHEN ACCOUNT OR ROW HAS HRCO, EMPLOYEE & VACANCY DETAILS DRAWERS COMPACTED & UNCLUTTERED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Plantilla Import Completeness & Database Migration `20262606000058_fix_plantilla_import_completeness.sql`**:
+   - **Root Cause Analysis**:
+     - *Issue 1 (Discarding Vacancies on Existing Stores)*: `submit_plantilla_baseline_import` had an explicit branch `IF v_vcode IS NOT NULL AND NOT v_is_new_store THEN IF v_emp IS NULL THEN v_status := 'skipped'`, silently skipping valid vacant position rows (such as row 8 `CPPGJV23` in batch `#ae863b0e`).
+     - *Issue 2 (Loop State Bleed)*: `v_status` was not re-initialized to `'valid'` at the beginning of each row iteration in `submit_plantilla_baseline_import`, causing all subsequent rows after a skipped row to inherit `skipped` status regardless of validity.
+     - *Issue 3 (Single-Slot Deduplication Dropping Valid Slots)*: `approve_plantilla_import_batch` Phase B1 used `SELECT DISTINCT ON (vcode)` and an `IF NOT EXISTS (... slot_status = 'open')` guard, dropping secondary open slots for the same store.
+     - *Issue 4 (Slot Ordinal Collisions)*: Phase B1 hardcoded `slot_ordinal = 1`, causing constraint clashes when existing slots were present.
+     - *Issue 5 (Phase B2 Cannibalizing Fresh Batch Slots)*: Phase B2 assigned employees were claiming freshly created Phase B1 open slots from the same batch.
+   - **Database Solutions Implemented**:
+     - Removed the rule skipping vacant rows on existing stores; now valid vacant rows for both new and existing stores are marked `valid` and committed.
+     - Re-initialized `v_status := 'valid'` inside the `FOR v_row IN SELECT ...` loop on every row.
+     - Updated Phase B1 to commit all valid vacant rows, computing dynamic `slot_ordinal = COALESCE(MAX(slot_ordinal), 0) + 1` store-scoped.
+     - Recorded newly created Phase B1 slot IDs in `v_batch_created_slot_ids` to guarantee Phase B2 assigned personnel do not cannibalize newly provisioned open slots.
+     - Synchronized open slots directly with `public.vacancies` (`status = 'Open'`, `vacant_date = CURRENT_DATE`).
+     - Updated `get_plantilla_unassigned_hrco_count` and `get_plantilla_needs_hrco_employees` to return 0 / empty if `accounts.hrco_user_id IS NOT NULL`.
+     - Live staging data repair: Fixed batch `ae863b0e-b89e-4453-a873-afb36224f40a` rows in Staging DB: rows 7–11 (`CPPGJV23` etc.) updated from `skipped` to `valid`, batch counts updated to 9 valid, 2 flagged, 0 skipped, 0 blocked.
+
+2. **Vacancy Tab Enhancements (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - **Decoupled from Headcount Request Modal**: Vacancy table rows and cards are no longer wired to open `RequestHeadcountModal`. Clicking a vacancy row or card now opens the comprehensive `VacancyDetailDrawer`.
+   - **`Aging` Column**: Added visual aging indicator with color-coded badges: $\le 15$ days (emerald), $16\text{--}30$ days (amber), $> 30$ days (rose).
+   - **`Action` Column**: Replaced legacy "Manage" button with "Inspect" button opening `VacancyDetailDrawer`.
+   - **Direct 1-Click Import Quick-Action**:
+     - Identified unlisted stores under the active account by querying active stores (`vcode`, `id`, `name`) and filtering out stores that already have active vacancy records.
+     - Rendered an unlisted store section directly within the table with a prominent `+ Direct Import` button in the Action column.
+     - Calls `directImportVacancy` via `useDirectImportVacancy()`, instantly creating an active vacancy record in `public.vacancies` without forcing the user through the multi-step import wizard.
+
+3. **Conditional "Needs HRCO" Badge Visibility**:
+   - Updated `PlantillaImportModal.tsx`, `EmployeeTable`, and `EmployeeCard`:
+     - Badge is **only** displayed if neither the row nor the account has an assigned HRCO (`hrco_user_id` / `hrco_email`).
+     - If `accounts.hrco_user_id` is populated or the employee has an assigned HRCO, the warning badge is completely hidden.
+   - Updated `allowedAccountsQuery` to select `hrco_user_id` and compute `accountHasAssignedHrco`.
+
+4. **Inspect / Details Drawer Cleanup**:
+   - [`src/components/plantilla/PlantillaDetailDrawer.tsx`](file:///d:/Projects/ohmployee-web/src/components/plantilla/PlantillaDetailDrawer.tsx):
+     - Reduced drawer padding from `p-5 space-y-5` to `p-4 space-y-3`.
+     - Suppressed redundant "Assignment Coverage" card for stationary employees (already presented in EmploymentGrid); only renders dedicated coverage cards for roving assignments.
+     - Formatted Ops Schedule & Dayoff audit into a clean, compact 3-column inline strip (`Days`, `Time`, `Dayoff`).
+   - [`src/components/vacancy/VacancyDetailDrawer.tsx`](file:///d:/Projects/ohmployee-web/src/components/vacancy/VacancyDetailDrawer.tsx):
+     - Tightened drawer spacing to `p-3.5 space-y-2`.
+     - Eliminated duplicate quota metric from "Requisition & Quota Management" header (already displayed in "Requirements & Headcount").
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the entire codebase.
+- `npm run build`: Turbopack production build succeeded with 0 errors across all 19 routes.
+- Applied migration `20262606000058` to live Staging database (`qqiiznmqxfoamqytjica`) via Supabase MCP tool.
+
+---
+
 ## Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (ohm#m4k9w2x8)
 
 **Status: COMPLETE — MIGRATION `20262606000057` APPLIED TO LIVE STAGING, STORE-SCOPED `uq_plantilla_slots_active_occupant` CREATED, 3-STEP IDEMPOTENT SLOT ASSIGNMENT IN `approve_plantilla_import_batch`, `reject_plantilla_import_batch` RPC STATUS GUARD EXPANDED, BATCH `#8ba83c7f` RESET TO `pending_approval`, `reviewableStatuses` CLEANED UP IN `PlantillaImportModal.tsx`, DETAILED RPC ERROR PROPAGATION IN `dataControl.ts` (0 BUILD/LINT REGRESSIONS ON MAIN)**
@@ -336,6 +388,58 @@
 ---
 
 # AI Handoff
+
+## Plantilla Import Completeness, Vacancy Tab Aging/Action & Direct Import, Conditional HRCO Badge & Details Drawer Cleanup (ohm#v2k8w4m9)
+
+**Status: COMPLETE — MIGRATION `20262606000058` APPLIED TO LIVE STAGING, PLANTILLA BASELINE IMPORT RPC AUDITED & FIXED (LOOP STATUS BUG & VACANT ROW DISCARD RESOLVED), PHASE B1 MULTI-SLOT PROVISION WITH AUTO-INCREMENTING `slot_ordinal` & VACANCY SYNC DEPLOYED, VACANCY TAB DECOUPLED FROM HC REQUEST (CLICK OPENS DETAILS DRAWER), `AGING` & `ACTION` COLUMNS INSTALLED, DIRECT 1-CLICK VACANCY IMPORT ENABLED FOR UNLISTED STORES, CONDITIONAL `NEEDS HRCO` BADGE HIDDEN WHEN ACCOUNT OR ROW HAS HRCO, EMPLOYEE & VACANCY DETAILS DRAWERS COMPACTED & UNCLUTTERED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Plantilla Import Completeness & Database Migration `20262606000058_fix_plantilla_import_completeness.sql`**:
+   - **Root Cause Analysis**:
+     - *Issue 1 (Discarding Vacancies on Existing Stores)*: `submit_plantilla_baseline_import` had an explicit branch `IF v_vcode IS NOT NULL AND NOT v_is_new_store THEN IF v_emp IS NULL THEN v_status := 'skipped'`, silently skipping valid vacant position rows (such as row 8 `CPPGJV23` in batch `#ae863b0e`).
+     - *Issue 2 (Loop State Bleed)*: `v_status` was not re-initialized to `'valid'` at the beginning of each row iteration in `submit_plantilla_baseline_import`, causing all subsequent rows after a skipped row to inherit `skipped` status regardless of validity.
+     - *Issue 3 (Single-Slot Deduplication Dropping Valid Slots)*: `approve_plantilla_import_batch` Phase B1 used `SELECT DISTINCT ON (vcode)` and an `IF NOT EXISTS (... slot_status = 'open')` guard, dropping secondary open slots for the same store.
+     - *Issue 4 (Slot Ordinal Collisions)*: Phase B1 hardcoded `slot_ordinal = 1`, causing constraint clashes when existing slots were present.
+     - *Issue 5 (Phase B2 Cannibalizing Fresh Batch Slots)*: Phase B2 assigned employees were claiming freshly created Phase B1 open slots from the same batch.
+   - **Database Solutions Implemented**:
+     - Removed the rule skipping vacant rows on existing stores; now valid vacant rows for both new and existing stores are marked `valid` and committed.
+     - Re-initialized `v_status := 'valid'` inside the `FOR v_row IN SELECT ...` loop on every row.
+     - Updated Phase B1 to commit all valid vacant rows, computing dynamic `slot_ordinal = COALESCE(MAX(slot_ordinal), 0) + 1` store-scoped.
+     - Recorded newly created Phase B1 slot IDs in `v_batch_created_slot_ids` to guarantee Phase B2 assigned personnel do not cannibalize newly provisioned open slots.
+     - Synchronized open slots directly with `public.vacancies` (`status = 'Open'`, `vacant_date = CURRENT_DATE`).
+     - Updated `get_plantilla_unassigned_hrco_count` and `get_plantilla_needs_hrco_employees` to return 0 / empty if `accounts.hrco_user_id IS NOT NULL`.
+     - Live staging data repair: Fixed batch `ae863b0e-b89e-4453-a873-afb36224f40a` rows in Staging DB: rows 7–11 (`CPPGJV23` etc.) updated from `skipped` to `valid`, batch counts updated to 9 valid, 2 flagged, 0 skipped, 0 blocked.
+
+2. **Vacancy Tab Enhancements (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - **Decoupled from Headcount Request Modal**: Vacancy table rows and cards are no longer wired to open `RequestHeadcountModal`. Clicking a vacancy row or card now opens the comprehensive `VacancyDetailDrawer`.
+   - **`Aging` Column**: Added visual aging indicator with color-coded badges: $\le 15$ days (emerald), $16\text{--}30$ days (amber), $> 30$ days (rose).
+   - **`Action` Column**: Replaced legacy "Manage" button with "Inspect" button opening `VacancyDetailDrawer`.
+   - **Direct 1-Click Import Quick-Action**:
+     - Identified unlisted stores under the active account by querying active stores (`vcode`, `id`, `name`) and filtering out stores that already have active vacancy records.
+     - Rendered an unlisted store section directly within the table with a prominent `+ Direct Import` button in the Action column.
+     - Calls `directImportVacancy` via `useDirectImportVacancy()`, instantly creating an active vacancy record in `public.vacancies` without forcing the user through the multi-step import wizard.
+
+3. **Conditional "Needs HRCO" Badge Visibility**:
+   - Updated `PlantillaImportModal.tsx`, `EmployeeTable`, and `EmployeeCard`:
+     - Badge is **only** displayed if neither the row nor the account has an assigned HRCO (`hrco_user_id` / `hrco_email`).
+     - If `accounts.hrco_user_id` is populated or the employee has an assigned HRCO, the warning badge is completely hidden.
+   - Updated `allowedAccountsQuery` to select `hrco_user_id` and compute `accountHasAssignedHrco`.
+
+4. **Inspect / Details Drawer Cleanup**:
+   - [`src/components/plantilla/PlantillaDetailDrawer.tsx`](file:///d:/Projects/ohmployee-web/src/components/plantilla/PlantillaDetailDrawer.tsx):
+     - Reduced drawer padding from `p-5 space-y-5` to `p-4 space-y-3`.
+     - Suppressed redundant "Assignment Coverage" card for stationary employees (already presented in EmploymentGrid); only renders dedicated coverage cards for roving assignments.
+     - Formatted Ops Schedule & Dayoff audit into a clean, compact 3-column inline strip (`Days`, `Time`, `Dayoff`).
+   - [`src/components/vacancy/VacancyDetailDrawer.tsx`](file:///d:/Projects/ohmployee-web/src/components/vacancy/VacancyDetailDrawer.tsx):
+     - Tightened drawer spacing to `p-3.5 space-y-2`.
+     - Eliminated duplicate quota metric from "Requisition & Quota Management" header (already displayed in "Requirements & Headcount").
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the entire codebase.
+- `npm run build`: Turbopack production build succeeded with 0 errors across all 19 routes.
+- Applied migration `20262606000058` to live Staging database (`qqiiznmqxfoamqytjica`) via Supabase MCP tool.
+
+---
 
 ## Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (ohm#m4k9w2x8)
 

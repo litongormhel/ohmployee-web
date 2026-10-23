@@ -114,6 +114,17 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - **Super Admin Post-Onboard Dropout Bypass**:
     - Removed hardcoded `derivedStatus !== 'hired'` lockout in `VacancyDetailDrawer` action bar for Super Admin / Head Admin (`hasFullAccess`), allowing administrative drop/backout of post-onboard dropouts directly from drawer.
 
+- **Vacancy Tab Aging & Action Columns, Direct Import Quick Action & Quota Control Cleanup (`ohm#v2k8w4m9`)**:
+  - **Aging Column Badges**: In the Vacancy tab on Plantilla (`src/app/(dashboard)/plantilla/page.tsx`), formatted `Aging` column using color badges based on elapsed days since creation/open date: $\le 15$ days (emerald), $16\text{--}30$ days (amber), $> 30$ days (rose).
+  - **Decoupled from Headcount Request**: Rows and cards in Vacancy tab no longer open `RequestHeadcountModal`. Clicks and the new "Inspect" button in the Action column open `VacancyDetailDrawer`.
+  - **Direct Import Quick Action for Missing Stores**:
+    - Evaluates active stores under the account against active vacancy VCODEs.
+    - If a store/vcode (such as `CPPGJV23` prior to import or unlisted store codes) is missing from the active vacancy list, renders an unlisted stores sub-table with an immediate `+ Direct Import` quick-action button.
+    - Executes `directImportVacancy` (`useDirectImportVacancy()`) to upsert an active vacancy in `public.vacancies` without requiring the multi-step import wizard.
+  - **Detail Drawer Quota Redundancy Cleanup (`VacancyDetailDrawer.tsx`)**:
+    - Eliminated duplicate quota metric from the "Requisition & Quota Management" header, preventing redundant display alongside "Requirements & Headcount".
+    - Tightened layout spacing to `p-3.5 space-y-2`.
+
 ## Read-Only Emergency Mode Enforcement (OHM2026_1132)
 
 - **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):

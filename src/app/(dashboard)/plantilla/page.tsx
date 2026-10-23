@@ -42,9 +42,14 @@ import {
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
 import { fetchTeamDirectory, type TeamDirectoryUser } from "@/lib/queries/team_directory";
-import { listVacancies, type VacancyListItem } from "@/lib/queries/vacancy";
+import {
+  listVacancies,
+  useDirectImportVacancy,
+  type VacancyListItem,
+} from "@/lib/queries/vacancy";
 import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
+import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
 import { StoreStaffingOverviewDrawer } from "@/components/plantilla/StoreStaffingOverviewDrawer";
 import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
@@ -156,6 +161,8 @@ function PlantillaPageContent() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [isStoreStaffingOverviewOpen, setIsStoreStaffingOverviewOpen] = useState(false);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
+  const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
+  const directImportMutation = useDirectImportVacancy();
 
   // Search parameters and router
   const searchParams = useSearchParams();
@@ -213,6 +220,7 @@ function PlantillaPageContent() {
           account_name,
           group_id,
           is_pool_account,
+          hrco_user_id,
           groups (
             group_name
           )
@@ -229,6 +237,7 @@ function PlantillaPageContent() {
         id: row.id as string,
         name: row.account_name as string,
         groupId: row.group_id as string | null,
+        hrcoUserId: (row.hrco_user_id as string | null) ?? null,
         groupName: Array.isArray(row.groups)
           ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
           : row.groups && typeof row.groups === "object"
@@ -285,7 +294,7 @@ function PlantillaPageContent() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("stores")
-        .select("id, store_name, store_code, area_city, area_province, province")
+        .select("id, store_name, vcode, area_city, area_province, province")
         .eq("account_id", accountId)
         .eq("is_active", true)
         .order("store_name");
@@ -293,7 +302,7 @@ function PlantillaPageContent() {
       return (data ?? []).map((s) => ({
         id: s.id as string,
         name: s.store_name as string,
-        code: (s.store_code as string | null) ?? null,
+        code: (s.vcode as string | null) ?? null,
         city: (s.area_city as string | null) ?? null,
         province: ((s.area_province ?? s.province) as string | null) ?? null,
       }));
@@ -472,8 +481,43 @@ function PlantillaPageContent() {
   const isRetryable = isListError && !isAccessDenied;
 
   const employeeRows = employeeQuery.data?.data ?? [];
-  const vacancyRows = vacancyListQuery.data?.data ?? [];
+  const vacancyRows = useMemo(() => vacancyListQuery.data?.data ?? [], [vacancyListQuery.data?.data]);
   const needsHrRows = useMemo(() => needsHrcoQuery.data ?? [], [needsHrcoQuery.data]);
+
+  const currentAccount = useMemo(() => {
+    return (allowedAccountsQuery.data ?? []).find((a) => a.id === accountId) ?? null;
+  }, [allowedAccountsQuery.data, accountId]);
+
+  const accountHasAssignedHrco = Boolean(
+    currentAccount?.hrcoUserId || (leadershipTeam.hrco && leadershipTeam.hrco !== "—")
+  );
+
+  const existingVacancyVcodes = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of vacancyRows) {
+      if (v.vcode) set.add(v.vcode.trim().toUpperCase());
+      if (v.cgCode) set.add(v.cgCode.trim().toUpperCase());
+    }
+    return set;
+  }, [vacancyRows]);
+
+  const existingVacancyStoreIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of vacancyRows) {
+      if (v.storeId) set.add(v.storeId);
+    }
+    return set;
+  }, [vacancyRows]);
+
+  const missingStoreVacancies = useMemo(() => {
+    if (!storesUnderAccountQuery.data || !accountId) return [];
+    return storesUnderAccountQuery.data.filter((s) => {
+      const code = (s.code || "").trim().toUpperCase();
+      const hasMatchingCode = Boolean(code && existingVacancyVcodes.has(code));
+      const hasMatchingId = Boolean(s.id && existingVacancyStoreIds.has(s.id));
+      return !hasMatchingCode && !hasMatchingId;
+    });
+  }, [storesUnderAccountQuery.data, accountId, existingVacancyVcodes, existingVacancyStoreIds]);
 
   const paginatedNeedsHrRows = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -1405,7 +1449,7 @@ function PlantillaPageContent() {
                 />
               </div>
             ) : tab === "vacancy" ? (
-              vacancyRows.length === 0 ? (
+              vacancyRows.length === 0 && missingStoreVacancies.length === 0 ? (
                 <EmptyTabState
                   hasActiveFilters={hasActiveFilters}
                   onResetFilters={handleResetFilters}
@@ -1414,7 +1458,26 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <VacancyTable
                   rows={vacancyRows}
-                  onRequestHeadcount={() => setIsRequestHeadcountOpen(true)}
+                  missingStores={missingStoreVacancies}
+                  onSelectVacancy={(v) => setSelectedVacancyId(v.id)}
+                  onDirectImport={async (item) => {
+                    try {
+                      await directImportMutation.mutateAsync({
+                        vcode: item.code || "VCODE",
+                        accountId,
+                        storeId: item.id,
+                        storeName: item.name,
+                        position: "Merchandiser",
+                        positionTitle: "Merchandiser",
+                        areaCity: item.city,
+                        province: item.province,
+                        areaProvince: item.province,
+                      });
+                    } catch (err: unknown) {
+                      alert(err instanceof Error ? err.message : "Failed to direct import vacancy");
+                    }
+                  }}
+                  isDirectImportPending={directImportMutation.isPending}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
@@ -1422,7 +1485,7 @@ function PlantillaPageContent() {
                     <VacancyCard
                       key={v.id}
                       vacancy={v}
-                      onRequestHeadcount={() => setIsRequestHeadcountOpen(true)}
+                      onSelect={() => setSelectedVacancyId(v.id)}
                     />
                   ))}
                 </div>
@@ -1438,6 +1501,7 @@ function PlantillaPageContent() {
                 <EmployeeTable
                   rows={paginatedNeedsHrRows}
                   isNeedsHr
+                  accountHasHrco={accountHasAssignedHrco}
                   onRowClick={setSelectedPlantillaId}
                   storeLookupMap={storeLookupMap}
                 />
@@ -1448,6 +1512,7 @@ function PlantillaPageContent() {
                       key={row.id}
                       row={row}
                       isNeedsHr
+                      accountHasHrco={accountHasAssignedHrco}
                       onSelect={() => setSelectedPlantillaId(row.id)}
                       storeLookupMap={storeLookupMap}
                     />
@@ -1464,6 +1529,7 @@ function PlantillaPageContent() {
               <EmployeeTable
                 rows={employeeRows}
                 isInactive={tab === "inactive"}
+                accountHasHrco={accountHasAssignedHrco}
                 onRowClick={setSelectedPlantillaId}
                 storeLookupMap={storeLookupMap}
               />
@@ -1474,6 +1540,7 @@ function PlantillaPageContent() {
                     key={row.id}
                     row={row}
                     isInactive={tab === "inactive"}
+                    accountHasHrco={accountHasAssignedHrco}
                     onSelect={() => setSelectedPlantillaId(row.id)}
                     storeLookupMap={storeLookupMap}
                   />
@@ -1533,6 +1600,11 @@ function PlantillaPageContent() {
             onClose={() => setSelectedSlotId(null)}
           />
 
+          <VacancyDetailDrawer
+            vacancyId={selectedVacancyId}
+            onClose={() => setSelectedVacancyId(null)}
+          />
+
           {isRequestHeadcountOpen && (
             <RequestHeadcountModal
               isOpen={isRequestHeadcountOpen}
@@ -1564,12 +1636,14 @@ function EmployeeTable({
   rows,
   isInactive,
   isNeedsHr,
+  accountHasHrco,
   onRowClick,
   storeLookupMap,
 }: {
   rows: PlantillaEmployeeListItem[];
   isInactive?: boolean;
   isNeedsHr?: boolean;
+  accountHasHrco?: boolean;
   onRowClick: (id: string) => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
@@ -1723,7 +1797,7 @@ function EmployeeTable({
 
                   {/* STATUS */}
                   <td className="px-4 py-3">
-                    {isNeedsHr ? (
+                    {isNeedsHr && !accountHasHrco ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                         Needs HRCO
                       </span>
@@ -1776,15 +1850,38 @@ function EmployeeTable({
 // Vacancy Table Component
 // ---------------------------------------------------------------------------
 
+function getAgingBadge(days: number | null | undefined) {
+  if (days === null || days === undefined) {
+    return <span className="text-xs text-text-muted font-mono">—</span>;
+  }
+  let badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (days > 30) {
+    badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+  } else if (days > 15) {
+    badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold border ${badgeClass}`}>
+      {days} {days === 1 ? "day" : "days"}
+    </span>
+  );
+}
+
 function VacancyTable({
   rows,
-  onRequestHeadcount,
+  missingStores = [],
+  onSelectVacancy,
+  onDirectImport,
+  isDirectImportPending = false,
 }: {
   rows: VacancyListItem[];
-  onRequestHeadcount: () => void;
+  missingStores?: { id: string; name: string; code: string | null; city: string | null; province: string | null }[];
+  onSelectVacancy: (v: VacancyListItem) => void;
+  onDirectImport?: (store: { id: string; name: string; code: string | null; city: string | null; province: string | null }) => void;
+  isDirectImportPending?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs space-y-0">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
@@ -1817,7 +1914,7 @@ function VacancyTable({
               <tr
                 key={row.id}
                 className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                onClick={onRequestHeadcount}
+                onClick={() => onSelectVacancy(row)}
               >
                 <td className="px-4 py-3 font-mono font-bold text-brand-700">
                   {row.cgCode || row.vcode || "Uncoded"}
@@ -1843,8 +1940,8 @@ function VacancyTable({
                 <td className="px-4 py-3 font-mono font-bold text-table-text">
                   {row.activeApplicantCount > 0 ? row.activeApplicantCount : 1}
                 </td>
-                <td className="px-4 py-3 text-xs text-text-muted font-mono">
-                  {row.agingDays != null ? `${row.agingDays} days` : "—"}
+                <td className="px-4 py-3">
+                  {getAgingBadge(row.agingDays)}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -1862,15 +1959,84 @@ function VacancyTable({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRequestHeadcount();
+                      onSelectVacancy(row);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs cursor-pointer"
+                    aria-label={`Inspect vacancy ${row.cgCode || row.vcode || row.id}`}
                   >
-                    <span>Manage</span>
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Inspect</span>
                   </button>
                 </td>
               </tr>
             ))}
+
+            {/* Unlisted / Missing store vacancies eligible for direct 1-click import */}
+            {missingStores.length > 0 && (
+              <>
+                <tr className="bg-amber-50/40 border-t-2 border-amber-200">
+                  <td colSpan={7} className="px-4 py-2 text-xs font-semibold text-amber-800">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                        Stores without Active Vacancies ({missingStores.length}) — Click Direct Import to provision instantly without wizard
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {missingStores.map((store) => (
+                  <tr
+                    key={`missing-${store.id}`}
+                    className="transition-colors hover:bg-amber-50/20 bg-surface-subtle/30"
+                  >
+                    <td className="px-4 py-3 font-mono font-bold text-text-secondary">
+                      {store.code || "Uncoded"}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-text-secondary">
+                      Merchandiser
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{store.name}</span>
+                        {(store.city || store.province) && (
+                          <span className="text-3xs text-text-muted">
+                            ({[store.city, store.province].filter(Boolean).join(", ")})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-text-muted">
+                      1
+                    </td>
+                    <td className="px-4 py-3 text-xs text-text-muted font-mono">
+                      —
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Missing from Vacancies
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {onDirectImport && (
+                        <button
+                          type="button"
+                          disabled={isDirectImportPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDirectImport(store);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 hover:border-brand-400 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                          title={`Directly create vacancy slot for ${store.name} (${store.code || "VCODE"}) without wizard`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Direct Import</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
           </tbody>
         </table>
       </div>
@@ -1886,12 +2052,14 @@ function EmployeeCard({
   row,
   isInactive,
   isNeedsHr,
+  accountHasHrco,
   onSelect,
   storeLookupMap,
 }: {
   row: PlantillaEmployeeListItem;
   isInactive?: boolean;
   isNeedsHr?: boolean;
+  accountHasHrco?: boolean;
   onSelect: () => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
@@ -1921,7 +2089,7 @@ function EmployeeCard({
     ? "border-l-4 border-l-amber-500"
     : isInactive
     ? "border-l-4 border-l-slate-400"
-    : isNeedsHr
+    : isNeedsHr && !accountHasHrco
     ? "border-l-4 border-l-sky-500"
     : "border-l-4 border-l-emerald-500";
 
@@ -1968,7 +2136,7 @@ function EmployeeCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {isNeedsHr ? (
+            {isNeedsHr && !accountHasHrco ? (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                 Needs HRCO
               </span>
@@ -2023,20 +2191,20 @@ function EmployeeCard({
 
 function VacancyCard({
   vacancy,
-  onRequestHeadcount,
+  onSelect,
 }: {
   vacancy: VacancyListItem;
-  onRequestHeadcount: () => void;
+  onSelect: () => void;
 }) {
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={onRequestHeadcount}
+      onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onRequestHeadcount();
+          onSelect();
         }
       }}
       className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer border-l-4 border-l-amber-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
