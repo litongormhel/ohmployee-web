@@ -622,9 +622,16 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - On upload, if `status === 'validation_failed'` or `blockedRows > 0`, the UI avoids premature green success toasts, switches to the Review Queue, auto-expands the newly created batch, and defaults the row filter to `blocked`.
   - Added `Skipped` filter pill: vacant rows with existing VCODEs are non-blocking (`validation_status = 'skipped'`) and rendered with distinct slate badges.
   - Rows display `Vacant Baseline Slot` badge, `Mother Account`, `Position / HC`, and schedule metadata.
+  - **Typography & Compact Hierarchy Polish (`PlantillaImportModal.tsx`)**:
+    - Primary identifiers (`VCODE`, `Store Name`) styled at prominent `text-sm font-semibold`.
+    - Metadata (`Employee ID`, `Mother Account`, `schedule/shift`, `employmentType`, `requiredHc`) reduced to `text-xs leading-tight text-text-muted` to eliminate vertical row bloating.
+    - Status pills (`PENDING APPROVAL`, `FLAGGED`, `VALID`, `NEEDS HRCO`, `roving`, `stationary`) compacted (`px-1.5 py-0.5 text-3xs font-bold leading-none whitespace-nowrap`).
+    - Validation error and guidance messages styled in `text-xs leading-tight break-words text-rose-700 / text-amber-700` preventing awkward cell stretching.
   - "Approve & Apply" claims existing open vacant slots before incrementing slot ordinals, creates/updates linked `public.vacancies`, and records `approved_at` after all DML completes.
 - **Rollback Governance & History Audit (`PlantillaImportModal.tsx`)**:
-  - History table renders **Batch #** (`#703cdbc4`), **Stores / HC** count (e.g. `11/10`), **Status**, **Rollback State & Window**, **Scope**, **Uploaded By**, **Approved / Rejected By**, and **Date**.
+  - History table rendered inside a dedicated horizontal scroll container (`overflow-x-auto`) with fixed column layout (`table-fixed min-w-[920px]`).
+  - Columns optimized with compact padding (`px-2.5 py-2.5`), text truncation (`truncate`), and native `title` hover tooltips on `File Name`, `Scope`, `Uploaded By`, and `Approved / Rejected By` (displaying shortened UUIDs or formatted actor names).
+  - Single-line status and rollback badges protected with `whitespace-nowrap` to prevent vertical row stretching.
   - 72-hour countdown window tracked accurately with `formatRollbackRemaining`.
   - Head Admin and Super Admin can approve or reject rollback requests (`rejectPlantillaImportRollback`).
   - Super Admin Emergency Rollback Override enabled for expired windows when zero records were touched.

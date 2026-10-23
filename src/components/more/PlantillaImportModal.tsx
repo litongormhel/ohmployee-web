@@ -54,6 +54,15 @@ export interface PlantillaImportModalProps {
 
 type TabType = "upload" | "review" | "history";
 
+function formatActor(actor?: string | null): string {
+  if (!actor) return "—";
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(actor)) {
+    return `${actor.slice(0, 8)}...`;
+  }
+  return actor;
+}
+
 export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalProps) {
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
@@ -675,7 +684,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-xs text-text-primary">{batch.fileName}</span>
                               <span
-                                className={`rounded-md text-3xs font-bold px-2 py-0.5 uppercase ${
+                                className={`rounded-md text-3xs font-bold px-1.5 py-0.5 uppercase whitespace-nowrap leading-none ${
                                   isValidationFailed
                                     ? "bg-rose-100 text-rose-800 border border-rose-200"
                                     : "bg-amber-100 text-amber-800 border border-amber-200"
@@ -684,17 +693,17 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 {batch.status.replace("_", " ")}
                               </span>
                               {batch.blockedRows > 0 && (
-                                <span className="rounded-md bg-rose-50 text-rose-700 text-3xs font-semibold px-2 py-0.5 border border-rose-200">
+                                <span className="rounded-md bg-rose-50 text-rose-700 text-3xs font-semibold px-1.5 py-0.5 border border-rose-200 whitespace-nowrap leading-none">
                                   {batch.blockedRows} Blocked
                                 </span>
                               )}
                               {batch.flaggedRows > 0 && (
-                                <span className="rounded-md bg-amber-50 text-amber-700 text-3xs font-semibold px-2 py-0.5 border border-amber-200">
+                                <span className="rounded-md bg-amber-50 text-amber-700 text-3xs font-semibold px-1.5 py-0.5 border border-amber-200 whitespace-nowrap leading-none">
                                   {batch.flaggedRows} Flagged
                                 </span>
                               )}
                               {batch.validRows > 0 && (
-                                <span className="rounded-md bg-emerald-50 text-emerald-700 text-3xs font-semibold px-2 py-0.5 border border-emerald-200">
+                                <span className="rounded-md bg-emerald-50 text-emerald-700 text-3xs font-semibold px-1.5 py-0.5 border border-emerald-200 whitespace-nowrap leading-none">
                                   {batch.validRows} Valid
                                 </span>
                               )}
@@ -846,13 +855,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 <table className="w-full text-left text-xs">
                                   <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
                                     <tr>
-                                      <th className="py-2 px-3 w-12">#</th>
-                                      <th className="py-2 px-3 w-24">Status</th>
-                                      <th className="py-2 px-3 w-28">VCode</th>
-                                      <th className="py-2 px-3">Store & Mother</th>
-                                      <th className="py-2 px-3">Employee</th>
-                                      <th className="py-2 px-3">Position / HC</th>
-                                      <th className="py-2 px-3">Validation Issues & Guidance</th>
+                                      <th className="py-2 px-2.5 w-10">#</th>
+                                      <th className="py-2 px-2.5 w-24">Status</th>
+                                      <th className="py-2 px-2.5 w-28">VCode</th>
+                                      <th className="py-2 px-2.5">Store & Mother</th>
+                                      <th className="py-2 px-2.5">Employee</th>
+                                      <th className="py-2 px-2.5">Position / HC</th>
+                                      <th className="py-2 px-2.5">Validation Issues & Guidance</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border-subtle">
@@ -875,10 +884,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               : "hover:bg-surface-hover/50"
                                           }`}
                                         >
-                                          <td className="py-2 px-3 font-mono text-text-muted">{r.rowNumber}</td>
-                                          <td className="py-2 px-3">
+                                          <td className="py-2 px-2.5 font-mono text-xs text-text-muted">{r.rowNumber}</td>
+                                          <td className="py-2 px-2.5 whitespace-nowrap">
                                             <span
-                                              className={`rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase ${
+                                              className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
                                                 isRowBlocked
                                                   ? "bg-rose-200 text-rose-900"
                                                   : isRowFlagged
@@ -893,79 +902,90 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               {r.validationStatus}
                                             </span>
                                           </td>
-                                          <td className="py-2 px-3 font-semibold font-mono text-text-primary">
+                                          <td className="py-2 px-2.5 font-bold font-mono text-text-primary text-sm whitespace-nowrap">
                                             {r.vcode || "—"}
                                           </td>
-                                          <td className="py-2 px-3">
-                                            <div className="font-medium text-text-primary">{r.storeName || "—"}</div>
+                                          <td className="py-2 px-2.5">
+                                            <div className="font-semibold text-text-primary text-sm leading-tight">{r.storeName || "—"}</div>
                                             {r.motherAccount && (
-                                              <div className="text-3xs text-text-muted font-mono">
+                                              <div className="text-xs text-text-muted font-mono leading-tight mt-0.5">
                                                 Mother: {r.motherAccount}
                                               </div>
                                             )}
                                           </td>
-                                          <td className="py-2 px-3">
+                                          <td className="py-2 px-2.5">
                                             {r.employeeNo || r.employeeName ? (
-                                              <>
-                                                <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                              <div className="space-y-0.5">
+                                                <div className="font-medium text-text-primary text-xs leading-tight">{r.employeeName || "—"}</div>
+                                                <div className="flex items-center gap-1.5 flex-wrap leading-tight">
                                                   {r.employeeNo && (
-                                                    <span className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</span>
+                                                    <span className="text-xs font-mono text-purple-700">ID: {r.employeeNo}</span>
                                                   )}
                                                   {r.needsHrco && (
-                                                    <span className="rounded bg-amber-100 text-amber-800 text-3xs font-bold px-1 py-0.2">
+                                                    <span className="rounded bg-amber-100 text-amber-800 text-3xs font-bold px-1.5 py-0.5 whitespace-nowrap leading-none">
                                                       NEEDS HRCO
                                                     </span>
                                                   )}
                                                 </div>
-                                              </>
+                                              </div>
                                             ) : (
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap leading-none">
                                                 (Vacant Baseline Slot)
                                               </span>
                                             )}
                                           </td>
-                                          <td className="py-2 px-3 text-text-secondary">
-                                            <div>{r.position || "—"}</div>
-                                            <div className="text-3xs text-text-muted flex items-center gap-1 mt-0.5">
+                                          <td className="py-2 px-2.5 text-text-secondary">
+                                            <div className="font-medium text-text-primary text-xs leading-tight">{r.position || "—"}</div>
+                                            <div className="text-xs text-text-muted flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
                                               {r.employmentType && (
-                                                <span className="uppercase font-semibold">{r.employmentType}</span>
+                                                <span
+                                                  className={`rounded px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
+                                                    r.employmentType.toLowerCase().includes("roving")
+                                                      ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                                      : r.employmentType.toLowerCase().includes("stationary")
+                                                      ? "bg-sky-100 text-sky-800 border border-sky-200"
+                                                      : "bg-surface-subtle text-text-secondary border border-border-subtle"
+                                                  }`}
+                                                >
+                                                  {r.employmentType}
+                                                </span>
                                               )}
-                                              {r.requiredHc !== undefined && (
-                                                <span>• {r.requiredHc} HC</span>
-                                              )}
+                                              {r.requiredHc !== undefined && <span>{r.requiredHc} HC</span>}
                                             </div>
                                             {(r.scheduleDays || r.scheduleTime || r.dayoff) && (
-                                              <div className="text-3xs text-text-muted truncate mt-0.5">
+                                              <div
+                                                className="text-xs text-text-muted truncate mt-0.5 leading-tight"
+                                                title={[r.scheduleDays, r.scheduleTime, r.dayoff ? `Off: ${r.dayoff}` : null].filter(Boolean).join(" • ")}
+                                              >
                                                 {[r.scheduleDays, r.scheduleTime, r.dayoff ? `Off: ${r.dayoff}` : null].filter(Boolean).join(" • ")}
                                               </div>
                                             )}
                                           </td>
-                                          <td className="py-2 px-3">
+                                          <td className="py-2 px-2.5">
                                             {isRowBlocked && (
                                               <div className="space-y-1">
                                                 {r.validationErrors && r.validationErrors.length > 0 ? (
                                                   r.validationErrors.map((err, errIdx) => (
                                                     <div
                                                       key={errIdx}
-                                                      className="flex items-start gap-1.5 text-rose-800 text-2xs"
+                                                      className="flex items-start gap-1.5 text-rose-700 text-xs leading-tight"
                                                     >
                                                       {err.conflictType && (
-                                                        <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                           {err.conflictType}
                                                         </span>
                                                       )}
                                                       {!err.conflictType && err.field && (
-                                                        <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                           {err.field}
                                                         </span>
                                                       )}
-                                                      <span className="font-medium leading-tight">{err.msg}</span>
+                                                      <span className="font-medium break-words leading-tight">{err.msg}</span>
                                                     </div>
                                                   ))
                                                 ) : (
                                                   r.validationMessages.map((msg, mIdx) => (
-                                                    <div key={mIdx} className="text-rose-800 text-2xs font-medium">
+                                                    <div key={mIdx} className="text-rose-700 text-xs font-medium break-words leading-tight">
                                                       • {msg}
                                                     </div>
                                                   ))
@@ -978,19 +998,19 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                   r.validationFlags.map((flag, fIdx) => (
                                                     <div
                                                       key={fIdx}
-                                                      className="flex items-start gap-1.5 text-amber-800 text-2xs"
+                                                      className="flex items-start gap-1.5 text-amber-700 text-xs leading-tight"
                                                     >
                                                       {flag.flag && (
-                                                        <span className="rounded bg-amber-200 text-amber-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                        <span className="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                           {flag.flag}
                                                         </span>
                                                       )}
-                                                      <span className="font-medium leading-tight">{flag.msg}</span>
+                                                      <span className="font-medium break-words leading-tight">{flag.msg}</span>
                                                     </div>
                                                   ))
                                                 ) : (
                                                   r.validationMessages.map((msg, mIdx) => (
-                                                    <div key={mIdx} className="text-amber-800 text-2xs font-medium">
+                                                    <div key={mIdx} className="text-amber-700 text-xs font-medium break-words leading-tight">
                                                       • {msg}
                                                     </div>
                                                   ))
@@ -998,17 +1018,17 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               </div>
                                             )}
                                             {isRowValid && (
-                                              <span className="inline-flex items-center gap-1 text-emerald-700 text-2xs font-semibold">
-                                                <CheckCircle2 className="h-3 w-3" /> Ready for import
+                                              <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-semibold leading-tight">
+                                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Ready for import
                                               </span>
                                             )}
                                             {isRowSkipped && (
-                                              <span className="inline-flex items-center gap-1 text-slate-600 text-2xs font-medium">
+                                              <span className="inline-flex items-center gap-1 text-slate-600 text-xs font-medium leading-tight">
                                                 Existing VCODE skipped (vacant row)
                                               </span>
                                             )}
                                             {!isRowBlocked && !isRowFlagged && !isRowValid && !isRowSkipped && (
-                                              <span className="text-text-muted text-2xs">Pending</span>
+                                              <span className="text-text-muted text-xs leading-tight">Pending</span>
                                             )}
                                           </td>
                                         </tr>
@@ -1058,25 +1078,28 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                   No historical import logs recorded yet.
                 </div>
               ) : (
-                <div className="rounded-xl border border-border-subtle bg-surface overflow-hidden">
-                  <table className="w-full text-left text-xs">
+                <div className="rounded-xl border border-border-subtle bg-surface overflow-x-auto">
+                  <table className="w-full min-w-[920px] table-fixed text-left text-xs">
                     <thead className="bg-surface-subtle border-b border-border-subtle text-2xs uppercase text-text-muted font-bold">
                       <tr>
-                        <th className="py-2.5 px-3">Batch #</th>
-                        <th className="py-2.5 px-4">File Name</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3">Stores / HC</th>
-                        <th className="py-2.5 px-4">Rollback State & Window</th>
-                        <th className="py-2.5 px-3">Scope</th>
-                        <th className="py-2.5 px-3">Uploaded By</th>
-                        <th className="py-2.5 px-3">Approved / Rejected By</th>
-                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-2.5 w-24">Batch #</th>
+                        <th className="py-2.5 px-2.5 w-48">File Name</th>
+                        <th className="py-2.5 px-2.5 w-32">Status</th>
+                        <th className="py-2.5 px-2.5 w-24">Stores / HC</th>
+                        <th className="py-2.5 px-2.5 w-48">Rollback State & Window</th>
+                        <th className="py-2.5 px-2.5 w-40">Scope</th>
+                        <th className="py-2.5 px-2.5 w-32">Uploaded By</th>
+                        <th className="py-2.5 px-2.5 w-40">Approved / Rejected By</th>
+                        <th className="py-2.5 px-2.5 w-24">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-subtle">
                       {historyBatches.map((b) => {
                         const isSelected = historySelectedBatch?.id === b.id;
                         const isApproved = b.status.toLowerCase().includes("approved");
+                        const rawActor = b.approvedByName || b.approvedBy || b.rejectedByName || b.rejectedBy || null;
+                        const isRejection = !!(b.rejectedByName || b.rejectedBy);
+                        const actorDisplay = formatActor(rawActor);
 
                         return (
                           <tr
@@ -1086,22 +1109,22 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                               isSelected ? "bg-purple-50/50 dark:bg-purple-950/20" : "hover:bg-surface-hover/50"
                             }`}
                           >
-                            <td className="py-2.5 px-3 font-mono text-3xs font-semibold text-purple-700">
+                            <td className="py-2.5 px-2.5 font-mono text-xs font-semibold text-purple-700 whitespace-nowrap leading-tight">
                               #{b.id.slice(0, 8)}
                             </td>
-                            <td className="py-2.5 px-4 font-semibold text-text-primary">
-                              <div className="flex items-center gap-2">
-                                <span>{b.fileName}</span>
+                            <td className="py-2.5 px-2.5 font-semibold text-text-primary text-xs leading-tight">
+                              <div className="flex items-center gap-1.5 min-w-0" title={b.fileName}>
+                                <span className="truncate">{b.fileName}</span>
                                 {isSelected && (
-                                  <span className="rounded-full bg-purple-100 text-purple-700 text-3xs font-bold px-1.5 py-0.2">
+                                  <span className="rounded-full bg-purple-100 text-purple-700 text-3xs font-bold px-1.5 py-0.5 whitespace-nowrap shrink-0">
                                     Selected
                                   </span>
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-2.5 whitespace-nowrap leading-tight">
                               <span
-                                className={`rounded-md px-2 py-0.5 text-3xs font-bold uppercase ${
+                                className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
                                   isApproved
                                     ? "bg-emerald-100 text-emerald-800"
                                     : b.status.includes("rolled_back")
@@ -1112,45 +1135,65 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 {b.status.replace("_", " ")}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 font-mono text-2xs font-bold text-text-primary">
+                            <td className="py-2.5 px-2.5 font-mono text-xs font-bold text-text-primary whitespace-nowrap leading-tight">
                               {b.committedStores ?? b.totalRows} / {b.committedEmployees ?? b.validRows}
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-2.5 whitespace-nowrap leading-tight">
                               {b.rollbackStatus === "requested" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-2 py-0.5 text-3xs font-bold uppercase">
-                                  <Clock className="h-3 w-3" /> Rollback Requested
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 text-amber-800 px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none">
+                                  <Clock className="h-3 w-3 shrink-0" /> Rollback Requested
                                 </span>
                               ) : b.rollbackStatus === "completed" || b.status === "rolled_back" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 text-purple-800 px-2 py-0.5 text-3xs font-bold uppercase">
-                                  <RotateCcw className="h-3 w-3" /> Rolled Back
+                                <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 text-purple-800 px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none">
+                                  <RotateCcw className="h-3 w-3 shrink-0" /> Rolled Back
                                 </span>
                               ) : b.rollbackStatus === "failed" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 text-rose-800 px-2 py-0.5 text-3xs font-bold uppercase">
-                                  <AlertCircle className="h-3 w-3" /> Rollback Failed
+                                <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 text-rose-800 px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none">
+                                  <AlertCircle className="h-3 w-3 shrink-0" /> Rollback Failed
                                 </span>
                               ) : isApproved ? (
                                 b.rollbackAllowed ? (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-3xs font-medium">
-                                    <Clock className="h-3 w-3 text-blue-500" />
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-3xs font-medium whitespace-nowrap leading-none">
+                                    <Clock className="h-3 w-3 text-blue-500 shrink-0" />
                                     Expires: {formatRollbackRemaining(b.rollbackRemainingSeconds)}
                                   </span>
                                 ) : (
-                                  <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-0.5 text-3xs font-medium">
+                                  <span className="rounded-md bg-slate-100 text-slate-600 px-1.5 py-0.5 text-3xs font-medium whitespace-nowrap leading-none">
                                     Window Expired
                                   </span>
                                 )
                               ) : (
-                                <span className="text-text-muted text-3xs">—</span>
+                                <span className="text-text-muted text-xs">—</span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-text-secondary">
-                              {b.groupName ?? "—"} / {b.accountName ?? "—"}
+                            <td
+                              className="py-2.5 px-2.5 text-text-secondary text-xs leading-tight"
+                              title={`${b.groupName ?? "—"} / ${b.accountName ?? "—"}`}
+                            >
+                              <span className="truncate block max-w-full">
+                                {b.groupName ?? "—"} / {b.accountName ?? "—"}
+                              </span>
                             </td>
-                            <td className="py-2.5 px-3 text-text-secondary">{b.uploadedBy || "—"}</td>
-                            <td className="py-2.5 px-3 text-text-secondary">
-                              {b.approvedByName || b.approvedBy || b.rejectedByName || b.rejectedBy || "—"}
+                            <td
+                              className="py-2.5 px-2.5 text-text-secondary text-xs leading-tight"
+                              title={b.uploadedBy || "—"}
+                            >
+                              <span className="truncate block max-w-full">
+                                {formatActor(b.uploadedBy)}
+                              </span>
                             </td>
-                            <td className="py-2.5 px-3 text-text-muted">
+                            <td
+                              className="py-2.5 px-2.5 text-text-secondary text-xs leading-tight"
+                              title={rawActor || "—"}
+                            >
+                              <span className="truncate block max-w-full">
+                                {isRejection && rawActor ? `[Rej] ${actorDisplay}` : actorDisplay}
+                              </span>
+                            </td>
+                            <td
+                              className="py-2.5 px-2.5 text-text-muted text-xs leading-tight whitespace-nowrap"
+                              title={b.uploadedAt ? new Date(b.uploadedAt).toLocaleString() : "—"}
+                            >
                               {b.uploadedAt ? new Date(b.uploadedAt).toLocaleDateString() : "—"}
                             </td>
                           </tr>
@@ -1308,16 +1351,16 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                           <table className="w-full text-left text-xs">
                             <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
                               <tr>
-                                <th className="py-2 px-3 w-12">#</th>
-                                <th className="py-2 px-3 w-24">Status</th>
-                                <th className="py-2 px-3 w-28">VCode</th>
-                                <th className="py-2 px-3">Store</th>
-                                <th className="py-2 px-3">Employee</th>
-                                <th className="py-2 px-3">Position</th>
-                                <th className="py-2 px-3">Validation Issues & Guidance</th>
+                                <th className="py-2 px-2.5 w-10">#</th>
+                                <th className="py-2 px-2.5 w-24">Status</th>
+                                <th className="py-2 px-2.5 w-28">VCode</th>
+                                <th className="py-2 px-2.5">Store</th>
+                                <th className="py-2 px-2.5">Employee</th>
+                                <th className="py-2 px-2.5">Position</th>
+                                <th className="py-2 px-2.5">Validation Issues & Guidance</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y border-border-subtle">
+                            <tbody className="divide-y divide-border-subtle">
                               {filteredHistoryRows.map((r) => {
                                 const isRowBlocked = r.validationStatus === "blocked";
                                 const isRowFlagged = r.validationStatus === "flagged";
@@ -1334,10 +1377,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                         : "hover:bg-surface-hover/50"
                                     }`}
                                   >
-                                    <td className="py-2 px-3 font-mono text-text-muted">{r.rowNumber}</td>
-                                    <td className="py-2 px-3">
+                                    <td className="py-2 px-2.5 font-mono text-xs text-text-muted">{r.rowNumber}</td>
+                                    <td className="py-2 px-2.5 whitespace-nowrap">
                                       <span
-                                        className={`rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase ${
+                                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
                                           isRowBlocked
                                             ? "bg-rose-200 text-rose-900"
                                             : isRowFlagged
@@ -1350,59 +1393,71 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                         {r.validationStatus}
                                       </span>
                                     </td>
-                                    <td className="py-2 px-3 font-semibold font-mono text-text-primary">
+                                    <td className="py-2 px-2.5 font-bold font-mono text-text-primary text-sm whitespace-nowrap">
                                       {r.vcode || "—"}
                                     </td>
-                                    <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
-                                    <td className="py-2 px-3">
+                                    <td className="py-2 px-2.5">
+                                      <div className="font-semibold text-text-primary text-sm leading-tight">{r.storeName || "—"}</div>
+                                    </td>
+                                    <td className="py-2 px-2.5">
                                       {r.employeeNo || r.employeeName ? (
-                                        <>
-                                          <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
+                                        <div className="space-y-0.5">
+                                          <div className="font-medium text-text-primary text-xs leading-tight">{r.employeeName || "—"}</div>
                                           {r.employeeNo && (
-                                            <div className="text-3xs font-mono text-purple-700">
+                                            <div className="text-xs font-mono text-purple-700 leading-tight">
                                               ID: {r.employeeNo}
                                             </div>
                                           )}
-                                        </>
+                                        </div>
                                       ) : (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap leading-none">
                                           (Vacant Slot)
                                         </span>
                                       )}
                                     </td>
-                                    <td className="py-2 px-3 text-text-secondary">
-                                      <div>{r.position || "—"}</div>
+                                    <td className="py-2 px-2.5 text-text-secondary">
+                                      <div className="font-medium text-text-primary text-xs leading-tight">{r.position || "—"}</div>
                                       {r.employmentType && (
-                                        <div className="text-3xs text-text-muted uppercase">
-                                          {r.employmentType}
+                                        <div className="mt-0.5 leading-tight">
+                                          <span
+                                            className={`rounded px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
+                                              r.employmentType.toLowerCase().includes("roving")
+                                                ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                                : r.employmentType.toLowerCase().includes("stationary")
+                                                ? "bg-sky-100 text-sky-800 border border-sky-200"
+                                                : "bg-surface-subtle text-text-secondary border border-border-subtle"
+                                            }`}
+                                          >
+                                            {r.employmentType}
+                                          </span>
                                         </div>
                                       )}
                                     </td>
-                                    <td className="py-2 px-3">
+                                    <td className="py-2 px-2.5">
                                       {isRowBlocked && (
                                         <div className="space-y-1">
                                           {r.validationErrors && r.validationErrors.length > 0 ? (
                                             r.validationErrors.map((err, errIdx) => (
                                               <div
                                                 key={errIdx}
-                                                className="flex items-start gap-1.5 text-rose-800 text-2xs"
+                                                className="flex items-start gap-1.5 text-rose-700 text-xs leading-tight"
                                               >
                                                 {err.conflictType && (
-                                                  <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                  <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                     {err.conflictType}
                                                   </span>
                                                 )}
                                                 {!err.conflictType && err.field && (
-                                                  <span className="rounded bg-rose-200 text-rose-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                  <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                     {err.field}
                                                   </span>
                                                 )}
-                                                <span className="font-medium leading-tight">{err.msg}</span>
+                                                <span className="font-medium break-words leading-tight">{err.msg}</span>
                                               </div>
                                             ))
                                           ) : (
                                             r.validationMessages.map((msg, mIdx) => (
-                                              <div key={mIdx} className="text-rose-800 text-2xs font-medium">
+                                              <div key={mIdx} className="text-rose-700 text-xs font-medium break-words leading-tight">
                                                 • {msg}
                                               </div>
                                             ))
@@ -1415,19 +1470,19 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                             r.validationFlags.map((flag, fIdx) => (
                                               <div
                                                 key={fIdx}
-                                                className="flex items-start gap-1.5 text-amber-800 text-2xs"
+                                                className="flex items-start gap-1.5 text-amber-700 text-xs leading-tight"
                                               >
                                                 {flag.flag && (
-                                                  <span className="rounded bg-amber-200 text-amber-900 px-1 py-0.2 text-3xs font-mono font-bold shrink-0">
+                                                  <span className="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
                                                     {flag.flag}
                                                   </span>
                                                 )}
-                                                <span className="font-medium leading-tight">{flag.msg}</span>
+                                                <span className="font-medium break-words leading-tight">{flag.msg}</span>
                                               </div>
                                             ))
                                           ) : (
                                             r.validationMessages.map((msg, mIdx) => (
-                                              <div key={mIdx} className="text-amber-800 text-2xs font-medium">
+                                              <div key={mIdx} className="text-amber-700 text-xs font-medium break-words leading-tight">
                                                 • {msg}
                                               </div>
                                             ))
@@ -1435,12 +1490,12 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                         </div>
                                       )}
                                       {isRowValid && (
-                                        <span className="inline-flex items-center gap-1 text-emerald-700 text-2xs font-semibold">
-                                          <CheckCircle2 className="h-3 w-3" /> Valid slot
+                                        <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-semibold leading-tight">
+                                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Valid slot
                                         </span>
                                       )}
                                       {!isRowBlocked && !isRowFlagged && !isRowValid && (
-                                        <span className="text-text-muted text-2xs">Skipped</span>
+                                        <span className="text-text-muted text-xs leading-tight">Skipped</span>
                                       )}
                                     </td>
                                   </tr>

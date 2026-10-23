@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Plantilla Review & History Table Typography & Responsive Layout Polish (ohm#t8k2m7w4)
+
+**Status: COMPLETE — TYPOGRAPHY HIERARCHY SIMPLIFIED, CELL PADDING & LINE HEIGHTS COMPACTED, STATUS BADGES TIGHTENED, IMPORT HISTORY WRAPPED IN OVERFLOW CONTAINER WITH TEXT TRUNCATION & TOOLTIPS (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Plantilla Review Table Typography & Row Spacing Polish**:
+   - **Font Hierarchy**:
+     - Elevated primary identifiers (`VCODE`, `Store Name`) to crisp `text-sm font-semibold text-text-primary`.
+     - Scaled down metadata (`Employee ID`, `Mother Account`, schedule/shift text, `Position`, `requiredHc`) to `text-xs leading-tight text-text-muted`.
+     - Cleaned multi-line stacked cells into inline dot-separated metadata rows to eliminate vertical bloating.
+   - **Badge & Pill Compactness**:
+     - Applied compact padding (`px-1.5 py-0.5 text-3xs font-bold leading-none whitespace-nowrap`) to status badges (`PENDING APPROVAL`, `FLAGGED`, `VALID`, `NEEDS HRCO`, `roving`, `stationary`) so badges no longer add vertical height.
+   - **Guidance & Warning Text Styling**:
+     - Styled validation error and guidance messages in `text-xs leading-tight break-words text-rose-700` and `text-xs leading-tight break-words text-amber-700` with compact conflict/field pill badges.
+   - Applied identical typographic and badge compactness to the row inspection drawer in the History tab.
+
+2. **Import History Table Layout & Horizontal Responsiveness**:
+   - **Horizontal Overflow Container**:
+     - Wrapped the history table in an `overflow-x-auto` container with fixed column widths (`table-fixed min-w-[920px]`) guaranteeing primary metrics (`BATCH #`, `STATUS`, `STORES / HC`) remain distinctly visible without column cramping on smaller viewports.
+   - **Cell Spacing & Truncation with Tooltips**:
+     - Tightened cell padding to `py-2.5 px-2.5` with `leading-tight` and `text-xs`.
+     - Applied `truncate` and native `title` hover tooltips to `File Name`, `Scope`, `Uploaded By`, `Approved / Rejected By` (using `formatActor` to shorten raw UUIDs into `123e4567...` while preserving the full UUID on hover), and `Date`.
+     - Guarded status and rollback badges with `whitespace-nowrap` to prevent awkward line breaks and row distortion.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across all files.
+- `npm run build`: Turbopack compilation succeeded with 0 errors across all 19 static routes.
+
+---
+
 ## ExcelJS ADR-002 Plantilla Import Template Generator (ohm#e7m4x9w2)
 
 **Status: COMPLETE — EXCELJS TEMPLATE GENERATOR IMPLEMENTED, REQUIRED HEADERS HIGHLIGHTED (#FFC7CE / #9C0006), NATIVE EXCEL DROPDOWNS WIRED FOR SCHEDULE_DAYS, SCHEDULE_TIME & DAYOFF, 15-RULE VALIDATION GUIDE FORMATTED (0 BUILD/LINT REGRESSIONS ON MAIN)**
