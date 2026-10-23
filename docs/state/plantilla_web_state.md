@@ -623,10 +623,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Added `Skipped` filter pill: vacant rows with existing VCODEs are non-blocking (`validation_status = 'skipped'`) and rendered with distinct slate badges.
   - Rows display `Vacant Baseline Slot` badge, `Mother Account`, `Position / HC`, and schedule metadata.
   - **Typography & Compact Hierarchy Polish (`PlantillaImportModal.tsx`)**:
-    - Primary identifiers (`VCODE`, `Store Name`) styled at prominent `text-sm font-semibold`.
-    - Metadata (`Employee ID`, `Mother Account`, `schedule/shift`, `employmentType`, `requiredHc`) reduced to `text-xs leading-tight text-text-muted` to eliminate vertical row bloating.
-    - Status pills (`PENDING APPROVAL`, `FLAGGED`, `VALID`, `NEEDS HRCO`, `roving`, `stationary`) compacted (`px-1.5 py-0.5 text-3xs font-bold leading-none whitespace-nowrap`).
-    - Validation error and guidance messages styled in `text-xs leading-tight break-words text-rose-700 / text-amber-700` preventing awkward cell stretching.
+    - Primary identifiers (`VCODE`, `Store Name`) simplified from bold/prominent styling down to clean `text-xs font-medium font-mono text-text-primary` and `text-xs font-medium text-text-primary leading-tight`.
+    - Metadata (`Employee ID`, `Mother Account`, `schedule/shift`, `employmentType`, `requiredHc`) standardized at compact `text-xs leading-tight text-text-muted` with tighter table cell padding (`px-3 py-2`).
+    - Status and badge pills (`FLAGGED`, `ROVING`, `NEEDS HRCO`, `VALID`, `BLOCKED`, `SKIPPED`, `Vacant Baseline Slot`) compacted (`px-1.5 py-0.5 text-3xs font-medium leading-none whitespace-nowrap`) to align naturally across rows.
+    - Validation error and guidance messages styled in compact `text-xs font-normal leading-tight break-words text-rose-700 / text-amber-700` with tighter vertical gap (`space-y-0.5`) preventing advisory text from dominating row height.
   - "Approve & Apply" claims existing open vacant slots before incrementing slot ordinals, creates/updates linked `public.vacancies` (guaranteeing required not-null `account` and `position` fields), and records `approved_at` after all DML completes.
   - **Pre-Commit Guard & Robust Commit Exception Propagation (`approve_plantilla_import_batch`, Migration `20262606000055`)**:
     - Pre-commit guard strictly blocks approval only if hard-error rows exist (`validation_status = 'blocked'`), raising `Cannot approve batch: X blocked rows must be resolved or removed first` (retaining `pending_approval` state).

@@ -855,13 +855,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 <table className="w-full text-left text-xs">
                                   <thead className="bg-surface-subtle border-b border-border-subtle sticky top-0 text-2xs uppercase text-text-muted font-bold">
                                     <tr>
-                                      <th className="py-2 px-2.5 w-10">#</th>
-                                      <th className="py-2 px-2.5 w-24">Status</th>
-                                      <th className="py-2 px-2.5 w-28">VCode</th>
-                                      <th className="py-2 px-2.5">Store & Mother</th>
-                                      <th className="py-2 px-2.5">Employee</th>
-                                      <th className="py-2 px-2.5">Position / HC</th>
-                                      <th className="py-2 px-2.5">Validation Issues & Guidance</th>
+                                      <th className="py-2 px-3 w-10">#</th>
+                                      <th className="py-2 px-3 w-24">Status</th>
+                                      <th className="py-2 px-3 w-28">VCode</th>
+                                      <th className="py-2 px-3">Store & Mother</th>
+                                      <th className="py-2 px-3">Employee</th>
+                                      <th className="py-2 px-3">Position / HC</th>
+                                      <th className="py-2 px-3">Validation Issues & Guidance</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border-subtle">
@@ -884,10 +884,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               : "hover:bg-surface-hover/50"
                                           }`}
                                         >
-                                          <td className="py-2 px-2.5 font-mono text-xs text-text-muted">{r.rowNumber}</td>
-                                          <td className="py-2 px-2.5 whitespace-nowrap">
+                                          <td className="py-2 px-3 font-mono text-xs text-text-muted">{r.rowNumber}</td>
+                                          <td className="py-2 px-3 whitespace-nowrap">
                                             <span
-                                              className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
+                                              className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-3xs font-medium uppercase whitespace-nowrap leading-none ${
                                                 isRowBlocked
                                                   ? "bg-rose-200 text-rose-900"
                                                   : isRowFlagged
@@ -902,44 +902,44 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               {r.validationStatus}
                                             </span>
                                           </td>
-                                          <td className="py-2 px-2.5 font-bold font-mono text-text-primary text-sm whitespace-nowrap">
+                                          <td className="py-2 px-3 font-medium font-mono text-text-primary text-xs whitespace-nowrap">
                                             {r.vcode || "—"}
                                           </td>
-                                          <td className="py-2 px-2.5">
-                                            <div className="font-semibold text-text-primary text-sm leading-tight">{r.storeName || "—"}</div>
+                                          <td className="py-2 px-3">
+                                            <div className="font-medium text-text-primary text-xs leading-tight">{r.storeName || "—"}</div>
                                             {r.motherAccount && (
                                               <div className="text-xs text-text-muted font-mono leading-tight mt-0.5">
                                                 Mother: {r.motherAccount}
                                               </div>
                                             )}
                                           </td>
-                                          <td className="py-2 px-2.5">
+                                          <td className="py-2 px-3">
                                             {r.employeeNo || r.employeeName ? (
                                               <div className="space-y-0.5">
                                                 <div className="font-medium text-text-primary text-xs leading-tight">{r.employeeName || "—"}</div>
                                                 <div className="flex items-center gap-1.5 flex-wrap leading-tight">
                                                   {r.employeeNo && (
-                                                    <span className="text-xs font-mono text-purple-700">ID: {r.employeeNo}</span>
+                                                    <span className="text-xs font-mono text-purple-700 leading-tight">ID: {r.employeeNo}</span>
                                                   )}
                                                   {r.needsHrco && (
-                                                    <span className="rounded bg-amber-100 text-amber-800 text-3xs font-bold px-1.5 py-0.5 whitespace-nowrap leading-none">
+                                                    <span className="rounded bg-amber-100 text-amber-800 text-3xs font-medium px-1.5 py-0.5 whitespace-nowrap leading-none">
                                                       NEEDS HRCO
                                                     </span>
                                                   )}
                                                 </div>
                                               </div>
                                             ) : (
-                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap leading-none">
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-medium bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap leading-none">
                                                 (Vacant Baseline Slot)
                                               </span>
                                             )}
                                           </td>
-                                          <td className="py-2 px-2.5 text-text-secondary">
+                                          <td className="py-2 px-3 text-text-secondary">
                                             <div className="font-medium text-text-primary text-xs leading-tight">{r.position || "—"}</div>
                                             <div className="text-xs text-text-muted flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
                                               {r.employmentType && (
                                                 <span
-                                                  className={`rounded px-1.5 py-0.5 text-3xs font-bold uppercase whitespace-nowrap leading-none ${
+                                                  className={`rounded px-1.5 py-0.5 text-3xs font-medium uppercase whitespace-nowrap leading-none ${
                                                     r.employmentType.toLowerCase().includes("roving")
                                                       ? "bg-purple-100 text-purple-800 border border-purple-200"
                                                       : r.employmentType.toLowerCase().includes("stationary")
@@ -961,9 +961,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               </div>
                                             )}
                                           </td>
-                                          <td className="py-2 px-2.5">
+                                          <td className="py-2 px-3">
                                             {isRowBlocked && (
-                                              <div className="space-y-1">
+                                              <div className="space-y-0.5">
                                                 {r.validationErrors && r.validationErrors.length > 0 ? (
                                                   r.validationErrors.map((err, errIdx) => (
                                                     <div
@@ -971,21 +971,21 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                       className="flex items-start gap-1.5 text-rose-700 text-xs leading-tight"
                                                     >
                                                       {err.conflictType && (
-                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-medium shrink-0 leading-none">
                                                           {err.conflictType}
                                                         </span>
                                                       )}
                                                       {!err.conflictType && err.field && (
-                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
+                                                        <span className="rounded bg-rose-200 text-rose-900 px-1.5 py-0.5 text-3xs font-mono font-medium shrink-0 leading-none">
                                                           {err.field}
                                                         </span>
                                                       )}
-                                                      <span className="font-medium break-words leading-tight">{err.msg}</span>
+                                                      <span className="font-normal break-words leading-tight">{err.msg}</span>
                                                     </div>
                                                   ))
                                                 ) : (
                                                   r.validationMessages.map((msg, mIdx) => (
-                                                    <div key={mIdx} className="text-rose-700 text-xs font-medium break-words leading-tight">
+                                                    <div key={mIdx} className="text-rose-700 text-xs font-normal break-words leading-tight">
                                                       • {msg}
                                                     </div>
                                                   ))
@@ -993,7 +993,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               </div>
                                             )}
                                             {isRowFlagged && (
-                                              <div className="space-y-1">
+                                              <div className="space-y-0.5">
                                                 {r.validationFlags && r.validationFlags.length > 0 ? (
                                                   r.validationFlags.map((flag, fIdx) => (
                                                     <div
@@ -1001,16 +1001,16 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                       className="flex items-start gap-1.5 text-amber-700 text-xs leading-tight"
                                                     >
                                                       {flag.flag && (
-                                                        <span className="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-3xs font-mono font-bold shrink-0 leading-none">
+                                                        <span className="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-3xs font-mono font-medium shrink-0 leading-none">
                                                           {flag.flag}
                                                         </span>
                                                       )}
-                                                      <span className="font-medium break-words leading-tight">{flag.msg}</span>
+                                                      <span className="font-normal break-words leading-tight">{flag.msg}</span>
                                                     </div>
                                                   ))
                                                 ) : (
                                                   r.validationMessages.map((msg, mIdx) => (
-                                                    <div key={mIdx} className="text-amber-700 text-xs font-medium break-words leading-tight">
+                                                    <div key={mIdx} className="text-amber-700 text-xs font-normal break-words leading-tight">
                                                       • {msg}
                                                     </div>
                                                   ))
@@ -1018,7 +1018,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               </div>
                                             )}
                                             {isRowValid && (
-                                              <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-semibold leading-tight">
+                                              <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-medium leading-tight">
                                                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Ready for import
                                               </span>
                                             )}

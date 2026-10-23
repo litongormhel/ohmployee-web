@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (ohm#r4k8m2w6)
+
+**Status: COMPLETE — REVIEW QUEUE INSPECT ROWS TABLE TYPOGRAPHY SIMPLIFIED & SCALED DOWN, PRIMARY IDENTIFIERS CLEANED TO TEXT-XS MEDIUM WEIGHT, CELL PADDING STANDARDIZED TO PX-3 PY-2, ADVISORY TEXT & BADGES COMPACTED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Primary Identifier Typography Reduction**:
+   - `VCODE`: Updated from `text-sm font-bold font-mono` to `text-xs font-medium font-mono text-text-primary whitespace-nowrap`.
+   - `Store Name`: Updated from `text-sm font-semibold` to `text-xs font-medium text-text-primary leading-tight`.
+
+2. **Metadata & Advisory Typography Alignment**:
+   - `Employee ID`: Kept at clean `text-xs font-mono text-purple-700 leading-tight`.
+   - `Mother Account`: Standardized at `text-xs text-text-muted font-mono leading-tight mt-0.5`.
+   - `Schedule & Shift details`: Standardized at `text-xs text-text-muted truncate mt-0.5 leading-tight`.
+   - `Validation Issues & Guidance`:
+     - Tightened message spacing from `space-y-1` to `space-y-0.5`.
+     - Standardized error and flag advisory text to `text-xs font-normal leading-tight break-words`.
+     - Standardized advisory pills (`conflictType`, `field`, `flag`) to `px-1.5 py-0.5 text-3xs font-mono font-medium shrink-0 leading-none`.
+     - Refined "Ready for import", "Existing VCODE skipped", and "Pending" statuses to `text-xs font-medium leading-tight`.
+
+3. **Table Spacing & Badge Alignment**:
+   - Standardized table cell padding across all `th` headers and `td` cells in the Review Queue inspect rows table to `py-2 px-3`.
+   - Compacted status pills (`VALID`, `FLAGGED`, `BLOCKED`, `SKIPPED`, `ROVING`, `STATIONARY`, `NEEDS HRCO`, `Vacant Baseline Slot`) with `px-1.5 py-0.5 text-3xs font-medium leading-none whitespace-nowrap` for balanced vertical flow.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+
+---
+
 ## Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (ohm#y8k4w2m9)
 
 **Status: COMPLETE — PRE-COMMIT GUARD UPDATED TO BLOCK ONLY HARD ERRORS (VALIDATION_STATUS = 'BLOCKED'), ADVISORY FLAGGED ROWS PERMITTED TO COMMIT, ACCOUNT HRCO AUTO-TAGGING & DEFAULT FALLBACK IMPLEMENTED, ERROR STRING PROPAGATION ENHANCED, MIGRATION LIVE-APPLIED TO STAGING (0 BUILD/LINT REGRESSIONS ON MAIN)**

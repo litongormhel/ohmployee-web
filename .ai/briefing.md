@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
-2. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
-3. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
-4. **ohm#e7m4x9w2**: ExcelJS ADR-002 Plantilla Import Template Generator (Required Header Highlighting `#FFC7CE` / `#9C0006`, Native Excel Dropdowns for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, and 15-Rule Validation Guide Sheet)
-5. **ohm#p9x2w8m4**: Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (Database Migration `20262606000053`, Staging Live Apply, Excel Parser & Template Standardization, Ops Schedule & Dayoff Controls, Zero-Edit Lock)
+1. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
+2. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
+3. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
+4. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
+5. **ohm#e7m4x9w2**: ExcelJS ADR-002 Plantilla Import Template Generator (Required Header Highlighting `#FFC7CE` / `#9C0006`, Native Excel Dropdowns for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, and 15-Rule Validation Guide Sheet)
 
-> Older entries trimmed 2026-10-23 (`ohm#y8k4w2m9`) to keep this list to 5 — dropped `ohm#a7k2m9x4` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#r4k8m2w6`) to keep this list to 5 — dropped `ohm#p9x2w8m4` and earlier entries — see git history for that and earlier entries in full.
