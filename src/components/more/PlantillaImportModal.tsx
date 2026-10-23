@@ -159,8 +159,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
         type: "success",
         message: `Plantilla batch #${batchShortId} has been rejected.`,
       });
-    } catch (err) {
-      setRejectionNoteError(err instanceof Error ? err.message : "Failed to reject plantilla batch.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRejectionNoteError(msg || "Failed to reject plantilla batch.");
     } finally {
       setIsActionPending(false);
     }
@@ -228,7 +229,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   }, [isSuperAdmin, isHeadAdmin, isEncoder]);
 
   const reviewableStatuses = useMemo(
-    () => new Set(["draft_uploaded", "pending_approval", "validation_failed", "blocked", "partially_blocked", "commit_failed"]),
+    () => new Set(["draft_uploaded", "pending_approval", "pending_review", "validation_failed", "blocked", "partially_blocked"]),
     []
   );
   const pendingBatches = useMemo(

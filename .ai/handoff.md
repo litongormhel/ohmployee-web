@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (ohm#m4k9w2x8)
+
+**Status: COMPLETE — MIGRATION `20262606000057` APPLIED TO LIVE STAGING, STORE-SCOPED `uq_plantilla_slots_active_occupant` CREATED, 3-STEP IDEMPOTENT SLOT ASSIGNMENT IN `approve_plantilla_import_batch`, `reject_plantilla_import_batch` RPC STATUS GUARD EXPANDED, BATCH `#8ba83c7f` RESET TO `pending_approval`, `reviewableStatuses` CLEANED UP IN `PlantillaImportModal.tsx`, DETAILED RPC ERROR PROPAGATION IN `dataControl.ts` (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Store-Scoped Occupancy Uniqueness (Migration `20262606000057_fix_roving_slot_occupancy_and_rejection.sql`)**:
+   - **Root Cause**: Batch `#8ba83c7f` failed on `Approve & Apply` with `duplicate key value violates unique constraint "uq_plantilla_slots_active_occupant" (SQLSTATE 23505)`. The previous index was table-wide on `(current_occupant_plantilla_id)` where `slot_status IN ('occupied', 'filled')`, which blocked roving employees (e.g., `2021-09660` across `CPRVJV11` and `CPSAJV12`) from occupying active slots across 2+ stores under ADR-002 ($1/N$ fractional headcount).
+   - **Store-Scoped Index Replacement**: Recreated index scoped to `(COALESCE(store_id, '00000000-0000-0000-0000-000000000000'::uuid), current_occupant_plantilla_id)` where `current_occupant_plantilla_id IS NOT NULL AND slot_status IN ('occupied', 'filled')`. An employee can occupy at most one slot per store while roving cleanly across multiple stores.
+
+2. **Phase B2 3-Step Idempotent Slot Assignment (`approve_plantilla_import_batch`)**:
+   - **Step 1 (Reuse In-Place)**: Checks if the employee already occupies an active slot in this store (`(store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_store_rec.vcode))) AND current_occupant_plantilla_id = v_plantilla_id AND slot_status IN ('occupied', 'filled')`). If found, updates `position`, `is_roving`, `employment_type`, and `updated_at` idempotently in-place.
+   - **Step 2 (Claim Open Vacant)**: If not already occupying a slot in this store, finds the lowest ordinal `open` slot, claims it for `v_plantilla_id`, closes linked vacancies (`status = 'Filled'`), and logs `slot_history` with `IMPORT_CLAIM_VACANT`.
+   - **Step 3 (Provision New Slot)**: If no open slot exists, creates a new slot with ordinal `COALESCE(MAX(slot_ordinal), 0) + 1`, sets `slot_status = 'occupied'`, and logs `slot_history` with `IMPORT_OCCUPIED`.
+
+3. **Rejection RPC Expansion (`reject_plantilla_import_batch`) & Client Diagnostics**:
+   - **Status Guard Expansion**: Updated Postgres RPC to allow rejecting batches in `('pending_approval', 'pending_review', 'validation_failed', 'draft_uploaded', 'commit_failed', 'blocked', 'partially_blocked')`.
+   - **Client Error Diagnostics**: Updated `rejectPlantillaImportBatch` in [`src/lib/queries/dataControl.ts`](file:///d:/Projects/ohmployee-web/src/lib/queries/dataControl.ts) to concatenate `[error.message, error.details, error.hint]`, and updated [`PlantillaImportModal.tsx`](file:///d:/Projects/ohmployee-web/src/components/more/PlantillaImportModal.tsx) to surface the full error message in `rejectionNoteError`.
+
+4. **Review Queue Scoping & Staging Data Reset**:
+   - **Review Queue Scoping**: Removed `"commit_failed"` from `reviewableStatuses` in `PlantillaImportModal.tsx`, keeping `commit_failed` batches exclusively in the **Import History** tab.
+   - **Active Batch Reset**: Reset batch `#8ba83c7f` (`8ba83c7f-af06-4161-a427-ab1ebb899b2d`) from `commit_failed` to `pending_approval` with cleared error fields.
+   - **Stale Batch Cleanup**: Marked stale test batch `#7d961dfc` (`7d961dfc-8c09-4db0-8225-74ab26d9a607`) as `'rejected'`, ensuring exactly 1 active batch in the Review Queue.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+- Live Staging DB: Verified `uq_plantilla_slots_active_occupant` is scoped to store + occupant, `approve_plantilla_import_batch` and `reject_plantilla_import_batch` are live, batch `#8ba83c7f` is in `pending_approval`, and stale `#7d961dfc` is marked `rejected`.
+
+---
+
 ## Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (ohm#x7k4w9m2)
 
 **Status: COMPLETE — MIGRATION `20262606000056` APPLIED TO LIVE STAGING, MISSING REASON CODES `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT` SEEDED IN `slot_reason_codes`, DEFENSIVE LOOKUP GUARDS & RETRYABLE `commit_failed` ADDED TO `approve_plantilla_import_batch`, BATCH `#7d961dfc` RESET TO `pending_approval`, COMPACT TYPOGRAPHY & `useUsersList()` ACTOR RESOLUTION IMPLEMENTED IN `PlantillaImportModal.tsx` (0 BUILD/LINT REGRESSIONS ON MAIN)**
@@ -306,6 +336,36 @@
 ---
 
 # AI Handoff
+
+## Plantilla Import Roving Slot Occupancy, Rejection Status Expansion & Review Queue Scope Fix (ohm#m4k9w2x8)
+
+**Status: COMPLETE — MIGRATION `20262606000057` APPLIED TO LIVE STAGING, STORE-SCOPED `uq_plantilla_slots_active_occupant` CREATED, 3-STEP IDEMPOTENT SLOT ASSIGNMENT IN `approve_plantilla_import_batch`, `reject_plantilla_import_batch` RPC STATUS GUARD EXPANDED, BATCH `#8ba83c7f` RESET TO `pending_approval`, `reviewableStatuses` CLEANED UP IN `PlantillaImportModal.tsx`, DETAILED RPC ERROR PROPAGATION IN `dataControl.ts` (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Store-Scoped Occupancy Uniqueness (Migration `20262606000057_fix_roving_slot_occupancy_and_rejection.sql`)**:
+   - **Root Cause**: Batch `#8ba83c7f` failed on `Approve & Apply` with `duplicate key value violates unique constraint "uq_plantilla_slots_active_occupant" (SQLSTATE 23505)`. The previous index was table-wide on `(current_occupant_plantilla_id)` where `slot_status IN ('occupied', 'filled')`, which blocked roving employees (e.g., `2021-09660` across `CPRVJV11` and `CPSAJV12`) from occupying active slots across 2+ stores under ADR-002 ($1/N$ fractional headcount).
+   - **Store-Scoped Index Replacement**: Recreated index scoped to `(COALESCE(store_id, '00000000-0000-0000-0000-000000000000'::uuid), current_occupant_plantilla_id)` where `current_occupant_plantilla_id IS NOT NULL AND slot_status IN ('occupied', 'filled')`. An employee can occupy at most one slot per store while roving cleanly across multiple stores.
+
+2. **Phase B2 3-Step Idempotent Slot Assignment (`approve_plantilla_import_batch`)**:
+   - **Step 1 (Reuse In-Place)**: Checks if the employee already occupies an active slot in this store (`(store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_store_rec.vcode))) AND current_occupant_plantilla_id = v_plantilla_id AND slot_status IN ('occupied', 'filled')`). If found, updates `position`, `is_roving`, `employment_type`, and `updated_at` idempotently in-place.
+   - **Step 2 (Claim Open Vacant)**: If not already occupying a slot in this store, finds the lowest ordinal `open` slot, claims it for `v_plantilla_id`, closes linked vacancies (`status = 'Filled'`), and logs `slot_history` with `IMPORT_CLAIM_VACANT`.
+   - **Step 3 (Provision New Slot)**: If no open slot exists, creates a new slot with ordinal `COALESCE(MAX(slot_ordinal), 0) + 1`, sets `slot_status = 'occupied'`, and logs `slot_history` with `IMPORT_OCCUPIED`.
+
+3. **Rejection RPC Expansion (`reject_plantilla_import_batch`) & Client Diagnostics**:
+   - **Status Guard Expansion**: Updated Postgres RPC to allow rejecting batches in `('pending_approval', 'pending_review', 'validation_failed', 'draft_uploaded', 'commit_failed', 'blocked', 'partially_blocked')`.
+   - **Client Error Diagnostics**: Updated `rejectPlantillaImportBatch` in [`src/lib/queries/dataControl.ts`](file:///d:/Projects/ohmployee-web/src/lib/queries/dataControl.ts) to concatenate `[error.message, error.details, error.hint]`, and updated [`PlantillaImportModal.tsx`](file:///d:/Projects/ohmployee-web/src/components/more/PlantillaImportModal.tsx) to surface the full error message in `rejectionNoteError`.
+
+4. **Review Queue Scoping & Staging Data Reset**:
+   - **Review Queue Scoping**: Removed `"commit_failed"` from `reviewableStatuses` in `PlantillaImportModal.tsx`, keeping `commit_failed` batches exclusively in the **Import History** tab.
+   - **Active Batch Reset**: Reset batch `#8ba83c7f` (`8ba83c7f-af06-4161-a427-ab1ebb899b2d`) from `commit_failed` to `pending_approval` with cleared error fields.
+   - **Stale Batch Cleanup**: Marked stale test batch `#7d961dfc` (`7d961dfc-8c09-4db0-8225-74ab26d9a607`) as `'rejected'`, ensuring exactly 1 active batch in the Review Queue.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+- Live Staging DB: Verified `uq_plantilla_slots_active_occupant` is scoped to store + occupant, `approve_plantilla_import_batch` and `reject_plantilla_import_batch` are live, batch `#8ba83c7f` is in `pending_approval`, and stale `#7d961dfc` is marked `rejected`.
+
+---
 
 ## Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (ohm#x7k4w9m2)
 

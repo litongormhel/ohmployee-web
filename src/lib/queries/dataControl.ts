@@ -478,7 +478,10 @@ export async function rejectPlantillaImportBatch(params: {
     p_reason_code: params.reasonCode,
     p_reason_note: params.reasonNote,
   });
-  if (error) throw error;
+  if (error) {
+    const errorMsg = [error.message, error.details, error.hint].filter(Boolean).join(" - ") || "Failed to reject plantilla batch.";
+    throw new Error(errorMsg);
+  }
 }
 
 export async function requestPlantillaImportRollback(params: {
