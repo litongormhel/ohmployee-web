@@ -80,9 +80,72 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
 
   // Review detail & action
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [actionReason, setActionReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActionPending, setIsActionPending] = useState(false);
+
+  // Dedicated Rejection Modal state
+  const [rejectTargetBatch, setRejectTargetBatch] = useState<PlantillaImportBatch | null>(null);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState("");
+  const [rejectionNoteError, setRejectionNoteError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 4000);
+  };
+
+  const openRejectModal = (batch: PlantillaImportBatch) => {
+    setRejectTargetBatch(batch);
+    setRejectionNote("");
+    setRejectionNoteError(null);
+    setIsRejectModalOpen(true);
+  };
+
+  const closeRejectModal = () => {
+    if (isActionPending) return;
+    setIsRejectModalOpen(false);
+    setRejectTargetBatch(null);
+    setRejectionNote("");
+    setRejectionNoteError(null);
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!rejectTargetBatch) return;
+
+    const trimmed = rejectionNote.trim();
+    if (!trimmed) {
+      setRejectionNoteError("Please provide an audited reason note for rejection.");
+      return;
+    }
+
+    setIsActionPending(true);
+    setRejectionNoteError(null);
+    setActionError(null);
+    try {
+      await rejectPlantillaImportBatch({
+        batchId: rejectTargetBatch.id,
+        reasonCode: "other",
+        reasonNote: trimmed,
+      });
+      const batchShortId = rejectTargetBatch.id.slice(0, 8);
+      closeRejectModal();
+      refetchBatches();
+      queryClient.invalidateQueries({ queryKey: ["plantilla-import-batches"] });
+      setSelectedBatchId(null);
+      showToast(`Plantilla batch #${batchShortId} has been successfully rejected.`);
+      setReviewNotice({
+        type: "success",
+        message: `Plantilla batch #${batchShortId} has been rejected.`,
+      });
+    } catch (err) {
+      setRejectionNoteError(err instanceof Error ? err.message : "Failed to reject plantilla batch.");
+    } finally {
+      setIsActionPending(false);
+    }
+  };
 
   // Rollback Governance & History state
   const [historySelectedBatch, setHistorySelectedBatch] = useState<PlantillaImportBatch | null>(null);
@@ -264,35 +327,6 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
     }
   };
 
-  const handleRejectBatch = async (batchId: string, isValidationFailed?: boolean) => {
-    setIsActionPending(true);
-    setActionError(null);
-    try {
-      const note = actionReason.trim()
-        ? actionReason.trim()
-        : isValidationFailed
-        ? "Dismissed: Batch failed ADR-001 or row validation checks."
-        : "";
-      if (!note && !isValidationFailed) {
-        setActionError("Please provide an audited reason note for rejection.");
-        setIsActionPending(false);
-        return;
-      }
-      await rejectPlantillaImportBatch({
-        batchId,
-        reasonCode: isValidationFailed ? "invalid_csv" : "other",
-        reasonNote: note,
-      });
-      refetchBatches();
-      setSelectedBatchId(null);
-      setActionReason("");
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to reject plantilla batch.");
-    } finally {
-      setIsActionPending(false);
-    }
-  };
-
   const handleRollbackSuccess = (msg: string) => {
     setRollbackActionSuccess(msg);
     setRollbackActionError(null);
@@ -360,6 +394,14 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto">
       <div className="relative flex w-full max-w-5xl max-h-[92vh] flex-col rounded-2xl border border-border-subtle bg-surface shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Floating Toast Notification */}
+        {toastMessage && (
+          <div className="absolute top-4 right-14 z-50 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-900 shadow-lg animate-in fade-in slide-in-from-top-2 duration-150">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4 bg-surface-subtle">
           <div className="flex items-center gap-3">
@@ -762,7 +804,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   Approve & Apply
                                 </button>
                                 <button
-                                  onClick={() => handleRejectBatch(batch.id, isValidationFailed)}
+                                  onClick={() => openRejectModal(batch)}
                                   disabled={isActionPending}
                                   className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50"
                                 >
@@ -1040,24 +1082,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             )}
 
                             {canApprove && (
-                              <div className="pt-2 flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder={
-                                    isValidationFailed
-                                      ? "Audit note (optional: default will be used if left blank)..."
-                                      : "Rejection note or audit remarks (required if rejecting)..."
-                                  }
-                                  value={actionReason}
-                                  onChange={(e) => setActionReason(e.target.value)}
-                                  className="flex-1 h-8 rounded-lg border border-border-subtle bg-surface px-3 text-xs text-text-primary focus:outline-hidden"
-                                />
+                              <div className="pt-2 flex justify-end">
                                 <button
-                                  onClick={() => handleRejectBatch(batch.id, isValidationFailed)}
+                                  onClick={() => openRejectModal(batch)}
                                   disabled={isActionPending}
                                   className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50 shrink-0"
                                 >
-                                  {isValidationFailed ? "Dismiss Batch" : "Reject Batch"}
+                                  {isValidationFailed ? "Dismiss / Reject Batch" : "Reject Batch"}
                                 </button>
                               </div>
                             )}
@@ -1698,6 +1729,86 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           </button>
         </div>
       </div>
+
+      {/* REJECTION REASON MODAL */}
+      {isRejectModalOpen && rejectTargetBatch && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="relative w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <h3 className="text-sm font-bold text-text-primary">Reject Plantilla Batch</h3>
+              </div>
+              <button
+                onClick={closeRejectModal}
+                disabled={isActionPending}
+                className="text-text-muted hover:text-text-primary disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="text-2xs text-text-secondary bg-surface-subtle p-3 rounded-xl border border-border-subtle space-y-1">
+              <div>
+                <span className="font-semibold text-text-primary">Batch:</span> #{rejectTargetBatch.id.slice(0, 8)}{" "}
+                {rejectTargetBatch.fileName && `(${rejectTargetBatch.fileName})`}
+              </div>
+              {(rejectTargetBatch.groupName || rejectTargetBatch.accountName) && (
+                <div>
+                  <span className="font-semibold text-text-primary">Scope:</span> {rejectTargetBatch.groupName || "—"} /{" "}
+                  {rejectTargetBatch.accountName || "—"}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-text-primary block">
+                Rejection Reason / Audit Remarks <span className="text-rose-600">*</span>
+              </label>
+              <textarea
+                value={rejectionNote}
+                onChange={(e) => {
+                  setRejectionNote(e.target.value);
+                  if (rejectionNoteError) setRejectionNoteError(null);
+                }}
+                disabled={isActionPending}
+                placeholder="Please provide an audited reason note for rejection..."
+                rows={3}
+                className="w-full rounded-xl border border-border-subtle bg-surface p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-rose-300 resize-none"
+              />
+              {rejectionNoteError && (
+                <div className="text-xs text-rose-600 font-medium flex items-center gap-1.5 pt-1 animate-in fade-in duration-100">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{rejectionNoteError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-subtle">
+              <button
+                onClick={closeRejectModal}
+                disabled={isActionPending}
+                className="px-3.5 py-1.5 rounded-lg border border-border-subtle bg-surface text-xs font-semibold text-text-secondary hover:bg-surface-hover transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRejection}
+                disabled={isActionPending}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition disabled:opacity-50"
+              >
+                {isActionPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Rejecting...
+                  </>
+                ) : (
+                  "Confirm Rejection"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL 1: Request Rollback Modal */}
       {isRequestRollbackOpen && historySelectedBatch && (

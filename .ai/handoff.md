@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (ohm#j9w4m2x8)
+
+**Status: COMPLETE — INLINE REJECTION INPUT ELIMINATED, DEDICATED HIGH-PRIORITY REJECTION REASON MODAL IMPLEMENTED WITH MANDATORY AUDIT NOTE VALIDATION, CONFIRMATION TOAST NOTIFICATION & QUEUE CACHE INVALIDATION WIRED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Dedicated Rejection Reason Modal Component (`PlantillaImportModal.tsx`)**:
+   - Replaced fragile inline rejection text input in the Review Queue inspect drawer with a dedicated modal dialog (`isRejectModalOpen`, `z-60`).
+   - Title: **"Reject Plantilla Batch"** featuring the target Batch ID, file name, and operational group/account scope.
+   - Textarea: Structured input for operational audit justification (`rejectionNote`).
+   - Controls:
+     - **Cancel**: Closes modal and clears `rejectionNote` and `rejectionNoteError`.
+     - **Confirm Rejection**: Validates input; if empty or whitespace-only, displays inline alert (`"Please provide an audited reason note for rejection."`). Once validated, triggers `rejectPlantillaImportBatch({ batchId, reasonCode: 'other', reasonNote })` with a loading state.
+
+2. **UX & Feedback Integration**:
+   - Integrated floating top-right confirmation toast notification (`toastMessage`, auto-dismissing after 4s) upon successful rejection.
+   - Synchronized review notice banner (`reviewNotice`) and invalidates React Query cache (`plantilla-import-batches`) alongside `refetchBatches()`.
+   - Wired all **Reject** and **Dismiss / Reject** buttons on batch cards and inspect drawers to launch the dedicated modal.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+
+---
+
 ## Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel CI Deployments (ohm#b4k9w2x7)
 
 **Status: COMPLETE — `pnpm-lock.yaml` REGENERATED AND SYNCHRONIZED WITH `package.json` (`exceljs@^4.4.0`), FROZEN-LOCKFILE CI VALIDATION SUCCEEDED, 0 BUILD/LINT REGRESSIONS ON MAIN**
