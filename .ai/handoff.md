@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel CI Deployments (ohm#b4k9w2x7)
+
+**Status: COMPLETE — `pnpm-lock.yaml` REGENERATED AND SYNCHRONIZED WITH `package.json` (`exceljs@^4.4.0`), FROZEN-LOCKFILE CI VALIDATION SUCCEEDED, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Root Cause Resolution for Vercel Deployment Failure**:
+   - Vercel detects `pnpm-lock.yaml` in the repo root and executes `pnpm install --frozen-lockfile`.
+   - When `exceljs@^4.4.0` was introduced into `package.json` in `ohm#e7m4x9w2`, `package-lock.json` was updated but `pnpm-lock.yaml` was left desynchronized.
+   - This caused Vercel deployment builds to fail with `ERR_PNPM_OUTDATED_LOCKFILE: Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with <ROOT>/package.json (* 1 dependencies were added: exceljs@^4.4.0)`.
+
+2. **Lockfile Synchronization**:
+   - Executed `pnpm install` locally, incorporating `exceljs@4.4.0` and its required dependency tree into `pnpm-lock.yaml`.
+   - Verified that `pnpm install --frozen-lockfile` runs to completion cleanly with zero specifier mismatches.
+
+### Verification
+- `pnpm install --frozen-lockfile`: Passed cleanly (`Already up to date` in 453ms).
+- `npm run lint`: Clean with 0 errors across the codebase (25 pre-existing warnings).
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+
+---
+
 ## Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (ohm#r4k8m2w6)
 
 **Status: COMPLETE — REVIEW QUEUE INSPECT ROWS TABLE TYPOGRAPHY SIMPLIFIED & SCALED DOWN, PRIMARY IDENTIFIERS CLEANED TO TEXT-XS MEDIUM WEIGHT, CELL PADDING STANDARDIZED TO PX-3 PY-2, ADVISORY TEXT & BADGES COMPACTED (0 BUILD/LINT REGRESSIONS ON MAIN)**

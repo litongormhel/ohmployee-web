@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
-2. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
-3. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
-4. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
-5. **ohm#e7m4x9w2**: ExcelJS ADR-002 Plantilla Import Template Generator (Required Header Highlighting `#FFC7CE` / `#9C0006`, Native Excel Dropdowns for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, and 15-Rule Validation Guide Sheet)
+1. **ohm#b4k9w2x7**: Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel Frozen Lockfile CI Deployments (`pnpm install --frozen-lockfile` Validated, 0 Build/Lint Regressions)
+2. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
+3. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
+4. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
+5. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
 
-> Older entries trimmed 2026-10-23 (`ohm#r4k8m2w6`) to keep this list to 5 — dropped `ohm#p9x2w8m4` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#b4k9w2x7`) to keep this list to 5 — dropped `ohm#e7m4x9w2` and earlier entries — see git history for that and earlier entries in full.
