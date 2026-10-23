@@ -627,7 +627,12 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Metadata (`Employee ID`, `Mother Account`, `schedule/shift`, `employmentType`, `requiredHc`) reduced to `text-xs leading-tight text-text-muted` to eliminate vertical row bloating.
     - Status pills (`PENDING APPROVAL`, `FLAGGED`, `VALID`, `NEEDS HRCO`, `roving`, `stationary`) compacted (`px-1.5 py-0.5 text-3xs font-bold leading-none whitespace-nowrap`).
     - Validation error and guidance messages styled in `text-xs leading-tight break-words text-rose-700 / text-amber-700` preventing awkward cell stretching.
-  - "Approve & Apply" claims existing open vacant slots before incrementing slot ordinals, creates/updates linked `public.vacancies`, and records `approved_at` after all DML completes.
+  - "Approve & Apply" claims existing open vacant slots before incrementing slot ordinals, creates/updates linked `public.vacancies` (guaranteeing required not-null `account` and `position` fields), and records `approved_at` after all DML completes.
+  - **Pre-Commit Guard & Robust Commit Exception Propagation (`approve_plantilla_import_batch`)**:
+    - Pre-commit guard evaluates `validation_status = 'flagged'`; if unresolved flagged rows exist, blocks approval before the transaction starts with `Cannot approve batch: X flagged rows must be resolved or dismissed first` (retaining `pending_approval` state).
+    - Vacant slot creation in Phase B1 syncs shadow `public.vacancies` records with non-null `account` (`COALESCE(v_acct_name, 'Unknown Account')`) and `position` (`COALESCE(v_vrow.position, 'Merchandiser')`), handling conflicts with `ON CONFLICT (vcode) DO UPDATE`.
+    - Pl/pgSQL exception handler translates Postgres constraint errors (e.g. `23502` missing required field, `23505` unique conflict, `23503` foreign key) into human-readable descriptions, writing them into both `commit_error_detail` and `error_message` on `plantilla_import_batches`.
+    - Client-side `approvePlantillaImportBatch` detects `status === 'commit_failed'` in return payloads and propagates the error message to trigger user-facing error banners in `PlantillaImportModal.tsx`.
 - **Rollback Governance & History Audit (`PlantillaImportModal.tsx`)**:
   - History table rendered inside a dedicated horizontal scroll container (`overflow-x-auto`) with fixed column layout (`table-fixed min-w-[920px]`).
   - Columns optimized with compact padding (`px-2.5 py-2.5`), text truncation (`truncate`), and native `title` hover tooltips on `File Name`, `Scope`, `Uploaded By`, and `Approved / Rejected By` (displaying shortened UUIDs or formatted actor names).

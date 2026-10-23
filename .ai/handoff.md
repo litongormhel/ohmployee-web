@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (ohm#m2x7k9w4)
+
+**Status: COMPLETE — ROOT CAUSE TRACED & VERIFIED ON BATCH #306ff1ae, PRE-COMMIT FLAGGED ROWS GUARD ENFORCED, VACANCIES SHADOW SYNC FIXED WITH ACCOUNT & POSITION, HUMAN-READABLE EXCEPTION PROPAGATION IMPLEMENTED, MIGRATION LIVE-APPLIED TO STAGING, TS RPC CALLER UPDATED (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Database Logs & Exception Tracing for Batch `#306ff1ae`**:
+   - Traced `batch_id = '306ff1ae-fc47-480c-928c-99797fa7562d'` on live Staging (`qqiiznmqxfoamqytjica`):
+     - `status`: `commit_failed`
+     - `commit_error_detail`: `"[23502] null value in column \"account\" of relation \"vacancies\" violates not-null constraint"`
+     - Total rows: 11 (`valid_rows`: 9, `flagged_rows`: 2).
+     - Rows 7, 8, 9 represented vacant store slots (`employee_no = null`) for `SMCO KAWIT`, `PUREGOLD - HUGO PEREZ`, and `PUERGOLD GENERAL TRIAS`.
+     - In Phase B1 of `approve_plantilla_import_batch`, vacant store slots sync shadow records into `public.vacancies`. The `INSERT INTO public.vacancies (...)` statement omitted required `NOT NULL` columns `account` and `position`, triggering error 23502.
+     - Confirmed subtransaction savepoint rollback was clean (`plantilla_import_commit_snapshots` count is 0).
+
+2. **Database Migration `20262606000054_fix_plantilla_import_vacancies_and_flagged_guard.sql` (Live Applied to Staging)**:
+   - **Schema Alignment**: Added `error_message text` column to `public.plantilla_import_batches` via `ALTER TABLE public.plantilla_import_batches ADD COLUMN IF NOT EXISTS error_message text;`.
+   - **Pre-commit Flagged Row Guard**:
+     - Pre-commit check queries `validation_status = 'flagged'`.
+     - If count > 0, raises `Cannot approve batch: % flagged rows must be resolved or dismissed first` (SQLSTATE `22023`) *before* beginning the transaction, keeping the batch safely in `pending_approval` rather than failing mid-commit.
+   - **Phase B1 Vacancies Shadow Insert Fix**:
+     - Explicitly populates `account = COALESCE(v_acct_name, 'Unknown Account')` and `position = COALESCE(v_vrow.position, 'Merchandiser')` in `INSERT INTO public.vacancies`.
+     - Standardized `ON CONFLICT (vcode) DO UPDATE` to sync `account`, `position`, `store_name`, `area_city`, `province`, `area_name`, `store_id`, `account_id`, `group_id`, `status = 'Open'`, and resets `deleted_at = NULL, is_archived = false`.
+   - **Robust Human-Readable Error Translation**:
+     - Exception handler intercepts constraint codes (`23502` missing required field, `23505` unique conflict, `23503` foreign key violation) and formats them into plain-English explanations.
+     - Synchronizes both `batch.commit_error_detail` and `batch.error_message`.
+
+3. **TypeScript RPC Caller Update (`src/lib/queries/dataControl.ts`)**:
+   - Updated `approvePlantillaImportBatch(batchId: string)`: checks returned payload for `status === 'commit_failed'` and throws `new Error(res.error || "Plantilla batch commit failed.")` to trigger user-facing error banners in the UI.
+   - Extended `PlantillaImportBatch` interface and mapper in `fetchPlantillaImportBatches` with `commitErrorDetail` and `errorMessage`.
+
+### Verification
+- **Staging DDL Execution**: Migration `fix_plantilla_import_vacancies_and_flagged_guard` applied cleanly to live Supabase staging (`qqiiznmqxfoamqytjica`); verified `error_message` column present.
+- `npm run lint`: Clean with 0 errors across all files.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 routes.
+
+---
+
 ## Plantilla Review & History Table Typography & Responsive Layout Polish (ohm#t8k2m7w4)
 
 **Status: COMPLETE — TYPOGRAPHY HIERARCHY SIMPLIFIED, CELL PADDING & LINE HEIGHTS COMPACTED, STATUS BADGES TIGHTENED, IMPORT HISTORY WRAPPED IN OVERFLOW CONTAINER WITH TEXT TRUNCATION & TOOLTIPS (0 BUILD/LINT REGRESSIONS ON MAIN)**

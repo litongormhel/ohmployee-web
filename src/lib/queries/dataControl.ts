@@ -193,6 +193,8 @@ export interface PlantillaImportBatch {
   rollbackUiState?: string;
   rollbackBlockReason?: string;
   canEmergencyRollback: boolean;
+  commitErrorDetail?: string;
+  errorMessage?: string;
 }
 
 export interface PlantillaRowValidationError {
@@ -298,6 +300,16 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     rollbackUiState: row.rollback_ui_state ? String(row.rollback_ui_state) : undefined,
     rollbackBlockReason: row.rollback_block_reason ? String(row.rollback_block_reason) : undefined,
     canEmergencyRollback: row.can_emergency_rollback === true,
+    commitErrorDetail: row.commit_error_detail
+      ? String(row.commit_error_detail)
+      : row.error_message
+      ? String(row.error_message)
+      : undefined,
+    errorMessage: row.error_message
+      ? String(row.error_message)
+      : row.commit_error_detail
+      ? String(row.commit_error_detail)
+      : undefined,
   }));
 }
 
@@ -439,10 +451,14 @@ export async function submitPlantillaBaselineImport(params: {
 
 export async function approvePlantillaImportBatch(batchId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.rpc("approve_plantilla_import_batch", {
+  const { data, error } = await supabase.rpc("approve_plantilla_import_batch", {
     p_batch_id: batchId,
   });
   if (error) throw error;
+  if (data && typeof data === "object" && (data as Record<string, unknown>).status === "commit_failed") {
+    const errorMsg = String((data as Record<string, unknown>).error || "Plantilla batch commit failed.");
+    throw new Error(errorMsg);
+  }
 }
 
 export async function rejectPlantillaImportBatch(params: {

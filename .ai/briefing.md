@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
-2. **ohm#e7m4x9w2**: ExcelJS ADR-002 Plantilla Import Template Generator (Required Header Highlighting `#FFC7CE` / `#9C0006`, Native Excel Dropdowns for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, and 15-Rule Validation Guide Sheet)
-3. **ohm#p9x2w8m4**: Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (Database Migration `20262606000053`, Staging Live Apply, Excel Parser & Template Standardization, Ops Schedule & Dayoff Controls, Zero-Edit Lock)
-4. **ohm#a7k2m9x4**: Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (A-Z Tab Strip, Single Horizontal Row Search & Status Filters, Resilience Fallback)
-5. **ohm#d8m4x2w9**: Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish)
+1. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
+2. **ohm#t8k2m7w4**: Plantilla Review & History Table Typography & Responsive Layout Polish (Primary Identifiers at `text-sm`, Metadata & Error Guidance at `text-xs leading-tight`, Compact Badges, Horizontal Scrolling & Truncation with Tooltips)
+3. **ohm#e7m4x9w2**: ExcelJS ADR-002 Plantilla Import Template Generator (Required Header Highlighting `#FFC7CE` / `#9C0006`, Native Excel Dropdowns for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`, and 15-Rule Validation Guide Sheet)
+4. **ohm#p9x2w8m4**: Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (Database Migration `20262606000053`, Staging Live Apply, Excel Parser & Template Standardization, Ops Schedule & Dayoff Controls, Zero-Edit Lock)
+5. **ohm#a7k2m9x4**: Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (A-Z Tab Strip, Single Horizontal Row Search & Status Filters, Resilience Fallback)
 
-> Older entries trimmed 2026-10-23 (`ohm#t8k2m7w4`) to keep this list to 5 — dropped `ohm#q8v2n4k7` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#m2x7k9w4`) to keep this list to 5 — dropped `ohm#d8m4x2w9` and earlier entries — see git history for that and earlier entries in full.
