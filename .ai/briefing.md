@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#j9w4m2x8**: Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (Replaced Inline Inputs with High-Priority Dialog, Mandatory Audit Remarks Validation, Auto-Dismissing Toast Notification)
-2. **ohm#b4k9w2x7**: Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel Frozen Lockfile CI Deployments (`pnpm install --frozen-lockfile` Validated, 0 Build/Lint Regressions)
-3. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
-4. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
-5. **ohm#m2x7k9w4**: Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (Pre-Commit Flagged Rows Guard, Vacancies Shadow Sync, Robust Exception Propagation, Staging Live Applied)
+1. **ohm#x7k4w9m2**: Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (Seed `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT`, Defensive `slot_history` Lookup Checks, Reset `#7d961dfc`, Compact `text-[10px]` Table Spacing & `useUsersList` Actor Resolution)
+2. **ohm#j9w4m2x8**: Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (Replaced Inline Inputs with High-Priority Dialog, Mandatory Audit Remarks Validation, Auto-Dismissing Toast Notification)
+3. **ohm#b4k9w2x7**: Synchronize `pnpm-lock.yaml` with `exceljs` Dependency for Vercel Frozen Lockfile CI Deployments (`pnpm install --frozen-lockfile` Validated, 0 Build/Lint Regressions)
+4. **ohm#r4k8m2w6**: Plantilla Review Queue Inspect Rows Typography & Spacing Simplification (Primary Identifiers at Clean `text-xs` Medium Weight, `px-3 py-2` Cell Padding, Compact Badges & Validation Advisory Text)
+5. **ohm#y8k4w2m9**: Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (Pre-Commit Blocked-Only Guard, Account HRCO Auto-Tagging, Detailed Error String Propagation, Staging Live Applied)
 
-> Older entries trimmed 2026-10-23 (`ohm#j9w4m2x8`) to keep this list to 5 — dropped `ohm#t8k2m7w4` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#x7k4w9m2`) to keep this list to 5 — dropped `ohm#m2x7k9w4` and earlier entries — see git history for that and earlier entries in full.

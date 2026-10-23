@@ -85,6 +85,7 @@ export interface UserProfileItem {
   hrcoGlobalVisibility: boolean;
   status: "Active" | "Suspended" | "Archived";
   scopeSummaries: string[];
+  authUserId?: string | null;
 }
 
 export interface UserCounts {
@@ -361,6 +362,7 @@ export async function fetchUsersList(): Promise<UserProfileItem[]> {
       roleName,
       isActive,
       isLinked: row.auth_user_id !== null && row.auth_user_id !== undefined,
+      authUserId: row.auth_user_id ?? null,
       isArchived,
       scopedGroupIds: groupIds,
       scopeLabel: groupNames.join(", "),

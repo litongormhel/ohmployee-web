@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (ohm#x7k4w9m2)
+
+**Status: COMPLETE — MIGRATION `20262606000056` APPLIED TO LIVE STAGING, MISSING REASON CODES `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT` SEEDED IN `slot_reason_codes`, DEFENSIVE LOOKUP GUARDS & RETRYABLE `commit_failed` ADDED TO `approve_plantilla_import_batch`, BATCH `#7d961dfc` RESET TO `pending_approval`, COMPACT TYPOGRAPHY & `useUsersList()` ACTOR RESOLUTION IMPLEMENTED IN `PlantillaImportModal.tsx` (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Database Schema & Foreign Key Fix (Migration `20262606000056_fix_slot_history_reason_codes.sql`)**:
+   - **Root Cause**: Batch `#7d961dfc` failed on approval with `violates foreign key constraint "slot_history_reason_fkey" (SQLSTATE 23503)` when attempting to insert vacant store rows into `public.slot_history` using `'IMPORT_VACANT_SLOT'`, which was missing from lookup table `public.slot_reason_codes`.
+   - **Seeded Master Lookup**: Added `'IMPORT_VACANT_SLOT'` and `'IMPORT_CLAIM_VACANT'` with active status and descriptive labels to `public.slot_reason_codes`.
+   - **Defensive Reason Code Verification**: Updated [`approve_plantilla_import_batch`](file:///d:/Projects/ohmployee-web/supabase/migrations/20262606000056_fix_slot_history_reason_codes.sql) so all `INSERT INTO public.slot_history` calls check `CASE WHEN EXISTS (SELECT 1 FROM public.slot_reason_codes WHERE code = ...) THEN ... ELSE NULL END`, preventing foreign key constraint crashes if an unseeded reason code is ever supplied.
+   - **Retryable Failed Batches**: Updated the status validation guard in `approve_plantilla_import_batch` to allow `commit_failed` alongside `pending_approval`.
+   - **Batch `#7d961dfc` Reset**: Reset batch `#7d961dfc-8c09-4db0-8225-74ab26d9a607` from `commit_failed` to `pending_approval` with cleared error fields.
+   - **Applied to Live Staging**: Migration applied and verified via Supabase MCP.
+
+2. **Typography & Spacing Overhaul (`PlantillaImportModal.tsx`)**:
+   - **Inspect Batch Rows Table**:
+     - `th`: Standardized to `text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 text-text-muted`.
+     - `td`: Scaled down to `px-2.5 py-1.5 align-middle`.
+     - Primary cell text (`VCODE`, `STORE_NAME`, `Position`, `Employee Name`): Clean `text-xs font-medium leading-tight` (max 12px, removed heavy font weights).
+     - Secondary metadata (`Mother:`, `ID:`, Schedule): Standardized to `text-[11px] text-slate-500 leading-tight`.
+     - Badges (`FLAGGED`, `VALID`, `BLOCKED`, `ROVING`, `STATIONARY`, `NEEDS HRCO`, `Vacant Baseline Slot`): Compact `text-[10px] px-1.5 py-0.5 rounded font-medium`.
+     - Validation Issues & Guidance: Scaled to `text-[11px] leading-snug space-y-0.5` with compact badges (`text-[10px] px-1.5 py-0.5 font-mono font-medium`) so roving messages fit cleanly on 1–2 lines without vertical row bloat.
+   - **Import History Table**:
+     - Standardized headers to `text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 text-text-muted`.
+     - Standardized cells to `px-2.5 py-1.5 align-middle text-xs leading-tight`.
+     - Refined column widths (`w-20` Batch #, `w-44` File Name, `w-28` Status, `w-20` Stores/HC, `w-44` Rollback, `w-36` Scope, `w-32` Uploaded By, `w-36` Approved/Rejected By, `w-24` Date).
+     - **Clean Actor Lookup**: Integrated `useUsersList()` to build a high-performance profile and auth user ID map, converting raw UUIDs to human full names (e.g. `"Litong, Ohm"`) with fallback to `${uuid.slice(0, 8)}...`.
+
+3. **Status Inclusion**:
+   - Added `"commit_failed"` to `reviewableStatuses` in `PlantillaImportModal.tsx` so failed batches are directly viewable and actionable in the Review Queue.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+- Staging verification: Query confirmed `IMPORT_VACANT_SLOT` and `IMPORT_CLAIM_VACANT` are present in `public.slot_reason_codes`, and batch `#7d961dfc` is in `pending_approval` ready to approve.
+
+---
+
 ## Dedicated Plantilla Import Batch Rejection Reason Modal & Feedback Toast (ohm#j9w4m2x8)
 
 **Status: COMPLETE — INLINE REJECTION INPUT ELIMINATED, DEDICATED HIGH-PRIORITY REJECTION REASON MODAL IMPLEMENTED WITH MANDATORY AUDIT NOTE VALIDATION, CONFIRMATION TOAST NOTIFICATION & QUEUE CACHE INVALIDATION WIRED (0 BUILD/LINT REGRESSIONS ON MAIN)**
@@ -269,6 +306,43 @@
 ---
 
 # AI Handoff
+
+## Plantilla Baseline Import Slot Reason Codes Fix & Compact Table Layout (ohm#x7k4w9m2)
+
+**Status: COMPLETE — MIGRATION `20262606000056` APPLIED TO LIVE STAGING, MISSING REASON CODES `IMPORT_VACANT_SLOT` & `IMPORT_CLAIM_VACANT` SEEDED IN `slot_reason_codes`, DEFENSIVE LOOKUP GUARDS & RETRYABLE `commit_failed` ADDED TO `approve_plantilla_import_batch`, BATCH `#7d961dfc` RESET TO `pending_approval`, COMPACT TYPOGRAPHY & `useUsersList()` ACTOR RESOLUTION IMPLEMENTED IN `PlantillaImportModal.tsx` (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Database Schema & Foreign Key Fix (Migration `20262606000056_fix_slot_history_reason_codes.sql`)**:
+   - **Root Cause**: Batch `#7d961dfc` failed on approval with `violates foreign key constraint "slot_history_reason_fkey" (SQLSTATE 23503)` when attempting to insert vacant store rows into `public.slot_history` using `'IMPORT_VACANT_SLOT'`, which was missing from lookup table `public.slot_reason_codes`.
+   - **Seeded Master Lookup**: Added `'IMPORT_VACANT_SLOT'` and `'IMPORT_CLAIM_VACANT'` with active status and descriptive labels to `public.slot_reason_codes`.
+   - **Defensive Reason Code Verification**: Updated [`approve_plantilla_import_batch`](file:///d:/Projects/ohmployee-web/supabase/migrations/20262606000056_fix_slot_history_reason_codes.sql) so all `INSERT INTO public.slot_history` calls check `CASE WHEN EXISTS (SELECT 1 FROM public.slot_reason_codes WHERE code = ...) THEN ... ELSE NULL END`, preventing foreign key constraint crashes if an unseeded reason code is ever supplied.
+   - **Retryable Failed Batches**: Updated the status validation guard in `approve_plantilla_import_batch` to allow `commit_failed` alongside `pending_approval`.
+   - **Batch `#7d961dfc` Reset**: Reset batch `#7d961dfc-8c09-4db0-8225-74ab26d9a607` from `commit_failed` to `pending_approval` with cleared error fields.
+   - **Applied to Live Staging**: Migration applied and verified via Supabase MCP.
+
+2. **Typography & Spacing Overhaul (`PlantillaImportModal.tsx`)**:
+   - **Inspect Batch Rows Table**:
+     - `th`: Standardized to `text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 text-text-muted`.
+     - `td`: Scaled down to `px-2.5 py-1.5 align-middle`.
+     - Primary cell text (`VCODE`, `STORE_NAME`, `Position`, `Employee Name`): Clean `text-xs font-medium leading-tight` (max 12px, removed heavy font weights).
+     - Secondary metadata (`Mother:`, `ID:`, Schedule): Standardized to `text-[11px] text-slate-500 leading-tight`.
+     - Badges (`FLAGGED`, `VALID`, `BLOCKED`, `ROVING`, `STATIONARY`, `NEEDS HRCO`, `Vacant Baseline Slot`): Compact `text-[10px] px-1.5 py-0.5 rounded font-medium`.
+     - Validation Issues & Guidance: Scaled to `text-[11px] leading-snug space-y-0.5` with compact badges (`text-[10px] px-1.5 py-0.5 font-mono font-medium`) so roving messages fit cleanly on 1–2 lines without vertical row bloat.
+   - **Import History Table**:
+     - Standardized headers to `text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 text-text-muted`.
+     - Standardized cells to `px-2.5 py-1.5 align-middle text-xs leading-tight`.
+     - Refined column widths (`w-20` Batch #, `w-44` File Name, `w-28` Status, `w-20` Stores/HC, `w-44` Rollback, `w-36` Scope, `w-32` Uploaded By, `w-36` Approved/Rejected By, `w-24` Date).
+     - **Clean Actor Lookup**: Integrated `useUsersList()` to build a high-performance profile and auth user ID map, converting raw UUIDs to human full names (e.g. `"Litong, Ohm"`) with fallback to `${uuid.slice(0, 8)}...`.
+
+3. **Status Inclusion**:
+   - Added `"commit_failed"` to `reviewableStatuses` in `PlantillaImportModal.tsx` so failed batches are directly viewable and actionable in the Review Queue.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+- Staging verification: Query confirmed `IMPORT_VACANT_SLOT` and `IMPORT_CLAIM_VACANT` are present in `public.slot_reason_codes`, and batch `#7d961dfc` is in `pending_approval` ready to approve.
+
+---
 
 ## Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (ohm#a7k2m9x4)
 
