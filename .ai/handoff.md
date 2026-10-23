@@ -1,5 +1,70 @@
 # AI Handoff
 
+## Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (ohm#p9x2w8m4)
+
+**Status: COMPLETE — ADR-002 AUTHORED & CROSS-REFERENCES UPDATED, DATABASE MIGRATION APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`), EXCEL TEMPLATE & 19-RULE GUIDE IMPLEMENTED, OPS SCHEDULE & DAYOFF CONTROLS INTEGRATED, ZERO-EDIT LOCK & VACANT-TO-OCCUPIED SLOT TRANSITIONS VERIFIED (0 BUILD/LINT ERRORS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Architectural Specification & Legacy Cross-References (Step 1)**:
+   - Authored [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](docs/architecture/adr002_plantilla_import_store_identity_and_governance.md) locking in all 10 architectural invariants:
+     - Invariant 1: Plantilla as upstream origin for stores, slots, and allocations (supports vacant slots; downstream checks validate against VCODE).
+     - Invariant 2: Permanent 1 Store Name = 1 VCODE identity within an account (`slot_ordinal` 1..N).
+     - Invariant 3: Roving Coverage Group (`CGCODE`) overlay coexists with permanent store `VCODE`.
+     - Invariant 4: Auto-computed `employment_type` (`stationary` vs `roving`) and fractional headcount ($1/N$ HC per store).
+     - Invariant 5: Multi-batch existing VCODE rule (vacant row skips non-blocking; assigned employee claims open slot or increments ordinal).
+     - Invariant 6: `MOTHER_ACCOUNT` required; `with_penalty` derived from mother account configurations.
+     - Invariant 7: Strict middle name validation ($\ge 2$ alpha characters or explicit `'NA'`/`'N/A'`; single-char initials rejected). Partial employee rows without `EMPLOYEE_NO` hard-blocked.
+     - Invariant 8: `SCHEDULE_DAYS`, `SCHEDULE_TIME` (shifts/flexi), `DAYOFF` (multi-select/custom).
+     - Invariant 9: Per-Account HRCO auto-population (1 HRCO $\to$ auto-assigned; 0 or $>1 \to$ `needs_hrco = true`) + reactive backfill when an account's HRCO is assigned.
+     - Invariant 10: 72h rollback window, HA/SA approval, SA override only if 0 edits; strict Zero-Edit Immutability Lock blocking rollback if any record was touched post-approval; rich Import History tracking.
+   - Added explicit **"Partially Superseded by ADR-002"** banners to legacy documents:
+     - `D:/Projects/OHMployee/docs/architecture/plantilla_slot_architecture.md`
+     - `D:/Projects/OHMployee/docs/architecture/vcode_slot_bridge_redesign.md`
+     - `D:/Projects/OHMployee/docs/architecture/coverage_group_roving_architecture_plan.md`
+   - Mirrored ADR-002 in `D:/Projects/OHMployee/docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` and updated `.ai/current_state.md`.
+
+2. **Database Migration Applied to Live Staging (`supabase/migrations/20262606000053_adr002_plantilla_identity_and_governance.sql`) (Step 2)**:
+   - Added columns: `mother_account`, `schedule_days`, `schedule_time`, `needs_hrco` to `plantilla_import_rows`, `stores`, `accounts`, `plantilla`, and `employee_store_allocations`.
+   - Added tracking columns to `plantilla_import_batches`: `rollback_rejected_by`, `rollback_rejected_at`, `approved_by_name`, `rejected_by_name`.
+   - Created configuration table `public.mother_account_configs` seeded with initial mother accounts and penalty rules.
+   - Applied reactive backfill trigger `trg_account_hrco_backfill` on `public.accounts` (`fn_trg_account_hrco_backfill()`).
+   - Implemented Zero-Edit Lock helper functions with 2-second approval grace false-positive guard (`_import_records_modified_after_approval` and `get_plantilla_import_first_modified_record`).
+   - Updated RPCs:
+     - `submit_plantilla_baseline_import`: Implements Invariants 1–9 with CTE-based validation checks.
+     - `approve_plantilla_import_batch`: Allows valid vacant slots, claims existing open slots before incrementing ordinals, synchronizes `public.vacancies`, and records `approved_at` after all DML finishes.
+     - `request_plantilla_import_rollback`: Checks 72h window and Zero-Edit Lock.
+     - `approve_plantilla_import_rollback`: Validates Zero-Edit Lock and reverses imported records atomically.
+     - `reject_plantilla_import_rollback`: Allows HA / SA to reject rollback requests.
+     - `override_plantilla_import_rollback`: SA override for expired windows only if zero records were modified.
+     - `fn_assert_vcode_exists_in_plantilla(p_vcode)`: Enforces Invariant 1 on downstream imports (`submit_vacancy_import`).
+
+3. **Web Frontend Updates (`ohmployee-web`) (Step 3)**:
+   - `src/lib/utils/data_control_xlsx.ts`:
+     - Standardized to 8 always-required store headers, 5 conditionally-required employee headers, and optional schedule headers (`SCHEDULE_DAYS`, `SCHEDULE_TIME`, `DAYOFF`).
+     - Added comprehensive 19-rule guide sheet in `downloadPlantillaImportTemplate()`.
+     - Preserved backward compatibility for legacy columns (`EMPLOYMENT_TYPE`, `REQUIRED_HC`, `WITH_PENALTY`, `SCHEDULE`).
+   - `src/lib/queries/dataControl.ts`:
+     - Updated batch and preview row interfaces and RPC mappers (`committedStores`, `committedEmployees`, `motherAccount`, `scheduleDays`, `scheduleTime`, `dayoff`, `needsHrco`, `approvedByName`, `rejectedByName`).
+     - Exported `rejectPlantillaImportRollback` and `overridePlantillaImportRollback`.
+   - `src/components/more/PlantillaImportModal.tsx`:
+     - Added `Skipped` filter pill in Review Queue (`validation_status = 'skipped'` for existing vacant VCODEs).
+     - Rendered `Vacant Baseline Slot` badge, `Mother Account`, `Position / HC`, and schedule metadata.
+     - Updated History table to render **Batch #**, **Stores / HC** (e.g. `11/10`), **Approved / Rejected By**, and 72h rollback countdown timer.
+     - Wired rollback actions: Head Admin & Super Admin can approve or reject rollback requests; Super Admin can execute emergency override.
+   - `src/components/plantilla/UpdateScheduleModal.tsx` & `PlantillaDetailDrawer.tsx`:
+     - Created `UpdateScheduleModal` supporting multi-select days (MON-SUN), shift windows & roving flexi durations, and dayoff multi-select.
+     - Added `Schedule & Store Visit Audit` section card in `PlantillaDetailDrawer` with "Edit Schedule" button.
+     - Updated `updatePlantillaSchedule` mutation to synchronize `plantilla` and `employee_store_allocations`, actively enforcing the Zero-Edit Lock.
+
+### Verification
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+- `npm run lint`: Clean with 0 errors.
+- Applied and validated migration on live Staging DB `qqiiznmqxfoamqytjica`.
+
+---
+
+# AI Handoff
+
 ## Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (ohm#a7k2m9x4)
 
 **Status: COMPLETE — APPROVALS CATEGORY NAVIGATION TABS REORDERED ALPHABETICALLY (A-Z), SEARCH AND STATUS TABS INLINED IN A SINGLE HORIZONTAL ROW WITH REFRESH BUTTON, ZERO LINT/BUILD REGRESSIONS**

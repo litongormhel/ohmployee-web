@@ -39,10 +39,10 @@ State files = current stable behavior only. handoff.md = active sprint continuit
 Archive obsolete logs to `docs/archive/`.
 
 ## Last Completed Tasks
-1. **ohm#a7k2m9x4**: Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (A-Z Tab Strip, Single Horizontal Row Search & Status Filters, Resilience Fallback)
-2. **ohm#d8m4x2w9**: Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish)
-3. **ohm#q8v2n4k7**: Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping
-4. **ohm#x7m2p9w4**: Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring)
-5. **ohm#k4r9w2m8**: Refactor Web Admin Command Center (Super Admin & Head Admin Desktop View, Semantic Urgency, Approvals Reconciliation, & MIKA Sync)
+1. **ohm#p9x2w8m4**: Implement ADR-002 Plantilla Import, Store Identity, Headcount Governance & 72h Rollback Architecture (Database Migration `20262606000053`, Staging Live Apply, Excel Parser & Template Standardization, Ops Schedule & Dayoff Controls, Zero-Edit Lock)
+2. **ohm#a7k2m9x4**: Approvals Page Category Alphabetical Ordering & Inline Toolbar Layout (A-Z Tab Strip, Single Horizontal Row Search & Status Filters, Resilience Fallback)
+3. **ohm#d8m4x2w9**: Deep-Dive Data Source & Metric Harmonization (SQL RPC Migration, Mobile Inversion & OM Scope Fix, Mock Purge & Viewport Polish)
+4. **ohm#q8v2n4k7**: Add Missing Group 3 & Group 4 to Scope Selector & Dynamic Scope Mapping
+5. **ohm#x7m2p9w4**: Polish Web Admin Command Center (Right-Rail Viewport Clearance, Live CENCOM Group Bindings, & Dynamic Approvals Wiring)
 
-> Older entries trimmed 2026-10-22 (`ohm#a7k2m9x4`) to keep this list to 5 — dropped `ohm#p8r4m2k9` and earlier entries — see git history for that and earlier entries in full.
+> Older entries trimmed 2026-10-23 (`ohm#p9x2w8m4`) to keep this list to 5 — dropped `ohm#k4r9w2m8` and earlier entries — see git history for that and earlier entries in full.

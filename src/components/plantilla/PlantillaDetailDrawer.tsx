@@ -21,6 +21,7 @@ import { InitiateSeparationModal } from "@/components/plantilla/InitiateSeparati
 import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
 import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
 import { TransferPersonnelModal } from "@/components/plantilla/TransferPersonnelModal";
+import { UpdateScheduleModal } from "@/components/plantilla/UpdateScheduleModal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -156,6 +157,7 @@ export function PlantillaDetailDrawer({
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDeactivationModalOpen, setIsDeactivationModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   return (
     <>
@@ -182,6 +184,7 @@ export function PlantillaDetailDrawer({
           onUpdateStatus={() => setIsStatusModalOpen(true)}
           onRequestDeactivation={() => setIsDeactivationModalOpen(true)}
           onTransferEmployee={() => setIsTransferModalOpen(true)}
+          onEditSchedule={() => setIsScheduleModalOpen(true)}
         />
       </DetailDrawer>
 
@@ -248,6 +251,22 @@ export function PlantillaDetailDrawer({
           }}
         />
       )}
+
+      {data && isScheduleModalOpen && (
+        <UpdateScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          plantillaId={data.id}
+          employeeNo={data.employeeNo}
+          employeeName={displayName}
+          initialScheduleDays={data.scheduleDays}
+          initialScheduleTime={data.scheduleTime}
+          initialDayoff={data.dayoff}
+          onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -274,6 +293,7 @@ function DrawerBody({
   onUpdateStatus,
   onRequestDeactivation,
   onTransferEmployee,
+  onEditSchedule,
 }: {
   isLoading: boolean;
   isAccessDenied: boolean;
@@ -289,6 +309,7 @@ function DrawerBody({
   onUpdateStatus: () => void;
   onRequestDeactivation: () => void;
   onTransferEmployee: () => void;
+  onEditSchedule: () => void;
 }) {
   if (isLoading) {
     return (
@@ -417,6 +438,23 @@ function DrawerBody({
         <AssignmentCoverageSection data={data} />
       </SectionCard>
 
+      {/* Ops Schedule & Dayoff Audit (ADR-002 Invariant 8) */}
+      <SectionCard
+        title="Schedule & Store Visit Audit"
+        action={
+          isAuthorized ? (
+            <button
+              onClick={onEditSchedule}
+              className="text-3xs font-semibold text-purple-700 hover:text-purple-900 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded px-2 py-0.5 transition cursor-pointer"
+            >
+              Edit Schedule
+            </button>
+          ) : undefined
+        }
+      >
+        <ScheduleAuditSection data={data} />
+      </SectionCard>
+
       {/* AH slot notice */}
       {data.plantillaType === "AH" && (
         <div className="rounded-md border border-status-warning-border bg-amber-50 p-3 flex items-start gap-2">
@@ -490,18 +528,61 @@ function DrawerBody({
 function SectionCard({
   title,
   children,
+  action,
 }: {
   title: string;
   children: ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div className="rounded-md border border-border-default bg-surface-base">
-      <div className="border-b border-border-subtle px-4 py-2.5">
+      <div className="border-b border-border-subtle px-4 py-2.5 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
           {title}
         </h3>
+        {action}
       </div>
       <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Schedule Audit Section (ADR-002 Invariant 8)
+// ---------------------------------------------------------------------------
+
+function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
+            Schedule Days
+          </span>
+          <span className="font-semibold text-text-primary mt-0.5 block truncate">
+            {data.scheduleDays || "MON-SAT"}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
+            Schedule Time
+          </span>
+          <span className="font-semibold text-text-primary mt-0.5 block truncate">
+            {data.scheduleTime || "08:00 AM - 05:00 PM"}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
+            Dayoff
+          </span>
+          <span className="font-semibold text-text-primary mt-0.5 block truncate">
+            {data.dayoff || "SUN"}
+          </span>
+        </div>
+      </div>
+      <p className="text-3xs text-text-muted">
+        Shift and flexible visit windows recorded for operational store visit audits.
+      </p>
     </div>
   );
 }

@@ -1,22 +1,26 @@
 import * as XLSX from "xlsx";
 
 // ============================================================================
-// 1. Plantilla Bulk Import Templates & Parser
+// 1. Plantilla Bulk Import Templates & Parser (ADR-002 Compliant)
 // ============================================================================
 
+// 8 Always Required Store Headers (ADR-002 Invariants 1, 2, 6)
+// Note: EMPLOYMENT_TYPE, REQUIRED_HC, and WITH_PENALTY are removed from required
+// input and auto-computed by the database.
 export const PLANTILLA_BASELINE_STORE_HEADERS = [
   "GROUP_NAME",
   "ACCOUNT_NAME",
+  "MOTHER_ACCOUNT",
   "VCODE",
   "STORE_NAME",
   "AREA_PROVINCE",
   "AREA_CITY",
   "POSITION",
-  "EMPLOYMENT_TYPE",
-  "REQUIRED_HC",
-  "WITH_PENALTY",
 ] as const;
 
+// 5 Conditionally Required Employee Headers (ADR-002 Invariants 5, 7)
+// If EMPLOYEE_NO is provided, all 5 are required (with strict MIDDLE_NAME check).
+// If EMPLOYEE_NO is blank, all 5 must be blank (creates vacant store slot).
 export const PLANTILLA_EMPLOYEE_HEADERS = [
   "EMPLOYEE_NO",
   "LAST_NAME",
@@ -25,44 +29,52 @@ export const PLANTILLA_EMPLOYEE_HEADERS = [
   "DATE_HIRED",
 ] as const;
 
-// The baseline required headers in any uploaded spreadsheet are the 10 store/slot columns.
-// Employee columns are optional (if provided, rows can be assigned employees or vacant slots).
+// The baseline required headers in any uploaded spreadsheet are the 8 store/slot columns.
 export const PLANTILLA_REQUIRED_HEADERS = PLANTILLA_BASELINE_STORE_HEADERS;
 
+// Optional Headers (ADR-002 Invariant 8: SCHEDULE_DAYS, SCHEDULE_TIME, DAYOFF)
 export const PLANTILLA_OPTIONAL_HEADERS = [
   "CIVIL_STATUS",
   "RATE",
   "DATE_OF_BIRTH",
   "CONTACT_NO",
   "ADDRESS",
-  "SCHEDULE",
+  "SCHEDULE_DAYS",
+  "SCHEDULE_TIME",
   "DAYOFF",
   "COORDINATOR",
   "HRCO_EMAIL",
 ] as const;
 
+// Legacy headers accepted for backward compatibility
+export const PLANTILLA_LEGACY_HEADERS = [
+  "EMPLOYMENT_TYPE",
+  "REQUIRED_HC",
+  "WITH_PENALTY",
+  "SCHEDULE",
+] as const;
+
 export const PLANTILLA_SAMPLE_ROW = [
   "GROUP 2",
   "SUPER 8",
-  "SLOT-SAMPLE-001",
-  "Super 8 Sample Branch",
+  "SUPER 8",
+  "PG-DAU-001",
+  "Super 8 Angeles Dau",
   "Pampanga",
   "Angeles",
   "Merchandiser",
-  "stationary",
-  "1",
-  "yes",
-  "EMP-SAMPLE-001",
+  "EMP-2026-001",
   "DELA CRUZ",
   "JUAN",
   "SANTOS",
   "2026-01-15",
   "SINGLE",
-  "600.00",
+  "610.00",
   "1995-05-15",
   "09171234567",
-  "123 Sample St Brgy Example",
+  "123 MacArthur Hwy Angeles",
   "MON-SAT",
+  "08:00 AM - 05:00 PM",
   "SUN",
   "Operations Coordinator",
   "",
@@ -82,33 +94,49 @@ export function downloadPlantillaImportTemplate(): void {
   const wsTemplate = XLSX.utils.aoa_to_sheet([headers, PLANTILLA_SAMPLE_ROW]);
   XLSX.utils.book_append_sheet(wb, wsTemplate, "IMPORT_TEMPLATE");
 
-  // Guide Sheet
+  // Guide Sheet (ADR-002 Complete 19-Rule Validation Guide)
   const guideData = [
-    ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT"],
+    ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT / ADR-002 SPECIFICATION"],
     ["GROUP_NAME", "YES", "Group scope (e.g. GROUP 2). Must match selected group context."],
-    ["ACCOUNT_NAME", "YES", "Account name under the selected group (e.g. SUPER 8)."],
-    ["VCODE", "YES", "Unique store vacancy slot code (e.g. PG-DAU-001)."],
-    ["STORE_NAME", "YES", "Official store branch name."],
-    ["AREA_PROVINCE", "YES", "Store province."],
-    ["AREA_CITY", "YES", "Store city or municipality."],
+    ["ACCOUNT_NAME", "YES", "Account client name under selected group (e.g. SUPER 8)."],
+    ["MOTHER_ACCOUNT", "YES", "Mother billing entity (e.g. SUPER 8). Penalty rules derive automatically from this configuration."],
+    ["VCODE", "YES", "Permanent store vacancy code (e.g. PG-DAU-001). 1 Store Name = 1 VCODE in Account."],
+    ["STORE_NAME", "YES", "Official store branch name. Must map 1:1 with VCODE within the Account."],
+    ["AREA_PROVINCE", "YES", "Store province (e.g. Pampanga)."],
+    ["AREA_CITY", "YES", "Store city or municipality (e.g. Angeles)."],
     ["POSITION", "YES", "Target position designation (e.g. Merchandiser)."],
-    ["EMPLOYMENT_TYPE", "YES", "stationary or roving."],
-    ["REQUIRED_HC", "YES", "Integer required headcount (typically 1)."],
-    ["WITH_PENALTY", "YES", "yes or no (determines vacancy penalty)."],
-    ["EMPLOYEE_NO", "OPTIONAL (VACANT)", "Unique company employee ID. Leave blank for vacant store slots."],
-    ["LAST_NAME", "OPTIONAL (VACANT)", "Employee surname. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
-    ["FIRST_NAME", "OPTIONAL (VACANT)", "Employee given name. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
-    ["MIDDLE_NAME", "NO", "Employee middle name or NA."],
-    ["DATE_HIRED", "OPTIONAL (VACANT)", "Hiring date in YYYY-MM-DD format. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
+    ["EMPLOYEE_NO", "CONDITIONAL (BLANK = VACANT)", "Company employee ID. Blank row creates a vacant baseline slot."],
+    ["LAST_NAME", "CONDITIONAL", "Required if EMPLOYEE_NO is provided; blank for vacant slots."],
+    ["FIRST_NAME", "CONDITIONAL", "Required if EMPLOYEE_NO is provided; blank for vacant slots."],
+    ["MIDDLE_NAME", "CONDITIONAL (STRICT)", "Required if EMPLOYEE_NO is provided. >= 2 letters or explicit NA/N/A. Initials like 'S' or 'S.' are rejected."],
+    ["DATE_HIRED", "CONDITIONAL", "Hiring date in YYYY-MM-DD. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
     ["CIVIL_STATUS", "NO", "SINGLE, MARRIED, WIDOWED, etc."],
-    ["RATE", "NO", "Daily wage rate (decimal number)."],
+    ["RATE", "NO", "Daily wage rate (decimal number, e.g. 610.00)."],
     ["DATE_OF_BIRTH", "NO", "Birth date in YYYY-MM-DD format."],
     ["CONTACT_NO", "NO", "Mobile contact number (10-11 digits)."],
     ["ADDRESS", "NO", "Full residential address."],
-    ["SCHEDULE", "NO", "Work week schedule (e.g. MON-SAT)."],
-    ["DAYOFF", "NO", "Designated day off (e.g. SUN)."],
+    ["SCHEDULE_DAYS", "NO", "Work week schedule days (e.g. MON-SAT, MON-FRI, or comma-separated MON,TUE,WED)."],
+    ["SCHEDULE_TIME", "NO", "Shift window (e.g. 08:00 AM - 05:00 PM) or roving visit duration (e.g. FLEXI (4 HRS))."],
+    ["DAYOFF", "NO", "Designated day(s) off (e.g. SUN, SAT-SUN, or MON,TUE)."],
     ["COORDINATOR", "NO", "Designated Operations Coordinator."],
-    ["HRCO_EMAIL", "NO", "Assigned HR Coordinator email (optional)."],
+    ["HRCO_EMAIL", "NO", "Assigned HR Coordinator email. If blank, auto-assigned if Account has exactly 1 HRCO."],
+    ["", "", ""],
+    ["ADR-002 ARCHITECTURAL INVARIANTS & RULES", "", ""],
+    ["1. Plantilla Upstream Origin", "RULE", "Plantilla Baseline Import is the upstream source of truth for stores and slots. Vacant slots are valid."],
+    ["2. Permanent 1 Store Name = 1 VCODE", "RULE", "Within an Account, 1 Store maps 1:1 to 1 VCODE across all slots and headcount."],
+    ["3. Coverage Group (CGCODE) Coexistence", "RULE", "Stores grouped under a roving CGCODE permanently retain their individual store VCODEs."],
+    ["4. Auto-Computed Employment Type", "RULE", "Vacant = stationary. Assigned: 1 store = stationary; >1 distinct stores in batch = roving."],
+    ["5. Fractional Headcount (1/N)", "RULE", "Roving employees across N stores receive fractional 1/N headcount per store (e.g. 5 stores = 0.20 HC)."],
+    ["6. Multi-Batch Existing VCODE Rule", "RULE", "Vacant row on existing VCODE is SKIPPED (non-blocking). Employee row on existing VCODE occupies open slot or adds ordinal."],
+    ["7. Mother Account Penalty Derivation", "RULE", "MOTHER_ACCOUNT is required; WITH_PENALTY is derived from mother account setup automatically."],
+    ["8. Strict Middle Name Validation", "RULE", "Single-letter initials rejected. Only full middle names (>=2 alpha chars) or explicit 'NA'/'N/A' accepted."],
+    ["9. Partial Employee Block", "RULE", "If employee fields (names, date hired) are provided without EMPLOYEE_NO, row is blocked."],
+    ["10. Schedule Days & Time Model", "RULE", "SCHEDULE_DAYS and DAYOFF support multi-day schedules; SCHEDULE_TIME supports shifts and roving flexi hours."],
+    ["11. Per-Account HRCO Auto-Population", "RULE", "1 HRCO on Account -> auto-populated; 0 or >1 -> flagged with NEEDS HRCO for coordinator review."],
+    ["12. Reactive HRCO Backfill", "RULE", "When an HRCO is assigned to an Account, pending NEEDS HRCO plantilla rows backfill automatically."],
+    ["13. Rollback Governance (72h Window)", "RULE", "Data Team uploader can request rollback within 72h of approval; HA and SA can approve or reject."],
+    ["14. Strict Zero-Edit Immutability Lock", "RULE", "If any record was modified in Plantilla post-approval, rollback is HARD BLOCKED for all roles."],
+    ["15. Downstream VCODE Enforcement", "RULE", "Vacancy and HR Emploc imports reject any VCODE not already established in Plantilla."],
   ];
   const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
   XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");

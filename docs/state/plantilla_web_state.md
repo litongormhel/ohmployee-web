@@ -1,5 +1,9 @@
 # Plantilla Web State & Architecture Specification
 
+> [!NOTE]
+> **Governing Architecture:** Governed by [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md).
+> Key rules: 1 Store Name = 1 Permanent VCODE; Vacant baseline imports allowed; Auto-computed roving headcount fractions ($1/N$); Strict middle name rules; Per-Account HRCO auto-population and reactive backfill; 72-hour rollback window with strict Zero-Edit Lock.
+
 ## 1. Scope & Core Purpose
 
 This document specifies the target architecture, visual structures, data contracts, and user workflows for the **Plantilla Web** module of the OHMployee Web dashboard. 
@@ -600,18 +604,28 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Update separation clearance checkboxes and upload clearance forms.
 - Configure cache invalidation policies to automatically reload active roster tables and metrics summary bars after every mutation.
 
-### Phase 6: Plantilla Bulk Baseline Import & Mobile Governance Parity (`PlantillaImportModal.tsx`) ✅ COMPLETE
+### Phase 6: Plantilla Bulk Baseline Import & Mobile Governance Parity (`PlantillaImportModal.tsx`, ADR-002) ✅ COMPLETE
+- **ADR-002 Architectural Invariants & Template Standardization (`data_control_xlsx.ts`)**:
+  - 8 Always-Required Store Columns: `GROUP_NAME`, `ACCOUNT_NAME`, `MOTHER_ACCOUNT`, `VCODE`, `STORE_NAME`, `AREA_PROVINCE`, `AREA_CITY`, `POSITION`.
+  - 5 Conditionally-Required Employee Columns: `EMPLOYEE_NO`, `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `DATE_HIRED` (blank employee fields create valid vacant store baseline slots; partial employee fields without `EMPLOYEE_NO` hard-blocked).
+  - Derived fields: `EMPLOYMENT_TYPE` (auto-computed stationary vs roving $1/N$ headcount) and `WITH_PENALTY` (auto-derived from `mother_account_configs`) removed from required input; backward-compatible if present in legacy files.
+  - Strict Middle Name Validation: single-character initials (`"S"`, `"S."`) hard-blocked; full middle names ($\ge 2$ alpha chars) or explicit case-insensitive `"NA"`/`"N/A"` accepted.
+  - Comprehensive 19-rule guide sheet included in downloadable Excel template (`downloadPlantillaImportTemplate`).
 - **Client-Side Pre-Validation (`data_control_xlsx.ts`)**:
   - Validates `GROUP_NAME` and `ACCOUNT_NAME` against the user's active UI scope dropdown selection before triggering backend RPC calls. If values mismatch, returns row-level guidance (`Row #X: GROUP_NAME does not match selected group`).
-  - Updated sample row in `PLANTILLA_SAMPLE_ROW` to use clean, non-colliding mock identifiers (`SLOT-SAMPLE-001`, `EMP-SAMPLE-001`) preventing false ADR-001 collision on sample template downloads.
-- **Review Queue State Machine (`PlantillaImportModal.tsx`)**:
+- **Review Queue State Machine & Row Inspector (`PlantillaImportModal.tsx`)**:
   - `pendingBatches` includes reviewable non-terminal statuses: `draft_uploaded`, `pending_approval`, `validation_failed`, `blocked`, and `partially_blocked`.
   - On upload, if `status === 'validation_failed'` or `blockedRows > 0`, the UI avoids premature green success toasts, switches to the Review Queue, auto-expands the newly created batch, and defaults the row filter to `blocked`.
-  - "Approve & Apply" is safely disabled for `validation_failed` batches or batches with blocked rows.
-  - "Dismiss Batch" enables clean dismissal/rejection for `validation_failed` batches with automated fallback reason notes (`invalid_csv` reason code).
-- **Row-Level Error Inspector & Filter Pills**:
-  - Implemented interactive row inspector in Review Queue with quick filter pills (`All`, `Blocked`, `Flagged`, `Valid`).
-  - Displays rich validation error pills (`conflictType`, `field`) and guidance bullet points (`r.validationMessages`).
-- **Historical Audit & Error Logs**:
-  - In `Import History`, selecting a `validation_failed` or `rejected` batch opens the **Import Failure Audit & Error Log Drawer** displaying batch stats, error breakdown pills, filter pills, and row-level conflict logs.
-  - Approved/rolled back batches retain the standard 72-hour Rollback Governance drawer.
+  - Added `Skipped` filter pill: vacant rows with existing VCODEs are non-blocking (`validation_status = 'skipped'`) and rendered with distinct slate badges.
+  - Rows display `Vacant Baseline Slot` badge, `Mother Account`, `Position / HC`, and schedule metadata.
+  - "Approve & Apply" claims existing open vacant slots before incrementing slot ordinals, creates/updates linked `public.vacancies`, and records `approved_at` after all DML completes.
+- **Rollback Governance & History Audit (`PlantillaImportModal.tsx`)**:
+  - History table renders **Batch #** (`#703cdbc4`), **Stores / HC** count (e.g. `11/10`), **Status**, **Rollback State & Window**, **Scope**, **Uploaded By**, **Approved / Rejected By**, and **Date**.
+  - 72-hour countdown window tracked accurately with `formatRollbackRemaining`.
+  - Head Admin and Super Admin can approve or reject rollback requests (`rejectPlantillaImportRollback`).
+  - Super Admin Emergency Rollback Override enabled for expired windows when zero records were touched.
+  - **Strict Zero-Edit Immutability Lock**: If any record in the batch was modified post-approval (with 2-second approval grace guard), rollback is hard-blocked and displays humanized error message identifying modified records.
+- **Ops Schedule & Store Visit Audit (`PlantillaDetailDrawer.tsx` & `UpdateScheduleModal.tsx`)**:
+  - Displays `Schedule & Store Visit Audit` section card in employee detail drawer (`Schedule Days`, `Schedule Time`, `Dayoff`).
+  - Interactive `UpdateScheduleModal` enables Ops/lifecycle roles to update schedule days (multi-select MON-SUN with presets), schedule time (shift windows & flexi visit hours), and dayoff (multi-select MON-SUN).
+  - Updates `plantilla` and `employee_store_allocations` and advances `updated_at`, actively enforcing the Zero-Edit Lock against uncoordinated rollbacks.

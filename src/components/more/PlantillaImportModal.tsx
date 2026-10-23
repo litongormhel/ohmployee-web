@@ -36,6 +36,7 @@ import {
   IMPORT_ROLLBACK_REASONS,
   PlantillaImportBatch,
   rejectPlantillaImportBatch,
+  rejectPlantillaImportRollback,
   requestPlantillaImportRollback,
   submitPlantillaBaselineImport,
   SubmitPlantillaImportResult,
@@ -87,7 +88,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
   const [rollbackActionError, setRollbackActionError] = useState<string | null>(null);
   const [rollbackActionSuccess, setRollbackActionSuccess] = useState<string | null>(null);
 
-  type RowFilterType = "all" | "blocked" | "flagged" | "valid";
+  type RowFilterType = "all" | "blocked" | "flagged" | "valid" | "skipped";
   const [rowFilter, setRowFilter] = useState<RowFilterType>("all");
   const [historyRowFilter, setHistoryRowFilter] = useState<RowFilterType>("all");
   const [reviewNotice, setReviewNotice] = useState<{ type: "error" | "warning" | "success"; message: string } | null>(null);
@@ -818,6 +819,17 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 >
                                   Valid ({previewRows.filter((r) => r.validationStatus === "valid").length})
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRowFilter("skipped")}
+                                  className={`px-2 py-0.5 rounded-md text-3xs font-semibold transition ${
+                                    rowFilter === "skipped"
+                                      ? "bg-slate-600 text-white shadow-xs"
+                                      : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  Skipped ({previewRows.filter((r) => r.validationStatus === "skipped").length})
+                                </button>
                               </div>
                             </div>
 
@@ -837,9 +849,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                       <th className="py-2 px-3 w-12">#</th>
                                       <th className="py-2 px-3 w-24">Status</th>
                                       <th className="py-2 px-3 w-28">VCode</th>
-                                      <th className="py-2 px-3">Store</th>
+                                      <th className="py-2 px-3">Store & Mother</th>
                                       <th className="py-2 px-3">Employee</th>
-                                      <th className="py-2 px-3">Position</th>
+                                      <th className="py-2 px-3">Position / HC</th>
                                       <th className="py-2 px-3">Validation Issues & Guidance</th>
                                     </tr>
                                   </thead>
@@ -848,6 +860,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                       const isRowBlocked = r.validationStatus === "blocked";
                                       const isRowFlagged = r.validationStatus === "flagged";
                                       const isRowValid = r.validationStatus === "valid";
+                                      const isRowSkipped = r.validationStatus === "skipped";
 
                                       return (
                                         <tr
@@ -857,6 +870,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                               ? "bg-rose-50/70 hover:bg-rose-50"
                                               : isRowFlagged
                                               ? "bg-amber-50/70 hover:bg-amber-50"
+                                              : isRowSkipped
+                                              ? "bg-slate-50/70 hover:bg-slate-50 text-text-muted"
                                               : "hover:bg-surface-hover/50"
                                           }`}
                                         >
@@ -870,6 +885,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                   ? "bg-amber-200 text-amber-900"
                                                   : isRowValid
                                                   ? "bg-emerald-100 text-emerald-800"
+                                                  : isRowSkipped
+                                                  ? "bg-slate-200 text-slate-800"
                                                   : "bg-slate-100 text-slate-700"
                                               }`}
                                             >
@@ -879,25 +896,49 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                           <td className="py-2 px-3 font-semibold font-mono text-text-primary">
                                             {r.vcode || "—"}
                                           </td>
-                                          <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
+                                          <td className="py-2 px-3">
+                                            <div className="font-medium text-text-primary">{r.storeName || "—"}</div>
+                                            {r.motherAccount && (
+                                              <div className="text-3xs text-text-muted font-mono">
+                                                Mother: {r.motherAccount}
+                                              </div>
+                                            )}
+                                          </td>
                                           <td className="py-2 px-3">
                                             {r.employeeNo || r.employeeName ? (
                                               <>
                                                 <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
-                                                {r.employeeNo && (
-                                                  <div className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</div>
-                                                )}
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                  {r.employeeNo && (
+                                                    <span className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</span>
+                                                  )}
+                                                  {r.needsHrco && (
+                                                    <span className="rounded bg-amber-100 text-amber-800 text-3xs font-bold px-1 py-0.2">
+                                                      NEEDS HRCO
+                                                    </span>
+                                                  )}
+                                                </div>
                                               </>
                                             ) : (
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                                (Vacant Slot)
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                (Vacant Baseline Slot)
                                               </span>
                                             )}
                                           </td>
                                           <td className="py-2 px-3 text-text-secondary">
                                             <div>{r.position || "—"}</div>
-                                            {r.employmentType && (
-                                              <div className="text-3xs text-text-muted uppercase">{r.employmentType}</div>
+                                            <div className="text-3xs text-text-muted flex items-center gap-1 mt-0.5">
+                                              {r.employmentType && (
+                                                <span className="uppercase font-semibold">{r.employmentType}</span>
+                                              )}
+                                              {r.requiredHc !== undefined && (
+                                                <span>• {r.requiredHc} HC</span>
+                                              )}
+                                            </div>
+                                            {(r.scheduleDays || r.scheduleTime || r.dayoff) && (
+                                              <div className="text-3xs text-text-muted truncate mt-0.5">
+                                                {[r.scheduleDays, r.scheduleTime, r.dayoff ? `Off: ${r.dayoff}` : null].filter(Boolean).join(" • ")}
+                                              </div>
                                             )}
                                           </td>
                                           <td className="py-2 px-3">
@@ -961,8 +1002,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                 <CheckCircle2 className="h-3 w-3" /> Ready for import
                                               </span>
                                             )}
-                                            {!isRowBlocked && !isRowFlagged && !isRowValid && (
-                                              <span className="text-text-muted text-2xs">Skipped</span>
+                                            {isRowSkipped && (
+                                              <span className="inline-flex items-center gap-1 text-slate-600 text-2xs font-medium">
+                                                Existing VCODE skipped (vacant row)
+                                              </span>
+                                            )}
+                                            {!isRowBlocked && !isRowFlagged && !isRowValid && !isRowSkipped && (
+                                              <span className="text-text-muted text-2xs">Pending</span>
                                             )}
                                           </td>
                                         </tr>
@@ -1016,12 +1062,15 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                   <table className="w-full text-left text-xs">
                     <thead className="bg-surface-subtle border-b border-border-subtle text-2xs uppercase text-text-muted font-bold">
                       <tr>
+                        <th className="py-2.5 px-3">Batch #</th>
                         <th className="py-2.5 px-4">File Name</th>
-                        <th className="py-2.5 px-4">Status</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Stores / HC</th>
                         <th className="py-2.5 px-4">Rollback State & Window</th>
-                        <th className="py-2.5 px-4">Scope</th>
-                        <th className="py-2.5 px-4">Uploaded By</th>
-                        <th className="py-2.5 px-4">Date</th>
+                        <th className="py-2.5 px-3">Scope</th>
+                        <th className="py-2.5 px-3">Uploaded By</th>
+                        <th className="py-2.5 px-3">Approved / Rejected By</th>
+                        <th className="py-2.5 px-3">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-subtle">
@@ -1037,6 +1086,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                               isSelected ? "bg-purple-50/50 dark:bg-purple-950/20" : "hover:bg-surface-hover/50"
                             }`}
                           >
+                            <td className="py-2.5 px-3 font-mono text-3xs font-semibold text-purple-700">
+                              #{b.id.slice(0, 8)}
+                            </td>
                             <td className="py-2.5 px-4 font-semibold text-text-primary">
                               <div className="flex items-center gap-2">
                                 <span>{b.fileName}</span>
@@ -1047,7 +1099,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-3">
                               <span
                                 className={`rounded-md px-2 py-0.5 text-3xs font-bold uppercase ${
                                   isApproved
@@ -1059,6 +1111,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                               >
                                 {b.status.replace("_", " ")}
                               </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-2xs font-bold text-text-primary">
+                              {b.committedStores ?? b.totalRows} / {b.committedEmployees ?? b.validRows}
                             </td>
                             <td className="py-2.5 px-4">
                               {b.rollbackStatus === "requested" ? (
@@ -1088,11 +1143,14 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 <span className="text-text-muted text-3xs">—</span>
                               )}
                             </td>
-                            <td className="py-2.5 px-4 text-text-secondary">
+                            <td className="py-2.5 px-3 text-text-secondary">
                               {b.groupName ?? "—"} / {b.accountName ?? "—"}
                             </td>
-                            <td className="py-2.5 px-4 text-text-secondary">{b.uploadedBy || "—"}</td>
-                            <td className="py-2.5 px-4 text-text-muted">
+                            <td className="py-2.5 px-3 text-text-secondary">{b.uploadedBy || "—"}</td>
+                            <td className="py-2.5 px-3 text-text-secondary">
+                              {b.approvedByName || b.approvedBy || b.rejectedByName || b.rejectedBy || "—"}
+                            </td>
+                            <td className="py-2.5 px-3 text-text-muted">
                               {b.uploadedAt ? new Date(b.uploadedAt).toLocaleDateString() : "—"}
                             </td>
                           </tr>
@@ -1509,20 +1567,46 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                           </button>
                         )}
 
-                      {/* Step 2: Approve & Execute Rollback Button (Super Admin Only) */}
-                      {isSuperAdmin &&
+                      {/* Step 2: Approve & Execute Rollback Button (Head Admin or Super Admin) */}
+                      {canApprove &&
                         historySelectedBatch.status.toLowerCase().includes("approved") &&
                         historySelectedBatch.rollbackStatus === "requested" && (
-                          <button
-                            onClick={() => {
-                              setRollbackActionError(null);
-                              setIsApproveRollbackConfirmOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 shadow-xs transition"
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Approve & Execute Rollback
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                setRollbackActionError(null);
+                                setIsApproveRollbackConfirmOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-700 text-xs font-semibold text-white hover:bg-rose-800 shadow-xs transition"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Approve & Execute Rollback
+                            </button>
+
+                            <button
+                              onClick={async () => {
+                                setRollbackActionBusy(true);
+                                setRollbackActionError(null);
+                                try {
+                                  await rejectPlantillaImportRollback({
+                                    batchId: historySelectedBatch.id,
+                                    reason: "Rejected by Administrator",
+                                  });
+                                  setRollbackActionSuccess("Rollback request rejected successfully.");
+                                  refetchBatches();
+                                } catch (err) {
+                                  setRollbackActionError(humanizeRollbackError(err instanceof Error ? err.message : String(err)));
+                                } finally {
+                                  setRollbackActionBusy(false);
+                                }
+                              }}
+                              disabled={rollbackActionBusy}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-surface text-xs font-semibold text-slate-700 hover:bg-slate-100 shadow-xs transition"
+                            >
+                              <X className="h-3.5 w-3.5 text-slate-500" />
+                              Reject Rollback Request
+                            </button>
+                          </>
                         )}
 
                       {/* Emergency Rollback Override (Super Admin Only) */}

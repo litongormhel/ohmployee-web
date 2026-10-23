@@ -303,6 +303,9 @@ export type PlantillaDetailItem = {
   storeId?: string | null;
   province?: string | null;
   islandGroup?: string | null;
+  scheduleDays?: string | null;
+  scheduleTime?: string | null;
+  dayoff?: string | null;
   rowCapabilities: PlantillaRowCapabilities;
 };
 
@@ -764,6 +767,9 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     storeId: asString(row.store_id ?? row.storeId),
     province: asString(row.province ?? row.area_province ?? row.area),
     islandGroup: asString(row.island_group ?? row.islandGroup),
+    scheduleDays: asString(row.schedule_days ?? row.schedule),
+    scheduleTime: asString(row.schedule_time),
+    dayoff: asString(row.dayoff ?? row.rest_day),
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
   };
 }
@@ -1238,6 +1244,47 @@ export async function updatePlantillaEmploymentStatus(params: UpdateEmploymentSt
   }
 
   throw new PlantillaDataError("retryable", `Unsupported employment status target: ${params.targetStatus}`);
+}
+
+export interface UpdatePlantillaScheduleParams {
+  plantillaId: string;
+  employeeNo?: string | null;
+  scheduleDays?: string | null;
+  scheduleTime?: string | null;
+  dayoff?: string | null;
+}
+
+export async function updatePlantillaSchedule(params: UpdatePlantillaScheduleParams): Promise<void> {
+  const supabase = createClient();
+  const updatePayload: Record<string, unknown> = {
+    schedule_days: params.scheduleDays ?? null,
+    schedule: params.scheduleDays ?? null,
+    schedule_time: params.scheduleTime ?? null,
+    dayoff: params.dayoff ?? null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("plantilla")
+    .update(updatePayload)
+    .eq("id", params.plantillaId);
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  // Also update employee_store_allocations if employeeNo is present
+  if (params.employeeNo) {
+    await supabase
+      .from("employee_store_allocations")
+      .update({
+        schedule_days: params.scheduleDays ?? null,
+        schedule_time: params.scheduleTime ?? null,
+        dayoff: params.dayoff ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("employee_no", params.employeeNo);
+  }
 }
 
 export async function createDeactivationRequest(params: CreateDeactivationRequestParams) {

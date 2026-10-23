@@ -156,6 +156,10 @@ export interface PlantillaImportBatch {
   uploadedAt?: string;
   approvedAt?: string;
   approvedBy?: string;
+  approvedByName?: string;
+  rejectedBy?: string;
+  rejectedByName?: string;
+  rejectedAt?: string;
   rejectionReason?: string;
   rejectionReasonCode?: string;
   rejectionReasonNote?: string;
@@ -163,6 +167,11 @@ export interface PlantillaImportBatch {
   validRows: number;
   blockedRows: number;
   flaggedRows: number;
+  skippedRows?: number;
+  committedStores?: number;
+  committedEmployees?: number;
+  newStoresCount?: number;
+  existingStoresCount?: number;
   errorSummary?: Record<string, number>;
   // Two-step rollback & window fields
   rollbackStatus?: string;
@@ -200,6 +209,12 @@ export interface PlantillaImportPreviewRow {
   employeeName: string;
   position: string;
   employmentType: string;
+  requiredHc?: string | number;
+  motherAccount?: string;
+  scheduleDays?: string;
+  scheduleTime?: string;
+  dayoff?: string;
+  needsHrco?: boolean;
   validationStatus: string;
   validationMessages: string[];
   validationErrors?: PlantillaRowValidationError[];
@@ -235,7 +250,11 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     uploadedRole: row.uploaded_role ? String(row.uploaded_role) : undefined,
     uploadedAt: String(row.uploaded_at ?? row.created_at ?? ""),
     approvedAt: row.approved_at ? String(row.approved_at) : undefined,
-    approvedBy: row.approved_by_name ? String(row.approved_by_name) : row.approved_by ? String(row.approved_by) : undefined,
+    approvedBy: row.approved_by ? String(row.approved_by) : undefined,
+    approvedByName: row.approved_by_name ? String(row.approved_by_name) : undefined,
+    rejectedBy: row.rejected_by ? String(row.rejected_by) : undefined,
+    rejectedByName: row.rejected_by_name ? String(row.rejected_by_name) : undefined,
+    rejectedAt: row.rejected_at ? String(row.rejected_at) : undefined,
     rejectionReason: row.rejection_reason ? String(row.rejection_reason) : undefined,
     rejectionReasonCode: row.rejection_reason_code ? String(row.rejection_reason_code) : undefined,
     rejectionReasonNote: row.rejection_reason_note ? String(row.rejection_reason_note) : undefined,
@@ -243,6 +262,11 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
     validRows: Number(row.valid_rows ?? 0),
     blockedRows: Number(row.blocked_rows ?? row.invalid_rows ?? 0),
     flaggedRows: Number(row.flagged_rows ?? 0),
+    skippedRows: typeof row.skipped_rows === "number" ? row.skipped_rows : undefined,
+    committedStores: typeof row.committed_stores === "number" ? row.committed_stores : undefined,
+    committedEmployees: typeof row.committed_employees === "number" ? row.committed_employees : undefined,
+    newStoresCount: typeof row.new_stores_count === "number" ? row.new_stores_count : undefined,
+    existingStoresCount: typeof row.existing_stores_count === "number" ? row.existing_stores_count : undefined,
     errorSummary: row.error_summary && typeof row.error_summary === "object"
       ? (row.error_summary as Record<string, number>)
       : undefined,
@@ -332,6 +356,12 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
       employeeName: String(row.employee_name ?? row.full_name ?? ""),
       position: String(row.position ?? ""),
       employmentType: String(row.employment_type ?? ""),
+      requiredHc: row.required_hc !== undefined ? (row.required_hc as string | number) : undefined,
+      motherAccount: row.mother_account ? String(row.mother_account) : undefined,
+      scheduleDays: row.schedule_days ? String(row.schedule_days) : row.schedule ? String(row.schedule) : undefined,
+      scheduleTime: row.schedule_time ? String(row.schedule_time) : undefined,
+      dayoff: row.dayoff ? String(row.dayoff) : undefined,
+      needsHrco: row.needs_hrco === true,
       validationStatus: String(row.validation_status ?? row.status ?? "valid"),
       validationMessages: finalMessages,
       validationErrors,
@@ -350,6 +380,7 @@ export async function submitPlantillaBaselineImport(params: {
   const rpcRows = params.rows.map((r) => ({
     VCODE: r.VCODE ?? "",
     STORE_NAME: r.STORE_NAME ?? "",
+    MOTHER_ACCOUNT: r.MOTHER_ACCOUNT ?? r.ACCOUNT_NAME ?? "",
     AREA_PROVINCE: r.AREA_PROVINCE ?? "",
     AREA_CITY: r.AREA_CITY ?? "",
     POSITION: r.POSITION ?? "",
@@ -366,7 +397,9 @@ export async function submitPlantillaBaselineImport(params: {
     BIRTHDATE: r.DATE_OF_BIRTH ?? r.BIRTHDATE ?? "",
     CONTACT: r.CONTACT_NO ?? r.CONTACT ?? "",
     ADDRESS: r.ADDRESS ?? "",
-    SCHEDULE: r.SCHEDULE ?? "",
+    SCHEDULE: r.SCHEDULE_DAYS ?? r.SCHEDULE ?? "",
+    SCHEDULE_DAYS: r.SCHEDULE_DAYS ?? r.SCHEDULE ?? "",
+    SCHEDULE_TIME: r.SCHEDULE_TIME ?? "",
     DAYOFF: r.DAYOFF ?? "",
     COORDINATOR: r.COORDINATOR ?? "",
     HRCO_EMAIL: r.HRCO_EMAIL ?? "",
@@ -445,6 +478,32 @@ export async function approvePlantillaImportRollback(batchId: string): Promise<R
   const supabase = createClient();
   const { data, error } = await supabase.rpc("approve_plantilla_import_rollback", {
     p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function rejectPlantillaImportRollback(params: {
+  batchId: string;
+  reason?: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reject_plantilla_import_rollback", {
+    p_batch_id: params.batchId,
+    p_reason: params.reason ?? "Rejected by Administrator",
+  });
+  if (error) throw error;
+  return (data as Record<string, unknown>) ?? {};
+}
+
+export async function overridePlantillaImportRollback(params: {
+  batchId: string;
+  reason: string;
+}): Promise<Record<string, unknown>> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("override_plantilla_import_rollback", {
+    p_batch_id: params.batchId,
+    p_reason: params.reason,
   });
   if (error) throw error;
   return (data as Record<string, unknown>) ?? {};
