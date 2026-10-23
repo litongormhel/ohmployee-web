@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 // 1. Plantilla Bulk Import Templates & Parser
 // ============================================================================
 
-export const PLANTILLA_REQUIRED_HEADERS = [
+export const PLANTILLA_BASELINE_STORE_HEADERS = [
   "GROUP_NAME",
   "ACCOUNT_NAME",
   "VCODE",
@@ -15,12 +15,19 @@ export const PLANTILLA_REQUIRED_HEADERS = [
   "EMPLOYMENT_TYPE",
   "REQUIRED_HC",
   "WITH_PENALTY",
+] as const;
+
+export const PLANTILLA_EMPLOYEE_HEADERS = [
   "EMPLOYEE_NO",
   "LAST_NAME",
   "FIRST_NAME",
   "MIDDLE_NAME",
   "DATE_HIRED",
 ] as const;
+
+// The baseline required headers in any uploaded spreadsheet are the 10 store/slot columns.
+// Employee columns are optional (if provided, rows can be assigned employees or vacant slots).
+export const PLANTILLA_REQUIRED_HEADERS = PLANTILLA_BASELINE_STORE_HEADERS;
 
 export const PLANTILLA_OPTIONAL_HEADERS = [
   "CIVIL_STATUS",
@@ -67,7 +74,11 @@ export function downloadPlantillaImportTemplate(): void {
   const wb = XLSX.utils.book_new();
 
   // Template Sheet
-  const headers = [...PLANTILLA_REQUIRED_HEADERS, ...PLANTILLA_OPTIONAL_HEADERS];
+  const headers = [
+    ...PLANTILLA_BASELINE_STORE_HEADERS,
+    ...PLANTILLA_EMPLOYEE_HEADERS,
+    ...PLANTILLA_OPTIONAL_HEADERS,
+  ];
   const wsTemplate = XLSX.utils.aoa_to_sheet([headers, PLANTILLA_SAMPLE_ROW]);
   XLSX.utils.book_append_sheet(wb, wsTemplate, "IMPORT_TEMPLATE");
 
@@ -84,11 +95,11 @@ export function downloadPlantillaImportTemplate(): void {
     ["EMPLOYMENT_TYPE", "YES", "stationary or roving."],
     ["REQUIRED_HC", "YES", "Integer required headcount (typically 1)."],
     ["WITH_PENALTY", "YES", "yes or no (determines vacancy penalty)."],
-    ["EMPLOYEE_NO", "YES", "Unique company employee ID."],
-    ["LAST_NAME", "YES", "Employee surname."],
-    ["FIRST_NAME", "YES", "Employee given name."],
-    ["MIDDLE_NAME", "YES", "Employee middle name or NA."],
-    ["DATE_HIRED", "YES", "Hiring date in YYYY-MM-DD format."],
+    ["EMPLOYEE_NO", "OPTIONAL (VACANT)", "Unique company employee ID. Leave blank for vacant store slots."],
+    ["LAST_NAME", "OPTIONAL (VACANT)", "Employee surname. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
+    ["FIRST_NAME", "OPTIONAL (VACANT)", "Employee given name. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
+    ["MIDDLE_NAME", "NO", "Employee middle name or NA."],
+    ["DATE_HIRED", "OPTIONAL (VACANT)", "Hiring date in YYYY-MM-DD format. Required if EMPLOYEE_NO is provided; blank for vacant slots."],
     ["CIVIL_STATUS", "NO", "SINGLE, MARRIED, WIDOWED, etc."],
     ["RATE", "NO", "Daily wage rate (decimal number)."],
     ["DATE_OF_BIRTH", "NO", "Birth date in YYYY-MM-DD format."],

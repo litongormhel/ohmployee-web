@@ -547,19 +547,30 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border-subtle">
-                        {parsedRows.slice(0, 10).map((row, idx) => (
-                          <tr key={idx} className="hover:bg-surface-hover/50">
-                            <td className="py-2 px-3 text-text-muted">{idx + 1}</td>
-                            <td className="py-2 px-3 font-semibold text-text-primary">{row.VCODE || "—"}</td>
-                            <td className="py-2 px-3 text-text-primary">{row.STORE_NAME || "—"}</td>
-                            <td className="py-2 px-3 text-text-secondary">{row.POSITION || "—"}</td>
-                            <td className="py-2 px-3 font-mono text-purple-700">{row.EMPLOYEE_NO || "—"}</td>
-                            <td className="py-2 px-3 font-medium text-text-primary">
-                              {[row.LAST_NAME, row.FIRST_NAME, row.MIDDLE_NAME].filter(Boolean).join(", ") || "—"}
-                            </td>
-                            <td className="py-2 px-3 text-text-secondary">{row.DATE_HIRED || "—"}</td>
-                          </tr>
-                        ))}
+                        {parsedRows.slice(0, 10).map((row, idx) => {
+                          const isVacant = !row.EMPLOYEE_NO && !row.LAST_NAME && !row.FIRST_NAME;
+                          return (
+                            <tr key={idx} className="hover:bg-surface-hover/50">
+                              <td className="py-2 px-3 text-text-muted">{idx + 1}</td>
+                              <td className="py-2 px-3 font-semibold text-text-primary">{row.VCODE || "—"}</td>
+                              <td className="py-2 px-3 text-text-primary">{row.STORE_NAME || "—"}</td>
+                              <td className="py-2 px-3 text-text-secondary">{row.POSITION || "—"}</td>
+                              <td className="py-2 px-3 font-mono text-purple-700">
+                                {row.EMPLOYEE_NO ? (
+                                  row.EMPLOYEE_NO
+                                ) : (
+                                  <span className="italic text-text-muted font-sans font-normal">(Vacant Slot)</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 font-medium text-text-primary">
+                                {[row.LAST_NAME, row.FIRST_NAME, row.MIDDLE_NAME].filter(Boolean).join(", ") || (
+                                  isVacant ? <span className="italic text-text-muted font-normal">(Vacant Slot)</span> : "—"
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-text-secondary">{row.DATE_HIRED || "—"}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -870,9 +881,17 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                           </td>
                                           <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
                                           <td className="py-2 px-3">
-                                            <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
-                                            {r.employeeNo && (
-                                              <div className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</div>
+                                            {r.employeeNo || r.employeeName ? (
+                                              <>
+                                                <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
+                                                {r.employeeNo && (
+                                                  <div className="text-3xs font-mono text-purple-700">ID: {r.employeeNo}</div>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                                (Vacant Slot)
+                                              </span>
                                             )}
                                           </td>
                                           <td className="py-2 px-3 text-text-secondary">
@@ -1278,11 +1297,19 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                     </td>
                                     <td className="py-2 px-3 text-text-primary">{r.storeName || "—"}</td>
                                     <td className="py-2 px-3">
-                                      <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
-                                      {r.employeeNo && (
-                                        <div className="text-3xs font-mono text-purple-700">
-                                          ID: {r.employeeNo}
-                                        </div>
+                                      {r.employeeNo || r.employeeName ? (
+                                        <>
+                                          <div className="font-medium text-text-primary">{r.employeeName || "—"}</div>
+                                          {r.employeeNo && (
+                                            <div className="text-3xs font-mono text-purple-700">
+                                              ID: {r.employeeNo}
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-3xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                          (Vacant Slot)
+                                        </span>
                                       )}
                                     </td>
                                     <td className="py-2 px-3 text-text-secondary">
