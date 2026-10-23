@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Flexible Plantilla Import Approval for Flagged Rows & HRCO Auto-Tagging Fallback (ohm#y8k4w2m9)
+
+**Status: COMPLETE — PRE-COMMIT GUARD UPDATED TO BLOCK ONLY HARD ERRORS (VALIDATION_STATUS = 'BLOCKED'), ADVISORY FLAGGED ROWS PERMITTED TO COMMIT, ACCOUNT HRCO AUTO-TAGGING & DEFAULT FALLBACK IMPLEMENTED, ERROR STRING PROPAGATION ENHANCED, MIGRATION LIVE-APPLIED TO STAGING (0 BUILD/LINT REGRESSIONS ON MAIN)**
+
+### Objective & Changes Delivered
+1. **Flexible Pre-Commit Guard (`approve_plantilla_import_batch`)**:
+   - Replaced strict block on `validation_status = 'flagged'` with a targeted hard-error block:
+     - Only rows with `validation_status = 'blocked'` strictly block batch approval (`Cannot approve batch: X blocked rows must be resolved or removed first`).
+     - Advisory/warning rows with `validation_status = 'flagged'` (e.g., roving fractional headcount, `NEEDS HRCO`, advisory notes) are permitted to commit alongside `valid` rows.
+   - Updated committable rows definition to `validation_status IN ('valid', 'flagged') AND vcode IS NOT NULL`.
+
+2. **HRCO Auto-Tagging & Default Fallback on Commit**:
+   - Retrieved selected account's assigned HRCO (`accounts.hrco_user_id`) and name from `users_profile`.
+   - In Phase B2 employee loop:
+     - Resolves `v_final_hrco_id := COALESCE(v_emp_rec.hrco_id, v_acct_hrco_id)`.
+     - When HRCO is resolved, populates `hrco_user_id_snapshot` and `hrco_name`, setting `needs_hrco = false`.
+     - When neither row nor account provides an HRCO, safely defaults `hrco_user_id_snapshot = NULL`, `hrco_name = NULL`, and sets `needs_hrco = true` without raising constraint errors.
+   - Also defaults account HRCO onto newly created stores (`public.stores.hrco_user_id`) and vacancies (`public.vacancies.hrco_user_id`, `public.vacancies.hrco_name`).
+
+3. **Synchronized Scope across Phases**:
+   - Phase A (Store upsert), Phase B1 (Vacant slot shadow insert), and Phase B2 (Assigned employee upsert & store allocations) all operate on `validation_status IN ('valid', 'flagged')`.
+
+4. **Frontend Action Feedback Enhancement (`src/lib/queries/dataControl.ts`)**:
+   - Updated `approvePlantillaImportBatch(batchId: string)`:
+     - Formats Supabase RPC errors with message, details, and hint: `[error.message, error.details, error.hint].filter(Boolean).join(" - ")`.
+     - Checks returned data object for `status === "commit_failed"` and surfaces the detailed database error message directly into the UI action error banner.
+
+### Verification
+- **Live Staging Applied**: Applied migration `20262606000055_allow_flagged_rows_on_plantilla_import_approval.sql` to live staging database (`qqiiznmqxfoamqytjica`).
+- `npm run lint`: Clean with 0 errors across all files.
+- `npm run build`: Turbopack build succeeded with 0 errors across all 19 static routes.
+
+---
+
 ## Fix Plantilla Import Batch Commit Failure & Vacancies Not-Null Constraints (ohm#m2x7k9w4)
 
 **Status: COMPLETE — ROOT CAUSE TRACED & VERIFIED ON BATCH #306ff1ae, PRE-COMMIT FLAGGED ROWS GUARD ENFORCED, VACANCIES SHADOW SYNC FIXED WITH ACCOUNT & POSITION, HUMAN-READABLE EXCEPTION PROPAGATION IMPLEMENTED, MIGRATION LIVE-APPLIED TO STAGING, TS RPC CALLER UPDATED (0 BUILD/LINT REGRESSIONS ON MAIN)**

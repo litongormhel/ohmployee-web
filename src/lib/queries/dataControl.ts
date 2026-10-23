@@ -454,10 +454,16 @@ export async function approvePlantillaImportBatch(batchId: string): Promise<void
   const { data, error } = await supabase.rpc("approve_plantilla_import_batch", {
     p_batch_id: batchId,
   });
-  if (error) throw error;
-  if (data && typeof data === "object" && (data as Record<string, unknown>).status === "commit_failed") {
-    const errorMsg = String((data as Record<string, unknown>).error || "Plantilla batch commit failed.");
+  if (error) {
+    const errorMsg = [error.message, error.details, error.hint].filter(Boolean).join(" - ") || "Failed to approve plantilla import batch.";
     throw new Error(errorMsg);
+  }
+  if (data && typeof data === "object") {
+    const res = data as Record<string, unknown>;
+    if (res.status === "commit_failed") {
+      const errorMsg = String(res.error || res.message || "Plantilla batch commit failed.");
+      throw new Error(errorMsg);
+    }
   }
 }
 
