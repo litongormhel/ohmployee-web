@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Strict Vacancy Occupancy Filter for Missing Store Provisioning & Direct Import Guard (ohm#s8k2w7m3)
+
+**Status: COMPLETE — STRICT VACANCY OCCUPANCY FILTER DEPLOYED TO VACANCY TAB (`src/app/(dashboard)/plantilla/page.tsx`), STORE OCCUPANCY RESOLVER `fetchOccupiedStoreIdentifiers` ADDED TO `src/lib/queries/vacancy.ts`, AUTHORITATIVE OCCUPANCY GUARD ENFORCED IN `directImportVacancy`, OCCUPIED STORES (E.G. `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36`) PROPERLY EXCLUDED FROM "STORES WITHOUT ACTIVE VACANCIES" & "MISSING FROM VACANCIES" BADGES, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Strict Vacancy Filter & Store Exclusion**:
+   - **Root Cause**: The Vacancy tab's unlisted store evaluation previously checked only whether a store under the active account had an existing active vacancy (`existingVacancyVcodes` and `existingVacancyStoreIds`). Because fully staffed stores (e.g. `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36`) have active occupants and therefore no open vacancy records, the previous logic mistakenly tagged them as "Missing from Vacancies" and offered a direct-import quick action for stores that were already filled.
+   - **Occupancy Identifier Resolution (`fetchOccupiedStoreIdentifiers`)**:
+     - Queries `public.plantilla_slots` for the active account where `slot_status IN ('occupied', 'filled') OR current_occupant_plantilla_id IS NOT NULL`.
+     - Queries `public.plantilla` for the active account where active employee records are present (`deactivated_at IS NULL AND date_of_separation IS NULL AND status NOT IN ('inactive', 'deactivated', 'resigned', 'separated', 'endo', 'terminated')`).
+     - Queries `public.employee_store_allocations` for the active account where `is_active = true`.
+     - Returns sets of `occupiedStoreIds` and `occupiedVcodes`.
+   - **Strict Vacancy Filter Logic (`src/app/(dashboard)/plantilla/page.tsx`)**:
+     - Integrated `occupiedStoresQuery` with `queryKey: ["plantilla", "occupied-stores", accountId]`.
+     - Updated `missingStoreVacancies` memo: a store is now **ONLY** considered missing if it has no open vacancy AND has no active employee occupying it (`!hasMatchingCode && !hasMatchingId && !isOccupiedCode && !isOccupiedId`).
+     - Occupied stores are completely suppressed from the "Stores without Active Vacancies" banner and table rows.
+
+2. **Backend Guard in Direct Import (`src/lib/queries/vacancy.ts`)**:
+   - In `directImportVacancy`, added an authoritative pre-mutation check using `fetchOccupiedStoreIdentifiers`.
+   - Throws an error (`Cannot direct-import vacancy for <VCODE>: store slot is already occupied by an active employee.`) if direct import is invoked on an occupied store.
+
+3. **Query Invalidation & Retries**:
+   - Added `occupiedStoresQuery.refetch()` to retry and modal completion hooks.
+   - Leveraged existing `queryClient.invalidateQueries({ queryKey: ["plantilla"] })` in `useDirectImportVacancy` to invalidate occupied store cache upon any mutation.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase (25 pre-existing warnings in unrelated modals).
+- `npm run build`: Turbopack production build compiled cleanly with 0 errors across all 19 routes.
+- Live database verification against Staging DB (`qqiiznmqxfoamqytjica`):
+  - Confirmed stores `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36` under FOREVER OFFICE are identified as occupied.
+  - Confirmed accounts with legitimately unstaffed stores (e.g. ACTISERVE, ACTIVESTYLE) retain their unlisted rows.
+
+---
+
 ## Plantilla Import Completeness, Vacancy Tab Aging/Action & Direct Import, Conditional HRCO Badge & Details Drawer Cleanup (ohm#v2k8w4m9)
 
 **Status: COMPLETE — MIGRATION `20262606000058` APPLIED TO LIVE STAGING, PLANTILLA BASELINE IMPORT RPC AUDITED & FIXED (LOOP STATUS BUG & VACANT ROW DISCARD RESOLVED), PHASE B1 MULTI-SLOT PROVISION WITH AUTO-INCREMENTING `slot_ordinal` & VACANCY SYNC DEPLOYED, VACANCY TAB DECOUPLED FROM HC REQUEST (CLICK OPENS DETAILS DRAWER), `AGING` & `ACTION` COLUMNS INSTALLED, DIRECT 1-CLICK VACANCY IMPORT ENABLED FOR UNLISTED STORES, CONDITIONAL `NEEDS HRCO` BADGE HIDDEN WHEN ACCOUNT OR ROW HAS HRCO, EMPLOYEE & VACANCY DETAILS DRAWERS COMPACTED & UNCLUTTERED (0 BUILD/LINT REGRESSIONS ON MAIN)**
@@ -388,6 +422,40 @@
 ---
 
 # AI Handoff
+
+## Strict Vacancy Occupancy Filter for Missing Store Provisioning & Direct Import Guard (ohm#s8k2w7m3)
+
+**Status: COMPLETE — STRICT VACANCY OCCUPANCY FILTER DEPLOYED TO VACANCY TAB (`src/app/(dashboard)/plantilla/page.tsx`), STORE OCCUPANCY RESOLVER `fetchOccupiedStoreIdentifiers` ADDED TO `src/lib/queries/vacancy.ts`, AUTHORITATIVE OCCUPANCY GUARD ENFORCED IN `directImportVacancy`, OCCUPIED STORES (E.G. `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36`) PROPERLY EXCLUDED FROM "STORES WITHOUT ACTIVE VACANCIES" & "MISSING FROM VACANCIES" BADGES, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Strict Vacancy Filter & Store Exclusion**:
+   - **Root Cause**: The Vacancy tab's unlisted store evaluation previously checked only whether a store under the active account had an existing active vacancy (`existingVacancyVcodes` and `existingVacancyStoreIds`). Because fully staffed stores (e.g. `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36`) have active occupants and therefore no open vacancy records, the previous logic mistakenly tagged them as "Missing from Vacancies" and offered a direct-import quick action for stores that were already filled.
+   - **Occupancy Identifier Resolution (`fetchOccupiedStoreIdentifiers`)**:
+     - Queries `public.plantilla_slots` for the active account where `slot_status IN ('occupied', 'filled') OR current_occupant_plantilla_id IS NOT NULL`.
+     - Queries `public.plantilla` for the active account where active employee records are present (`deactivated_at IS NULL AND date_of_separation IS NULL AND status NOT IN ('inactive', 'deactivated', 'resigned', 'separated', 'endo', 'terminated')`).
+     - Queries `public.employee_store_allocations` for the active account where `is_active = true`.
+     - Returns sets of `occupiedStoreIds` and `occupiedVcodes`.
+   - **Strict Vacancy Filter Logic (`src/app/(dashboard)/plantilla/page.tsx`)**:
+     - Integrated `occupiedStoresQuery` with `queryKey: ["plantilla", "occupied-stores", accountId]`.
+     - Updated `missingStoreVacancies` memo: a store is now **ONLY** considered missing if it has no open vacancy AND has no active employee occupying it (`!hasMatchingCode && !hasMatchingId && !isOccupiedCode && !isOccupiedId`).
+     - Occupied stores are completely suppressed from the "Stores without Active Vacancies" banner and table rows.
+
+2. **Backend Guard in Direct Import (`src/lib/queries/vacancy.ts`)**:
+   - In `directImportVacancy`, added an authoritative pre-mutation check using `fetchOccupiedStoreIdentifiers`.
+   - Throws an error (`Cannot direct-import vacancy for <VCODE>: store slot is already occupied by an active employee.`) if direct import is invoked on an occupied store.
+
+3. **Query Invalidation & Retries**:
+   - Added `occupiedStoresQuery.refetch()` to retry and modal completion hooks.
+   - Leveraged existing `queryClient.invalidateQueries({ queryKey: ["plantilla"] })` in `useDirectImportVacancy` to invalidate occupied store cache upon any mutation.
+
+### Verification
+- `npm run lint`: Clean with 0 errors across the codebase (25 pre-existing warnings in unrelated modals).
+- `npm run build`: Turbopack production build compiled cleanly with 0 errors across all 19 routes.
+- Live database verification against Staging DB (`qqiiznmqxfoamqytjica`):
+  - Confirmed stores `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36` under FOREVER OFFICE are identified as occupied.
+  - Confirmed accounts with legitimately unstaffed stores (e.g. ACTISERVE, ACTIVESTYLE) retain their unlisted rows.
+
+---
 
 ## Plantilla Import Completeness, Vacancy Tab Aging/Action & Direct Import, Conditional HRCO Badge & Details Drawer Cleanup (ohm#v2k8w4m9)
 

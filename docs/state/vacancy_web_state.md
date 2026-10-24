@@ -114,6 +114,14 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - **Super Admin Post-Onboard Dropout Bypass**:
     - Removed hardcoded `derivedStatus !== 'hired'` lockout in `VacancyDetailDrawer` action bar for Super Admin / Head Admin (`hasFullAccess`), allowing administrative drop/backout of post-onboard dropouts directly from drawer.
 
+- **Strict Vacancy Occupancy Filter & Direct Import Guard (`ohm#s8k2w7m3`)**:
+  - **Occupied Store Exclusion from Missing Vacancies**:
+    - Installed `fetchOccupiedStoreIdentifiers(accountId)` in `src/lib/queries/vacancy.ts`, aggregating store IDs and uppercase VCodes occupied in `public.plantilla_slots` (`slot_status IN ('occupied', 'filled') OR current_occupant_plantilla_id IS NOT NULL`), `public.plantilla` (active employees), and `public.employee_store_allocations` (`is_active = true`).
+    - Wired `occupiedStoresQuery` in `src/app/(dashboard)/plantilla/page.tsx` on the Vacancy tab.
+    - Updated `missingStoreVacancies` filter so store VCodes and store IDs that have active occupants are strictly excluded from the "Stores without Active Vacancies" list and "Missing from Vacancies" badges.
+  - **Backend Guard in `directImportVacancy`**:
+    - Added an authoritative check before vacancy upsert: throws an error if the store ID or VCode is already occupied by an active employee, preventing accidental vacancy provisioning for occupied slots.
+
 - **Vacancy Tab Aging & Action Columns, Direct Import Quick Action & Quota Control Cleanup (`ohm#v2k8w4m9`)**:
   - **Aging Column Badges**: In the Vacancy tab on Plantilla (`src/app/(dashboard)/plantilla/page.tsx`), formatted `Aging` column using color badges based on elapsed days since creation/open date: $\le 15$ days (emerald), $16\text{--}30$ days (amber), $> 30$ days (rose).
   - **Decoupled from Headcount Request**: Rows and cards in Vacancy tab no longer open `RequestHeadcountModal`. Clicks and the new "Inspect" button in the Action column open `VacancyDetailDrawer`.

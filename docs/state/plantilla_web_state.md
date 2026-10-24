@@ -658,6 +658,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Displays `Schedule & Store Visit Audit` section card in employee detail drawer (`Schedule Days`, `Schedule Time`, `Dayoff`).
   - Interactive `UpdateScheduleModal` enables Ops/lifecycle roles to update schedule days (multi-select MON-SUN with presets), schedule time (shift windows & flexi visit hours), and dayoff (multi-select MON-SUN).
   - Updates `plantilla` and `employee_store_allocations` and advances `updated_at`, actively enforcing the Zero-Edit Lock against uncoordinated rollbacks.
+- **Strict Vacancy Occupancy Filter for Missing Store Detection & Direct Import Guard (`ohm#s8k2w7m3`)**:
+  - **Strict Occupancy Filtering**: Store slots occupied by active personnel in `public.plantilla_slots` (`slot_status IN ('occupied', 'filled')` or `current_occupant_plantilla_id IS NOT NULL`), `public.plantilla` (active employees), or `public.employee_store_allocations` (`is_active = true`) are strictly excluded from the Vacancy tab's "Stores without Active Vacancies" / "Missing from Vacancies" quick-import section.
+  - **Authoritative Backend Guard**: `directImportVacancy` verifies store occupancy via `fetchOccupiedStoreIdentifiers(accountId)` and rejects attempts to create vacancies for occupied stores.
+
 - **Plantilla Import Completeness, Vacancy Tab Enhancements & Detail Drawer Cleanup (`ohm#v2k8w4m9`)**:
   - **Import Completeness Fix (Migration `20262606000058`)**:
     - Fixed `submit_plantilla_baseline_import` to prevent skipping vacant rows for existing stores (`IF v_emp IS NULL` now processed as valid vacant slots).

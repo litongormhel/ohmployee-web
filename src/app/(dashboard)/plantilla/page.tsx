@@ -45,6 +45,7 @@ import { fetchTeamDirectory, type TeamDirectoryUser } from "@/lib/queries/team_d
 import {
   listVacancies,
   useDirectImportVacancy,
+  fetchOccupiedStoreIdentifiers,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
 import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
@@ -418,6 +419,14 @@ function PlantillaPageContent() {
     staleTime: 30000,
   });
 
+  // Query for occupied store IDs and VCodes under current account to strictly exclude from missing vacancies
+  const occupiedStoresQuery = useQuery({
+    queryKey: ["plantilla", "occupied-stores", accountId],
+    queryFn: () => fetchOccupiedStoreIdentifiers(accountId),
+    enabled: !!accountId && tab === "vacancy",
+    staleTime: 30000,
+  });
+
   // Query for Needs HR... employees
   const needsHrcoQuery = useQuery({
     queryKey: ["plantilla", "needs-hrco-list", accountId, search],
@@ -511,13 +520,26 @@ function PlantillaPageContent() {
 
   const missingStoreVacancies = useMemo(() => {
     if (!storesUnderAccountQuery.data || !accountId) return [];
+    const occupiedStoreIds = occupiedStoresQuery.data?.occupiedStoreIds ?? new Set<string>();
+    const occupiedVcodes = occupiedStoresQuery.data?.occupiedVcodes ?? new Set<string>();
+
     return storesUnderAccountQuery.data.filter((s) => {
       const code = (s.code || "").trim().toUpperCase();
       const hasMatchingCode = Boolean(code && existingVacancyVcodes.has(code));
       const hasMatchingId = Boolean(s.id && existingVacancyStoreIds.has(s.id));
-      return !hasMatchingCode && !hasMatchingId;
+      const isOccupiedCode = Boolean(code && occupiedVcodes.has(code));
+      const isOccupiedId = Boolean(s.id && occupiedStoreIds.has(s.id));
+
+      // Strictly must NOT have an existing vacancy AND must NOT be occupied by an active employee
+      return !hasMatchingCode && !hasMatchingId && !isOccupiedCode && !isOccupiedId;
     });
-  }, [storesUnderAccountQuery.data, accountId, existingVacancyVcodes, existingVacancyStoreIds]);
+  }, [
+    storesUnderAccountQuery.data,
+    accountId,
+    existingVacancyVcodes,
+    existingVacancyStoreIds,
+    occupiedStoresQuery.data,
+  ]);
 
   const paginatedNeedsHrRows = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -1442,9 +1464,14 @@ function PlantillaPageContent() {
                   title="Fetch Failed"
                   description={listError?.message ?? "The plantilla query failed."}
                   onRetry={() => {
-                    if (tab === "vacancy") vacancyListQuery.refetch();
-                    else if (tab === "needs_hr") needsHrcoQuery.refetch();
-                    else employeeQuery.refetch();
+                    if (tab === "vacancy") {
+                      vacancyListQuery.refetch();
+                      occupiedStoresQuery.refetch();
+                    } else if (tab === "needs_hr") {
+                      needsHrcoQuery.refetch();
+                    } else {
+                      employeeQuery.refetch();
+                    }
                   }}
                 />
               </div>
@@ -1616,7 +1643,10 @@ function PlantillaPageContent() {
                 summaryQuery.refetch();
                 inactiveCountQuery.refetch();
                 unassignedHrcoCountQuery.refetch();
-                if (tab === "vacancy") vacancyListQuery.refetch();
+                if (tab === "vacancy") {
+                  vacancyListQuery.refetch();
+                  occupiedStoresQuery.refetch();
+                }
                 if (tab === "needs_hr") needsHrcoQuery.refetch();
               }}
             />
