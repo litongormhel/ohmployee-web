@@ -57,7 +57,7 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
           <input
-            className="w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            className="w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-hidden focus:ring-1 focus:ring-purple-500 shadow-2xs"
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search processed batches..."
             type="text"
@@ -120,7 +120,7 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
                 className="flex flex-col gap-4 rounded-xl border border-border-default bg-surface-card p-4.5 shadow-xs transition hover:border-gray-300 md:flex-row md:items-center md:justify-between"
               >
                 <div className="flex items-start gap-3.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-700 shrink-0 mt-0.5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-700 shrink-0 mt-0.5 border border-purple-200">
                     <FileSpreadsheet className="h-5 w-5" />
                   </div>
                   <div className="space-y-1">

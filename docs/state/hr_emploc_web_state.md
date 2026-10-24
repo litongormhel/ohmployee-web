@@ -391,6 +391,15 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 
 ### Phase 4: Action Integrations (Mutations) [PARTIAL — Deficiency Tagging Wired]
 
+### Phase 5: Bulk XLSX Import & Ingestion Refactor [COMPLETED — ohm#p8m2w6k9]
+- Refactored HR Emploc Import from full-page dedicated route (`/hr-emploc/import`) into centered purple modal shell (`HrEmplocImportModal`) matching Plantilla, Vacancy, MIKA, and Payroll in Data Control & Batch Ingestion dashboard.
+- Maintained 3-tab architecture with purple-accented (`#7C3AED`) underlined tab layout: `Upload & Preview`, `Review Queue` (with pending count), `Import History` (with processed count).
+- Maintained ADR-001 slot-first capacity reservation callout banner, target operational CENCOM group dropdown selector, official template downloads (`v3 ADR-001` and `Standard 7-Col`), and client-side dropzone validation gate.
+- Applied purple theming (`bg-purple-50 text-purple-600` dropzone icon, purple dragover border, purple submit CTA button, purple badges).
+- Added standard mobile parity footer bar: `Full Mobile HR Emploc Parity with ADR-001 Slot Validation and Rollback Governance.` with right-aligned `Close` button.
+- Updated sub-modals (`BatchDetailsModal`, `RejectBatchModal`, `RollbackBatchModal`) to `z-[60]` / `z-[70]` for clean stacking over parent modal.
+- Configured legacy route `/hr-emploc/import` to automatically redirect to `/more?tab=data_control&subtab=batch_imports&open=import_hr_emploc`.
+
 **Completed (OHM2026_1109):**
 - `tagWebHrEmplocDeficiency` RPC wrapper added to `src/lib/queries/hr_emploc.ts` calling `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id, p_deficiencies, p_remarks)`.
 - "Tag Deficiency (HR Compliance)" action in `HrEmplocDetailDrawer.tsx` is now enabled when `canTagDeficiency === true && !isPendingDeletion`.

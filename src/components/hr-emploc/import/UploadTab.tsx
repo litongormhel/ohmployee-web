@@ -219,7 +219,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             </div>
           ) : (
             <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 shadow-2xs focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 shadow-2xs focus:border-purple-500 focus:outline-hidden focus:ring-1 focus:ring-purple-500"
               onChange={(e) => handleGroupChange(e.target.value)}
               value={selectedGroup?.id ?? ""}
             >
@@ -293,8 +293,8 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             !selectedGroup
               ? "border-gray-200 bg-gray-50/50 cursor-not-allowed opacity-60"
               : isDragOver
-              ? "border-blue-500 bg-blue-50/50"
-              : "border-gray-300 hover:border-gray-400 bg-white"
+              ? "border-purple-500 bg-purple-50/50"
+              : "border-gray-300 hover:border-purple-300 bg-white"
           }`}
           onClick={() => {
             if (selectedGroup) fileInputRef.current?.click();
@@ -315,7 +315,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             type="file"
           />
 
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 mb-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600 mb-3 border border-purple-100">
             <UploadCloud className="h-6 w-6" />
           </div>
 
@@ -507,7 +507,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             </p>
 
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={!canSubmit}
               onClick={handleSubmit}
               type="button"

@@ -1,5 +1,47 @@
 # AI Handoff
 
+## HR Emploc Bulk XLSX Import Modal Shell Refactor & More Dashboard Integration (ohm#p8m2w6k9)
+
+**Status: COMPLETE — REPLACED DEDICATED FULL-PAGE WIZARD ROUTE WITH CENTERED PURPLE MODAL OVERLAY (`HrEmplocImportModal`), WIRED INTO MORE DASHBOARD'S DATA CONTROL BATCH INGESTION HUB CARD, UNDERLINED TAB LAYOUT WITH ACCENT `#7C3AED` ("Upload & Preview", "Review Queue", "Import History"), PURPLE DROPZONE & BADGE THEME APPLIED, MOBILE PARITY FOOTER BAR ADDED, ADR-001 VALIDATION BANNER & GROUP SELECTION RULES PRESERVED, LEGACY ROUTE `/hr-emploc/import` REDIRECTED TO MODAL TRIGGER, SUB-MODAL Z-INDEX ELEVATION (`z-[60]`/`z-[70]`), 0 LINT / 0 BUILD ERRORS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Modal Container & Header Implementation (`src/components/more/HrEmplocImportModal.tsx`)**:
+   - Built a centered, backdrop-blurred modal shell matching `PlantillaImportModal`, `VacancyImportModal`, `MikaImportModal`, and `PayrollImportModal`.
+   - Standard modal header with `FileSpreadsheet` icon in `bg-purple-50 text-purple-700 border border-purple-200`, title `"Import HR Emploc"`, purple badge `"RECONCILIATION"`, and subtitle describing the ADR-001 bulk onboarding pipeline.
+   - Purple-accented underlined tab navigation (`border-purple-600 text-purple-700` / `#7C3AED` active border) matching the design token across the Data Control modal suite:
+     - `Upload & Preview` (with `UploadCloud` icon)
+     - `Review Queue` (with `Clock` icon and pending batch badge)
+     - `Import History` (with `History` icon and processed batch badge)
+   - Bottom parity footer bar:
+     `Full Mobile HR Emploc Parity with ADR-001 Slot Validation and Rollback Governance.` with right-aligned `Close` button.
+
+2. **Visual & Theming Parity Updates in Import Tabs**:
+   - `UploadTab.tsx`:
+     - Retained the blue instructional callout banner detailing ADR-001 (Slot-First Architecture), middle-name `NA` formatting rules, single operational group constraint, and `hr_processing` status reservation.
+     - Preserved Step 1 Target Group selector and Step 2 template download buttons (`v3 ADR-001` and `Standard 7-Col`).
+     - Preserved validation gate disallowing file parsing until a Target Group is selected.
+     - Updated dropzone icon to purple (`bg-purple-50 text-purple-600 border border-purple-100`), drag-over active state to purple border/background (`border-purple-500 bg-purple-50/50`), and submission CTA to purple (`bg-purple-600 hover:bg-purple-700`).
+   - `ReviewBatchesTab.tsx` & `HistoryTab.tsx`:
+     - Updated search input focus rings to purple (`focus:border-purple-500 focus:ring-purple-500`).
+     - Updated spreadsheet icon containers to purple (`bg-purple-50 text-purple-700 border border-purple-200`).
+
+3. **Sub-Modal Stacking Layering**:
+   - Elevated `BatchDetailsModal.tsx` to `z-[60]`, and `RejectBatchModal.tsx` and `RollbackBatchModal.tsx` to `z-[70]` to ensure nested modals stack reliably on top of the parent modal's `z-50`.
+
+4. **Batch Ingestion Hub Wiring (`src/app/(dashboard)/more/page.tsx`)**:
+   - Added `hrEmplocImportOpen` state synced with query parameters (`open=import_hr_emploc`, `open=hr_emploc`, `open=hr_emploc_import`).
+   - Updated `import_hr_emploc` tile in `batchImportTiles`: switched from `href: "/hr-emploc/import"` to `onClick: () => setHrEmplocImportOpen(true)`, `badgeLabel: "RECONCILIATION"`, and `badgeVariant: "purple"`.
+   - Rendered `<HrEmplocImportModal isOpen={hrEmplocImportOpen} onClose={() => setHrEmplocImportOpen(false)} />` alongside Plantilla, Vacancy, MIKA, and Payroll modals.
+
+5. **Legacy Route Transition (`src/app/(dashboard)/hr-emploc/import/page.tsx`)**:
+   - Replaced full-page wizard component with a direct Next.js redirect to `/more?tab=data_control&subtab=batch_imports&open=import_hr_emploc`, ensuring existing bookmarks and notification links seamlessly trigger the modal without breaking user flows.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Clean (0 errors, Next.js 16.2.4 Turbopack compiled successfully, all 19 static/dynamic routes generated cleanly).
+
+---
+
 ## Plantilla Needs HRCO Tab Visibility Guard & Active Employee Resolution (ohm#n2k7w9m4)
 
 **Status: COMPLETE — MIGRATION 20262606000060 APPLIED TO STAGING, get_plantilla_unassigned_hrco_count & get_plantilla_needs_hrco_employees RESTRICTIVE DATA-TEAM-ONLY GUARD REMOVED, ALL ACTIVE EMPLOYEES UNDER ACCOUNTS WITHOUT ASSIGNED HRCO RETURNED, "NEEDS HRCO" TAB IN Plantilla Page CONDITIONALIZED TO RENDER ONLY WHEN ACCOUNT LACKS ASSIGNED HRCO (!accountHasAssignedHrco), DERIVED effectiveTab SYNCED ACROSS ALL QUERIES AND VIEWS, 0 BUILD/LINT REGRESSIONS ON MAIN**
@@ -525,6 +567,48 @@
 ---
 
 # AI Handoff
+
+## HR Emploc Bulk XLSX Import Modal Shell Refactor & More Dashboard Integration (ohm#p8m2w6k9)
+
+**Status: COMPLETE — REPLACED DEDICATED FULL-PAGE WIZARD ROUTE WITH CENTERED PURPLE MODAL OVERLAY (`HrEmplocImportModal`), WIRED INTO MORE DASHBOARD'S DATA CONTROL BATCH INGESTION HUB CARD, UNDERLINED TAB LAYOUT WITH ACCENT `#7C3AED` ("Upload & Preview", "Review Queue", "Import History"), PURPLE DROPZONE & BADGE THEME APPLIED, MOBILE PARITY FOOTER BAR ADDED, ADR-001 VALIDATION BANNER & GROUP SELECTION RULES PRESERVED, LEGACY ROUTE `/hr-emploc/import` REDIRECTED TO MODAL TRIGGER, SUB-MODAL Z-INDEX ELEVATION (`z-[60]`/`z-[70]`), 0 LINT / 0 BUILD ERRORS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Modal Container & Header Implementation (`src/components/more/HrEmplocImportModal.tsx`)**:
+   - Built a centered, backdrop-blurred modal shell matching `PlantillaImportModal`, `VacancyImportModal`, `MikaImportModal`, and `PayrollImportModal`.
+   - Standard modal header with `FileSpreadsheet` icon in `bg-purple-50 text-purple-700 border border-purple-200`, title `"Import HR Emploc"`, purple badge `"RECONCILIATION"`, and subtitle describing the ADR-001 bulk onboarding pipeline.
+   - Purple-accented underlined tab navigation (`border-purple-600 text-purple-700` / `#7C3AED` active border) matching the design token across the Data Control modal suite:
+     - `Upload & Preview` (with `UploadCloud` icon)
+     - `Review Queue` (with `Clock` icon and pending batch badge)
+     - `Import History` (with `History` icon and processed batch badge)
+   - Bottom parity footer bar:
+     `Full Mobile HR Emploc Parity with ADR-001 Slot Validation and Rollback Governance.` with right-aligned `Close` button.
+
+2. **Visual & Theming Parity Updates in Import Tabs**:
+   - `UploadTab.tsx`:
+     - Retained the blue instructional callout banner detailing ADR-001 (Slot-First Architecture), middle-name `NA` formatting rules, single operational group constraint, and `hr_processing` status reservation.
+     - Preserved Step 1 Target Group selector and Step 2 template download buttons (`v3 ADR-001` and `Standard 7-Col`).
+     - Preserved validation gate disallowing file parsing until a Target Group is selected.
+     - Updated dropzone icon to purple (`bg-purple-50 text-purple-600 border border-purple-100`), drag-over active state to purple border/background (`border-purple-500 bg-purple-50/50`), and submission CTA to purple (`bg-purple-600 hover:bg-purple-700`).
+   - `ReviewBatchesTab.tsx` & `HistoryTab.tsx`:
+     - Updated search input focus rings to purple (`focus:border-purple-500 focus:ring-purple-500`).
+     - Updated spreadsheet icon containers to purple (`bg-purple-50 text-purple-700 border border-purple-200`).
+
+3. **Sub-Modal Stacking Layering**:
+   - Elevated `BatchDetailsModal.tsx` to `z-[60]`, and `RejectBatchModal.tsx` and `RollbackBatchModal.tsx` to `z-[70]` to ensure nested modals stack reliably on top of the parent modal's `z-50`.
+
+4. **Batch Ingestion Hub Wiring (`src/app/(dashboard)/more/page.tsx`)**:
+   - Added `hrEmplocImportOpen` state synced with query parameters (`open=import_hr_emploc`, `open=hr_emploc`, `open=hr_emploc_import`).
+   - Updated `import_hr_emploc` tile in `batchImportTiles`: switched from `href: "/hr-emploc/import"` to `onClick: () => setHrEmplocImportOpen(true)`, `badgeLabel: "RECONCILIATION"`, and `badgeVariant: "purple"`.
+   - Rendered `<HrEmplocImportModal isOpen={hrEmplocImportOpen} onClose={() => setHrEmplocImportOpen(false)} />` alongside Plantilla, Vacancy, MIKA, and Payroll modals.
+
+5. **Legacy Route Transition (`src/app/(dashboard)/hr-emploc/import/page.tsx`)**:
+   - Replaced full-page wizard component with a direct Next.js redirect to `/more?tab=data_control&subtab=batch_imports&open=import_hr_emploc`, ensuring existing bookmarks and notification links seamlessly trigger the modal without breaking user flows.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Clean (0 errors, Next.js 16.2.4 Turbopack compiled successfully, all 19 static/dynamic routes generated cleanly).
+
+---
 
 ## Strict Vacancy Occupancy Filter for Missing Store Provisioning & Direct Import Guard (ohm#s8k2w7m3)
 

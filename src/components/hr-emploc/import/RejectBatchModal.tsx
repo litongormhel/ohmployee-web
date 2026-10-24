@@ -48,7 +48,7 @@ export function RejectBatchModal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in"
       role="dialog"
     >
       <div className="relative w-full max-w-md rounded-xl border border-border-default bg-surface-card p-6 shadow-xl">

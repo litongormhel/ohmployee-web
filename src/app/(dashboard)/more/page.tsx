@@ -47,6 +47,7 @@ import { TempPermissionModal } from "@/components/more/TempPermissionModal";
 import { AccessControlCenterModal } from "@/components/more/AccessControlCenterModal";
 import { GlobalStoreTransferModal } from "@/components/more/GlobalStoreTransferModal";
 import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
+import { HrEmplocImportModal } from "@/components/more/HrEmplocImportModal";
 import { PlantillaImportModal } from "@/components/more/PlantillaImportModal";
 import { VacancyImportModal } from "@/components/more/VacancyImportModal";
 import { MikaImportModal } from "@/components/more/MikaImportModal";
@@ -149,6 +150,9 @@ function MorePageContent() {
   const [storeTransferOpen, setStoreTransferOpen] = useState(false);
   const [accountRequestsOpen, setAccountRequestsOpen] = useState(
     () => targetModal === "account_requests"
+  );
+  const [hrEmplocImportOpen, setHrEmplocImportOpen] = useState(
+    () => targetModal === "import_hr_emploc" || targetModal === "hr_emploc" || targetModal === "hr_emploc_import"
   );
   const [plantillaImportOpen, setPlantillaImportOpen] = useState(false);
   const [vacancyImportOpen, setVacancyImportOpen] = useState(false);
@@ -547,10 +551,10 @@ function MorePageContent() {
         id: "import_hr_emploc",
         title: "Import HR Emploc",
         description: "Bulk upload HR Emploc records via XLSX with HA/SA approval",
-        icon: Upload,
-        href: "/hr-emploc/import",
-        badgeLabel: "EXCEL",
-        badgeVariant: "emerald",
+        icon: FileSpreadsheet,
+        onClick: () => setHrEmplocImportOpen(true),
+        badgeLabel: "RECONCILIATION",
+        badgeVariant: "purple",
       },
       {
         id: "import_plantilla",
@@ -1016,6 +1020,11 @@ function MorePageContent() {
         isOpen={accountRequestsOpen}
         onClose={() => setAccountRequestsOpen(false)}
         isSuperAdmin={isSuperAdmin}
+      />
+
+      <HrEmplocImportModal
+        isOpen={hrEmplocImportOpen}
+        onClose={() => setHrEmplocImportOpen(false)}
       />
 
       <PlantillaImportModal

@@ -97,7 +97,7 @@ export function BatchDetailsModal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in"
       role="dialog"
     >
       <div className="relative flex flex-col h-[90vh] w-full max-w-5xl rounded-2xl border border-border-default bg-surface-card shadow-2xl overflow-hidden">
