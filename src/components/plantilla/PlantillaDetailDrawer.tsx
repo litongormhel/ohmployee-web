@@ -58,6 +58,45 @@ function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
+export function computeTenure(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const start = new Date(dateStr);
+    if (isNaN(start.getTime())) return "—";
+
+    const now = new Date();
+    if (start > now) return "< 1 Month";
+
+    let years = now.getFullYear() - start.getFullYear();
+    let months = now.getMonth() - start.getMonth();
+
+    if (now.getDate() < start.getDate()) {
+      months--;
+    }
+
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    const parts: string[] = [];
+    if (years > 0) {
+      parts.push(`${years} ${years === 1 ? "Year" : "Years"}`);
+    }
+    if (months > 0) {
+      parts.push(`${months} ${months === 1 ? "Month" : "Months"}`);
+    }
+
+    if (parts.length === 0) {
+      return "< 1 Month";
+    }
+
+    return parts.join(", ");
+  } catch {
+    return "—";
+  }
+}
+
 function formatEventDate(isoStr: string | null | undefined): string {
   if (!isoStr) return "Date unavailable";
   try {
@@ -129,17 +168,6 @@ export function PlantillaDetailDrawer({
         variant={statusVariant(data.plantillaStatus)}
         text={data.plantillaStatus ?? "Unknown"}
       />
-      {data.plantillaType && (
-        <span
-          className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold ${
-            data.plantillaType === "AH"
-              ? "border-status-warning-border bg-amber-50 text-status-warning-text"
-              : "border-border-default bg-surface-muted text-text-secondary"
-          }`}
-        >
-          {data.plantillaType}
-        </span>
-      )}
     </div>
   ) : undefined;
 
@@ -504,10 +532,10 @@ function DrawerBody({
         </SectionCard>
       )}
 
-      {/* Capability-Aware Action Bar */}
+      {/* Actions */}
       <CapabilityActionBar
-        title="Capability-Aware Personnel Actions"
-        helperText="Available actions are enabled based on your authorized role (Head Admin, Super Admin, HRCO/Ops). Write actions execute authoritative Supabase RPCs with ADR-001 slot sync."
+        title="Actions"
+        variant="toolbar"
         actions={buildActionItems(
           data.rowCapabilities,
           data.plantillaStatus,
@@ -596,15 +624,15 @@ function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
 
 function EmploymentGrid({ data }: { data: PlantillaDetailItem }) {
   const primaryStoreDisplay = data.primaryStoreName || data.vcode || "—";
+  const tenureDisplay = data.tenureDescription || computeTenure(data.dateDeployed);
   const fields = [
     { label: "Date Deployed", value: formatDate(data.dateDeployed) },
     { label: "Position", value: data.positionTitle ?? "—" },
     { label: "Account", value: data.accountName ?? "—" },
     { label: "Primary Store", value: primaryStoreDisplay },
     { label: "Base Rate", value: data.maskedFields.baseRateMasked ?? "—" },
-    { label: "Tenure", value: data.tenureDescription ?? "—" },
+    { label: "Tenure", value: tenureDisplay },
     { label: "Assignment", value: data.assignmentType ?? "—" },
-    { label: "Plantilla Type", value: data.plantillaType ?? "—" },
   ];
 
   return (
@@ -916,30 +944,43 @@ function buildActionItems(
   const canTransfer =
     isAuthorized && !isInactive && (caps.canTransferEmployee !== false);
 
-  return [
-    {
-      label: "Mark Separation",
-      isAvailable: canSeparate,
-      onClick: canSeparate ? handlers.onMarkSeparation : undefined,
-    },
-    {
+  const actions: ActionItem[] = [];
+
+  if (canUpdateStatus) {
+    actions.push({
       label: "Update Status",
-      isAvailable: canUpdateStatus,
-      onClick: canUpdateStatus ? handlers.onUpdateStatus : undefined,
-    },
-    {
+      isAvailable: true,
+      onClick: handlers.onUpdateStatus,
+      variant: "secondary",
+    });
+  }
+
+  if (canTransfer) {
+    actions.push({
+      label: "Transfer Store",
+      isAvailable: true,
+      onClick: handlers.onTransferEmployee,
+      variant: "secondary",
+    });
+  }
+
+  if (canSeparate) {
+    actions.push({
+      label: "Mark Separation",
+      isAvailable: true,
+      onClick: handlers.onMarkSeparation,
+      variant: "warning",
+    });
+  }
+
+  if (canRequestDeact) {
+    actions.push({
       label: "Request Deactivation",
-      isAvailable: canRequestDeact,
-      onClick: canRequestDeact ? handlers.onRequestDeactivation : undefined,
-    },
-    {
-      label: "Review Deactivation",
-      isAvailable: caps.canReviewDeactivation && isAuthorized,
-    },
-    {
-      label: "Transfer Employee",
-      isAvailable: canTransfer,
-      onClick: canTransfer ? handlers.onTransferEmployee : undefined,
-    },
-  ];
+      isAvailable: true,
+      onClick: handlers.onRequestDeactivation,
+      variant: "danger",
+    });
+  }
+
+  return actions;
 }

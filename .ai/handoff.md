@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Plantilla Detail Drawer Auto Tenure, Plantilla Type Removal & Human-Readable Action Buttons (ohm#t3m8w1k5)
+
+**Status: COMPLETE — AUTO COMPUTE TENURE DEPLOYED IN PLANTILLA DETAIL DRAWER (BASED ON DATE DEPLOYED / DATE HIRED), PLANTILLA TYPE REMOVED FROM EMPLOYMENT GRID & HEADER BADGE, ACTIONS REFACTORED TO CLEAN HORIZONTAL TOOLBAR WITH HUMAN-READABLE LABELS (Update Status, Transfer Store, Mark Separation, Request Deactivation) AND UNAVAILABLE ACTIONS CLEANLY SUPPRESSED, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Auto Compute Tenure from Date Deployed**:
+   - Added computeTenure(dateStr) helper calculating elapsed years and months deterministically from deployment/hired date (e.g. 9 Years, 1 Month).
+   - Falls back to computeTenure(data.dateDeployed) dynamically when backend tenureDescription is null/empty.
+2. **Remove Plantilla Type**:
+   - Removed Plantilla Type row from EmploymentGrid in PlantillaDetailDrawer.tsx.
+   - Removed plantillaType badge in drawer header to keep drawer clean and focused on verified employee attributes.
+3. **Human-Readable & Simple Actions**:
+   - Switched action section from vertical not exposed button list to clean variant=toolbar action group titled Actions.
+   - Simplified action labels to standard human-readable terms (Update Status, Transfer Store, Mark Separation, Request Deactivation) with clear visual variants.
+   - Filtered out unexposed actions so users only see actionable buttons they are authorized to perform.
+
+### Verification
+- npm run lint: 0 errors
+- npm run build: 0 errors
+
+---
+
 ## Plantilla Import Field Inheritance & Mobile Parity, Vacancy Tab Store Name Exclusion & Detail Drawer Resolution (ohm#f7m2w9x4)
 
 **Status: COMPLETE — MIGRATION 20262606000059 APPLIED TO LIVE STAGING, DETERMINISTIC HELPERS safe_parse_numeric AND safe_parse_date DEPLOYED, PHASE B2 INHERITANCE OF STORE NAME, VCODE, STORE ID, BASE RATE, DATE HIRED, AND ADDRESS DEPLOYED & LIVE BACKFILLED, get_web_plantilla_detail EXTENDED TO PROJECT PII & STORE COVERAGE, FRONTEND NORMALIZER normalizeDetailRow WIRED TO EXTRACT FROM masked_fields & ROW FALLBACKS, DETAIL DRAWER & ROSTER TABLES VCODE FALLBACK CONFIGURED, STRICT STORE NAME OCCUPANCY FILTER DEPLOYED TO VACANCY TAB, 0 BUILD/LINT REGRESSIONS ON MAIN**

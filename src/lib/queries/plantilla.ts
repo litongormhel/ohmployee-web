@@ -514,9 +514,9 @@ function normalizeEmployeeCapabilities(value: unknown): PlantillaRowCapabilities
     canReviewDeactivation: raw.can_review_deactivation === true,
     canRequestDeletion: raw.can_request_deletion === true,
     canReviewDeletion: raw.can_review_deletion === true,
-    canTransferEmployee: raw.can_transfer_employee === true,
-    canSeparate: raw.can_separate === true || raw.can_resign === true || raw.can_endo === true,
-    canUpdateStatus: raw.can_update_status === true || raw.can_separate === true,
+    canTransferEmployee: raw.can_transfer_employee === true || raw.can_transfer === true,
+    canSeparate: raw.can_separate === true || raw.can_resign === true || raw.can_endo === true || raw.can_update_employment_status === true,
+    canUpdateStatus: raw.can_update_status === true || raw.can_separate === true || raw.can_update_employment_status === true,
     raw,
   };
 }
