@@ -355,7 +355,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
       setActiveTab("review");
       setSelectedBatchId(result.batchId);
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : "Failed to submit plantilla import batch.");
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message || "Failed to submit plantilla import batch.";
+      setParseError(msg);
     } finally {
       setIsSubmitting(false);
     }

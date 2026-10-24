@@ -431,7 +431,10 @@ export async function submitPlantillaBaselineImport(params: {
     p_account_id: params.accountId,
     p_rows: rpcRows,
   });
-  if (error) throw error;
+  if (error) {
+    const errorMsg = [error.message, error.details, error.hint].filter(Boolean).join(" - ") || "Failed to submit plantilla import batch.";
+    throw new Error(errorMsg);
+  }
 
   const res = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
   const batchId = String(res.batch_id ?? (typeof data === "string" ? data : ""));

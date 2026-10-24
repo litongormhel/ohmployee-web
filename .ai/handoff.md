@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Plantilla Baseline Import Batch Summary Column Fix & Error Surfacing Hardening (ohm#b7k2w9m5)
+
+**Status: COMPLETE — MIGRATION 20262606000061 AUTHORED AND APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`) AND PRODUCTION (`rwxelulyapjgaarlwkus`), FIXED CRITICAL DATABASE EXCEPTION WHERE SUBMIT_PLANTILLA_BASELINE_IMPORT ATTEMPTED TO UPDATE NON-EXISTENT COLUMN `summary_json` IN PLANTILLA_IMPORT_BATCHES INSTEAD OF `error_summary`, RESTORED BATCH CREATION AND VALIDATION ROW INGESTION, HARDENED CLIENT-SIDE RPC EXCEPTION WRAPPING IN dataControl.ts AND MODAL ERROR SURFACING IN PlantillaImportModal.tsx TO PREVENT SWALLOWING REAL POSTGRES ERROR MESSAGES, 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Root Cause Analysis & Investigation Findings
+1. **Frontend Submission Payload**:
+   - Scope context pre-check (`validateSpreadsheetScopeContext`) passed cleanly as `GROUP 2` and `BANCON` matched the selected operational context.
+   - The payload dispatched to `submit_plantilla_baseline_import` contained all required 25 ADR-002 headers properly mapped.
+2. **Network & Database Exception**:
+   - Supabase unified log inspection (`logs` table on `qqiiznmqxfoamqytjica`) identified a persistent 400 error on `POST /rest/v1/rpc/submit_plantilla_baseline_import` at `2026-10-24T02:53:40Z` with Postgres exception:
+     `column "summary_json" of relation "plantilla_import_batches" does not exist (SQLSTATE 42703)`.
+   - Migration `20262606000058` had inadvertently used `summary_json = v_summary` instead of `error_summary = v_summary` on the batch UPDATE statement, causing every baseline import submission to abort the transaction.
+3. **Client-Side Error Masking**:
+   - `submitPlantillaBaselineImport` in `dataControl.ts` threw the raw Supabase `PostgrestError` plain object without wrapping it in an `Error` instance.
+   - In `PlantillaImportModal.tsx`, `err instanceof Error` evaluated to `false`, causing the catch block to fall back to the generic banner `"Failed to submit plantilla import batch."` rather than showing the database exception.
+4. **Data Validation Context**:
+   - The user's test batch contained 11 rows whose store VCODEs and employees were previously registered under `FOREVER OFFICE` in `Group 1`.
+   - ADR-002 Invariants 2 & 6 correctly flag these rows as `blocked` due to cross-account ownership.
+   - With the SQL fix in place, the batch is properly persisted with `status: "blocked"`, and the modal navigates to the Review Queue showing the exact conflict reasons row-by-row instead of crashing.
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000061_fix_plantilla_import_summary_column.sql`)**:
+   - Replaced `submit_plantilla_baseline_import` to update `error_summary = v_summary` instead of `summary_json`.
+   - Preserved all batch counters (`roving_detected`, `new_stores_count`, `existing_stores_count`, `cross_account_conflicts`, `cross_group_conflicts`) and `updated_at = now()`.
+   - Applied cleanly to both live **Staging** (`qqiiznmqxfoamqytjica`) and **Production** (`rwxelulyapjgaarlwkus`).
+2. **Client Error Hardening (`src/lib/queries/dataControl.ts`)**:
+   - Updated `submitPlantillaBaselineImport` to format and throw `new Error([error.message, error.details, error.hint].filter(Boolean).join(" - "))`.
+3. **UI Error Surfacing (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Updated catch block to safely extract `(err as { message?: string })?.message` if `!(err instanceof Error)` before falling back to the generic message.
+
+### Verification
+- Database DDL applied and verified on both Supabase environments (`qqiiznmqxfoamqytjica` and `rwxelulyapjgaarlwkus`).
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Clean (compiled successfully in 6.7s, TypeScript finished in 21.4s, all 19 static routes generated).
+- Verified working tree on `main`.
+
+---
+
 ## Plantilla Import Template Generator Schedule Columns Free-Form Text Update (ohm#x4m9w2k7)
 
 **Status: COMPLETE — EXCELJS DATA VALIDATION DROPDOWN LISTS REMOVED FROM SCHEDULE_DAYS, SCHEDULE_TIME, AND DAYOFF IN downloadPlantillaImportTemplate, UNRESTRICTED FREE-FORM TEXT ENTRY ENABLED WITHOUT POP-UP RESTRICTIONS OR HARD DROPDOWN LISTS, COLUMN HEADERS, STYLES, OPTIMAL WIDTHS, SAMPLE ROW VALUES, AND 15-RULE ADR-002 OPERATIONAL GUIDE SHEET PRESERVED, 0 LINT ERRORS ON MAIN**
@@ -593,6 +631,44 @@
 ---
 
 # AI Handoff
+
+## Plantilla Baseline Import Batch Summary Column Fix & Error Surfacing Hardening (ohm#b7k2w9m5)
+
+**Status: COMPLETE — MIGRATION 20262606000061 AUTHORED AND APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`) AND PRODUCTION (`rwxelulyapjgaarlwkus`), FIXED CRITICAL DATABASE EXCEPTION WHERE SUBMIT_PLANTILLA_BASELINE_IMPORT ATTEMPTED TO UPDATE NON-EXISTENT COLUMN `summary_json` IN PLANTILLA_IMPORT_BATCHES INSTEAD OF `error_summary`, RESTORED BATCH CREATION AND VALIDATION ROW INGESTION, HARDENED CLIENT-SIDE RPC EXCEPTION WRAPPING IN dataControl.ts AND MODAL ERROR SURFACING IN PlantillaImportModal.tsx TO PREVENT SWALLOWING REAL POSTGRES ERROR MESSAGES, 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Root Cause Analysis & Investigation Findings
+1. **Frontend Submission Payload**:
+   - Scope context pre-check (`validateSpreadsheetScopeContext`) passed cleanly as `GROUP 2` and `BANCON` matched the selected operational context.
+   - The payload dispatched to `submit_plantilla_baseline_import` contained all required 25 ADR-002 headers properly mapped.
+2. **Network & Database Exception**:
+   - Supabase unified log inspection (`logs` table on `qqiiznmqxfoamqytjica`) identified a persistent 400 error on `POST /rest/v1/rpc/submit_plantilla_baseline_import` at `2026-10-24T02:53:40Z` with Postgres exception:
+     `column "summary_json" of relation "plantilla_import_batches" does not exist (SQLSTATE 42703)`.
+   - Migration `20262606000058` had inadvertently used `summary_json = v_summary` instead of `error_summary = v_summary` on the batch UPDATE statement, causing every baseline import submission to abort the transaction.
+3. **Client-Side Error Masking**:
+   - `submitPlantillaBaselineImport` in `dataControl.ts` threw the raw Supabase `PostgrestError` plain object without wrapping it in an `Error` instance.
+   - In `PlantillaImportModal.tsx`, `err instanceof Error` evaluated to `false`, causing the catch block to fall back to the generic banner `"Failed to submit plantilla import batch."` rather than showing the database exception.
+4. **Data Validation Context**:
+   - The user's test batch contained 11 rows whose store VCODEs and employees were previously registered under `FOREVER OFFICE` in `Group 1`.
+   - ADR-002 Invariants 2 & 6 correctly flag these rows as `blocked` due to cross-account ownership.
+   - With the SQL fix in place, the batch is properly persisted with `status: "blocked"`, and the modal navigates to the Review Queue showing the exact conflict reasons row-by-row instead of crashing.
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000061_fix_plantilla_import_summary_column.sql`)**:
+   - Replaced `submit_plantilla_baseline_import` to update `error_summary = v_summary` instead of `summary_json`.
+   - Preserved all batch counters (`roving_detected`, `new_stores_count`, `existing_stores_count`, `cross_account_conflicts`, `cross_group_conflicts`) and `updated_at = now()`.
+   - Applied cleanly to both live **Staging** (`qqiiznmqxfoamqytjica`) and **Production** (`rwxelulyapjgaarlwkus`).
+2. **Client Error Hardening (`src/lib/queries/dataControl.ts`)**:
+   - Updated `submitPlantillaBaselineImport` to format and throw `new Error([error.message, error.details, error.hint].filter(Boolean).join(" - "))`.
+3. **UI Error Surfacing (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Updated catch block to safely extract `(err as { message?: string })?.message` if `!(err instanceof Error)` before falling back to the generic message.
+
+### Verification
+- Database DDL applied and verified on both Supabase environments (`qqiiznmqxfoamqytjica` and `rwxelulyapjgaarlwkus`).
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Clean (compiled successfully in 6.7s, TypeScript finished in 21.4s, all 19 static routes generated).
+- Verified working tree on `main`.
+
+---
 
 ## Plantilla Import Template Generator Schedule Columns Free-Form Text Update (ohm#x4m9w2k7)
 

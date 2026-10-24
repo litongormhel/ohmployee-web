@@ -687,3 +687,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Inspect & Detail Drawers Cleanup**:
     - `PlantillaDetailDrawer.tsx`: Compacted to `p-4 space-y-3`, suppressed redundant stationary coverage card (already in EmploymentGrid), and formatted Schedule Audit into a compact 3-column inline strip.
     - `VacancyDetailDrawer.tsx`: Spacing tightened to `p-3.5 space-y-2`, removed duplicate quota label from Requisition & Quota controls header.
+
+- **Plantilla Baseline Import Batch Summary Column Fix & Error Surfacing Hardening (`ohm#b7k2w9m5`)**:
+  - **Database Migration (`20262606000061`)**:
+    - Replaced `submit_plantilla_baseline_import` to update `error_summary = v_summary` instead of non-existent column `summary_json` in `plantilla_import_batches`.
+    - Preserved batch conflict counters (`roving_detected`, `new_stores_count`, `existing_stores_count`, `cross_account_conflicts`, `cross_group_conflicts`) and `updated_at`.
+    - Applied to both live Staging (`qqiiznmqxfoamqytjica`) and Production (`rwxelulyapjgaarlwkus`).
+  - **Client Error Hardening**:
+    - `dataControl.ts`: `submitPlantillaBaselineImport` now wraps Postgrest error messages into `new Error(...)`.
+    - `PlantillaImportModal.tsx`: catch block safely extracts `(err as { message?: string })?.message` fallback, preventing real database error messages from being swallowed by generic banner text.
+
