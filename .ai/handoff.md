@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Plantilla Needs HRCO Tab Visibility Guard & Active Employee Resolution (ohm#n2k7w9m4)
+
+**Status: COMPLETE — MIGRATION 20262606000060 APPLIED TO STAGING, get_plantilla_unassigned_hrco_count & get_plantilla_needs_hrco_employees RESTRICTIVE DATA-TEAM-ONLY GUARD REMOVED, ALL ACTIVE EMPLOYEES UNDER ACCOUNTS WITHOUT ASSIGNED HRCO RETURNED, "NEEDS HRCO" TAB IN Plantilla Page CONDITIONALIZED TO RENDER ONLY WHEN ACCOUNT LACKS ASSIGNED HRCO (!accountHasAssignedHrco), DERIVED effectiveTab SYNCED ACROSS ALL QUERIES AND VIEWS, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Migration 20262606000060 Applied to Staging**:
+   - Replaced restrictive `IF NOT (public.i_am_data_team() OR public.i_have_full_access())` guard in `get_plantilla_unassigned_hrco_count` and `get_plantilla_needs_hrco_employees` with standard authenticated access checks so Operations Managers (role level 70) and authorized users can retrieve unassigned HRCO counts and employee lists.
+   - Simplified logic: if `accounts.hrco_user_id IS NOT NULL`, returns 0 / empty set; if `accounts.hrco_user_id IS NULL`, returns count and details of all active employees under `p_account_id`.
+   - Verified on staging database (`qqiiznmqxfoamqytjica`): account `d0533fbc-3cce-4d0a-a619-ad0539dbc66d` (`FOREVER OFFICE`) without HRCO returns count `7` and all 7 active employees.
+2. **Conditional "Needs HRCO" Tab Visibility (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Tab 4 button wrapped with `{!accountHasAssignedHrco && ...}` so the "Needs HRCO" tab strictly renders only when the account does not have an assigned HRCO (`!accountHasAssignedHrco`).
+   - Replaced direct `useEffect` with derived `const effectiveTab = accountHasAssignedHrco && tab === "needs_hr" ? "active" : tab;` avoiding cascading effect renders and satisfying React 19 / ESLint compiler rules.
+3. **Resilient Frontend Queries (`src/lib/queries/plantilla.ts`)**:
+   - In `fetchUnassignedHrcoCount` and `fetchNeedsHrcoEmployees`, if the account lacks an assigned HRCO, graceful fallback queries `listWebPlantillaEmployees` for active employees of the account.
+
+### Verification
+- `npm run lint`: 0 errors
+- `npm run build`: 0 errors (Next.js 16.2.4 Turbopack production build compiled clean)
+- Staging RPC verification: `get_plantilla_unassigned_hrco_count` returns 7 for `FOREVER OFFICE`, 0 for `ACTISERVE` (account with HRCO).
+
+---
+
 ## Plantilla Detail Drawer Web-Optimized Desktop Layout, 4-Tab Navigation & MIKA Sync (ohm#e4w9k2m7)
 
 **Status: COMPLETE — WEB-OPTIMIZED RIGHT-SIDE DESKTOP DRAWER DEPLOYED TO `PlantillaDetailDrawer.tsx` WITH DEEP BLUE BANNER (`#1e3a8a`), INITIALS AVATAR, EMPLOYEE ID, DEPLOYED DATE & STATUS BADGE, 4-TAB NAVIGATION SYSTEM (PROFILE, BENEFITS, STORES, ACTIVITY) FULLY OPERATIONAL, BENEFIT NUMBERS MASK/UNMASK TOGGLE WITH EYE ICON, MIKA SYNC MUTATION VIA `plantilla_sync_mika` RPC WITH 5-MINUTE COOLDOWN HANDLING, WORK SCHEDULE & RATE CARD WITH SCHEDULE TIME AND EDIT MODAL LAUNCHER, 0 BUILD/LINT REGRESSIONS ON MAIN**

@@ -654,6 +654,9 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Head Admin and Super Admin can approve or reject rollback requests (`rejectPlantillaImportRollback`).
   - Super Admin Emergency Rollback Override enabled for expired windows when zero records were touched.
   - **Strict Zero-Edit Immutability Lock**: If any record in the batch was modified post-approval (with 2-second approval grace guard), rollback is hard-blocked and displays humanized error message identifying modified records.
+- **Needs HRCO Visibility Guard & Unassigned Employees Resolution (`ohm#n2k7w9m4`)**:
+  - **Account HRCO Conditional Tab Visibility**: The "Needs HRCO" directory tab only renders when the selected account has no assigned HRCO (`!accountHasAssignedHrco`). When an HRCO is assigned to the account (`accounts.hrco_user_id IS NOT NULL` or leadership team HRCO present), the tab is hidden and views default cleanly to `active`.
+  - **RPC Access & Unassigned Population (Migration `20262606000060`)**: Removed the restrictive `i_am_data_team() OR i_have_full_access()` check from `get_plantilla_unassigned_hrco_count` and `get_plantilla_needs_hrco_employees`. If an account has no assigned HRCO, all active employees under that account are returned as needing an HRCO.
 - **Web-Optimized Desktop Drawer Layout & 4-Tab System (`PlantillaDetailDrawer.tsx`)**:
   - Right-side desktop drawer (`max-w-2xl bg-slate-50`) with deep blue banner (`bg-[#1e3a8a]`), circular initials avatar, employee ID (`IdCard`), deployed date (`Calendar`), and active status badge.
   - **4-Tab Navigation**:

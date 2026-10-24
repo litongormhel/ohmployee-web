@@ -1036,13 +1036,24 @@ export async function fetchUnassignedHrcoCount(accountId: string): Promise<numbe
     const { data, error } = await supabase.rpc("get_plantilla_unassigned_hrco_count", {
       p_account_id: accountId,
     });
-    if (!error && typeof data === "number") {
+    if (!error && typeof data === "number" && data > 0) {
       return data;
     }
   } catch {
     // Fallback
   }
-  return 0;
+
+  try {
+    const fallbackRes = await listWebPlantillaEmployees({
+      page: 1,
+      accountId,
+      activeState: "active",
+      pageSize: 1,
+    });
+    return fallbackRes.totalCount;
+  } catch {
+    return 0;
+  }
 }
 
 export async function fetchNeedsHrcoEmployees(
@@ -1055,7 +1066,7 @@ export async function fetchNeedsHrcoEmployees(
     const { data, error } = await supabase.rpc("get_plantilla_needs_hrco_employees", {
       p_account_id: accountId,
     });
-    if (!error && Array.isArray(data)) {
+    if (!error && Array.isArray(data) && data.length > 0) {
       const rows = (data as Record<string, unknown>[])
         .map((row) => normalizeEmployeeListRow(asObject(row)))
         .filter((row): row is PlantillaEmployeeListItem => row !== null);
@@ -1074,7 +1085,19 @@ export async function fetchNeedsHrcoEmployees(
   } catch {
     // Fallback
   }
-  return [];
+
+  try {
+    const fallbackRes = await listWebPlantillaEmployees({
+      page: 1,
+      accountId,
+      search: search?.trim() || undefined,
+      activeState: "active",
+      pageSize: 200,
+    });
+    return fallbackRes.data;
+  } catch {
+    return [];
+  }
 }
 
 export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffingListParams) {

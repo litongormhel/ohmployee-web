@@ -383,12 +383,22 @@ function PlantillaPageContent() {
     };
   }, [teamDirectoryQuery.data]);
 
+  const currentAccount = useMemo(() => {
+    return (allowedAccountsQuery.data ?? []).find((a) => a.id === accountId) ?? null;
+  }, [allowedAccountsQuery.data, accountId]);
+
+  const accountHasAssignedHrco = Boolean(
+    currentAccount?.hrcoUserId || (leadershipTeam.hrco && leadershipTeam.hrco !== "—" && leadershipTeam.hrco !== "-")
+  );
+
+  const effectiveTab = accountHasAssignedHrco && tab === "needs_hr" ? "active" : tab;
+
   // Query for active or inactive roster
   const employeeQuery = useQuery({
     queryKey: [
       "plantilla",
       "employees",
-      { search, accountId, storeId, status, assignmentType, page, pageSize, tab },
+      { search, accountId, storeId, status, assignmentType, page, pageSize, tab: effectiveTab },
     ],
     queryFn: () =>
       listWebPlantillaEmployees({
@@ -397,11 +407,11 @@ function PlantillaPageContent() {
         storeId: storeId || undefined,
         status: status || undefined,
         deployment: assignmentType || undefined,
-        activeState: tab === "inactive" ? "inactive" : "active",
+        activeState: effectiveTab === "inactive" ? "inactive" : "active",
         page,
         pageSize,
       }),
-    enabled: !!accountId && (tab === "active" || tab === "inactive"),
+    enabled: !!accountId && (effectiveTab === "active" || effectiveTab === "inactive"),
   });
 
   // Query for vacancies
@@ -415,7 +425,7 @@ function PlantillaPageContent() {
         page,
         pageSize,
       }),
-    enabled: !!accountId && tab === "vacancy",
+    enabled: !!accountId && effectiveTab === "vacancy",
     staleTime: 30000,
   });
 
@@ -423,7 +433,7 @@ function PlantillaPageContent() {
   const occupiedStoresQuery = useQuery({
     queryKey: ["plantilla", "occupied-stores", accountId],
     queryFn: () => fetchOccupiedStoreIdentifiers(accountId),
-    enabled: !!accountId && tab === "vacancy",
+    enabled: !!accountId && effectiveTab === "vacancy",
     staleTime: 30000,
   });
 
@@ -431,7 +441,7 @@ function PlantillaPageContent() {
   const needsHrcoQuery = useQuery({
     queryKey: ["plantilla", "needs-hrco-list", accountId, search],
     queryFn: () => fetchNeedsHrcoEmployees(accountId, search),
-    enabled: !!accountId && tab === "needs_hr",
+    enabled: !!accountId && !accountHasAssignedHrco && effectiveTab === "needs_hr",
     staleTime: 30000,
   });
 
@@ -456,7 +466,7 @@ function PlantillaPageContent() {
   const unassignedHrcoCountQuery = useQuery({
     queryKey: ["plantilla", "unassigned-hrco-count", accountId],
     queryFn: () => fetchUnassignedHrcoCount(accountId),
-    enabled: !!accountId,
+    enabled: !!accountId && !accountHasAssignedHrco,
     staleTime: 30000,
   });
 
@@ -473,16 +483,16 @@ function PlantillaPageContent() {
     employeeQuery.error instanceof PlantillaDataError ? employeeQuery.error : null;
 
   const isListLoading =
-    tab === "vacancy"
+    effectiveTab === "vacancy"
       ? vacancyListQuery.isLoading
-      : tab === "needs_hr"
+      : effectiveTab === "needs_hr"
       ? needsHrcoQuery.isLoading
       : employeeQuery.isLoading;
 
   const isListError =
-    tab === "vacancy"
+    effectiveTab === "vacancy"
       ? vacancyListQuery.isError && !vacancyListQuery.isLoading
-      : tab === "needs_hr"
+      : effectiveTab === "needs_hr"
       ? needsHrcoQuery.isError && !needsHrcoQuery.isLoading
       : employeeQuery.isError && !employeeQuery.isLoading;
 
@@ -492,14 +502,6 @@ function PlantillaPageContent() {
   const employeeRows = employeeQuery.data?.data ?? [];
   const vacancyRows = useMemo(() => vacancyListQuery.data?.data ?? [], [vacancyListQuery.data?.data]);
   const needsHrRows = useMemo(() => needsHrcoQuery.data ?? [], [needsHrcoQuery.data]);
-
-  const currentAccount = useMemo(() => {
-    return (allowedAccountsQuery.data ?? []).find((a) => a.id === accountId) ?? null;
-  }, [allowedAccountsQuery.data, accountId]);
-
-  const accountHasAssignedHrco = Boolean(
-    currentAccount?.hrcoUserId || (leadershipTeam.hrco && leadershipTeam.hrco !== "—")
-  );
 
   const existingVacancyVcodes = useMemo(() => {
     const set = new Set<string>();
@@ -550,9 +552,9 @@ function PlantillaPageContent() {
   }, [needsHrRows, page, pageSize]);
 
   const totalCount =
-    tab === "vacancy"
+    effectiveTab === "vacancy"
       ? vacancyListQuery.data?.totalCount ?? 0
-      : tab === "needs_hr"
+      : effectiveTab === "needs_hr"
       ? needsHrRows.length
       : employeeQuery.data?.totalCount ?? 0;
 
@@ -561,7 +563,11 @@ function PlantillaPageContent() {
   const activeCount = summaryData?.actual ?? 0;
   const vacancyCount = summaryData?.vacant ?? 0;
   const inactiveCount = inactiveCountQuery.data ?? 0;
-  const needsHrCount = unassignedHrcoCountQuery.data ?? 0;
+  const needsHrCount = accountHasAssignedHrco
+    ? 0
+    : (unassignedHrcoCountQuery.data && unassignedHrcoCountQuery.data > 0
+        ? unassignedHrcoCountQuery.data
+        : (needsHrRows.length > 0 ? needsHrRows.length : activeCount));
 
   const fulfillmentRate =
     summaryData?.required && summaryData.required > 0
@@ -1177,20 +1183,20 @@ function PlantillaPageContent() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "active"}
+                  aria-selected={effectiveTab === "active"}
                   onClick={() => {
                     setTab("active");
                     setPage(1);
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                    tab === "active"
+                    effectiveTab === "active"
                       ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Users
                     className={`w-4 h-4 shrink-0 transition-colors ${
-                      tab === "active"
+                      effectiveTab === "active"
                         ? "text-brand-700"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
@@ -1198,7 +1204,7 @@ function PlantillaPageContent() {
                   <span>Active Roster</span>
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                      tab === "active"
+                      effectiveTab === "active"
                         ? "bg-brand-600 text-white"
                         : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
@@ -1211,20 +1217,20 @@ function PlantillaPageContent() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "vacancy"}
+                  aria-selected={effectiveTab === "vacancy"}
                   onClick={() => {
                     setTab("vacancy");
                     setPage(1);
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                    tab === "vacancy"
+                    effectiveTab === "vacancy"
                       ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Briefcase
                     className={`w-4 h-4 shrink-0 transition-colors ${
-                      tab === "vacancy"
+                      effectiveTab === "vacancy"
                         ? "text-brand-700"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
@@ -1232,7 +1238,7 @@ function PlantillaPageContent() {
                   <span>Vacancy</span>
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                      tab === "vacancy"
+                      effectiveTab === "vacancy"
                         ? "bg-brand-600 text-white"
                         : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
@@ -1245,20 +1251,20 @@ function PlantillaPageContent() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "inactive"}
+                  aria-selected={effectiveTab === "inactive"}
                   onClick={() => {
                     setTab("inactive");
                     setPage(1);
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                    tab === "inactive"
+                    effectiveTab === "inactive"
                       ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <UserMinus
                     className={`w-4 h-4 shrink-0 transition-colors ${
-                      tab === "inactive"
+                      effectiveTab === "inactive"
                         ? "text-brand-700"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
@@ -1266,7 +1272,7 @@ function PlantillaPageContent() {
                   <span>Inactive / Floating</span>
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                      tab === "inactive"
+                      effectiveTab === "inactive"
                         ? "bg-brand-600 text-white"
                         : "bg-slate-100 text-slate-600 border border-slate-200/80"
                     }`}
@@ -1275,39 +1281,41 @@ function PlantillaPageContent() {
                   </span>
                 </button>
 
-                {/* Tab 4: Needs HRCO */}
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "needs_hr"}
-                  onClick={() => {
-                    setTab("needs_hr");
-                    setPage(1);
-                  }}
-                  className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                    tab === "needs_hr"
-                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
-                  }`}
-                >
-                  <AlertCircle
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      tab === "needs_hr"
-                        ? "text-brand-700"
-                        : "text-text-muted group-hover:text-text-secondary"
-                    }`}
-                  />
-                  <span>Needs HRCO</span>
-                  <span
-                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                      tab === "needs_hr"
-                        ? "bg-brand-600 text-white"
-                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                {/* Tab 4: Needs HRCO (Only visible when account has no assigned HRCO) */}
+                {!accountHasAssignedHrco && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={effectiveTab === "needs_hr"}
+                    onClick={() => {
+                      setTab("needs_hr");
+                      setPage(1);
+                    }}
+                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                      effectiveTab === "needs_hr"
+                        ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                        : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    {needsHrCount}
-                  </span>
-                </button>
+                    <AlertCircle
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        effectiveTab === "needs_hr"
+                          ? "text-brand-700"
+                          : "text-text-muted group-hover:text-text-secondary"
+                      }`}
+                    />
+                    <span>Needs HRCO</span>
+                    <span
+                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                        effectiveTab === "needs_hr"
+                          ? "bg-brand-600 text-white"
+                          : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                      }`}
+                    >
+                      {needsHrCount}
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* View switch: Table vs Cards */}
@@ -1467,10 +1475,10 @@ function PlantillaPageContent() {
                   title="Fetch Failed"
                   description={listError?.message ?? "The plantilla query failed."}
                   onRetry={() => {
-                    if (tab === "vacancy") {
+                    if (effectiveTab === "vacancy") {
                       vacancyListQuery.refetch();
                       occupiedStoresQuery.refetch();
-                    } else if (tab === "needs_hr") {
+                    } else if (effectiveTab === "needs_hr") {
                       needsHrcoQuery.refetch();
                     } else {
                       employeeQuery.refetch();
@@ -1478,7 +1486,7 @@ function PlantillaPageContent() {
                   }}
                 />
               </div>
-            ) : tab === "vacancy" ? (
+            ) : effectiveTab === "vacancy" ? (
               vacancyRows.length === 0 && missingStoreVacancies.length === 0 ? (
                 <EmptyTabState
                   hasActiveFilters={hasActiveFilters}
@@ -1520,7 +1528,7 @@ function PlantillaPageContent() {
                   ))}
                 </div>
               )
-            ) : tab === "needs_hr" ? (
+            ) : effectiveTab === "needs_hr" ? (
               needsHrRows.length === 0 ? (
                 <EmptyTabState
                   hasActiveFilters={hasActiveFilters}
@@ -1553,12 +1561,12 @@ function PlantillaPageContent() {
               <EmptyTabState
                 hasActiveFilters={hasActiveFilters}
                 onResetFilters={handleResetFilters}
-                tabLabel={tab === "inactive" ? "inactive or floating employees" : "active deployed employees"}
+                tabLabel={effectiveTab === "inactive" ? "inactive or floating employees" : "active deployed employees"}
               />
             ) : displayView === "table" ? (
               <EmployeeTable
                 rows={employeeRows}
-                isInactive={tab === "inactive"}
+                isInactive={effectiveTab === "inactive"}
                 accountHasHrco={accountHasAssignedHrco}
                 onRowClick={setSelectedPlantillaId}
                 storeLookupMap={storeLookupMap}
@@ -1569,7 +1577,7 @@ function PlantillaPageContent() {
                   <EmployeeCard
                     key={row.id}
                     row={row}
-                    isInactive={tab === "inactive"}
+                    isInactive={effectiveTab === "inactive"}
                     accountHasHrco={accountHasAssignedHrco}
                     onSelect={() => setSelectedPlantillaId(row.id)}
                     storeLookupMap={storeLookupMap}
@@ -1646,11 +1654,11 @@ function PlantillaPageContent() {
                 summaryQuery.refetch();
                 inactiveCountQuery.refetch();
                 unassignedHrcoCountQuery.refetch();
-                if (tab === "vacancy") {
+                if (effectiveTab === "vacancy") {
                   vacancyListQuery.refetch();
                   occupiedStoresQuery.refetch();
                 }
-                if (tab === "needs_hr") needsHrcoQuery.refetch();
+                if (effectiveTab === "needs_hr") needsHrcoQuery.refetch();
               }}
             />
           )}
