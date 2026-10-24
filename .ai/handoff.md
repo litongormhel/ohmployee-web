@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Plantilla Import Template Generator Schedule Columns Free-Form Text Update (ohm#x4m9w2k7)
+
+**Status: COMPLETE — EXCELJS DATA VALIDATION DROPDOWN LISTS REMOVED FROM SCHEDULE_DAYS, SCHEDULE_TIME, AND DAYOFF IN downloadPlantillaImportTemplate, UNRESTRICTED FREE-FORM TEXT ENTRY ENABLED WITHOUT POP-UP RESTRICTIONS OR HARD DROPDOWN LISTS, COLUMN HEADERS, STYLES, OPTIMAL WIDTHS, SAMPLE ROW VALUES, AND 15-RULE ADR-002 OPERATIONAL GUIDE SHEET PRESERVED, 0 LINT ERRORS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Template Generator Update (`src/lib/utils/data_control_xlsx.ts`)**:
+   - In `downloadPlantillaImportTemplate()`:
+     - Completely removed ExcelJS `DataValidation` objects:
+       - `scheduleDaysValidation` (preset list: `'MON-SAT,MON-FRI,TUE-SUN,MON,WED,FRI,TUE,THU,SAT,FLEXI'`)
+       - `scheduleTimeValidation` (preset list: `'08:00 AM - 05:00 PM,09:00 AM - 06:00 PM,FLEXI (4 HRS),FLEXI (6 HRS)'`)
+       - `dayoffValidation` (preset list: `'SUN,SAT,SUN,MON,TUE,WED,THU,FRI,SAT'`)
+     - Removed the row iteration (`rows 2..500`) assigning validation rules to cell addresses `S{rowIdx}`, `T{rowIdx}`, and `U{rowIdx}`.
+     - Excel cells for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, and `DAYOFF` now permit standard free-form text input with no dropdown arrows, pop-up warnings, or format restrictions.
+2. **Preservation of ADR-002 Structure & Invariants**:
+   - Maintained column positions, headers, and color styling (13 required/conditional columns in soft red `#FFC7CE` / `#9C0006`; optional columns in `#F3F4F6` / `#374151`).
+   - Retained `PLANTILLA_SAMPLE_ROW` with representative data (`"MON-SAT"`, `"08:00 AM - 05:00 PM"`, `"SUN"`).
+   - Retained the secondary `VALIDATION_GUIDE` worksheet containing the 15-rule ADR-002 architectural governance requirements.
+3. **State Documentation Update (`docs/state/plantilla_web_state.md`)**:
+   - Updated template generator summary to reflect unrestricted free-form text entry for schedule columns.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- Working tree verified on `main`.
+
+---
+
 ## HR Emploc Bulk XLSX Import Modal Shell Refactor & More Dashboard Integration (ohm#p8m2w6k9)
 
 **Status: COMPLETE — REPLACED DEDICATED FULL-PAGE WIZARD ROUTE WITH CENTERED PURPLE MODAL OVERLAY (`HrEmplocImportModal`), WIRED INTO MORE DASHBOARD'S DATA CONTROL BATCH INGESTION HUB CARD, UNDERLINED TAB LAYOUT WITH ACCENT `#7C3AED` ("Upload & Preview", "Review Queue", "Import History"), PURPLE DROPZONE & BADGE THEME APPLIED, MOBILE PARITY FOOTER BAR ADDED, ADR-001 VALIDATION BANNER & GROUP SELECTION RULES PRESERVED, LEGACY ROUTE `/hr-emploc/import` REDIRECTED TO MODAL TRIGGER, SUB-MODAL Z-INDEX ELEVATION (`z-[60]`/`z-[70]`), 0 LINT / 0 BUILD ERRORS ON MAIN**
@@ -567,6 +593,32 @@
 ---
 
 # AI Handoff
+
+## Plantilla Import Template Generator Schedule Columns Free-Form Text Update (ohm#x4m9w2k7)
+
+**Status: COMPLETE — EXCELJS DATA VALIDATION DROPDOWN LISTS REMOVED FROM SCHEDULE_DAYS, SCHEDULE_TIME, AND DAYOFF IN downloadPlantillaImportTemplate, UNRESTRICTED FREE-FORM TEXT ENTRY ENABLED WITHOUT POP-UP RESTRICTIONS OR HARD DROPDOWN LISTS, COLUMN HEADERS, STYLES, OPTIMAL WIDTHS, SAMPLE ROW VALUES, AND 15-RULE ADR-002 OPERATIONAL GUIDE SHEET PRESERVED, 0 LINT ERRORS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Template Generator Update (`src/lib/utils/data_control_xlsx.ts`)**:
+   - In `downloadPlantillaImportTemplate()`:
+     - Completely removed ExcelJS `DataValidation` objects:
+       - `scheduleDaysValidation` (preset list: `'MON-SAT,MON-FRI,TUE-SUN,MON,WED,FRI,TUE,THU,SAT,FLEXI'`)
+       - `scheduleTimeValidation` (preset list: `'08:00 AM - 05:00 PM,09:00 AM - 06:00 PM,FLEXI (4 HRS),FLEXI (6 HRS)'`)
+       - `dayoffValidation` (preset list: `'SUN,SAT,SUN,MON,TUE,WED,THU,FRI,SAT'`)
+     - Removed the row iteration (`rows 2..500`) assigning validation rules to cell addresses `S{rowIdx}`, `T{rowIdx}`, and `U{rowIdx}`.
+     - Excel cells for `SCHEDULE_DAYS`, `SCHEDULE_TIME`, and `DAYOFF` now permit standard free-form text input with no dropdown arrows, pop-up warnings, or format restrictions.
+2. **Preservation of ADR-002 Structure & Invariants**:
+   - Maintained column positions, headers, and color styling (13 required/conditional columns in soft red `#FFC7CE` / `#9C0006`; optional columns in `#F3F4F6` / `#374151`).
+   - Retained `PLANTILLA_SAMPLE_ROW` with representative data (`"MON-SAT"`, `"08:00 AM - 05:00 PM"`, `"SUN"`).
+   - Retained the secondary `VALIDATION_GUIDE` worksheet containing the 15-rule ADR-002 architectural governance requirements.
+3. **State Documentation Update (`docs/state/plantilla_web_state.md`)**:
+   - Updated template generator summary to reflect unrestricted free-form text entry for schedule columns.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- Working tree verified on `main`.
+
+---
 
 ## HR Emploc Bulk XLSX Import Modal Shell Refactor & More Dashboard Integration (ohm#p8m2w6k9)
 

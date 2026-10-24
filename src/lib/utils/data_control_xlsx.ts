@@ -184,45 +184,8 @@ export async function downloadPlantillaImportTemplate(): Promise<void> {
     };
   });
 
-  // Native Excel Data Validation Dropdowns (Rows 2..500)
-  // Column S (19): SCHEDULE_DAYS
-  // Column T (20): SCHEDULE_TIME
-  // Column U (21): DAYOFF
-  const scheduleDaysValidation: ExcelJS.DataValidation = {
-    type: "list",
-    allowBlank: true,
-    formulae: ['"MON-SAT,MON-FRI,TUE-SUN,MON,WED,FRI,TUE,THU,SAT,FLEXI"'],
-    showErrorMessage: false,
-    errorStyle: "warning",
-    errorTitle: "Schedule Days Preset",
-    error: "Select a standard schedule preset or enter comma-separated days.",
-  };
-
-  const scheduleTimeValidation: ExcelJS.DataValidation = {
-    type: "list",
-    allowBlank: true,
-    formulae: ['"08:00 AM - 05:00 PM,09:00 AM - 06:00 PM,FLEXI (4 HRS),FLEXI (6 HRS)"'],
-    showErrorMessage: false,
-    errorStyle: "information",
-    errorTitle: "Schedule Time Preset",
-    error: "Select a standard shift window or enter a custom duration/time.",
-  };
-
-  const dayoffValidation: ExcelJS.DataValidation = {
-    type: "list",
-    allowBlank: true,
-    formulae: ['"SUN,SAT,SUN,MON,TUE,WED,THU,FRI,SAT"'],
-    showErrorMessage: false,
-    errorStyle: "information",
-    errorTitle: "Dayoff Preset",
-    error: "Select a standard day off or enter custom comma-separated days.",
-  };
-
-  for (let rowIdx = 2; rowIdx <= 500; rowIdx++) {
-    wsTemplate.getCell(`S${rowIdx}`).dataValidation = scheduleDaysValidation;
-    wsTemplate.getCell(`T${rowIdx}`).dataValidation = scheduleTimeValidation;
-    wsTemplate.getCell(`U${rowIdx}`).dataValidation = dayoffValidation;
-  }
+  // Free-form text input is permitted on all schedule columns (SCHEDULE_DAYS, SCHEDULE_TIME, DAYOFF)
+  // without dropdown list restrictions or validation prompts.
 
   // --------------------------------------------------------------------------
   // 2. Guide Sheet (VALIDATION_GUIDE — 15-Point ADR-002 Operational Guide)

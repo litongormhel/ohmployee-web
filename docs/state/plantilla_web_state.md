@@ -612,7 +612,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Strict Middle Name Validation: single-character initials (`"S"`, `"S."`) hard-blocked; full middle names ($\ge 2$ alpha chars) or explicit case-insensitive `"NA"`/`"N/A"` accepted.
   - ExcelJS Download Template Generator (`downloadPlantillaImportTemplate`):
     - Styled 8 Always Required Store Headers and 5 Conditionally Required Employee Headers in soft red fill (`#FFC7CE`), dark red bold font (`#9C0006`), centered, thin border.
-    - Native Excel Data Validation dropdown lists on rows 2–500 for `SCHEDULE_DAYS` (presets with warning style), `SCHEDULE_TIME` (shifts/flexi with free-text allowed), and `DAYOFF` (presets with custom entry allowed).
+    - Free-form text input on all schedule columns (`SCHEDULE_DAYS`, `SCHEDULE_TIME`, and `DAYOFF`) without dropdown list restrictions or validation prompts.
     - Secondary `VALIDATION_GUIDE` sheet detailing all 15 ADR-002 operational invariants.
   - Comprehensive 19-rule guide sheet included in downloadable Excel template (`downloadPlantillaImportTemplate`).
 - **Client-Side Pre-Validation (`data_control_xlsx.ts`)**:
