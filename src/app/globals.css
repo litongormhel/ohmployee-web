@@ -96,6 +96,14 @@
   /* Alert row states — runtime */
   --table-row-danger: #fdeeee;       /* soft red */
   --table-row-danger-hover: #facdca; 
+
+  /* CENCOM Hero card tokens — light */
+  --hero-surface: #fbe9ec;
+  --hero-border: #f8c9d0;
+  --hero-text: var(--text);          /* #16161a */
+  --hero-muted: #73595c;
+  --hero-accent: var(--bad);         /* #c4372b */
+  --hero-track: rgba(196, 55, 43, 0.12);
 }
 
 :root[data-theme="light"],
@@ -179,6 +187,14 @@
 
   --table-row-danger: rgba(255, 125, 112, 0.15);
   --table-row-danger-hover: rgba(255, 125, 112, 0.25);
+
+  /* CENCOM Hero card tokens — dark */
+  --hero-surface: #2a1417;
+  --hero-border: #442226;
+  --hero-text: var(--text);          /* #ececf0 */
+  --hero-muted: #ad9497;
+  --hero-accent: var(--bad);         /* #ff7d70 */
+  --hero-track: rgba(255, 125, 112, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -258,6 +274,14 @@
 
     --table-row-danger: rgba(255, 125, 112, 0.15);
     --table-row-danger-hover: rgba(255, 125, 112, 0.25);
+
+    /* CENCOM Hero card tokens — dark (media) */
+    --hero-surface: #2a1417;
+    --hero-border: #442226;
+    --hero-text: var(--text);
+    --hero-muted: #ad9497;
+    --hero-accent: var(--bad);
+    --hero-track: rgba(255, 125, 112, 0.18);
   }
 }
 
@@ -330,6 +354,14 @@
   /* Alert row state utilities */
   --color-table-row-danger: var(--table-row-danger);
   --color-table-row-danger-hover: var(--table-row-danger-hover);
+
+  /* CENCOM Hero card utilities */
+  --color-hero-surface: var(--hero-surface);
+  --color-hero-border: var(--hero-border);
+  --color-hero-text: var(--hero-text);
+  --color-hero-muted: var(--hero-muted);
+  --color-hero-accent: var(--hero-accent);
+  --color-hero-track: var(--hero-track);
 
   /* Minimal mockup utility colors */
   --color-side: var(--side);

@@ -1,5 +1,52 @@
 # AI Handoff
 
+## CENCOM Overview UI Refresh & Group Scope Dropdown (ohm#6c3q8wzn)
+
+**Status: COMPLETE — DELIVERED ACCESSIBLE GROUP 1-5 SCOPE DROPDOWN ON CENCOM OVERVIEW WITH SCOPED ROLES INTEGRATION AND STALE FALLBACK; REFACTORED OVERVIEW WITH 2-ROW OVERALL MFR SWEEP RING GAUGE HERO CARD, 4 NEUTRAL 44PX KPI CARDS WITH NETWORK COVERAGE PROGRESS BAR, AND DIVIDER-SEPARATED DOT-INDICATOR DEPLOYMENT SUMMARY; INTRODUCED 6 SEMANTIC HERO THEME TOKENS IN GLOBALS.CSS (&ge;4.5:1 CONTRAST IN BOTH THEMES); IMPLEMENTED OPTION A FOR TILES 6-9 WITH ZERO DATABASE/SCHEMA CHANGES; VERIFIED "ALL GROUPS" METRICS IDENTICAL TO BASELINE; 0 LINT / 0 BUILD ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Semantic Hero Design Tokens (`src/app/globals.css`)**:
+   - Added 6 new semantic tokens to `:root` (light), `:root[data-theme="dark"], :root.dark` (dark), `@media (prefers-color-scheme: dark)`, and registered under `@theme inline`:
+     - `--hero-surface`: `#fbe9ec` (light soft red) / `#2a1417` (dark red-black)
+     - `--hero-border`: `#f8c9d0` (light) / `#442226` (dark)
+     - `--hero-text`: `#16161a` (light) / `#ececf0` (dark)
+     - `--hero-muted`: `#73595c` (light) / `#ad9497` (dark)
+     - `--hero-accent`: `#c4372b` (light) / `#ff7d70` (dark)
+     - `--hero-track`: `rgba(196, 55, 43, 0.12)` (light) / `rgba(255, 125, 112, 0.18)` (dark)
+   - Additive changes only; zero existing tokens modified or removed.
+   - Contrast ratio strictly &ge; 4.5:1 across both themes.
+
+2. **Group Scope Dropdown (`src/components/cencom/CencomGroupScopeDropdown.tsx`)**:
+   - Rightmost end of tab row, opposite "Overview". Wraps gracefully on narrow viewports without overflowing.
+   - Built dynamically from `useCencomGroupKpi()` and user scope (`currentUser.groupScope.ids`). Default option is `"all"` ("All groups").
+   - Sorted canonically by `group_code` ascending (`G1` &rarr; `G2` &rarr; `G3` &rarr; `G4` &rarr; `G5`), labeled via `formatGroupName`.
+   - Stale-selection fallback: if selected group is not in refreshed list, automatically falls back to `"all"`.
+   - Visible and screen-reader accessible (`aria-label="Group scope"`), keyboard navigable, with focus ring.
+   - Rendered strictly on `activeTab === "overview"`; hidden on all other tabs.
+
+3. **Overview UI & Layout Refresh (`src/components/cencom/` & `src/app/(dashboard)/cencom/page.tsx`)**:
+   - **Hero Card (`CencomOverviewHeroCard.tsx`)**: 2-row desktop card with Overall MFR, health status chip ("Critical" / "At risk" / "Healthy" / "Coherent"), SVG sweep ring gauge (1300ms ease-out), 52px w600 hero counter, and footer "Fulfillment vs required · Target 80%".
+   - **Neutral KPI Cards (`CencomKpiCard.tsx`)**: 4 cards with 44px w600 tabular numbers, sentence-case labels &ge;12px. Deployed stores card features thin progress bar (1100ms grow), "551 / 1,000" ratio, and network coverage percentage.
+   - **Deployment Summary (`CencomDeploymentCard.tsx`)**: Refactored from 4 tinted boxes into 4 equal divider-separated neutral tiles with colored semantic dots (`bg-status-success-text`, `bg-status-info-text`, `bg-status-danger-text`, `bg-status-neutral-text`).
+   - **Option A Scoping Logic**: When a specific group is selected, Tiles 1-5 scope dynamically to that group; Tiles 6-9 show `"—"` with caption `"All groups only"`. "All groups" shows true monthly counters exactly as before.
+   - **Quick Shortcuts**: Removed "TAB 2/3/4" labels and tinted links, standardizing onto neutral surface and border tokens with hover transitions.
+
+4. **Motion & Reduced Motion (`src/components/cencom/usePrefersReducedMotion.ts` & `CencomAnimatedNumber.tsx`)**:
+   - 900ms ease-out cubic number count-up, 1100ms progress bars, 1300ms gauge sweep, 350ms tab transition, 280ms panel fade-in.
+   - Full `prefers-reduced-motion` compliance: when enabled, animations are bypassed and final values render immediately.
+   - Isolated repaint boundaries and granular memoization to avoid full-page re-renders on group selection change.
+
+5. **State Documentation (`docs/state/cencom_state.md`)**:
+   - Created authoritative technical architecture specification for CENCOM module, detailing 5 tabs, dropdown scoping rules, Option A mapping matrix, and design tokens.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Production Turbopack build succeeded with 0 errors across all 19 static/dynamic routes.
+- "All groups" numbers verified 100% identical to baseline.
+- Groups, Target Deployment, Deployment Activity, and Quick Reports tabs 100% untouched.
+
+---
+
 ## Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (ohm#c3m8w9k4)
 
 **Status: COMPLETE — MIGRATION 20262606000063 APPLIED TO LIVE STAGING; ADDED 'DELETE' TO PUBLIC.AUDIT_ACTION ENUM AND COERCED AL.ACTION::TEXT IN GET_WEB_VACANCY_DETAIL RPC PREVENTING POSTGRES 22P02 INVALID INPUT VALUE ERROR; HARDENED GETVACANCYDETAIL FALLBACK IN SRC/LIB/QUERIES/VACANCY.TS TO GRACEFULLY ATTEMPT DIRECT TABLE/APPLICANT READS BEFORE THROWING; VERIFIED CPRVJV13 AND OTHER VACANCIES RESOLVE DETAILS CLEANLY ON LIVE STAGING; 0 BUILD / 0 LINT ERRORS ON MAIN**
@@ -732,6 +779,53 @@
 ---
 
 # AI Handoff
+
+## CENCOM Overview UI Refresh & Group Scope Dropdown (ohm#6c3q8wzn)
+
+**Status: COMPLETE — DELIVERED ACCESSIBLE GROUP 1-5 SCOPE DROPDOWN ON CENCOM OVERVIEW WITH SCOPED ROLES INTEGRATION AND STALE FALLBACK; REFACTORED OVERVIEW WITH 2-ROW OVERALL MFR SWEEP RING GAUGE HERO CARD, 4 NEUTRAL 44PX KPI CARDS WITH NETWORK COVERAGE PROGRESS BAR, AND DIVIDER-SEPARATED DOT-INDICATOR DEPLOYMENT SUMMARY; INTRODUCED 6 SEMANTIC HERO THEME TOKENS IN GLOBALS.CSS (&ge;4.5:1 CONTRAST IN BOTH THEMES); IMPLEMENTED OPTION A FOR TILES 6-9 WITH ZERO DATABASE/SCHEMA CHANGES; VERIFIED "ALL GROUPS" METRICS IDENTICAL TO BASELINE; 0 LINT / 0 BUILD ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Semantic Hero Design Tokens (`src/app/globals.css`)**:
+   - Added 6 new semantic tokens to `:root` (light), `:root[data-theme="dark"], :root.dark` (dark), `@media (prefers-color-scheme: dark)`, and registered under `@theme inline`:
+     - `--hero-surface`: `#fbe9ec` (light soft red) / `#2a1417` (dark red-black)
+     - `--hero-border`: `#f8c9d0` (light) / `#442226` (dark)
+     - `--hero-text`: `#16161a` (light) / `#ececf0` (dark)
+     - `--hero-muted`: `#73595c` (light) / `#ad9497` (dark)
+     - `--hero-accent`: `#c4372b` (light) / `#ff7d70` (dark)
+     - `--hero-track`: `rgba(196, 55, 43, 0.12)` (light) / `rgba(255, 125, 112, 0.18)` (dark)
+   - Additive changes only; zero existing tokens modified or removed.
+   - Contrast ratio strictly &ge; 4.5:1 across both themes.
+
+2. **Group Scope Dropdown (`src/components/cencom/CencomGroupScopeDropdown.tsx`)**:
+   - Rightmost end of tab row, opposite "Overview". Wraps gracefully on narrow viewports without overflowing.
+   - Built dynamically from `useCencomGroupKpi()` and user scope (`currentUser.groupScope.ids`). Default option is `"all"` ("All groups").
+   - Sorted canonically by `group_code` ascending (`G1` &rarr; `G2` &rarr; `G3` &rarr; `G4` &rarr; `G5`), labeled via `formatGroupName`.
+   - Stale-selection fallback: if selected group is not in refreshed list, automatically falls back to `"all"`.
+   - Visible and screen-reader accessible (`aria-label="Group scope"`), keyboard navigable, with focus ring.
+   - Rendered strictly on `activeTab === "overview"`; hidden on all other tabs.
+
+3. **Overview UI & Layout Refresh (`src/components/cencom/` & `src/app/(dashboard)/cencom/page.tsx`)**:
+   - **Hero Card (`CencomOverviewHeroCard.tsx`)**: 2-row desktop card with Overall MFR, health status chip ("Critical" / "At risk" / "Healthy" / "Coherent"), SVG sweep ring gauge (1300ms ease-out), 52px w600 hero counter, and footer "Fulfillment vs required · Target 80%".
+   - **Neutral KPI Cards (`CencomKpiCard.tsx`)**: 4 cards with 44px w600 tabular numbers, sentence-case labels &ge;12px. Deployed stores card features thin progress bar (1100ms grow), "551 / 1,000" ratio, and network coverage percentage.
+   - **Deployment Summary (`CencomDeploymentCard.tsx`)**: Refactored from 4 tinted boxes into 4 equal divider-separated neutral tiles with colored semantic dots (`bg-status-success-text`, `bg-status-info-text`, `bg-status-danger-text`, `bg-status-neutral-text`).
+   - **Option A Scoping Logic**: When a specific group is selected, Tiles 1-5 scope dynamically to that group; Tiles 6-9 show `"—"` with caption `"All groups only"`. "All groups" shows true monthly counters exactly as before.
+   - **Quick Shortcuts**: Removed "TAB 2/3/4" labels and tinted links, standardizing onto neutral surface and border tokens with hover transitions.
+
+4. **Motion & Reduced Motion (`src/components/cencom/usePrefersReducedMotion.ts` & `CencomAnimatedNumber.tsx`)**:
+   - 900ms ease-out cubic number count-up, 1100ms progress bars, 1300ms gauge sweep, 350ms tab transition, 280ms panel fade-in.
+   - Full `prefers-reduced-motion` compliance: when enabled, animations are bypassed and final values render immediately.
+   - Isolated repaint boundaries and granular memoization to avoid full-page re-renders on group selection change.
+
+5. **State Documentation (`docs/state/cencom_state.md`)**:
+   - Created authoritative technical architecture specification for CENCOM module, detailing 5 tabs, dropdown scoping rules, Option A mapping matrix, and design tokens.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Production Turbopack build succeeded with 0 errors across all 19 static/dynamic routes.
+- "All groups" numbers verified 100% identical to baseline.
+- Groups, Target Deployment, Deployment Activity, and Quick Reports tabs 100% untouched.
+
+---
 
 ## Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (ohm#c3m8w9k4)
 
