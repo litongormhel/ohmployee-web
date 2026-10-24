@@ -654,6 +654,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Head Admin and Super Admin can approve or reject rollback requests (`rejectPlantillaImportRollback`).
   - Super Admin Emergency Rollback Override enabled for expired windows when zero records were touched.
   - **Strict Zero-Edit Immutability Lock**: If any record in the batch was modified post-approval (with 2-second approval grace guard), rollback is hard-blocked and displays humanized error message identifying modified records.
+- **Web-Optimized Desktop Drawer Layout & 4-Tab System (`PlantillaDetailDrawer.tsx`)**:
+  - Right-side desktop drawer (`max-w-2xl bg-slate-50`) with deep blue banner (`bg-[#1e3a8a]`), circular initials avatar, employee ID (`IdCard`), deployed date (`Calendar`), and active status badge.
+  - **4-Tab Navigation**:
+    - **Profile**: 2-column Employment & Allocation grid (VCODE, Position, Store, Employment Type, Date Hired, Tenure computed via `computeTenure`), Work Schedule & Rate card (`Schedule Days`, `Schedule Time`, `Day Off`, `Daily Rate`, `Coordinator`) with modal launcher `UpdateScheduleModal`, System Information collapsible accordion, and Capability-Aware Personnel Actions toolbar (Transfer, Reassign HRCO, Request Deactivation, Request Deletion, Update Employment Status).
+    - **Benefits**: SSS, PhilHealth, Pag-IBIG, and ATM Number with an interactive Eye toggle for masking (`••••-••••-1234` vs unmasked), plus MIKA sync card with timestamp and dedicated `syncPlantillaMika` RPC mutation with 5-minute cooldown handling.
+    - **Stores**: Current Stores vs Past Stores count summary cards and active store allocation details with live status indicator, VCODE, Area, and HC Share.
+    - **Activity**: Audit trail logs and deployment history with timestamps, profile actors, and snapshot details.
 - **Ops Schedule & Store Visit Audit (`PlantillaDetailDrawer.tsx` & `UpdateScheduleModal.tsx`)**:
   - Displays `Schedule & Store Visit Audit` section card in employee detail drawer (`Schedule Days`, `Schedule Time`, `Dayoff`).
   - Interactive `UpdateScheduleModal` enables Ops/lifecycle roles to update schedule days (multi-select MON-SUN with presets), schedule time (shift windows & flexi visit hours), and dayoff (multi-select MON-SUN).

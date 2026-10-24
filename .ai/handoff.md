@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Plantilla Detail Drawer Web-Optimized Desktop Layout, 4-Tab Navigation & MIKA Sync (ohm#e4w9k2m7)
+
+**Status: COMPLETE — WEB-OPTIMIZED RIGHT-SIDE DESKTOP DRAWER DEPLOYED TO `PlantillaDetailDrawer.tsx` WITH DEEP BLUE BANNER (`#1e3a8a`), INITIALS AVATAR, EMPLOYEE ID, DEPLOYED DATE & STATUS BADGE, 4-TAB NAVIGATION SYSTEM (PROFILE, BENEFITS, STORES, ACTIVITY) FULLY OPERATIONAL, BENEFIT NUMBERS MASK/UNMASK TOGGLE WITH EYE ICON, MIKA SYNC MUTATION VIA `plantilla_sync_mika` RPC WITH 5-MINUTE COOLDOWN HANDLING, WORK SCHEDULE & RATE CARD WITH SCHEDULE TIME AND EDIT MODAL LAUNCHER, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Web-Optimized Desktop Drawer Shell & Banner**:
+   - Refactored `PlantillaDetailDrawer.tsx` into an authoritative right-side desktop panel (`max-w-2xl bg-slate-50`) with backdrop overlay and native ESC / scroll lock listeners.
+   - Deep blue header banner (`#1e3a8a`) featuring employee initials circular avatar, employee full name, sub-bar with Employee ID (`IdCard`), Deployed Date (`Calendar`), and Status Badge (`StatusBadge`).
+   - Clean 4-tab desktop navigation switcher with active indicator and hover styling: **Profile**, **Benefits**, **Stores**, **Activity**.
+
+2. **Profile Tab**:
+   - **Employment & Allocation Card**: 2-column card displaying VCODE (mono font), Position, Store, Employment Type, Date Hired, and Tenure (computed dynamically via `computeTenure`).
+   - **Work Schedule & Rate Card**: Displays Schedule Days, **Schedule Time** (e.g. `08:00 AM - 05:00 PM`), Day Off, Daily Rate, and Coordinator. Includes "Edit Schedule" button wired directly to `UpdateScheduleModal`.
+   - **System Information Accordion**: Collapsible card with Chevron toggle exposing Account Name, Plantilla ID, Status, Province/Area, Island Group, and Assignment Type.
+   - **Capability-Aware Personnel Actions**: Grid containing Transfer Employee, Reassign HRCO, Request Deactivation, Request Deletion, and full-width emerald Update Employment Status button.
+
+3. **Benefits Tab & MIKA Sync**:
+   - **Benefit Numbers Card**: Displays SSS, PhilHealth, Pag-IBIG, and ATM Number with an interactive Eye toggle button (`Eye` / `EyeOff`) to mask/unmask sensitive digits (`••••-••••-1234` vs unmasked values).
+   - **Sync MIKA Card**: Displays last synced timestamp info box (`last_mika_synced_at`) and "Sync MIKA" action button wired to `plantilla_sync_mika` Supabase RPC with active loading spinner and cooldown error handling.
+
+4. **Stores Tab**:
+   - Displays Current Stores vs Past Stores count summary cards.
+   - Renders active store allocation cards with live status indicator, store name, VCODE (mono primary), Area, and HC Share (e.g. `1.00`).
+
+5. **Activity Tab**:
+   - Displays chronological audit trail logs and deployment history with timestamps, profile actors, and snapshot details.
+
+6. **Query & Data Normalization Enhancements (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaGovernmentIds` and `PlantillaDetailItem` with `atmNumber`, `atmNumberMasked`, `scheduleTime`, `dailyRate`, `coordinator`, `lastMikaSyncedAt`, and `lastMikaSyncedBy`.
+   - Added `syncPlantillaMika(plantillaId)` helper calling the `plantilla_sync_mika` RPC.
+
+### Verification
+- `npm run lint`: 0 errors
+- `npm run build`: 0 errors (Turbopack production build compiled clean)
+
+---
+
 ## Plantilla Detail Drawer Auto Tenure, Plantilla Type Removal & Human-Readable Action Buttons (ohm#t3m8w1k5)
 
 **Status: COMPLETE — AUTO COMPUTE TENURE DEPLOYED IN PLANTILLA DETAIL DRAWER (BASED ON DATE DEPLOYED / DATE HIRED), PLANTILLA TYPE REMOVED FROM EMPLOYMENT GRID & HEADER BADGE, ACTIONS REFACTORED TO CLEAN HORIZONTAL TOOLBAR WITH HUMAN-READABLE LABELS (Update Status, Transfer Store, Mark Separation, Request Deactivation) AND UNAVAILABLE ACTIONS CLEANLY SUPPRESSED, 0 BUILD/LINT REGRESSIONS ON MAIN**

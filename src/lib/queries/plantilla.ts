@@ -134,6 +134,8 @@ export type PlantillaGovernmentIds = {
   philhealth: string | null;
   pagibig: string | null;
   tin: string | null;
+  atmNumber?: string | null;
+  atmNumberMasked?: string | null;
 };
 
 export type PlantillaClearanceChecklistItem = {
@@ -287,11 +289,19 @@ export type PlantillaDetailItem = {
   accountName: string | null;
   primaryStoreName: string | null;
   assignmentType: string | null;
+  employmentType?: string | null;
   coveredStores: PlantillaCoveredStore[];
   plantillaType: PlantillaPlantillaType | null;
   plantillaStatus: PlantillaStatus | null;
   dateDeployed: string | null;
+  dateHired?: string | null;
   tenureDescription: string | null;
+  dailyRate?: string | null;
+  coordinator?: string | null;
+  hrcoName?: string | null;
+  area?: string | null;
+  lastMikaSyncedAt?: string | null;
+  lastMikaSyncedBy?: string | null;
   maskedFields: PlantillaMaskedFields;
   clearanceStatus: string | null;
   clearanceChecklist: PlantillaClearanceChecklistItem[];
@@ -538,10 +548,12 @@ function normalizeStoreCapabilities(value: unknown): PlantillaStoreRowCapabiliti
 function normalizeGovernmentIds(value: unknown): PlantillaGovernmentIds {
   const obj = asObject(value);
   return {
-    sss: asString(obj.sss),
-    philhealth: asString(obj.philhealth),
-    pagibig: asString(obj.pagibig),
-    tin: asString(obj.tin),
+    sss: asString(obj.sss ?? obj.sss_no),
+    philhealth: asString(obj.philhealth ?? obj.philhealth_no),
+    pagibig: asString(obj.pagibig ?? obj.pagibig_no),
+    tin: asString(obj.tin ?? obj.tin_no),
+    atmNumber: asString(obj.atm ?? obj.atm_no ?? obj.atm_number),
+    atmNumberMasked: asString(obj.atm_no_masked ?? obj.atm_masked ?? obj.atmMasked),
   };
 }
 
@@ -738,6 +750,13 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
       ? `₱${Number(rawDailyRate).toFixed(2)}`
       : null;
 
+  const govIds = normalizeGovernmentIds(row.government_ids ?? rawMasked.government_ids);
+  if (!govIds.sss && (row.sss_no || rawMasked.sss_no)) govIds.sss = asString(row.sss_no ?? rawMasked.sss_no);
+  if (!govIds.philhealth && (row.philhealth_no || rawMasked.philhealth_no)) govIds.philhealth = asString(row.philhealth_no ?? rawMasked.philhealth_no);
+  if (!govIds.pagibig && (row.pagibig_no || rawMasked.pagibig_no)) govIds.pagibig = asString(row.pagibig_no ?? rawMasked.pagibig_no);
+  if (!govIds.atmNumber && (row.atm_no || rawMasked.atm_no)) govIds.atmNumber = asString(row.atm_no ?? rawMasked.atm_no);
+  if (!govIds.atmNumberMasked && (row.atm_no_masked || rawMasked.atm_no_masked)) govIds.atmNumberMasked = asString(row.atm_no_masked ?? rawMasked.atm_no_masked);
+
   const maskedFields: PlantillaMaskedFields = {
     baseRateMasked:
       asString(row.base_rate_masked ?? rawMasked.base_rate_masked) ?? derivedRate,
@@ -752,7 +771,7 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
         rawMasked.address ??
         row.area,
     ),
-    governmentIds: normalizeGovernmentIds(row.government_ids ?? rawMasked.government_ids),
+    governmentIds: govIds,
   };
 
   const nameObj = parseAndFormatName(
@@ -774,13 +793,21 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
       row.primary_store_name ?? rawMasked.primary_store_name ?? row.store_name,
     ),
     assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (coveredStores.length > 1 ? "Roving" : "Stationary"),
+    employmentType: asString(row.employment_type ?? row.deployment_type ?? row.assignment_type),
     coveredStores,
     plantillaType: asString(row.plantilla_type),
     plantillaStatus: asString(row.plantilla_status ?? row.status),
     dateDeployed: asString(
       row.date_deployed ?? rawMasked.date_deployed ?? row.date_hired ?? rawMasked.date_hired,
     ),
+    dateHired: asString(row.date_hired ?? rawMasked.date_hired ?? row.date_deployed),
     tenureDescription: asString(row.tenure_description),
+    dailyRate: derivedRate ?? (rawDailyRate != null ? `₱${Number(rawDailyRate).toFixed(2)}` : null),
+    coordinator: asString(row.coordinator ?? row.hrco_name),
+    hrcoName: asString(row.hrco_name ?? row.coordinator),
+    area: asString(row.area ?? row.province ?? row.area_province),
+    lastMikaSyncedAt: asString(row.last_mika_synced_at ?? rawMasked.last_mika_synced_at),
+    lastMikaSyncedBy: asString(row.last_mika_synced_by ?? rawMasked.last_mika_synced_by),
     maskedFields,
     clearanceStatus: asString(row.clearance_status),
     clearanceChecklist,
@@ -1115,11 +1142,12 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     !normalized.primaryStoreName ||
     !normalized.maskedFields.baseRateMasked ||
     !normalized.maskedFields.residentialAddress ||
-    !normalized.vcode
+    !normalized.vcode ||
+    !normalized.maskedFields.governmentIds.atmNumberMasked
   ) {
     const { data: directData } = await supabase
       .from("plantilla")
-      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no")
+      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area")
       .eq("id", plantillaId)
       .maybeSingle();
 
@@ -1132,6 +1160,28 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
       if (!normalized.dateDeployed && directData.date_hired) {
         normalized.dateDeployed = directData.date_hired;
+      }
+      if (!normalized.dateHired && directData.date_hired) {
+        normalized.dateHired = directData.date_hired;
+      }
+      if (!normalized.coordinator && (directData.coordinator || directData.hrco_name)) {
+        normalized.coordinator = directData.coordinator || directData.hrco_name;
+      }
+      if (!normalized.area && directData.area) {
+        normalized.area = directData.area;
+      }
+      if (!normalized.lastMikaSyncedAt && directData.last_mika_synced_at) {
+        normalized.lastMikaSyncedAt = directData.last_mika_synced_at;
+      }
+      if (!normalized.lastMikaSyncedBy && directData.last_mika_synced_by) {
+        normalized.lastMikaSyncedBy = directData.last_mika_synced_by;
+      }
+      if (!normalized.dailyRate) {
+        if (directData.daily_rate != null) {
+          normalized.dailyRate = `₱${Number(directData.daily_rate).toFixed(2)}`;
+        } else if (directData.rate != null) {
+          normalized.dailyRate = `₱${Number(directData.rate).toFixed(2)}`;
+        }
       }
       if (!normalized.maskedFields.baseRateMasked) {
         if (directData.rate != null) {
@@ -1146,10 +1196,38 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       if (!normalized.maskedFields.contactNumber && directData.contact_no) {
         normalized.maskedFields.contactNumber = directData.contact_no;
       }
+      if (!normalized.maskedFields.governmentIds.sss && directData.sss_no) {
+        normalized.maskedFields.governmentIds.sss = directData.sss_no;
+      }
+      if (!normalized.maskedFields.governmentIds.philhealth && directData.philhealth_no) {
+        normalized.maskedFields.governmentIds.philhealth = directData.philhealth_no;
+      }
+      if (!normalized.maskedFields.governmentIds.pagibig && directData.pagibig_no) {
+        normalized.maskedFields.governmentIds.pagibig = directData.pagibig_no;
+      }
+      if (!normalized.maskedFields.governmentIds.atmNumber && directData.atm_no) {
+        normalized.maskedFields.governmentIds.atmNumber = directData.atm_no;
+      }
+      if (!normalized.maskedFields.governmentIds.atmNumberMasked && directData.atm_no) {
+        const raw = directData.atm_no.trim();
+        normalized.maskedFields.governmentIds.atmNumberMasked =
+          raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
+      }
     }
   }
 
   return normalized;
+}
+
+export async function syncPlantillaMika(plantillaId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("plantilla_sync_mika", {
+    p_plantilla_id: plantillaId,
+  });
+
+  if (error) {
+    throwPlantillaError(error);
+  }
 }
 
 export type PlantillaAccountStatusCount = {
