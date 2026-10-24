@@ -3831,6 +3831,7 @@ export function useReopenVacancy() {
 export type OccupiedStoreIdentifiers = {
   occupiedStoreIds: Set<string>;
   occupiedVcodes: Set<string>;
+  occupiedStoreNames: Set<string>;
 };
 
 export async function fetchOccupiedStoreIdentifiers(
@@ -3839,9 +3840,10 @@ export async function fetchOccupiedStoreIdentifiers(
   const supabase = createClient();
   const occupiedStoreIds = new Set<string>();
   const occupiedVcodes = new Set<string>();
+  const occupiedStoreNames = new Set<string>();
 
   if (!accountId) {
-    return { occupiedStoreIds, occupiedVcodes };
+    return { occupiedStoreIds, occupiedVcodes, occupiedStoreNames };
   }
 
   const [slotsRes, plantillaRes, allocsRes] = await Promise.all([
@@ -3852,13 +3854,13 @@ export async function fetchOccupiedStoreIdentifiers(
       .or("slot_status.in.(occupied,filled),current_occupant_plantilla_id.not.is.null"),
     supabase
       .from("plantilla")
-      .select("store_id, vcode, status, deactivated_at, date_of_separation")
+      .select("store_id, vcode, store_name, status, deactivated_at, date_of_separation")
       .eq("account_id", accountId)
       .is("deactivated_at", null)
       .is("date_of_separation", null),
     supabase
       .from("employee_store_allocations")
-      .select("store_id, vcode")
+      .select("store_id, vcode, store_name")
       .eq("account_id", accountId)
       .eq("is_active", true),
   ]);
@@ -3884,6 +3886,7 @@ export async function fetchOccupiedStoreIdentifiers(
       if (!INACTIVE_STATUSES.has(st)) {
         if (emp.store_id) occupiedStoreIds.add(String(emp.store_id));
         if (emp.vcode) occupiedVcodes.add(String(emp.vcode).trim().toUpperCase());
+        if (emp.store_name) occupiedStoreNames.add(String(emp.store_name).trim().toUpperCase());
       }
     }
   }
@@ -3892,10 +3895,11 @@ export async function fetchOccupiedStoreIdentifiers(
     for (const alloc of allocsRes.data) {
       if (alloc.store_id) occupiedStoreIds.add(String(alloc.store_id));
       if (alloc.vcode) occupiedVcodes.add(String(alloc.vcode).trim().toUpperCase());
+      if (alloc.store_name) occupiedStoreNames.add(String(alloc.store_name).trim().toUpperCase());
     }
   }
 
-  return { occupiedStoreIds, occupiedVcodes };
+  return { occupiedStoreIds, occupiedVcodes, occupiedStoreNames };
 }
 
 export type DirectImportVacancyParams = {
@@ -3920,10 +3924,12 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
   if (!params.accountId) throw new Error("Account ID is required for direct import.");
 
   // Strict Vacancy Filter Guard: Never create vacancy for store/vcode with an active employee
-  const { occupiedStoreIds, occupiedVcodes } = await fetchOccupiedStoreIdentifiers(params.accountId);
+  const { occupiedStoreIds, occupiedVcodes, occupiedStoreNames } = await fetchOccupiedStoreIdentifiers(params.accountId);
+  const storeNameUpper = (params.storeName || "").trim().toUpperCase();
   const isOccupied =
     (params.storeId && occupiedStoreIds.has(params.storeId)) ||
-    (vcode && occupiedVcodes.has(vcode));
+    (vcode && occupiedVcodes.has(vcode)) ||
+    (storeNameUpper && occupiedStoreNames.has(storeNameUpper));
   if (isOccupied) {
     throw new Error(
       `Cannot direct-import vacancy for ${vcode}: store slot is already occupied by an active employee.`

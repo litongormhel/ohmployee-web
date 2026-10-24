@@ -282,6 +282,7 @@ export type PlantillaDetailItem = {
   employeeNo: string;
   firstName: string | null;
   lastName: string | null;
+  vcode?: string | null;
   positionTitle: string | null;
   accountName: string | null;
   primaryStoreName: string | null;
@@ -715,7 +716,8 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     asString(row.plantillaId);
   if (!id) return null;
 
-  const coveredStores = asArray(row.covered_stores).map(normalizeCoveredStore);
+  const rawMasked = asObject(row.masked_fields);
+  const coveredStores = asArray(row.covered_stores ?? row.roving_stores).map(normalizeCoveredStore);
   const clearanceChecklist = asArray(row.clearance_checklist).map(
     normalizeClearanceChecklistItem,
   );
@@ -726,12 +728,31 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
 
   const activeMovementRequest = normalizeMovementRequest(row.active_movement_req);
 
+  const rawVcode = asString(row.vcode ?? rawMasked.vcode);
+  const rawRate = row.rate ?? rawMasked.rate;
+  const rawDailyRate = row.daily_rate ?? rawMasked.daily_rate;
+  const derivedRate =
+    rawRate != null && !isNaN(Number(rawRate))
+      ? `₱${Number(rawRate).toFixed(2)}`
+      : rawDailyRate != null && !isNaN(Number(rawDailyRate))
+      ? `₱${Number(rawDailyRate).toFixed(2)}`
+      : null;
+
   const maskedFields: PlantillaMaskedFields = {
-    baseRateMasked: asString(row.base_rate_masked),
-    contactNumber: asString(row.contact_number),
-    emailAddress: asString(row.email_address),
-    residentialAddress: asString(row.residential_address),
-    governmentIds: normalizeGovernmentIds(row.government_ids),
+    baseRateMasked:
+      asString(row.base_rate_masked ?? rawMasked.base_rate_masked) ?? derivedRate,
+    contactNumber: asString(
+      row.contact_number ?? rawMasked.contact_number ?? row.contact_no ?? rawMasked.contact_no,
+    ),
+    emailAddress: asString(row.email_address ?? rawMasked.email_address),
+    residentialAddress: asString(
+      row.residential_address ??
+        rawMasked.residential_address ??
+        row.address ??
+        rawMasked.address ??
+        row.area,
+    ),
+    governmentIds: normalizeGovernmentIds(row.government_ids ?? rawMasked.government_ids),
   };
 
   const nameObj = parseAndFormatName(
@@ -746,14 +767,19 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     employeeNo: asString(row.employee_no) ?? "Uncoded",
     firstName: nameObj.firstName,
     lastName: nameObj.lastName,
+    vcode: rawVcode,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
-    primaryStoreName: asString(row.primary_store_name),
+    primaryStoreName: asString(
+      row.primary_store_name ?? rawMasked.primary_store_name ?? row.store_name,
+    ),
     assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (coveredStores.length > 1 ? "Roving" : "Stationary"),
     coveredStores,
     plantillaType: asString(row.plantilla_type),
-    plantillaStatus: asString(row.plantilla_status),
-    dateDeployed: asString(row.date_deployed),
+    plantillaStatus: asString(row.plantilla_status ?? row.status),
+    dateDeployed: asString(
+      row.date_deployed ?? rawMasked.date_deployed ?? row.date_hired ?? rawMasked.date_hired,
+    ),
     tenureDescription: asString(row.tenure_description),
     maskedFields,
     clearanceStatus: asString(row.clearance_status),
@@ -1077,9 +1103,50 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     throw new PlantillaDataError("retryable", "No Plantilla detail record found");
   }
 
-  const normalized = normalizeDetailRow(asObject(row));
+  const rowObj = asObject(row);
+  const normalized = normalizeDetailRow(rowObj);
   if (!normalized) {
     throw new PlantillaDataError("retryable", "Failed to normalize Plantilla detail record");
+  }
+
+  // Defensive fallback: If rate, primary store, or address are missing from RPC payload,
+  // query public.plantilla and public.employee_store_allocations directly.
+  if (
+    !normalized.primaryStoreName ||
+    !normalized.maskedFields.baseRateMasked ||
+    !normalized.maskedFields.residentialAddress ||
+    !normalized.vcode
+  ) {
+    const { data: directData } = await supabase
+      .from("plantilla")
+      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no")
+      .eq("id", plantillaId)
+      .maybeSingle();
+
+    if (directData) {
+      if (!normalized.vcode && directData.vcode) {
+        normalized.vcode = directData.vcode;
+      }
+      if (!normalized.primaryStoreName && (directData.store_name || directData.vcode)) {
+        normalized.primaryStoreName = directData.store_name || directData.vcode;
+      }
+      if (!normalized.dateDeployed && directData.date_hired) {
+        normalized.dateDeployed = directData.date_hired;
+      }
+      if (!normalized.maskedFields.baseRateMasked) {
+        if (directData.rate != null) {
+          normalized.maskedFields.baseRateMasked = `₱${Number(directData.rate).toFixed(2)}`;
+        } else if (directData.daily_rate != null) {
+          normalized.maskedFields.baseRateMasked = `₱${Number(directData.daily_rate).toFixed(2)}`;
+        }
+      }
+      if (!normalized.maskedFields.residentialAddress && directData.address) {
+        normalized.maskedFields.residentialAddress = directData.address;
+      }
+      if (!normalized.maskedFields.contactNumber && directData.contact_no) {
+        normalized.maskedFields.contactNumber = directData.contact_no;
+      }
+    }
   }
 
   return normalized;

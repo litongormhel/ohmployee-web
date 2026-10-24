@@ -522,16 +522,19 @@ function PlantillaPageContent() {
     if (!storesUnderAccountQuery.data || !accountId) return [];
     const occupiedStoreIds = occupiedStoresQuery.data?.occupiedStoreIds ?? new Set<string>();
     const occupiedVcodes = occupiedStoresQuery.data?.occupiedVcodes ?? new Set<string>();
+    const occupiedStoreNames = occupiedStoresQuery.data?.occupiedStoreNames ?? new Set<string>();
 
     return storesUnderAccountQuery.data.filter((s) => {
       const code = (s.code || "").trim().toUpperCase();
+      const name = (s.name || "").trim().toUpperCase();
       const hasMatchingCode = Boolean(code && existingVacancyVcodes.has(code));
       const hasMatchingId = Boolean(s.id && existingVacancyStoreIds.has(s.id));
       const isOccupiedCode = Boolean(code && occupiedVcodes.has(code));
       const isOccupiedId = Boolean(s.id && occupiedStoreIds.has(s.id));
+      const isOccupiedName = Boolean(name && occupiedStoreNames.has(name));
 
       // Strictly must NOT have an existing vacancy AND must NOT be occupied by an active employee
-      return !hasMatchingCode && !hasMatchingId && !isOccupiedCode && !isOccupiedId;
+      return !hasMatchingCode && !hasMatchingId && !isOccupiedCode && !isOccupiedId && !isOccupiedName;
     });
   }, [
     storesUnderAccountQuery.data,
@@ -1770,7 +1773,7 @@ function EmployeeTable({
                   {/* STORE */}
                   <td className="px-4 py-3 text-table-text">
                     {(() => {
-                      const storeObj = formatStoreDisplay(row.primaryStoreName, row.assignedStores);
+                      const storeObj = formatStoreDisplay(row.primaryStoreName || row.vcode, row.assignedStores);
                       return (
                         <div className="min-w-0" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
                           <div className="font-medium text-table-text flex items-center gap-1.5">
@@ -2183,7 +2186,7 @@ function EmployeeCard({
 
       <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
         {(() => {
-          const storeObj = formatStoreDisplay(row.primaryStoreName, row.assignedStores);
+          const storeObj = formatStoreDisplay(row.primaryStoreName || row.vcode, row.assignedStores);
           return (
             <div className="flex items-center gap-1.5 truncate max-w-[70%]" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
               <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />

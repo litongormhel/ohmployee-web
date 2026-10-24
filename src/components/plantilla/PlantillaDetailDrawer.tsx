@@ -145,7 +145,7 @@ export function PlantillaDetailDrawer({
 
   const subtitle: ReactNode = data ? (
     <span className="truncate text-[11px] text-text-secondary">
-      {[data.accountName, data.primaryStoreName].filter(Boolean).join(" / ")}
+      {[data.accountName, data.primaryStoreName || data.vcode].filter(Boolean).join(" / ")}
     </span>
   ) : undefined;
 
@@ -595,11 +595,12 @@ function ScheduleAuditSection({ data }: { data: PlantillaDetailItem }) {
 // ---------------------------------------------------------------------------
 
 function EmploymentGrid({ data }: { data: PlantillaDetailItem }) {
+  const primaryStoreDisplay = data.primaryStoreName || data.vcode || "—";
   const fields = [
     { label: "Date Deployed", value: formatDate(data.dateDeployed) },
     { label: "Position", value: data.positionTitle ?? "—" },
     { label: "Account", value: data.accountName ?? "—" },
-    { label: "Primary Store", value: data.primaryStoreName ?? "—" },
+    { label: "Primary Store", value: primaryStoreDisplay },
     { label: "Base Rate", value: data.maskedFields.baseRateMasked ?? "—" },
     { label: "Tenure", value: data.tenureDescription ?? "—" },
     { label: "Assignment", value: data.assignmentType ?? "—" },
@@ -642,7 +643,7 @@ function AssignmentCoverageSection({ data }: { data: PlantillaDetailItem }) {
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-text-primary">
-        {data.primaryStoreName ?? "Primary store unavailable"}
+        {data.primaryStoreName || data.vcode || "Primary store unavailable"}
       </span>
       <span className="text-text-muted">{data.assignmentType ?? "Stationary"}</span>
     </div>

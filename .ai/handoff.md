@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Plantilla Import Field Inheritance & Mobile Parity, Vacancy Tab Store Name Exclusion & Detail Drawer Resolution (ohm#f7m2w9x4)
+
+**Status: COMPLETE — MIGRATION 20262606000059 APPLIED TO LIVE STAGING, DETERMINISTIC HELPERS safe_parse_numeric AND safe_parse_date DEPLOYED, PHASE B2 INHERITANCE OF STORE NAME, VCODE, STORE ID, BASE RATE, DATE HIRED, AND ADDRESS DEPLOYED & LIVE BACKFILLED, get_web_plantilla_detail EXTENDED TO PROJECT PII & STORE COVERAGE, FRONTEND NORMALIZER normalizeDetailRow WIRED TO EXTRACT FROM masked_fields & ROW FALLBACKS, DETAIL DRAWER & ROSTER TABLES VCODE FALLBACK CONFIGURED, STRICT STORE NAME OCCUPANCY FILTER DEPLOYED TO VACANCY TAB, 0 BUILD/LINT REGRESSIONS ON MAIN**
+
+### Objective & Changes Delivered
+1. **Plantilla Import Field Inheritance & Live Data Backfill (Migration 20262606000059)**:
+   - Created deterministic parsing helpers safe_parse_numeric and safe_parse_date.
+   - Updated approve_plantilla_import_batch Phase B2 to inherit store_name, vcode, store_id, rate, daily_rate, date_hired, and address.
+   - Live backfilled existing imported plantilla records on staging.
+2. **Plantilla Detail RPC Projection & Frontend Normalization**:
+   - Extended get_web_plantilla_detail and normalizeDetailRow to project PII and store details into details drawer matching mobile parity.
+3. **Frontend Details Drawer & Roster Display Polish**:
+   - VCode fallback on primaryStoreName in EmployeeTable, EmployeeCard, and PlantillaDetailDrawer.
+4. **Strict Vacancy Occupancy Filter Expansion**:
+   - Added occupiedStoreNames Set to fetchOccupiedStoreIdentifiers, missingStoreVacancies memo, and directImportVacancy guard.
+
+### Verification
+- npm run lint: 0 errors
+- npm run build: 0 errors
+
+---
+
 ## Strict Vacancy Occupancy Filter for Missing Store Provisioning & Direct Import Guard (ohm#s8k2w7m3)
 
 **Status: COMPLETE — STRICT VACANCY OCCUPANCY FILTER DEPLOYED TO VACANCY TAB (`src/app/(dashboard)/plantilla/page.tsx`), STORE OCCUPANCY RESOLVER `fetchOccupiedStoreIdentifiers` ADDED TO `src/lib/queries/vacancy.ts`, AUTHORITATIVE OCCUPANCY GUARD ENFORCED IN `directImportVacancy`, OCCUPIED STORES (E.G. `CPRVJV13`, `CPSAJV31`, `CPSAJV12`, `CPPGJV14`, `CPSEJV16`, `CPWMJV36`) PROPERLY EXCLUDED FROM "STORES WITHOUT ACTIVE VACANCIES" & "MISSING FROM VACANCIES" BADGES, 0 BUILD/LINT REGRESSIONS ON MAIN**
