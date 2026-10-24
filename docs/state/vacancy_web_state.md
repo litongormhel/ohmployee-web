@@ -24,6 +24,15 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 - Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
 - The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.
 
+- **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
+  - Migration `20262606000062_fix_vacancy_account_linkage.sql` applied to live Staging.
+  - Fixed `directImportVacancy` in `src/lib/queries/vacancy.ts` by removing invalid `hrco_name` select on `accounts` (which previously caused a PostgREST schema error that made `account` fall back to `"Unknown Account"`), resolving HRCO profile name via `hrco_user_id`, and inheriting `account_id` and `group_id` from store mappings.
+  - Hardened `approve_plantilla_import_batch` RPC so that Phase A store updates inherit batch `account_id` and `group_id`, and Phase B1 vacant slot / vacancy provisioning strictly inherits store or batch account/group associations without overwriting valid accounts with `"Unknown Account"`.
+  - Updated `approve_vacancy_import` RPC to look up and populate `store_id` from `public.stores` on vacancy insertion and restoration.
+  - Rebuilt `vw_vacancy_detail` and `get_web_vacancy_detail` to dynamically resolve `account_name` and `group_name` from `public.accounts` and `public.groups` with store fallback, eliminating `"Unknown Account"` display in detail queries.
+  - Backfilled existing orphaned records on live Staging: repaired `CPRVJV13` to `"FOREVER OFFICE"` / `"Group 1"`, resolved missing `group_id` across 30 stores, and synchronized slots.
+  - Hardened `VacancyDetailDrawer.tsx` and query normalizers in `src/lib/queries/vacancy.ts` (`getVacancyDetail`) to resolve account context and cleanly suppress `"Unknown Account"`.
+
 - **Account Group Resolution & Formatting (`ohm#g8f4a1c2`)**:
   - Migration `20262606000046_fix_vacancy_group_resolution.sql` backfills `group_id` on `public.vacancies` from `public.accounts` where missing and installs trigger `trg_auto_assign_vacancy_group_id` on `public.vacancies` (`BEFORE INSERT OR UPDATE`) to inherit the linked account's `group_id`.
   - Recreated `public.vw_vacancy_list` and `public.vw_vacancy_detail` to join `accounts a` and resolve `COALESCE(v.group_id, a.group_id)` and `COALESCE(g.group_name, ga.group_name)` so group names never evaluate to null when an account is linked.

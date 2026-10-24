@@ -697,3 +697,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - `dataControl.ts`: `submitPlantillaBaselineImport` now wraps Postgrest error messages into `new Error(...)`.
     - `PlantillaImportModal.tsx`: catch block safely extracts `(err as { message?: string })?.message` fallback, preventing real database error messages from being swallowed by generic banner text.
 
+- **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
+  - **Database Migration (`20262606000062`) Applied to Live Staging**:
+    - Hardened `approve_plantilla_import_batch` Phase A to update `stores.account_id` and `stores.group_id` from batch when missing.
+    - Updated Phase B1 to strictly inherit store/batch `account_id` and `group_id` for vacant slots and shadow vacancies, preventing fallback or overwrite with `"Unknown Account"`.
+    - Phase B2 slot creation now inherits store account/group fallbacks.
+    - Repaired orphaned vacancies (including `CPRVJV13`), slots, and stores via SQL backfill.
+

@@ -2747,6 +2747,32 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
     throw new VacancyDataError("retryable", "Failed to normalize vacancy detail record");
   }
 
+  // Fallback: If accountName is missing or "Unknown Account", resolve via accountId or linked store
+  if ((!normalized.accountName || normalized.accountName === "Unknown Account" || !normalized.groupName) && normalized.accountId) {
+    try {
+      const { data: acct } = await supabase
+        .from("accounts")
+        .select("account_name, group_id, groups(group_name)")
+        .eq("id", normalized.accountId)
+        .maybeSingle();
+
+      if (acct) {
+        if (!normalized.accountName || normalized.accountName === "Unknown Account") {
+          normalized.accountName = acct.account_name;
+        }
+        if (!normalized.groupId && acct.group_id) {
+          normalized.groupId = acct.group_id;
+        }
+        const grp = Array.isArray(acct.groups) ? acct.groups[0] : acct.groups;
+        if (!normalized.groupName && grp && typeof grp === "object" && "group_name" in grp) {
+          normalized.groupName = formatGroupName(String(grp.group_name), normalized.accountName);
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   if (!normalized.storeLocation && (normalized.storeId || normalized.storeName)) {
     try {
       let storeQuery = supabase
@@ -3941,17 +3967,28 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
   let hrcoUserId: string | null = null;
   let hrcoName: string | null = null;
 
-  const { data: acct } = await supabase
-    .from("accounts")
-    .select("id, account_name, group_id, hrco_user_id, hrco_name")
-    .eq("id", params.accountId)
-    .single();
+  if (params.accountId) {
+    const { data: acct } = await supabase
+      .from("accounts")
+      .select("id, account_name, group_id, hrco_user_id")
+      .eq("id", params.accountId)
+      .maybeSingle();
 
-  if (acct) {
-    acctName = acctName || acct.account_name;
-    grpId = grpId || acct.group_id;
-    hrcoUserId = acct.hrco_user_id;
-    hrcoName = acct.hrco_name;
+    if (acct) {
+      acctName = acct.account_name || acctName;
+      grpId = grpId || acct.group_id;
+      hrcoUserId = acct.hrco_user_id;
+      if (hrcoUserId) {
+        const { data: hrcoProfile } = await supabase
+          .from("users_profile")
+          .select("full_name")
+          .eq("id", hrcoUserId)
+          .maybeSingle();
+        if (hrcoProfile?.full_name) {
+          hrcoName = hrcoProfile.full_name;
+        }
+      }
+    }
   }
 
   let storeId = params.storeId || null;
@@ -3959,8 +3996,8 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
   let areaCity = params.areaCity || null;
   let province = params.province || params.areaProvince || null;
 
-  // Attempt store lookup by storeId or VCODE
-  let sQuery = supabase.from("stores").select("id, store_name, area_city, area_province, province");
+  // Attempt store lookup by storeId or VCODE with store account/group inheritance
+  let sQuery = supabase.from("stores").select("id, store_name, area_city, area_province, province, account_id, group_id");
   if (storeId) {
     sQuery = sQuery.eq("id", storeId);
   } else {
@@ -3973,8 +4010,23 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
     storeName = storeName || (s.store_name as string);
     areaCity = areaCity || (s.area_city as string);
     province = province || ((s.area_province ?? s.province) as string);
+    if (!grpId && s.group_id) {
+      grpId = s.group_id as string;
+    }
+    if ((!acctName || acctName === "Unknown Account") && s.account_id) {
+      const { data: storeAcct } = await supabase
+        .from("accounts")
+        .select("account_name, group_id")
+        .eq("id", s.account_id)
+        .maybeSingle();
+      if (storeAcct) {
+        acctName = storeAcct.account_name || acctName;
+        grpId = grpId || storeAcct.group_id;
+      }
+    }
   }
 
+  const resolvedAccountId = params.accountId || (storeData && storeData[0]?.account_id) || null;
   const areaName = [province, areaCity].filter(Boolean).join(" - ") || null;
   const position = (params.position || params.positionTitle)?.trim() || "Merchandiser";
 
@@ -3987,7 +4039,7 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
         position,
         store_name: storeName || vcode,
         store_id: storeId,
-        account_id: params.accountId,
+        account_id: resolvedAccountId,
         group_id: grpId,
         area_city: areaCity,
         province,

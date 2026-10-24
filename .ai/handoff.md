@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (ohm#v2k9w4r8)
+
+**Status: COMPLETE — MIGRATION 20262606000062 APPLIED TO LIVE STAGING; FIXED DIRECT VACANCY INSERTION FAILING TO QUERY INVALID HRCO_NAME COLUMN ON ACCOUNTS; HARDENED PLANTILLA & VACANCY IMPORT APPROVAL RPCS TO STRICTLY PROPAGATE ACCOUNT_ID, GROUP_ID, STORE_ID, AND ACCOUNT NAMES; REBUILT VW_VACANCY_DETAIL AND GET_WEB_VACANCY_DETAIL TO DYNAMICALLY RESOLVE ACCOUNT AND GROUP VIA FOREIGN KEY RELATIONS RATHER THAN FALLING BACK TO "UNKNOWN ACCOUNT"; BACKFILLED ORPHANED VACANCIES (INCLUDING CPRVJV13), STORES, AND PLANTILLA SLOTS ON LIVE STAGING; CLEANED VACANCY DETAIL DRAWER HEADER AND FIELD DISPLAYS; 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000062_fix_vacancy_account_linkage.sql`)**:
+   - **`approve_plantilla_import_batch` RPC**:
+     - Phase A: Updated store upsert to inherit `account_id = COALESCE(stores.account_id, v_batch.selected_account_id)` and `group_id = COALESCE(stores.group_id, v_batch.selected_group_id)` when updating existing stores.
+     - Phase B1: Looked up store account/group mappings as defensive fallbacks (`v_store_acct_id`, `v_store_grp_id`). Created slots and vacancies with `v_target_account_id`, `v_target_group_id`, and resolved account name (`v_target_acct_name`). Hardened `ON CONFLICT (vcode) DO UPDATE` to prevent overwriting known account names with `"Unknown Account"`.
+     - Phase B2: Inherited store account and group linkages in new slot provisioning.
+   - **`approve_vacancy_import` RPC**:
+     - Added store lookup by `vcode` on `public.stores` and populated `store_id = COALESCE(v_store_id, vacancies.store_id)` on vacancy insertion and restoration.
+   - **`vw_vacancy_detail` & `get_web_vacancy_detail`**:
+     - Dynamically resolved `account`, `account_id`, `group_id`, `group_name`, and `store_id` by joining `accounts` (`a` and `ast`), `groups` (`g`, `ga`, `gst`), and `stores` (`st` and `st_vcode`).
+     - Prioritized resolved `account_name` and suppressed `"Unknown Account"` when valid foreign keys or store references exist.
+   - **Idempotent Data Backfill**:
+     - Backfilled 30 stores with null `group_id` from their linked accounts.
+     - Backfilled 16 `plantilla_slots` with missing `account_id` or `group_id` from stores or accounts.
+     - Repaired orphaned vacancies, including `CPRVJV13`, restoring `account = 'FOREVER OFFICE'`, `account_id = 'd0533fbc-3cce-4d0a-a619-ad0539dbc66d'`, and `group_id = '4de2971c-49fb-45be-98c8-4fe1246382b3'`.
+   - **Staging Deployment**: Applied migration `20262606000062` to live Staging (`qqiiznmqxfoamqytjica`) via Supabase MCP tool with verified success (`bad_vacancies = 0`, `bad_stores = 0`).
+
+2. **Frontend Queries & Normalization (`src/lib/queries/vacancy.ts`)**:
+   - In `directImportVacancy`: Removed invalid `hrco_name` select from `accounts` (which previously produced a 400 schema error and caused account names to fall back to `"Unknown Account"`). Resolved `hrco_name` from `users_profile` via `hrco_user_id` when present, and added store account/group lookup fallback.
+   - In `getVacancyDetail`: Added dynamic fallback resolution for `accountName` and `groupName` from `accounts` relation if `accountName` is `"Unknown Account"` or missing.
+
+3. **Vacancy Detail Drawer UI (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Filtered out `"Unknown Account"` from drawer header subtitle/breadcrumb path: `[detail.accountName, formatGroupName(detail.groupName, detail.accountName), detail.storeName]`.
+   - Replaced `"Unknown Account"` with clean `--` fallback in the Account field display.
+
+4. **Documentation Updates**:
+   - Updated `docs/state/vacancy_web_state.md` with vacancy account/group linkage propagation details.
+   - Updated `docs/state/plantilla_web_state.md` with baseline import batch linkage hardening.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Verification
+- `apply_migration`: Applied successfully on Supabase staging project `qqiiznmqxfoamqytjica`.
+- Staging verification:
+  - `CPRVJV13` now returns `account: 'FOREVER OFFICE'`, `account_id: 'd0533fbc-3cce-4d0a-a619-ad0539dbc66d'`, `group_id: '4de2971c-49fb-45be-98c8-4fe1246382b3'`.
+  - `vw_vacancy_detail` resolves `account: 'FOREVER OFFICE'` and `group_name: 'Group 1'`.
+  - Database counts: `bad_vacancies = 0`, `bad_stores = 0`.
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Production Turbopack build succeeded in 14.7s with 0 errors across all 19 static/dynamic routes.
+
 ## MIKA Import Processor Store Name Column Removal, Review Queue Reject & History Color Fix (ohm#m3k8w2r7)
 
 **Status: COMPLETE — UPDATED MIKA IMPORT TEMPLATE GENERATION, VALIDATION GUIDE, PARSER, AND UI INGESTION TO REMOVE THE "STORE NAME" COLUMN (NEW 14-COLUMN SCHEMA); ADDED REVIEW QUEUE "REJECT" ACTION WITH REJECTION AUDIT MUTATION; CORRECTED IMPORT HISTORY BADGE COLORING SO REJECTED STATUS RENDERS IN RED (ROSE-100/800); 0 BUILD / 0 LINT ERRORS ON MAIN**
@@ -670,6 +713,49 @@
 ---
 
 # AI Handoff
+
+## Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (ohm#v2k9w4r8)
+
+**Status: COMPLETE — MIGRATION 20262606000062 APPLIED TO LIVE STAGING; FIXED DIRECT VACANCY INSERTION FAILING TO QUERY INVALID HRCO_NAME COLUMN ON ACCOUNTS; HARDENED PLANTILLA & VACANCY IMPORT APPROVAL RPCS TO STRICTLY PROPAGATE ACCOUNT_ID, GROUP_ID, STORE_ID, AND ACCOUNT NAMES; REBUILT VW_VACANCY_DETAIL AND GET_WEB_VACANCY_DETAIL TO DYNAMICALLY RESOLVE ACCOUNT AND GROUP VIA FOREIGN KEY RELATIONS RATHER THAN FALLING BACK TO "UNKNOWN ACCOUNT"; BACKFILLED ORPHANED VACANCIES (INCLUDING CPRVJV13), STORES, AND PLANTILLA SLOTS ON LIVE STAGING; CLEANED VACANCY DETAIL DRAWER HEADER AND FIELD DISPLAYS; 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000062_fix_vacancy_account_linkage.sql`)**:
+   - **`approve_plantilla_import_batch` RPC**:
+     - Phase A: Updated store upsert to inherit `account_id = COALESCE(stores.account_id, v_batch.selected_account_id)` and `group_id = COALESCE(stores.group_id, v_batch.selected_group_id)` when updating existing stores.
+     - Phase B1: Looked up store account/group mappings as defensive fallbacks (`v_store_acct_id`, `v_store_grp_id`). Created slots and vacancies with `v_target_account_id`, `v_target_group_id`, and resolved account name (`v_target_acct_name`). Hardened `ON CONFLICT (vcode) DO UPDATE` to prevent overwriting known account names with `"Unknown Account"`.
+     - Phase B2: Inherited store account and group linkages in new slot provisioning.
+   - **`approve_vacancy_import` RPC**:
+     - Added store lookup by `vcode` on `public.stores` and populated `store_id = COALESCE(v_store_id, vacancies.store_id)` on vacancy insertion and restoration.
+   - **`vw_vacancy_detail` & `get_web_vacancy_detail`**:
+     - Dynamically resolved `account`, `account_id`, `group_id`, `group_name`, and `store_id` by joining `accounts` (`a` and `ast`), `groups` (`g`, `ga`, `gst`), and `stores` (`st` and `st_vcode`).
+     - Prioritized resolved `account_name` and suppressed `"Unknown Account"` when valid foreign keys or store references exist.
+   - **Idempotent Data Backfill**:
+     - Backfilled 30 stores with null `group_id` from their linked accounts.
+     - Backfilled 16 `plantilla_slots` with missing `account_id` or `group_id` from stores or accounts.
+     - Repaired orphaned vacancies, including `CPRVJV13`, restoring `account = 'FOREVER OFFICE'`, `account_id = 'd0533fbc-3cce-4d0a-a619-ad0539dbc66d'`, and `group_id = '4de2971c-49fb-45be-98c8-4fe1246382b3'`.
+   - **Staging Deployment**: Applied migration `20262606000062` to live Staging (`qqiiznmqxfoamqytjica`) via Supabase MCP tool with verified success (`bad_vacancies = 0`, `bad_stores = 0`).
+
+2. **Frontend Queries & Normalization (`src/lib/queries/vacancy.ts`)**:
+   - In `directImportVacancy`: Removed invalid `hrco_name` select from `accounts` (which previously produced a 400 schema error and caused account names to fall back to `"Unknown Account"`). Resolved `hrco_name` from `users_profile` via `hrco_user_id` when present, and added store account/group lookup fallback.
+   - In `getVacancyDetail`: Added dynamic fallback resolution for `accountName` and `groupName` from `accounts` relation if `accountName` is `"Unknown Account"` or missing.
+
+3. **Vacancy Detail Drawer UI (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Filtered out `"Unknown Account"` from drawer header subtitle/breadcrumb path: `[detail.accountName, formatGroupName(detail.groupName, detail.accountName), detail.storeName]`.
+   - Replaced `"Unknown Account"` with clean `--` fallback in the Account field display.
+
+4. **Documentation Updates**:
+   - Updated `docs/state/vacancy_web_state.md` with vacancy account/group linkage propagation details.
+   - Updated `docs/state/plantilla_web_state.md` with baseline import batch linkage hardening.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Verification
+- `apply_migration`: Applied successfully on Supabase staging project `qqiiznmqxfoamqytjica`.
+- Staging verification:
+  - `CPRVJV13` now returns `account: 'FOREVER OFFICE'`, `account_id: 'd0533fbc-3cce-4d0a-a619-ad0539dbc66d'`, `group_id: '4de2971c-49fb-45be-98c8-4fe1246382b3'`.
+  - `vw_vacancy_detail` resolves `account: 'FOREVER OFFICE'` and `group_name: 'Group 1'`.
+  - Database counts: `bad_vacancies = 0`, `bad_stores = 0`.
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- `npm run build`: Production Turbopack build succeeded in 14.7s with 0 errors across all 19 static/dynamic routes.
 
 ## MIKA Import Processor Store Name Column Removal, Review Queue Reject & History Color Fix (ohm#m3k8w2r7)
 
