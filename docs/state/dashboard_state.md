@@ -74,6 +74,32 @@ Rendered in a responsive 5-column row where clicking any card activates the corr
 - Strictly labeled **`"Sync MIKA"`** action button (never `"Refresh"`).
 - Automatically triggers React Query refetch for operational metrics and analytics upon completion.
 
+### 4.5 MIKA Attendance & Biometric Import Modal (`src/components/more/MikaImportModal.tsx`)
+- Accessible via More Dashboard -> Data Control & Batch Ingestion (`import_mika`).
+- **Template Schema (14 Columns, "Store Name" Dropped)**:
+  1. `Employee No.` (Required)
+  2. `Fullname` (Required)
+  3. `Account` (Required)
+  4. `Position`
+  5. `Birth Date`
+  6. `Civil Status`
+  7. `Address`
+  8. `Contact No.`
+  9. `Date Hired`
+  10. `SSS`
+  11. `PhilHealth`
+  12. `Pag-IBIG`
+  13. `TIN`
+  14. `ATM No.`
+- **Ingestion & Validation**:
+  - Automatically maps 14 headers and ignores/skips `Store Name` without throwing errors on legacy files.
+  - Cross-checks employee numbers against active Plantilla slots to isolate potential ghost employees and account mismatches.
+- **Review Queue**:
+  - Displays pending batches for Super Admin / Head Admin review.
+  - Provides **Approve** and **Reject** action buttons calling `approveMikaImport` and `rejectMikaImport` respectively.
+- **Import History**:
+  - Displays actioned logs with status-aware color coding: `"Rejected"` status rendered in red (`bg-rose-100 text-rose-800 border border-rose-200`), `"Approved"` status rendered in green (`bg-emerald-100 text-emerald-800`).
+
 ---
 
 ## 5. Error Handling

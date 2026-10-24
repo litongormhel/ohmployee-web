@@ -1,5 +1,44 @@
 # AI Handoff
 
+## MIKA Import Processor Store Name Column Removal, Review Queue Reject & History Color Fix (ohm#m3k8w2r7)
+
+**Status: COMPLETE — UPDATED MIKA IMPORT TEMPLATE GENERATION, VALIDATION GUIDE, PARSER, AND UI INGESTION TO REMOVE THE "STORE NAME" COLUMN (NEW 14-COLUMN SCHEMA); ADDED REVIEW QUEUE "REJECT" ACTION WITH REJECTION AUDIT MUTATION; CORRECTED IMPORT HISTORY BADGE COLORING SO REJECTED STATUS RENDERS IN RED (ROSE-100/800); 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Spreadsheet Utilities & Template Generator (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Removed `"Store Name"` from `MIKA_OPTIONAL_HEADERS`, establishing the updated 14-column sequence:
+     1. `Employee No.` (Required)
+     2. `Fullname` (Required)
+     3. `Account` (Required)
+     4. `Position`
+     5. `Birth Date`
+     6. `Civil Status`
+     7. `Address`
+     8. `Contact No.`
+     9. `Date Hired`
+     10. `SSS`
+     11. `PhilHealth`
+     12. `Pag-IBIG`
+     13. `TIN`
+     14. `ATM No.`
+   - Updated `MIKA_SAMPLE_ROW` to remove `"Super 8 Dau"`, matching the 14 ordered headers 1-to-1.
+   - Removed `"Store Name"` from the `downloadMikaImportTemplate` validation guide sheet (`VALIDATION_GUIDE`).
+2. **Ingestion & UI Workflow (`src/components/more/MikaImportModal.tsx`)**:
+   - Dropped/skipped reading `Store Name` during spreadsheet parsing in `handleFileChange`.
+   - Removed `Store Name` column header and cell data from the Staged Summary preview table.
+   - Added a **Reject** button alongside the **Approve** button in the Review Queue (`activeTab === "review"`).
+   - Implemented `handleRejectLog` calling `rejectMikaImport`.
+   - Updated Import History (`activeTab === "history"`) status badge styling so that `"Rejected"` renders in red (`bg-rose-100 text-rose-800 border border-rose-200`) instead of green (`bg-emerald-100 text-emerald-800`).
+3. **Data Control Queries & Mutations (`src/lib/queries/dataControl.ts`)**:
+   - In `submitMikaImport`, set `store_name: null` to omit store name persistence during row ingestion.
+   - Added `rejectMikaImport` mutation to update `mika_import_logs` status to `"Rejected"`, record `approved_by` reviewer name, timestamp `reviewed_at`, and record optional remarks, aligning with the database check constraint `mika_import_logs_status_check` and `notify_mika_import_actioned` trigger.
+4. **State Documentation (`docs/state/dashboard_state.md`)**:
+   - Added section 4.5 documenting `MikaImportModal` specifications, column headers, Review Queue actions, and status styling.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- TypeScript typing and schema validation verified.
+
 ## Plantilla Baseline Import Batch Summary Column Fix & Error Surfacing Hardening (ohm#b7k2w9m5)
 
 **Status: COMPLETE — MIGRATION 20262606000061 AUTHORED AND APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`) AND PRODUCTION (`rwxelulyapjgaarlwkus`), FIXED CRITICAL DATABASE EXCEPTION WHERE SUBMIT_PLANTILLA_BASELINE_IMPORT ATTEMPTED TO UPDATE NON-EXISTENT COLUMN `summary_json` IN PLANTILLA_IMPORT_BATCHES INSTEAD OF `error_summary`, RESTORED BATCH CREATION AND VALIDATION ROW INGESTION, HARDENED CLIENT-SIDE RPC EXCEPTION WRAPPING IN dataControl.ts AND MODAL ERROR SURFACING IN PlantillaImportModal.tsx TO PREVENT SWALLOWING REAL POSTGRES ERROR MESSAGES, 0 BUILD / 0 LINT ERRORS ON MAIN**
@@ -631,6 +670,45 @@
 ---
 
 # AI Handoff
+
+## MIKA Import Processor Store Name Column Removal, Review Queue Reject & History Color Fix (ohm#m3k8w2r7)
+
+**Status: COMPLETE — UPDATED MIKA IMPORT TEMPLATE GENERATION, VALIDATION GUIDE, PARSER, AND UI INGESTION TO REMOVE THE "STORE NAME" COLUMN (NEW 14-COLUMN SCHEMA); ADDED REVIEW QUEUE "REJECT" ACTION WITH REJECTION AUDIT MUTATION; CORRECTED IMPORT HISTORY BADGE COLORING SO REJECTED STATUS RENDERS IN RED (ROSE-100/800); 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Spreadsheet Utilities & Template Generator (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Removed `"Store Name"` from `MIKA_OPTIONAL_HEADERS`, establishing the updated 14-column sequence:
+     1. `Employee No.` (Required)
+     2. `Fullname` (Required)
+     3. `Account` (Required)
+     4. `Position`
+     5. `Birth Date`
+     6. `Civil Status`
+     7. `Address`
+     8. `Contact No.`
+     9. `Date Hired`
+     10. `SSS`
+     11. `PhilHealth`
+     12. `Pag-IBIG`
+     13. `TIN`
+     14. `ATM No.`
+   - Updated `MIKA_SAMPLE_ROW` to remove `"Super 8 Dau"`, matching the 14 ordered headers 1-to-1.
+   - Removed `"Store Name"` from the `downloadMikaImportTemplate` validation guide sheet (`VALIDATION_GUIDE`).
+2. **Ingestion & UI Workflow (`src/components/more/MikaImportModal.tsx`)**:
+   - Dropped/skipped reading `Store Name` during spreadsheet parsing in `handleFileChange`.
+   - Removed `Store Name` column header and cell data from the Staged Summary preview table.
+   - Added a **Reject** button alongside the **Approve** button in the Review Queue (`activeTab === "review"`).
+   - Implemented `handleRejectLog` calling `rejectMikaImport`.
+   - Updated Import History (`activeTab === "history"`) status badge styling so that `"Rejected"` renders in red (`bg-rose-100 text-rose-800 border border-rose-200`) instead of green (`bg-emerald-100 text-emerald-800`).
+3. **Data Control Queries & Mutations (`src/lib/queries/dataControl.ts`)**:
+   - In `submitMikaImport`, set `store_name: null` to omit store name persistence during row ingestion.
+   - Added `rejectMikaImport` mutation to update `mika_import_logs` status to `"Rejected"`, record `approved_by` reviewer name, timestamp `reviewed_at`, and record optional remarks, aligning with the database check constraint `mika_import_logs_status_check` and `notify_mika_import_actioned` trigger.
+4. **State Documentation (`docs/state/dashboard_state.md`)**:
+   - Added section 4.5 documenting `MikaImportModal` specifications, column headers, Review Queue actions, and status styling.
+
+### Verification
+- `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+- TypeScript typing and schema validation verified.
 
 ## Plantilla Baseline Import Batch Summary Column Fix & Error Surfacing Hardening (ohm#b7k2w9m5)
 

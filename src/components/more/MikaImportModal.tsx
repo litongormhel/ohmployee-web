@@ -22,6 +22,7 @@ import {
 import {
   approveMikaImport,
   MikaEmployeeRow,
+  rejectMikaImport,
   submitMikaImport,
   useMikaImportLogs,
   useMikaImportRowsQuery,
@@ -126,7 +127,6 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
         return {
           employeeNo: empNo.trim(),
           account: acct.trim(),
-          storeName: r["Store Name"] || r["STORE_NAME"] || undefined,
           lastName: nameParts.lastName,
           firstName: nameParts.firstName,
           middleName: nameParts.middleName || undefined,
@@ -238,6 +238,25 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
       setActionRemarks("");
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to approve MIKA import log.");
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const handleRejectLog = async (logId: string) => {
+    setIsActionPending(true);
+    setActionError(null);
+    try {
+      await rejectMikaImport({
+        importLogId: logId,
+        rejectedBy: currentUser?.displayName || currentUser?.email || "Super Admin",
+        remarks: actionRemarks.trim() || undefined,
+      });
+      refetchPending();
+      setSelectedLogId(null);
+      setActionRemarks("");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to reject MIKA import log.");
     } finally {
       setIsActionPending(false);
     }
@@ -406,7 +425,6 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                           <th className="py-2 px-3">Emp No</th>
                           <th className="py-2 px-3">Fullname</th>
                           <th className="py-2 px-3">Account</th>
-                          <th className="py-2 px-3">Store Name</th>
                           <th className="py-2 px-3">Reason / Details</th>
                         </tr>
                       </thead>
@@ -432,7 +450,6 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                               {[row.lastName, row.firstName, row.middleName].filter(Boolean).join(", ")}
                             </td>
                             <td className="py-2 px-3 text-text-secondary">{row.account}</td>
-                            <td className="py-2 px-3 text-text-muted">{row.storeName || "—"}</td>
                             <td className="py-2 px-3 text-text-secondary">{row.flagReason || "Verified match"}</td>
                           </tr>
                         ))}
@@ -527,13 +544,22 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                         </button>
 
                         {canApprove && (
-                          <button
-                            onClick={() => handleApproveLog(log.id, log.cleanRows)}
-                            disabled={isActionPending}
-                            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleApproveLog(log.id, log.cleanRows)}
+                              disabled={isActionPending}
+                              className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectLog(log.id)}
+                              disabled={isActionPending}
+                              className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -617,7 +643,15 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                         <tr key={l.id} className="hover:bg-surface-hover/50">
                           <td className="py-2.5 px-4 font-semibold text-text-primary">{l.fileName}</td>
                           <td className="py-2.5 px-4">
-                            <span className="rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-3xs font-bold uppercase">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-3xs font-bold uppercase ${
+                                l.status.toLowerCase() === "rejected"
+                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                  : l.status.toLowerCase() === "approved"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
                               {l.status}
                             </span>
                           </td>

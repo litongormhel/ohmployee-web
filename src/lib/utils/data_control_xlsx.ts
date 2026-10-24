@@ -457,7 +457,6 @@ export const MIKA_REQUIRED_HEADERS = [
 ] as const;
 
 export const MIKA_OPTIONAL_HEADERS = [
-  "Store Name",
   "Position",
   "Birth Date",
   "Civil Status",
@@ -475,7 +474,6 @@ export const MIKA_SAMPLE_ROW = [
   "10001",
   "DELA CRUZ, JUAN SANTOS",
   "SUPER 8",
-  "Super 8 Dau",
   "Merchandiser",
   "1990-05-15",
   "SINGLE",
@@ -502,7 +500,6 @@ export function downloadMikaImportTemplate(): void {
     ["Employee No.", "YES", "Employee identifier (matching Plantilla)."],
     ["Fullname", "YES", "Format: LASTNAME, FIRSTNAME MIDDLE or LASTNAME, FIRSTNAME."],
     ["Account", "YES", "Operational account name."],
-    ["Store Name", "NO", "Primary store assignment."],
     ["Position", "NO", "Role designation."],
     ["Birth Date", "NO", "Birthdate in YYYY-MM-DD or Excel serial."],
     ["Civil Status", "NO", "SINGLE, MARRIED, etc."],

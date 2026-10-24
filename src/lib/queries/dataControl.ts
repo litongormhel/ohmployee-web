@@ -1090,7 +1090,7 @@ export async function submitMikaImport(params: {
         import_log_id: importLogId,
         employee_no: r.employeeNo,
         account: r.account,
-        store_name: r.storeName ?? null,
+        store_name: null,
         last_name: r.lastName,
         first_name: r.firstName,
         middle_name: r.middleName ?? null,
@@ -1130,6 +1130,25 @@ export async function approveMikaImport(params: {
       reviewed_at: new Date().toISOString(),
       remarks: params.remarks ?? null,
       updated_rows: params.cleanRowsCount,
+    })
+    .eq("id", params.importLogId);
+
+  if (error) throw error;
+}
+
+export async function rejectMikaImport(params: {
+  importLogId: string;
+  rejectedBy: string;
+  remarks?: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("mika_import_logs")
+    .update({
+      status: "Rejected",
+      approved_by: params.rejectedBy,
+      reviewed_at: new Date().toISOString(),
+      remarks: params.remarks ?? null,
     })
     .eq("id", params.importLogId);
 
