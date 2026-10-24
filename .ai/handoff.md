@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (ohm#c3m8w9k4)
+
+**Status: COMPLETE — MIGRATION 20262606000063 APPLIED TO LIVE STAGING; ADDED 'DELETE' TO PUBLIC.AUDIT_ACTION ENUM AND COERCED AL.ACTION::TEXT IN GET_WEB_VACANCY_DETAIL RPC PREVENTING POSTGRES 22P02 INVALID INPUT VALUE ERROR; HARDENED GETVACANCYDETAIL FALLBACK IN SRC/LIB/QUERIES/VACANCY.TS TO GRACEFULLY ATTEMPT DIRECT TABLE/APPLICANT READS BEFORE THROWING; VERIFIED CPRVJV13 AND OTHER VACANCIES RESOLVE DETAILS CLEANLY ON LIVE STAGING; 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000063_fix_vacancy_detail_audit_action_enum.sql`)**:
+   - Added `'DELETE'` value to `public.audit_action` enum: `ALTER TYPE public.audit_action ADD VALUE IF NOT EXISTS 'DELETE';`.
+   - Updated `public.get_web_vacancy_detail(p_vacancy_id uuid)` RPC:
+     - Cast `al.action::text` in `event_label` and `event_description` CASE clauses (`WHEN al.action::text = 'INSERT'`, `WHEN al.action::text = 'UPDATE'`, `WHEN al.action::text IN ('DELETE', 'SOFT_DELETE')`), preventing PostgreSQL 22P02 errors caused by strict enum comparison against string literals.
+   - Applied migration `20262606000063` to live Staging (`qqiiznmqxfoamqytjica`) via Supabase MCP tool with verified success.
+
+2. **Frontend Query Hardening (`src/lib/queries/vacancy.ts`)**:
+   - In `getVacancyDetail`: Widened the catch/fallback block around `get_web_vacancy_detail` so any RPC execution or schema edge-case error automatically attempts fallback to `fn_get_hired_applicants` and direct `vacancies` / `applicants` table reads before throwing `throwVacancyError(error)`.
+
+3. **Live Verification**:
+   - Successfully queried `get_web_vacancy_detail` on live Staging for `CPRVJV13` (`94eb21b1-bf44-4f7d-97df-9c17361e23f9`) and `VCMZG2_00010` (`f733e3a8-c83e-41c5-9127-7d9a81c5815b`). Both return full detail structures with populated `activity_history`, `account_name`, `group_name`, and `row_capabilities` without 22P02 errors.
+   - `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+   - `npm run build`: Production Turbopack build succeeded with 0 errors across all 19 static/dynamic routes.
+
 ## Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (ohm#v2k9w4r8)
 
 **Status: COMPLETE — MIGRATION 20262606000062 APPLIED TO LIVE STAGING; FIXED DIRECT VACANCY INSERTION FAILING TO QUERY INVALID HRCO_NAME COLUMN ON ACCOUNTS; HARDENED PLANTILLA & VACANCY IMPORT APPROVAL RPCS TO STRICTLY PROPAGATE ACCOUNT_ID, GROUP_ID, STORE_ID, AND ACCOUNT NAMES; REBUILT VW_VACANCY_DETAIL AND GET_WEB_VACANCY_DETAIL TO DYNAMICALLY RESOLVE ACCOUNT AND GROUP VIA FOREIGN KEY RELATIONS RATHER THAN FALLING BACK TO "UNKNOWN ACCOUNT"; BACKFILLED ORPHANED VACANCIES (INCLUDING CPRVJV13), STORES, AND PLANTILLA SLOTS ON LIVE STAGING; CLEANED VACANCY DETAIL DRAWER HEADER AND FIELD DISPLAYS; 0 BUILD / 0 LINT ERRORS ON MAIN**
@@ -713,6 +732,25 @@
 ---
 
 # AI Handoff
+
+## Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (ohm#c3m8w9k4)
+
+**Status: COMPLETE — MIGRATION 20262606000063 APPLIED TO LIVE STAGING; ADDED 'DELETE' TO PUBLIC.AUDIT_ACTION ENUM AND COERCED AL.ACTION::TEXT IN GET_WEB_VACANCY_DETAIL RPC PREVENTING POSTGRES 22P02 INVALID INPUT VALUE ERROR; HARDENED GETVACANCYDETAIL FALLBACK IN SRC/LIB/QUERIES/VACANCY.TS TO GRACEFULLY ATTEMPT DIRECT TABLE/APPLICANT READS BEFORE THROWING; VERIFIED CPRVJV13 AND OTHER VACANCIES RESOLVE DETAILS CLEANLY ON LIVE STAGING; 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+### Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000063_fix_vacancy_detail_audit_action_enum.sql`)**:
+   - Added `'DELETE'` value to `public.audit_action` enum: `ALTER TYPE public.audit_action ADD VALUE IF NOT EXISTS 'DELETE';`.
+   - Updated `public.get_web_vacancy_detail(p_vacancy_id uuid)` RPC:
+     - Cast `al.action::text` in `event_label` and `event_description` CASE clauses (`WHEN al.action::text = 'INSERT'`, `WHEN al.action::text = 'UPDATE'`, `WHEN al.action::text IN ('DELETE', 'SOFT_DELETE')`), preventing PostgreSQL 22P02 errors caused by strict enum comparison against string literals.
+   - Applied migration `20262606000063` to live Staging (`qqiiznmqxfoamqytjica`) via Supabase MCP tool with verified success.
+
+2. **Frontend Query Hardening (`src/lib/queries/vacancy.ts`)**:
+   - In `getVacancyDetail`: Widened the catch/fallback block around `get_web_vacancy_detail` so any RPC execution or schema edge-case error automatically attempts fallback to `fn_get_hired_applicants` and direct `vacancies` / `applicants` table reads before throwing `throwVacancyError(error)`.
+
+3. **Live Verification**:
+   - Successfully queried `get_web_vacancy_detail` on live Staging for `CPRVJV13` (`94eb21b1-bf44-4f7d-97df-9c17361e23f9`) and `VCMZG2_00010` (`f733e3a8-c83e-41c5-9127-7d9a81c5815b`). Both return full detail structures with populated `activity_history`, `account_name`, `group_name`, and `row_capabilities` without 22P02 errors.
+   - `npm run lint`: Clean (0 errors, 25 preexisting warnings).
+   - `npm run build`: Production Turbopack build succeeded with 0 errors across all 19 static/dynamic routes.
 
 ## Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (ohm#v2k9w4r8)
 

@@ -24,6 +24,12 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 - Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
 - The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.
 
+- **Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (`ohm#c3m8w9k4`)**:
+  - Migration `20262606000063_fix_vacancy_detail_audit_action_enum.sql` applied to live Staging.
+  - Added `'DELETE'` value to `public.audit_action` enum type via `ALTER TYPE public.audit_action ADD VALUE IF NOT EXISTS 'DELETE';`.
+  - Updated `public.get_web_vacancy_detail` RPC to cast `al.action::text` in both `event_label` and `event_description` CASE statements, preventing PostgreSQL `22P02: invalid input value for enum audit_action: "DELETE"` errors when rendering recent audit history for vacancies and applicants.
+  - Hardened `getVacancyDetail` in `src/lib/queries/vacancy.ts` so any RPC execution or schema error gracefully attempts the direct table/applicant fallback before re-throwing, ensuring high availability of the Vacancy Detail drawer across edge-case and transient conditions.
+
 - **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
   - Migration `20262606000062_fix_vacancy_account_linkage.sql` applied to live Staging.
   - Fixed `directImportVacancy` in `src/lib/queries/vacancy.ts` by removing invalid `hrco_name` select on `accounts` (which previously caused a PostgREST schema error that made `account` fall back to `"Unknown Account"`), resolving HRCO profile name via `hrco_user_id`, and inheriting `account_id` and `group_id` from store mappings.

@@ -2436,12 +2436,10 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
   });
 
   if (error) {
-    const errorKind = getErrorKind(error);
-    // If access is denied (often caused by vw_vacancy_detail active-only constraint for Filled/Closed slots),
-    // attempt fallback lookup for hired applicants or direct vacancy record.
-    if (errorKind === "access_denied" || error.code === "42501" || error.message.includes("out of scope")) {
-      try {
-        // 1. Try fn_get_hired_applicants
+    // Attempt fallback lookup for hired applicants or direct vacancy record
+    // before throwing, so RPC schema or edge-case errors degrade gracefully.
+    try {
+      // 1. Try fn_get_hired_applicants
         const { data: hiredData } = await supabase.rpc("fn_get_hired_applicants");
         if (Array.isArray(hiredData)) {
           const match = hiredData.find(
@@ -2729,9 +2727,8 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             activityHistory: [],
           };
         }
-      } catch {
-        // Fall through to original error throw
-      }
+    } catch {
+      // Fall through to original error throw
     }
 
     throwVacancyError(error);
