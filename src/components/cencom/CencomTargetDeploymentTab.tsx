@@ -137,21 +137,21 @@ export function CencomTargetDeploymentTab({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-6 text-rose-900 shadow-xs">
+      <div className="rounded-xl border border-pct-bad-border bg-pct-bad-bg p-6 text-pct-bad-text shadow-xs">
         <div className="flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-rose-600" />
+          <ShieldAlert className="h-6 w-6 text-pct-bad-text" />
           <div>
-            <h3 className="font-semibold text-rose-950">
+            <h3 className="font-semibold text-pct-bad-text">
               Unable to load Target Deployment data
             </h3>
-            <p className="text-xs text-rose-700 mt-0.5">
+            <p className="text-xs text-pct-bad-text mt-0.5 opacity-90">
               {error?.message || "An error occurred while fetching vacancy aging records."}
             </p>
           </div>
         </div>
         <button
           onClick={handleRefresh}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 cursor-pointer"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-pct-bad-border bg-surface-card px-3 py-1.5 text-xs font-semibold text-pct-bad-text shadow-2xs transition hover:bg-surface-hover cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Retry
@@ -245,7 +245,7 @@ export function CencomTargetDeploymentTab({
           </div>
           <span className="text-xs font-semibold text-text-secondary">
             Operational Total:{" "}
-            <span className="font-bold font-mono text-rose-600">
+            <span className="font-bold font-mono text-pct-bad-text">
               {data?.operationalTotal ?? 0}
             </span>
           </span>
@@ -256,20 +256,20 @@ export function CencomTargetDeploymentTab({
           {/* 1-15 Days */}
           <div
             onClick={() => setAgingFilter(agingFilter === "1_15" ? "all" : "1_15")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "1_15"
-                ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300"
-                : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-300"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800">1–15 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-bold text-text-secondary">1–15 DAYS</span>
+              <span className="h-2 w-2 rounded-full bg-pct-good-text" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-emerald-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket1_15 ?? 0}
             </div>
-            <div className="text-[10px] text-emerald-700">
+            <div className="text-[10px] text-text-muted">
               {Math.round(((data?.bucket1_15 ?? 0) / denom) * 100)}% of operational
             </div>
           </div>
@@ -277,20 +277,20 @@ export function CencomTargetDeploymentTab({
           {/* 16-30 Days */}
           <div
             onClick={() => setAgingFilter(agingFilter === "16_30" ? "all" : "16_30")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "16_30"
-                ? "border-amber-500 bg-amber-50 ring-2 ring-amber-300"
-                : "border-amber-100 bg-amber-50/40 hover:border-amber-300"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-800">16–30 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="text-[11px] font-bold text-text-secondary">16–30 DAYS</span>
+              <span className="h-2 w-2 rounded-full bg-pct-warn-text" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-amber-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket16_30 ?? 0}
             </div>
-            <div className="text-[10px] text-amber-700">
+            <div className="text-[10px] text-text-muted">
               {Math.round(((data?.bucket16_30 ?? 0) / denom) * 100)}% of operational
             </div>
           </div>
@@ -298,20 +298,20 @@ export function CencomTargetDeploymentTab({
           {/* 31-60 Days */}
           <div
             onClick={() => setAgingFilter(agingFilter === "31_60" ? "all" : "31_60")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "31_60"
-                ? "border-orange-500 bg-orange-50 ring-2 ring-orange-300"
-                : "border-orange-100 bg-orange-50/40 hover:border-orange-300"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-orange-800">31–60 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-orange-500" />
+              <span className="text-[11px] font-bold text-text-secondary">31–60 DAYS</span>
+              <span className="h-2 w-2 rounded-full bg-pct-warn-text" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-orange-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket31_60 ?? 0}
             </div>
-            <div className="text-[10px] text-orange-700">
+            <div className="text-[10px] text-text-muted">
               {Math.round(((data?.bucket31_60 ?? 0) / denom) * 100)}% of operational
             </div>
           </div>
@@ -319,20 +319,20 @@ export function CencomTargetDeploymentTab({
           {/* 61-120 Days */}
           <div
             onClick={() => setAgingFilter(agingFilter === "61_120" ? "all" : "61_120")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "61_120"
-                ? "border-rose-400 bg-rose-50 ring-2 ring-rose-300"
-                : "border-rose-100 bg-rose-50/40 hover:border-rose-300"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-rose-800">61–120 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-rose-500" />
+              <span className="text-[11px] font-bold text-text-secondary">61–120 DAYS</span>
+              <span className="h-2 w-2 rounded-full bg-pct-bad-text" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-rose-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket61_120 ?? 0}
             </div>
-            <div className="text-[10px] text-rose-700">
+            <div className="text-[10px] text-text-muted">
               {Math.round(((data?.bucket61_120 ?? 0) / denom) * 100)}% of operational
             </div>
           </div>
@@ -340,20 +340,20 @@ export function CencomTargetDeploymentTab({
           {/* >121 Days */}
           <div
             onClick={() => setAgingFilter(agingFilter === "gt121" ? "all" : "gt121")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "gt121"
-                ? "border-red-600 bg-red-50 ring-2 ring-red-400"
-                : "border-red-200 bg-red-50/50 hover:border-red-400"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-red-900">&gt;121 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-red-700" />
+              <span className="text-[11px] font-bold text-text-secondary">&gt;121 DAYS</span>
+              <span className="h-2 w-2 rounded-full bg-pct-bad-text" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-red-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucketGt121 ?? 0}
             </div>
-            <div className="text-[10px] text-red-700">
+            <div className="text-[10px] text-text-muted">
               {Math.round(((data?.bucketGt121 ?? 0) / denom) * 100)}% of operational
             </div>
           </div>
@@ -361,26 +361,26 @@ export function CencomTargetDeploymentTab({
           {/* Advance Vacancy */}
           <div
             onClick={() => setAgingFilter(agingFilter === "advance" ? "all" : "advance")}
-            className={`cursor-pointer rounded-lg border p-3 transition ${
+            className={`cursor-pointer rounded-xl border p-3 transition shadow-2xs ${
               agingFilter === "advance"
-                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300"
-                : "border-blue-100 bg-blue-50/40 hover:border-blue-300"
+                ? "border-brand-500 bg-surface-card ring-2 ring-brand-500"
+                : "border-border-default bg-surface-card hover:border-border-strong hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-blue-800">ADVANCE VACANCY</span>
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="text-[11px] font-bold text-text-secondary">ADVANCE VACANCY</span>
+              <span className="h-2 w-2 rounded-full bg-brand-500" />
             </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-blue-950">
+            <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.advanceCount ?? 0}
             </div>
-            <div className="text-[10px] text-blue-600">Future start date</div>
+            <div className="text-[10px] text-text-muted">Future start date</div>
           </div>
         </div>
 
         {/* Advance Notice Helper */}
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-50/60 p-3 text-xs text-blue-800 border border-blue-100">
-          <Info className="h-4 w-4 shrink-0 text-blue-600" />
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-surface-muted p-3 text-xs text-text-secondary border border-border-default">
+          <Info className="h-4 w-4 shrink-0 text-brand-500" />
           <span>
             <strong>Advance Vacancy note:</strong> Positions requested for future need are tracked separately and not factored into the operational aging computation until their effective vacant date.
           </span>
@@ -455,12 +455,12 @@ export function CencomTargetDeploymentTab({
               <tr>
                 <th className="py-2.5 px-4">Province / Area</th>
                 <th className="py-2.5 px-3 text-right">Total Open</th>
-                <th className="py-2.5 px-2 text-center text-emerald-700">1–15d</th>
-                <th className="py-2.5 px-2 text-center text-amber-700">16–30d</th>
-                <th className="py-2.5 px-2 text-center text-orange-700">31–60d</th>
-                <th className="py-2.5 px-2 text-center text-rose-700">61–120d</th>
-                <th className="py-2.5 px-2 text-center text-red-900">&gt;121d</th>
-                <th className="py-2.5 px-3 text-center text-blue-700">Advance</th>
+                <th className="py-2.5 px-2 text-center text-text-secondary">1–15d</th>
+                <th className="py-2.5 px-2 text-center text-text-secondary">16–30d</th>
+                <th className="py-2.5 px-2 text-center text-text-secondary">31–60d</th>
+                <th className="py-2.5 px-2 text-center text-text-secondary">61–120d</th>
+                <th className="py-2.5 px-2 text-center text-text-secondary">&gt;121d</th>
+                <th className="py-2.5 px-3 text-center text-text-secondary">Advance</th>
                 <th className="py-2.5 px-3 text-center">Stores</th>
                 <th className="py-2.5 px-4 text-right">Drilldown</th>
               </tr>
@@ -486,28 +486,28 @@ export function CencomTargetDeploymentTab({
                       }`}
                     >
                       <td className="py-3 px-4 font-bold text-text-primary flex items-center gap-2">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                        <MapPin className="h-3.5 w-3.5 text-text-muted" />
                         <span>{prov.province.toUpperCase()}</span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-rose-600">
+                      <td className="py-3 px-3 text-right font-mono font-bold text-pct-bad-text">
                         {prov.total}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-emerald-700">
+                      <td className="py-3 px-2 text-center font-mono text-text-primary">
                         {prov.bucket1_15 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-amber-700">
+                      <td className="py-3 px-2 text-center font-mono text-text-primary">
                         {prov.bucket16_30 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-orange-700">
+                      <td className="py-3 px-2 text-center font-mono text-text-primary">
                         {prov.bucket31_60 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-rose-700">
+                      <td className="py-3 px-2 text-center font-mono text-pct-bad-text">
                         {prov.bucket61_120 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-red-900 font-bold">
+                      <td className="py-3 px-2 text-center font-mono text-pct-bad-text font-bold">
                         {prov.bucketGt121 || "-"}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono text-blue-700">
+                      <td className="py-3 px-3 text-center font-mono text-text-primary">
                         {prov.advanceCount || "-"}
                       </td>
                       <td className="py-3 px-3 text-center font-mono text-text-secondary">
@@ -588,8 +588,8 @@ export function CencomTargetDeploymentTab({
                           <h4 className="text-sm font-bold text-text-primary">
                             {outlet.store}
                           </h4>
-                          <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                            <MapPin className="h-3 w-3 text-slate-400" />
+                          <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-text-secondary">
+                            <MapPin className="h-3 w-3 text-text-muted" />
                             {outlet.area}, {outlet.province}
                           </span>
                         </div>
@@ -600,7 +600,7 @@ export function CencomTargetDeploymentTab({
                           <span>•</span>
                           <span>
                             Open Positions:{" "}
-                            <strong className="text-rose-600 font-mono">
+                            <strong className="text-pct-bad-text font-mono">
                               {outlet.vacancies.length}
                             </strong>
                           </span>
@@ -615,14 +615,14 @@ export function CencomTargetDeploymentTab({
                           Oldest Aging
                         </div>
                         <span
-                          className={`inline-flex items-center gap-1 text-xs font-bold font-mono px-2 py-0.5 rounded ${
+                          className={`inline-flex items-center gap-1 text-xs font-bold font-mono px-2 py-0.5 rounded border ${
                             outlet.oldestAging >= 61
-                              ? "bg-red-100 text-red-900 border border-red-200"
+                              ? "bg-pct-bad-bg text-pct-bad-text border-pct-bad-border"
                               : outlet.oldestAging >= 31
-                              ? "bg-orange-100 text-orange-900 border border-orange-200"
+                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
                               : outlet.oldestAging >= 16
-                              ? "bg-amber-100 text-amber-900 border border-amber-200"
-                              : "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
+                              : "bg-pct-good-bg text-pct-good-text border-pct-good-border"
                           }`}
                         >
                           {outlet.oldestAging > 0 ? `${outlet.oldestAging} Days` : "Advance"}
@@ -633,10 +633,10 @@ export function CencomTargetDeploymentTab({
                       <span
                         className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold border ${
                           outlet.relieverStatus === "Has Reliever"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            ? "bg-pct-good-bg text-pct-good-text border-pct-good-border"
                             : outlet.relieverStatus === "Mixed"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-slate-100 text-slate-600 border-slate-200"
+                            ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
+                            : "bg-surface-muted text-text-secondary border-border-default"
                         }`}
                       >
                         <UserCheck className="h-3.5 w-3.5" />
@@ -674,12 +674,12 @@ export function CencomTargetDeploymentTab({
                                 {v.vcode}
                               </span>
                               <span
-                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border ${
                                   (v.urgencyLevel ?? "").toLowerCase().includes("critical")
-                                    ? "bg-red-100 text-red-800"
+                                    ? "bg-pct-bad-bg text-pct-bad-text border-pct-bad-border"
                                     : (v.urgencyLevel ?? "").toLowerCase().includes("urgent")
-                                    ? "bg-orange-100 text-orange-800"
-                                    : "bg-slate-100 text-slate-700"
+                                    ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
+                                    : "bg-surface-muted text-text-secondary border-border-default"
                                 }`}
                               >
                                 {v.urgencyLevel || "Normal"}
@@ -699,7 +699,7 @@ export function CencomTargetDeploymentTab({
                               <span>
                                 Vacant Date: <strong>{v.vacantDate || "--"}</strong>
                               </span>
-                              <span className="font-mono font-bold text-rose-600">
+                              <span className="font-mono font-bold text-pct-bad-text">
                                 {v.agingDays ? `${v.agingDays}d open` : "Advance"}
                               </span>
                             </div>

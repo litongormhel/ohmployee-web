@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DataState } from "@/components/shared/DataState";
+import { PercentageBar } from "@/components/shared/PercentageBar";
 import type { CencomGroupKpiItem } from "@/lib/queries/cencom";
 
 export type CencomSortField =
@@ -235,17 +236,6 @@ export function CencomGroupTable({
               const isHealthy = group.healthStatus === "healthy" || mfrRate >= 100;
               const isAtRisk = group.healthStatus === "at_risk";
 
-              // Progress bar styling
-              let progressBarColor = "bg-rose-500";
-              let progressTextColor = "text-rose-600";
-              if (isHealthy) {
-                progressBarColor = "bg-emerald-500";
-                progressTextColor = "text-emerald-700";
-              } else if (isAtRisk) {
-                progressBarColor = "bg-amber-500";
-                progressTextColor = "text-amber-700";
-              }
-
               const statusVariant = isHealthy ? "success" : isAtRisk ? "warning" : "danger";
               const statusLabel = isHealthy ? "Healthy" : isAtRisk ? "At Risk" : "Critical";
 
@@ -282,9 +272,9 @@ export function CencomGroupTable({
                           {group.isNormalized && (
                             <span
                               title="Slot authority enforced (Actual >= Required -> Vacant = 0)"
-                              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 border border-blue-200"
+                              className="inline-flex items-center gap-1 rounded-full bg-status-info-bg px-2 py-0.5 text-[10px] font-medium text-status-info-text border border-status-info-border"
                             >
-                              <ShieldCheck className="h-3 w-3 text-blue-600" />
+                              <ShieldCheck className="h-3 w-3" />
                               Slot Authority
                             </span>
                           )}
@@ -297,9 +287,9 @@ export function CencomGroupTable({
                               group.accountNames.map((acc) => (
                                 <span
                                   key={acc}
-                                  className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-200"
+                                  className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-default"
                                 >
-                                  <Building2 className="h-3 w-3 text-slate-500" />
+                                  <Building2 className="h-3 w-3 text-text-muted" />
                                   {acc}
                                 </span>
                               ))
@@ -338,8 +328,8 @@ export function CencomGroupTable({
 
                   {/* Actual HC */}
                   <td className="px-3 py-4 text-center">
-                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-slate-900">
-                      <Users className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-text-primary">
+                      <Users className="h-3.5 w-3.5 text-text-muted" />
                       {group.actual}
                     </span>
                   </td>
@@ -347,11 +337,11 @@ export function CencomGroupTable({
                   {/* Vacancies */}
                   <td className="px-3 py-4 text-center">
                     {group.vacant === 0 ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center rounded-full bg-pct-good-bg px-2 py-0.5 text-xs font-medium text-pct-good-text border border-pct-good-border">
                         0 vacant
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-mono font-bold text-rose-700 border border-rose-200">
+                      <span className="inline-flex items-center rounded-full bg-pct-bad-bg px-2.5 py-0.5 text-xs font-mono font-bold text-pct-bad-text border border-pct-bad-border">
                         {group.vacant}
                       </span>
                     )}
@@ -359,21 +349,18 @@ export function CencomGroupTable({
 
                   {/* MFR Progress Bar */}
                   <td className="px-3 py-4">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className={`font-mono font-bold ${progressTextColor}`}>
-                          {mfrRate.toFixed(1)}%
-                        </span>
                         <span className="text-[11px] text-text-muted">
-                          {group.actual}/{group.required}
+                          {group.actual} / {group.required}
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200/60">
-                        <div
-                          className={`h-full transition-all duration-300 ${progressBarColor}`}
-                          style={{ width: `${Math.min(100, Math.max(0, mfrRate))}%` }}
-                        />
-                      </div>
+                      <PercentageBar
+                        percent={mfrRate}
+                        scale="mfr"
+                        heightClass="h-2"
+                        showLabel={true}
+                      />
                     </div>
                   </td>
 

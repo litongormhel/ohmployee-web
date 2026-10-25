@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useId, useMemo } from "react";
-import { ChevronDown, Filter } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { formatGroupName } from "@/lib/queries/vacancy";
 import type { CencomGroupKpiItem } from "@/lib/queries/cencom";
+import { ScopeDropdown, type ScopeOption } from "@/components/shared/ScopeDropdown";
 
 export interface GroupScopeOption {
   id: string; // "all" or groupId
@@ -24,10 +24,7 @@ export function CencomGroupScopeDropdown({
   allowedGroupIds,
   selectedGroupId,
   onSelectGroup,
-  disabled = false,
 }: CencomGroupScopeDropdownProps) {
-  const selectId = useId();
-
   // 1. Build and sort permitted group options
   const options = useMemo<GroupScopeOption[]>(() => {
     // Filter groups by user's permitted scope if scoped
@@ -63,32 +60,20 @@ export function CencomGroupScopeDropdown({
     }
   }, [isSelectionValid, selectedGroupId, onSelectGroup]);
 
+  const scopeOptions = useMemo<ScopeOption[]>(() => {
+    return options.map((opt) => ({
+      value: opt.id,
+      label: opt.label,
+      badge: opt.code ?? undefined,
+    }));
+  }, [options]);
+
   return (
-    <div className="relative inline-flex items-center">
-      <label htmlFor={selectId} className="sr-only">
-        Group scope
-      </label>
-      <div className="pointer-events-none absolute left-3 flex items-center text-text-muted">
-        <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-      </div>
-      <select
-        id={selectId}
-        aria-label="Group scope"
-        value={effectiveValue}
-        onChange={(e) => onSelectGroup(e.target.value)}
-        disabled={disabled}
-        className="h-9 min-w-[140px] max-w-[200px] cursor-pointer appearance-none rounded-lg border border-border-default bg-surface-base pl-8 pr-8 text-xs font-semibold text-text-primary shadow-2xs transition-colors hover:bg-surface-hover focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-border-strong disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {options.map((opt) => (
-          <option key={opt.id} value={opt.id} className="bg-surface-base text-text-primary">
-            {opt.label}
-            {opt.code ? ` (${opt.code})` : ""}
-          </option>
-        ))}
-      </select>
-      <div className="pointer-events-none absolute right-2.5 flex items-center text-text-muted">
-        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-      </div>
-    </div>
+    <ScopeDropdown
+      value={effectiveValue}
+      options={scopeOptions}
+      onChange={onSelectGroup}
+      ariaLabel="Group scope"
+    />
   );
 }

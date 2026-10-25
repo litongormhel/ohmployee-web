@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowRight,
-  FileBarChart2,
   MapPin,
   RefreshCw,
   ShieldCheck,
@@ -29,6 +28,7 @@ import { CencomDeploymentCard } from "@/components/cencom/CencomDeploymentCard";
 import { CencomTargetDeploymentTab } from "@/components/cencom/CencomTargetDeploymentTab";
 import { CencomDeploymentActivityTab } from "@/components/cencom/CencomDeploymentActivityTab";
 import { CencomQuickReportsTab } from "@/components/cencom/CencomQuickReportsTab";
+import { SegmentedTabs, type TabItem } from "@/components/shared/SegmentedTabs";
 
 export type CencomTab =
   | "overview"
@@ -150,6 +150,21 @@ function CencomPageContent() {
       ? Math.round((displayedActiveStores / displayedTotalStores) * 1000) / 10
       : 0;
 
+  const cencomTabs: TabItem<CencomTab>[] = useMemo(
+    () => [
+      { key: "overview", label: "Overview" },
+      { key: "groups", label: "Groups", count: groups.length },
+      {
+        key: "target_deployment",
+        label: "Target Deployment",
+        count: kpi?.vacant && kpi.vacant > 0 ? kpi.vacant : undefined,
+      },
+      { key: "deployments", label: "Deployment Activity" },
+      { key: "reports", label: "Quick Reports", count: 18 },
+    ],
+    [groups.length, kpi?.vacant]
+  );
+
   return (
     <div className="space-y-6">
       {/* 1. Header */}
@@ -173,104 +188,11 @@ function CencomPageContent() {
 
       {/* 2. 5-Tab Command Center Navigation Bar with Sliding Pill and Rightmost Group Dropdown */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-2">
-        {/* Left: Tab row segmented control with sliding pill */}
-        <nav
-          role="tablist"
-          aria-label="CENCOM Navigation"
-          className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5"
-        >
-          {/* Tab 1: Overview */}
-          <button
-            role="tab"
-            aria-selected={activeTab === "overview"}
-            onClick={() => handleTabChange("overview")}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-[350ms] whitespace-nowrap cursor-pointer ${
-              activeTab === "overview"
-                ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs font-bold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5 text-brand-600" aria-hidden="true" />
-            <span>Overview</span>
-            {kpi?.isNormalized && (
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-status-success-text"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-
-          {/* Tab 2: Groups */}
-          <button
-            role="tab"
-            aria-selected={activeTab === "groups"}
-            onClick={() => handleTabChange("groups")}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-[350ms] whitespace-nowrap cursor-pointer ${
-              activeTab === "groups"
-                ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs font-bold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-text-secondary" aria-hidden="true" />
-            <span>Groups</span>
-            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-text-secondary font-mono">
-              {groups.length}
-            </span>
-          </button>
-
-          {/* Tab 3: Target Deployment */}
-          <button
-            role="tab"
-            aria-selected={activeTab === "target_deployment"}
-            onClick={() => handleTabChange("target_deployment")}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-[350ms] whitespace-nowrap cursor-pointer ${
-              activeTab === "target_deployment"
-                ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs font-bold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5 text-text-secondary" aria-hidden="true" />
-            <span>Target Deployment</span>
-            {kpi?.vacant && kpi.vacant > 0 ? (
-              <span className="rounded-full border border-status-danger-border bg-status-danger-bg px-2 py-0.5 text-[10px] text-status-danger-text font-mono font-bold">
-                {kpi.vacant}
-              </span>
-            ) : null}
-          </button>
-
-          {/* Tab 4: Deployment Activity */}
-          <button
-            role="tab"
-            aria-selected={activeTab === "deployments"}
-            onClick={() => handleTabChange("deployments")}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-[350ms] whitespace-nowrap cursor-pointer ${
-              activeTab === "deployments"
-                ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs font-bold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-text-secondary" aria-hidden="true" />
-            <span>Deployment Activity</span>
-          </button>
-
-          {/* Tab 5: Quick Reports */}
-          <button
-            role="tab"
-            aria-selected={activeTab === "reports"}
-            onClick={() => handleTabChange("reports")}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-[350ms] whitespace-nowrap cursor-pointer ${
-              activeTab === "reports"
-                ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs font-bold"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
-            }`}
-          >
-            <FileBarChart2 className="w-3.5 h-3.5 text-text-secondary" aria-hidden="true" />
-            <span>Quick Reports</span>
-            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-text-secondary font-mono">
-              18
-            </span>
-          </button>
-        </nav>
+        <SegmentedTabs
+          tabs={cencomTabs}
+          activeKey={activeTab}
+          onChange={(t) => handleTabChange(t as CencomTab)}
+        />
 
         {/* Right: Group Dropdown (Overview Tab only, hidden on all other tabs) */}
         {activeTab === "overview" && (
@@ -454,7 +376,7 @@ function CencomPageContent() {
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
+                <Users className="h-5 w-5 text-brand-500" />
                 Group Performance Breakdown
               </h2>
               <p className="text-xs text-text-muted">

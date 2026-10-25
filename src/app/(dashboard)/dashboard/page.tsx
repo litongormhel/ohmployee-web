@@ -302,7 +302,11 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 text-text-primary pb-8 sm:pb-12">
       {/* Toast Notification */}
       {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+        <Toast
+          isOpen={true}
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
       )}
 
       {/* =================================================================== */}

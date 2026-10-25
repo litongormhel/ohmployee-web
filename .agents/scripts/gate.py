@@ -2,10 +2,15 @@
 """
 OHMployee Web Closed Loop Mechanical Gate.
 Enforces:
-1. ESLint (`npm run lint`): 0 errors required.
-2. Next.js Build (`npm run build`): No new errors beyond the documented baseline
-   pre-existing missing node_modules (exceljs / xlsx) and sandboxed font fetch.
-3. Color Literal Zero-Tolerance Gate for touched modules.
+1. Auto-derivation of touched modules via git diff (working tree, staged, or HEAD~1).
+   If TOUCHED_MODULES env var is explicitly provided, it uses that target list.
+2. Global file check: if src/components/shared/ or src/app/globals.css changed,
+   the gate always runs the full build/typecheck regardless of touched modules.
+3. ESLint (`npm run lint`): 0 errors required.
+4. Next.js Build / Typecheck:
+   Runs `npm run build`. If `next build` fails solely due to sandboxed Google Fonts network fetch,
+   falls back to `npx tsc --noEmit` and explicitly notes the fallback. Blocks on any real build or type failure.
+5. Color Literal Zero-Tolerance Gate for all touched modules.
 """
 
 import json
@@ -14,26 +19,74 @@ import re
 import subprocess
 import sys
 
-# Baseline known pre-existing build error signatures on clean main
-KNOWN_BASELINE_BUILD_ERRORS = [
-    "Can't resolve 'exceljs'",
-    "Can't resolve 'xlsx'",
-    "Failed to fetch `DM Mono`",
-    "Failed to fetch `DM Sans`",
-    "next/font: error:",
-    "There was an issue establishing a connection while requesting",
-    "Turbopack build failed with",
-]
-
 COLOR_PATTERN = re.compile(
     r'\b(?:bg|text|border)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b|#[0-9a-fA-F]{3,8}'
 )
 
-# Files allowed to declare raw colors (e.g., globals.css, theme definitions, legacy non-UI scripts)
 ALLOWLIST_FILES = {
     "src/app/globals.css",
     "docs/state/web_design_tokens.md",
 }
+
+IGNORED_MODULE_DIRS = {"shared", "ui", "modals"}
+
+def get_git_touched_files():
+    touched = set()
+    # 1. Working tree + staged diff against HEAD
+    try:
+        res = subprocess.run(["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True)
+        if res.returncode == 0:
+            touched.update(line.strip() for line in res.stdout.splitlines() if line.strip())
+    except Exception:
+        pass
+
+    # 2. Untracked files
+    try:
+        res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if line.startswith("??"):
+                    touched.add(line[3:].strip())
+    except Exception:
+        pass
+
+    # 3. If working tree is clean or to capture latest commit changes
+    try:
+        res = subprocess.run(["git", "diff", "--name-only", "HEAD~1..HEAD"], capture_output=True, text=True)
+        if res.returncode == 0:
+            touched.update(line.strip() for line in res.stdout.splitlines() if line.strip())
+    except Exception:
+        pass
+
+    return touched
+
+def derive_touched_modules(touched_files):
+    # Check if global shared files were touched in git diff
+    global_touched = any(
+        path.startswith("src/components/shared/") or path == "src/app/globals.css"
+        for path in touched_files
+    )
+
+    env_modules = os.environ.get("TOUCHED_MODULES", "").strip()
+    if env_modules:
+        modules = {m.strip() for m in env_modules.split(",") if m.strip()}
+        return sorted(list(modules)), global_touched
+
+    modules = set()
+    for path in touched_files:
+        m_app = re.match(r"^src/app/\(dashboard\)/([^/]+)/", path)
+        if m_app:
+            mod = m_app.group(1)
+            if mod not in IGNORED_MODULE_DIRS:
+                modules.add(mod)
+
+        m_comp = re.match(r"^src/components/([^/]+)/", path)
+        if m_comp:
+            mod = m_comp.group(1)
+            if mod not in IGNORED_MODULE_DIRS:
+                modules.add(mod)
+
+    return sorted(list(modules)), global_touched
 
 def check_lint():
     result = subprocess.run(["npm", "run", "lint"], capture_output=True, text=True)
@@ -42,19 +95,38 @@ def check_lint():
     return True, ""
 
 def check_build():
+    # Attempt real next build
     result = subprocess.run(["npm", "run", "build"], capture_output=True, text=True)
-    if result.returncode != 0:
-        output = (result.stderr or "") + "\n" + (result.stdout or "")
-        lines = output.splitlines()
-        # Find module resolution or compilation error lines
-        issue_lines = [
-            l.strip() for l in lines
-            if ("Module not found:" in l or "error:" in l.lower() or "Failed to compile" in l)
-            and not any(known in l for known in KNOWN_BASELINE_BUILD_ERRORS)
-        ]
-        if issue_lines:
-            return False, f"New unexpected build error introduced:\n" + "\n".join(issue_lines[:5])
-    return True, ""
+    if result.returncode == 0:
+        return True, "'npm run build' completed successfully (0 errors)."
+
+    output = (result.stderr or "") + "\n" + (result.stdout or "")
+
+    # Check if failure is exclusively caused by sandbox offline font-fetching
+    font_fetch_signatures = [
+        "Failed to fetch `DM Mono`",
+        "Failed to fetch `DM Sans`",
+        "next/font: error:",
+        "There was an issue establishing a connection while requesting https://fonts.googleapis.com",
+    ]
+    is_font_fetch_only = any(sig in output for sig in font_fetch_signatures) and "Failed to type check" not in output and "Type error:" not in output
+
+    if is_font_fetch_only:
+        # Fallback to full TypeScript typecheck
+        tsc_res = subprocess.run(["npx", "tsc", "--noEmit"], capture_output=True, text=True)
+        if tsc_res.returncode != 0:
+            tsc_output = (tsc_res.stderr or "") + "\n" + (tsc_res.stdout or "")
+            return False, f"TypeScript typecheck failed (tsc --noEmit):\n{tsc_output.strip()}"
+
+        fallback_msg = (
+            "NOTICE (tsc fallback used): 'next build' font-fetch blocked by sandbox offline policy. "
+            "'npx tsc --noEmit' executed and passed with 0 errors. "
+            "(Ohm runs full 'npm run build' locally before merge)."
+        )
+        return True, fallback_msg
+
+    # Any other compilation or type error is a hard failure
+    return False, f"Build failed with errors:\n{output.strip()}"
 
 def check_color_literals(touched_modules):
     if not touched_modules:
@@ -86,28 +158,51 @@ def check_color_literals(touched_modules):
     return True, ""
 
 def main():
-    # 1. Color Literals Gate (fast fail)
-    touched_env = os.environ.get("TOUCHED_MODULES", "").strip()
-    touched_modules = [m.strip() for m in touched_env.split(",") if m.strip()]
+    touched_files = get_git_touched_files()
+    touched_modules, global_touched = derive_touched_modules(touched_files)
+
+    notes = []
+    if global_touched:
+        notes.append("Global shared components or styles touched; running unconditional full build/typecheck.")
+
+    # 1. Color Literals Gate for touched modules
     color_ok, color_msg = check_color_literals(touched_modules)
     if not color_ok:
-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Color Literals):\n{color_msg}"}))
+        print(json.dumps({
+            "decision": "continue",
+            "reason": f"Verification gate FAILED (Color Literals):\n{color_msg}",
+            "touched_modules": touched_modules
+        }))
         sys.exit(0)
 
     # 2. Lint Gate
     lint_ok, lint_msg = check_lint()
     if not lint_ok:
-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Lint):\n{lint_msg}"}))
+        print(json.dumps({
+            "decision": "continue",
+            "reason": f"Verification gate FAILED (Lint):\n{lint_msg}",
+            "touched_modules": touched_modules
+        }))
         sys.exit(0)
 
     # 3. Build Gate
     build_ok, build_msg = check_build()
     if not build_ok:
-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Build):\n{build_msg}"}))
+        print(json.dumps({
+            "decision": "continue",
+            "reason": f"Verification gate FAILED (Build):\n{build_msg}",
+            "touched_modules": touched_modules
+        }))
         sys.exit(0)
 
-    # Green: allow stop
-    print(json.dumps({"decision": "allow"}))
+    notes.append(build_msg)
+
+    # Gate Allow
+    print(json.dumps({
+        "decision": "allow",
+        "touched_modules": touched_modules,
+        "notes": notes
+    }))
     sys.exit(0)
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import { Check, AlertCircle, Info, X } from "lucide-react";
 export type ToastVariant = "success" | "warning" | "danger" | "info";
 
 export interface ToastProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   message: string;
   variant?: ToastVariant;
   onClose?: () => void;
@@ -14,7 +14,7 @@ export interface ToastProps {
 }
 
 export const Toast = memo(function Toast({
-  isOpen,
+  isOpen = true,
   message,
   variant = "success",
   onClose,

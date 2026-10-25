@@ -153,7 +153,7 @@ export function CencomDeploymentActivityTab({
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <TrendingUp className="h-5 w-5 text-brand-500" />
             Deployment Activity & Personnel Movements
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
@@ -366,7 +366,7 @@ export function CencomDeploymentActivityTab({
                     <tr key={record.id} className="hover:bg-surface-hover/70 transition">
                       <td className="py-3 px-4 font-bold text-text-primary">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 font-bold text-[11px]">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-text-primary font-bold text-[11px]">
                             {record.applicantName.charAt(0)}
                           </div>
                           <div>
@@ -396,7 +396,7 @@ export function CencomDeploymentActivityTab({
 
                       <td className="py-3 px-3">
                         <div className="font-semibold text-text-primary flex items-center gap-1">
-                          <Store className="h-3 w-3 text-slate-400" />
+                          <Store className="h-3 w-3 text-text-muted" />
                           <span>{record.storeName}</span>
                         </div>
                         <div className="text-[10px] text-text-muted flex items-center gap-1 mt-0.5">
@@ -416,7 +416,7 @@ export function CencomDeploymentActivityTab({
                       <td className="py-3 px-3 font-mono text-xs text-text-secondary">
                         {record.hiredDate ? (
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-slate-400" />
+                            <Calendar className="h-3 w-3 text-text-muted" />
                             {record.hiredDate}
                           </span>
                         ) : (
@@ -428,10 +428,10 @@ export function CencomDeploymentActivityTab({
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
                             isPlantilla
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              ? "bg-pct-good-bg text-pct-good-text border-pct-good-border"
                               : isPending
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-blue-50 text-blue-700 border-blue-200"
+                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
+                              : "bg-surface-muted text-text-secondary border-border-default"
                           }`}
                         >
                           {isPlantilla ? (

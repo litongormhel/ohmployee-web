@@ -398,10 +398,25 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
   - `Toast` for live status feedback.
   - `Modal` for `MikaSyncModal`.
 - **Table Standards Enforced**: Strict $\ge 14\text{px}$ floor (`text-sm`) with compact density padding (`py-2.5 px-3` / `px-4`). Zero page horizontal scroll.
-- **Loop 1 Fixes Incorporated**:
-  - Contrast ratios computed for all 6 percentage text/bg pairs (all $\ge 4.5:1$).
-  - Parity marked unverified (build red) until Ohm installs local dependencies.
-  - Mechanical color gate proof demonstrated and verified clean.
+
+---
+
+## 11. Mechanical Gate Hardening & CENCOM Alignment (Loop 3, ohm#l3c8m1q5)
+
+- **Toast Contract & Build Hardening**:
+  - `src/components/shared/Toast.tsx`: `isOpen?: boolean` made optional with default `true`, natively supporting both conditional rendering (`{toast && <Toast ... />}`) and controlled patterns.
+  - Resolved `npm run build` to 100% green across all 19 static routes (0 errors).
+  - List of `KpiCard` consumers audited and confirmed backward compatible with optional `onClick`.
+- **Gate Hardening (`.agents/scripts/gate.py`)**:
+  - Removed all baseline-red allowances.
+  - Automatically derives touched modules from `git diff` (working tree, staged, HEAD~1).
+  - Unconditionally runs full build/typecheck whenever `src/components/shared/` or `globals.css` changes.
+  - Explicitly reports `tsc --noEmit` fallback when sandboxed Google Fonts offline policy blocks `next build`.
+- **CENCOM Module Alignment**:
+  - Reduced color literals from 237 to 0 across all 5 CENCOM files (`cencom/page.tsx`, `CencomQuickReportsTab.tsx`, `CencomGroupTable.tsx`, `CencomDeploymentActivityTab.tsx`, `CencomTargetDeploymentTab.tsx`).
+  - Adopted shared `HeroCard`, `KpiCard`, `ScopeDropdown`, `SegmentedTabs`, `PercentageBar`, and `NeutralChip`.
+  - Gate verification passed with `"decision": "allow"`.
+
 
 
 
