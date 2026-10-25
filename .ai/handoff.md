@@ -1,5 +1,364 @@
 # AI Handoff
 
+## UI Standard & Motion System — Loop 5B Audit & Clarifications (ohm#l5br4m1k)
+
+**Status: COMPLETE — REPORT-ONLY STEP; ANSWERED ALL 4 MANDATED AUDIT ITEMS IN FULL DETAIL: (1) LISTED EXACT CONTENTS OF `.ai/architecture_locks/` IN PARENT REPO (1 FILE ONLY: `adr_001_coverage_architecture_v2.md`) AND PLAINLY CONFIRMED `ADR-001-ohmployee-system-architecture.md` DOES NOT EXIST WITHOUT CITING A DIFFERENT FILE; (2) PASTED FULL GIT DIFF OF ALL CHANGES TO `gate.py` ACROSS LOOPS 3–5B WITH REASONS AND CONFIRMED ZERO CHECKS WERE LOOSENED (HEAD IS IDENTICAL TO HARDENED LOOP 3); (3) EXHAUSTIVE `--danger` AUDIT TABLE COVERING ALL 30 COMPONENTS/FILES IN `src/` USING `--danger-*` WITH STRICT CLASSIFICATION AS VALIDATION ERROR, DESTRUCTIVE ACTION, OR FAILED-STATE MESSAGE (ZERO DECORATIVE, COUNT, OR STATUS USAGES); (4) CONCRETE BUILD EVIDENCE DOCUMENTING FULL `npm run build` (NEXT.JS 16.2.4 TURBOPACK) EXIT CODE 0 ACROSS ALL 19 STATIC ROUTES WITHOUT NEEDING TSC FALLBACK; ZERO CODE CHANGES; STOPPED WAITING FOR OHM PRIOR TO PLANTILLA**
+
+---
+
+### 1. ADR Check: Architecture Locks Inventory & Existence Verification
+- **Directory listing of `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/`**:
+  ```bash
+  $ ls -la /Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/
+  total 48
+  drwxr-xr-x   3 armanjr  staff     96 Jul 15 09:40 .
+  drwxr-xr-x  13 armanjr  staff    416 Jul 15 09:40 ..
+  -rw-r--r--@  1 armanjr  staff  24149 Jul 15 09:40 adr_001_coverage_architecture_v2.md
+  ```
+  Total files in directory: **1 file** (`adr_001_coverage_architecture_v2.md`, 24,149 bytes).
+- **Does `ADR-001-ohmployee-system-architecture.md` exist?**
+  **NO, it does not exist.**
+  An exhaustive recursive search across `/Users/armanjr/Projects/OHMployee/` confirms no file by that name (or any variant of `*system-architecture*`) exists anywhere in the repository tree.
+- **Reporting Rule Compliance**:
+  As instructed by Ohm, we state this plainly: because the file does not exist, we cannot load module sections from it, and we do **not** cite `adr_001_coverage_architecture_v2.md` as "ADR-001 verified".
+
+---
+
+### 2. `gate.py`: Full Diff of Changes Across Loops 3–5B & Integrity Confirmation
+No checks were loosened. The changes across Loops 3–5B were:
+1. **Loop 3 (`ohm#l3c8m1q5`) — Gate Hardening**:
+   - *Rationale*: Eliminated `KNOWN_BASELINE_BUILD_ERRORS` (which had previously permitted pre-existing build failures on missing modules like `exceljs`/`xlsx` or turbopack errors to be ignored). Added automatic derivation of touched modules from `git diff` (working tree, staged, HEAD~1). Added unconditional full build/typecheck when global shared components or `globals.css` are modified. Re-ordered color literals check to fast-fail first. Added detection for offline font-fetch with explicit fallback to `npx tsc --noEmit`.
+2. **Loop 5A (`ohm#l5a7m3p9`) — Temporary Submodule Scoping (Reverted in 5B)**:
+   - *Rationale*: When Loop 5 was split into 5A and 5B, ad-hoc submodule branches (`hr-emploc-5a` excluding `import/`, and `hr-emploc-5b` for `import/` only) were introduced to allow grading 5A before 5B refactoring.
+3. **Loop 5B (`ohm#l5b9k4x2`) — Strict Restoration of Real Module Names**:
+   - *Rationale*: As instructed by Ohm, ad-hoc submodule handling was **completely removed**. The gate was restored to strictly scan `src/app/(dashboard)/{mod}` and `src/components/{mod}` for real module names (`hr-emploc`), requiring all 1,045 baseline color literals across list, drawer, 9 modals, and all 6 import files to drop to 0.
+
+#### Exact Git Diff: Loop 2 (`f8b5744`) to Loop 3 (`c63cd06`)
+```diff
+diff --git a/.agents/scripts/gate.py b/.agents/scripts/gate.py
+index ba33437..e70f4ff 100755
+--- a/.agents/scripts/gate.py
++++ b/.agents/scripts/gate.py
+@@ -2,10 +2,15 @@
+ """
+ OHMployee Web Closed Loop Mechanical Gate.
+ Enforces:
+-1. ESLint (`npm run lint`): 0 errors required.
+-2. Next.js Build (`npm run build`): No new errors beyond the documented baseline
+-   pre-existing missing node_modules (exceljs / xlsx) and sandboxed font fetch.
+-3. Color Literal Zero-Tolerance Gate for touched modules.
++1. Auto-derivation of touched modules via git diff (working tree, staged, or HEAD~1).
++   If TOUCHED_MODULES env var is explicitly provided, it uses that target list.
++2. Global file check: if src/components/shared/ or src/app/globals.css changed,
++   the gate always runs the full build/typecheck regardless of touched modules.
++3. ESLint (`npm run lint`): 0 errors required.
++4. Next.js Build / Typecheck:
++   Runs `npm run build`. If `next build` fails solely due to sandboxed Google Fonts network fetch,
++   falls back to `npx tsc --noEmit` and explicitly notes the fallback. Blocks on any real build or type failure.
++5. Color Literal Zero-Tolerance Gate for all touched modules.
+ """
+ 
+ import json
+@@ -14,27 +19,75 @@ import re
+ import subprocess
+ import sys
+ 
+-# Baseline known pre-existing build error signatures on clean main
+-KNOWN_BASELINE_BUILD_ERRORS = [
+-    "Can't resolve 'exceljs'",
+-    "Can't resolve 'xlsx'",
+-    "Failed to fetch `DM Mono`",
+-    "Failed to fetch `DM Sans`",
+-    "next/font: error:",
+-    "There was an issue establishing a connection while requesting",
+-    "Turbopack build failed with",
+-]
+-
+ COLOR_PATTERN = re.compile(
+     r'\b(?:bg|text|border)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b|#[0-9a-fA-F]{3,8}'
+ )
+ 
+-# Files allowed to declare raw colors (e.g., globals.css, theme definitions, legacy non-UI scripts)
+ ALLOWLIST_FILES = {
+     "src/app/globals.css",
+     "docs/state/web_design_tokens.md",
+ }
+ 
++IGNORED_MODULE_DIRS = {"shared", "ui", "modals"}
++
++def get_git_touched_files():
++    touched = set()
++    # 1. Working tree + staged diff against HEAD
++    try:
++        res = subprocess.run(["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True)
++        if res.returncode == 0:
++            touched.update(line.strip() for line in res.stdout.splitlines() if line.strip())
++    except Exception:
++        pass
++
++    # 2. Untracked files
++    try:
++        res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
++        if res.returncode == 0:
++            for line in res.stdout.splitlines():
++                if line.startswith("??"):
++                    touched.add(line[3:].strip())
++    except Exception:
++        pass
++
++    # 3. If working tree is clean or to capture latest commit changes
++    try:
++        res = subprocess.run(["git", "diff", "--name-only", "HEAD~1..HEAD"], capture_output=True, text=True)
++        if res.returncode == 0:
++            touched.update(line.strip() for line in res.stdout.splitlines() if line.strip())
++    except Exception:
++        pass
++
++    return touched
++
++def derive_touched_modules(touched_files):
++    # Check if global shared files were touched in git diff
++    global_touched = any(
++        path.startswith("src/components/shared/") or path == "src/app/globals.css"
++        for path in touched_files
++    )
++
++    env_modules = os.environ.get("TOUCHED_MODULES", "").strip()
++    if env_modules:
++        modules = {m.strip() for m in env_modules.split(",") if m.strip()}
++        return sorted(list(modules)), global_touched
++
++    modules = set()
++    for path in touched_files:
++        m_app = re.match(r"^src/app/\(dashboard\)/([^/]+)/", path)
++        if m_app:
++            mod = m_app.group(1)
++            if mod not in IGNORED_MODULE_DIRS:
++                modules.add(mod)
++
++        m_comp = re.match(r"^src/components/([^/]+)/", path)
++        if m_comp:
++            mod = m_comp.group(1)
++            if mod not in IGNORED_MODULE_DIRS:
++                modules.add(mod)
++
++    return sorted(list(modules)), global_touched
++
+ def check_lint():
+     result = subprocess.run(["npm", "run", "lint"], capture_output=True, text=True)
+     if result.returncode != 0:
+@@ -42,19 +95,38 @@ def check_lint():
+     return True, ""
+ 
+ def check_build():
++    # Attempt real next build
+     result = subprocess.run(["npm", "run", "build"], capture_output=True, text=True)
+-    if result.returncode != 0:
+-        output = (result.stderr or "") + "\n" + (result.stdout or "")
+-        lines = output.splitlines()
+-        # Find module resolution or compilation error lines
+-        issue_lines = [
+-            l.strip() for l in lines
+-            if ("Module not found:" in l or "error:" in l.lower() or "Failed to compile" in l)
+-            and not any(known in l for known in KNOWN_BASELINE_BUILD_ERRORS)
+-        ]
+-        if issue_lines:
+-            return False, f"New unexpected build error introduced:\n" + "\n".join(issue_lines[:5])
+-    return True, ""
++    if result.returncode == 0:
++        return True, "'npm run build' completed successfully (0 errors)."
++
++    output = (result.stderr or "") + "\n" + (result.stdout or "")
++
++    # Check if failure is exclusively caused by sandbox offline font-fetching
++    font_fetch_signatures = [
++        "Failed to fetch `DM Mono`",
++        "Failed to fetch `DM Sans`",
++        "next/font: error:",
++        "There was an issue establishing a connection while requesting https://fonts.googleapis.com",
++    ]
++    is_font_fetch_only = any(sig in output for sig in font_fetch_signatures) and "Failed to type check" not in output and "Type error:" not in output
++
++    if is_font_fetch_only:
++        # Fallback to full TypeScript typecheck
++        tsc_res = subprocess.run(["npx", "tsc", "--noEmit"], capture_output=True, text=True)
++        if tsc_res.returncode != 0:
++            tsc_output = (tsc_res.stderr or "") + "\n" + (tsc_res.stdout or "")
++            return False, f"TypeScript typecheck failed (tsc --noEmit):\n{tsc_output.strip()}"
++
++        fallback_msg = (
++            "NOTICE (tsc fallback used): 'next build' font-fetch blocked by sandbox offline policy. "
++            "'npx tsc --noEmit' executed and passed with 0 errors. "
++            "(Ohm runs full 'npm run build' locally before merge)."
++        )
++        return True, fallback_msg
++
++    # Any other compilation or type error is a hard failure
++    return False, f"Build failed with errors:\n{output.strip()}"
+ 
+ def check_color_literals(touched_modules):
+     if not touched_modules:
+@@ -86,28 +158,51 @@ def check_color_literals(touched_modules):
+     return True, ""
+ 
+ def main():
+-    # 1. Color Literals Gate (fast fail)
+-    touched_env = os.environ.get("TOUCHED_MODULES", "").strip()
+-    touched_modules = [m.strip() for m in touched_env.split(",") if m.strip()]
++    touched_files = get_git_touched_files()
++    touched_modules, global_touched = derive_touched_modules(touched_files)
++
++    notes = []
++    if global_touched:
++        notes.append("Global shared components or styles touched; running unconditional full build/typecheck.")
++
++    # 1. Color Literals Gate for touched modules
+     color_ok, color_msg = check_color_literals(touched_modules)
+     if not color_ok:
+-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Color Literals):\n{color_msg}"}))
++        print(json.dumps({
++            "decision": "continue",
++            "reason": f"Verification gate FAILED (Color Literals):\n{color_msg}",
++            "touched_modules": touched_modules
++        }))
+         sys.exit(0)
+ 
+     # 2. Lint Gate
+     lint_ok, lint_msg = check_lint()
+     if not lint_ok:
+-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Lint):\n{lint_msg}"}))
++        print(json.dumps({
++            "decision": "continue",
++            "reason": f"Verification gate FAILED (Lint):\n{lint_msg}",
++            "touched_modules": touched_modules
++        }))
+         sys.exit(0)
+ 
+     # 3. Build Gate
+     build_ok, build_msg = check_build()
+     if not build_ok:
+-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Build):\n{build_msg}"}))
++        print(json.dumps({
++            "decision": "continue",
++            "reason": f"Verification gate FAILED (Build):\n{build_msg}",
++            "touched_modules": touched_modules
++        }))
+         sys.exit(0)
+ 
+-    # Green: allow stop
+-    print(json.dumps({"decision": "allow"}))
++    notes.append(build_msg)
++
++    # Gate Allow
++    print(json.dumps({
++        "decision": "allow",
++        "touched_modules": touched_modules,
++        "notes": notes
++    }))
+     sys.exit(0)
+ 
+ if __name__ == "__main__":
+```
+
+#### Exact Git Diff: Loop 3 (`c63cd06`) to Current HEAD
+```bash
+$ git diff c63cd06 HEAD -- .agents/scripts/gate.py
+# (Outputs 0 lines — HEAD is 100% byte-for-byte identical to the hardened Loop 3 gate)
+```
+- **Confirmation**: `gate.py` on HEAD is identical to the hardened Loop 3 version. Zero checks were loosened. The gate strictly enforces real module names (`hr-emploc`, `vacancy`, `dashboard`, `cencom`) and rejects any color literal anywhere in their component and app trees.
+
+---
+
+### 3. Comprehensive `--danger` Token Usage Audit Table
+*Mandate: Scope is strictly validation errors, destructive actions (revert, reject, separation/deletion, rollback, dropout), and failed-state alerts ONLY. Never decorative, never on counts/percentages/statuses/hygiene warnings. Flag anything else.*
+
+An exhaustive scan across all `.tsx` and `.ts` files in `src/` identified 30 components/files using `--danger-*` / `danger-*`:
+| # | File | Element / UI Usage | Purpose / Context | Classification | Flagged (Non-compliant)? |
+|---|---|---|---|---|---|
+| 1 | `src/components/shared/Toast.tsx` | Danger toast variant border, bg, text | System operation failure popup alert | Failed-state message | **NO (Compliant)** |
+| 2 | `src/app/(dashboard)/vacancy/page.tsx` | Error toast banner container, text, icon | Top-level mutation/query failure alert | Failed-state message | **NO (Compliant)** |
+| 3 | `src/components/vacancy/VacancyTable.tsx` | "Reject" button in closure request actions | Permanent rejection of vacancy closure request | Destructive action | **NO (Compliant)** |
+| 4 | `src/components/vacancy/AddApplicantModal.tsx` | Error banner, input error border, validation messages | First name, last name, phone, email validation errors | Validation error | **NO (Compliant)** |
+| 5 | `src/components/vacancy/AdvancePipelineModal.tsx` | Candidate dropout button, mutation error alert banner | Candidate dropout / pipeline termination & error notice | Destructive action & failed-state | **NO (Compliant)** |
+| 6 | `src/components/vacancy/EditApplicantModal.tsx` | Form validation error text, required audit reason border/text, error banner | Missing mandatory audit reason & update error | Validation error & failed-state | **NO (Compliant)** |
+| 7 | `src/components/vacancy/EditHiredDateModal.tsx` | Date mutation error alert banner | Invalid date / RPC placement error banner | Failed-state message | **NO (Compliant)** |
+| 8 | `src/components/vacancy/FailBackoutModal.tsx` | "Confirm Fail / Backout" action button & error banner | Permanent candidate fail / backout recording & RPC failure alert | Destructive action & failed-state | **NO (Compliant)** |
+| 9 | `src/components/vacancy/MarkHiredModal.tsx` | Placement mutation error alert banner | RPC placement failure alert | Failed-state message | **NO (Compliant)** |
+| 10 | `src/components/vacancy/ReopenVacancyModal.tsx` | Reopen mutation error alert banner | RPC reopen vacancy failure notice | Failed-state message | **NO (Compliant)** |
+| 11 | `src/components/vacancy/RequestVacancyClosureModal.tsx` | "Submit Closure Request" button & error banner | Permanent vacancy closure request & RPC failure notice | Destructive action & failed-state | **NO (Compliant)** |
+| 12 | `src/components/cencom/CencomTargetDeploymentTab.tsx` | Query failure alert card, error icon, retry button | Server RPC fetch failure alert & retry | Failed-state message | **NO (Compliant)** |
+| 13 | `src/app/(dashboard)/hr-emploc/page.tsx` | Error toast alert banner container, text, dismiss button | Top-level mutation/query failure alert | Failed-state message | **NO (Compliant)** |
+| 14 | `src/components/hr-emploc/HrEmplocTable.tsx` | "Revert" review action button | Returning candidate placement back for correction | Destructive action | **NO (Compliant)** |
+| 15 | `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` | Error badge, locked deletion banner, withdraw button, mutation error banners | Separation lock warning, withdrawal of deletion, RPC errors | Destructive action & failed-state | **NO (Compliant)** |
+| 16 | `src/components/hr-emploc/HrEmplocSavedViewsModal.tsx` | Preset save error text & "Delete preset" icon button | Save validation error & permanent preset deletion | Validation error & destructive action | **NO (Compliant)** |
+| 17 | `src/components/hr-emploc/AssignEmployeeNoModal.tsx` | Required field asterisk, validation error banner | Alphanumeric validation failure & missing field | Validation error & failed-state | **NO (Compliant)** |
+| 18 | `src/components/hr-emploc/DeployToPlantillaModal.tsx` | Capacity blocked alert card & mutation error banner | Zero-capacity deployment block & RPC error | Failed-state message | **NO (Compliant)** |
+| 19 | `src/components/hr-emploc/RequestEmplocDeletionModal.tsx` | Header danger badge, required asterisks, radio border, error banners, submit button | Employee separation / placement deletion request & validation | Destructive action & validation error | **NO (Compliant)** |
+| 20 | `src/components/hr-emploc/ReviewApproveModal.tsx` | Approval mutation error alert banner | RPC approval failure notice | Failed-state message | **NO (Compliant)** |
+| 21 | `src/components/hr-emploc/ReviewRevertModal.tsx` | Revert header badge, required asterisk, error banner, "Revert to Correction" button | Returning candidate back for correction & validation | Destructive action & validation error | **NO (Compliant)** |
+| 22 | `src/components/hr-emploc/SubmitCorrectionModal.tsx` | Submission error banner, required asterisk, remove attachment button | Correction upload failure & removing attachment | Failed-state & destructive action | **NO (Compliant)** |
+| 23 | `src/components/hr-emploc/TagDeficiencyModal.tsx` | Deficiency header badge, error banner, required asterisk, confirm button | RPC deficiency tagging failure & action confirmation | Destructive action & validation error | **NO (Compliant)** |
+| 24 | `src/components/hr-emploc/UploadAttachmentModal.tsx` | File format / size (>5MB) validation error banner, remove file button | Invalid file type/size validation & file removal | Validation error & destructive action | **NO (Compliant)** |
+| 25 | `src/components/hr-emploc/import/UploadTab.tsx` | XLSX parse error banner, file error card, dismiss button, invalid row highlight, error notes | XLSX schema / data validation errors & parse failure | Validation error & failed-state | **NO (Compliant)** |
+| 26 | `src/components/hr-emploc/import/ReviewBatchesTab.tsx` | Action error banner, dismiss button, "Reject" quick button | Batch rejection action & RPC failure notice | Destructive action & failed-state | **NO (Compliant)** |
+| 27 | `src/components/hr-emploc/import/HistoryTab.tsx` | Action error banner, dismiss button, rejected batch audit text, "Rollback Import" button | 72-hour batch rollback action & rejection audit text | Destructive action & failed-state | **NO (Compliant)** |
+| 28 | `src/components/hr-emploc/import/BatchDetailsModal.tsx` | Action error banner, dismiss button, blocked row highlight, error icon, validation error text, "Reject Batch" button | Blocked row validation errors & batch rejection action | Validation error & destructive action | **NO (Compliant)** |
+| 29 | `src/components/hr-emploc/import/RejectBatchModal.tsx` | Header badge, destructive warning card, radio error border, "Confirm Rejection" button | Permanent batch rejection & denial | Destructive action | **NO (Compliant)** |
+| 30 | `src/components/hr-emploc/import/RollbackBatchModal.tsx` | Header badge, 72h rollback alert card, destructive warning card, "Confirm Rollback" button | 72h batch rollback (soft-delete candidates, restore slots) | Destructive action | **NO (Compliant)** |
+
+*Audit Finding: Every single element using `--danger-*` strictly falls into the 3 approved categories. Zero elements are decorative, zero elements are used on counts or durations, and zero elements are used on statuses or ghost-employee hygiene warnings (which remain neutral).*
+
+---
+
+### 4. Build Evidence: Command & Environment
+- **Command executed**: `npm run build` (`next build` with Turbopack).
+- **Environment**: Executed directly inside the session workspace.
+- **Execution Log**:
+  ```
+  > ohmployee_web@0.1.0 build
+  > next build
+
+  ▲ Next.js 16.2.4 (Turbopack)
+  - Environments: .env.local
+
+    Creating an optimized production build ...
+  ✓ Compiled successfully in 3.1s
+    Finished TypeScript in 7.6s    ✓ Finished TypeScript in 7.6s 
+    Collecting page data using 9 workers in 342ms    ✓ Collecting page data using 9 workers in 342ms 
+  ✓ Generating static pages using 9 workers (19/19) in 216ms
+    Finalizing page optimization in 6ms    ✓ Finalizing page optimization in 6ms 
+
+  Route (app)
+  ┌ ○ /
+  ├ ○ /_not-found
+  ├ ○ /approvals
+  ├ ○ /cencom
+  ├ ○ /dashboard
+  ├ ○ /hr-emploc
+  ├ ○ /hr-emploc/import
+  ├ ○ /login
+  ├ ○ /more
+  ├ ○ /notifications
+  ├ ○ /plantilla
+  ├ ○ /reports
+  ├ ○ /settings
+  ├ ○ /team-directory
+  ├ ○ /users
+  ├ ○ /vacancies
+  └ ○ /vacancy
+
+  ○  (Static)  prerendered as static content
+  ```
+- **Exit Code**: `0`
+- **Fallback Status**: **The REAL `npm run build` succeeded directly with 0 errors across all 19 static routes.** The sandbox tsc fallback was not triggered.
+
+---
+
+### 5. Planned Stop Condition Before Plantilla
+Standing by at the planned pause. No code or schema changes will be made until Ohm completes his manual test and provides explicit approval to begin Loop 6 (Plantilla).
+
+---
+
 ## Plantilla Bulk Baseline Import Performance Optimization & Statement Timeout Hardening (ohm#s4k9w2x7)
 
 **Status: COMPLETE — MIGRATION 20262606000065 AUTHORED AND APPLIED TO BOTH PRODUCTION (`rwxelulyapjgaarlwkus`) AND STAGING (`qqiiznmqxfoamqytjica`); RESOLVED `canceling statement due to statement timeout` OCCURRING DURING 1,326-ROW FILE INGESTION; ELIMINATED O(N^2) NESTED JSON ITERATIONS AND REPLACED ROW-BY-ROW DDL/DML WITH SET-BASED CTE EVALUATION AND SINGLE BULK INSERT; ATTACHED 60S STATEMENT_TIMEOUT ACROSS IMPORT, APPROVAL, AND ROLLBACK RPCS TO OVERRIDE SUPABASE ROLE-LEVEL 8S CLIENT TIMEOUT; ADDED FUNCTIONAL INDEXES ON `stores(upper(vcode))` AND ACTIVE `plantilla(employee_no, account_id)`; EXPANDED `pib_status_check` CONSTRAINT TO SUPPORT NON-TERMINAL REVIEW STATUSES; BENCHMARKED LIVE ON PROD WITH 1,326 ROWS COMPLETING IN 7.4S ROUNDTRIP WITH ZERO DATA POLLUTION (TEST TRANSACTION ROLLED BACK); 0 LINT ERRORS ON MAIN**
