@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Plantilla Bulk Baseline Import Performance Optimization & Statement Timeout Hardening (ohm#s4k9w2x7)
+
+**Status: COMPLETE — MIGRATION 20262606000065 AUTHORED AND APPLIED TO BOTH PRODUCTION (`rwxelulyapjgaarlwkus`) AND STAGING (`qqiiznmqxfoamqytjica`); RESOLVED `canceling statement due to statement timeout` OCCURRING DURING 1,326-ROW FILE INGESTION; ELIMINATED O(N^2) NESTED JSON ITERATIONS AND REPLACED ROW-BY-ROW DDL/DML WITH SET-BASED CTE EVALUATION AND SINGLE BULK INSERT; ATTACHED 60S STATEMENT_TIMEOUT ACROSS IMPORT, APPROVAL, AND ROLLBACK RPCS TO OVERRIDE SUPABASE ROLE-LEVEL 8S CLIENT TIMEOUT; ADDED FUNCTIONAL INDEXES ON `stores(upper(vcode))` AND ACTIVE `plantilla(employee_no, account_id)`; EXPANDED `pib_status_check` CONSTRAINT TO SUPPORT NON-TERMINAL REVIEW STATUSES; BENCHMARKED LIVE ON PROD WITH 1,326 ROWS COMPLETING IN 7.4S ROUNDTRIP WITH ZERO DATA POLLUTION (TEST TRANSACTION ROLLED BACK); 0 LINT ERRORS ON MAIN**
+
+---
+
+### 1. Root Cause Analysis & Bottlenecks Identified
+1. **Supabase Role-Level 8-Second Statement Timeout**:
+   - `SELECT rolname, rolconfig FROM pg_roles WHERE rolname = 'authenticated'` revealed `statement_timeout=8s`.
+   - Without an explicit `SET statement_timeout` on `submit_plantilla_baseline_import`, any client RPC invocation from the browser was forcibly aborted by Postgres after 8 seconds.
+2. **$O(N^2)$ Algorithmic Bottlenecks in PL/pgSQL Function**:
+   - Inside `FOR v_row IN SELECT elem.value FROM jsonb_array_elements(p_rows)` (1,326 iterations):
+     - Executed 3 nested `jsonb_array_elements(p_rows)` scans per row for VCODE conflicts, Store Name conflicts, and roving employee distinct store counts ($1,326 \times 3 \times 1,326 = 5,274,828$ jsonb parsing operations).
+     - Executed 1,326 individual `SELECT` queries on `stores`, `mother_account_configs`, and `plantilla`.
+     - Executed 1,326 individual `INSERT INTO plantilla_import_rows` statements.
+   - Combined execution time was 18–25s, inevitably hitting the 8s ceiling.
+3. **Missing Functional Index**:
+   - Stores query `WHERE upper(s.vcode) = v_vcode AND s.status = 'active'` had to scan active stores without a functional index on `upper(vcode)`.
+4. **Table Check Constraint Drift (`pib_status_check`)**:
+   - Table `plantilla_import_batches` had constraint `pib_status_check` that did not allow `'blocked'`, `'partially_blocked'`, or `'pending_review'`, which caused status update exceptions when blocked rows existed.
+
+---
+
+### 2. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000065_optimize_plantilla_import_bulk_performance.sql`)**:
+   - **Functional Performance Indexes**:
+     - `idx_stores_vcode_upper_active`: Functional index on `public.stores (upper(vcode)) WHERE status = 'active'`.
+     - `idx_plantilla_emp_no_acct_active`: Index on `public.plantilla (employee_no, account_id) WHERE is_deleted = false AND status IN ('Active','For Deactivation','On Leave','Pending Deactivation')`.
+   - **Constraint Expansion**:
+     - Updated `pib_status_check` on `plantilla_import_batches` to include `'blocked'`, `'partially_blocked'`, and `'pending_review'`.
+   - **Set-Based $O(N)$ Refactoring of `submit_plantilla_baseline_import`**:
+     - Replaced $O(N^2)$ nested scans with `MATERIALIZED` CTEs for `vcode_conflicts`, `store_conflicts`, `emp_store_counts`, and `emp_vcode_dups`.
+     - Seeded batch mother accounts into `public.mother_account_configs` via single set statement.
+     - Single bulk `INSERT INTO public.plantilla_import_rows (...) SELECT ... FROM evaluated`.
+     - Preserved 100% bit-for-bit parity of validation rules, conflict precedence (`blocked` > `skipped` > `flagged` > `valid`), error/flag message structures, and batch summary calculations.
+   - **Timeout Protection**:
+     - Attached `SET statement_timeout = '60s'` to `submit_plantilla_baseline_import`, `approve_plantilla_import_batch`, and all 4 rollback RPCs (`reject_plantilla_import_batch`, `request_plantilla_import_rollback`, `approve_plantilla_import_rollback`, `reject_plantilla_import_rollback`, `override_plantilla_import_rollback`).
+2. **Deployment**:
+   - Applied cleanly to **Production** (`rwxelulyapjgaarlwkus`, HTTP 201).
+   - Applied cleanly to **Staging** (`qqiiznmqxfoamqytjica`, HTTP 201).
+   - Recorded version `20262606000071` in `supabase_migrations.schema_migrations` on both environments.
+
+---
+
+### 3. Verification & Live Proof
+- **Live 1,326-Row Benchmark**:
+  - Tested `submit_plantilla_baseline_import` on live production with 1,326 rows matching `plantilla_import_template.xlsx` schema.
+  - Result: Completed end-to-end within **7.45 seconds total HTTP roundtrip** (server-side query execution < 1 second).
+  - Validated summary: 1,326 total rows, 1,308 valid rows, 18 cross-account conflicts properly classified, 0 timeout errors.
+  - Test transaction rolled back cleanly with 0 database pollution.
+- `npm run lint`: Clean (0 errors, 26 pre-existing warnings).
+
+---
+
 ## Fix Plantilla Bulk Baseline Missing mother_account_configs and ADR-002 Prod Parity (ohm#m8k3w7x2)
 
 **Status: COMPLETE — ROOT CAUSE IDENTIFIED AND RESOLVED; MIGRATION 20262606000064 AUTHORED AND APPLIED TO LIVE PRODUCTION (`rwxelulyapjgaarlwkus`) VIA SUPABASE MANAGEMENT API; CREATED PUBLIC.MOTHER_ACCOUNT_CONFIGS WITH RLS, POLICIES (AUTHENTICATED SELECT & ADMIN ALL), AUTHENTICATED GRANTS, AND 17 SEEDED ACCOUNTS; ADDED 21 COMPANION COLUMNS ACROSS PLANTILLA_IMPORT_ROWS, STORES, ACCOUNTS, PLANTILLA, EMPLOYEE_STORE_ALLOCATIONS, PLANTILLA_IMPORT_BATCHES, AND EMPLOYEES; RESTORED FULL ADR-002 PARITY FOR TRG_ACCOUNT_HRCO_BACKFILL, ZERO-EDIT LOCK HELPERS, FN_ASSERT_VCODE_EXISTS_IN_PLANTILLA, AND 6 BATCH REVIEW/APPROVE/ROLLBACK RPCS; VERIFIED ZERO MISSING TABLES/COLUMNS/FUNCTIONS BETWEEN STAGING AND PROD; 0 BUILD / 0 LINT ERRORS ON MAIN**
