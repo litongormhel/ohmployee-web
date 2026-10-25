@@ -1,5 +1,67 @@
 # AI Handoff
 
+## Fix Plantilla Bulk Baseline Missing mother_account_configs and ADR-002 Prod Parity (ohm#m8k3w7x2)
+
+**Status: COMPLETE — ROOT CAUSE IDENTIFIED AND RESOLVED; MIGRATION 20262606000064 AUTHORED AND APPLIED TO LIVE PRODUCTION (`rwxelulyapjgaarlwkus`) VIA SUPABASE MANAGEMENT API; CREATED PUBLIC.MOTHER_ACCOUNT_CONFIGS WITH RLS, POLICIES (AUTHENTICATED SELECT & ADMIN ALL), AUTHENTICATED GRANTS, AND 17 SEEDED ACCOUNTS; ADDED 21 COMPANION COLUMNS ACROSS PLANTILLA_IMPORT_ROWS, STORES, ACCOUNTS, PLANTILLA, EMPLOYEE_STORE_ALLOCATIONS, PLANTILLA_IMPORT_BATCHES, AND EMPLOYEES; RESTORED FULL ADR-002 PARITY FOR TRG_ACCOUNT_HRCO_BACKFILL, ZERO-EDIT LOCK HELPERS, FN_ASSERT_VCODE_EXISTS_IN_PLANTILLA, AND 6 BATCH REVIEW/APPROVE/ROLLBACK RPCS; VERIFIED ZERO MISSING TABLES/COLUMNS/FUNCTIONS BETWEEN STAGING AND PROD; 0 BUILD / 0 LINT ERRORS ON MAIN**
+
+---
+
+### 1. Root Cause Analysis & Live Schema Audit
+1. **The Issue:**
+   - When attempting to upload `plantilla_import_template.xlsx` in the Plantilla Bulk Baseline modal (`PlantillaImportModal.tsx`), the RPC call `submit_plantilla_baseline_import` crashed with:
+     `relation "public.mother_account_configs" does not exist (SQLSTATE 42P01)`.
+2. **Investigation Findings (Case B Confirmed — Missing Migration on Production):**
+   - Invariant 6 of ADR-002 establishes that `mother_account_configs` is an intentional configuration table required for penalty inheritance and account configuration baselines.
+   - Migration `20262606000053_adr002_plantilla_identity_and_governance.sql` authored this table, but was deployed only to live staging (`qqiiznmqxfoamqytjica`) and omitted from live production (`rwxelulyapjgaarlwkus`).
+   - Subsequent migration `20262606000061` deployed `submit_plantilla_baseline_import` to production, which unconditionally queried `public.mother_account_configs` to derive `with_penalty`.
+3. **Completeness Audit (Migrations 53–63 Staging vs. Prod):**
+   - Full schema diff between Staging and Prod revealed:
+     - **Missing Tables on Prod:** `public.mother_account_configs` (only table missing).
+     - **Missing Columns on Prod:** 21 companion columns:
+       - `plantilla_import_rows`: `mother_account`, `schedule_days`, `schedule_time`, `needs_hrco`
+       - `stores`: `mother_account`, `schedule_days`, `schedule_time`
+       - `accounts`: `mother_account`, `with_penalty`
+       - `plantilla`: `mother_account`, `schedule_days`, `schedule_time`, `needs_hrco`
+       - `employee_store_allocations`: `schedule_days`, `schedule_time`
+       - `plantilla_import_batches`: `rollback_rejected_by`, `rollback_rejected_at`, `approved_by_name`, `rejected_by_name`, `error_message`
+       - `employees`: `is_deleted`
+     - **Missing Functions on Prod:** `fn_assert_vcode_exists_in_plantilla`, `fn_trg_account_hrco_backfill`, `get_plantilla_import_first_modified_record`, `override_plantilla_import_rollback`, `reject_plantilla_import_rollback`, `safe_parse_date`, `safe_parse_numeric`.
+     - **Outdated Functions on Prod:** `approve_plantilla_import_batch`, `reject_plantilla_import_batch`, `request_plantilla_import_rollback`, `approve_plantilla_import_rollback`, `_import_records_modified_after_approval`.
+     - **Missing Trigger on Prod:** `trg_account_hrco_backfill` on `public.accounts`.
+
+---
+
+### 2. Changes Delivered
+1. **Migration Artifact (`supabase/migrations/20262606000064_fix_plantilla_mother_account_configs_and_columns.sql`)**:
+   - **`public.mother_account_configs`**: Table created with `mother_account` (PRIMARY KEY), `with_penalty` (boolean), `created_at`, `updated_at`.
+   - **RLS & Security Policies**:
+     - `ALTER TABLE public.mother_account_configs ENABLE ROW LEVEL SECURITY;`
+     - `mother_account_configs_select_authenticated` (`FOR SELECT TO authenticated USING (true)`).
+     - `mother_account_configs_admin_all` (`FOR ALL TO authenticated USING (public.i_have_full_access()) WITH CHECK (public.i_have_full_access())`).
+     - Grants: `GRANT SELECT, INSERT, UPDATE ON public.mother_account_configs TO authenticated;` and `GRANT ALL ON public.mother_account_configs TO service_role;`.
+   - **Idempotent Data Seeding**: Populated `mother_account_configs` from existing `accounts` and `stores` (`ON CONFLICT (mother_account) DO NOTHING`) — 17 active accounts seeded on prod.
+   - **Companion Column Guard (`ADD COLUMN IF NOT EXISTS`)**: Added all 21 missing columns across operational and tracking tables.
+   - **Functions & Triggers Synchronized with Staging**:
+     - Parsing helpers: `safe_parse_date`, `safe_parse_numeric`.
+     - HRCO reactive trigger: `fn_trg_account_hrco_backfill` and `trg_account_hrco_backfill` on `accounts`.
+     - Zero-edit lock helpers: `_import_records_modified_after_approval` (with 2s grace false-positive guard) and `get_plantilla_import_first_modified_record`.
+     - Downstream assertion: `fn_assert_vcode_exists_in_plantilla`.
+     - Batch review/approve/rollback RPCs: `approve_plantilla_import_batch`, `reject_plantilla_import_batch`, `request_plantilla_import_rollback`, `approve_plantilla_import_rollback`, `reject_plantilla_import_rollback`, `override_plantilla_import_rollback`.
+2. **Production Deployment (`rwxelulyapjgaarlwkus`)**:
+   - DDL executed successfully via Supabase Management API.
+   - Registered migration entry `20262606000070` (`fix_plantilla_mother_account_configs_and_columns`) in `supabase_migrations.schema_migrations`.
+
+---
+
+### 3. Verification & Live Proof
+- `public.mother_account_configs`: Verified present with 17 rows, RLS enabled, and 2 policies active.
+- Companion columns: All 21 columns verified present in `information_schema.columns`.
+- Functions: All 12 functions verified present in `pg_proc`.
+- Trigger: `trg_account_hrco_backfill` verified active on `accounts`.
+- `npm run lint`: Clean (0 errors, 26 preexisting warnings).
+
+---
+
 ## UI Standard & Motion System — Loop 5B HR Emploc Import Align & Checkpoint (ohm#l5b9k4x2)
 
 **Status: COMPLETE — LOOP 5B (HR EMPLOC IMPORT FLOW: UPLOADTAb, REVIEWBATCHESTAB, HISTORYTAB, BATCHDETAILSMODAL, REJECTBATCHMODAL, ROLLBACKBATCHMODAL) ALIGNED TO UI STANDARD; 100% OF EXCELJS PARSING, VALIDATION, BATCH RPCS, AND 72H ROLLBACK LOGIC PRESERVED READ-ONLY; BATCH COUNTS, ROW VALIDITY COUNTS, AND ROLLBACK COUNTDOWNS STRICTLY NEUTRALIZED; SUBMODAL STACKING AT Z-[70] WITH DISABLEBACKDROPCLICK, ISSUBMITTING, AND ISDIRTY GUARDS; COLOR LITERALS DROPPED FROM 351 TO EXACTLY 0 ACROSS IMPORT FILES (ENTIRE HR EMPLOC MODULE TREE NOW HAS 0 COLOR LITERALS); GATE.PY REVERTED TO STRICT REAL MODULE NAMES (HR-EMPLOC); CLOSED-LOOP MECHANICAL GATE PASSING WITH DECISION ALLOW AND FULL NPM RUN BUILD GREEN (0 ERRORS); STOPPED BEFORE PLANTILLA FOR OHM'S MANUAL TEST CHECKPOINT**

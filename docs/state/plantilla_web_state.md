@@ -609,6 +609,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - 8 Always-Required Store Columns: `GROUP_NAME`, `ACCOUNT_NAME`, `MOTHER_ACCOUNT`, `VCODE`, `STORE_NAME`, `AREA_PROVINCE`, `AREA_CITY`, `POSITION`.
   - 5 Conditionally-Required Employee Columns: `EMPLOYEE_NO`, `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `DATE_HIRED` (blank employee fields create valid vacant store baseline slots; partial employee fields without `EMPLOYEE_NO` hard-blocked).
   - Derived fields: `EMPLOYMENT_TYPE` (auto-computed stationary vs roving $1/N$ headcount) and `WITH_PENALTY` (auto-derived from `mother_account_configs`) removed from required input; backward-compatible if present in legacy files.
+  - Configuration Table & Production Parity (`mother_account_configs`, Migration `20262606000064`):
+    - Created `public.mother_account_configs` table with RLS, authenticated select policy, admin full access policy, and seeded 17 active accounts from stores/accounts.
+    - Synchronized 21 companion columns across `plantilla_import_rows`, `stores`, `accounts`, `plantilla`, `employee_store_allocations`, `plantilla_import_batches`, and `employees` on production.
+    - Full parity achieved across Staging and Production for `trg_account_hrco_backfill`, Zero-Edit lock helpers (`_import_records_modified_after_approval`, `get_plantilla_import_first_modified_record`), `fn_assert_vcode_exists_in_plantilla`, and 6 batch review/approve/rollback RPCs.
   - Strict Middle Name Validation: single-character initials (`"S"`, `"S."`) hard-blocked; full middle names ($\ge 2$ alpha chars) or explicit case-insensitive `"NA"`/`"N/A"` accepted.
   - ExcelJS Download Template Generator (`downloadPlantillaImportTemplate`):
     - Styled 8 Always Required Store Headers and 5 Conditionally Required Employee Headers in soft red fill (`#FFC7CE`), dark red bold font (`#9C0006`), centered, thin border.
