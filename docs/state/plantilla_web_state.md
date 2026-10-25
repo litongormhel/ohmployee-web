@@ -618,6 +618,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Expanded `pib_status_check` constraint on `plantilla_import_batches` to include `'blocked'`, `'partially_blocked'`, and `'pending_review'`.
     - Refactored `submit_plantilla_baseline_import` from $O(N^2)$ row-by-row nested JSON lookups to $O(N)$ set-based CTE aggregation with single bulk insert, reducing 1,326-row ingestion time from >25s to <1s.
     - Attached `SET statement_timeout = '60s'` to `submit_plantilla_baseline_import`, `approve_plantilla_import_batch`, and all 4 rollback RPCs, permanently preventing role-level 8s timeout aborts on large files.
+  - **Store Name Multi-VCODE Governance & Review Queue Scaling (Migration `20262606000066`)**:
+    - Relaxed `STORE_NAME is mapped to multiple different VCODEs in upload` from a hard block (`validation_errors`) to an advisory warning (`validation_flags` with flag `multiple_vcodes_per_store`), permitting motorized collection accounts (e.g., Alturas/BPI) with multiple collector VCODEs in a single municipality to be imported and approved.
+    - Retained strict hard-block corruption guard on the inverse check (`VCODE is mapped to multiple different STORE_NAMEs in upload`).
+    - Client Row Fetching Pagination (`dataControl.ts`): Implemented async while-loop in `fetchPlantillaImportRows` querying `get_plantilla_import_rows` in chunks of 1,000, removing the former 500-row cap and ensuring all 1,326+ rows are displayed in the Review Queue row inspector with 100% filter pill alignment.
+    - Filtered Batch Card Errors (`PlantillaImportModal.tsx`): Filtered `errorSummary` to exclude metric counters (`total_rows`, `valid_rows`, `flagged_rows`, etc.), displaying red error badges only for active conflict fields with count $> 0$.
   - Strict Middle Name Validation: single-character initials (`"S"`, `"S."`) hard-blocked; full middle names ($\ge 2$ alpha chars) or explicit case-insensitive `"NA"`/`"N/A"` accepted.
   - ExcelJS Download Template Generator (`downloadPlantillaImportTemplate`):
     - Styled 8 Always Required Store Headers and 5 Conditionally Required Employee Headers in soft red fill (`#FFC7CE`), dark red bold font (`#9C0006`), centered, thin border.

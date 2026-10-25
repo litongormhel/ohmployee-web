@@ -54,6 +54,30 @@ export interface PlantillaImportModalProps {
   onClose: () => void;
 }
 
+const METRIC_SUMMARY_KEYS = new Set([
+  "total_rows",
+  "valid_rows",
+  "flagged_rows",
+  "skipped_rows",
+  "blocked_rows",
+  "roving_detected",
+  "new_stores_count",
+  "existing_stores_count",
+  "existing_employees_count",
+  "over_20_store_warnings",
+]);
+
+function getActualErrorEntries(errorSummary?: Record<string, number | unknown>): [string, number][] {
+  if (!errorSummary || typeof errorSummary !== "object") return [];
+  return Object.entries(errorSummary)
+    .filter(([key, val]) => {
+      if (METRIC_SUMMARY_KEYS.has(key)) return false;
+      const num = Number(val);
+      return !isNaN(num) && num > 0;
+    })
+    .map(([key, val]) => [key, Number(val)]);
+}
+
 type TabType = "upload" | "review" | "history";
 
 export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalProps) {
@@ -807,19 +831,23 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                               <span>Rows: {batch.totalRows}</span>
                             </div>
 
-                            {batch.errorSummary && Object.keys(batch.errorSummary).length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                <span className="text-3xs text-rose-700 font-bold uppercase">Errors:</span>
-                                {Object.entries(batch.errorSummary).map(([f, cnt]) => (
-                                  <span
-                                    key={f}
-                                    className="rounded-md bg-rose-100 text-rose-800 text-3xs font-mono font-semibold px-2 py-0.5"
-                                  >
-                                    {f}: {cnt}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            {(() => {
+                              const errorEntries = getActualErrorEntries(batch.errorSummary);
+                              if (errorEntries.length === 0) return null;
+                              return (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                  <span className="text-3xs text-rose-700 font-bold uppercase">Errors:</span>
+                                  {errorEntries.map(([f, cnt]) => (
+                                    <span
+                                      key={f}
+                                      className="rounded-md bg-rose-100 text-rose-800 text-3xs font-mono font-semibold px-2 py-0.5"
+                                    >
+                                      {f}: {cnt}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
@@ -1344,13 +1372,15 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                       </div>
                     )}
 
-                    {historySelectedBatch.errorSummary &&
-                      Object.keys(historySelectedBatch.errorSummary).length > 0 && (
+                    {(() => {
+                      const errorEntries = getActualErrorEntries(historySelectedBatch.errorSummary);
+                      if (errorEntries.length === 0) return null;
+                      return (
                         <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-surface border border-border-subtle">
                           <span className="text-3xs text-rose-700 font-bold uppercase">
                             Field error breakdown:
                           </span>
-                          {Object.entries(historySelectedBatch.errorSummary).map(([f, cnt]) => (
+                          {errorEntries.map(([f, cnt]) => (
                             <span
                               key={f}
                               className="rounded-md bg-rose-100 text-rose-800 text-3xs font-mono font-semibold px-2 py-0.5"
@@ -1359,7 +1389,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             </span>
                           ))}
                         </div>
-                      )}
+                      );
+                    })()}
 
                     {/* Row Inspection in History */}
                     <div className="space-y-3 pt-2">

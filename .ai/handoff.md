@@ -1,5 +1,50 @@
 # AI Handoff
 
+## Plantilla Import Review Queue Fetch Pagination, Error Summary Cleanup & Multi-VCODE Store Name Governance (ohm#r7m2k9w5)
+
+**Status: COMPLETE — RESOLVED 500-ROW FETCH LIMIT IN REVIEW QUEUE ROW INSPECTOR BY IMPLEMENTING PAGINATED WHILE-LOOP IN `dataControl.ts` (RETRIEVING ALL 1,326+ ROWS); FILTERED RAW COUNT METRICS FROM DISPLAYING UNDER "ERRORS:" IN `PlantillaImportModal.tsx`; INVESTIGATED 916 BLOCKED ROWS IN BATCH `#ff1c4074` IDENTIFYING 346 MUNICIPALITY STORE NAMES SHARED BY DISTINCT MOTORIZED COLLECTOR VCODES; VERIFIED `public.stores` CONSTRAINTS (NO UNIQUE CONSTRAINT ON `store_name`) AND `approve_plantilla_import_batch` COMPATIBILITY (COMMITS `flagged` ROWS CLEANLY); CREATED AND APPLIED MIGRATION `20262606000066_relax_store_name_multivcode_rule.sql` TO PROD AND STAGING; RE-EVALUATED BATCH `#ff1c4074` IN-PLACE ON PROD UPDATING 914 ROWS TO FLAGGED AND ISOLATING 2 TRUE VCODE COLLISIONS; ESLINT 0 ERRORS; COMMITTED ON `main`**
+
+---
+
+### 1. Root Cause Analysis & Database Verification
+1. **Row Fetch Limit in Review Queue:**
+   - In `src/lib/queries/dataControl.ts`, `fetchPlantillaImportRows` previously queried `get_plantilla_import_rows` once with `p_limit: 500`.
+   - The RPC clamps page sizes to `LEAST(p_limit, 1000)` and expects callers to loop.
+   - Refactored `fetchPlantillaImportRows` to query in a `while (hasMore)` loop with `PAGE_SIZE = 1000`, fetching all pages until all rows are retrieved.
+2. **Raw Metrics Rendered as Red Error Pills:**
+   - In `src/components/more/PlantillaImportModal.tsx`, `batch.errorSummary` was mapped directly to error pills without filtering out general metric counters (`total_rows`, `valid_rows`, `flagged_rows`, `skipped_rows`, `blocked_rows`, `roving_detected`, `new_stores_count`, `existing_stores_count`).
+   - Added helper `getActualErrorEntries` to omit metric counters and display only genuine conflict keys with count $> 0$.
+3. **Investigation of `public.stores` Constraints & `approve_plantilla_import_batch`:**
+   - Checked `public.stores` indexes and constraints: unique indexes exist strictly on `vcode` (`stores_vcode_active_uidx`, `ux_stores_active_vcode_lower`). Zero unique indexes or constraints exist on `store_name` or `(account_id, store_name)`. Multiple stores can safely share the same `store_name` with distinct VCODEs.
+   - Checked `approve_plantilla_import_batch`: keys store creation strictly on `DISTINCT ON (vcode)` and processes committable rows where `validation_status IN ('valid', 'flagged')`. Downgrading the multi-VCODE store check to an advisory warning permits these rows to commit cleanly without raising `23505` unique errors.
+4. **Analysis of 916 Blocked Rows in Batch `#ff1c4074`:**
+   - In the Alturas/BPI template, 346 town store names (e.g., `CALINOG, ILOILO`, `AKLAN KALIBO`) each map to multiple distinct collector VCODEs, totaling 916 rows.
+   - 914 of these rows had solely the multi-VCODE store name check.
+   - 2 rows (Row 813 `TANAUAN LEYTE` and Row 900 `ISABEL, LEYTE`) shared the same VCODE `VCBPIG1_1092`, representing a true VCODE collision.
+   - Migration `20262606000066_relax_store_name_multivcode_rule.sql` moves `STORE_NAME is mapped to multiple different VCODEs in upload` to `validation_flags` with flag `multiple_vcodes_per_store` (status `flagged`), while retaining the inverse corruption check (`VCODE is mapped to multiple different STORE_NAMEs in upload`) as a hard block (`validation_errors`, status `blocked`).
+5. **In-Place Re-evaluation of Batch `#ff1c4074` on Prod:**
+   - Executed SQL re-evaluation updating the 914 rows to `validation_status = 'flagged'` with the advisory flag, retaining the 2 true collision rows as `blocked`.
+   - Updated batch `#ff1c4074` summary: `total_rows: 1326`, `valid_rows: 410`, `flagged_rows: 914`, `blocked_rows: 2`, `new_stores_count: 1324`.
+
+---
+
+### 2. Files Modified & Migrations Applied
+- `src/lib/queries/dataControl.ts`: Implemented paginated async while-loop in `fetchPlantillaImportRows`.
+- `src/components/more/PlantillaImportModal.tsx`: Added `getActualErrorEntries` filter for batch card error pills and history tab error breakdown.
+- `supabase/migrations/20262606000066_relax_store_name_multivcode_rule.sql`: Created migration relaxing multi-VCODE store rule in `submit_plantilla_baseline_import`.
+- Applied migration `66` to Production (`rwxelulyapjgaarlwkus`, schema migration version `20262606000072`) and Staging (`qqiiznmqxfoamqytjica`).
+- `docs/state/plantilla_web_state.md`: Documented migration `66` and Review Queue pagination.
+- `.ai/briefing.md`: Updated Last Completed Tasks list.
+
+---
+
+### 3. Verification & Quality Gates
+- `npm run lint`: Passed with 0 errors (26 pre-existing warnings in unrelated files).
+- Verified `get_plantilla_import_rows` paginated retrieval: Page 1 returned 1,000 rows, Page 2 returned 326 rows, total 1,326 rows.
+- Re-evaluation audit: 410 Valid, 914 Flagged, 2 Blocked (genuine VCODE collision on `VCBPIG1_1092`).
+
+---
+
 ## UI Standard & Motion System — Loop 5B Audit & Clarifications (ohm#l5br4m1k)
 
 **Status: COMPLETE — REPORT-ONLY STEP; ANSWERED ALL 4 MANDATED AUDIT ITEMS IN FULL DETAIL: (1) LISTED EXACT CONTENTS OF `.ai/architecture_locks/` IN PARENT REPO (1 FILE ONLY: `adr_001_coverage_architecture_v2.md`) AND PLAINLY CONFIRMED `ADR-001-ohmployee-system-architecture.md` DOES NOT EXIST WITHOUT CITING A DIFFERENT FILE; (2) PASTED FULL GIT DIFF OF ALL CHANGES TO `gate.py` ACROSS LOOPS 3–5B WITH REASONS AND CONFIRMED ZERO CHECKS WERE LOOSENED (HEAD IS IDENTICAL TO HARDENED LOOP 3); (3) EXHAUSTIVE `--danger` AUDIT TABLE COVERING ALL 30 COMPONENTS/FILES IN `src/` USING `--danger-*` WITH STRICT CLASSIFICATION AS VALIDATION ERROR, DESTRUCTIVE ACTION, OR FAILED-STATE MESSAGE (ZERO DECORATIVE, COUNT, OR STATUS USAGES); (4) CONCRETE BUILD EVIDENCE DOCUMENTING FULL `npm run build` (NEXT.JS 16.2.4 TURBOPACK) EXIT CODE 0 ACROSS ALL 19 STATIC ROUTES WITHOUT NEEDING TSC FALLBACK; ZERO CODE CHANGES; STOPPED WAITING FOR OHM PRIOR TO PLANTILLA**

@@ -321,15 +321,32 @@ export async function fetchPlantillaImportBatches(status?: string): Promise<Plan
 
 export async function fetchPlantillaImportRows(batchId: string): Promise<PlantillaImportPreviewRow[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_plantilla_import_rows", {
-    p_batch_id: batchId,
-    p_offset: 0,
-    p_limit: 500,
-  });
-  if (error) throw error;
-  if (!Array.isArray(data)) return [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  let allRows: Record<string, unknown>[] = [];
+  let hasMore = true;
 
-  return (data as Record<string, unknown>[]).map((row) => {
+  while (hasMore) {
+    const { data, error } = await supabase.rpc("get_plantilla_import_rows", {
+      p_batch_id: batchId,
+      p_offset: offset,
+      p_limit: PAGE_SIZE,
+    });
+    if (error) throw error;
+    if (!Array.isArray(data) || data.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    allRows = allRows.concat(data as Record<string, unknown>[]);
+    if (data.length < PAGE_SIZE) {
+      hasMore = false;
+    } else {
+      offset += PAGE_SIZE;
+    }
+  }
+
+  return allRows.map((row) => {
     const rawErrors = Array.isArray(row.validation_errors) ? row.validation_errors : [];
     const validationErrors: PlantillaRowValidationError[] = rawErrors.map((e) => {
       if (typeof e === "object" && e !== null) {
