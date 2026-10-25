@@ -137,21 +137,21 @@ export function CencomTargetDeploymentTab({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 text-text-primary shadow-xs">
+      <div className="rounded-xl border border-danger-border bg-danger-bg p-6 text-danger-text shadow-xs">
         <div className="flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-text-secondary" />
+          <ShieldAlert className="h-6 w-6 text-danger-text" />
           <div>
-            <h3 className="font-semibold text-text-primary">
+            <h3 className="font-semibold text-danger-text">
               Unable to load Target Deployment data
             </h3>
-            <p className="text-xs text-text-muted mt-0.5">
+            <p className="text-xs opacity-90 mt-0.5">
               {error?.message || "An error occurred while fetching vacancy aging records."}
             </p>
           </div>
         </div>
         <button
           onClick={handleRefresh}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-card px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs transition hover:bg-surface-hover cursor-pointer"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-danger-border bg-surface-base px-3 py-1.5 text-xs font-semibold text-danger-text shadow-2xs transition hover:bg-danger-bg cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Retry

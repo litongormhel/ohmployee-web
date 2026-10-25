@@ -100,15 +100,8 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
   }
 }
 
-function getSlaColorClass(days: number): string {
-  if (days <= 30) {
-    return "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700";
-  }
-  if (days <= 60) {
-    return "border border-amber-200/80 bg-amber-50 font-medium text-amber-700";
-  }
-  return "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700";
-}
+const SLA_BADGE_CLASS =
+  "border border-border-default bg-surface-muted font-mono font-medium text-text-secondary";
 
 export function HrEmplocTable({
   queue,
@@ -270,9 +263,7 @@ export function HrEmplocTable({
                     {/* 6. SLA (Aging) */}
                     <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${getSlaColorClass(
-                          row.slaElapsedDays
-                        )}`}
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${SLA_BADGE_CLASS}`}
                       >
                         {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
                       </span>
@@ -283,7 +274,7 @@ export function HrEmplocTable({
                       <td className="border-b border-table-rule px-4 py-2.5 max-w-[200px]">
                         {row.deficiencySummary ? (
                           <span
-                            className="inline-block truncate max-w-[190px] rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 border border-amber-200/60"
+                            className="inline-block truncate max-w-[190px] rounded bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-default"
                             title={row.deficiencySummary}
                           >
                             {row.deficiencySummary}
@@ -306,7 +297,7 @@ export function HrEmplocTable({
                       <td className="border-b border-table-rule px-4 py-2.5 text-table-text max-w-[200px]">
                         {row.notes ? (
                           <span
-                            className="inline-block truncate max-w-[190px] text-xs text-gray-700 italic"
+                            className="inline-block truncate max-w-[190px] text-xs text-text-secondary italic"
                             title={row.notes}
                           >
                             &ldquo;{row.notes}&rdquo;
@@ -327,7 +318,7 @@ export function HrEmplocTable({
                               e.stopPropagation();
                               onDownloadAttachment?.(row);
                             }}
-                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 border border-blue-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-colors cursor-pointer"
                             title={`Download ${row.attachmentFileName || "attachment"}`}
                           >
                             <Download className="h-3.5 w-3.5 shrink-0" />
@@ -336,7 +327,7 @@ export function HrEmplocTable({
                             </span>
                           </button>
                         ) : (
-                          <span className="text-xs text-gray-400 font-medium">N/A</span>
+                          <span className="text-xs text-text-muted font-medium">N/A</span>
                         )}
                       </td>
                     )}
@@ -369,7 +360,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onForCorrection(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
                                 aria-label={`Return for correction for ${row.applicantName}`}
                               >
                                 <AlertCircle className="h-3.5 w-3.5" />
@@ -389,7 +380,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onUploadAttachment(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white hover:bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
                                 aria-label={`Upload document for ${row.applicantName}`}
                                 title="Upload supporting document"
                               >
@@ -405,7 +396,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onSubmitCorrection(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-brand-600 hover:bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-500 hover:bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 aria-label={`Submit correction for ${row.applicantName}`}
                                 title="Submit correction with notes to Review"
                               >
@@ -426,7 +417,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onApproveReview(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-500 hover:bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 aria-label={`Approve correction review for ${row.applicantName}`}
                                 title="Approve correction"
                               >
@@ -442,7 +433,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onRevertReview(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md border border-danger-border bg-surface px-2.5 py-1 text-xs font-semibold text-danger-text shadow-2xs hover:bg-danger-bg transition-colors cursor-pointer"
                                 aria-label={`Revert review for ${row.applicantName}`}
                                 title="Revert back to Correction"
                               >
@@ -463,7 +454,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onMoveToPlantilla(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-500 hover:bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 aria-label={`Move ${row.applicantName} to Plantilla`}
                                 title="Deploy candidate to Plantilla"
                               >
@@ -479,7 +470,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onAssignEmployeeNo(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
                                 aria-label={`Assign Emploc number for ${row.applicantName}`}
                                 title="Assign Employee / Emploc number"
                               >

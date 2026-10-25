@@ -37,9 +37,9 @@ export const Toast = memo(function Toast({
     },
     danger: {
       icon: AlertCircle,
-      border: "border-pct-bad-border",
-      bg: "bg-pct-bad-bg",
-      text: "text-pct-bad-text",
+      border: "border-danger-border",
+      bg: "bg-danger-bg",
+      text: "text-danger-text",
     },
     info: {
       icon: Info,
@@ -55,7 +55,7 @@ export const Toast = memo(function Toast({
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border ${config.border} ${config.bg} px-4 py-3 text-xs font-semibold ${config.text} shadow-lg animate-fade-in ${className}`}
+      className={`fixed bottom-6 right-6 z-[100] flex items-center gap-2.5 rounded-xl border ${config.border} ${config.bg} px-4 py-3 text-xs font-semibold ${config.text} shadow-lg animate-fade-in ${className}`}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span>{message}</span>

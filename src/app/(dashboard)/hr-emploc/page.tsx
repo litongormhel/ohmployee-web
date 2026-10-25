@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
+import { Modal } from "@/components/shared/Modal";
 import {
   HrEmplocTable,
   type HrEmplocQueue,
@@ -420,7 +421,7 @@ export default function HrEmplocPage() {
   const isAnyFilterActive = Boolean(searchDraft.trim() || search || accountId || groupId);
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-text-primary">
       <AdminPageHeader
         categoryTag="ADMIN PANEL"
         moduleName="HR Emploc"
@@ -439,10 +440,10 @@ export default function HrEmplocPage() {
         <div
           role="status"
           aria-live="polite"
-          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+          className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-muted px-4 py-3 text-sm text-text-primary shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-xs">
               ✓
             </span>
             <span className="font-medium text-xs sm:text-sm">{successToast.message}</span>
@@ -450,7 +451,7 @@ export default function HrEmplocPage() {
           <button
             type="button"
             onClick={() => setSuccessToast(null)}
-            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
             aria-label="Dismiss notification"
           >
             ✕
@@ -462,18 +463,18 @@ export default function HrEmplocPage() {
         <div
           role="alert"
           aria-live="assertive"
-          className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+          className="flex items-center justify-between gap-3 rounded-lg border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-text shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-xs">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-base text-danger-text font-bold text-xs border border-danger-border">
               ✕
             </span>
-            <span className="font-medium text-xs sm:text-sm">{errorToast.message}</span>
+            <span className="font-semibold text-xs sm:text-sm">{errorToast.message}</span>
           </div>
           <button
             type="button"
             onClick={() => setErrorToast(null)}
-            className="rounded p-1 text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors cursor-pointer"
+            className="rounded p-1 text-danger-text hover:bg-danger-bg/50 transition-colors cursor-pointer"
             aria-label="Dismiss error notification"
           >
             ✕
@@ -501,7 +502,7 @@ export default function HrEmplocPage() {
                 className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
                     ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                    : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                 }`}
                 onClick={() => updateQueue(tab.value)}
                 role="tab"
@@ -521,7 +522,7 @@ export default function HrEmplocPage() {
                   className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                     isActive
                       ? "bg-brand-600 text-white"
-                      : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                      : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >
                   {summaryQuery.isLoading ? "–" : count}
@@ -590,7 +591,7 @@ export default function HrEmplocPage() {
                       <span className="text-xs font-semibold group-hover:text-brand-700">
                         Export Current View
                       </span>
-                      <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      <span className="font-mono text-[11px] font-medium text-text-muted bg-surface-muted border border-border-subtle rounded px-1.5 py-0.5">
                         {summaryQuery.isLoading ? "–" : (tabCounts[queue] ?? 0)}
                       </span>
                     </div>
@@ -612,7 +613,7 @@ export default function HrEmplocPage() {
                       <span className="text-xs font-semibold group-hover:text-brand-700">
                         Export Masterlist
                       </span>
-                      <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                      <span className="font-mono text-[11px] font-medium text-text-muted bg-surface-muted border border-border-subtle rounded px-1.5 py-0.5">
                         {summaryQuery.isLoading ? "–" : totalMasterlistCount}
                       </span>
                     </div>
@@ -678,7 +679,7 @@ export default function HrEmplocPage() {
           {/* Group Selector */}
           <select
             aria-label="Group filter"
-            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-border-strong transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             disabled={blocked}
             onChange={(e) => {
               setGroupId(e.target.value);
@@ -698,7 +699,7 @@ export default function HrEmplocPage() {
           {/* Account Selector */}
           <select
             aria-label="Account filter"
-            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-border-strong transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             disabled={blocked}
             onChange={(e) => {
               setAccountId(e.target.value);
@@ -723,7 +724,7 @@ export default function HrEmplocPage() {
         <div className="flex items-center gap-2 shrink-0">
           {queue === "ready" && canBulkDeployAndExport && (
             <button
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-brand-500 px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-600 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={bulkMoveMutation.isPending || rows.length === 0}
               onClick={handleBulkMove}
               type="button"
@@ -927,63 +928,51 @@ export default function HrEmplocPage() {
 
       {/* Bulk Move Summary Dialog */}
       {bulkResultModal?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => setBulkResultModal(null)}
-          />
-          <div className="relative z-10 w-full max-w-md bg-white rounded-lg border border-gray-200 shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5 bg-emerald-50/50">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Bulk Deploy Summary</h3>
+        <Modal
+          isOpen={bulkResultModal.isOpen}
+          onClose={() => setBulkResultModal(null)}
+          title="Bulk Deploy Summary"
+          subtitle="Bulk move process completed for ready compliance records"
+          icon={CheckCircle2}
+          maxWidthClass="max-w-md"
+          footer={
+            <button
+              type="button"
+              onClick={() => setBulkResultModal(null)}
+              className="rounded-lg bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600 transition-colors cursor-pointer shadow-2xs"
+            >
+              Done
+            </button>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl border border-border-default bg-surface-muted p-3 text-center">
+                <span className="text-[10px] uppercase font-semibold text-text-muted block">Moved</span>
+                <span className="text-xl font-bold tabular-nums text-text-primary">{bulkResultModal.moved}</span>
+              </div>
+              <div className="rounded-xl border border-border-default bg-surface-muted p-3 text-center">
+                <span className="text-[10px] uppercase font-semibold text-text-muted block">Skipped / Capacity</span>
+                <span className="text-xl font-bold tabular-nums text-text-primary">{bulkResultModal.skipped}</span>
               </div>
             </div>
-            <div className="p-5 space-y-3">
-              <p className="text-xs text-gray-600">
-                Bulk move process completed for ready compliance records:
-              </p>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-center">
-                  <span className="text-[10px] uppercase font-semibold text-emerald-700 block">Moved</span>
-                  <span className="text-xl font-bold text-emerald-900">{bulkResultModal.moved}</span>
-                </div>
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center">
-                  <span className="text-[10px] uppercase font-semibold text-amber-700 block">Skipped / Capacity</span>
-                  <span className="text-xl font-bold text-amber-900">{bulkResultModal.skipped}</span>
-                </div>
+            {bulkResultModal.results.length > 0 && (
+              <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border-subtle p-2 text-xs">
+                {bulkResultModal.results.map((r, idx) => (
+                  <div
+                    key={r.hrEmplocId || `res-${idx}`}
+                    className="flex justify-between items-center py-1 border-b border-border-subtle/50 last:border-none"
+                  >
+                    <span className="font-mono text-text-secondary truncate max-w-[200px]">{r.hrEmplocId}</span>
+                    <span className="font-semibold capitalize text-text-primary">
+                      {r.result} {r.error ? `(${r.error})` : ""}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {bulkResultModal.results.length > 0 && (
-                <div className="max-h-40 overflow-y-auto space-y-1 rounded border border-gray-100 p-2 text-[11px]">
-                  {bulkResultModal.results.map((r, idx) => (
-                    <div
-                      key={r.hrEmplocId || `res-${idx}`}
-                      className="flex justify-between items-center py-0.5 border-b border-gray-50 last:border-none"
-                    >
-                      <span className="font-mono text-gray-600 truncate max-w-[200px]">{r.hrEmplocId}</span>
-                      <span
-                        className={`font-semibold capitalize ${
-                          r.result === "moved" ? "text-emerald-700" : "text-amber-700"
-                        }`}
-                      >
-                        {r.result} {r.error ? `(${r.error})` : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end border-t border-gray-100 px-5 py-3 bg-gray-50/50">
-              <button
-                type="button"
-                onClick={() => setBulkResultModal(null)}
-                className="rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

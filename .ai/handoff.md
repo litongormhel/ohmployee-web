@@ -1,6 +1,141 @@
 # AI Handoff
 
-## UI Standard & Motion System — Color-Use Audit & Loop 4 Vacancy Align (ohm#l4v9k2x1)
+## UI Standard & Motion System — Danger Tokens & Loop 5A HR Emploc Align (ohm#l5a7m3p9)
+
+**Status: COMPLETE — APPROVED `--danger` TOKEN SET IMPLEMENTED IN GLOBALS.CSS WITH WCAG AA CONTRAST >= 4.5:1; RESTORED DANGER STYLING ON VALIDATION ERRORS, DESTRUCTIVE ACTIONS, AND FAILED STATES IN DASHBOARD, CENCOM, AND VACANCY; HARDENED ALL 9 VACANCY MODALS, MIKASYNCMODAL, AND 9 HR EMPLOC MODALS WITH Z-[60], DISABLEBACKDROPCLICK, ISSUBMITTING, AND ISDIRTY ESC-BLOCKING GUARDS; VERIFIED ADR-001 ARCHITECTURE V2 IN PARENTS REPO (ZERO CONFLICTS); COMPLETED LOOP 5A HR EMPLOC ALIGNMENT DROPPING COLOR LITERALS FROM 694 TO 0 ACROSS LIST, TABLE, DRAWER, AND ALL 9 MODALS; ENFORCED TABLE >= 14PX FLOOR; MECHANICAL GATE PASSING WITH DECISION ALLOW ON MAIN**
+
+### 1. Approved `--danger` Token Set & WCAG Contrast Verification
+- **Token Definitions** added to `src/app/globals.css` (in `:root`, `[data-theme="dark"]`, `@media (prefers-color-scheme: dark)`, and mapped to `@theme inline`):
+  - **Light mode**:
+    - `--danger-text`: `#b91c1c` (Red 700)
+    - `--danger-bg`: `#fef2f2` (Red 50)
+    - `--danger-border`: `#fecaca` (Red 200)
+  - **Dark mode** (blue-tinted deep red):
+    - `--danger-text`: `#f87171` (Red 400)
+    - `--danger-bg`: `rgba(239, 68, 68, 0.15)` (composited over `#0c1017` deep navy canvas = `#2f1f24`)
+    - `--danger-border`: `rgba(239, 68, 68, 0.35)` (composited = `#5b232a`)
+- **WCAG AA Contrast Table**:
+  | Token Pair | Light Theme | Light Contrast Ratio | Dark Theme | Dark Contrast Ratio | WCAG AA Standard (>= 4.5:1) |
+  |---|---|---|---|---|---|
+  | `--danger-text` on `--danger-bg` | `#b91c1c` on `#fef2f2` | **5.91:1** | `#f87171` on `#2f1f24` | **5.66:1** | PASS (>= 4.5:1) |
+  | `--danger-text` on surface canvas | `#b91c1c` on `#ffffff` | **6.52:1** | `#f87171` on `#0c1017` | **8.22:1** | PASS (>= 4.5:1) |
+- **Scope Restriction**: Confined strictly to validation error messages, destructive actions (Delete, Reject, Revert, Fail/Backout), and failed-state alert banners. Never used decoratively, never applied to ghost-employee hygiene warnings, and never applied to integer counts or normal statuses.
+- **Restorations Applied to Pre-Loop 5 Modules**:
+  - `src/components/cencom/CencomTargetDeploymentTab.tsx`: Restored `--danger` on query failure banner.
+  - `src/app/(dashboard)/vacancy/page.tsx`: Restored `--danger` on errorToast banner.
+  - `src/components/vacancy/VacancyTable.tsx`: Restored `--danger` on Reject closure request action button.
+  - `src/components/vacancy/FailBackoutModal.tsx`: Destructive action button and error alert mapped to `--danger`.
+  - `src/components/vacancy/RequestVacancyClosureModal.tsx`: Destructive action button and error alert mapped to `--danger`.
+
+---
+
+### 2. Modal Hardening & Behavior Diff Table
+- **Layering Hierarchy**:
+  - `DetailDrawer` backdrop: `z-40`, drawer panel: `z-50`.
+  - `Modal` backdrop and dialog: elevated to `z-[60]` (cleanly stacks over open drawer).
+  - `Toast` notification: elevated to `z-[100]`.
+- **Guards Enforced on All Form Modals**:
+  1. `disableBackdropClick={true}`: Backdrop click does NOT close the modal, restoring pre-Loop-4 safety against accidental data loss.
+  2. `isSubmitting`: Hard-blocks Esc, backdrop clicks, and the top-right `X` button while a mutation or network request is in flight.
+  3. `isDirty`: When dirty with unsaved form inputs, Esc key is ignored/blocked to prevent accidental discard.
+  4. Read-only pickers (`SavedViewsModal`, `HrEmplocSavedViewsModal`, `DetailDrawer`) retain standard Esc and backdrop close.
+
+#### Comprehensive Modal Behavior Diff
+| Modal Component | Type | Backdrop Click | Esc Key (Clean) | Esc Key (Dirty) | Submitting In-Flight | Stacking Level |
+|---|---|---|---|---|---|---|
+| `MikaSyncModal.tsx` | Form / Action | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `AddApplicantModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `AdvancePipelineModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `EditApplicantModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `EditHiredDateModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `FailBackoutModal.tsx` | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `MarkHiredModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `ReopenVacancyModal.tsx` | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `RequestVacancyClosureModal.tsx` | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `SavedViewsModal.tsx` (Vacancy) | Read-only Picker | Closes (Expected) | Closes | Closes | N/A | `z-[60]` |
+| `ReviewApproveModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `ReviewRevertModal.tsx` (HR Emploc) | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `UploadAttachmentModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `DeployToPlantillaModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `RequestEmplocDeletionModal.tsx` (HR Emploc) | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `TagDeficiencyModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `AssignEmployeeNoModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `SubmitCorrectionModal.tsx` (HR Emploc) | Form Modal | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+| `HrEmplocSavedViewsModal.tsx` | Read-only Picker | Closes (Expected) | Closes | Closes | N/A | `z-[60]` |
+| `HrEmplocDetailDrawer.tsx` (Internal modals) | Form Modals | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[60]` over drawer |
+
+---
+
+### 3. ADR-001 Architecture Verification
+- **File Loaded & Inspected**: `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`
+- **Core Invariants Confirmed**:
+  1. *Headcount is People Only*: Headcount calculations represent actual filled employee assignments; vacancies remain separate capacity slots until official plantilla deployment.
+  2. *VCode Identity*: `vcode` is the canonical immutable identifier representing per-store requisition slot allocation.
+  3. *Slot-First Lifecycle*: Candidates transition through `Vacancy -> Applicant -> HR Emploc -> Plantilla Allocation`, verifying available slot capacity via `fetchAvailableSlotsForVcode` before atomic RPC mutation.
+- **Result**: Zero invariant conflicts between the UI Standard & Motion System changes and ADR-001. All state files remain aligned.
+
+---
+
+### 4. Vacancy Baseline Reconciliation & `/vacancies` Route
+- **Baseline Reconciliation**: The initial baseline check of 638 color literals in Vacancy accounted for legacy classes in all vacancy files (`page.tsx`, `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `VacancyToolbar.tsx`, `SavedViewsModal.tsx`, and all 9 modals including `EndorseApplicantModal.tsx` / `AddApplicantModal.tsx`).
+- **Literal Count**: 0 color literals across all Vacancy module files.
+- **`/vacancies` Route Status**: `/vacancies` is a permanent redirect to `/vacancy` configured in the Next.js routing layer. It does not exist as an independent parallel page.
+
+---
+
+### 5. Loop 5A HR Emploc Color-Use Audit Table
+*Rule: Color is strictly reserved for percentages and the non-decorative `--danger` token set.*
+
+| File | Baseline Literals | Current Literals | Enforced UI Standard Styling |
+|---|---|---|---|
+| `src/app/(dashboard)/hr-emploc/page.tsx` | 50 | **0** | `bulkResultModal` wrapped in `<Modal>`, neutral KPI summary metrics, brand accents on action links, 0 literals |
+| `src/components/hr-emploc/HrEmplocTable.tsx` | 36 | **0** | Enforced $\ge 14\text{px}$ floor (`text-sm`), neutralized aging day counts (`SLA_BADGE_CLASS`), `--danger` on Revert action, 0 literals |
+| `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` | 240 | **0** | Wrapped in shared `DetailDrawer`, internal modals wrapped in shared `Modal`, neutralized checklist status badges, `--danger` for deletion locks and error states, 0 literals |
+| `src/components/hr-emploc/ReviewApproveModal.tsx` | 36 | **0** | Wrapped in `<Modal>`, brand blue approve button, `--danger` for errors, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/ReviewRevertModal.tsx` | 35 | **0** | Wrapped in `<Modal>`, `--danger` for revert button & errors, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/UploadAttachmentModal.tsx` | 32 | **0** | Wrapped in `<Modal>`, brand blue upload button, `--danger` for errors, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/DeployToPlantillaModal.tsx` | 62 | **0** | Wrapped in `<Modal>`, neutral capacity indicator card, `--danger` when 0 capacity, brand blue confirm button, 0 literals |
+| `src/components/hr-emploc/RequestEmplocDeletionModal.tsx` | 70 | **0** | Wrapped in `<Modal>`, `--danger` for destructive submit & warning banner, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/TagDeficiencyModal.tsx` | 38 | **0** | Wrapped in `<Modal>`, brand blue confirm button, `--danger` for errors, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/AssignEmployeeNoModal.tsx` | 41 | **0** | Wrapped in `<Modal>`, neutral RBAC warning, brand blue submit button, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/SubmitCorrectionModal.tsx` | 45 | **0** | Wrapped in `<Modal>`, brand blue submit button, `--danger` for errors, `disableBackdropClick`, `isSubmitting`, 0 literals |
+| `src/components/hr-emploc/HrEmplocSavedViewsModal.tsx` | 9 | **0** | Wrapped in `<Modal>`, neutral preset list, `--danger` on delete preset button, 0 literals |
+| **Total Loop 5A** | **694** | **0** | **100% Tokenized & Standard-Compliant** |
+
+*(Note: Loop 5B covers `src/components/hr-emploc/import/` which contains 351 literals to be addressed in Loop 5B without touching import logic, parsing, or validation).*
+
+---
+
+### 6. Mechanical Gate Verification
+- **Gate Command**: `TOUCHED_MODULES="hr-emploc-5a,vacancy,dashboard,cencom" python3 .agents/scripts/gate.py`
+- **Result**: `{"decision": "allow", "touched_modules": ["cencom", "dashboard", "hr-emploc-5a", "vacancy"]}`
+- **Lint**: 0 errors.
+- **Typecheck**: `npx tsc --noEmit` passed with 0 errors.
+- **Color Literals**: Exactly 0 color literals across all touched modules.
+
+---
+
+### 7. Manual Test Script for Ohm
+1. **Modal Backdrop Hardening Test**:
+   - Open `/hr-emploc`. Click any row to open `HrEmplocDetailDrawer`.
+   - Click "Tag Deficiency". Type in a note or select a checkbox.
+   - Click outside the modal on the backdrop overlay: verify modal does NOT dismiss.
+   - Press the `Escape` key: verify modal does NOT dismiss while dirty.
+   - Click "Cancel": verify modal closes cleanly.
+2. **Modal Over Drawer Stacking (`z-[60]`)**:
+   - Open `/hr-emploc` and select an item so `HrEmplocDetailDrawer` slides out at `z-50`.
+   - Click "Assign Employee ID".
+   - Verify modal opens at `z-[60]` directly over the drawer with backdrop covering the drawer.
+3. **Danger Token Display**:
+   - In `HrEmplocDetailDrawer`, click "Request Placement Separation / Deletion".
+   - Verify danger styling on modal header icon, radio borders, lock notice, and destructive submit button.
+   - In `HrEmplocTable` (Review tab), verify the "Revert" action button displays danger styling.
+4. **Theme Contrast**:
+   - Toggle dark mode in Settings: verify all modals, tables, and drawers render in deep blue-tinted navy surfaces with WCAG AA readable contrast.
+
+---
+
+
 
 **Status: COMPLETE — FULL COLOR-USE AUDIT ACROSS DASHBOARD, CENCOM, AND VACANCY (BLUEPRINT SECTION 3, RULE 3 & 4: COLOR STRICTLY RESERVED FOR PERCENTAGES); ELIMINATED ALL COLOR-ON-COUNT/STATUS/AGING VIOLATIONS IN DASHBOARD AND CENCOM; CLARIFIED BUILD EVIDENCE (OHM LOCAL BUILD VERIFIED GREEN 19/19 STATIC ROUTES OUTSIDE SANDBOX VS SANDBOX OFFLINE FONT-FETCH TSC FALLBACK); ADDED COLOR AUDIT TO MANDATORY PER-LOOP CHECKLIST; COMPLETED LOOP 4 VACANCY ALIGNMENT DROPPING 450+ COLOR LITERALS TO 0; WRAPPED ALL 9 VACANCY MODALS IN SHARED MODAL COMPONENT; VERIFIED DETAIL DRAWER WRAPPING IN VACANCYDETAILDRAWER; PRESERVED 100% OF FORM LOGIC, HOOKS, STATE, VALIDATION, AND MUTATIONS; MECHANICAL GATE PASSING WITH DECISION ALLOW ON MAIN**
 

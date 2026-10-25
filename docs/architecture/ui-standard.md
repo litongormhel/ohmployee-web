@@ -69,6 +69,17 @@ The only non-brand semantic colors in the system. Every text/bg pair satisfies W
 
 Borders: Light `--pct-good-border: #a7f3d0`, `--pct-warn-border: #fde68a`, `--pct-bad-border: #fecaca`. Dark uses 35% alpha overlays.
 
+### 2.5 Danger Action & Error Tokens (Strict Non-Decorative Exception)
+Approved strictly for **validation errors, destructive actions (delete, fail/backout, reject), and failed-state messages ONLY**. Never decorative. Never used for counts (e.g. vacancies, SLA breaches), aging durations, or neutral status tags.
+
+| Role | Light Text | Light BG | Light Border | Light Ratio | Dark Text | Dark BG (Composite) | Dark Border | Dark Ratio |
+|---|---|---|---|---|---|---|---|---|
+| **Danger** | `#b91c1c` | `#fef2f2` | `#fecaca` | **5.91:1** (&ge; 4.5:1) | `#f87171` | `rgba(248, 113, 113, 0.15)` (`#2f1f24`) | `rgba(248, 113, 113, 0.35)` | **5.66:1** (&ge; 4.5:1) |
+
+- **Validation Errors**: Inline form field error text (`text-danger-text`), alert message boxes (`border-danger-border bg-danger-bg text-danger-text`).
+- **Destructive Actions**: Delete, Reject, Fail/Backout primary buttons (`bg-danger-text text-white hover:opacity-90`) or outline buttons (`border-danger-border text-danger-text hover:bg-danger-bg`).
+- **Failed States**: RPC error banners, failure toasts. Raw color literals (e.g. `text-red-500`, `bg-rose-600`) remain forbidden by the mechanical color gate.
+
 ---
 
 ## 3. Authoritative Percentage Scales & Thresholds

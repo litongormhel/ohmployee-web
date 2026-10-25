@@ -237,6 +237,9 @@ function EditApplicantModalContent({
       subtitle={applicant.vcode ? `Requisition: ${applicant.vcode}` : "Candidate Identity Correction"}
       icon={Edit3}
       maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={updateMutation.isPending}
+      isDirty={hasFieldChanges || Boolean(reason)}
     >
       <div className="space-y-4 text-xs">
           {/* Status Banners */}
@@ -289,8 +292,8 @@ function EditApplicantModalContent({
           )}
 
           {formError && (
-            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
+            <div className="p-3 rounded-lg border border-danger-border bg-danger-bg text-danger-text flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-danger-text" />
               <span>{formError}</span>
             </div>
           )}
@@ -391,7 +394,7 @@ function EditApplicantModalContent({
                 }`}
               />
               {touched.contactNumber && !isContactValid && (
-                <p className="mt-1 text-[11px] text-text-secondary">
+                <p className="mt-1 text-[11px] text-danger-text">
                   Must be 11 digits starting with 09 (e.g., 09171234567).
                 </p>
               )}
@@ -412,12 +415,12 @@ function EditApplicantModalContent({
                 placeholder="Explain reason for editing candidate profile (e.g., Corrected misspelled middle name per valid ID)..."
                 className={`w-full rounded-lg border px-3 py-2 text-text-primary focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.reason && !isReasonValid
-                    ? "border-border-strong bg-surface-muted/30"
+                    ? "border-danger-border bg-danger-bg/20"
                     : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.reason && !isReasonValid && (
-                <p className="mt-1 text-[11px] text-text-secondary">Reason is required for audit history.</p>
+                <p className="mt-1 text-[11px] text-danger-text">Reason is required for audit history.</p>
               )}
             </div>
           </form>

@@ -27,7 +27,7 @@ This is a **standard**, not a one-off refresh. After this work, new screens are 
 
 1. **No regression.** Same data, same numbers, same permissions. Animation changes display only.
 2. **Brand colors:** white, neutral grays, brand blue. Nothing else is decorative.
-3. **Color is reserved for percentages.** Green / yellow / red appear only on percentage values, bars, and rings (fill rate, MFR, compliance, etc.). Counts (SLA breaches, vacancies, headcount) are neutral. Status chips are neutral; the percentage next to them carries the color. Use the thresholds that already exist in code; do not invent new ones.
+3. **Color is reserved for percentages, with one strict exception for `--danger` tokens.** Green / yellow / red appear on percentage values, bars, and rings (fill rate, MFR, compliance, etc.). Counts (SLA breaches, vacancies, headcount) are neutral. Status chips are neutral; the percentage next to them carries the color. Use the thresholds that already exist in code; do not invent new ones. **Exception:** The semantic `--danger` token set (`--danger-text`, `--danger-bg`, `--danger-border` with &ge; 4.5:1 contrast) is reserved strictly for validation errors, destructive actions (delete, fail/backout, reject), and failed-state messages. Never decorative. Raw color literals remain forbidden.
 4. **Light and dark both work, and both are on-brand (blue and white).** Follow the user's theme setting. Nothing forced dark or light. In dark mode everything must be visible, readable, and functional (section 5.4).
 5. **Font is user-changeable.** Settings already has a font switch; the standard only sets the default.
 6. **Works on low-end PCs.** Most users are on low-end machines. Motion has a strict budget (section 8).

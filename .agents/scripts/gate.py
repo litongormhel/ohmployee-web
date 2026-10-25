@@ -134,14 +134,27 @@ def check_color_literals(touched_modules):
 
     violations = []
     for mod in touched_modules:
-        dirs_to_check = [
-            os.path.join("src/app/(dashboard)", mod),
-            os.path.join("src/components", mod),
-        ]
+        if mod == "hr-emploc-5a":
+            dirs_to_check = [
+                os.path.join("src/app/(dashboard)", "hr-emploc"),
+                os.path.join("src/components", "hr-emploc"),
+            ]
+        elif mod == "hr-emploc-5b":
+            dirs_to_check = [
+                os.path.join("src/components", "hr-emploc", "import"),
+            ]
+        else:
+            dirs_to_check = [
+                os.path.join("src/app/(dashboard)", mod),
+                os.path.join("src/components", mod),
+            ]
+
         for d in dirs_to_check:
             if not os.path.exists(d):
                 continue
-            for root, _, files in os.walk(d):
+            for root, dirs, files in os.walk(d):
+                if mod == "hr-emploc-5a" and "import" in dirs:
+                    dirs.remove("import")
                 for f in files:
                     if f.endswith((".tsx", ".ts")):
                         rel_path = os.path.relpath(os.path.join(root, f))

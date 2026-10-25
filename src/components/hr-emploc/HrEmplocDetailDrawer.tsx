@@ -16,11 +16,11 @@ import {
   RefreshCw,
   ShieldAlert,
   User,
-  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
 import {
   getWebHrEmplocDetail,
@@ -159,20 +159,20 @@ export function HrEmplocDetailDrawer({
       widthClass="w-[var(--drawer-width-lg)] max-w-full"
       badge={
         isLoading ? (
-          <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
+          <div className="h-5 w-24 animate-pulse rounded bg-surface-muted" />
         ) : detail ? (
-          <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-1 px-2.5">
+          <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-1 px-2.5">
             {detail.vcode}
           </Badge>
         ) : (
-          <Badge className="bg-red-50 text-red-700">Error</Badge>
+          <Badge className="bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">Error</Badge>
         )
       }
       title={
         isLoading ? (
-          <div className="h-6 w-48 animate-pulse rounded bg-gray-200 mt-1" />
+          <div className="h-6 w-48 animate-pulse rounded bg-surface-muted mt-1" />
         ) : detail ? (
-          <span className={isPendingDeletion ? "text-gray-500 line-through" : ""}>
+          <span className={isPendingDeletion ? "text-text-muted line-through" : ""}>
             {detail.applicantName}
           </span>
         ) : (
@@ -182,7 +182,7 @@ export function HrEmplocDetailDrawer({
       subtitle={
         !isLoading && detail && (
           <>
-            <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
+            <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
             <span className="truncate">
               {[detail.accountName, detail.storeName]
                 .filter(Boolean)
@@ -207,20 +207,20 @@ export function HrEmplocDetailDrawer({
         <>
           {/* Active Deletion Overlay / Locking Banner */}
           {isPendingDeletion && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 space-y-2">
+            <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 space-y-2 text-[var(--danger-text)]">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-red-800 uppercase tracking-wide">
+                  <h4 className="text-xs font-bold uppercase tracking-wide">
                     Record Locked: Pending Deletion
                   </h4>
-                  <p className="text-xs text-red-700 leading-relaxed">
+                  <p className="text-xs leading-relaxed opacity-90">
                     This allocation is currently subject to a separation or duplicate record separation request. All audits, corrections, employee ID assignments, and deployment triggers are strictly locked.
                   </p>
                 </div>
               </div>
               {detail.activeDeletionRequest && (
-                <div className="mt-3 border-t border-red-100 pt-2.5 text-xs text-red-800 space-y-1.5 bg-red-100/30 p-2.5 rounded-sm">
+                <div className="mt-3 border-t border-[var(--danger-border)] pt-2.5 text-xs space-y-1.5 bg-surface/40 p-2.5 rounded-sm">
                   <div className="grid grid-cols-2 gap-y-1">
                     <div>
                       <span className="font-semibold">Request Type:</span>{" "}
@@ -237,13 +237,13 @@ export function HrEmplocDetailDrawer({
                     {detail.activeDeletionRequest.originalEmplocId && (
                       <div className="col-span-2">
                         <span className="font-semibold">Original Record ID:</span>{" "}
-                        <span className="font-mono text-[10px] bg-red-100 p-0.5 rounded">
+                        <span className="font-mono text-[10px] bg-surface p-0.5 rounded border border-border-subtle">
                           {detail.activeDeletionRequest.originalEmplocId}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="border-t border-red-200/50 pt-1.5">
+                  <div className="border-t border-[var(--danger-border)] pt-1.5">
                     <span className="font-semibold">Reason:</span>{" "}
                     <span className="italic">&quot;{detail.activeDeletionRequest.reason}&quot;</span>
                   </div>
@@ -251,7 +251,7 @@ export function HrEmplocDetailDrawer({
                   {/* Withdraw Pending Deletion Trigger */}
                   <div className="pt-2 flex items-center justify-between">
                     {withdrawError && (
-                      <span className="text-[11px] text-red-700 font-medium">
+                      <span className="text-[11px] font-medium text-[var(--danger-text)]">
                         {withdrawError}
                       </span>
                     )}
@@ -274,7 +274,7 @@ export function HrEmplocDetailDrawer({
                           }
                         );
                       }}
-                      className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-red-300 rounded text-xs font-semibold text-red-700 hover:bg-red-50 transition disabled:opacity-50 cursor-pointer"
+                      className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-[var(--danger-border)] rounded text-xs font-semibold text-[var(--danger-text)] hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
                     >
                       {withdrawMutation.isPending && (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -289,19 +289,19 @@ export function HrEmplocDetailDrawer({
 
           {/* Status & SLA Metrics Row */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-md border border-gray-100 bg-gray-50 p-2.5">
-              <div className="text-[10px] font-medium uppercase text-gray-400">
+            <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
+              <div className="text-[10px] font-medium uppercase text-text-muted">
                 Deployment Status
               </div>
               <div className="mt-1 flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded px-2 py-0.5">
+                <span className="text-xs font-semibold text-text-primary bg-surface border border-border-default rounded px-2 py-0.5">
                   {detail.deploymentStatus}
                 </span>
               </div>
             </div>
 
-            <div className="rounded-md border border-gray-100 bg-gray-50 p-2.5">
-              <div className="text-[10px] font-medium uppercase text-gray-400">
+            <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
+              <div className="text-[10px] font-medium uppercase text-text-muted">
                 HR Status
               </div>
               <div className="mt-1">
@@ -324,60 +324,60 @@ export function HrEmplocDetailDrawer({
           </div>
 
           {/* Operational Metadata Grid */}
-          <div className="rounded-md border border-gray-100 p-4 space-y-3 bg-white">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
               Placement Parameters
             </h3>
             <div className="grid grid-cols-2 gap-y-3 text-sm">
               <div>
-                <div className="text-xs text-gray-400">Vacancy Code (VCode)</div>
-                <div className="mt-0.5 font-mono font-medium text-gray-900">
+                <div className="text-xs text-text-muted">Vacancy Code (VCode)</div>
+                <div className="mt-0.5 font-mono font-medium text-text-primary">
                   {detail.vcode || "--"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">Account</div>
-                <div className="mt-0.5 font-medium text-gray-800">
+                <div className="text-xs text-text-muted">Account</div>
+                <div className="mt-0.5 font-medium text-text-primary">
                   {detail.accountName || "--"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">Store / Location</div>
-                <div className="mt-0.5 font-medium text-gray-800">
+                <div className="text-xs text-text-muted">Store / Location</div>
+                <div className="mt-0.5 font-medium text-text-primary">
                   {detail.storeName || "--"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">Assignment Type</div>
-                <div className="mt-0.5 font-medium text-gray-800">
+                <div className="text-xs text-text-muted">Assignment Type</div>
+                <div className="mt-0.5 font-medium text-text-primary">
                   {detail.assignmentType ?? "Stationary"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">Position Title</div>
-                <div className="mt-0.5 font-medium text-gray-800">
+                <div className="text-xs text-text-muted">Position Title</div>
+                <div className="mt-0.5 font-medium text-text-primary">
                   {detail.positionTitle ?? "--"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">HRCO Coordinator</div>
-                <div className="mt-0.5 font-medium text-gray-800 flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 text-gray-400" />
+                <div className="text-xs text-text-muted">HRCO Coordinator</div>
+                <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1">
+                  <User className="h-3.5 w-3.5 text-text-muted" />
                   <span>{detail.hrcoName ?? "Unassigned"}</span>
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400">Hired Date</div>
-                <div className="mt-0.5 font-medium text-gray-800 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                <div className="text-xs text-text-muted">Hired Date</div>
+                <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-text-muted" />
                   <span>{formatDate(detail.hiredDate)}</span>
                 </div>
               </div>
               {detail.employeeNo && (
                 <div>
-                  <div className="text-xs text-gray-400">Employee Number</div>
+                  <div className="text-xs text-text-muted">Employee Number</div>
                   <div className="mt-0.5">
-                    <Badge className="font-mono text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <Badge className="font-mono text-xs bg-surface border border-border-default text-text-primary">
                       {detail.employeeNo}
                     </Badge>
                   </div>
@@ -387,18 +387,18 @@ export function HrEmplocDetailDrawer({
 
             {/* Roving Covered Stores list */}
             {detail.assignmentType === "Roving" && detail.coveredStores && detail.coveredStores.length > 0 && (
-              <div className="mt-3 border-t border-gray-100 pt-3">
-                <div className="text-xs text-gray-400 mb-1.5">Roving Covered Stores</div>
+              <div className="mt-3 border-t border-border-subtle pt-3">
+                <div className="text-xs text-text-muted mb-1.5">Roving Covered Stores</div>
                 <div className="grid gap-1.5">
                   {detail.coveredStores.map((store, storeIdx) => (
                     <div
                       key={store.storeId || `store-${storeIdx}`}
-                      className="text-xs bg-gray-50 border border-gray-100 rounded p-2 flex items-start gap-2"
+                      className="text-xs bg-surface-muted border border-border-subtle rounded p-2 flex items-start gap-2"
                     >
-                      <MapPin className="h-3.5 w-3.5 text-purple-500 shrink-0 mt-0.5" />
+                      <MapPin className="h-3.5 w-3.5 text-brand-primary shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-semibold text-gray-800">{store.storeName}</div>
-                        {store.address && <div className="text-[10px] text-gray-400">{store.address}</div>}
+                        <div className="font-semibold text-text-primary">{store.storeName}</div>
+                        {store.address && <div className="text-[10px] text-text-muted">{store.address}</div>}
                       </div>
                     </div>
                   ))}
@@ -408,27 +408,27 @@ export function HrEmplocDetailDrawer({
           </div>
 
           {/* SLA Performance Section */}
-          <div className="rounded-md border border-gray-100 p-4 space-y-3 bg-white">
+          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                 SLA & Aging Performance
               </h3>
               {detail.slaBreached && (
-                <StatusBadge variant="danger" className="font-semibold text-[10px]">
+                <StatusBadge variant="neutral" className="font-semibold text-[10px]">
                   SLA Breached
                 </StatusBadge>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-sm">
-                <div className="text-xs text-gray-400">Elapsed Compliance Time</div>
-                <div className="mt-0.5 text-lg font-bold text-gray-900">
+                <div className="text-xs text-text-muted">Elapsed Compliance Time</div>
+                <div className="mt-0.5 text-lg font-bold text-text-primary">
                   {detail.slaElapsedDays} Days
                 </div>
               </div>
               <div className="text-sm">
-                <div className="text-xs text-gray-400">Baseline Request Date</div>
-                <div className="mt-0.5 font-medium text-gray-800">
+                <div className="text-xs text-text-muted">Baseline Request Date</div>
+                <div className="mt-0.5 font-medium text-text-primary">
                   {formatDate(detail.dateRequested)}
                 </div>
               </div>
@@ -436,25 +436,25 @@ export function HrEmplocDetailDrawer({
 
             {/* SLA Escalation Levels Alerts */}
             {detail.slaElapsedDays >= 5 ? (
-              <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+              <div className="rounded border border-border-default bg-surface-muted p-3 text-xs text-text-primary flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
                 <div>
-                  <span className="font-bold">SLA Escalation Tier 2:</span> This record has languished for <span className="font-bold">{detail.slaElapsedDays} days</span>. A critical alert has been escalated to the <span className="font-semibold text-red-900">Super Admin</span>. Document verification must be finalized immediately.
+                  <span className="font-bold">SLA Escalation Tier 2:</span> This record has languished for <span className="font-bold">{detail.slaElapsedDays} days</span>. A critical alert has been escalated to the <span className="font-semibold text-text-primary">Super Admin</span>. Document verification must be finalized immediately.
                 </div>
               </div>
             ) : detail.slaElapsedDays >= 3 ? (
-              <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+              <div className="rounded border border-border-default bg-surface-muted p-3 text-xs text-text-primary flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
                 <div>
-                  <span className="font-bold">SLA Escalation Tier 1:</span> Compliance audit is pending past the <span className="font-bold">3-day SLA threshold</span>. An operational notice has been sent to the <span className="font-semibold text-amber-900">Head Admin</span>.
+                  <span className="font-bold">SLA Escalation Tier 1:</span> Compliance audit is pending past the <span className="font-bold">3-day SLA threshold</span>. An operational notice has been sent to the <span className="font-semibold text-text-primary">Head Admin</span>.
                 </div>
               </div>
             ) : null}
           </div>
 
           {/* Requirements Compliance Checklist & Deficiencies */}
-          <div className="rounded-md border border-gray-100 p-4 space-y-3 bg-white">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
               Onboarding Requirements Compliance
             </h3>
             <div className="grid gap-2">
@@ -467,34 +467,34 @@ export function HrEmplocDetailDrawer({
                     key={req.key}
                     className={`rounded-md border p-2.5 text-xs transition-colors ${
                       isDeficient
-                        ? "border-amber-200 bg-amber-50/30"
-                        : "border-gray-100 bg-gray-50/30"
+                        ? "border-border-strong bg-surface-muted"
+                        : "border-border-subtle bg-surface"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {isDeficient ? (
-                          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                          <AlertTriangle className="h-4 w-4 text-text-muted shrink-0" />
                         ) : (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-text-primary shrink-0" />
                         )}
-                        <span className={`font-semibold ${isDeficient ? "text-amber-800" : "text-gray-800"}`}>
+                        <span className="font-semibold text-text-primary">
                           {req.label}
                         </span>
                       </div>
                       <Badge
                         className={`text-[9px] py-0 border ${
                           isDeficient
-                            ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+                            ? "border-border-strong bg-surface-muted text-text-primary"
+                            : "border-border-subtle bg-surface text-text-muted"
                         }`}
                       >
                         {isDeficient ? "deficient" : "compliant"}
                       </Badge>
                     </div>
                     {isDeficient && comment && (
-                      <div className="mt-1.5 pl-6 border-l border-amber-200/50 py-0.5 text-amber-800 text-[11px] leading-relaxed">
-                        <span className="font-bold">Tag Note:</span> {comment}
+                      <div className="mt-1.5 pl-6 border-l border-border-subtle py-0.5 text-text-muted text-[11px] leading-relaxed">
+                        <span className="font-bold text-text-primary">Tag Note:</span> {comment}
                       </div>
                     )}
                   </div>
@@ -504,23 +504,23 @@ export function HrEmplocDetailDrawer({
 
             {/* Custom Remarks Section */}
             {(detail.hrRemarks || detail.opsRemarks) && (
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+              <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
                 {detail.hrRemarks && (
                   <div>
-                    <div className="text-[10px] font-semibold uppercase text-gray-400">
+                    <div className="text-[10px] font-semibold uppercase text-text-muted">
                       HR Compliance Remarks
                     </div>
-                    <p className="mt-1 text-xs text-gray-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-100 italic">
+                    <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2.5 rounded border border-border-subtle italic">
                       &quot;{detail.hrRemarks}&quot;
                     </p>
                   </div>
                 )}
                 {detail.opsRemarks && (
                   <div>
-                    <div className="text-[10px] font-semibold uppercase text-gray-400">
+                    <div className="text-[10px] font-semibold uppercase text-text-muted">
                       Ops Coordinator Remarks
                     </div>
-                    <p className="mt-1 text-xs text-gray-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-100 italic">
+                    <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2.5 rounded border border-border-subtle italic">
                       &quot;{detail.opsRemarks}&quot;
                     </p>
                   </div>
@@ -530,12 +530,12 @@ export function HrEmplocDetailDrawer({
           </div>
 
           {/* Corrected File Attachments viewer */}
-          <div className="rounded-md border border-gray-100 p-4 space-y-3 bg-white">
+          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Correction Submissions & Attachments
               </h3>
-              <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-none text-[10px]">
+              <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
                 {detail.uploadedAttachments.length} Files
               </Badge>
             </div>
@@ -545,21 +545,21 @@ export function HrEmplocDetailDrawer({
                 {detail.uploadedAttachments.map((file, fileIdx) => (
                   <div
                     key={file.attachmentId || `attachment-${fileIdx}`}
-                    className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50/50 p-2.5 hover:bg-gray-50 transition"
+                    className="flex items-center justify-between rounded-md border border-border-subtle bg-surface-muted p-2.5 hover:bg-surface transition"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="p-1.5 bg-blue-50 rounded border border-blue-100 text-blue-600">
+                      <div className="p-1.5 bg-surface rounded border border-border-subtle text-brand-primary">
                         <FileText className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
                         <button
                           type="button"
-                          className="text-xs font-semibold text-blue-600 hover:underline truncate block text-left cursor-pointer"
+                          className="text-xs font-semibold text-brand-primary hover:underline truncate block text-left cursor-pointer"
                           onClick={() => handleOpenAttachment(file.fileUrl)}
                         >
                           {file.fileName}
                         </button>
-                        <div className="text-[10px] text-gray-400 flex flex-wrap gap-x-2">
+                        <div className="text-[10px] text-text-muted flex flex-wrap gap-x-2">
                           <span>By: {file.uploadedBy}</span>
                           <span>•</span>
                           <span>{formatDate(file.uploadedAt)}</span>
@@ -575,7 +575,7 @@ export function HrEmplocDetailDrawer({
                     <button
                       type="button"
                       aria-label={`Download file ${file.fileName}`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition cursor-pointer"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-border-default bg-surface text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
                       onClick={() => handleOpenAttachment(file.fileUrl)}
                     >
                       <FileDown className="h-4 w-4" />
@@ -584,37 +584,37 @@ export function HrEmplocDetailDrawer({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-5 border border-dashed border-gray-100 rounded-md text-xs text-gray-400">
+              <div className="text-center py-5 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
                 No corrected compliance files uploaded yet.
               </div>
             )}
           </div>
 
           {/* Audit Timeline Section */}
-          <div className="rounded-md border border-gray-100 p-4 space-y-3 bg-white">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              <History className="h-4 w-4 text-gray-400" />
+          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <History className="h-4 w-4 text-text-muted" />
               <span>Activity History Trail</span>
             </div>
-            <div className="relative pl-4 space-y-4 border-l-2 border-gray-100 ml-1.5 mt-2">
+            <div className="relative pl-4 space-y-4 border-l-2 border-border-subtle ml-1.5 mt-2">
               {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
                 detail.auditLogsTimeline.map((item, timelineIdx) => (
                   <div key={item.eventId || `timeline-${timelineIdx}`} className="relative text-xs">
                     {/* Timeline dot */}
-                    <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
+                    <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
                     <div className="flex justify-between">
-                      <span className="font-semibold text-gray-800">{item.eventLabel}</span>
-                      <span className="text-[10px] text-gray-400">
+                      <span className="font-semibold text-text-primary">{item.eventLabel}</span>
+                      <span className="text-[10px] text-text-muted">
                         {formatDateTime(item.createdAt)}
                       </span>
                     </div>
                     {item.eventDescription && (
-                      <p className="mt-0.5 text-gray-500 leading-relaxed">
+                      <p className="mt-0.5 text-text-muted leading-relaxed">
                         {item.eventDescription}
                       </p>
                     )}
                     {item.profileName && (
-                      <div className="mt-0.5 text-[9px] text-gray-400">
+                      <div className="mt-0.5 text-[9px] text-text-muted">
                         Triggered by: {item.profileName}
                       </div>
                     )}
@@ -622,14 +622,14 @@ export function HrEmplocDetailDrawer({
                 ))
               ) : (
                 <div className="relative text-xs">
-                  <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500" />
+                  <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
                   <div className="flex justify-between">
-                    <span className="font-semibold text-gray-800">Placement Confirmed</span>
-                    <span className="text-[10px] text-gray-400">
+                    <span className="font-semibold text-text-primary">Placement Confirmed</span>
+                    <span className="text-[10px] text-text-muted">
                       {formatDate(detail.dateRequested)}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-gray-500">Record initialized on the compliance queue.</p>
+                  <p className="mt-0.5 text-text-muted">Record initialized on the compliance queue.</p>
                 </div>
               )}
             </div>
@@ -812,37 +812,26 @@ function TagDeficiencyModal({
     });
   }
 
+  const isDirty = hasSelected || Boolean(remarks.trim());
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={isPending ? undefined : onClose}
-      />
-      {/* Modal panel */}
-      <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-lg border border-gray-200 shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Tag Compliance Deficiency</h2>
-            <p className="text-[11px] text-gray-500 mt-0.5">
-              Select the requirements that require correction and confirm to notify the coordinator.
-            </p>
-          </div>
-          <button
-            aria-label="Close"
-            className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition disabled:opacity-40"
-            disabled={isPending}
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Tag Compliance Deficiency"
+      maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={isPending}
+      isDirty={isDirty}
+    >
+      <div className="space-y-4 text-xs">
+        <p className="text-[11px] text-text-muted">
+          Select the requirements that require correction and confirm to notify the coordinator.
+        </p>
 
         {/* Scrollable body */}
-        <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          <div className="text-[10px] font-semibold uppercase text-gray-400">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="text-[10px] font-semibold uppercase text-text-muted">
             Deficient Requirements (select at least one)
           </div>
           <div className="space-y-2">
@@ -851,14 +840,14 @@ function TagDeficiencyModal({
                 key={req.key}
                 className={`rounded-md border p-3 space-y-2 transition-colors ${
                   selectedIssues[req.key]
-                    ? "border-amber-200 bg-amber-50/40"
-                    : "border-gray-100 bg-gray-50/30"
+                    ? "border-border-strong bg-surface-muted"
+                    : "border-border-subtle bg-surface hover:bg-surface-hover"
                 }`}
               >
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     checked={selectedIssues[req.key] ?? false}
-                    className="h-4 w-4 rounded border-gray-300 accent-amber-600"
+                    className="h-4 w-4 rounded border-border-default text-brand-primary focus:ring-brand-primary"
                     disabled={isPending}
                     onChange={(e) => {
                       setSelectedIssues((prev) => ({
@@ -873,7 +862,7 @@ function TagDeficiencyModal({
                   />
                   <span
                     className={`text-xs font-medium ${
-                      selectedIssues[req.key] ? "text-amber-800" : "text-gray-700"
+                      selectedIssues[req.key] ? "text-text-primary font-semibold" : "text-text-muted"
                     }`}
                   >
                     {req.label}
@@ -882,7 +871,7 @@ function TagDeficiencyModal({
                 {selectedIssues[req.key] && (
                   <div className="pl-6">
                     <input
-                      className="w-full rounded border border-amber-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                      className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong"
                       disabled={isPending}
                       maxLength={500}
                       onChange={(e) =>
@@ -903,11 +892,11 @@ function TagDeficiencyModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase text-gray-400">
+            <div className="text-[10px] font-semibold uppercase text-text-muted">
               HR Compliance Remarks (Optional)
             </div>
             <textarea
-              className="w-full rounded border border-gray-200 px-2.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none"
+              className="w-full rounded border border-border-default bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
               disabled={isPending}
               maxLength={1000}
               onChange={(e) => setRemarks(e.target.value)}
@@ -919,17 +908,17 @@ function TagDeficiencyModal({
 
           {/* Inline error */}
           {submitError && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{submitError}</span>
             </div>
           )}
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2.5 border-t border-gray-100 px-5 py-3">
+        <div className="flex items-center justify-end gap-2.5 border-t border-border-subtle pt-3">
           <button
-            className="rounded-md border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            className="rounded-md border border-border-default bg-surface px-4 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition disabled:opacity-50 cursor-pointer"
             disabled={isPending}
             onClick={onClose}
             type="button"
@@ -937,7 +926,7 @@ function TagDeficiencyModal({
             Cancel
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={!hasSelected || isPending}
             onClick={handleSubmit}
             type="button"
@@ -947,7 +936,7 @@ function TagDeficiencyModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -1031,45 +1020,32 @@ function ReviewCorrectionModal({
     });
   }
 
+  const isDirty = resolvedKeys.length > 0 || Boolean(remarks.trim());
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={isPending ? undefined : onClose}
-      />
-      {/* Modal panel */}
-      <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-lg border border-gray-200 shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              Review Correction Resubmission
-            </h2>
-            <p className="text-[11px] text-gray-500 mt-0.5">
-              Mark each tagged deficiency as resolved or still deficient to determine the review outcome.
-            </p>
-          </div>
-          <button
-            aria-label="Close"
-            className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition disabled:opacity-40"
-            disabled={isPending}
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Review Correction Resubmission"
+      maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={isPending}
+      isDirty={isDirty}
+    >
+      <div className="space-y-4 text-xs">
+        <p className="text-[11px] text-text-muted">
+          Mark each tagged deficiency as resolved or still deficient to determine the review outcome.
+        </p>
 
         {/* Scrollable body */}
-        <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
           {deficiencyKeys.length === 0 ? (
-            <div className="text-center py-5 border border-dashed border-gray-100 rounded-md text-xs text-gray-400">
+            <div className="text-center py-5 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
               No deficiency keys are tagged on this record.
             </div>
           ) : (
             <>
-              <div className="text-[10px] font-semibold uppercase text-gray-400">
+              <div className="text-[10px] font-semibold uppercase text-text-muted">
                 Tagged Deficiencies — mark each as resolved or still deficient
               </div>
               <div className="space-y-2">
@@ -1081,14 +1057,14 @@ function ReviewCorrectionModal({
                       key={key}
                       className={`rounded-md border p-3 space-y-1.5 transition-colors ${
                         isResolved
-                          ? "border-emerald-200 bg-emerald-50/40"
-                          : "border-amber-200 bg-amber-50/30"
+                          ? "border-border-subtle bg-surface"
+                          : "border-border-strong bg-surface-muted"
                       }`}
                     >
                       <label className="flex items-center gap-2.5 cursor-pointer select-none">
                         <input
                           checked={isResolved}
-                          className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+                          className="h-4 w-4 rounded border-border-default text-brand-primary focus:ring-brand-primary"
                           disabled={isPending}
                           onChange={(e) =>
                             setResolved((prev) => ({
@@ -1100,24 +1076,20 @@ function ReviewCorrectionModal({
                         />
                         <span
                           className={`text-xs font-medium flex-1 ${
-                            isResolved ? "text-emerald-800" : "text-amber-800"
+                            isResolved ? "text-text-primary" : "text-text-primary font-semibold"
                           }`}
                         >
                           {getDeficiencyLabel(key)}
                         </span>
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border ${
-                            isResolved
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
+                          className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold border border-border-subtle bg-surface text-text-muted"
                         >
                           {isResolved ? "Resolved" : "Still Deficient"}
                         </span>
                       </label>
                       {note && (
-                        <div className="pl-6 text-[11px] text-gray-500 leading-relaxed border-l border-amber-200/50 py-0.5">
-                          <span className="font-semibold">Tagged Note:</span> {note}
+                        <div className="pl-6 text-[11px] text-text-muted leading-relaxed border-l border-border-subtle py-0.5">
+                          <span className="font-semibold text-text-primary">Tagged Note:</span> {note}
                         </div>
                       )}
                     </div>
@@ -1129,24 +1101,20 @@ function ReviewCorrectionModal({
 
           {/* Decision preview */}
           <div
-            className={`rounded-md border p-3 text-xs ${
-              allResolved
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-amber-200 bg-amber-50 text-amber-800"
-            }`}
+            className="rounded-md border border-border-subtle bg-surface-muted p-3 text-xs text-text-primary"
           >
             {allResolved ? (
               <>
-                <span className="font-bold">Decision: Approve &amp; Complete</span>
-                <span className="block mt-0.5 text-[11px]">
+                <span className="font-bold text-text-primary">Decision: Approve &amp; Complete</span>
+                <span className="block mt-0.5 text-[11px] text-text-muted">
                   All deficiencies affirmed resolved. This record will move to{" "}
-                  <span className="font-bold">Complete</span> and become eligible for employee number assignment.
+                  <span className="font-bold text-text-primary">Complete</span> and become eligible for employee number assignment.
                 </span>
               </>
             ) : (
               <>
-                <span className="font-bold">Decision: Return for Correction</span>
-                <span className="block mt-0.5 text-[11px]">
+                <span className="font-bold text-text-primary">Decision: Return for Correction</span>
+                <span className="block mt-0.5 text-[11px] text-text-muted">
                   {residualCount} remaining deficiency item{residualCount !== 1 ? "s" : ""} will be sent back to the coordinator.
                 </span>
               </>
@@ -1155,11 +1123,11 @@ function ReviewCorrectionModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase text-gray-400">
+            <div className="text-[10px] font-semibold uppercase text-text-muted">
               Reviewer Remarks (Optional)
             </div>
             <textarea
-              className="w-full rounded border border-gray-200 px-2.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none"
+              className="w-full rounded border border-border-default bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
               disabled={isPending}
               maxLength={1000}
               onChange={(e) => setRemarks(e.target.value)}
@@ -1171,17 +1139,17 @@ function ReviewCorrectionModal({
 
           {/* Inline error */}
           {submitError && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{submitError}</span>
             </div>
           )}
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2.5 border-t border-gray-100 px-5 py-3">
+        <div className="flex items-center justify-end gap-2.5 border-t border-border-subtle pt-3">
           <button
-            className="rounded-md border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+            className="rounded-md border border-border-default bg-surface px-4 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition disabled:opacity-50 cursor-pointer"
             disabled={isPending}
             onClick={onClose}
             type="button"
@@ -1189,11 +1157,7 @@ function ReviewCorrectionModal({
             Cancel
           </button>
           <button
-            className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed ${
-              allResolved
-                ? "bg-emerald-600 hover:bg-emerald-700"
-                : "bg-amber-600 hover:bg-amber-700"
-            }`}
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={isPending}
             onClick={handleSubmit}
             type="button"
@@ -1207,24 +1171,23 @@ function ReviewCorrectionModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 // ─── State sub-components ─────────────────────────────────────────────────────
 
-// Sub-components for states
 function LoadingSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
       <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 rounded-md bg-gray-100" />
-        <div className="h-16 rounded-md bg-gray-100" />
+        <div className="h-16 rounded-md bg-surface-muted" />
+        <div className="h-16 rounded-md bg-surface-muted" />
       </div>
-      <div className="h-32 rounded-md bg-gray-100" />
-      <div className="h-28 rounded-md bg-gray-100" />
-      <div className="h-44 rounded-md bg-gray-100" />
-      <div className="h-36 rounded-md bg-gray-100" />
+      <div className="h-32 rounded-md bg-surface-muted" />
+      <div className="h-28 rounded-md bg-surface-muted" />
+      <div className="h-44 rounded-md bg-surface-muted" />
+      <div className="h-36 rounded-md bg-surface-muted" />
     </div>
   );
 }
@@ -1232,11 +1195,11 @@ function LoadingSkeleton() {
 function AccessDeniedState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-red-50 p-3 text-red-600 shadow-xs border border-red-100">
+      <div className="rounded-full bg-[var(--danger-bg)] p-3 text-[var(--danger-text)] border border-[var(--danger-border)] shadow-xs">
         <ShieldAlert className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Compliance Access Denied</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs leading-relaxed">
+      <h4 className="mt-4 text-sm font-bold text-text-primary">Compliance Access Denied</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs leading-relaxed">
         Supabase RLS policies blocked this specific detail read. You are not authorized to view candidates outside your assigned store scopes.
       </p>
     </div>
@@ -1246,11 +1209,11 @@ function AccessDeniedState() {
 function NotFoundState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-gray-50 p-3 text-gray-400 border border-gray-100 shadow-xs">
+      <div className="rounded-full bg-surface-muted p-3 text-text-muted border border-border-default shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Record Not Found</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs leading-relaxed">
+      <h4 className="mt-4 text-sm font-bold text-text-primary">Record Not Found</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs leading-relaxed">
         The selected allocation could not be found. It may have been archived, rejected, or moved to Plantilla.
       </p>
     </div>
@@ -1265,15 +1228,15 @@ type ErrorStateProps = {
 function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-amber-50 p-3 text-amber-600 border border-amber-100 shadow-xs">
+      <div className="rounded-full bg-[var(--danger-bg)] p-3 text-[var(--danger-text)] border border-[var(--danger-border)] shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Fetch Failed</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs leading-relaxed">
+      <h4 className="mt-4 text-sm font-bold text-text-primary">Fetch Failed</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs leading-relaxed">
         {errorMsg}
       </p>
       <button
-        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
+        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover transition cursor-pointer"
         onClick={onRetry}
         type="button"
       >

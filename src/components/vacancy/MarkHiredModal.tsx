@@ -139,10 +139,13 @@ function MarkHiredModalContent({
       subtitle={`${applicant.vcode} • ${applicant.fullName}`}
       icon={UserCheck}
       maxWidthClass="max-w-xl"
+      disableBackdropClick={true}
+      isSubmitting={confirmOnboardMutation.isPending}
+      isDirty={Boolean(remarks || hiredDate)}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {errorMessage && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
+          <div className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-text font-medium">
             {errorMessage}
           </div>
         )}

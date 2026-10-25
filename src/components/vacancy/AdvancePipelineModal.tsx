@@ -221,10 +221,13 @@ function AdvancePipelineModalContent({
       subtitle={`${applicant.vcode} • ${applicant.fullName}`}
       icon={isTerminalSelected ? UserMinus : RotateCcw}
       maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={updateMutation.isPending || failBackoutMutation.isPending}
+      isDirty={selectedStage !== initialStage || !!recruitmentRemarks || !!opsRemarks || !!customReason}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {errorMessage && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
+          <div className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-text font-medium">
             {errorMessage}
           </div>
         )}
@@ -361,7 +364,11 @@ function AdvancePipelineModalContent({
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition"
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition cursor-pointer ${
+              isTerminalSelected
+                ? "bg-danger-text hover:opacity-90"
+                : "bg-brand-500 hover:bg-brand-600"
+            }`}
           >
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             {isTerminalSelected ? "Confirm Dropout" : "Save Stage"}

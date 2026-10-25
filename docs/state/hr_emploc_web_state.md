@@ -400,6 +400,14 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Updated sub-modals (`BatchDetailsModal`, `RejectBatchModal`, `RollbackBatchModal`) to `z-[60]` / `z-[70]` for clean stacking over parent modal.
 - Configured legacy route `/hr-emploc/import` to automatically redirect to `/more?tab=data_control&subtab=batch_imports&open=import_hr_emploc`.
 
+### Phase 6: UI Standard & Motion System Alignment (Loop 5A) [COMPLETED — ohm#l5a7m3p9]
+- Aligned HR Emploc list page, table, drawer, and all 9 modals to the authoritative UI standard (`docs/architecture/ui-standard.md`).
+- Reduced color literals across all Loop 5A files from 694 to exactly 0.
+- Standardized table typography with a strict 14px (`text-sm`) minimum text floor and compact padding. Neutralized aging day counts (`SLA_BADGE_CLASS`).
+- Modal hardening: wrapped all modals in shared `Modal` (`z-[60]`) over `DetailDrawer` (`z-50`). Form modals enforce `disableBackdropClick={true}`, pending mutation blocking via `isSubmitting`, and unsaved input safety via `isDirty`.
+- Applied `--danger` tokens (`text-[var(--danger-text)]`, `bg-[var(--danger-bg)]`, `border-[var(--danger-border)]`) strictly to destructive actions (revert, separation/deletion), validation errors, and failed-state messages.
+- Verified 0 invariant conflicts against ADR-001 System Architecture v2.
+
 **Completed (OHM2026_1109):**
 - `tagWebHrEmplocDeficiency` RPC wrapper added to `src/lib/queries/hr_emploc.ts` calling `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id, p_deficiencies, p_remarks)`.
 - "Tag Deficiency (HR Compliance)" action in `HrEmplocDetailDrawer.tsx` is now enabled when `canTagDeficiency === true && !isPendingDeletion`.

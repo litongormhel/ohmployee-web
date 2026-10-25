@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, AlertTriangle, Loader2, Trash2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { useRequestEmplocDeletion, HrEmplocDataError } from "@/lib/queries/hr_emploc";
 
 type RequestEmplocDeletionModalProps = {
@@ -66,53 +67,43 @@ export function RequestEmplocDeletionModal({
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-        onClick={requestDeletionMutation.isPending ? undefined : onClose}
-      />
+  const isDirty = Boolean(reason.trim() || originalEmplocId.trim());
 
-      {/* Modal Card */}
-      <div className="relative z-10 w-full max-w-lg bg-white rounded-lg border border-red-200 shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-red-100 px-5 py-3.5 bg-red-50/70">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-red-100 text-red-700 rounded">
-              <Trash2 className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-red-950">
-                Request Placement Separation / Deletion
-              </h2>
-              <p className="text-[11px] text-red-700">
-                Submit an auditable request to remove or backout this recruit
-              </p>
-            </div>
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Request Placement Separation / Deletion"
+      maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={requestDeletionMutation.isPending}
+      isDirty={isDirty}
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-border-subtle">
+          <div className="p-1.5 bg-[var(--danger-bg)] text-[var(--danger-text)] rounded border border-[var(--danger-border)]">
+            <Trash2 className="h-4 w-4" />
           </div>
-          <button
-            aria-label="Close"
-            className="inline-flex h-7 w-7 items-center justify-center rounded border border-red-200 text-red-400 hover:bg-red-100 hover:text-red-700 transition disabled:opacity-40"
-            disabled={requestDeletionMutation.isPending}
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div>
+            <h4 className="text-sm font-semibold text-text-primary">
+              Separation Request
+            </h4>
+            <p className="text-[11px] text-text-muted">
+              Submit an auditable request to remove or backout this recruit
+            </p>
+          </div>
         </div>
 
-        {/* Content Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Target Record Details */}
-          <div className="rounded-md border border-gray-100 bg-gray-50/60 p-3 text-xs space-y-1">
+          <div className="rounded-md border border-border-subtle bg-surface-muted p-3 text-xs space-y-1">
             <div className="flex justify-between items-center">
-              <span className="text-gray-500">Candidate:</span>
-              <span className="font-semibold text-gray-900">{candidateName}</span>
+              <span className="text-text-muted">Candidate:</span>
+              <span className="font-semibold text-text-primary">{candidateName}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-500">VCode:</span>
-              <span className="font-mono text-gray-700 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+              <span className="text-text-muted">VCode:</span>
+              <span className="font-mono text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border-default">
                 {vcode}
               </span>
             </div>
@@ -120,15 +111,15 @@ export function RequestEmplocDeletionModal({
 
           {/* Deletion Reason Radio Selector */}
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-gray-700">
-              Reason for Deletion <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-text-primary">
+              Reason for Deletion <span className="text-[var(--danger-text)]">*</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label
                 className={`flex flex-col p-3 rounded-md border cursor-pointer transition-colors ${
                   deletionType === "backout"
-                    ? "border-red-400 bg-red-50/40 text-red-900"
-                    : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700"
+                    ? "border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)]"
+                    : "border-border-default bg-surface hover:bg-surface-hover text-text-primary"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -139,11 +130,11 @@ export function RequestEmplocDeletionModal({
                     checked={deletionType === "backout"}
                     onChange={() => setDeletionType("backout")}
                     disabled={requestDeletionMutation.isPending}
-                    className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                    className="h-4 w-4 border-border-default"
                   />
                   <span className="text-xs font-bold">Applicant Backout</span>
                 </div>
-                <span className="text-[11px] text-gray-500 pl-6 leading-tight">
+                <span className="text-[11px] opacity-80 pl-6 leading-tight">
                   Candidate declined offer, backed out, or failed to report on start date.
                 </span>
               </label>
@@ -151,8 +142,8 @@ export function RequestEmplocDeletionModal({
               <label
                 className={`flex flex-col p-3 rounded-md border cursor-pointer transition-colors ${
                   deletionType === "duplicate"
-                    ? "border-red-400 bg-red-50/40 text-red-900"
-                    : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700"
+                    ? "border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)]"
+                    : "border-border-default bg-surface hover:bg-surface-hover text-text-primary"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -163,11 +154,11 @@ export function RequestEmplocDeletionModal({
                     checked={deletionType === "duplicate"}
                     onChange={() => setDeletionType("duplicate")}
                     disabled={requestDeletionMutation.isPending}
-                    className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                    className="h-4 w-4 border-border-default"
                   />
                   <span className="text-xs font-bold">Duplicate Record</span>
                 </div>
-                <span className="text-[11px] text-gray-500 pl-6 leading-tight">
+                <span className="text-[11px] opacity-80 pl-6 leading-tight">
                   Accidental multiple creation or import of the same applicant.
                 </span>
               </label>
@@ -176,9 +167,9 @@ export function RequestEmplocDeletionModal({
 
           {/* Original Record ID input (for Duplicate) */}
           {deletionType === "duplicate" && (
-            <div className="space-y-1.5 p-3 rounded-md border border-amber-200 bg-amber-50/40">
-              <label htmlFor="originalRecordIdInput" className="block text-xs font-semibold text-amber-900">
-                Original Record UUID <span className="text-red-500">*</span>
+            <div className="space-y-1.5 p-3 rounded-md border border-border-default bg-surface-muted">
+              <label htmlFor="originalRecordIdInput" className="block text-xs font-semibold text-text-primary">
+                Original Record UUID <span className="text-[var(--danger-text)]">*</span>
               </label>
               <input
                 id="originalRecordIdInput"
@@ -188,9 +179,9 @@ export function RequestEmplocDeletionModal({
                 value={originalEmplocId}
                 onChange={(e) => setOriginalEmplocId(e.target.value)}
                 placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-                className="w-full rounded border border-amber-300 bg-white px-3 py-1.5 text-xs font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full rounded border border-border-default bg-surface px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none focus:ring-1 focus:ring-border-strong"
               />
-              <p className="text-[10px] text-amber-800">
+              <p className="text-[10px] text-text-muted">
                 Identifier of the legitimate record that will remain active in the system.
               </p>
             </div>
@@ -198,8 +189,8 @@ export function RequestEmplocDeletionModal({
 
           {/* Justification remarks textarea */}
           <div className="space-y-1.5">
-            <label htmlFor="justificationInput" className="block text-xs font-semibold text-gray-700">
-              Justification & Operational Remarks <span className="text-red-500">*</span>
+            <label htmlFor="justificationInput" className="block text-xs font-semibold text-text-primary">
+              Justification & Operational Remarks <span className="text-[var(--danger-text)]">*</span>
             </label>
             <textarea
               id="justificationInput"
@@ -213,16 +204,16 @@ export function RequestEmplocDeletionModal({
                 setErrorMsg(null);
               }}
               placeholder="Detail reasons for separation, date of notice, or coordination background..."
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none disabled:bg-gray-100"
+              className="w-full rounded-md border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none disabled:opacity-50"
             />
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-text-muted">
               This reason will be visible to Encoders and Super Admins during request review.
             </p>
           </div>
 
           {/* Locking Alert */}
-          <div className="rounded border border-red-200 bg-red-50 p-2.5 text-[11px] text-red-800 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+          <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-2.5 text-[11px] text-[var(--danger-text)] flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
               <strong>Lock Notice:</strong> Submitting this request will lock this record into <em>Pending Deletion</em> status and temporarily prevent modifications, approvals, and employee number assignments until reviewed or withdrawn.
             </span>
@@ -230,26 +221,26 @@ export function RequestEmplocDeletionModal({
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border-subtle">
             <button
               type="button"
               disabled={requestDeletionMutation.isPending}
               onClick={onClose}
-              className="rounded-md border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              className="rounded-md border border-border-default bg-surface px-4 py-2 text-xs font-medium text-text-primary hover:bg-surface-hover transition disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={requestDeletionMutation.isPending || !reason.trim()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-2 text-xs font-semibold text-[var(--danger-text)] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
               {requestDeletionMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {requestDeletionMutation.isPending ? "Submitting..." : "Submit Deletion Request"}
@@ -257,6 +248,6 @@ export function RequestEmplocDeletionModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

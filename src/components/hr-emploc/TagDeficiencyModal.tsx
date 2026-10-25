@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, Loader2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import {
   tagWebHrEmplocDeficiency,
   HrEmplocDataError,
@@ -84,44 +85,35 @@ export function TagDeficiencyModal({
     });
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
-        onClick={isPending ? undefined : onClose}
-      />
+  const isDirty = hasSelected || Boolean(remarks.trim());
 
-      {/* Modal panel */}
-      <div className="relative z-10 w-full max-w-lg bg-white rounded-lg border border-gray-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5 bg-amber-50/50">
-          <div className="flex items-center gap-2">
-            <div className="p-1 rounded bg-amber-100 text-amber-700">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Return for Correction</h2>
-              <p className="text-[11px] text-gray-500">
-                {applicantName ? `${applicantName} ` : ""}
-                {vcode ? `(${vcode})` : ""} — Select deficient requirements
-              </p>
-            </div>
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Return for Correction"
+      maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={isPending}
+      isDirty={isDirty}
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-border-subtle">
+          <div className="p-1 rounded bg-surface-muted text-text-primary border border-border-subtle">
+            <AlertTriangle className="h-4 w-4" />
           </div>
-          <button
-            aria-label="Close"
-            className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition disabled:opacity-40 cursor-pointer"
-            disabled={isPending}
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div>
+            <h4 className="text-sm font-semibold text-text-primary">Deficient Requirements</h4>
+            <p className="text-[11px] text-text-muted">
+              {applicantName ? `${applicantName} ` : ""}
+              {vcode ? `(${vcode})` : ""} — Select deficient requirements
+            </p>
+          </div>
         </div>
 
         {/* Scrollable body */}
-        <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
             Deficient Requirements (select at least one)
           </div>
           <div className="space-y-2">
@@ -130,14 +122,14 @@ export function TagDeficiencyModal({
                 key={req.key}
                 className={`rounded-md border p-3 space-y-2 transition-colors ${
                   selectedIssues[req.key]
-                    ? "border-amber-200 bg-amber-50/40"
-                    : "border-gray-100 bg-gray-50/30 hover:bg-gray-50"
+                    ? "border-border-strong bg-surface-muted"
+                    : "border-border-subtle bg-surface hover:bg-surface-hover"
                 }`}
               >
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     checked={selectedIssues[req.key] ?? false}
-                    className="h-4 w-4 rounded border-gray-300 accent-amber-600"
+                    className="h-4 w-4 rounded border-border-default text-brand-primary focus:ring-brand-primary"
                     disabled={isPending}
                     onChange={(e) => {
                       setSelectedIssues((prev) => ({
@@ -152,7 +144,7 @@ export function TagDeficiencyModal({
                   />
                   <span
                     className={`text-xs font-medium ${
-                      selectedIssues[req.key] ? "text-amber-900 font-semibold" : "text-gray-700"
+                      selectedIssues[req.key] ? "text-text-primary font-semibold" : "text-text-muted"
                     }`}
                   >
                     {req.label}
@@ -161,7 +153,7 @@ export function TagDeficiencyModal({
                 {selectedIssues[req.key] && (
                   <div className="pl-6">
                     <input
-                      className="w-full rounded border border-amber-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                      className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong"
                       disabled={isPending}
                       maxLength={500}
                       onChange={(e) =>
@@ -182,11 +174,11 @@ export function TagDeficiencyModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
               HR Compliance Remarks (Optional)
             </div>
             <textarea
-              className="w-full rounded border border-gray-200 px-2.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none"
+              className="w-full rounded border border-border-default bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
               disabled={isPending}
               maxLength={1000}
               onChange={(e) => setRemarks(e.target.value)}
@@ -198,17 +190,17 @@ export function TagDeficiencyModal({
 
           {/* Inline error */}
           {submitError && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{submitError}</span>
             </div>
           )}
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2.5 border-t border-gray-100 px-5 py-3 bg-gray-50/50">
+        <div className="flex items-center justify-end gap-2.5 border-t border-border-subtle pt-3">
           <button
-            className="rounded-md border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 cursor-pointer"
+            className="rounded-md border border-border-default bg-surface px-4 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition disabled:opacity-50 cursor-pointer"
             disabled={isPending}
             onClick={onClose}
             type="button"
@@ -216,7 +208,7 @@ export function TagDeficiencyModal({
             Cancel
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
             disabled={!hasSelected || isPending}
             onClick={handleSubmit}
             type="button"
@@ -226,6 +218,6 @@ export function TagDeficiencyModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

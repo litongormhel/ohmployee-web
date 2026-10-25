@@ -15,6 +15,9 @@ export interface ModalProps {
   maxWidthClass?: string; // default "max-w-lg"
   className?: string;
   ariaDescribedBy?: string;
+  isSubmitting?: boolean;
+  disableBackdropClick?: boolean;
+  isDirty?: boolean;
 }
 
 export function Modal({
@@ -28,6 +31,9 @@ export function Modal({
   maxWidthClass = "max-w-lg",
   className = "",
   ariaDescribedBy,
+  isSubmitting = false,
+  disableBackdropClick = false,
+  isDirty = false,
 }: ModalProps) {
   const motionLevel = useMotionLevel();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -37,12 +43,14 @@ export function Modal({
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isSubmitting) return;
+        if (isDirty) return; // Prevent accidental loss of unsaved input on Esc
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSubmitting, isDirty]);
 
   // Body Scroll Lock
   useEffect(() => {
@@ -74,12 +82,15 @@ export function Modal({
       aria-modal="true"
       aria-label={typeof title === "string" ? title : undefined}
       aria-describedby={ariaDescribedBy}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
     >
       {/* Flat translucent backdrop (No blur for performance and crisp legibility) */}
       <div
         className="fixed inset-0 bg-surface-overlay transition-opacity"
-        onClick={onClose}
+        onClick={() => {
+          if (isSubmitting || disableBackdropClick) return;
+          onClose();
+        }}
         aria-hidden="true"
       />
 
@@ -116,8 +127,9 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
+            disabled={isSubmitting}
             aria-label="Close dialog"
-            className="ml-3 rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
+            className="ml-3 rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <X className="h-4 w-4" />
           </button>

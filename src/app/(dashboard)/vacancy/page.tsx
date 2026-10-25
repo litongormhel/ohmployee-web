@@ -777,13 +777,13 @@ export default function VacancyPage() {
         <div
           role="alert"
           aria-live="assertive"
-          className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-muted px-4 py-3 text-sm text-text-primary shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
+          className="flex items-center justify-between gap-3 rounded-lg border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-text shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-base text-text-secondary font-bold text-xs border border-border-default">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-base text-danger-text font-bold text-xs border border-danger-border">
               ✕
             </span>
-            <span className="font-medium text-xs sm:text-sm">{errorToast.message}</span>
+            <span className="font-semibold text-xs sm:text-sm">{errorToast.message}</span>
           </div>
           <button
             type="button"

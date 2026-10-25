@@ -108,6 +108,11 @@
   --pct-bad-bg: #fef2f2;
   --pct-bad-border: #fecaca;
 
+  /* Danger tokens — light (strictly for validation errors, destructive actions, and failed states) */
+  --danger-text: #b91c1c;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+
   /* Hero card tokens — light (brand-blue) */
   --hero-surface: #f0f4ff;
   --hero-border: #dbeafe;
@@ -210,6 +215,11 @@
   --pct-bad-bg: rgba(248, 113, 113, 0.15);
   --pct-bad-border: rgba(248, 113, 113, 0.35);
 
+  /* Danger tokens — dark (strictly for validation errors, destructive actions, and failed states) */
+  --danger-text: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --danger-border: rgba(248, 113, 113, 0.35);
+
   /* Hero card tokens — dark (brand navy) */
   --hero-surface: #111a33;
   --hero-border: #1e2f5d;
@@ -308,6 +318,11 @@
     --pct-bad-bg: rgba(248, 113, 113, 0.15);
     --pct-bad-border: rgba(248, 113, 113, 0.35);
 
+    /* Danger tokens — dark (strictly for validation errors, destructive actions, and failed states) */
+    --danger-text: #f87171;
+    --danger-bg: rgba(248, 113, 113, 0.15);
+    --danger-border: rgba(248, 113, 113, 0.35);
+
     /* Hero card tokens — dark (media) */
     --hero-surface: #111a33;
     --hero-border: #1e2f5d;
@@ -398,6 +413,11 @@
   --color-pct-bad-text: var(--pct-bad-text);
   --color-pct-bad-bg: var(--pct-bad-bg);
   --color-pct-bad-border: var(--pct-bad-border);
+
+  /* Danger action & validation utilities */
+  --color-danger-text: var(--danger-text);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
 
   /* Hero card utilities */
   --color-hero-surface: var(--hero-surface);

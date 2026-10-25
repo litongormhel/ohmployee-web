@@ -129,10 +129,13 @@ function FailBackoutModalContent({
       subtitle={`${applicant.vcode} • ${applicant.fullName}`}
       icon={UserMinus}
       maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={mutation.isPending}
+      isDirty={Boolean(customReason)}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
         {errorMessage && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
+          <div className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-text font-medium">
             {errorMessage}
           </div>
         )}
@@ -226,7 +229,7 @@ function FailBackoutModalContent({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-danger-text px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 cursor-pointer transition-opacity"
           >
             {mutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />

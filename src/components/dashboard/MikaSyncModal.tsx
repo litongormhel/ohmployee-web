@@ -64,6 +64,9 @@ export function MikaSyncModal({ isOpen, onClose, onSuccess }: MikaSyncModalProps
       subtitle="Upload MIKA export to reconcile Active Plantilla & Ghost Cases"
       icon={CloudUpload}
       maxWidthClass="max-w-lg"
+      disableBackdropClick={true}
+      isSubmitting={isSyncing}
+      isDirty={!!selectedFile}
       footer={
         !syncDone ? (
           <>

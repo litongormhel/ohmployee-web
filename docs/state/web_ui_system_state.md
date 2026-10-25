@@ -401,21 +401,35 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
 
 ---
 
-## 11. Mechanical Gate Hardening & CENCOM Alignment (Loop 3, ohm#l3c8m1q5)
+## 12. Vacancy Module Alignment & Color-Use Audit (Loop 4, ohm#l4v9k2x1)
 
-- **Toast Contract & Build Hardening**:
-  - `src/components/shared/Toast.tsx`: `isOpen?: boolean` made optional with default `true`, natively supporting both conditional rendering (`{toast && <Toast ... />}`) and controlled patterns.
-  - Resolved `npm run build` to 100% green across all 19 static routes (0 errors).
-  - List of `KpiCard` consumers audited and confirmed backward compatible with optional `onClick`.
-- **Gate Hardening (`.agents/scripts/gate.py`)**:
-  - Removed all baseline-red allowances.
-  - Automatically derives touched modules from `git diff` (working tree, staged, HEAD~1).
-  - Unconditionally runs full build/typecheck whenever `src/components/shared/` or `globals.css` changes.
-  - Explicitly reports `tsc --noEmit` fallback when sandboxed Google Fonts offline policy blocks `next build`.
-- **CENCOM Module Alignment**:
-  - Reduced color literals from 237 to 0 across all 5 CENCOM files (`cencom/page.tsx`, `CencomQuickReportsTab.tsx`, `CencomGroupTable.tsx`, `CencomDeploymentActivityTab.tsx`, `CencomTargetDeploymentTab.tsx`).
-  - Adopted shared `HeroCard`, `KpiCard`, `ScopeDropdown`, `SegmentedTabs`, `PercentageBar`, and `NeutralChip`.
-  - Gate verification passed with `"decision": "allow"`.
+- **Comprehensive Color-Use Audit**:
+  - Enforced Blueprint Section 3, Rule 3 & 4 (color strictly reserved for percentages).
+  - Neutralized non-percentage color violations across Dashboard, CENCOM, and Vacancy on count cards, SLA durations, aging brackets, and status chips.
+- **Vacancy Module Alignment**:
+  - Reduced color literals from 450+ to 0 across `vacancy/page.tsx`, `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `VacancyToolbar.tsx`, and all 9 Vacancy modals.
+  - Wrapped all 9 Vacancy modals in shared `Modal` component.
+  - Form logic, hooks, state, validation, and Supabase mutations preserved 100%.
+
+---
+
+## 13. Danger Tokens & HR Emploc List, Drawer, 9 Modals (Loop 5A, ohm#l5a7m3p9)
+
+- **Approved `--danger` Token Set**:
+  - Added `--danger-text`, `--danger-bg`, and `--danger-border` to `src/app/globals.css` with verified WCAG AA contrast ($\ge 4.5:1$) in both light and dark modes.
+  - Scope strictly limited to validation errors, destructive actions (Delete, Reject, Fail/Backout, Revert), and failed-state messages. Never decorative; never applied to counts or statuses.
+  - Restored danger styling on error banners and destructive actions across Dashboard, CENCOM, and Vacancy.
+- **Modal Hardening**:
+  - Raised `Modal` to `z-[60]` (over `DetailDrawer` at `z-50`); raised `Toast` to `z-[100]`.
+  - Added `disableBackdropClick={true}` on all form modals to prevent accidental backdrop dismissal.
+  - Added `isSubmitting` guard to hard-block Esc, backdrop click, and close `X` button while mutations are pending.
+  - Added `isDirty` guard to prevent accidental Esc dismissal when form contains unsaved changes.
+  - Hardened all 9 Vacancy modals, `MikaSyncModal`, and all 9 HR Emploc modals.
+- **HR Emploc 5A Alignment**:
+  - Dropped color literals across HR Emploc list, table, drawer, and 9 modals from 694 to 0.
+  - Enforced $\ge 14\text{px}$ floor on `HrEmplocTable` with neutral aging duration badges.
+  - Verified 0 invariant conflicts against parent ADR-001 System Architecture v2.
+  - Closed-loop mechanical gate passed with `"decision": "allow"`.
 
 
 

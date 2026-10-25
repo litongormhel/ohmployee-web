@@ -177,6 +177,9 @@ function AddApplicantModalContent({
       subtitle="Endorse candidate into active requisition and transition to Pipeline"
       icon={UserPlus}
       maxWidthClass="max-w-xl"
+      disableBackdropClick={true}
+      isSubmitting={endorseMutation.isPending}
+      isDirty={Boolean(firstName || middleName || lastName || contactNumber || targetOnboardDate || hrcoRemarks)}
     >
       <form
         onSubmit={handleSubmit}
@@ -230,7 +233,7 @@ function AddApplicantModalContent({
                   }`}
                 />
                 {(submitted || touched.firstName) && !trimmedFirstName && (
-                  <p className="mt-1 text-[11px] text-text-secondary">
+                  <p className="mt-1 text-[11px] text-danger-text">
                     First name is required.
                   </p>
                 )}
@@ -255,12 +258,12 @@ function AddApplicantModalContent({
                   placeholder="e.g. Santos"
                   className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors ${
                     (submitted || touched.middleName) && !trimmedMiddleName
-                      ? "border-border-strong focus:border-brand-500"
+                      ? "border-danger-border focus:border-danger-text"
                       : "border-border-subtle"
                   }`}
                 />
                 {(submitted || touched.middleName) && !trimmedMiddleName && (
-                  <p className="mt-1 text-[11px] text-text-secondary">
+                  <p className="mt-1 text-[11px] text-danger-text">
                     Middle name is required.
                   </p>
                 )}
@@ -285,12 +288,12 @@ function AddApplicantModalContent({
                   placeholder="e.g. Dela Cruz"
                   className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors ${
                     (submitted || touched.lastName) && !trimmedLastName
-                      ? "border-border-strong focus:border-brand-500"
+                      ? "border-danger-border focus:border-danger-text"
                       : "border-border-subtle"
                   }`}
                 />
                 {(submitted || touched.lastName) && !trimmedLastName && (
-                  <p className="mt-1 text-[11px] text-text-secondary">
+                  <p className="mt-1 text-[11px] text-danger-text">
                     Last name is required.
                   </p>
                 )}
@@ -340,7 +343,7 @@ function AddApplicantModalContent({
                   touched.contactNumber ||
                   contactNumber.length > 0) &&
                   !isContactValid && (
-                    <p className="mt-1 text-[11px] text-text-secondary">
+                    <p className="mt-1 text-[11px] text-danger-text">
                       Must be 11 digits starting with 09 (e.g. 09171234567)
                     </p>
                   )}
@@ -385,8 +388,8 @@ function AddApplicantModalContent({
 
           {/* Form Error Message */}
           {formError && (
-            <div className="flex items-start gap-2 rounded-lg border border-border-default bg-surface-muted p-2.5 text-xs text-text-primary">
-              <AlertCircle className="h-4 w-4 shrink-0 text-text-secondary mt-0.5" />
+            <div className="flex items-start gap-2 rounded-lg border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text">
+              <AlertCircle className="h-4 w-4 shrink-0 text-danger-text mt-0.5" />
               <span>{formError}</span>
             </div>
           )}

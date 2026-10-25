@@ -705,7 +705,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Rejected");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition shadow-xs cursor-pointer"
+                                      className="inline-flex items-center gap-1 rounded border border-danger-border bg-surface-base px-2 py-1 text-xs font-semibold text-danger-text hover:bg-danger-bg transition shadow-xs cursor-pointer"
                                       title={`Reject closure request for ${row.vcode}`}
                                     >
                                       <X className="h-3 w-3" aria-hidden="true" />
