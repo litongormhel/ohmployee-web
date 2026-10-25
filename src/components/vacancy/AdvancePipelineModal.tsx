@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2, RotateCcw, UserMinus, X } from "lucide-react";
+import { AlertTriangle, Loader2, RotateCcw, UserMinus } from "lucide-react";
 import {
   fetchBackoutReasons,
   fetchRejectedReasons,
   useFailBackoutApplicant,
   useUpdateApplicantPipeline,
 } from "@/lib/queries/vacancy";
+import { Modal } from "@/components/shared/Modal";
 
 export interface AdvancePipelineModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export function AdvancePipelineModal({
 
   return (
     <AdvancePipelineModalContent
+      isOpen={isOpen}
       applicant={applicant}
       onClose={onClose}
       onSuccess={onSuccess}
@@ -60,10 +62,12 @@ export function AdvancePipelineModal({
 }
 
 function AdvancePipelineModalContent({
+  isOpen,
   applicant,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   applicant: NonNullable<AdvancePipelineModalProps["applicant"]>;
   onClose: () => void;
   onSuccess?: () => void;
@@ -210,206 +214,160 @@ function AdvancePipelineModalContent({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isTerminalSelected ? "Mark Candidate Dropout / Backout" : "Update Pipeline Stage"}
+      subtitle={`${applicant.vcode} • ${applicant.fullName}`}
+      icon={isTerminalSelected ? UserMinus : RotateCcw}
+      maxWidthClass="max-w-lg"
     >
-      <div className="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div
-          className={`flex items-center justify-between border-b border-gray-100 px-6 py-4 ${
-            isTerminalSelected ? "bg-rose-50/70" : "bg-gray-50/70"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex h-9 w-9 items-center justify-center rounded-lg border ${
-                isTerminalSelected
-                  ? "bg-rose-100 text-rose-700 border-rose-200"
-                  : "bg-indigo-50 text-indigo-600 border-indigo-100"
-              }`}
-            >
-              {isTerminalSelected ? (
-                <UserMinus className="h-5 w-5" />
-              ) : (
-                <RotateCcw className="h-4.5 w-4.5" />
-              )}
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-gray-900">
-                {isTerminalSelected ? "Mark Candidate Dropout / Backout" : "Update Pipeline Stage"}
-              </h2>
-              <p className="text-xs text-gray-500 font-mono">
-                {applicant.vcode} &bull; {applicant.fullName}
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {errorMessage && (
+          <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
+            {errorMessage}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            Select Pipeline Stage / Outcome *
+          </label>
+          <select
+            value={selectedStage}
+            onChange={(e) => setSelectedStage(e.target.value)}
+            className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {errorMessage && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-              {errorMessage}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Select Pipeline Stage / Outcome *
-            </label>
-            <select
-              value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value)}
-              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 ${
-                isTerminalSelected
-                  ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500"
-                  : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-              }`}
-            >
-              {PROGRESSIVE_STAGES.map((opt) => (
+            {PROGRESSIVE_STAGES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+            <optgroup label="Terminal Dropout / Backout">
+              {TERMINAL_STAGES.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-              <optgroup label="Terminal Dropout / Backout">
-                {TERMINAL_STAGES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+            </optgroup>
+          </select>
+        </div>
+
+        {isTerminalSelected ? (
+          /* Terminal Backout/Dropout Section */
+          <div className="space-y-4 rounded-xl border border-border-default bg-surface-muted/50 p-4">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-text-secondary shrink-0 mt-0.5" />
+              <p className="text-xs text-text-secondary">
+                Selecting a terminal dropout will release this candidate&apos;s plantilla slot back
+                to <strong>open</strong> and decrement the store&apos;s occupied headcount.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                Standard Reason *
+              </label>
+              {isLoadingReasons ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-text-muted">
+                  <Loader2 className="h-4 w-4 animate-spin text-text-muted" />
+                  <span>Loading reasons...</span>
+                </div>
+              ) : reasons.length > 0 ? (
+                <select
+                  value={selectedReasonId}
+                  onChange={(e) => setSelectedReasonId(e.target.value)}
+                  className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  {reasons.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.reason}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-xs text-text-muted italic">No standard reasons available.</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                Custom Reason / Additional Notes
+              </label>
+              <textarea
+                rows={2}
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Additional details or custom dropout reason..."
+                className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
           </div>
-
-          {isTerminalSelected ? (
-            /* Terminal Backout/Dropout Section */
-            <div className="space-y-4 rounded-xl border border-rose-200/80 bg-rose-50/40 p-4">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-rose-700">
-                  Selecting a terminal dropout will release this candidate&apos;s plantilla slot back
-                  to <strong>open</strong> and decrement the store&apos;s occupied headcount.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Standard Reason *
-                </label>
-                {isLoadingReasons ? (
-                  <div className="flex items-center gap-2 py-2 text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span>Loading reasons...</span>
-                  </div>
-                ) : reasons.length > 0 ? (
-                  <select
-                    value={selectedReasonId}
-                    onChange={(e) => setSelectedReasonId(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  >
-                    {reasons.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.reason}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-xs text-gray-400 italic">No standard reasons available.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Custom Reason / Additional Notes
-                </label>
-                <textarea
-                  rows={2}
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  placeholder="Additional details or custom dropout reason..."
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+        ) : (
+          /* Progressive Stage Details Section */
+          <>
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                Follow-up / Action Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
             </div>
-          ) : (
-            /* Progressive Stage Details Section */
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Follow-up / Action Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={followUpDate}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Recruitment Remarks
-                </label>
-                <textarea
-                  rows={2}
-                  value={recruitmentRemarks}
-                  onChange={(e) => setRecruitmentRemarks(e.target.value)}
-                  placeholder="e.g. Completed initial screening, scheduled for interview..."
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                Recruitment Remarks
+              </label>
+              <textarea
+                rows={2}
+                value={recruitmentRemarks}
+                onChange={(e) => setRecruitmentRemarks(e.target.value)}
+                placeholder="e.g. Completed initial screening, scheduled for interview..."
+                className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Ops Remarks
-                </label>
-                <textarea
-                  rows={2}
-                  value={opsRemarks}
-                  onChange={(e) => setOpsRemarks(e.target.value)}
-                  placeholder="Operational feedback or endorsement notes..."
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-            </>
-          )}
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                Ops Remarks
+              </label>
+              <textarea
+                rows={2}
+                value={opsRemarks}
+                onChange={(e) => setOpsRemarks(e.target.value)}
+                placeholder="Operational feedback or endorsement notes..."
+                className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </>
+        )}
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition ${
-                isTerminalSelected
-                  ? "bg-rose-600 hover:bg-rose-700"
-                  : "bg-indigo-600 hover:bg-indigo-700"
-              }`}
-            >
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isTerminalSelected ? "Confirm Dropout" : "Save Stage"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="rounded-lg border border-border-default px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition"
+          >
+            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isTerminalSelected ? "Confirm Dropout" : "Save Stage"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

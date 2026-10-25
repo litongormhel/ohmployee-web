@@ -164,7 +164,7 @@ export function VacancyFilterToolbar({
         {/* Inline Quick Selector: Account */}
         <select
           aria-label="Account filter"
-          className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-border-strong transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           disabled={disabled}
           onChange={(e) => onAccountChange(e.target.value)}
           value={accountId}
@@ -180,7 +180,7 @@ export function VacancyFilterToolbar({
         {/* Inline Quick Selector: Group */}
         <select
           aria-label="Group filter"
-          className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-slate-300 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-9 min-w-[140px] rounded-md border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary outline-none focus:border-brand-500 hover:border-border-strong transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           disabled={disabled}
           onChange={(e) => onGroupChange(e.target.value)}
           value={groupId}

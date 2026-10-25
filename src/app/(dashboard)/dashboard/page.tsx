@@ -504,19 +504,22 @@ export default function DashboardPage() {
               </div>
 
               {/* Exact Formula Breakdown Badge */}
-              <div
-                className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 ${
-                  fillRateStatus.status === "good"
-                    ? "border-pct-good-border bg-pct-good-bg text-pct-good-text"
-                    : fillRateStatus.status === "warn"
-                    ? "border-pct-warn-border bg-pct-warn-bg text-pct-warn-text"
-                    : "border-pct-bad-border bg-pct-bad-bg text-pct-bad-text"
-                }`}
-              >
-                <span className="text-xs font-semibold">
-                  Avg Fill Rate: {avgFillRateFormatted}
+              <div className="flex items-center gap-2 rounded-xl border border-border-default bg-surface-card px-3 py-1.5">
+                <span className="text-xs font-semibold text-text-primary">
+                  Avg Fill Rate:{" "}
+                  <span
+                    className={
+                      fillRateStatus.status === "good"
+                        ? "text-pct-good-text"
+                        : fillRateStatus.status === "warn"
+                        ? "text-pct-warn-text"
+                        : "text-pct-bad-text"
+                    }
+                  >
+                    {avgFillRateFormatted}
+                  </span>
                 </span>
-                <span className="font-mono text-xs opacity-90">
+                <span className="font-mono text-xs text-text-muted">
                   ({totalActivePlantilla} Actual / {totalScopedDemand} Required)
                 </span>
               </div>

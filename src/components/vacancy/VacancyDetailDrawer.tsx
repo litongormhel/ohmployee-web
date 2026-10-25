@@ -345,15 +345,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     ? "Pending Clearance"
     : detail?.derivedStatus ?? detail?.vacancyStatus ?? "--";
 
-  const statusBadgeStyle = isPendingClosure
-    ? "border-amber-300 bg-amber-50 text-amber-800"
-    : detail?.derivedStatus?.toLowerCase() === "open"
-    ? "border-blue-200 bg-blue-50 text-blue-700"
-    : detail?.derivedStatus?.toLowerCase() === "pipeline"
-    ? "border-purple-200 bg-purple-50 text-purple-700"
-    : detail?.derivedStatus?.toLowerCase() === "hired"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-gray-200 bg-gray-50 text-gray-700";
+  const statusBadgeStyle = "border-border-default bg-surface-muted text-text-secondary";
 
   const urgencyVariant =
     detail?.urgencyLevel === "High"
@@ -397,10 +389,10 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
       footerClassName="px-4 py-2.5"
       badge={
         isLoading ? (
-          <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
+          <div className="h-5 w-24 animate-pulse rounded bg-surface-muted" />
         ) : detail ? (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-0.5 px-2">
+            <Badge className="font-mono text-xs font-semibold bg-surface-muted text-text-primary border border-border-default py-0.5 px-2">
               {detail.vcode}
             </Badge>
             <Badge className={`text-[11px] py-0 px-2 font-medium ${statusBadgeStyle}`}>
@@ -408,12 +400,12 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
             </Badge>
           </div>
         ) : (
-          <Badge className="bg-red-50 text-red-700">Error</Badge>
+          <Badge className="border border-border-default bg-surface-muted text-text-muted">Error</Badge>
         )
       }
       title={
         isLoading ? (
-          <div className="h-6 w-48 animate-pulse rounded bg-gray-200 mt-1" />
+          <div className="h-6 w-48 animate-pulse rounded bg-surface-muted mt-1" />
         ) : detail ? (
           detail.position_title ?? "Position Title"
         ) : (
@@ -423,7 +415,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
       subtitle={
         !isLoading && detail && (
           <>
-            <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
+            <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
             <span className="truncate">
               {[
                 detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : null,
@@ -522,27 +514,27 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {(detail.hasPendingClosure ||
                 detail.closureRequestStatus?.toLowerCase() === "pending" ||
                 detail.derivedStatus === "For Closure") && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 flex items-start gap-2.5">
-                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                <div className="rounded-md border border-border-default bg-surface-muted p-3 text-text-primary flex items-start gap-2.5">
+                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
                   <div className="text-xs space-y-1">
                     <div className="font-semibold flex items-center gap-1.5">
                       <span>Closure Clearance In-Flight</span>
                       {detail.closureRequestStatus && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800 border border-amber-300">
+                        <span className="rounded-full bg-surface-base px-2 py-0.5 text-[10px] text-text-secondary border border-border-default">
                           {detail.closureRequestStatus}
                         </span>
                       )}
                     </div>
-                    <div className="text-amber-800/90 leading-relaxed">
+                    <div className="text-text-secondary leading-relaxed">
                       This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
                     </div>
                     {detail.closureReason && (
-                      <div className="mt-1 font-medium text-amber-950">
+                      <div className="mt-1 font-medium text-text-primary">
                         Reason: {detail.closureReason}
                       </div>
                     )}
                     {detail.closureRequestedBy && (
-                      <div className="text-[11px] text-amber-700">
+                      <div className="text-[11px] text-text-muted">
                         Requested by {detail.closureRequestedBy}
                         {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
                       </div>
@@ -568,7 +560,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                               alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
                             }
                           }}
-                          className="inline-flex items-center gap-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-2 py-0.5 text-[11px] font-semibold transition"
+                          className="inline-flex items-center gap-1 rounded bg-surface-base hover:bg-surface-hover text-text-primary border border-border-default px-2 py-0.5 text-[11px] font-semibold transition cursor-pointer"
                         >
                           <RotateCcw className="h-3 w-3" />
                           <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
@@ -751,29 +743,21 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[10px] uppercase font-semibold text-text-muted">Aging:</span>
                             {detail.agingDays !== null ? (
-                              <span
-                                className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-bold ${
-                                  detail.agingDays <= 15
-                                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                                    : detail.agingDays <= 30
-                                    ? "border border-amber-200 bg-amber-50 text-amber-700"
-                                    : "border border-rose-200 bg-rose-50 text-rose-700"
-                                }`}
-                              >
+                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium border border-border-default bg-surface-muted text-text-secondary">
                                 {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
                               </span>
                             ) : (
                               <span className="font-semibold text-text-primary">--</span>
                             )}
                             {detail.agingBucket && (
-                              <Badge className="border-blue-100 bg-blue-50 text-blue-800 uppercase font-mono text-[9px] py-0 px-1.5">
+                              <Badge className="border-border-default bg-surface-muted text-text-secondary uppercase font-mono text-[9px] py-0 px-1.5">
                                 {detail.agingBucket}
                               </Badge>
                             )}
                           </div>
                           <div>
                             {hasPenalty ? (
-                              <span className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-bold text-rose-700">
+                              <span className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-text-secondary">
                                 <AlertTriangle className="h-3 w-3 shrink-0" />
                                 Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}
                               </span>
@@ -785,8 +769,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       )}
 
                       {detail.agingDays !== null && detail.agingDays > 60 && (
-                        <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50/60 px-2.5 py-1.5 text-xs text-rose-800">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                        <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-xs text-text-primary">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                           <div className="leading-snug text-[11px]">
                             <strong className="font-semibold">High SLA Breach Risk:</strong> Open &gt; 60 days. Prioritize onboarding to minimize penalty exposure.
                           </div>
@@ -863,8 +847,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         {(detail.hasReliever || detail.relieverOnDuty) && (
                           <div className="col-span-2 pt-1.5 border-t border-border-subtle/50 flex items-center justify-between text-xs">
                             <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Reliever on Duty</span>
-                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-200">
-                              <UserCheck className="h-3 w-3 text-amber-600" />
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-default">
+                              <UserCheck className="h-3 w-3 text-text-muted" />
                               {detail.relieverOnDuty ?? "Reliever Assigned"}
                             </span>
                           </div>
@@ -917,7 +901,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
                         title="Submit a formal headcount quota adjustment request"
                       >
-                        <FileText className="h-3.5 w-3.5 text-blue-600" />
+                        <FileText className="h-3.5 w-3.5 text-brand-600" />
                         <span>Request HC Adjustment</span>
                       </button>
                     )}
@@ -932,8 +916,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         }}
                         className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition shadow-xs ${
                           isClosureBlockedByApplicants
-                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                            : "border-amber-200 bg-amber-50/70 text-amber-800 hover:bg-amber-100 hover:border-amber-300 cursor-pointer"
+                            ? "border-border-default bg-surface-muted text-text-muted cursor-not-allowed opacity-60"
+                            : "border-border-default bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer"
                         }`}
                         title={
                           isClosureBlockedByApplicants
@@ -941,7 +925,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             : "Request store or vacancy closure clearance"
                         }
                       >
-                        <XCircle className={`h-3.5 w-3.5 ${isClosureBlockedByApplicants ? "text-gray-400" : "text-amber-600"}`} />
+                        <XCircle className={`h-3.5 w-3.5 ${isClosureBlockedByApplicants ? "text-text-muted" : "text-brand-600"}`} />
                         <span>Request Closure</span>
                       </button>
                     )}
@@ -966,10 +950,10 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 transition shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
                         title="Withdraw in-flight closure clearance request"
                       >
-                        <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+                        <RotateCcw className="h-3.5 w-3.5 text-text-muted" />
                         <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
                       </button>
                     )}
@@ -1011,7 +995,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           {/* Candidate Top Header */}
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[10px]">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold uppercase text-[10px]">
                                 {candidate.displayName.charAt(0)}
                               </div>
                               <div className="font-bold text-text-primary text-xs">
@@ -1020,23 +1004,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <Badge
-                                className={`text-[10px] py-0.5 px-2 font-semibold ${
-                                  isCandidateHired
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                    : "border-purple-200 bg-purple-50 text-purple-700"
-                                }`}
+                                className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary"
                               >
                                 {candidate.statusLabel}
                               </Badge>
                               {candidateAging !== null && (
                                 <span
-                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
-                                    candidateAging <= 7
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : candidateAging <= 14
-                                      ? "border-amber-200 bg-amber-50 text-amber-700"
-                                      : "border-rose-200 bg-rose-50 text-rose-700"
-                                  }`}
+                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
                                   title="Candidate Aging in Stage"
                                 >
                                   <Clock3 className="h-2.5 w-2.5" />
@@ -1086,7 +1060,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     });
                                     setIsEditApplicantModalOpen(true);
                                   }}
-                                  className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs cursor-pointer"
+                                  className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
                                   title="Edit applicant profile details"
                                 >
                                   <Edit3 className="h-3 w-3" />
@@ -1112,7 +1086,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       });
                                       setIsAdvancePipelineModalOpen(true);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
                                     title="Advance stage or select terminal backout/dropout reason"
                                   >
                                     <ArrowRightCircle className="h-3 w-3" />
@@ -1135,7 +1109,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       });
                                       setIsMarkHiredModalOpen(true);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
                                     title="Approve and mark candidate as hired"
                                   >
                                     <CheckCircle2 className="h-3 w-3" />
@@ -1153,7 +1127,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2.5">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold uppercase text-[10px]">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold uppercase text-[10px]">
                             {detail.applicantName.charAt(0)}
                           </div>
                           <div className="font-bold text-text-primary text-xs">
@@ -1162,23 +1136,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge
-                            className={`text-[10px] py-0.5 px-2 font-semibold ${
-                              isHired
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-purple-200 bg-purple-50 text-purple-700"
-                            }`}
+                            className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary"
                           >
                             {detail.pipelineStatus || "In Pipeline"}
                           </Badge>
                           {detail.agingDays !== null && (
                             <span
-                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
-                                detail.agingDays <= 7
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : detail.agingDays <= 14
-                                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                                  : "border-rose-200 bg-rose-50 text-rose-700"
-                              }`}
+                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
                               title="Aging in Pipeline"
                             >
                               <Clock3 className="h-2.5 w-2.5" />
@@ -1221,7 +1185,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                 });
                                 setIsEditApplicantModalOpen(true);
                               }}
-                              className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
                               title="Edit applicant profile details"
                             >
                               <Edit3 className="h-3 w-3" />
@@ -1247,7 +1211,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                   });
                                   setIsAdvancePipelineModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
                                 title="Advance stage or select terminal backout/dropout reason"
                               >
                                 <ArrowRightCircle className="h-3 w-3" />
@@ -1270,7 +1234,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                   });
                                   setIsMarkHiredModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
                                 title="Approve and mark candidate as hired"
                               >
                                 <CheckCircle2 className="h-3 w-3" />
@@ -1586,13 +1550,13 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
       <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 rounded-md bg-gray-100" />
-        <div className="h-16 rounded-md bg-gray-100" />
+        <div className="h-16 rounded-md bg-surface-muted" />
+        <div className="h-16 rounded-md bg-surface-muted" />
       </div>
-      <div className="h-32 rounded-md bg-gray-100" />
-      <div className="h-24 rounded-md bg-gray-100" />
-      <div className="h-36 rounded-md bg-gray-100" />
-      <div className="h-28 rounded-md bg-gray-100" />
+      <div className="h-32 rounded-md bg-surface-muted" />
+      <div className="h-24 rounded-md bg-surface-muted" />
+      <div className="h-36 rounded-md bg-surface-muted" />
+      <div className="h-28 rounded-md bg-surface-muted" />
     </div>
   );
 }
@@ -1600,11 +1564,11 @@ function LoadingSkeleton() {
 function AccessDeniedState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-red-50 p-3 text-red-600 shadow-xs border border-red-100">
+      <div className="rounded-full bg-surface-muted p-3 text-text-muted shadow-xs border border-border-default">
         <ShieldAlert className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Access Denied</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs">
+      <h4 className="mt-4 text-sm font-semibold text-text-primary">Access Denied</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs">
         You do not have permission to view this vacancy record. Access is restricted to your assigned scope.
       </p>
     </div>
@@ -1614,11 +1578,11 @@ function AccessDeniedState() {
 function NotFoundState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-gray-50 p-3 text-gray-400 border border-gray-100 shadow-xs">
+      <div className="rounded-full bg-surface-muted p-3 text-text-muted border border-border-default shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Record Not Found</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs">
+      <h4 className="mt-4 text-sm font-semibold text-text-primary">Record Not Found</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs">
         The selected vacancy could not be located on the server. It may have been recently removed or closed.
       </p>
     </div>
@@ -1633,15 +1597,15 @@ type ErrorStateProps = {
 function ErrorState({ errorMsg, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="rounded-full bg-amber-50 p-3 text-amber-600 border border-amber-100 shadow-xs">
+      <div className="rounded-full bg-surface-muted p-3 text-text-muted border border-border-default shadow-xs">
         <AlertCircle className="h-8 w-8" />
       </div>
-      <h4 className="mt-4 text-sm font-bold text-gray-900">Unable to Load Details</h4>
-      <p className="mt-1 text-xs text-gray-500 max-w-xs">
+      <h4 className="mt-4 text-sm font-semibold text-text-primary">Unable to Load Details</h4>
+      <p className="mt-1 text-xs text-text-muted max-w-xs">
         {errorMsg}
       </p>
       <button
-        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
+        className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-xs hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
         onClick={onRetry}
         type="button"
       >

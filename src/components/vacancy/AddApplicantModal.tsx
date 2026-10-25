@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useId } from "react";
-import { AlertCircle, CheckCircle, Loader2, UserPlus, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react";
 import { useEndorseApplicant } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
+import { Modal } from "@/components/shared/Modal";
 
 export interface VacancyContextSummary {
   vcode: string;
@@ -31,6 +32,7 @@ export function AddApplicantModal({
 
   return (
     <AddApplicantModalContent
+      isOpen={isOpen}
       vacancy={vacancy}
       onClose={onClose}
       onSuccess={onSuccess}
@@ -42,10 +44,12 @@ export const EndorseApplicantModal = AddApplicantModal;
 export type EndorseApplicantModalProps = AddApplicantModalProps;
 
 function AddApplicantModalContent({
+  isOpen,
   vacancy,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   vacancy: VacancyContextSummary;
   onClose: () => void;
   onSuccess?: (candidateName: string) => void;
@@ -166,47 +170,18 @@ function AddApplicantModalContent({
         (vacancy.groupName ? `(${vacancy.groupName})` : "—");
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-applicant-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add / Endorse Applicant"
+      subtitle="Endorse candidate into active requisition and transition to Pipeline"
+      icon={UserPlus}
+      maxWidthClass="max-w-xl"
     >
-      <div className="relative w-full max-w-xl rounded-xl border border-border-subtle bg-surface-base shadow-2xl transition-all overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3.5 bg-surface-subtle">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100 shadow-2xs">
-              <UserPlus className="h-4 w-4" />
-            </div>
-            <div>
-              <h2
-                id="add-applicant-modal-title"
-                className="text-sm font-semibold text-text-primary"
-              >
-                Add / Endorse Applicant
-              </h2>
-              <p className="text-xs text-text-muted">
-                Endorse candidate into active requisition and transition to Pipeline
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={endorseMutation.isPending}
-            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
-            aria-label="Close modal"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col flex-1 overflow-y-auto p-5 space-y-4"
-        >
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col space-y-4 text-xs"
+      >
           {/* Target Requisition Context Header Strip */}
           <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border-subtle bg-surface-subtle text-xs">
             <span className="font-mono font-bold text-text-primary bg-surface-base px-2 py-0.5 rounded border border-border-subtle shadow-2xs">
@@ -236,7 +211,7 @@ function AddApplicantModalContent({
                   htmlFor={firstNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  First Name <span className="text-red-500">*</span>
+                  First Name <span className="text-text-muted">*</span>
                 </label>
                 <input
                   id={firstNameId}
@@ -248,14 +223,14 @@ function AddApplicantModalContent({
                   }
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="e.g. Juan"
-                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors ${
                     (submitted || touched.firstName) && !trimmedFirstName
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      ? "border-border-strong focus:border-brand-500"
                       : "border-border-subtle"
                   }`}
                 />
                 {(submitted || touched.firstName) && !trimmedFirstName && (
-                  <p className="mt-1 text-[11px] text-red-500">
+                  <p className="mt-1 text-[11px] text-text-secondary">
                     First name is required.
                   </p>
                 )}
@@ -266,7 +241,7 @@ function AddApplicantModalContent({
                   htmlFor={middleNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  Middle Name <span className="text-red-500">*</span>
+                  Middle Name <span className="text-text-muted">*</span>
                 </label>
                 <input
                   id={middleNameId}
@@ -278,14 +253,14 @@ function AddApplicantModalContent({
                   }
                   onChange={(e) => setMiddleName(e.target.value)}
                   placeholder="e.g. Santos"
-                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors ${
                     (submitted || touched.middleName) && !trimmedMiddleName
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      ? "border-border-strong focus:border-brand-500"
                       : "border-border-subtle"
                   }`}
                 />
                 {(submitted || touched.middleName) && !trimmedMiddleName && (
-                  <p className="mt-1 text-[11px] text-red-500">
+                  <p className="mt-1 text-[11px] text-text-secondary">
                     Middle name is required.
                   </p>
                 )}
@@ -296,7 +271,7 @@ function AddApplicantModalContent({
                   htmlFor={lastNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  Last Name <span className="text-red-500">*</span>
+                  Last Name <span className="text-text-muted">*</span>
                 </label>
                 <input
                   id={lastNameId}
@@ -308,14 +283,14 @@ function AddApplicantModalContent({
                   }
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="e.g. Dela Cruz"
-                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors ${
+                  className={`w-full h-9 rounded-md border bg-surface-base px-3 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors ${
                     (submitted || touched.lastName) && !trimmedLastName
-                      ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                      ? "border-border-strong focus:border-brand-500"
                       : "border-border-subtle"
                   }`}
                 />
                 {(submitted || touched.lastName) && !trimmedLastName && (
-                  <p className="mt-1 text-[11px] text-red-500">
+                  <p className="mt-1 text-[11px] text-text-secondary">
                     Last name is required.
                   </p>
                 )}
@@ -330,12 +305,12 @@ function AddApplicantModalContent({
                     htmlFor={contactNumberId}
                     className="block text-xs font-medium text-text-primary"
                   >
-                    11-Digit Contact Number <span className="text-red-500">*</span>
+                    11-Digit Contact Number <span className="text-text-muted">*</span>
                   </label>
                   <span
                     className={`text-[10px] font-mono ${
                       isContactValid
-                        ? "text-emerald-600 font-semibold"
+                        ? "text-text-primary font-semibold"
                         : "text-text-muted"
                     }`}
                   >
@@ -357,15 +332,15 @@ function AddApplicantModalContent({
                       touched.contactNumber ||
                       contactNumber.length > 0) &&
                     !isContactValid
-                      ? "border-amber-400 bg-amber-50/20 text-text-primary focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                      : "border-border-subtle text-text-primary focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      ? "border-border-strong bg-surface-muted/30 text-text-primary focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                      : "border-border-subtle text-text-primary focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   }`}
                 />
                 {(submitted ||
                   touched.contactNumber ||
                   contactNumber.length > 0) &&
                   !isContactValid && (
-                    <p className="mt-1 text-[11px] text-amber-600">
+                    <p className="mt-1 text-[11px] text-text-secondary">
                       Must be 11 digits starting with 09 (e.g. 09171234567)
                     </p>
                   )}
@@ -383,7 +358,7 @@ function AddApplicantModalContent({
                   type="date"
                   value={targetOnboardDate}
                   onChange={(e) => setTargetOnboardDate(e.target.value)}
-                  className="w-full h-9 rounded-md border border-border-subtle bg-surface-base px-3 text-xs text-text-primary outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="w-full h-9 rounded-md border border-border-subtle bg-surface-base px-3 text-xs text-text-primary outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
                 />
               </div>
             </div>
@@ -403,15 +378,15 @@ function AddApplicantModalContent({
                 value={hrcoRemarks}
                 onChange={(e) => setHrcoRemarks(e.target.value)}
                 placeholder="Candidate background, endorsements, interview findings, or operational notes..."
-                className="w-full rounded-md border border-border-subtle bg-surface-base p-2.5 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="w-full rounded-md border border-border-subtle bg-surface-base p-2.5 text-xs text-text-primary outline-none placeholder:text-text-muted focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
               />
             </div>
           </div>
 
           {/* Form Error Message */}
           {formError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+            <div className="flex items-start gap-2 rounded-lg border border-border-default bg-surface-muted p-2.5 text-xs text-text-primary">
+              <AlertCircle className="h-4 w-4 shrink-0 text-text-secondary mt-0.5" />
               <span>{formError}</span>
             </div>
           )}
@@ -421,7 +396,7 @@ function AddApplicantModalContent({
             {/* Endorser Metadata Indicator */}
             <div className="flex items-center gap-1.5 text-xs text-text-secondary">
               <span className="text-text-muted">Endorsed by:</span>
-              <span className="inline-flex items-center gap-1 rounded bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary border border-border-subtle">
+              <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-primary border border-border-subtle">
                 {currentUser?.displayName || "Current User"}
               </span>
             </div>
@@ -439,7 +414,7 @@ function AddApplicantModalContent({
               <button
                 type="submit"
                 disabled={!isFormValid}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-brand-500 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 {endorseMutation.isPending ? (
                   <>
@@ -456,7 +431,6 @@ function AddApplicantModalContent({
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

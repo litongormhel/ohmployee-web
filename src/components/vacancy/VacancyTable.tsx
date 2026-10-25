@@ -319,7 +319,7 @@ export function VacancyTable({
                 <td className="px-3 py-12 text-center" colSpan={activeColumns.length}>
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2">
                     <RefreshCw
-                      className="h-5 w-5 animate-spin text-blue-500"
+                      className="h-5 w-5 animate-spin text-brand-500"
                       aria-hidden="true"
                     />
                     <div className="text-sm font-medium text-table-text-sub">
@@ -460,7 +460,7 @@ export function VacancyTable({
                     {status === "closure" ? (
                       <>
                         {/* 6. REASON FOR DELETION */}
-                        <td className="border-b border-table-rule px-4 py-2.5 font-medium text-rose-900">
+                        <td className="border-b border-table-rule px-4 py-2.5 font-medium text-text-primary">
                           <span>{row.closureReason || "Requested for Deletion"}</span>
                         </td>
 
@@ -470,7 +470,7 @@ export function VacancyTable({
                             {row.closureRequestedBy || "Operations"}
                           </span>
                           {row.closureRequestedAt && (
-                            <span className="text-gray-400">
+                            <span className="text-text-muted">
                               {" "}• {new Date(row.closureRequestedAt).toLocaleDateString()}
                             </span>
                           )}
@@ -487,8 +487,8 @@ export function VacancyTable({
 
                         {/* 7. ONBOARD DATE - beside Applicant */}
                         <td className="border-b border-table-rule px-4 py-2.5">
-                          <span className="inline-flex items-center gap-1.5 rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800 text-xs">
-                            <Calendar className="h-3 w-3 shrink-0 text-emerald-600" aria-hidden="true" />
+                          <span className="inline-flex items-center gap-1.5 rounded border border-border-default bg-surface-muted px-2 py-0.5 font-medium text-text-secondary text-xs">
+                            <Calendar className="h-3 w-3 shrink-0 text-text-muted" aria-hidden="true" />
                             <span>{formatOnboardDate(row.hiredDate)}</span>
                           </span>
                         </td>
@@ -496,15 +496,7 @@ export function VacancyTable({
                         {/* 8. DAYS TO FILL (from vacant date until onboard date) */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                           {row.daysToFill !== null && row.daysToFill !== undefined ? (
-                            <span
-                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
-                                row.daysToFill <= 15
-                                  ? "border border-emerald-200/80 bg-emerald-50 text-emerald-700"
-                                  : row.daysToFill <= 30
-                                  ? "border border-amber-200/80 bg-amber-50 text-amber-700"
-                                  : "border border-rose-200/80 bg-rose-50 text-rose-700"
-                              }`}
-                            >
+                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               {row.daysToFill} {row.daysToFill === 1 ? "day" : "days"}
                             </span>
                           ) : (
@@ -528,7 +520,7 @@ export function VacancyTable({
 
                         {/* 8. STATUS (simple typography, no pill) */}
                         <td className="border-b border-table-rule px-4 py-2.5">
-                          <span className="text-xs font-medium text-rose-700">
+                          <span className="text-xs font-medium text-text-secondary">
                             {row.dropoutReason || "Failed / Backout"}
                           </span>
                         </td>
@@ -536,19 +528,11 @@ export function VacancyTable({
                         {/* 9. AGING */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                           {row.agingDays !== null && row.agingDays !== undefined ? (
-                            <span
-                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
-                                row.agingDays <= 15
-                                  ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
-                                  : row.agingDays <= 30
-                                  ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
-                                  : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
-                              }`}
-                            >
+                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
                             </span>
                           ) : row.agingBucket === "advance" ? (
-                            <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               Advance
                             </span>
                           ) : row.agingBucket ? (
@@ -607,19 +591,11 @@ export function VacancyTable({
                         {/* 8. AGING */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                           {row.agingDays !== null && row.agingDays !== undefined ? (
-                            <span
-                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${
-                                row.agingDays <= 15
-                                  ? "border border-emerald-200/80 bg-emerald-50 font-medium text-emerald-700"
-                                  : row.agingDays <= 30
-                                  ? "border border-amber-200/80 bg-amber-50 font-medium text-amber-700"
-                                  : "border border-rose-200/80 bg-rose-50 font-semibold text-rose-700"
-                              }`}
-                            >
+                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
                             </span>
                           ) : row.agingBucket === "advance" ? (
-                            <span className="inline-flex items-center rounded-md border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               Advance
                             </span>
                           ) : row.agingBucket ? (
@@ -652,7 +628,7 @@ export function VacancyTable({
                                     onSelect(row);
                                   }
                                 }}
-                                className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition shadow-xs"
+                                className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs"
                                 title={`Add applicant for ${row.vcode}`}
                               >
                                 <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -669,7 +645,7 @@ export function VacancyTable({
                                       e.stopPropagation();
                                       onAdvancePipeline(row);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-1 text-xs font-semibold text-text-primary border border-border-default hover:bg-surface-hover transition shadow-xs cursor-pointer"
                                     title={`Update pipeline stage for ${row.applicantName || row.vcode}`}
                                   >
                                     <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
@@ -683,7 +659,7 @@ export function VacancyTable({
                                       e.stopPropagation();
                                       onMarkHired(row);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer"
                                     title={`Approve placement / mark ${row.applicantName || row.vcode} as hired`}
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -702,7 +678,7 @@ export function VacancyTable({
                                       e.stopPropagation();
                                       onWithdrawClosure(row);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 border border-amber-300 hover:bg-amber-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-1 text-xs font-semibold text-text-secondary border border-border-default hover:bg-surface-hover transition shadow-xs cursor-pointer"
                                     title={`Withdraw closure request for ${row.vcode}`}
                                   >
                                     <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -717,7 +693,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Approved");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition shadow-xs cursor-pointer"
+                                      className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer"
                                       title={`Approve closure request for ${row.vcode}`}
                                     >
                                       <Check className="h-3 w-3" aria-hidden="true" />
@@ -729,7 +705,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Rejected");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-xs cursor-pointer"
+                                      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition shadow-xs cursor-pointer"
                                       title={`Reject closure request for ${row.vcode}`}
                                     >
                                       <X className="h-3 w-3" aria-hidden="true" />

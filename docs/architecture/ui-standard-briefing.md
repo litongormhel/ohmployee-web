@@ -187,7 +187,18 @@ Only after all modules. Touches the shared `(dashboard)` layout, so it runs last
 3. **Plan + regression assessment** (one screen), written to `.ai/handoff.md` as the loop's opening entry. **No approval wait: the loop proceeds automatically** unless a stop condition triggers. (This overrides the standing "stop and wait" rule for this project only.)
 4. **Implement** with parallel sub-agents where heavy: (A) token/color cleanup, (B) component adoption, (C) motion and states.
 5. **Verify:** `npm run lint`, `npm run build`, existing tests pass, numbers identical to before, manual matrix: light, dark (legibility and contrast check), reduced-motion, CPU 4x, keyboard, and every viewport in 5.5. A failed check is fixed inside the loop; the loop does not close with known failures.
-6. **Design review checklist:** no color literals; color only on percentages; one hero max; type scale respected; numbers tabular; all states designed; no per-row animation; every interactive control focusable; dark mode fully readable; layout correct from phone to large desktop.
+6. **Design review checklist & Color-Use Audit:**
+   - **Per-loop color-use audit table:** For every use of `--pct-good/warn/bad` (or equivalent classes) in the module, list file, element, and the exact percentage it represents. Verify anything not a percentage (aging brackets in days, counts, status words, report cards, modal completion states) is neutral. Record the audit table in handoff.
+   - No color literals (0 hex/rgb/raw Tailwind color classes).
+   - Color strictly on percentages only.
+   - One hero max.
+   - Type scale respected.
+   - Numbers tabular.
+   - All states designed.
+   - No per-row animation.
+   - Every interactive control focusable.
+   - Dark mode fully readable.
+   - Layout correct from phone to large desktop.
 7. **Docs:** `.ai/briefing.md` (prepend task, keep 5), `.ai/handoff.md` (prepend entry), `docs/state/<module>_state.md` (surgical), `ui-standard.md` changelog, and **ADR-001 if affected** (section 11).
 8. **Report:** files touched, any shared-module touch, decisions made, deviations, remaining items.
 

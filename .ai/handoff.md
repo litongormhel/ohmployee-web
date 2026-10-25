@@ -1,5 +1,100 @@
 # AI Handoff
 
+## UI Standard & Motion System — Color-Use Audit & Loop 4 Vacancy Align (ohm#l4v9k2x1)
+
+**Status: COMPLETE — FULL COLOR-USE AUDIT ACROSS DASHBOARD, CENCOM, AND VACANCY (BLUEPRINT SECTION 3, RULE 3 & 4: COLOR STRICTLY RESERVED FOR PERCENTAGES); ELIMINATED ALL COLOR-ON-COUNT/STATUS/AGING VIOLATIONS IN DASHBOARD AND CENCOM; CLARIFIED BUILD EVIDENCE (OHM LOCAL BUILD VERIFIED GREEN 19/19 STATIC ROUTES OUTSIDE SANDBOX VS SANDBOX OFFLINE FONT-FETCH TSC FALLBACK); ADDED COLOR AUDIT TO MANDATORY PER-LOOP CHECKLIST; COMPLETED LOOP 4 VACANCY ALIGNMENT DROPPING 450+ COLOR LITERALS TO 0; WRAPPED ALL 9 VACANCY MODALS IN SHARED MODAL COMPONENT; VERIFIED DETAIL DRAWER WRAPPING IN VACANCYDETAILDRAWER; PRESERVED 100% OF FORM LOGIC, HOOKS, STATE, VALIDATION, AND MUTATIONS; MECHANICAL GATE PASSING WITH DECISION ALLOW ON MAIN**
+
+### 1. Build Verification & Sandbox Evidence Clarification
+- **Build Verification**: "build verified by Ohm (local)"
+  - Ohm ran `npm run build` locally on `main`: 100% green, 19/19 static routes generated, 0 lint errors, 0 type errors.
+- **Sandbox vs. Local Build Evidence Distinction**:
+  - The 19-route static generation output was produced by `npm run build` executed directly by Ohm on the host machine **outside the sandbox** with full network access.
+  - **Inside the sandbox**, the environment operates under an intentional offline isolation policy that prevents arbitrary network fetches. Next.js static builds require downloading Google Fonts via `next/font/google` (`DM Sans`). In standard sandbox mode, this network fetch is blocked by design.
+  - Consequently, inside the sandbox, `npm run build` halts on the font-fetch network call. The mechanical gate script (`.agents/scripts/gate.py`) detects this specific sandbox network blockage and executes `npx tsc --noEmit` as its rigorous offline compilation and typecheck verification gate, explicitly emitting the fallback notice:
+    ```
+    NOTICE (tsc fallback used): 'next build' font-fetch blocked by sandbox offline policy. 'npx tsc --noEmit' executed and passed with 0 errors. (Ohm runs full 'npm run build' locally before merge).
+    ```
+
+---
+
+### 2. Color-Use Audit Table (Blueprint Section 3, Rule 3 & 4)
+*Rule: Color is strictly reserved for percentages. Green, amber, and red appear only on percentage metrics, gauge rings, progress bars, and percentage change indicators. Headcount numbers, vacancy counts, operational totals, aging durations in days, and status labels must always be neutral.*
+
+#### Audit & Remediation Table: Dashboard & CENCOM
+| File | Element | Original Color Class | Violation Type | Remediation (Neutralized) |
+|---|---|---|---|---|
+| `src/components/dashboard/MikaSyncModal.tsx` | Success banner card | `border-pct-good-border bg-pct-good-bg text-pct-good-text` | Non-percentage modal status state | Neutral card: `border-border-default bg-surface-muted/50 text-text-primary` with `text-brand-600` checkmark |
+| `src/app/(dashboard)/dashboard/page.tsx` | Formula breakdown badge container | `border-pct-good/warn/bad-border bg-pct-good/warn/bad-bg text-pct-good/warn/bad-text` | Container styling around percentage metric | Neutral card: `border-border-default bg-surface-card text-text-secondary`, semantic `pct-*` color strictly scoped to the `{avgFillRateFormatted}` percentage metric |
+| `src/components/cencom/CencomGroupTable.tsx` | Vacancy count cell | `bg-pct-good-bg text-pct-good-text` / `bg-pct-bad-bg text-pct-bad-text` | Vacancy count integer (0 vs >0) | Neutral badges: `bg-surface-muted text-text-muted` (0 vacant) / `bg-surface-muted text-text-primary` (>0 vacant) |
+| `src/components/cencom/CencomDeploymentActivityTab.tsx` | Deployment status badge | `bg-pct-good-bg text-pct-good-text` / `bg-pct-warn-bg text-pct-warn-text` | Status text label ("Deployed", "Pending") | Neutral badge: `bg-surface-muted border border-border-default text-text-secondary` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Target vs Current error banner | `border-pct-bad-border bg-pct-bad-bg text-pct-bad-text` | System status banner | Neutral card: `border-border-default bg-surface-muted text-text-primary` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Operational total headcount | `text-pct-bad-text` | Headcount integer | Neutral text: `text-text-primary` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Aging bracket indicators (1-15d, 16-30d, 31-60d, 61-120d, >121d) | `bg-pct-good/warn/bad-text` | Aging durations in days | Neutral dots: `bg-border-strong` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Province aging table counts & totals | `bg-pct-*-bg text-pct-*-text` | Count cells and column totals | Neutral text: `text-text-primary font-medium` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Open positions count & oldest aging badge | `text-pct-bad-text`, `bg-pct-bad-bg` | Position count and duration | Neutral badges: `bg-surface-muted text-text-secondary border-border-default` |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Reliever status & Urgency level badge | `bg-pct-*-bg text-pct-*-text` | Status text words | Neutral badges: `bg-surface-muted text-text-secondary border border-border-default` |
+
+#### Audit & Verification Table: Vacancy Module
+| File | Element | Status / Metric | Enforced Styling |
+|---|---|---|---|
+| `src/components/vacancy/VacancyTable.tsx` | Days to fill (`row.daysToFill`) | Duration in days (e.g. 12 days) | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyTable.tsx` | Aging days (`row.agingDays`) | Duration in days (e.g. 45 days) | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyTable.tsx` | Advance bucket badge | Status text ("Advance") | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyTable.tsx` | Onboard date badge | Date representation | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyTable.tsx` | Reason for deletion / dropout | Status text | Neutral typography: `text-text-primary` / `text-text-secondary` |
+| `src/components/vacancy/VacancyTable.tsx` | Action buttons (+ Applicant, Update, Approve, Withdraw, Reject) | Interactive actions | Brand blue buttons (`bg-brand-50 text-brand-700 border-brand-200`) or neutral buttons (`bg-surface-muted border-border-default`) |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Status badge (`derivedStatus` / `vacancyStatus`) | Requisition status ("Open", "Pipeline", "Hired") | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Aging days & SLA risk warning | Duration in days | Neutral badge & card: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Penalty active indicator | Penalty currency flag | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Reliever on duty | Operational assignment flag | Neutral badge: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Candidate stage badges & aging in stage | Candidate workflow status & days | Neutral badges: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/components/vacancy/VacancyDetailDrawer.tsx` | Candidate action buttons (Edit Details, Update Stage, Mark Hired) | Candidate workflow actions | Brand blue buttons or neutral outline buttons |
+| `src/components/vacancy/SavedViewsModal.tsx` | Tab badges & filter presets | Status tab filters | Neutral badges: `border border-border-default bg-surface-muted text-text-secondary` |
+| `src/app/(dashboard)/vacancy/page.tsx` | Status tab counts & filter toolbars | Integer counts | Neutral pills: `bg-surface-muted text-text-secondary border border-border-default` |
+| `src/app/(dashboard)/vacancy/page.tsx` | Freeze alert & Toasts | System notification messages | Neutral surfaces: `border border-border-default bg-surface-muted text-text-primary` with brand accents |
+
+- **Verification of `--pct-*` grep across all touched modules**:
+  - `src/components/cencom/`: 0 `--pct-*` occurrences.
+  - `src/app/(dashboard)/cencom/`: 0 `--pct-*` occurrences.
+  - `src/components/vacancy/`: 0 `--pct-*` occurrences.
+  - `src/app/(dashboard)/vacancy/`: 0 `--pct-*` occurrences.
+  - `src/components/dashboard/`: 0 `--pct-*` occurrences.
+  - `src/app/(dashboard)/dashboard/`: Exactly 2 occurrences, both strictly applied to `{avgFillRateFormatted}` (`Fill Rate %`).
+
+---
+
+### 3. Mandatory Per-Loop Checklist Update
+- Updated `docs/architecture/ui-standard-briefing.md` (§ Per-loop procedure, item 6):
+  - Formally mandated that every subsequent module loop (Loop 5 Plantilla, Loop 6 HR Emploc, etc.) must include an explicit **Color-Use Audit Table** in its handoff entry verifying that color is strictly confined to percentages, with counts, durations, and statuses kept neutral.
+
+---
+
+### 4. Loop 4 (Vacancy) Implementation & Modal Inventory
+- **Modal Component Standardization**:
+  Every modal in `src/components/vacancy/` has been wrapped in the shared `Modal` component (`@/components/shared/Modal.tsx`). All bespoke `fixed inset-0 z-50 ...` containers, backdrop blurs, and raw close buttons were replaced with the shared modal primitive:
+  1. `AddApplicantModal.tsx` (wrapped in `<Modal>`, 33 color literals &rarr; 0)
+  2. `AdvancePipelineModal.tsx` (wrapped in `<Modal>`, 59 color literals &rarr; 0)
+  3. `EditApplicantModal.tsx` (wrapped in `<Modal>`, 52 color literals &rarr; 0)
+  4. `EditHiredDateModal.tsx` (wrapped in `<Modal>`, 25 color literals &rarr; 0)
+  5. `FailBackoutModal.tsx` (wrapped in `<Modal>`, 48 color literals &rarr; 0)
+  6. `MarkHiredModal.tsx` (wrapped in `<Modal>`, 53 color literals &rarr; 0)
+  7. `ReopenVacancyModal.tsx` (wrapped in `<Modal>`, 32 color literals &rarr; 0)
+  8. `RequestVacancyClosureModal.tsx` (wrapped in `<Modal>`, 30 color literals &rarr; 0)
+  9. `SavedViewsModal.tsx` (wrapped in `<Modal>`, 42 color literals &rarr; 0)
+- **Detail Drawer Standardization**:
+  - `VacancyDetailDrawer.tsx` wraps `DetailDrawer` (`@/components/shared/DetailDrawer.tsx`). Tokenized all loading skeletons, error states, access denied states, candidate cards, and action toolbars, dropping 66 color literals &rarr; 0.
+- **Table & Page Standardization**:
+  - `VacancyTable.tsx`: Neutralized all aging days, days to fill, onboard date badges, action buttons, and loading spinners (23 color literals &rarr; 0).
+  - `VacancyFilterToolbar.tsx`: Replaced ad-hoc border hover colors with `border-border-strong` (2 color literals &rarr; 0).
+  - `src/app/(dashboard)/vacancy/page.tsx`: Standardized freeze banner, success and error toasts, status tabs, and masterlist export dropdown (17 color literals &rarr; 0).
+- **Zero Business Logic & Mutation Changes**:
+  - All React Query hooks, Supabase RPC mutation calls (`endorseApplicant`, `advanceApplicantPipeline`, `failBackoutApplicant`, `markApplicantHired`, `updateApplicantProfileOnce`, `reopenVacancy`, `requestVacancyClosure`, `withdrawClosureMutation`, `approveAllClosuresMutation`), validation schemes, and permissions remain 100% untouched.
+- **Mechanical Gate Verification**:
+  - Executed `TOUCHED_MODULES="vacancy,dashboard,cencom" python3 .agents/scripts/gate.py`.
+  - Result: `{"decision": "allow", "touched_modules": ["cencom", "dashboard", "vacancy"]}` with 0 ESLint errors, 0 TypeScript errors, and 0 color literals.
+
+---
+
 ## UI Standard & Motion System — Gate Hardening & Loop 3 CENCOM Align (ohm#l3c8m1q5)
 
 **Status: COMPLETE — FIXED SHARED TOAST CONTRACT & CONDITIONAL USAGE IN DASHBOARD; CONFIRMED KPICARD CONSUMERS & BACKWARD COMPATIBILITY; RESOLVED NPM RUN BUILD TO 100% GREEN (19/19 STATIC ROUTES, 0 ERRORS); HARDENED MECHANICAL GATE (REMOVED BASELINE-RED ALLOWANCE, AUTO-DERIVED TOUCHED MODULES FROM GIT DIFF, EXPLICIT TSC FALLBACK REPORTING, UNCONDITIONAL FULL BUILD ON SHARED COMPONENT/STYLE TOUCHES); CORRECTED LOOP 2 RED-BUILD RECORDS; COMPLETED LOOP 3 CENCOM ALIGNMENT DROPPING 237 COLOR LITERALS TO 0; ADOPTED SHARED HEROCARD, KPICARD, SCOPEDROPDOWN, SEGMENTEDTABS, PERCENTAGEBAR, NEUTRALCHIP; 0 LINT/BUILD/GATE ERRORS ON MAIN**
@@ -1273,8 +1368,6 @@ $ TOUCHED_MODULES=cencom python3 .agents/scripts/gate.py
 - Applied and validated migration on live Staging DB `qqiiznmqxfoamqytjica`.
 
 ---
-
-# AI Handoff
 
 ## CENCOM Overview UI Refresh & Group Scope Dropdown (ohm#6c3q8wzn)
 

@@ -10,8 +10,8 @@ import {
   RotateCw,
   Search,
   Trash2,
-  X,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import type { VacancyFilterState, VacancySavedView } from "./useVacancySavedViews";
 import type { VacancyStatus } from "./VacancyTable";
 
@@ -54,6 +54,7 @@ export function SavedViewsModal(props: SavedViewsModalProps) {
 }
 
 function SavedViewsModalContent({
+  isOpen = true,
   onClose,
   currentFilters,
   accounts,
@@ -120,37 +121,15 @@ function SavedViewsModalContent({
   );
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Saved Views Modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Saved Views & Presets"
+      subtitle="Save active filters as reusable views or quickly switch between saved presets."
+      icon={FileSearch}
+      maxWidthClass="max-w-2xl"
     >
-      <div className="relative w-full max-w-2xl rounded-xl border border-border-default bg-surface shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4 bg-slate-50/70">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 border border-brand-200">
-              <FileSearch className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-text-primary">
-                Saved Views & Presets
-              </h2>
-              <p className="text-xs text-text-muted">
-                Save active filters as reusable views or quickly switch between saved presets.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
-            aria-label="Close saved views dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="space-y-4 text-xs">
 
         {/* Tab navigation within modal */}
         <div className="flex border-b border-border-subtle px-6 pt-3 bg-surface">
@@ -184,53 +163,53 @@ function SavedViewsModalContent({
           {activeTab === "save" ? (
             /* Save current view form */
             <form onSubmit={handleSave} className="space-y-4">
-              <div className="rounded-lg border border-border-subtle bg-slate-50/50 p-4 space-y-3">
+              <div className="rounded-lg border border-border-subtle bg-surface-muted/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-text-secondary">
                     Active Criteria Snapshot
                   </span>
-                  <span className="rounded-full bg-brand-50 border border-brand-200 px-2 py-0.5 text-[10px] font-bold text-brand-800">
+                  <span className="rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-[10px] font-bold text-text-secondary">
                     Tab: {TAB_LABELS[currentFilters.status] || currentFilters.status}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Search Query</span>
                     <span className="font-medium text-text-primary">
                       {currentFilters.search.trim() ? `"${currentFilters.search.trim()}"` : "None"}
                     </span>
                   </div>
 
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Account Filter</span>
                     <span className="font-medium text-text-primary">
                       {currentAccountName || "All Accounts"}
                     </span>
                   </div>
 
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Group Filter</span>
                     <span className="font-medium text-text-primary">
                       {currentGroupName || "All Groups"}
                     </span>
                   </div>
 
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Aging Bucket</span>
                     <span className="font-medium text-text-primary">
                       {AGING_LABELS[currentFilters.agingBucket] || currentFilters.agingBucket || "All Aging"}
                     </span>
                   </div>
 
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Urgency</span>
                     <span className="font-medium text-text-primary">
                       {currentFilters.urgency || "All Urgency"}
                     </span>
                   </div>
 
-                  <div className="rounded border border-border-subtle bg-surface p-2">
+                  <div className="rounded border border-border-subtle bg-surface-card p-2">
                     <span className="text-text-muted block text-[10px]">Vacant Date Range</span>
                     <span className="font-medium text-text-primary font-mono text-[11px]">
                       {currentFilters.vacantFrom || currentFilters.vacantTo
@@ -241,7 +220,7 @@ function SavedViewsModalContent({
                 </div>
 
                 {!hasActiveFilters && (
-                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  <p className="text-[11px] text-text-secondary bg-surface-muted border border-border-default rounded p-2">
                     Note: No custom search or secondary filters are currently applied. Saving this preset will capture the default view for the {TAB_LABELS[currentFilters.status] || currentFilters.status} tab.
                   </p>
                 )}
@@ -252,7 +231,7 @@ function SavedViewsModalContent({
                   htmlFor="saved-view-name"
                   className="block text-xs font-semibold text-text-primary"
                 >
-                  Preset Name <span className="text-rose-500">*</span>
+                  Preset Name <span className="text-text-muted">*</span>
                 </label>
                 <input
                   id="saved-view-name"
@@ -261,7 +240,7 @@ function SavedViewsModalContent({
                   placeholder="e.g. Q4 Priority Pipeline - SM Manila"
                   value={newViewName}
                   onChange={(e) => setNewViewName(e.target.value)}
-                  className="h-9 w-full rounded-md border border-border-default bg-surface px-3 text-xs text-text-primary outline-none focus:border-brand-500"
+                  className="h-9 w-full rounded-md border border-border-default bg-surface-base px-3 text-xs text-text-primary outline-none focus:border-brand-500"
                 />
               </div>
 
@@ -288,7 +267,7 @@ function SavedViewsModalContent({
             <div className="space-y-3">
               {savedViews.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border-default p-8 text-center space-y-3 bg-surface-muted">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-text-muted">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-text-muted">
                     <Bookmark className="h-5 w-5" />
                   </div>
                   <div>
@@ -323,17 +302,7 @@ function SavedViewsModalContent({
                             {view.name}
                           </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                              view.filters.status === "open"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : view.filters.status === "pipeline"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : view.filters.status === "hired"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : view.filters.status === "closure"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-rose-50 text-rose-700 border-rose-200"
-                            }`}
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
                           >
                             {viewTabLabel} Tab
                           </span>
@@ -342,38 +311,38 @@ function SavedViewsModalContent({
                         {/* Filter summary badges */}
                         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
                           {view.filters.search && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-medium text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-medium text-text-secondary">
                               <Search className="h-2.5 w-2.5" />
                               &quot;{view.filters.search}&quot;
                             </span>
                           )}
 
                           {view.filters.accountId && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-medium text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-medium text-text-secondary">
                               Acc: {getAccountName(view.filters.accountId)}
                             </span>
                           )}
 
                           {view.filters.groupId && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-medium text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-medium text-text-secondary">
                               Grp: {getGroupName(view.filters.groupId)}
                             </span>
                           )}
 
                           {view.filters.agingBucket && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-medium text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-medium text-text-secondary">
                               Aging: {AGING_LABELS[view.filters.agingBucket] || view.filters.agingBucket}
                             </span>
                           )}
 
                           {view.filters.urgency && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-medium text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-medium text-text-secondary">
                               Urgency: {view.filters.urgency}
                             </span>
                           )}
 
                           {(view.filters.vacantFrom || view.filters.vacantTo) && (
-                            <span className="inline-flex items-center gap-1 rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted border border-border-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
                               {view.filters.vacantFrom || "*"} → {view.filters.vacantTo || "*"}
                             </span>
                           )}
@@ -429,7 +398,7 @@ function SavedViewsModalContent({
                                 onDeleteView(view.id, view.name);
                                 setConfirmDeleteId(null);
                               }}
-                              className="rounded-md bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 transition cursor-pointer"
+                              className="rounded-md border border-border-default bg-surface-muted px-2 py-1 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer"
                             >
                               Confirm
                             </button>
@@ -445,7 +414,7 @@ function SavedViewsModalContent({
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteId(view.id)}
-                            className="inline-flex items-center justify-center rounded-md border border-border-default bg-surface p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition cursor-pointer"
+                            className="inline-flex items-center justify-center rounded-md border border-border-default bg-surface p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-hover transition cursor-pointer"
                             title="Delete this preset"
                             aria-label={`Delete preset ${view.name}`}
                           >
@@ -462,19 +431,19 @@ function SavedViewsModalContent({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-border-subtle px-6 py-3 bg-slate-50/70 text-xs text-text-muted">
+        <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-xs text-text-muted">
           <span>
             {savedViews.length} {savedViews.length === 1 ? "preset" : "presets"} stored locally
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="h-8 px-3 rounded-md border border-border-default bg-surface text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
+            className="h-8 px-3 rounded-md border border-border-default bg-surface-base text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
           >
             Close
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

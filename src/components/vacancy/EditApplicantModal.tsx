@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useId } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Loader2, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Loader2, ShieldAlert } from "lucide-react";
 import { useUpdateApplicantProfile } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
 import { hasFullAccess, canEditApplicantProfile } from "@/lib/rbac";
+import { Modal } from "@/components/shared/Modal";
 
 export interface EditApplicantTarget {
   applicantId: string;
@@ -37,6 +38,7 @@ export function EditApplicantModal({
   return (
     <EditApplicantModalContent
       key={applicant.applicantId}
+      isOpen={isOpen}
       applicant={applicant}
       onClose={onClose}
       onSuccess={onSuccess}
@@ -45,10 +47,12 @@ export function EditApplicantModal({
 }
 
 function EditApplicantModalContent({
+  isOpen,
   applicant,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   applicant: EditApplicantTarget;
   onClose: () => void;
   onSuccess?: (updatedName: string) => void;
@@ -226,47 +230,22 @@ function EditApplicantModalContent({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-applicant-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Applicant Details"
+      subtitle={applicant.vcode ? `Requisition: ${applicant.vcode}` : "Candidate Identity Correction"}
+      icon={Edit3}
+      maxWidthClass="max-w-lg"
     >
-      <div className="relative w-full max-w-lg rounded-xl bg-surface border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted/50">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
-              <Edit3 className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <h2 id="edit-applicant-title" className="text-base font-bold text-text-primary">
-                Edit Applicant Details
-              </h2>
-              <p className="text-xs text-text-muted">
-                {applicant.vcode ? `Requisition: ${applicant.vcode}` : "Candidate Identity Correction"}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors cursor-pointer"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-4 text-xs">
+      <div className="space-y-4 text-xs">
           {/* Status Banners */}
           {isLockedStatus && (
-            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 flex items-start gap-2">
-              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
               <div>
                 <p className="font-semibold">Candidate Profile Locked</p>
-                <p className="text-[11px] text-red-700 mt-0.5">
+                <p className="text-[11px] text-text-muted mt-0.5">
                   This applicant has progressed beyond the Vacancy pipeline ({applicant.statusLabel}). Profile changes must be requested through HR Emploc corrections.
                 </p>
               </div>
@@ -274,11 +253,11 @@ function EditApplicantModalContent({
           )}
 
           {isBlockedByEditLimit && !isLockedStatus && (
-            <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
               <div>
                 <p className="font-semibold">One-Time Edit Already Used</p>
-                <p className="text-[11px] text-amber-700 mt-0.5">
+                <p className="text-[11px] text-text-muted mt-0.5">
                   Applicant details can be edited only once to protect downstream payroll and HR records. A Head Admin or Super Admin override is required to make further corrections.
                 </p>
               </div>
@@ -286,11 +265,11 @@ function EditApplicantModalContent({
           )}
 
           {isOverrideMode && !isLockedStatus && (
-            <div className="p-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-800 flex items-start gap-2">
-              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-purple-600" />
+            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
               <div>
                 <p className="font-semibold">Administrator Override Mode Active</p>
-                <p className="text-[11px] text-purple-700 mt-0.5">
+                <p className="text-[11px] text-text-muted mt-0.5">
                   This applicant has already used their standard profile edit. As a full-access administrator, your update will be recorded as an audit override without resetting the caller limit.
                 </p>
               </div>
@@ -298,11 +277,11 @@ function EditApplicantModalContent({
           )}
 
           {!isOneTimeUsed && !isLockedStatus && (
-            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
+            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
               <div>
                 <p className="font-semibold">One-Time Policy Warning</p>
-                <p className="text-[11px] text-blue-700 mt-0.5">
+                <p className="text-[11px] text-text-muted mt-0.5">
                   Applicant details can only be edited once. Please ensure exact legal name spelling and correct phone digits to prevent downstream correction issues in HR Emploc.
                 </p>
               </div>
@@ -310,8 +289,8 @@ function EditApplicantModalContent({
           )}
 
           {formError && (
-            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-lg border border-border-default bg-surface-muted text-text-primary flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-secondary" />
               <span>{formError}</span>
             </div>
           )}
@@ -321,7 +300,7 @@ function EditApplicantModalContent({
             {/* Last Name */}
             <div>
               <label htmlFor={lastNameId} className="block font-semibold text-text-primary mb-1">
-                Last Name <span className="text-red-600">*</span>
+                Last Name <span className="text-text-muted">*</span>
               </label>
               <input
                 id={lastNameId}
@@ -331,21 +310,21 @@ function EditApplicantModalContent({
                 onChange={(e) => setLastName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, lastName: true }))}
                 placeholder="e.g. DELA CRUZ"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.lastName && !isLastNameValid
-                    ? "border-red-500 bg-red-50/20"
-                    : "border-border bg-surface"
+                    ? "border-border-strong bg-surface-muted/30"
+                    : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.lastName && !isLastNameValid && (
-                <p className="mt-1 text-[11px] text-red-600">Last name is required.</p>
+                <p className="mt-1 text-[11px] text-text-secondary">Last name is required.</p>
               )}
             </div>
 
             {/* First Name */}
             <div>
               <label htmlFor={firstNameId} className="block font-semibold text-text-primary mb-1">
-                First Name <span className="text-red-600">*</span>
+                First Name <span className="text-text-muted">*</span>
               </label>
               <input
                 id={firstNameId}
@@ -355,21 +334,21 @@ function EditApplicantModalContent({
                 onChange={(e) => setFirstName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, firstName: true }))}
                 placeholder="e.g. JUAN"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.firstName && !isFirstNameValid
-                    ? "border-red-500 bg-red-50/20"
-                    : "border-border bg-surface"
+                    ? "border-border-strong bg-surface-muted/30"
+                    : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.firstName && !isFirstNameValid && (
-                <p className="mt-1 text-[11px] text-red-600">First name is required.</p>
+                <p className="mt-1 text-[11px] text-text-secondary">First name is required.</p>
               )}
             </div>
 
             {/* Middle Name */}
             <div>
               <label htmlFor={middleNameId} className="block font-semibold text-text-primary mb-1">
-                Middle Name <span className="text-red-600">*</span>{" "}
+                Middle Name <span className="text-text-muted">*</span>{" "}
                 <span className="text-text-muted font-normal">(enter NA if not applicable)</span>
               </label>
               <input
@@ -380,21 +359,21 @@ function EditApplicantModalContent({
                 onChange={(e) => setMiddleName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, middleName: true }))}
                 placeholder="e.g. SANTOS or NA"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.middleName && !isMiddleNameValid
-                    ? "border-red-500 bg-red-50/20"
-                    : "border-border bg-surface"
+                    ? "border-border-strong bg-surface-muted/30"
+                    : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.middleName && !isMiddleNameValid && (
-                <p className="mt-1 text-[11px] text-red-600">Middle name or NA is required.</p>
+                <p className="mt-1 text-[11px] text-text-secondary">Middle name or NA is required.</p>
               )}
             </div>
 
             {/* Contact Number */}
             <div>
               <label htmlFor={contactNumberId} className="block font-semibold text-text-primary mb-1">
-                Contact Number (11-digit mobile) <span className="text-red-600">*</span>
+                Contact Number (11-digit mobile) <span className="text-text-muted">*</span>
               </label>
               <input
                 id={contactNumberId}
@@ -405,14 +384,14 @@ function EditApplicantModalContent({
                 onBlur={() => setTouched((p) => ({ ...p, contactNumber: true }))}
                 placeholder="09171234567"
                 maxLength={11}
-                className={`w-full rounded-lg border px-3 py-2 font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                className={`w-full rounded-lg border px-3 py-2 font-mono text-text-primary focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.contactNumber && !isContactValid
-                    ? "border-red-500 bg-red-50/20"
-                    : "border-border bg-surface"
+                    ? "border-border-strong bg-surface-muted/30"
+                    : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.contactNumber && !isContactValid && (
-                <p className="mt-1 text-[11px] text-red-600">
+                <p className="mt-1 text-[11px] text-text-secondary">
                   Must be 11 digits starting with 09 (e.g., 09171234567).
                 </p>
               )}
@@ -421,7 +400,7 @@ function EditApplicantModalContent({
             {/* Comments / Reason */}
             <div>
               <label htmlFor={reasonId} className="block font-semibold text-text-primary mb-1">
-                Reason / Comments <span className="text-red-600">*</span>
+                Reason / Comments <span className="text-text-muted">*</span>
               </label>
               <textarea
                 id={reasonId}
@@ -431,94 +410,93 @@ function EditApplicantModalContent({
                 onChange={(e) => setReason(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, reason: true }))}
                 placeholder="Explain reason for editing candidate profile (e.g., Corrected misspelled middle name per valid ID)..."
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.reason && !isReasonValid
-                    ? "border-red-500 bg-red-50/20"
-                    : "border-border bg-surface"
+                    ? "border-border-strong bg-surface-muted/30"
+                    : "border-border-default bg-surface-base"
                 }`}
               />
               {touched.reason && !isReasonValid && (
-                <p className="mt-1 text-[11px] text-red-600">Reason is required for audit history.</p>
+                <p className="mt-1 text-[11px] text-text-secondary">Reason is required for audit history.</p>
               )}
             </div>
           </form>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-muted/30">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={updateMutation.isPending}
-            className="px-4 py-2 rounded-lg border border-border text-xs font-semibold text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={updateMutation.isPending}
+              className="px-4 py-2 rounded-lg border border-border-default text-xs font-semibold text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
 
-          <button
-            type="submit"
-            form="edit-applicant-form"
-            disabled={!isFormValid}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-xs transition-colors ${
-              !isFormValid
-                ? "bg-blue-300 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
-            }`}
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Review & Save</span>
-          </button>
-        </div>
+            <button
+              type="submit"
+              form="edit-applicant-form"
+              disabled={!isFormValid}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-xs transition-colors ${
+                !isFormValid
+                  ? "bg-brand-500/40 cursor-not-allowed"
+                  : "bg-brand-500 hover:bg-brand-600 cursor-pointer"
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Review & Save</span>
+            </button>
+          </div>
 
-        {/* Confirmation Modal Overlay */}
-        {isConfirming && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="w-full max-w-md rounded-xl bg-surface border border-border p-5 shadow-2xl space-y-4">
-              <div className="flex items-center gap-2.5 text-amber-700">
-                <AlertTriangle className="h-5 w-5 shrink-0" />
-                <h3 className="text-sm font-bold text-text-primary">Confirm Applicant Details</h3>
-              </div>
+          {/* Confirmation Modal Overlay */}
+          {isConfirming && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center p-6 bg-surface-overlay animate-in fade-in duration-150">
+              <div className="w-full max-w-md rounded-xl bg-surface-base border border-border-default p-5 shadow-2xl space-y-4">
+                <div className="flex items-center gap-2.5 text-text-primary">
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-text-secondary" />
+                  <h3 className="text-sm font-bold text-text-primary">Confirm Applicant Details</h3>
+                </div>
 
-              <div className="text-xs text-text-secondary space-y-2">
-                <p>
-                  Applicant details can be edited <strong>only once</strong>. Please confirm that all details are correct to avoid downstream correction issues in HR Emploc:
-                </p>
-                <div className="p-3 rounded-lg bg-surface-muted border border-border font-mono text-[11px] space-y-1">
-                  <div><strong>Name:</strong> {trimmedLastName.toUpperCase()}, {trimmedFirstName.toUpperCase()} {trimmedMiddleName.toUpperCase()}</div>
-                  <div><strong>Mobile:</strong> {normalizedContact}</div>
-                  <div><strong>Reason:</strong> {trimmedReason}</div>
+                <div className="text-xs text-text-secondary space-y-2">
+                  <p>
+                    Applicant details can be edited <strong>only once</strong>. Please confirm that all details are correct to avoid downstream correction issues in HR Emploc:
+                  </p>
+                  <div className="p-3 rounded-lg bg-surface-muted border border-border-default font-mono text-[11px] space-y-1 text-text-primary">
+                    <div><strong>Name:</strong> {trimmedLastName.toUpperCase()}, {trimmedFirstName.toUpperCase()} {trimmedMiddleName.toUpperCase()}</div>
+                    <div><strong>Mobile:</strong> {normalizedContact}</div>
+                    <div><strong>Reason:</strong> {trimmedReason}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={updateMutation.isPending}
+                    onClick={() => setIsConfirming(false)}
+                    className="px-3.5 py-1.5 rounded-lg border border-border-default text-xs font-semibold text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+                  >
+                    Back to Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updateMutation.isPending}
+                    onClick={handleConfirmSave}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 shadow-xs transition-colors cursor-pointer"
+                  >
+                    {updateMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Confirm and Save</span>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={updateMutation.isPending}
-                  onClick={() => setIsConfirming(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-border text-xs font-semibold text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
-                >
-                  Back to Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={updateMutation.isPending}
-                  onClick={handleConfirmSave}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
-                >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Confirm and Save</span>
-                  )}
-                </button>
-              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
-    </div>
+    </Modal>
   );
 }

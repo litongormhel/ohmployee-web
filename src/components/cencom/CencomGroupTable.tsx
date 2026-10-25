@@ -337,11 +337,11 @@ export function CencomGroupTable({
                   {/* Vacancies */}
                   <td className="px-3 py-4 text-center">
                     {group.vacant === 0 ? (
-                      <span className="inline-flex items-center rounded-full bg-pct-good-bg px-2 py-0.5 text-xs font-medium text-pct-good-text border border-pct-good-border">
+                      <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-muted border border-border-default">
                         0 vacant
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-pct-bad-bg px-2.5 py-0.5 text-xs font-mono font-bold text-pct-bad-text border border-pct-bad-border">
+                      <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-mono font-bold text-text-primary border border-border-default">
                         {group.vacant}
                       </span>
                     )}

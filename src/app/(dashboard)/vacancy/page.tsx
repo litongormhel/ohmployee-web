@@ -712,7 +712,7 @@ export default function VacancyPage() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-text-primary">
       <AdminPageHeader
         categoryTag="ADMIN PANEL"
         moduleName="Vacancy"
@@ -731,12 +731,12 @@ export default function VacancyPage() {
         <div
           role="alert"
           aria-live="assertive"
-          className="flex items-start gap-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="flex items-start gap-3 rounded-md border border-border-default bg-surface-muted px-4 py-3 text-sm text-text-primary"
         >
-          <ShieldOff className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+          <ShieldOff className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">Read-Only Emergency Mode Active</span>
-            <span className="text-xs text-red-700">
+            <span className="text-xs text-text-secondary">
               All write actions are temporarily disabled system-wide. Supabase backend will reject any mutation attempt.
               {freezeQuery.data?.reason && (
                 <> Reason: {freezeQuery.data.reason}.</>
@@ -754,10 +754,10 @@ export default function VacancyPage() {
         <div
           role="status"
           aria-live="polite"
-          className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+          className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-muted px-4 py-3 text-sm text-text-primary shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-xs">
               ✓
             </span>
             <span className="font-medium text-xs sm:text-sm">{successToast.message}</span>
@@ -765,7 +765,7 @@ export default function VacancyPage() {
           <button
             type="button"
             onClick={() => setSuccessToast(null)}
-            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition-colors"
+            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
             aria-label="Dismiss notification"
           >
             ✕
@@ -777,10 +777,10 @@ export default function VacancyPage() {
         <div
           role="alert"
           aria-live="assertive"
-          className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200"
+          className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-muted px-4 py-3 text-sm text-text-primary shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-xs">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-base text-text-secondary font-bold text-xs border border-border-default">
               ✕
             </span>
             <span className="font-medium text-xs sm:text-sm">{errorToast.message}</span>
@@ -788,7 +788,7 @@ export default function VacancyPage() {
           <button
             type="button"
             onClick={() => setErrorToast(null)}
-            className="rounded p-1 text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors cursor-pointer"
+            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
             aria-label="Dismiss error notification"
           >
             ✕
@@ -816,7 +816,7 @@ export default function VacancyPage() {
                 className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
                     ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                    : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                 }`}
                 onClick={() => updateStatus(tab.value)}
                 role="tab"
@@ -836,7 +836,7 @@ export default function VacancyPage() {
                   className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                     isActive
                       ? "bg-brand-600 text-white"
-                      : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                      : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >
                   {summaryQuery.isLoading ? "–" : count}
@@ -886,7 +886,7 @@ export default function VacancyPage() {
                     <span className="text-xs font-semibold group-hover:text-brand-700">
                       Export Current View
                     </span>
-                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-surface-muted border border-border-default rounded px-1.5 py-0.5">
                       {summaryQuery.isLoading ? "–" : (tabCounts[status] ?? 0)}
                     </span>
                   </div>
@@ -908,7 +908,7 @@ export default function VacancyPage() {
                     <span className="text-xs font-semibold group-hover:text-brand-700">
                       Export Masterlist
                     </span>
-                    <span className="font-mono text-[11px] font-medium text-text-muted bg-slate-100 border border-slate-200/60 rounded px-1.5 py-0.5">
+                    <span className="font-mono text-[11px] font-medium text-text-muted bg-surface-muted border border-border-default rounded px-1.5 py-0.5">
                       {summaryQuery.isLoading ? "–" : (summaryQuery.data?.total ?? 0)}
                     </span>
                   </div>
@@ -948,9 +948,9 @@ export default function VacancyPage() {
       />
 
       {status === "closure" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-default bg-surface-muted px-4 py-2.5 text-xs text-text-secondary">
           <div className="flex items-center gap-2">
-            <Archive className="h-4 w-4 text-slate-500" />
+            <Archive className="h-4 w-4 text-text-muted" />
             <span>
               <strong>Closure Queue:</strong> Requisitions flagged for cessation or slot cancellation.
             </span>
@@ -975,7 +975,7 @@ export default function VacancyPage() {
                   });
                 }
               }}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface px-3 py-1 font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary disabled:opacity-50 transition shadow-xs cursor-pointer"
             >
               {approveAllClosuresMutation.isPending
                 ? "Approving..."

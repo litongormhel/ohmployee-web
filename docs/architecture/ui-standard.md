@@ -195,3 +195,23 @@ Every module loop must satisfy:
 3. **Zero Color Literals:** 0 unmapped color literals (`bg-emerald-*`, `text-slate-*`, raw hex codes) in touched modules, mechanically enforced by `.agents/scripts/gate.py`.
 4. **Dark Mode & Contrast Verification:** Body text contrast $\ge 4.5:1$, large text and borders $\ge 3:1$. Card edges and progress tracks clearly visible in both themes.
 5. **No Business Formula Changes:** Same RPCs, same formulas, same permission gates.
+
+---
+
+## 10. Changelog & Implementation History
+
+- **Loop 4 (Vacancy) & Color-Use Audit (`ohm#l4v9k2x1`)**:
+  - Conducted full Color-Use Audit across Dashboard, CENCOM, and Vacancy enforcing Blueprint Section 3, Rule 3 & 4 (color strictly reserved for percentage metrics).
+  - Neutralized aging brackets in days, vacancy counts, operational totals, deployment statuses, and modal completion states in Dashboard and CENCOM.
+  - Aligned Vacancy module (`src/app/(dashboard)/vacancy/page.tsx`, `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `VacancyFilterToolbar.tsx`, and all 9 modals) dropping color literals from 450+ to 0.
+  - Wrapped all 9 Vacancy modals in shared `Modal` (`@/components/shared/Modal.tsx`) and verified `DetailDrawer` in `VacancyDetailDrawer.tsx` with 100% preservation of form logic, mutations, and hooks.
+- **Loop 3 (CENCOM) & Gate Hardening (`ohm#l3c8m1q5`)**:
+  - Hardened mechanical gate (`.agents/scripts/gate.py`), removing baseline-red allowance and auto-deriving touched modules.
+  - Fixed shared `Toast` contract and conditional usage in Dashboard; verified `npm run build` green across 19 static routes on `main`.
+  - Aligned CENCOM module dropping 237 color literals to 0 and adopting shared `HeroCard`, `KpiCard`, `ScopeDropdown`, `SegmentedTabs`, `PercentageBar`, and `NeutralChip`.
+- **Loop 2 (Dashboard) (`ohm#l2d7k8w1`)**:
+  - Full tokenization and shared component adoption for Dashboard module (`dashboard/page.tsx`, `MikaSyncModal.tsx`).
+- **Loop 1 (Foundation) (`ohm#l1f9w2s4`)**:
+  - Delivered authoritative `ui-standard.md`, centralized percentage thresholds in `src/lib/utils/thresholds.ts`, implemented 7a dark navy token values, delivered 15-component shared UI catalog.
+- **Loop 0 (Discovery & Gate Setup) (`ohm#l0u8s2d9`)**:
+  - Comprehensive codebase audit, gate script configuration in `.agents/scripts/gate.py` and `.agents/hooks.json`.

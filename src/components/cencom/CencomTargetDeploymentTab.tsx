@@ -137,21 +137,21 @@ export function CencomTargetDeploymentTab({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-pct-bad-border bg-pct-bad-bg p-6 text-pct-bad-text shadow-xs">
+      <div className="rounded-xl border border-border-default bg-surface-card p-6 text-text-primary shadow-xs">
         <div className="flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-pct-bad-text" />
+          <ShieldAlert className="h-6 w-6 text-text-secondary" />
           <div>
-            <h3 className="font-semibold text-pct-bad-text">
+            <h3 className="font-semibold text-text-primary">
               Unable to load Target Deployment data
             </h3>
-            <p className="text-xs text-pct-bad-text mt-0.5 opacity-90">
+            <p className="text-xs text-text-muted mt-0.5">
               {error?.message || "An error occurred while fetching vacancy aging records."}
             </p>
           </div>
         </div>
         <button
           onClick={handleRefresh}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-pct-bad-border bg-surface-card px-3 py-1.5 text-xs font-semibold text-pct-bad-text shadow-2xs transition hover:bg-surface-hover cursor-pointer"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-card px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs transition hover:bg-surface-hover cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Retry
@@ -245,7 +245,7 @@ export function CencomTargetDeploymentTab({
           </div>
           <span className="text-xs font-semibold text-text-secondary">
             Operational Total:{" "}
-            <span className="font-bold font-mono text-pct-bad-text">
+            <span className="font-bold font-mono text-text-primary">
               {data?.operationalTotal ?? 0}
             </span>
           </span>
@@ -264,7 +264,7 @@ export function CencomTargetDeploymentTab({
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-text-secondary">1–15 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-pct-good-text" />
+              <span className="h-2 w-2 rounded-full bg-border-strong" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket1_15 ?? 0}
@@ -285,7 +285,7 @@ export function CencomTargetDeploymentTab({
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-text-secondary">16–30 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-pct-warn-text" />
+              <span className="h-2 w-2 rounded-full bg-border-strong" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket16_30 ?? 0}
@@ -306,7 +306,7 @@ export function CencomTargetDeploymentTab({
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-text-secondary">31–60 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-pct-warn-text" />
+              <span className="h-2 w-2 rounded-full bg-border-strong" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket31_60 ?? 0}
@@ -327,7 +327,7 @@ export function CencomTargetDeploymentTab({
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-text-secondary">61–120 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-pct-bad-text" />
+              <span className="h-2 w-2 rounded-full bg-border-strong" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucket61_120 ?? 0}
@@ -348,7 +348,7 @@ export function CencomTargetDeploymentTab({
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-text-secondary">&gt;121 DAYS</span>
-              <span className="h-2 w-2 rounded-full bg-pct-bad-text" />
+              <span className="h-2 w-2 rounded-full bg-border-strong" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
               {data?.bucketGt121 ?? 0}
@@ -489,7 +489,7 @@ export function CencomTargetDeploymentTab({
                         <MapPin className="h-3.5 w-3.5 text-text-muted" />
                         <span>{prov.province.toUpperCase()}</span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-pct-bad-text">
+                      <td className="py-3 px-3 text-right font-mono font-bold text-text-primary">
                         {prov.total}
                       </td>
                       <td className="py-3 px-2 text-center font-mono text-text-primary">
@@ -501,10 +501,10 @@ export function CencomTargetDeploymentTab({
                       <td className="py-3 px-2 text-center font-mono text-text-primary">
                         {prov.bucket31_60 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-pct-bad-text">
+                      <td className="py-3 px-2 text-center font-mono text-text-primary">
                         {prov.bucket61_120 || "-"}
                       </td>
-                      <td className="py-3 px-2 text-center font-mono text-pct-bad-text font-bold">
+                      <td className="py-3 px-2 text-center font-mono text-text-primary font-bold">
                         {prov.bucketGt121 || "-"}
                       </td>
                       <td className="py-3 px-3 text-center font-mono text-text-primary">
@@ -600,7 +600,7 @@ export function CencomTargetDeploymentTab({
                           <span>•</span>
                           <span>
                             Open Positions:{" "}
-                            <strong className="text-pct-bad-text font-mono">
+                            <strong className="text-text-primary font-mono">
                               {outlet.vacancies.length}
                             </strong>
                           </span>
@@ -614,31 +614,13 @@ export function CencomTargetDeploymentTab({
                         <div className="text-[10px] uppercase font-bold text-text-muted">
                           Oldest Aging
                         </div>
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-bold font-mono px-2 py-0.5 rounded border ${
-                            outlet.oldestAging >= 61
-                              ? "bg-pct-bad-bg text-pct-bad-text border-pct-bad-border"
-                              : outlet.oldestAging >= 31
-                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
-                              : outlet.oldestAging >= 16
-                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
-                              : "bg-pct-good-bg text-pct-good-text border-pct-good-border"
-                          }`}
-                        >
+                        <span className="inline-flex items-center gap-1 text-xs font-bold font-mono px-2 py-0.5 rounded border bg-surface-muted text-text-secondary border-border-default">
                           {outlet.oldestAging > 0 ? `${outlet.oldestAging} Days` : "Advance"}
                         </span>
                       </div>
 
                       {/* Reliever status */}
-                      <span
-                        className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold border ${
-                          outlet.relieverStatus === "Has Reliever"
-                            ? "bg-pct-good-bg text-pct-good-text border-pct-good-border"
-                            : outlet.relieverStatus === "Mixed"
-                            ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
-                            : "bg-surface-muted text-text-secondary border-border-default"
-                        }`}
-                      >
+                      <span className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
                         <UserCheck className="h-3.5 w-3.5" />
                         {outlet.relieverStatus}
                       </span>
@@ -673,15 +655,7 @@ export function CencomTargetDeploymentTab({
                               <span className="font-mono text-xs font-bold text-brand-700">
                                 {v.vcode}
                               </span>
-                              <span
-                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border ${
-                                  (v.urgencyLevel ?? "").toLowerCase().includes("critical")
-                                    ? "bg-pct-bad-bg text-pct-bad-text border-pct-bad-border"
-                                    : (v.urgencyLevel ?? "").toLowerCase().includes("urgent")
-                                    ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
-                                    : "bg-surface-muted text-text-secondary border-border-default"
-                                }`}
-                              >
+                              <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border bg-surface-muted text-text-secondary border-border-default">
                                 {v.urgencyLevel || "Normal"}
                               </span>
                             </div>
@@ -699,7 +673,7 @@ export function CencomTargetDeploymentTab({
                               <span>
                                 Vacant Date: <strong>{v.vacantDate || "--"}</strong>
                               </span>
-                              <span className="font-mono font-bold text-pct-bad-text">
+                              <span className="font-mono font-bold text-text-primary">
                                 {v.agingDays ? `${v.agingDays}d open` : "Advance"}
                               </span>
                             </div>

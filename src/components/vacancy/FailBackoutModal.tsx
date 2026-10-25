@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2, UserMinus, X } from "lucide-react";
+import { AlertTriangle, Loader2, UserMinus } from "lucide-react";
 import {
   fetchBackoutReasons,
   fetchRejectedReasons,
   useFailBackoutApplicant,
 } from "@/lib/queries/vacancy";
+import { Modal } from "@/components/shared/Modal";
 
 export interface FailBackoutModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function FailBackoutModal({
 
   return (
     <FailBackoutModalContent
+      isOpen={isOpen}
       applicant={applicant}
       initialType={initialType}
       onClose={onClose}
@@ -42,11 +44,13 @@ export function FailBackoutModal({
 }
 
 function FailBackoutModalContent({
+  isOpen,
   applicant,
   initialType,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   applicant: NonNullable<FailBackoutModalProps["applicant"]>;
   initialType: "Backout" | "Failed";
   onClose: () => void;
@@ -118,143 +122,119 @@ function FailBackoutModalContent({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Mark Candidate Dropout / Backout"
+      subtitle={`${applicant.vcode} • ${applicant.fullName}`}
+      icon={UserMinus}
+      maxWidthClass="max-w-lg"
     >
-      <div className="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-rose-50/70">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-700 border border-rose-200">
-              <UserMinus className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-gray-900">
-                Mark Candidate Dropout / Backout
-              </h2>
-              <p className="text-xs text-gray-500 font-mono">
-                {applicant.vcode} &bull; {applicant.fullName}
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {errorMessage && (
+          <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
+            {errorMessage}
           </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            Terminal Outcome
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setTerminalType("Backout")}
+              className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition cursor-pointer ${
+                terminalType === "Backout"
+                  ? "border-brand-500 bg-brand-50/20 text-brand-700 font-bold"
+                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
+              }`}
+            >
+              Candidate Backout
+            </button>
+            <button
+              type="button"
+              onClick={() => setTerminalType("Failed")}
+              className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition cursor-pointer ${
+                terminalType === "Failed"
+                  ? "border-brand-500 bg-brand-50/20 text-brand-700 font-bold"
+                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
+              }`}
+            >
+              Failed / Rejected by Ops
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            Standard Reason *
+          </label>
+          {isLoadingReasons ? (
+            <div className="flex items-center gap-2 py-2 text-xs text-text-muted">
+              <Loader2 className="h-4 w-4 animate-spin text-text-muted" />
+              <span>Loading standard reasons...</span>
+            </div>
+          ) : reasons.length > 0 ? (
+            <select
+              value={selectedReasonId}
+              onChange={(e) => setSelectedReasonId(e.target.value)}
+              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            >
+              {reasons.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.reason}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-xs text-text-muted italic">No standard reasons found.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            Additional Details / Reason Notes
+          </label>
+          <textarea
+            rows={2}
+            value={customReason}
+            onChange={(e) => setCustomReason(e.target.value)}
+            placeholder="Provide specific notes regarding why candidate failed or backed out..."
+            className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+
+        <div className="rounded-lg border border-border-default bg-surface-muted p-3 flex items-start gap-2 text-xs text-text-secondary">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
+          <div className="leading-relaxed">
+            <strong>Slot Recycling Notice:</strong> Archiving this candidate will immediately release their hold on this requisition. If no other active candidates remain, this vacancy will automatically cycle back into the <strong>Open</strong> tab for sourcing.
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+            disabled={mutation.isPending}
+            className="rounded-lg border border-border-default px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
           >
-            <X className="h-5 w-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {mutation.isPending && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            Confirm Dropout
           </button>
         </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {errorMessage && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-              {errorMessage}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Terminal Outcome
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setTerminalType("Backout")}
-                className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition ${
-                  terminalType === "Backout"
-                    ? "border-amber-500 bg-amber-50 text-amber-800"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Candidate Backout
-              </button>
-              <button
-                type="button"
-                onClick={() => setTerminalType("Failed")}
-                className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition ${
-                  terminalType === "Failed"
-                    ? "border-rose-500 bg-rose-50 text-rose-800"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Failed / Rejected by Ops
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Standard Reason *
-            </label>
-            {isLoadingReasons ? (
-              <div className="flex items-center gap-2 py-2 text-xs text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                <span>Loading standard reasons...</span>
-              </div>
-            ) : reasons.length > 0 ? (
-              <select
-                value={selectedReasonId}
-                onChange={(e) => setSelectedReasonId(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-              >
-                {reasons.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.reason}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-xs text-gray-400 italic">No standard reasons found.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Additional Details / Reason Notes
-            </label>
-            <textarea
-              rows={2}
-              value={customReason}
-              onChange={(e) => setCustomReason(e.target.value)}
-              placeholder="Provide specific notes regarding why candidate failed or backed out..."
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-            />
-          </div>
-
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2 text-xs text-amber-800">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-            <div className="leading-relaxed">
-              <strong>Slot Recycling Notice:</strong> Archiving this candidate will immediately release their hold on this requisition. If no other active candidates remain, this vacancy will automatically cycle back into the <strong>Open</strong> tab for sourcing.
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={mutation.isPending}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
-            >
-              {mutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              Confirm Dropout
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

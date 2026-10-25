@@ -425,19 +425,11 @@ export function CencomDeploymentActivityTab({
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
-                            isPlantilla
-                              ? "bg-pct-good-bg text-pct-good-text border-pct-good-border"
-                              : isPending
-                              ? "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border"
-                              : "bg-surface-muted text-text-secondary border-border-default"
-                          }`}
-                        >
+                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
                           {isPlantilla ? (
-                            <CheckCircle2 className="h-3 w-3" />
+                            <CheckCircle2 className="h-3 w-3 text-text-muted" />
                           ) : (
-                            <Clock className="h-3 w-3" />
+                            <Clock className="h-3 w-3 text-text-muted" />
                           )}
                           {record.status}
                         </span>

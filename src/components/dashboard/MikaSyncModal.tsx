@@ -90,9 +90,9 @@ export function MikaSyncModal({ isOpen, onClose, onSuccess }: MikaSyncModalProps
     >
       <div className="space-y-4">
         {syncDone ? (
-          <div className="rounded-xl border border-pct-good-border bg-pct-good-bg p-6 text-center">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-pct-good-text" />
-            <div className="mt-2 text-sm font-bold text-pct-good-text">
+          <div className="rounded-xl border border-border-default bg-surface-muted/50 p-6 text-center">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-brand-600" />
+            <div className="mt-2 text-sm font-bold text-text-primary">
               MIKA Masterfile Synchronized Successfully
             </div>
             <p className="mt-1 text-xs text-text-secondary">
