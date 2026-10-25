@@ -97,13 +97,24 @@
   --table-row-danger: #fdeeee;       /* soft red */
   --table-row-danger-hover: #facdca; 
 
-  /* CENCOM Hero card tokens — light */
-  --hero-surface: #fbe9ec;
-  --hero-border: #f8c9d0;
+  /* Percentage scale tokens — light */
+  --pct-good-text: #059669;
+  --pct-good-bg: #ecfdf5;
+  --pct-good-border: #a7f3d0;
+  --pct-warn-text: #b45309;
+  --pct-warn-bg: #fffbeb;
+  --pct-warn-border: #fde68a;
+  --pct-bad-text: #dc2626;
+  --pct-bad-bg: #fef2f2;
+  --pct-bad-border: #fecaca;
+
+  /* Hero card tokens — light (brand-blue) */
+  --hero-surface: #f0f4ff;
+  --hero-border: #dbeafe;
   --hero-text: var(--text);          /* #16161a */
-  --hero-muted: #73595c;
-  --hero-accent: var(--bad);         /* #c4372b */
-  --hero-track: rgba(196, 55, 43, 0.12);
+  --hero-muted: #4b5563;
+  --hero-accent: var(--accent);      /* #2b4fd6 */
+  --hero-track: rgba(43, 79, 214, 0.12);
 }
 
 :root[data-theme="light"],
@@ -115,18 +126,18 @@
 :root.dark {
   color-scheme: dark;
 
-  --bg: #101114;
-  --side: #101114;
-  --soft: #18191d;
-  --line: #25262c;
+  --bg: #0c1017;
+  --side: #0c1017;
+  --soft: #131924;
+  --line: #1e2638;
   --text: #ececf0;
-  --muted: #7d7e88;
+  --muted: #828b9e;
   --accent: #8aa4ff;
   --ok: #4cc58d;
   --okbg: #1f9d6a;
   --bad: #ff7d70;
   --warn: #e0a94a;
-  --pillbg: #1a2140;
+  --pillbg: #152238;
 
   --background: var(--bg);
   --foreground: var(--text);
@@ -139,13 +150,13 @@
   --surface-selected: var(--pillbg);
 
   --text-primary: var(--text);
-  --text-secondary: #a3a3ad;
+  --text-secondary: #9ca3af;
   --text-muted: var(--muted);
-  --text-inverted: #101114;
+  --text-inverted: #0c1017;
 
   --border-subtle: var(--line);
   --border-default: var(--line);
-  --border-strong: #3f4049;
+  --border-strong: #2e3b56;
 
   --table-header: var(--bg);
   --table-row: var(--bg);
@@ -188,13 +199,24 @@
   --table-row-danger: rgba(255, 125, 112, 0.15);
   --table-row-danger-hover: rgba(255, 125, 112, 0.25);
 
-  /* CENCOM Hero card tokens — dark */
-  --hero-surface: #2a1417;
-  --hero-border: #442226;
+  /* Percentage scale tokens — dark */
+  --pct-good-text: #34d399;
+  --pct-good-bg: rgba(52, 211, 153, 0.15);
+  --pct-good-border: rgba(52, 211, 153, 0.35);
+  --pct-warn-text: #fbbf24;
+  --pct-warn-bg: rgba(251, 191, 36, 0.15);
+  --pct-warn-border: rgba(251, 191, 36, 0.35);
+  --pct-bad-text: #f87171;
+  --pct-bad-bg: rgba(248, 113, 113, 0.15);
+  --pct-bad-border: rgba(248, 113, 113, 0.35);
+
+  /* Hero card tokens — dark (brand navy) */
+  --hero-surface: #111a33;
+  --hero-border: #1e2f5d;
   --hero-text: var(--text);          /* #ececf0 */
-  --hero-muted: #ad9497;
-  --hero-accent: var(--bad);         /* #ff7d70 */
-  --hero-track: rgba(255, 125, 112, 0.18);
+  --hero-muted: #93a4c8;
+  --hero-accent: #8aa4ff;
+  --hero-track: rgba(138, 164, 255, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -202,18 +224,18 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
     color-scheme: dark;
 
-    --bg: #101114;
-    --side: #101114;
-    --soft: #18191d;
-    --line: #25262c;
+    --bg: #0c1017;
+    --side: #0c1017;
+    --soft: #131924;
+    --line: #1e2638;
     --text: #ececf0;
-    --muted: #7d7e88;
+    --muted: #828b9e;
     --accent: #8aa4ff;
     --ok: #4cc58d;
     --okbg: #1f9d6a;
     --bad: #ff7d70;
     --warn: #e0a94a;
-    --pillbg: #1a2140;
+    --pillbg: #152238;
 
     --background: var(--bg);
     --foreground: var(--text);
@@ -226,13 +248,13 @@
     --surface-selected: var(--pillbg);
 
     --text-primary: var(--text);
-    --text-secondary: #a3a3ad;
+    --text-secondary: #9ca3af;
     --text-muted: var(--muted);
-    --text-inverted: #101114;
+    --text-inverted: #0c1017;
 
     --border-subtle: var(--line);
     --border-default: var(--line);
-    --border-strong: #3f4049;
+    --border-strong: #2e3b56;
 
     --table-header: var(--bg);
     --table-row: var(--bg);
@@ -275,13 +297,24 @@
     --table-row-danger: rgba(255, 125, 112, 0.15);
     --table-row-danger-hover: rgba(255, 125, 112, 0.25);
 
-    /* CENCOM Hero card tokens — dark (media) */
-    --hero-surface: #2a1417;
-    --hero-border: #442226;
+    /* Percentage scale tokens — dark (media) */
+    --pct-good-text: #34d399;
+    --pct-good-bg: rgba(52, 211, 153, 0.15);
+    --pct-good-border: rgba(52, 211, 153, 0.35);
+    --pct-warn-text: #fbbf24;
+    --pct-warn-bg: rgba(251, 191, 36, 0.15);
+    --pct-warn-border: rgba(251, 191, 36, 0.35);
+    --pct-bad-text: #f87171;
+    --pct-bad-bg: rgba(248, 113, 113, 0.15);
+    --pct-bad-border: rgba(248, 113, 113, 0.35);
+
+    /* Hero card tokens — dark (media) */
+    --hero-surface: #111a33;
+    --hero-border: #1e2f5d;
     --hero-text: var(--text);
-    --hero-muted: #ad9497;
-    --hero-accent: var(--bad);
-    --hero-track: rgba(255, 125, 112, 0.18);
+    --hero-muted: #93a4c8;
+    --hero-accent: #8aa4ff;
+    --hero-track: rgba(138, 164, 255, 0.18);
   }
 }
 
@@ -355,7 +388,18 @@
   --color-table-row-danger: var(--table-row-danger);
   --color-table-row-danger-hover: var(--table-row-danger-hover);
 
-  /* CENCOM Hero card utilities */
+  /* Percentage scale utilities */
+  --color-pct-good-text: var(--pct-good-text);
+  --color-pct-good-bg: var(--pct-good-bg);
+  --color-pct-good-border: var(--pct-good-border);
+  --color-pct-warn-text: var(--pct-warn-text);
+  --color-pct-warn-bg: var(--pct-warn-bg);
+  --color-pct-warn-border: var(--pct-warn-border);
+  --color-pct-bad-text: var(--pct-bad-text);
+  --color-pct-bad-bg: var(--pct-bad-bg);
+  --color-pct-bad-border: var(--pct-bad-border);
+
+  /* Hero card utilities */
   --color-hero-surface: var(--hero-surface);
   --color-hero-border: var(--hero-border);
   --color-hero-text: var(--hero-text);
@@ -443,6 +487,32 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 300ms;
+  --duration-pill: 200ms;
+  --duration-tween: 600ms;
+  --duration-stagger-step: 45ms;
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+  }
 }
 
 @keyframes slideIn {

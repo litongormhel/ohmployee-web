@@ -363,3 +363,24 @@ Validation:
 - Run `pnpm lint` and `pnpm build` to verify there are no compilation warnings, static export regressions, or TypeScript compilation issues.
 ```
 
+---
+
+## 9. UI Standard & Motion System Foundation (Loop 1)
+
+In Loop 1, the authoritative standard was formalized in `docs/architecture/ui-standard.md` with:
+- **Centralized Percentage Scales (`src/lib/utils/thresholds.ts`)**: Named scales `"mfr"` (100% / 90%) and `"fill_rate"` (70% / 40%).
+- **Standardized Shared Components Suite (`src/components/shared/`)**:
+  - `AnimatedNumber.tsx`: DOM-direct RAF count tween with tabular numbers.
+  - `PercentageRing.tsx`: SVG sweep gauge with token-based coloring.
+  - `PercentageBar.tsx`: Accessible horizontal progress bar.
+  - `KpiCard.tsx`: Standard 44px KPI card with neutral chip.
+  - `HeroCard.tsx`: Brand-blue hero card with ring gauge and actual/required counts.
+  - `SegmentedTabs.tsx`: Sliding pill navigation with count badge and arrow keyboard navigation.
+  - `Modal.tsx`: Accessible dialog shell with ESC, focus trap, and phone sheet reflow.
+  - `DetailDrawer.tsx`: Standardized drawer with phone full-width reflow and flat backdrop.
+  - `DataTable.tsx`: Token-compliant data table with 14px font size floor and compact padding.
+  - `ScopeDropdown.tsx`, `NeutralChip.tsx`, `EmptyState.tsx`, `Skeleton.tsx`, `InlineError.tsx`, `Toast.tsx`.
+- **Motion Level Hook (`src/hooks/useMotionLevel.ts`)**: Automatic "full" / "lite" / "off" detection with user Settings override.
+- **Dark Mode 7a Approved Tokens**: Blue-tinted navy surfaces (`#0c1017` canvas, `#131924` card/muted, `#1e2638` border, `#8aa4ff` brand blue accent).
+
+

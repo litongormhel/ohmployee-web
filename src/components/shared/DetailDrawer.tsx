@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useMotionLevel } from "@/hooks/useMotionLevel";
 
 export interface DetailDrawerProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ export interface DetailDrawerProps {
   badge?: ReactNode;
   actionSlot?: ReactNode;
   children: ReactNode;
-  widthClass?: string; // e.g. "w-[460px]" or custom responsive overrides
+  widthClass?: string; // e.g. "w-full sm:w-[460px]" or custom responsive overrides
   footer?: ReactNode;
   contentClassName?: string;
   footerClassName?: string;
@@ -26,11 +27,13 @@ export function DetailDrawer({
   badge,
   actionSlot,
   children,
-  widthClass = "w-[var(--drawer-width-md)] max-w-full",
+  widthClass = "w-full sm:w-[var(--drawer-width-md)] max-w-full",
   footer,
   contentClassName = "p-5 space-y-5",
   footerClassName = "px-5 py-3",
 }: DetailDrawerProps) {
+  const motionLevel = useMotionLevel();
+
   // ESC key handler
   useEffect(() => {
     if (!isOpen) return;
@@ -57,17 +60,22 @@ export function DetailDrawer({
 
   return (
     <>
-      {/* Backdrop overlay */}
+      {/* Backdrop overlay (flat translucent color, no blur) */}
       <div
-        className="fixed inset-0 z-40 bg-[var(--surface-overlay)] backdrop-blur-xs animate-fade-in"
+        className="fixed inset-0 z-40 bg-surface-overlay animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Slide-in drawer (animate-drawer-in plays on mount, fixing the
-          mounting glitch where the panel previously appeared without sliding) */}
+      {/* Slide-in drawer */}
       <aside
-        className={`fixed top-0 right-0 z-50 flex h-full ${widthClass} flex-col border-l border-border-default bg-surface-base shadow-2xl animate-drawer-in`}
+        className={`fixed top-0 right-0 z-50 flex h-full ${widthClass} flex-col border-l border-border-default bg-surface-base shadow-2xl ${
+          motionLevel === "full"
+            ? "animate-drawer-in"
+            : motionLevel === "lite"
+            ? "animate-fade-in"
+            : ""
+        }`}
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === "string" ? title : "Details panel"}
