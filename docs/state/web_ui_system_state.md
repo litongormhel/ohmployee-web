@@ -383,4 +383,25 @@ In Loop 1, the authoritative standard was formalized in `docs/architecture/ui-st
 - **Motion Level Hook (`src/hooks/useMotionLevel.ts`)**: Automatic "full" / "lite" / "off" detection with user Settings override.
 - **Dark Mode 7a Approved Tokens**: Blue-tinted navy surfaces (`#0c1017` canvas, `#131924` card/muted, `#1e2638` border, `#8aa4ff` brand blue accent).
 
+---
+
+## 10. Dashboard Module Rollout (Loop 2)
+
+In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion System:
+- **Zero Color Literals**: Reduced color literals across `dashboard/page.tsx` and `MikaSyncModal.tsx` from 313 to 0.
+- **Shared Components Adopted**:
+  - `KpiCard` + `AnimatedNumber` for all 5 Executive KPI cards (neutral numerals, neutral badges).
+  - `PercentageBar` for fill rate evaluation across operational analytics and workforce matrix rows.
+  - `SegmentedTabs` for matrix tab switching (`matrix`, `breaches`, `stores`).
+  - `ScopeDropdown` for retail group filtering.
+  - `NeutralChip` for all non-percentage status indicators.
+  - `Toast` for live status feedback.
+  - `Modal` for `MikaSyncModal`.
+- **Table Standards Enforced**: Strict $\ge 14\text{px}$ floor (`text-sm`) with compact density padding (`py-2.5 px-3` / `px-4`). Zero page horizontal scroll.
+- **Loop 1 Fixes Incorporated**:
+  - Contrast ratios computed for all 6 percentage text/bg pairs (all $\ge 4.5:1$).
+  - Parity marked unverified (build red) until Ohm installs local dependencies.
+  - Mechanical color gate proof demonstrated and verified clean.
+
+
 

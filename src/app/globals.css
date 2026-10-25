@@ -98,13 +98,13 @@
   --table-row-danger-hover: #facdca; 
 
   /* Percentage scale tokens — light */
-  --pct-good-text: #059669;
+  --pct-good-text: #047857;
   --pct-good-bg: #ecfdf5;
   --pct-good-border: #a7f3d0;
   --pct-warn-text: #b45309;
   --pct-warn-bg: #fffbeb;
   --pct-warn-border: #fde68a;
-  --pct-bad-text: #dc2626;
+  --pct-bad-text: #b91c1c;
   --pct-bad-bg: #fef2f2;
   --pct-bad-border: #fecaca;
 

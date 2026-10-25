@@ -58,13 +58,16 @@ Hero cards use a dedicated brand blue tint (light) and deep midnight navy (dark)
 | `--hero-accent` | `#2b4fd6` | `#8aa4ff` | Primary hero indicator accent |
 | `--hero-track` | `rgba(43, 79, 214, 0.12)` | `rgba(138, 164, 255, 0.18)` | Gauge background ring track |
 
-### 2.4 Percentage Scale Tokens
-The only non-brand semantic colors in the system:
-| Status | Light Text | Light BG | Light Border | Dark Text | Dark BG | Dark Border |
+### 2.4 Percentage Scale Tokens & Contrast Ratios
+The only non-brand semantic colors in the system. Every text/bg pair satisfies WCAG AA contrast (&ge; 4.5:1):
+
+| Status | Light Text | Light BG | Light Ratio | Dark Text | Dark BG (Composite) | Dark Ratio |
 |---|---|---|---|---|---|---|
-| **Good** | `#059669` | `#ecfdf5` | `#a7f3d0` | `#34d399` | `rgba(52, 211, 153, 0.15)` | `rgba(52, 211, 153, 0.35)` |
-| **Warn** | `#b45309` | `#fffbeb` | `#fde68a` | `#fbbf24` | `rgba(251, 191, 36, 0.15)` | `rgba(251, 191, 36, 0.35)` |
-| **Bad** | `#dc2626` | `#fef2f2` | `#fecaca` | `#f87171` | `rgba(248, 113, 113, 0.15)` | `rgba(248, 113, 113, 0.35)` |
+| **Good** | `#047857` | `#ecfdf5` | **5.21:1** | `#34d399` | `rgba(52, 211, 153, 0.15)` (`#122d2a`) | **7.61:1** |
+| **Warn** | `#b45309` | `#fffbeb` | **4.84:1** | `#fbbf24` | `rgba(251, 191, 36, 0.15)` (`#302a19`) | **8.55:1** |
+| **Bad** | `#b91c1c` | `#fef2f2` | **5.91:1** | `#f87171` | `rgba(248, 113, 113, 0.15)` (`#2f1f24`) | **5.66:1** |
+
+Borders: Light `--pct-good-border: #a7f3d0`, `--pct-warn-border: #fde68a`, `--pct-bad-border: #fecaca`. Dark uses 35% alpha overlays.
 
 ---
 
@@ -72,34 +75,31 @@ The only non-brand semantic colors in the system:
 
 Centralized in [`src/lib/utils/thresholds.ts`](file:///Users/armanjr/Projects/OHMployee/OHMployee_web/src/lib/utils/thresholds.ts). Components invoke `evaluatePercentage(scale, percent)`.
 
-### 3.1 Named Scales
+### 3.1 Cutoffs as Defined in Code
 1. **`"mfr"` (Manpower Fulfillment Rate)**:
-   - **Good (Healthy):** $\ge 100\%$ ($\ge 1.0$)
-   - **Warn (At risk):** $90.0\% \le \text{value} < 100\%$ ($0.90 \le \text{value} < 1.0$)
-   - **Bad (Critical):** $< 90.0\%$ ($< 0.90$)
+   - Cutoffs in `src/lib/queries/cencom.ts`:
+     - $\ge 100\%$ ($\ge 1.0$) &rarr; Good (Healthy)
+     - $90.0\% \le \text{value} < 100\%$ ($0.90 \le \text{value} < 1.0$) &rarr; Warn (At risk)
+     - $< 90.0\%$ ($< 0.90$) &rarr; Bad (Critical)
+   - Screens using `"mfr"`:
+     - `src/app/(dashboard)/cencom/page.tsx`
+     - `src/components/cencom/CencomOverviewHeroCard.tsx`
+     - `src/components/cencom/CencomGroupTable.tsx`
+     - `src/components/cencom/CencomTargetDeploymentTab.tsx`
+     - `src/components/cencom/CencomDeploymentCard.tsx`
+
 2. **`"fill_rate"` (Store & Position Fill Rate)**:
-   - **Good (Optimal):** $> 70\%$
-   - **Warn (Watch):** $40\% \le \text{value} \le 70\%$
-   - **Bad (Low):** $< 40\%$
+   - Cutoffs in `src/app/(dashboard)/dashboard/page.tsx`:
+     - $> 70\%$ &rarr; Good (Optimal)
+     - $40\% \le \text{value} \le 70\%$ &rarr; Warn (Watch)
+     - $< 40\%$ &rarr; Bad (Low)
+   - Screens using `"fill_rate"`:
+     - `src/app/(dashboard)/dashboard/page.tsx`
+     - `src/components/plantilla/StoreStaffingOverviewDrawer.tsx`
+     - `src/components/plantilla/WorkforceAnalyticsView.tsx`
 
-> [!IMPORTANT]
-> **Scale Differentiation Rule:**
-> Different modules monitor distinct operational realities. For example:
-> - **41.5% MFR** in CENCOM evaluates to **Critical (RED)** because MFR capacity below 90% indicates severe staffing shortages.
-> - **48.8% Fill Rate** in Dashboard evaluates to **Watch (AMBER)** because store fill rates between 40% and 70% represent acceptable baseline pipeline progress.
-> Components must specify their scale name explicitly; never conflate MFR and Fill Rate thresholds.
-
-### 3.2 Screen Inventory by Scale
-- **`"mfr"` screens:**
-  - `src/app/(dashboard)/cencom/page.tsx` (Overview Hero Card, Scope Dropdown, Group Summary)
-  - `src/components/cencom/CencomOverviewHeroCard.tsx`
-  - `src/components/cencom/CencomGroupTable.tsx`
-  - `src/components/cencom/CencomTargetDeploymentTab.tsx`
-  - `src/components/cencom/CencomDeploymentCard.tsx`
-- **`"fill_rate"` screens:**
-  - `src/app/(dashboard)/dashboard/page.tsx` (Group Fill Rate progress bars, Store fill rate rankings)
-  - `src/components/plantilla/StoreStaffingOverviewDrawer.tsx`
-  - `src/components/plantilla/WorkforceAnalyticsView.tsx`
+> [!NOTE]
+> 41.5% MFR (red) and 48.8% fill rate (amber) can appear on different pages. Each page strictly specifies its scale name (`"mfr"` or `"fill_rate"`).
 
 ---
 

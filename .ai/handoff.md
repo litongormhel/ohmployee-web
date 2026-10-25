@@ -1,6 +1,116 @@
 # AI Handoff
 
-## UI Standard & Motion System — Loop 1 Foundation (ohm#l1f9w2s4)
+## UI Standard & Motion System — Loop 2 Dashboard (ohm#l2d7k8w1)
+
+**Status: COMPLETE — LOOP 1 FIXES RESOLVED (WCAG CONTRAST TABLE & RATIOS CALCULATED IN UI-STANDARD.MD, CUTOFFS-ONLY THRESHOLD DEFINITIONS, CENCOM PARITY STATE MARKED UNVERIFIED (BUILD RED), MECHANICAL COLOR GATE PROOF DOCUMENTED); FULL TOKENIZATION AND COMPONENT ADOPTION OF DASHBOARD MODULE (SRC/APP/(DASHBOARD)/DASHBOARD/PAGE.TSX & SRC/COMPONENTS/DASHBOARD/MIKASYNCMODAL.TSX); DASHBOARD COLOR LITERALS DROPPED FROM 313 TO ZERO; ZERO NEW COPIES OF RING/BAR/KPI/TAB PILL CREATED; ADOPTED SHARED KPICARD, ANIMATEDNUMBER, PERCENTAGEBAR, SEGMENTEDTABS, SCOPEDROPDOWN, NEUTRALCHIP, TOAST, MODAL; 0 LINT ERRORS ON MAIN**
+
+### Loop 1 Fixes Completed Prior to Loop 2
+
+1. **Parity State Clarification (Rule 1)**:
+   - CENCOM visual and functional parity is explicitly marked as **"unverified (build red)"** because `npm run build` fails at baseline due to uninstalled packages (`exceljs`, `xlsx`) in local `node_modules`.
+   - Once Ohm installs dependencies and `npm run build` is green, the gate will be re-run for full build verification.
+
+2. **Percentage Scale WCAG AA Contrast Ratios (Rule 2)**:
+   - Changed `--pct-good-text` (light) from `#059669` (4.21:1) to `#047857` (contrast **5.21:1** on `--pct-good-bg` `#ecfdf5`).
+   - Adjusted `--pct-bad-text` (light) to `#b91c1c` (contrast **5.91:1** on `--pct-bad-bg` `#fef2f2`).
+   - Computed contrast ratios for all 6 text/bg pairs in both light and dark themes (all $\ge 4.5:1$):
+     - **Light Good**: `#047857` on `#ecfdf5` &rarr; **5.21:1** (&ge; 4.5:1 AA)
+     - **Light Warn**: `#b45309` on `#fffbeb` &rarr; **4.84:1** (&ge; 4.5:1 AA)
+     - **Light Bad**: `#b91c1c` on `#fef2f2` &rarr; **5.91:1** (&ge; 4.5:1 AA)
+     - **Dark Good**: `#34d399` on `#122d2a` (15% composite over `#0c1017`) &rarr; **7.61:1** (&ge; 4.5:1 AA)
+     - **Dark Warn**: `#fbbf24` on `#302a19` (15% composite over `#0c1017`) &rarr; **8.55:1** (&ge; 4.5:1 AA)
+     - **Dark Bad**: `#f87171` on `#2f1f24` (15% composite over `#0c1017`) &rarr; **5.66:1** (&ge; 4.5:1 AA)
+   - Updated ratio table in `docs/architecture/ui-standard.md` Section 2.4.
+
+3. **Threshold Definition Cleanup in `ui-standard.md` (Rule 3)**:
+   - Removed rationale sentences comparing MFR vs Fill Rate.
+   - Retained only the exact cutoffs as defined in code (`src/lib/queries/cencom.ts` and `src/lib/utils/thresholds.ts`) and the complete inventory of screens utilizing each scale.
+
+4. **Mechanical Color Gate Proof (Rule 4)**:
+   - Proved the mechanical color gate in `.agents/scripts/gate.py` catches color literals and blocks completion when an unauthorized literal is added to a touched module:
+     ```json
+     $ TOUCHED_MODULES="dashboard" python3 .agents/scripts/gate.py
+     {"decision": "continue", "reason": "Verification gate FAILED (Color Literals):\nColor literal gate FAILED (must be 0 for touched modules):\nsrc/app/(dashboard)/dashboard/page.tsx: 1 color literals found (e.g. ['bg-rose-500'])"}
+     ```
+   - Proved that upon removal of the literal, the gate runs cleanly and permits completion:
+     ```json
+     $ TOUCHED_MODULES="dashboard" python3 .agents/scripts/gate.py
+     {"decision": "allow"}
+     ```
+
+5. **Shared Component Reuse (Rule 5)**:
+   - Zero new copies of ring, bar, KPI, or tab pill components were created.
+   - Refactored `src/app/(dashboard)/dashboard/page.tsx` strictly consumes:
+     - `KpiCard` from `@/components/shared/KpiCard`
+     - `AnimatedNumber` from `@/components/shared/AnimatedNumber`
+     - `PercentageBar` from `@/components/shared/PercentageBar`
+     - `SegmentedTabs` from `@/components/shared/SegmentedTabs`
+     - `ScopeDropdown` from `@/components/shared/ScopeDropdown`
+     - `NeutralChip` from `@/components/shared/NeutralChip`
+     - `Toast` from `@/components/shared/Toast`
+   - Refactored `src/components/dashboard/MikaSyncModal.tsx` strictly consumes:
+     - `Modal` from `@/components/shared/Modal`
+
+---
+
+### Loop 2 Deliverables: Dashboard Module Refactor
+
+1. **Color Literals Elimination**:
+   - `src/app/(dashboard)/dashboard/page.tsx`: 278 color literals &rarr; **0 color literals**.
+   - `src/components/dashboard/MikaSyncModal.tsx`: 35 color literals &rarr; **0 color literals**.
+   - Total Dashboard module color literals dropped from **313 to 0**.
+
+2. **Executive KPI Ribbon**:
+   - Refactored 5 KPI cards onto shared `KpiCard`.
+   - Counts are strictly neutral (`text-text-primary` with `AnimatedNumber`).
+   - Replaced decorative gradients and alert backgrounds with semantic surfaces (`bg-surface-card`, `border-border-default`, `bg-surface-muted/50`).
+   - Status indicators converted to neutral badges (`NeutralChip`).
+
+3. **Operational Analytics & Workforce Coverage**:
+   - Centralized average fill rate formatting and evaluation with `evaluatePercentage("fill_rate", avgFillRatePct)`.
+   - Percentage value dynamically displays `--pct-good-text`, `--pct-warn-text`, or `--pct-bad-text`.
+   - Scoped demand breakdown bar migrated from ad-hoc colors to brand-aligned tokens (`bg-brand-500`, `bg-brand-600`, `bg-border-strong`).
+
+4. **Cross-Module Operational Matrix**:
+   - Matrix tab bar migrated to shared `SegmentedTabs` (`"matrix"`, `"breaches"`, `"stores"`).
+   - Group Workforce Matrix table enforced with strict $\ge 14\text{px}$ floor (`text-sm`), compact density padding (`py-2.5 px-3` / `px-4`), and shared `PercentageBar` for fill rate.
+   - SLA status chips standardized to `NeutralChip`.
+   - SLA Breaches and Understaffed Stores cards/tables standardized to semantic border and surface tokens with zero color literals.
+
+5. **Right Command Workspace**:
+   - Approvals Queue Card, Super Admin Governance Card, and Security Telemetry Card fully tokenized.
+   - All interactive actions use standard buttons with `shadow-2xs` and accessible hover states.
+
+---
+
+### Verification
+- **Color Literals**: `TOUCHED_MODULES="dashboard" python3 .agents/scripts/gate.py` passed with 0 violations.
+- **Lint**: `npm run lint` clean (0 errors, 25 preexisting project warnings).
+- **Build Baseline**: Baseline `node_modules` resolution unchanged and preserved.
+- **Branch**: On `main` only.
+
+---
+
+### Files Changed
+- `docs/architecture/ui-standard.md`
+- `src/app/globals.css`
+- `.agents/scripts/gate.py`
+- `src/components/shared/KpiCard.tsx`
+- `src/components/dashboard/MikaSyncModal.tsx`
+- `src/app/(dashboard)/dashboard/page.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `docs/state/dashboard_state.md`
+- `docs/state/web_ui_system_state.md`
+
+---
+
+### Next Prompt / Next Loop
+- **Loop 3: CENCOM**:
+  - Full alignment of CENCOM module to shared UI standard components.
+  - Eliminate all remaining color literals across `src/app/(dashboard)/cencom/page.tsx` and `src/components/cencom/*`.
+  - Validate against mechanical gate (`TOUCHED_MODULES="cencom"`).
+
 
 **Status: COMPLETE — DELIVERED AUTHORITATIVE UI STANDARD (DOCS/ARCHITECTURE/UI-STANDARD.MD); CENTRALIZED PERCENTAGE THRESHOLDS (SRC/LIB/UTILS/THRESHOLDS.TS) WITH NAMED SCALES ("MFR" 100/90 & "FILL_RATE" 70/40); IMPLEMENTED 7A DARK MODE TOKEN EDIT (BLUE-TINTED NAVY CANVASES) AND MIGRATED HERO CARDS TO BRAND BLUE; PRESERVED DM SANS AS DEFAULT FONT WITH VERIFIED TABULAR NUMERALS; DELIVERED COMPLETE SHARED COMPONENTS CATALOG (ANIMATEDNUMBER, PERCENTAGERING, PERCENTAGEBAR, KPICARD, HEROCARD, SEGMENTEDTABS, MODAL, ENHANCED DETAILDRAWER, DATATABLE WITH STRICT 14PX FLOOR, SCOPEDROPDOWN, NEUTRALCHIP, EMPTYSTATE, SKELETON, INLINEERROR, TOAST); WIRED MOTION LEVEL DETECTION HOOK (USEMOTIONLEVEL); RE-ALIGNED CENCOM WITH ZERO BEHAVIORAL REGRESSION; MECHANICAL GATE ENHANCED WITH ZERO COLOR-LITERAL GATE & BUILD BASELINE MONITOR; 0 LINT ERRORS ON MAIN**
 

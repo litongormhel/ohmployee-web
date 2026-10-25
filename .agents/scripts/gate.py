@@ -86,24 +86,24 @@ def check_color_literals(touched_modules):
     return True, ""
 
 def main():
-    # 1. Lint Gate
-    lint_ok, lint_msg = check_lint()
-    if not lint_ok:
-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Lint):\n{lint_msg}"}))
-        sys.exit(0)
-
-    # 2. Build Gate
-    build_ok, build_msg = check_build()
-    if not build_ok:
-        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Build):\n{build_msg}"}))
-        sys.exit(0)
-
-    # 3. Color Literals Gate
+    # 1. Color Literals Gate (fast fail)
     touched_env = os.environ.get("TOUCHED_MODULES", "").strip()
     touched_modules = [m.strip() for m in touched_env.split(",") if m.strip()]
     color_ok, color_msg = check_color_literals(touched_modules)
     if not color_ok:
         print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Color Literals):\n{color_msg}"}))
+        sys.exit(0)
+
+    # 2. Lint Gate
+    lint_ok, lint_msg = check_lint()
+    if not lint_ok:
+        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Lint):\n{lint_msg}"}))
+        sys.exit(0)
+
+    # 3. Build Gate
+    build_ok, build_msg = check_build()
+    if not build_ok:
+        print(json.dumps({"decision": "continue", "reason": f"Verification gate FAILED (Build):\n{build_msg}"}))
         sys.exit(0)
 
     # Green: allow stop

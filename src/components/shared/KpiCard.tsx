@@ -14,6 +14,7 @@ export interface KpiCardProps {
   footer?: ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
   className?: string;
+  onClick?: () => void;
 }
 
 export const KpiCard = memo(function KpiCard({
@@ -27,10 +28,28 @@ export const KpiCard = memo(function KpiCard({
   footer,
   icon: Icon,
   className = "",
+  onClick,
 }: KpiCardProps) {
   return (
     <div
-      className={`flex flex-col justify-between rounded-xl border border-border-default bg-surface-card p-5 shadow-2xs transition-colors ${className}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`flex flex-col justify-between rounded-xl border border-border-default bg-surface-card p-4 sm:p-5 shadow-2xs transition-colors ${
+        onClick
+          ? "cursor-pointer hover:border-border-strong focus:outline-hidden focus:ring-1 focus:ring-brand-500"
+          : ""
+      } ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-2">
