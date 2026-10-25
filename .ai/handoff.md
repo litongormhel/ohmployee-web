@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Install Loop Engineering Skill in Antigravity (ohm#s8k4e9l2)
+
+**Status: COMPLETE — INSTALLED LOOP-ENGINEERING SKILL GLOBALLY IN ~/.GEMINI/CONFIG/SKILLS/LOOP-ENGINEERING/ AND DECLARED IN ~/.GEMINI/CONFIG/SKILLS.JSON; MIRRORED TO .AGENTS/SKILLS/LOOP-ENGINEERING/ IN WORKSPACE FOR TEAM VCS SHARING; ADAPTED SPECIFICATIONS WITH ANTIGRAVITY-NATIVE STOP HOOK CONTRACT (HOOKS.JSON WITH {"DECISION": "CONTINUE"} ON RED TESTS), /GOAL, AND GEMINI FLASH/PRO MODEL ROUTING WHILE PRESERVING CLAUDE CODE COMPATIBILITY; ZERO PROJECT CODE/SCHEMA CHANGES; UNTRACKED PRE-EXISTING CLONE DIRECTORY LOOP-ENGINEERING/ PRESERVED AND REPORTED**
+
+### Changes Delivered
+1. **Global Antigravity Skill Installation**:
+   - Installed `~/.gemini/config/skills/loop-engineering/SKILL.md` with complete instructions and YAML frontmatter (`name: loop-engineering`).
+   - Installed `~/.gemini/config/skills/loop-engineering/README.md` and `LICENSE`.
+   - Created `~/.gemini/config/skills.json` explicitly declaring `~/.gemini/config/skills` entry to ensure discovery across all Antigravity surfaces.
+
+2. **Workspace Mirror**:
+   - Added `.agents/skills/loop-engineering/SKILL.md`, `README.md`, and `LICENSE` in the workspace root for team-wide version control sharing.
+
+3. **Antigravity Adaptation & Multi-Platform Support**:
+   - Added Antigravity-native `hooks.json` Stop hook contract: input on `stdin`, output `{"decision": "continue", "reason": "..."}` on `stdout` when tests fail, and exit 0 / allow when tests pass.
+   - Preserved Claude Code Stop hook format (`.claude/settings.json`, exit code 2 or `{"decision": "block"}`).
+   - Mapped platform primitives: Antigravity `/goal` conditional closed loops, `/schedule` routines/delay timers, and `invoke_subagent` for independent rubric evaluation.
+   - Mapped model routing for cost efficiency: Gemini Flash for verification/evaluations and Gemini Pro for coding/editing.
+
+4. **Repository & Working Tree Cleanliness**:
+   - Identified pre-existing untracked directory `loop-engineering/` (local git clone) in the workspace root; preserved without modification.
+
+---
+
 ## CENCOM Overview UI Refresh & Group Scope Dropdown (ohm#6c3q8wzn)
 
 **Status: COMPLETE — DELIVERED ACCESSIBLE GROUP 1-5 SCOPE DROPDOWN ON CENCOM OVERVIEW WITH SCOPED ROLES INTEGRATION AND STALE FALLBACK; REFACTORED OVERVIEW WITH 2-ROW OVERALL MFR SWEEP RING GAUGE HERO CARD, 4 NEUTRAL 44PX KPI CARDS WITH NETWORK COVERAGE PROGRESS BAR, AND DIVIDER-SEPARATED DOT-INDICATOR DEPLOYMENT SUMMARY; INTRODUCED 6 SEMANTIC HERO THEME TOKENS IN GLOBALS.CSS (&ge;4.5:1 CONTRAST IN BOTH THEMES); IMPLEMENTED OPTION A FOR TILES 6-9 WITH ZERO DATABASE/SCHEMA CHANGES; VERIFIED "ALL GROUPS" METRICS IDENTICAL TO BASELINE; 0 LINT / 0 BUILD ERRORS ON MAIN**
