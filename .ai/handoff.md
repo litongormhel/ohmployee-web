@@ -1,5 +1,147 @@
 # AI Handoff
 
+## UI Standard & Motion System — Loop 0 Discovery & Closed Loop Gate (ohm#l0u8s2d9)
+
+**Status: COMPLETE — LOOP 0 DISCOVERY AUDIT DELIVERED; BRIEFING SAVED TO DOCS/ARCHITECTURE/UI-STANDARD-BRIEFING.MD; ANTIGRAVITY CLOSED-LOOP MECHANICAL GATE WIRED IN .AGENTS/HOOKS.JSON & .AGENTS/SCRIPTS/GATE.PY; 10 AUDIT QUESTIONS ANSWERED WITH RIGOROUS INVENTORY; 8 ARCHITECTURAL DECISIONS FINALIZED; LOOP 1 IMPLEMENTATION PLAN & REGRESSION RISK ASSESSMENT COMPILED; ZERO PROJECT CODE OR SCHEMA MUTATIONS ON MAIN**
+
+### Loop 0 Discovery Findings
+
+1. **Brand Token Inventory (`src/app/globals.css`)**:
+   - **Brand Scale**: `--color-brand-50: #eef2ff`, `--color-brand-100: #e0e7ff`, `--color-brand-500: #2b4fd6`, `--color-brand-600: #2240b0`, `--color-brand-700: #1a318a`.
+   - **Neutral Surfaces**: Light uses `--bg: #ffffff`, `--side: #fafafb`, `--soft: #f4f4f6`, `--line: #ececef`, `--text: #16161a`, `--muted: #8a8a94`. Dark uses `--bg: #101114`, `--side: #101114`, `--soft: #18191d`, `--line: #25262c`, `--text: #ececf0`, `--muted: #7d7e88`.
+   - **Dark Mode Support**: Runtime attributes `[data-theme="dark"]`, `[data-theme="light"]`, `.dark`, and `@media (prefers-color-scheme: dark)` re-map semantic tokens.
+   - **Hero Tokens**: Currently set to red-tinted values (`--hero-surface: #fbe9ec` / `#2a1417`, `--hero-accent: var(--bad)`) from the CENCOM prototype; Loop 1 migrates hero tokens to brand blue (`#f0f4ff` / `#111a33` and `#2b4fd6` / `#8aa4ff`).
+
+2. **`package.json` Dependencies & Test Setup**:
+   - Next.js 16.2.4 (Turbopack, App Router), React 19.2.4, Tailwind CSS v4, `@tanstack/react-query: ^5.100.13`, `@supabase/supabase-js: ^2.106.1`, `lucide-react: ^1.16.0`.
+   - Animation/UI libraries: None present (no Framer Motion, GSAP, Radix UI, Headless UI, or shadcn/ui). Pure CSS transitions + 1 tiny `requestAnimationFrame` hook (`CencomAnimatedNumber.tsx`).
+   - Test setup: `npm run lint` (`eslint`). No Jest or Vitest test runners configured.
+
+3. **`(dashboard)` Layout, Sidebar, Header**:
+   - `src/app/(dashboard)/layout.tsx` mounts `DashboardAuthShell`.
+   - `DashboardAuthShell` wraps `AuthenticatedShell` with `IdleWarningModal`, `Sidebar`, `AdminTopbar`, and main content container (`px-4 py-5 sm:px-5 lg:px-6 2xl:px-8`).
+   - `Sidebar`: Desktop only (`hidden lg:flex`), fixed 240px width (`w-[var(--sidebar-width)]`), displays main modules (Vacancy, HR Emploc, Plantilla) and secondary modules (Dashboard, CENCOM, Approvals, Users, Team Directory, Notifications, Reports, Settings, More).
+   - `AdminTopbar`: Mobile/tablet only (`lg:hidden`), shows module title and horizontally scrolling pill bar.
+
+4. **Modal/Drawer/Dropdown Inventory**:
+   - Over 60 individual modal components across modules (e.g. `src/components/vacancy/`, `src/components/hr-emploc/`, `src/components/plantilla/`, `src/components/more/`).
+   - Shared drawer exists: `src/components/shared/DetailDrawer.tsx` (supports Escape, body scroll lock, sliding CSS animation).
+   - Recommendation: **Unify via Shared Shell Wrapper**. Build a standard `src/components/shared/Modal.tsx` and enhance `DetailDrawer.tsx` with mobile sheet conversion and standard easing/focus trapping. Wrap/mount existing feature forms within this standard shell without altering business logic or queries.
+
+5. **Settings Font Mechanism**:
+   - Exposed in `src/components/settings/PreferencesTab.tsx` via user settings query `useUserSettings` / `useUpdateUserSettings`.
+   - Options: Inter (System Default), SF Pro, Helvetica Neue, Plus Jakarta Sans, Manrope, System Default.
+   - Text scaling: "Default" vs "Large".
+   - Stored in database user settings table. Root layout loads Google fonts (`DM_Sans`, `DM_Mono`) with fallback variables.
+
+6. **Module and Route List & Proposed Rollout Order**:
+   - Total 12 modules / routes:
+     1. `dashboard` (`/dashboard`)
+     2. `cencom` (`/cencom`)
+     3. `vacancy` (`/vacancy`)
+     4. `hr-emploc` (`/hr-emploc`, `/hr-emploc/import`)
+     5. `plantilla` (`/plantilla`)
+     6. `approvals` (`/approvals`)
+     7. `users` & `team-directory` (`/users`, `/team-directory`)
+     8. `notifications`, `reports`, `settings`, `more` (`/notifications`, `/reports`, `/settings`, `/more`)
+     Final: App-wide shell transitions and layout polish (`(dashboard)` layout).
+   - Reasoning: Dashboard sets the baseline KPI and chart styling without mutation risk; CENCOM aligns immediately with extracted shared components; Vacancy, HR Emploc, and Plantilla are high-density operational centers; Approvals unifies 10 tabs; administrative and reporting modules follow; Final Polish closes cross-module navigation.
+
+7. **Hardcoded Color Count per Module**:
+   - `more`: 2,114 literals
+   - `approvals`: 1,052 literals
+   - `plantilla`: 1,031 literals
+   - `hr-emploc`: 1,025 literals
+   - `vacancy`: 638 literals
+   - `users`: 364 literals
+   - `reports`: 342 literals
+   - `dashboard`: 313 literals
+   - `settings`: 256 literals
+   - `cencom`: 237 literals
+   - `notifications`: 44 literals
+   - `team-directory`: 26 literals
+   - Total: ~7,442 color literals identified across the codebase.
+
+8. **Largest Tables per Module**:
+   - Plantilla, HR Emploc, Vacancy, Users, and Approvals have the largest tabular datasets.
+   - Virtualization: **None**. All tables render native `<table>` elements with client-side or server-side pagination via `TablePagination.tsx` (10, 25, 50 rows per page).
+   - Strategy: Keep pagination; adopt compact density (`px-2.5 py-1.5`, 13-14px) and comfortable density (`px-4 py-2.5`, 14px); container fade-in only (no per-row animation).
+
+9. **Percentage Thresholds in Code**:
+   - **MFR & Fulfillment** (`src/lib/queries/cencom.ts`, `src/components/cencom/`):
+     - Healthy: `mfr >= 1.0` (100%+) &rarr; Green (`--pct-good`)
+     - At Risk: `0.90 <= mfr < 1.0` (90% - 99.9%) &rarr; Amber/Yellow (`--pct-warn`)
+     - Critical: `mfr < 0.90` (<90%) &rarr; Red (`--pct-bad`)
+   - **Fill Rate** (`src/app/(dashboard)/dashboard/page.tsx`):
+     - `> 70%`: Green (`--pct-good`)
+     - `40% - 70%`: Amber (`--pct-warn`)
+     - `< 40%`: Red (`--pct-bad`)
+   - Target benchmark: Target 80% line.
+
+10. **Reusability of CENCOM Pass**:
+    - `CencomAnimatedNumber.tsx` &rarr; Promote to shared `src/components/shared/AnimatedNumber.tsx`.
+    - `usePrefersReducedMotion.ts` &rarr; Promote to shared hook `src/hooks/usePrefersReducedMotion.ts` / motion level system.
+    - SVG sweep ring gauge &rarr; Promote to shared `PercentageRing.tsx`.
+    - `CencomKpiCard.tsx` &rarr; Promote to shared `KpiCard.tsx`.
+    - `CencomGroupScopeDropdown.tsx` &rarr; Generalize to shared `ScopeDropdown.tsx`.
+    - Sliding tab pill &rarr; Promote to shared `SegmentedTabs.tsx`.
+
+---
+
+### Section 12 Architectural Decisions (Decided by Claude)
+
+1. **Modal/Drawer: Unify vs Wrap**: Build standard shared container primitives (`src/components/shared/Modal.tsx` and enhanced `DetailDrawer.tsx`) supporting responsive mobile bottom-sheet conversion, ESC trap, focus ring, and flat translucent backdrop (no blur). Feature modals wrap their content inside this shared shell.
+2. **Final Module Rollout Order**: Dashboard &rarr; CENCOM (align) &rarr; Vacancy &rarr; HR Emploc &rarr; Plantilla &rarr; Approvals &rarr; Users & Team Directory &rarr; Notifications, Reports, Settings, More &rarr; Final Polish.
+3. **Motion-Level Setting Location & Default**: Lives in `PreferencesTab.tsx` under "Typography & Accessibility" (leveraging existing `reduceMotionEnabled`). Default is automatic:
+   - `prefers-reduced-motion` &rarr; **Off**
+   - Hardware concurrency &le; 4 or device memory &le; 4 &rarr; **Lite** (opacity fades &le; 150ms only, no stagger, no count-up)
+   - Otherwise &rarr; **Full**.
+4. **Exact Brand-Blue Hero Tokens**:
+   - Light: `--hero-surface: #f0f4ff`, `--hero-border: #dbeafe`, `--hero-text: var(--text)`, `--hero-muted: #4b5563`, `--hero-accent: #2b4fd6`, `--hero-track: rgba(43, 79, 214, 0.12)`.
+   - Dark: `--hero-surface: #111a33`, `--hero-border: #1e2f5d`, `--hero-text: var(--text)`, `--hero-muted: #93a4c8`, `--hero-accent: #8aa4ff`, `--hero-track: rgba(138, 164, 255, 0.18)`.
+5. **Table Density Approach**: Compact density (`px-2.5 py-1.5`, 13-14px) for 20+ row tables (Vacancy, HR Emploc, Plantilla) and Comfortable density (`px-4 py-2.5`, 14px) for overview/reporting. Tables scroll inside their own containers; sticky first column for identifier keys; strictly no per-row animation.
+6. **Library Strategy**: Zero new libraries. Use pure CSS keyframes and 1 shared RAF tween hook (`AnimatedNumber`).
+7. **Breakpoints & Mobile Navigation**:
+   - Phone: `< 640px` (sm)
+   - Tablet: `640px - 1023px` (sm to lg)
+   - Desktop: `&ge; 1024px` (lg)
+   - Large: `&ge; 1536px` (2xl)
+   - Phone navigation pattern: Collapsible mobile drawer sheet triggered via header hamburger icon, replacing overflowing horizontal scroll.
+8. **Dark Mode Surfaces & Accent**: Deep blue-tinted neutrals (`#101114` page, `#18191d` card, `#1f222b` muted, `#2e3547` border) paired with near-white text (`#ececf0`) and brand-blue accent (`#8aa4ff`). Percentage scales get dark-tuned pairs with &ge;4.5:1 contrast.
+
+---
+
+### Loop 1 Implementation Plan
+
+1. **Tokens (`src/app/globals.css`)**:
+   - Add `--pct-good`, `--pct-warn`, `--pct-bad` (+ bg/text pairs) across `:root`, `:root.dark`, and `@theme inline`.
+   - Migrate `--hero-*` tokens to brand blue for both light and dark modes.
+   - Define motion constants: `--ease-standard: cubic-bezier(0.16, 1, 0.3, 1)`, pill duration (200ms), tween duration (600ms), stagger step (45ms).
+   - Add default font token `--font-sans: var(--font-dm-sans), 'Hanken Grotesk', system-ui, sans-serif`.
+2. **Shared Components Suite (`src/components/shared/`)**:
+   - `AnimatedNumber.tsx`: DOM-direct RAF number tween.
+   - `PercentageRing.tsx`: SVG sweep gauge with token-based coloring.
+   - `PercentageBar.tsx`: Progress bar with token-based coloring.
+   - `KpiCard.tsx`: Standard 44px KPI card with neutral chip.
+   - `HeroCard.tsx`: Brand-blue hero card with ring gauge and actual/required counts.
+   - `SegmentedTabs.tsx`: Sliding pill navigation with count badge.
+   - `Modal.tsx`: Accessible dialog shell with ESC, focus trap, and phone sheet reflow.
+   - `DetailDrawer.tsx`: Enhanced standard drawer with phone full-width reflow.
+   - `EmptyState.tsx`, `Skeleton.tsx`, `InlineError.tsx`: Tokenized states.
+3. **CENCOM Re-alignment**:
+   - Re-point `CencomOverviewHeroCard.tsx`, `CencomKpiCard.tsx`, `CencomAnimatedNumber.tsx` to shared components.
+   - Verify visual parity and identical metrics.
+4. **Documentation**:
+   - Author enforceable `docs/architecture/ui-standard.md`.
+   - Update `docs/state/web_ui_system_state.md` and ADR-001 pointer.
+
+### Regression Risk Assessment
+- **Untouched**: All Supabase queries, RPCs, mutations, database schema, RLS policies, RBAC logic, formulas, and data flow.
+- **Risk Surface**: Additive CSS variables and extraction of shared components.
+- **Mitigation**: CENCOM overview will be tested against baseline numbers; CSS token additions are strictly additive; lint gate is enforced via `.agents/hooks.json`.
+
+---
+
 ## Install Loop Engineering Skill in Antigravity (ohm#s8k4e9l2)
 
 **Status: COMPLETE — INSTALLED LOOP-ENGINEERING SKILL GLOBALLY IN ~/.GEMINI/CONFIG/SKILLS/LOOP-ENGINEERING/ AND DECLARED IN ~/.GEMINI/CONFIG/SKILLS.JSON; MIRRORED TO .AGENTS/SKILLS/LOOP-ENGINEERING/ IN WORKSPACE FOR TEAM VCS SHARING; ADAPTED SPECIFICATIONS WITH ANTIGRAVITY-NATIVE STOP HOOK CONTRACT (HOOKS.JSON WITH {"DECISION": "CONTINUE"} ON RED TESTS), /GOAL, AND GEMINI FLASH/PRO MODEL ROUTING WHILE PRESERVING CLAUDE CODE COMPATIBILITY; ZERO PROJECT CODE/SCHEMA CHANGES; UNTRACKED PRE-EXISTING CLONE DIRECTORY LOOP-ENGINEERING/ PRESERVED AND REPORTED**

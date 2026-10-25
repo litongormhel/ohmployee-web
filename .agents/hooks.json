@@ -1,0 +1,12 @@
+{
+  "gate-keeper": {
+    "enabled": true,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 .agents/scripts/gate.py",
+        "timeout": 60
+      }
+    ]
+  }
+}
