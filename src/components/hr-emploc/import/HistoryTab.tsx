@@ -51,13 +51,13 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
   }, [historyBatches, search]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-xs">
       {/* Search and refresh toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
           <input
-            className="w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-hidden focus:ring-1 focus:ring-purple-500 shadow-2xs"
+            className="w-full rounded-lg border border-border-default bg-surface pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden focus:ring-1 focus:ring-brand-primary shadow-2xs"
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search processed batches..."
             type="text"
@@ -66,7 +66,7 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
         </div>
 
         <button
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-2xs self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition shadow-2xs self-start sm:self-auto cursor-pointer"
           disabled={isFetching}
           onClick={() => void refetch()}
           type="button"
@@ -77,10 +77,10 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
       </div>
 
       {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center justify-between">
+        <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-center justify-between">
           <span>{actionError}</span>
           <button
-            className="text-red-500 hover:text-red-700"
+            className="text-[var(--danger-text)] hover:opacity-80 font-semibold cursor-pointer"
             onClick={() => setActionError(null)}
             type="button"
           >
@@ -92,16 +92,16 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
       {/* History List */}
       {isLoading ? (
         <div className="flex h-56 flex-col items-center justify-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          <p className="text-xs text-gray-500">Loading import history...</p>
+          <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
+          <p className="text-xs text-text-muted">Loading import history...</p>
         </div>
       ) : filteredBatches.length === 0 ? (
-        <div className="flex h-56 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-surface-card text-center p-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-500 mb-2">
+        <div className="flex h-56 flex-col items-center justify-center rounded-xl border border-dashed border-border-default bg-surface text-center p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-text-muted mb-2 border border-border-subtle">
             <History className="h-6 w-6" />
           </div>
-          <h4 className="text-sm font-bold text-gray-900">No Import History</h4>
-          <p className="mt-1 text-xs text-gray-500 max-w-sm">
+          <h4 className="text-sm font-bold text-text-primary">No Import History</h4>
+          <p className="mt-1 text-xs text-text-muted max-w-sm">
             {search
               ? "No history records match your search criteria."
               : "Processed batches (Approved, Rejected, Rolled Back) will appear here for audit traceability."}
@@ -117,46 +117,40 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
             return (
               <div
                 key={batch.id}
-                className="flex flex-col gap-4 rounded-xl border border-border-default bg-surface-card p-4.5 shadow-xs transition hover:border-gray-300 md:flex-row md:items-center md:justify-between"
+                className="flex flex-col gap-4 rounded-xl border border-border-default bg-surface p-4.5 shadow-xs transition hover:border-border-strong md:flex-row md:items-center md:justify-between"
               >
                 <div className="flex items-start gap-3.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-700 shrink-0 mt-0.5 border border-purple-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted text-brand-primary shrink-0 mt-0.5 border border-border-subtle">
                     <FileSpreadsheet className="h-5 w-5" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm font-bold text-gray-900">{batch.fileName}</h4>
+                      <h4 className="text-sm font-bold text-text-primary">{batch.fileName}</h4>
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                          isApproved
-                            ? "bg-emerald-100 text-emerald-800"
-                            : isRejected
-                            ? "bg-red-100 text-red-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
+                        className="inline-flex items-center rounded-full border border-border-default bg-surface-muted px-2.5 py-0.5 text-[10px] font-bold text-text-primary font-mono"
                       >
                         {batch.status.replace("_", " ").toUpperCase()}
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-600">
-                      Group: <span className="font-semibold text-gray-900">{batch.groupName || "—"}</span>
+                    <p className="text-xs text-text-muted">
+                      Group: <span className="font-semibold text-text-primary">{batch.groupName || "—"}</span>
                       {" • "}Uploaded by {batch.uploadedByName || "Encoder"} on{" "}
                       {batch.uploadedAt ? new Date(batch.uploadedAt).toLocaleString() : "—"}
                     </p>
 
                     {/* Status specific audit detail */}
-                    <div className="text-xs text-gray-500 pt-0.5 space-y-0.5">
+                    <div className="text-xs text-text-muted pt-0.5 space-y-0.5">
                       {isApproved && (
-                        <p className="text-emerald-800 font-medium">
+                        <p className="text-text-primary font-medium">
                           ✓ {batch.createdRows} record(s) created • Approved by{" "}
-                          <span className="font-semibold">{batch.approvedByName || "Admin"}</span>
+                          <span className="font-semibold text-text-primary">{batch.approvedByName || "Admin"}</span>
                           {batch.approvedAt && ` on ${new Date(batch.approvedAt).toLocaleString()}`}
                         </p>
                       )}
 
                       {isRejected && (
-                        <p className="text-red-700">
+                        <p className="text-[var(--danger-text)]">
                           ✕ Rejected by{" "}
                           <span className="font-semibold">{batch.rejectedByName || "Admin"}</span>
                           {" • Reason: "}{batch.rejectionReasonCode || "—"}
@@ -165,7 +159,7 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
                       )}
 
                       {isRolledBack && (
-                        <p className="text-amber-800">
+                        <p className="text-text-primary">
                           ↺ Rolled back by{" "}
                           <span className="font-semibold">{batch.rolledBackByName || "Admin"}</span>
                           {batch.rolledBackAt && ` on ${new Date(batch.rolledBackAt).toLocaleString()}`}
@@ -177,9 +171,9 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 md:border-t-0 md:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3 md:border-t-0 md:pt-0">
                   <button
-                    className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-2xs"
+                    className="rounded-lg border border-border-default bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition shadow-2xs cursor-pointer"
                     onClick={() => setSelectedBatch(batch)}
                     type="button"
                   >
@@ -189,7 +183,7 @@ export function HistoryTab({ canAct }: HistoryTabProps) {
                   {/* Rollback button: approved batches only for Head Admin / Super Admin */}
                   {isApproved && canAct && (
                     <button
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition shadow-2xs"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3.5 py-2 text-xs font-semibold text-[var(--danger-text)] hover:opacity-90 transition shadow-2xs cursor-pointer"
                       disabled={rollbackMutation.isPending}
                       onClick={() => setRollingBackBatch(batch)}
                       type="button"

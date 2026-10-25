@@ -428,8 +428,21 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
 - **HR Emploc 5A Alignment**:
   - Dropped color literals across HR Emploc list, table, drawer, and 9 modals from 694 to 0.
   - Enforced $\ge 14\text{px}$ floor on `HrEmplocTable` with neutral aging duration badges.
-  - Verified 0 invariant conflicts against parent ADR-001 System Architecture v2.
   - Closed-loop mechanical gate passed with `"decision": "allow"`.
+
+---
+
+## 14. HR Emploc Import Flow Alignment (Loop 5B, ohm#l5b9k4x2)
+
+- **Import Flow Alignment (`src/components/hr-emploc/import/`)**:
+  - Refactored `UploadTab.tsx`, `ReviewBatchesTab.tsx`, `HistoryTab.tsx`, `BatchDetailsModal.tsx`, `RejectBatchModal.tsx`, `RollbackBatchModal.tsx`.
+  - Color literals reduced from 351 to exactly 0 (Total HR Emploc module literals: **0**).
+  - Preserved 100% of parsing (`exceljs`/`xlsx`), validation, batch RPCs, and 72h rollback logic (display/token changes only).
+  - Neutralized batch counts, row validity numbers, and rollback countdowns.
+  - Applied modal guards: `z-[70]` stacking on reject/rollback submodals over `BatchDetailsModal` (`z-[60]`), `disableBackdropClick={true}`, `isSubmitting` mutation lock, and `isDirty` Esc-guard.
+  - Restored `--danger` tokens strictly on destructive actions (reject batch, rollback batch) and validation/submission error banners.
+  - Reverted gate submodule checks; verified full real module `hr-emploc` gate passes with `"decision": "allow"` and `'npm run build' completed successfully (0 errors)`.
+
 
 
 

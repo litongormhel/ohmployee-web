@@ -400,13 +400,16 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Updated sub-modals (`BatchDetailsModal`, `RejectBatchModal`, `RollbackBatchModal`) to `z-[60]` / `z-[70]` for clean stacking over parent modal.
 - Configured legacy route `/hr-emploc/import` to automatically redirect to `/more?tab=data_control&subtab=batch_imports&open=import_hr_emploc`.
 
-### Phase 6: UI Standard & Motion System Alignment (Loop 5A) [COMPLETED — ohm#l5a7m3p9]
+### Phase 6: UI Standard & Motion System Alignment (Loop 5A & 5B) [COMPLETED — ohm#l5b9k4x2]
 - Aligned HR Emploc list page, table, drawer, and all 9 modals to the authoritative UI standard (`docs/architecture/ui-standard.md`).
-- Reduced color literals across all Loop 5A files from 694 to exactly 0.
+- Aligned HR Emploc Import flow (`UploadTab`, `ReviewBatchesTab`, `HistoryTab`, `BatchDetailsModal`, `RejectBatchModal`, `RollbackBatchModal`).
+- Parsing (`exceljs`/`xlsx`), validation, batch RPCs, and 72h rollback logic completely preserved (read-only logic, display/token changes only).
+- Upload progress, row validity counts, batch counts, and countdowns strictly neutralized.
+- Modal guards enforced: `z-[70]` stacking on reject/rollback submodals, `disableBackdropClick={true}` on form modals, `isSubmitting` mutation lock, `isDirty` Esc-guard.
+- Reduced color literals across all HR Emploc files from 1,045 to exactly 0.
 - Standardized table typography with a strict 14px (`text-sm`) minimum text floor and compact padding. Neutralized aging day counts (`SLA_BADGE_CLASS`).
-- Modal hardening: wrapped all modals in shared `Modal` (`z-[60]`) over `DetailDrawer` (`z-50`). Form modals enforce `disableBackdropClick={true}`, pending mutation blocking via `isSubmitting`, and unsaved input safety via `isDirty`.
-- Applied `--danger` tokens (`text-[var(--danger-text)]`, `bg-[var(--danger-bg)]`, `border-[var(--danger-border)]`) strictly to destructive actions (revert, separation/deletion), validation errors, and failed-state messages.
-- Verified 0 invariant conflicts against ADR-001 System Architecture v2.
+- Applied `--danger` tokens (`text-[var(--danger-text)]`, `bg-[var(--danger-bg)]`, `border-[var(--danger-border)]`) strictly to destructive actions (reject batch, rollback batch, revert review, separation/deletion), validation errors, and failed-state messages.
+- Mechanical verification gate passed with real module name `hr-emploc` and `"decision": "allow"`.
 
 **Completed (OHM2026_1109):**
 - `tagWebHrEmplocDeficiency` RPC wrapper added to `src/lib/queries/hr_emploc.ts` calling `public.tag_web_hr_emploc_deficiency(p_hr_emploc_id, p_deficiencies, p_remarks)`.

@@ -75,13 +75,13 @@ export function ReviewBatchesTab({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-xs">
       {/* Header controls: search and refresh */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
           <input
-            className="w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-hidden focus:ring-1 focus:ring-purple-500 shadow-2xs"
+            className="w-full rounded-lg border border-border-default bg-surface pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden focus:ring-1 focus:ring-brand-primary shadow-2xs"
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search pending batches..."
             type="text"
@@ -90,7 +90,7 @@ export function ReviewBatchesTab({
         </div>
 
         <button
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-2xs self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition shadow-2xs self-start sm:self-auto cursor-pointer"
           disabled={isFetching}
           onClick={() => void refetch()}
           type="button"
@@ -101,10 +101,10 @@ export function ReviewBatchesTab({
       </div>
 
       {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center justify-between">
+        <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-center justify-between">
           <span>{actionError}</span>
           <button
-            className="text-red-500 hover:text-red-700"
+            className="text-[var(--danger-text)] hover:opacity-80 font-semibold cursor-pointer"
             onClick={() => setActionError(null)}
             type="button"
           >
@@ -116,18 +116,18 @@ export function ReviewBatchesTab({
       {/* Batches List */}
       {isLoading ? (
         <div className="flex h-56 flex-col items-center justify-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          <p className="text-xs text-gray-500">Loading pending batches...</p>
+          <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
+          <p className="text-xs text-text-muted">Loading pending batches...</p>
         </div>
       ) : filteredBatches.length === 0 ? (
-        <div className="flex h-56 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-surface-card text-center p-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
+        <div className="flex h-56 flex-col items-center justify-center rounded-xl border border-dashed border-border-default bg-surface text-center p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-text-muted mb-2 border border-border-subtle">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <h4 className="text-sm font-bold text-gray-900">
+          <h4 className="text-sm font-bold text-text-primary">
             {search ? "No matching pending batches" : "No Pending Imports"}
           </h4>
-          <p className="mt-1 text-xs text-gray-500 max-w-sm">
+          <p className="mt-1 text-xs text-text-muted max-w-sm">
             {search
               ? "Try adjusting your search criteria."
               : "All submitted import batches have been reviewed, approved, or rejected."}
@@ -138,40 +138,40 @@ export function ReviewBatchesTab({
           {filteredBatches.map((batch) => (
             <div
               key={batch.id}
-              className="flex flex-col gap-4 rounded-xl border border-border-default bg-surface-card p-4.5 shadow-xs transition hover:border-gray-300 md:flex-row md:items-center md:justify-between"
+              className="flex flex-col gap-4 rounded-xl border border-border-default bg-surface p-4.5 shadow-xs transition hover:border-border-strong md:flex-row md:items-center md:justify-between"
             >
               <div className="flex items-start gap-3.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-700 shrink-0 mt-0.5 border border-purple-200">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted text-brand-primary shrink-0 mt-0.5 border border-border-subtle">
                   <FileSpreadsheet className="h-5 w-5" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-sm font-bold text-gray-900">{batch.fileName}</h4>
-                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
+                    <h4 className="text-sm font-bold text-text-primary">{batch.fileName}</h4>
+                    <span className="inline-flex items-center rounded-full border border-border-default bg-surface-muted px-2.5 py-0.5 text-[10px] font-bold text-text-primary font-mono">
                       PENDING APPROVAL
                     </span>
                   </div>
 
-                  <p className="text-xs text-gray-600">
-                    Group: <span className="font-semibold text-gray-900">{batch.groupName || "—"}</span>
+                  <p className="text-xs text-text-muted">
+                    Group: <span className="font-semibold text-text-primary">{batch.groupName || "—"}</span>
                     {" • "}Uploaded by {batch.uploadedByName || "Encoder"} on{" "}
                     {batch.uploadedAt ? new Date(batch.uploadedAt).toLocaleString() : "—"}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                    <span className="inline-flex items-center rounded-md border border-border-subtle bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-text-primary">
                       {batch.totalRows} total
                     </span>
-                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    <span className="inline-flex items-center rounded-md border border-border-subtle bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-text-primary">
                       {batch.validRows} ready to import
                     </span>
                     {batch.blockedRows > 0 && (
-                      <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                      <span className="inline-flex items-center rounded-md border border-border-subtle bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-text-primary">
                         {batch.blockedRows} blocked
                       </span>
                     )}
                     {batch.duplicateRows > 0 && (
-                      <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      <span className="inline-flex items-center rounded-md border border-border-subtle bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-text-primary">
                         {batch.duplicateRows} duplicate
                       </span>
                     )}
@@ -180,9 +180,9 @@ export function ReviewBatchesTab({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 md:border-t-0 md:pt-0">
+              <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3 md:border-t-0 md:pt-0">
                 <button
-                  className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-2xs"
+                  className="rounded-lg border border-border-default bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition shadow-2xs cursor-pointer"
                   onClick={() => setSelectedBatch(batch)}
                   type="button"
                 >
@@ -192,7 +192,7 @@ export function ReviewBatchesTab({
                 {canAct && (
                   <>
                     <button
-                      className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 transition shadow-2xs"
+                      className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--danger-text)] hover:opacity-90 transition shadow-2xs cursor-pointer"
                       disabled={approveMutation.isPending || rejectMutation.isPending}
                       onClick={() => setRejectingBatch(batch)}
                       type="button"
@@ -200,7 +200,7 @@ export function ReviewBatchesTab({
                       Reject
                     </button>
                     <button
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
                       disabled={
                         approveMutation.isPending ||
                         rejectMutation.isPending ||

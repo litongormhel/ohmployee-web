@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -66,6 +66,18 @@ export function BatchDetailsModal({
     return list;
   }, [summary, filterMode, search]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (approveMutation.isPending || isRejectOpen) return;
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, approveMutation.isPending, isRejectOpen, onClose]);
+
   if (!isOpen || !batch) return null;
 
   async function handleApprove() {
@@ -100,41 +112,41 @@ export function BatchDetailsModal({
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in"
       role="dialog"
     >
-      <div className="relative flex flex-col h-[90vh] w-full max-w-5xl rounded-2xl border border-border-default bg-surface-card shadow-2xl overflow-hidden">
+      {/* Backdrop: click closes this read-only inspector modal unless mutation pending */}
+      <div
+        className="absolute inset-0"
+        onClick={approveMutation.isPending ? undefined : onClose}
+      />
+
+      <div className="relative z-10 flex flex-col h-[90vh] w-full max-w-5xl rounded-2xl border border-border-default bg-surface shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-default px-6 py-4 bg-slate-50/50">
+        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4 bg-surface-muted/30">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted text-brand-primary border border-border-subtle">
               <FileSpreadsheet className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-gray-900">{batch.fileName}</h2>
+                <h2 className="text-base font-bold text-text-primary">{batch.fileName}</h2>
                 <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                    batch.status === "approved"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : batch.status === "rejected"
-                      ? "bg-red-100 text-red-800"
-                      : batch.status === "rolled_back"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-blue-100 text-blue-800"
-                  }`}
+                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border border-border-default bg-surface-muted text-text-primary font-mono"
                 >
                   {batch.status.replace("_", " ").toUpperCase()}
                 </span>
               </div>
-              <p className="text-xs text-gray-500">
-                Group: <span className="font-semibold text-gray-700">{batch.groupName || "—"}</span>
+              <p className="text-xs text-text-muted">
+                Group: <span className="font-semibold text-text-primary">{batch.groupName || "—"}</span>
                 {" • "}Submitted by {batch.uploadedByName || "Encoder"} on{" "}
                 {batch.uploadedAt ? new Date(batch.uploadedAt).toLocaleDateString() : "—"}
               </p>
             </div>
           </div>
           <button
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer disabled:opacity-40"
+            disabled={approveMutation.isPending}
             onClick={onClose}
             type="button"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
@@ -142,10 +154,10 @@ export function BatchDetailsModal({
 
         {/* Action Error Banner */}
         {actionError && (
-          <div className="px-6 py-2.5 bg-red-50 border-b border-red-200 text-xs text-red-700 flex items-center justify-between">
+          <div className="px-6 py-2.5 bg-[var(--danger-bg)] border-b border-[var(--danger-border)] text-xs text-[var(--danger-text)] flex items-center justify-between">
             <span>{actionError}</span>
             <button
-              className="text-red-500 hover:text-red-700"
+              className="text-[var(--danger-text)] hover:opacity-80 cursor-pointer font-semibold"
               onClick={() => setActionError(null)}
               type="button"
             >
@@ -155,38 +167,38 @@ export function BatchDetailsModal({
         )}
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* KPI metrics bar */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+          {/* KPI metrics bar: row counts are neutral */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
+              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
                 Total Rows
               </p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
+              <p className="mt-1 text-2xl font-bold text-text-primary">
                 {summary?.totalRows ?? batch.totalRows}
               </p>
             </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">
+            <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
+              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
                 Ready to Import
               </p>
-              <p className="mt-1 text-2xl font-bold text-emerald-800">
+              <p className="mt-1 text-2xl font-bold text-text-primary">
                 {summary?.validRows ?? batch.validRows}
               </p>
             </div>
-            <div className="rounded-xl border border-red-200 bg-red-50/40 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-red-700 uppercase tracking-wider">
+            <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
+              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
                 Blocked Rows
               </p>
-              <p className="mt-1 text-2xl font-bold text-red-800">
+              <p className="mt-1 text-2xl font-bold text-text-primary">
                 {summary?.blockedRows ?? batch.blockedRows}
               </p>
             </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">
+            <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
+              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
                 Duplicates
               </p>
-              <p className="mt-1 text-2xl font-bold text-amber-800">
+              <p className="mt-1 text-2xl font-bold text-text-primary">
                 {summary?.duplicateRows ?? batch.duplicateRows}
               </p>
             </div>
@@ -194,20 +206,20 @@ export function BatchDetailsModal({
 
           {/* Blocked errors summary breakdown if any */}
           {summary && summary.blockedRows > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <div className="rounded-xl border border-border-default bg-surface-muted p-4">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-text-muted mt-0.5 shrink-0" />
                 <div className="flex-1">
-                  <h4 className="text-xs font-bold text-amber-900">
+                  <h4 className="text-xs font-bold text-text-primary">
                     {summary.blockedRows} Row(s) Blocked by Slot / Validation Checks
                   </h4>
-                  <p className="mt-0.5 text-xs text-amber-800">
+                  <p className="mt-0.5 text-xs text-text-muted">
                     Blocked rows will not be imported into HR Emploc upon approval:
                   </p>
-                  <ul className="mt-2 space-y-1 text-xs text-amber-900">
+                  <ul className="mt-2 space-y-1 text-xs text-text-primary">
                     {Object.entries(summary.errorsByReason).map(([reason, rows]) => (
                       <li key={reason} className="flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center rounded-full bg-amber-200/80 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
+                        <span className="inline-flex items-center justify-center rounded-full bg-surface border border-border-default px-1.5 py-0.2 text-[10px] font-bold text-text-primary">
                           {rows.length}x
                         </span>
                         <span>{reason}</span>
@@ -221,12 +233,12 @@ export function BatchDetailsModal({
 
           {/* Toolbar: filter tabs + search */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
-            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50/80 p-0.5">
+            <div className="inline-flex rounded-lg border border-border-default bg-surface-muted p-0.5">
               <button
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "all"
-                    ? "bg-white text-gray-900 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("all")}
                 type="button"
@@ -234,10 +246,10 @@ export function BatchDetailsModal({
                 All Rows ({summary?.totalRows ?? batch.totalRows})
               </button>
               <button
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "valid"
-                    ? "bg-white text-emerald-800 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("valid")}
                 type="button"
@@ -245,10 +257,10 @@ export function BatchDetailsModal({
                 Valid ({summary?.validRows ?? batch.validRows})
               </button>
               <button
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "blocked"
-                    ? "bg-white text-red-800 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("blocked")}
                 type="button"
@@ -258,9 +270,9 @@ export function BatchDetailsModal({
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
               <input
-                className="w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border-default bg-surface pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search candidate, VCode..."
                 type="text"
@@ -272,21 +284,21 @@ export function BatchDetailsModal({
           {/* Staged Rows Table */}
           {isLoading ? (
             <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
             </div>
           ) : rowsError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+            <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 text-xs text-[var(--danger-text)]">
               Failed to load batch rows: {(rowsError as Error).message}
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 text-center">
-              <p className="text-xs text-gray-500">No rows match the active filter.</p>
+            <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border-default text-center">
+              <p className="text-xs text-text-muted">No rows match the active filter.</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
+            <div className="rounded-xl border border-border-default overflow-hidden shadow-2xs">
               <div className="max-h-[380px] overflow-y-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead className="sticky top-0 bg-gray-100 text-gray-600 border-b border-gray-200 font-semibold z-10">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="sticky top-0 bg-surface-muted text-text-muted border-b border-border-default text-xs font-semibold z-10">
                     <tr>
                       <th className="py-2.5 px-3">#</th>
                       <th className="py-2.5 px-3">Status</th>
@@ -299,56 +311,52 @@ export function BatchDetailsModal({
                       <th className="py-2.5 px-3">Reconciliation / Errors</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
+                  <tbody className="divide-y divide-border-subtle bg-surface">
                     {filteredRows.map((row) => {
                       const isValid = row.validationStatus === "valid";
                       return (
                         <tr
                           key={row.id}
-                          className={`hover:bg-gray-50/80 transition ${
-                            !isValid ? "bg-red-50/20" : ""
+                          className={`hover:bg-surface-hover transition ${
+                            !isValid ? "bg-[var(--danger-bg)]/20" : ""
                           }`}
                         >
-                          <td className="py-2 px-3 font-mono text-[11px] text-gray-500">
+                          <td className="py-2 px-3 font-mono text-xs text-text-muted">
                             {row.rowNumber}
                           </td>
                           <td className="py-2 px-3">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                isValid
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold border border-border-default bg-surface text-text-primary"
                             >
                               {isValid ? (
-                                <CheckCircle2 className="h-3 w-3" />
+                                <CheckCircle2 className="h-3 w-3 text-text-primary" />
                               ) : (
-                                <AlertCircle className="h-3 w-3" />
+                                <AlertCircle className="h-3 w-3 text-[var(--danger-text)]" />
                               )}
                               {isValid ? "VALID" : "BLOCKED"}
                             </span>
                           </td>
-                          <td className="py-2 px-3 font-semibold text-gray-900">
+                          <td className="py-2 px-3 font-semibold text-text-primary">
                             {row.displayName}
                           </td>
-                          <td className="py-2 px-3 font-mono text-gray-700">
+                          <td className="py-2 px-3 font-mono text-text-primary">
                             {row.vcode || "—"}
                           </td>
-                          <td className="py-2 px-3 text-gray-700">
+                          <td className="py-2 px-3 text-text-primary">
                             {row.storeName || "—"}
                           </td>
-                          <td className="py-2 px-3 text-gray-600">
+                          <td className="py-2 px-3 text-text-muted">
                             {row.positionName || "—"}
                           </td>
-                          <td className="py-2 px-3 text-gray-600">
+                          <td className="py-2 px-3 text-text-muted">
                             {row.accountName || "—"}
                           </td>
-                          <td className="py-2 px-3 text-gray-600">
+                          <td className="py-2 px-3 text-text-muted">
                             {row.dateHired || "—"}
                           </td>
-                          <td className="py-2 px-3 max-w-xs">
+                          <td className="py-2 px-3 max-w-xs text-xs">
                             {isValid ? (
-                              <span className="text-[11px] text-emerald-700">
+                              <span className="text-text-muted">
                                 Slot reserved in Plantilla
                               </span>
                             ) : (
@@ -356,7 +364,7 @@ export function BatchDetailsModal({
                                 {row.validationErrors.map((err, idx) => (
                                   <p
                                     key={idx}
-                                    className="text-[11px] text-red-600 leading-tight"
+                                    className="text-[11px] text-[var(--danger-text)] leading-tight"
                                   >
                                     • {err.msg}
                                   </p>
@@ -375,10 +383,10 @@ export function BatchDetailsModal({
         </div>
 
         {/* Footer Actions (HA / SA Decision Gate) */}
-        <div className="flex items-center justify-between border-t border-border-default px-6 py-4 bg-slate-50/70">
+        <div className="flex items-center justify-between border-t border-border-subtle px-6 py-4 bg-surface-muted/30">
           <div>
             {!canAct && isPending && (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-text-muted">
                 Viewing in read-only mode. Head Admin or Super Admin role is required to approve or reject.
               </p>
             )}
@@ -386,7 +394,7 @@ export function BatchDetailsModal({
 
           <div className="flex items-center gap-3">
             <button
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
+              className="rounded-lg border border-border-default bg-surface px-4 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer"
               onClick={onClose}
               type="button"
             >
@@ -396,7 +404,7 @@ export function BatchDetailsModal({
             {canAct && isPending && (
               <>
                 <button
-                  className="rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 transition"
+                  className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-2 text-xs font-semibold text-[var(--danger-text)] hover:opacity-90 transition cursor-pointer"
                   disabled={approveMutation.isPending}
                   onClick={() => setIsRejectOpen(true)}
                   type="button"
@@ -405,7 +413,7 @@ export function BatchDetailsModal({
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
                   disabled={
                     approveMutation.isPending || (summary?.validRows ?? batch.validRows) === 0
                   }

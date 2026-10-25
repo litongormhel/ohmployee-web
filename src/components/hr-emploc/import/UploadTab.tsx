@@ -162,25 +162,25 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-xs">
       {/* Information Guideline Banner */}
-      <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4.5">
+      <div className="rounded-xl border border-border-default bg-surface-muted/50 p-4.5">
         <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-blue-700 mt-0.5 shrink-0" />
-          <div className="space-y-1 text-xs text-blue-900 leading-relaxed">
-            <h3 className="font-bold text-sm text-blue-950">
+          <Info className="h-5 w-5 text-brand-primary mt-0.5 shrink-0" />
+          <div className="space-y-1 text-xs text-text-primary leading-relaxed">
+            <h3 className="font-bold text-sm text-text-primary">
               Bulk HR Emploc Import & Slot Reconciliation
             </h3>
-            <p>
+            <p className="text-text-muted">
               Download the official template, fill in employee placement rows, select the target operational group, and upload.
-              Under <strong className="font-semibold">ADR-001 (Slot-First Architecture)</strong>, store, position, and employment type are derived directly from the authoritative Plantilla slot identified by the VCode.
+              Under <strong className="font-semibold text-text-primary">ADR-001 (Slot-First Architecture)</strong>, store, position, and employment type are derived directly from the authoritative Plantilla slot identified by the VCode.
             </p>
-            <p className="text-blue-800">
-              • For employees without a middle name, use <code className="bg-blue-100/80 px-1 py-0.5 rounded font-mono font-bold text-blue-900">NA</code> (not &apos;N/A&apos; or initials).
+            <p className="text-text-muted">
+              • For employees without a middle name, use <code className="bg-surface px-1 py-0.5 rounded border border-border-subtle font-mono font-bold text-text-primary">NA</code> (not &apos;N/A&apos; or initials).
               <br />
               • All rows in a single file must belong to one operational group.
               <br />
-              • Valid rows reserve slots in <code className="bg-blue-100/80 px-1 py-0.5 rounded font-mono font-bold text-blue-900">hr_processing</code> status pending Head Admin or Super Admin review.
+              • Valid rows reserve slots in <code className="bg-surface px-1 py-0.5 rounded border border-border-subtle font-mono font-bold text-text-primary">hr_processing</code> status pending Head Admin or Super Admin review.
             </p>
           </div>
         </div>
@@ -188,8 +188,8 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
       {/* Submission error banner */}
       {submissionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700 flex items-start gap-2.5">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+        <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 text-xs text-[var(--danger-text)] flex items-start gap-2.5">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold">Import Submission Blocked</p>
             <p className="mt-0.5">{submissionError}</p>
@@ -200,26 +200,26 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
       {/* Control Card: Group Selection & Template Download CTA */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Step 1: Target Operational Group */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs">
-          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+        <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs">
+          <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
             1. Select Target CENCOM Group *
           </label>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-text-muted mb-3">
             Choose the operational group to reconcile slots and accounts against.
           </p>
 
           {isLoadingGroups ? (
-            <div className="flex h-10 items-center gap-2 text-xs text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <div className="flex h-10 items-center gap-2 text-xs text-text-muted">
+              <Loader2 className="h-4 w-4 animate-spin text-brand-primary" />
               <span>Loading operational groups...</span>
             </div>
           ) : groupsError ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+            <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-2.5 text-xs text-[var(--danger-text)]">
               {(groupsError as Error).message}
             </div>
           ) : (
             <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900 shadow-2xs focus:border-purple-500 focus:outline-hidden focus:ring-1 focus:ring-purple-500"
+              className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary shadow-2xs focus:border-brand-primary focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
               onChange={(e) => handleGroupChange(e.target.value)}
               value={selectedGroup?.id ?? ""}
             >
@@ -233,35 +233,35 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
           )}
 
           {selectedGroup && (
-            <div className="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
-              <CheckCircle2 className="h-3.5 w-3.5" />
+            <div className="mt-2.5 flex items-center gap-1.5 text-xs text-text-primary font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />
               <span>Active scope: {selectedGroup.groupName}</span>
             </div>
           )}
         </div>
 
         {/* Step 2: Download Official Template */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs flex flex-col justify-between">
+        <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
               2. Download Standard Template
             </label>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-text-muted mb-3">
               Generate the pre-formatted Excel template with required columns and validation rules.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <button
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-border-default bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer"
               onClick={() => downloadHrEmplocTemplate("v3")}
               type="button"
             >
-              <Download className="h-4 w-4 text-gray-600" />
+              <Download className="h-4 w-4 text-text-muted" />
               Download XLSX Template (v3 ADR-001)
             </button>
             <button
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-muted px-3 py-2 text-xs font-medium text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
               onClick={() => downloadHrEmplocTemplate("standard")}
               title="Download template with Store / Position / Employee No columns"
               type="button"
@@ -273,17 +273,17 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
       </div>
 
       {/* Step 3: Drag & Drop Dropzone */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs">
-        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+      <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs">
+        <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
           3. Upload XLSX File *
         </label>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-text-muted mb-3">
           Drag and drop your populated spreadsheet here, or click to browse.
         </p>
 
         {!selectedGroup && (
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
+          <div className="mb-3 rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-text-muted" />
             <span>Please select a Target Group above before parsing your file.</span>
           </div>
         )}
@@ -291,10 +291,10 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
         <div
           className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition cursor-pointer ${
             !selectedGroup
-              ? "border-gray-200 bg-gray-50/50 cursor-not-allowed opacity-60"
+              ? "border-border-default bg-surface-muted/50 cursor-not-allowed opacity-60"
               : isDragOver
-              ? "border-purple-500 bg-purple-50/50"
-              : "border-gray-300 hover:border-purple-300 bg-white"
+              ? "border-brand-primary bg-surface-muted"
+              : "border-border-default hover:border-border-strong bg-surface"
           }`}
           onClick={() => {
             if (selectedGroup) fileInputRef.current?.click();
@@ -315,23 +315,23 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             type="file"
           />
 
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600 mb-3 border border-purple-100">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-brand-primary mb-3 border border-border-subtle">
             <UploadCloud className="h-6 w-6" />
           </div>
 
-          <p className="text-sm font-semibold text-gray-800">
+          <p className="text-sm font-semibold text-text-primary">
             {isDragOver ? "Drop file to upload" : "Click to browse or drag file here"}
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-text-muted">
             Supports Microsoft Excel (.xlsx) files up to 10 MB
           </p>
         </div>
 
         {parseError && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center justify-between">
+          <div className="mt-3 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-center justify-between">
             <span>{parseError}</span>
             <button
-              className="text-red-500 hover:text-red-700"
+              className="text-[var(--danger-text)] hover:opacity-80 cursor-pointer"
               onClick={() => setParseError(null)}
               type="button"
             >
@@ -343,34 +343,34 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
       {/* Step 4: Parsed Preview & Client Validation Table */}
       {preview && fileName && (
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border-default pb-4">
+        <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border-subtle pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-muted text-brand-primary border border-border-subtle">
                 <FileSpreadsheet className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-900">{fileName}</h4>
-                <p className="text-xs text-gray-500">
-                  Target Group: <span className="font-semibold text-gray-700">{selectedGroup?.groupName}</span>
+                <h4 className="text-sm font-bold text-text-primary">{fileName}</h4>
+                <p className="text-xs text-text-muted">
+                  Target Group: <span className="font-semibold text-text-primary">{selectedGroup?.groupName}</span>
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+              <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-subtle px-2.5 py-1 text-xs font-semibold text-text-primary">
                 {preview.totalRows} Total Rows
               </span>
-              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+              <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-subtle px-2.5 py-1 text-xs font-semibold text-text-primary">
                 {preview.clientValidRows} Ready
               </span>
               {preview.clientInvalidRows > 0 && (
-                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-subtle px-2.5 py-1 text-xs font-semibold text-text-primary">
                   {preview.clientInvalidRows} Flagged
                 </span>
               )}
               <button
-                className="ml-2 text-xs font-semibold text-gray-500 hover:text-gray-800"
+                className="ml-2 text-xs font-semibold text-text-muted hover:text-text-primary cursor-pointer"
                 onClick={resetFile}
                 type="button"
               >
@@ -381,11 +381,11 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
           {/* Validation Notice */}
           {preview.clientInvalidRows > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
+            <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-xs text-text-primary">
               <p className="font-semibold">
                 {preview.clientInvalidRows} row(s) contain validation errors.
               </p>
-              <p className="mt-0.5 text-amber-800">
+              <p className="mt-0.5 text-text-muted">
                 You may still submit: only the {preview.clientValidRows} valid row(s) will be staged for review. Blocked rows will be automatically excluded.
               </p>
             </div>
@@ -393,12 +393,12 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
           {/* Table Filters */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-1">
-            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+            <div className="inline-flex rounded-lg border border-border-default bg-surface-muted p-0.5">
               <button
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "all"
-                    ? "bg-white text-gray-900 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("all")}
                 type="button"
@@ -406,10 +406,10 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
                 All ({preview.totalRows})
               </button>
               <button
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "valid"
-                    ? "bg-white text-emerald-800 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("valid")}
                 type="button"
@@ -417,10 +417,10 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
                 Valid Only ({preview.clientValidRows})
               </button>
               <button
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                   filterMode === "blocked"
-                    ? "bg-white text-red-800 shadow-2xs"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-surface text-text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
                 onClick={() => setFilterMode("blocked")}
                 type="button"
@@ -430,7 +430,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             </div>
 
             <input
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-hidden"
+              className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden"
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search parsed preview..."
               type="text"
@@ -438,55 +438,51 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             />
           </div>
 
-          {/* Preview Table */}
-          <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 shadow-2xs">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead className="sticky top-0 bg-gray-100 text-gray-600 border-b border-gray-200 font-semibold z-10">
+          {/* Preview Table: 14px text floor */}
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-border-default shadow-2xs">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="sticky top-0 bg-surface-muted text-text-muted border-b border-border-default font-semibold text-xs z-10">
                 <tr>
-                  <th className="py-2 px-3">#</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3">Candidate Name</th>
-                  <th className="py-2 px-3">VCode / Emp No</th>
-                  <th className="py-2 px-3">Account</th>
-                  <th className="py-2 px-3">Middle Name</th>
-                  <th className="py-2 px-3">Date Hired</th>
-                  <th className="py-2 px-3">Client Validation</th>
+                  <th className="py-2.5 px-3">#</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Candidate Name</th>
+                  <th className="py-2.5 px-3">VCode / Emp No</th>
+                  <th className="py-2.5 px-3">Account</th>
+                  <th className="py-2.5 px-3">Middle Name</th>
+                  <th className="py-2.5 px-3">Date Hired</th>
+                  <th className="py-2.5 px-3">Client Validation</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-border-subtle bg-surface">
                 {displayedRows.map((p) => {
                   const isValid = p.passedBasicCheck;
                   return (
                     <tr
                       key={p.rowNum}
-                      className={isValid ? "hover:bg-gray-50" : "bg-red-50/20 hover:bg-red-50/40"}
+                      className={isValid ? "hover:bg-surface-hover" : "bg-[var(--danger-bg)]/20 hover:bg-[var(--danger-bg)]/30"}
                     >
-                      <td className="py-2 px-3 font-mono text-gray-500">{p.rowNum}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-text-muted">{p.rowNum}</td>
                       <td className="py-2 px-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                            isValid
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold border border-border-default bg-surface text-text-primary"
                         >
                           {isValid ? "READY" : "ERROR"}
                         </span>
                       </td>
-                      <td className="py-2 px-3 font-semibold text-gray-900">
+                      <td className="py-2 px-3 font-semibold text-text-primary">
                         {p.firstName} {p.middleName !== "NA" ? p.middleName : ""} {p.lastName}
                       </td>
-                      <td className="py-2 px-3 font-mono text-gray-700">{p.vcode || "—"}</td>
-                      <td className="py-2 px-3 text-gray-600">{p.accountName || "—"}</td>
-                      <td className="py-2 px-3 font-mono text-gray-600">{p.middleName}</td>
-                      <td className="py-2 px-3 text-gray-600">{p.dateHired}</td>
-                      <td className="py-2 px-3 max-w-xs">
+                      <td className="py-2 px-3 font-mono text-text-primary">{p.vcode || "—"}</td>
+                      <td className="py-2 px-3 text-text-muted">{p.accountName || "—"}</td>
+                      <td className="py-2 px-3 font-mono text-text-muted">{p.middleName}</td>
+                      <td className="py-2 px-3 text-text-muted">{p.dateHired}</td>
+                      <td className="py-2 px-3 max-w-xs text-xs">
                         {isValid ? (
-                          <span className="text-[11px] text-emerald-700">Passed basic checks</span>
+                          <span className="text-text-muted">Passed basic checks</span>
                         ) : (
                           <div className="space-y-0.5">
                             {p.clientErrors.map((err, idx) => (
-                              <p key={idx} className="text-[11px] text-red-600">
+                              <p key={idx} className="text-[11px] text-[var(--danger-text)]">
                                 • {err}
                               </p>
                             ))}
@@ -501,13 +497,13 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
           </div>
 
           {/* Submission CTA */}
-          <div className="flex items-center justify-between pt-2 border-t border-border-default">
-            <p className="text-xs text-gray-500">
+          <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
+            <p className="text-xs text-text-muted">
               {preview.clientValidRows} out of {preview.totalRows} rows will be submitted for review.
             </p>
 
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={!canSubmit}
               onClick={handleSubmit}
               type="button"

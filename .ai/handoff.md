@@ -1,6 +1,156 @@
 # AI Handoff
 
-## UI Standard & Motion System — Danger Tokens & Loop 5A HR Emploc Align (ohm#l5a7m3p9)
+## UI Standard & Motion System — Loop 5B HR Emploc Import Align & Checkpoint (ohm#l5b9k4x2)
+
+**Status: COMPLETE — LOOP 5B (HR EMPLOC IMPORT FLOW: UPLOADTAb, REVIEWBATCHESTAB, HISTORYTAB, BATCHDETAILSMODAL, REJECTBATCHMODAL, ROLLBACKBATCHMODAL) ALIGNED TO UI STANDARD; 100% OF EXCELJS PARSING, VALIDATION, BATCH RPCS, AND 72H ROLLBACK LOGIC PRESERVED READ-ONLY; BATCH COUNTS, ROW VALIDITY COUNTS, AND ROLLBACK COUNTDOWNS STRICTLY NEUTRALIZED; SUBMODAL STACKING AT Z-[70] WITH DISABLEBACKDROPCLICK, ISSUBMITTING, AND ISDIRTY GUARDS; COLOR LITERALS DROPPED FROM 351 TO EXACTLY 0 ACROSS IMPORT FILES (ENTIRE HR EMPLOC MODULE TREE NOW HAS 0 COLOR LITERALS); GATE.PY REVERTED TO STRICT REAL MODULE NAMES (HR-EMPLOC); CLOSED-LOOP MECHANICAL GATE PASSING WITH DECISION ALLOW AND FULL NPM RUN BUILD GREEN (0 ERRORS); STOPPED BEFORE PLANTILLA FOR OHM'S MANUAL TEST CHECKPOINT**
+
+---
+
+### 1. ADR Check: Architecture Locks Inventory & Status
+- **Full contents of `.ai/architecture_locks/` in `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/`**:
+  - `adr_001_coverage_architecture_v2.md` (Total: 1 file, 24,149 bytes, dated Jul 15 2026)
+- **Status of `ADR-001-ohmployee-system-architecture.md`**:
+  - `ADR-001-ohmployee-system-architecture.md` **DOES NOT EXIST** anywhere in the OHMployee or OHMployee_web repositories.
+  - As instructed by Ohm, we state this plainly and make no claim of 0 conflicts against a missing file.
+  - The single existing ADR lock is `adr_001_coverage_architecture_v2.md` (which defines store slot-first lifecycle and headcount as active people only).
+
+---
+
+### 2. `gate.py` Changes Across Loops 3-5B: Complete Diff & Rationale
+User Rule: *The gate must never be loosened inside a loop it grades. Use real module names (e.g. `hr-emploc`), not ad hoc ones.*
+In Loop 5B, the temporary submodule branches (`hr-emploc-5a` and `hr-emploc-5b`) were completely removed from `.agents/scripts/gate.py`. The gate now requires all of `hr-emploc` (main list, drawer, 9 modals, and all 6 import files) to be 100% free of color literals.
+
+#### Complete Git Diff History of `.agents/scripts/gate.py`:
+1. **Loop 3 (`ohm#l3c8m1q5`) — Gate Hardening**:
+   - *Rationale*: Removed pre-existing baseline-red allowances. Added auto-derivation of touched modules from `git diff`. Added global check triggering full build if `shared/` or `globals.css` changed. Added sandbox offline Google Fonts detection falling back to `npx tsc --noEmit`.
+   ```diff
+   - KNOWN_BASELINE_BUILD_ERRORS = ["Can't resolve 'exceljs'", "Can't resolve 'xlsx'", ...]
+   + def get_git_touched_files(): ...
+   + def derive_touched_modules(touched_files): ...
+   + # If sandboxed offline font fetch fails, execute npx tsc --noEmit as rigorous fallback
+   ```
+2. **Loop 5A (`ohm#l5a7m3p9`) — Temporary Submodule Scoping (Reverted in 5B)**:
+   - *Rationale*: Split Loop 5 into 5A and 5B. Ad-hoc submodule branches (`hr-emploc-5a`) were added.
+3. **Loop 5B (`ohm#l5b9k4x2`) — Strict Restoration of Real Module Names**:
+   - *Rationale*: Reverted all ad-hoc submodule handling. The gate strictly scans `src/app/(dashboard)/{mod}` and `src/components/{mod}` for every touched module name. The entire `hr-emploc` tree must have 0 color literals.
+   ```diff
+   --- a/.agents/scripts/gate.py
+   +++ b/.agents/scripts/gate.py
+   @@ -134,27 +134,14 @@ def check_color_literals(touched_modules):
+        violations = []
+        for mod in touched_modules:
+   -        if mod == "hr-emploc-5a":
+   -            dirs_to_check = [os.path.join("src/app/(dashboard)", "hr-emploc"), os.path.join("src/components", "hr-emploc")]
+   -        elif mod == "hr-emploc-5b":
+   -            dirs_to_check = [os.path.join("src/components", "hr-emploc", "import")]
+   -        else:
+   -            dirs_to_check = [os.path.join("src/app/(dashboard)", mod), os.path.join("src/components", mod)]
+   +        dirs_to_check = [
+   +            os.path.join("src/app/(dashboard)", mod),
+   +            os.path.join("src/components", mod),
+   +        ]
+            for d in dirs_to_check:
+                if not os.path.exists(d):
+                    continue
+   -            for root, dirs, files in os.walk(d):
+   -                if mod == "hr-emploc-5a" and "import" in dirs:
+   -                    dirs.remove("import")
+   +            for root, _, files in os.walk(d):
+   ```
+
+---
+
+### 3. Comprehensive `--danger` Token Usage Audit
+*Rule: Scope is strictly validation errors, destructive actions (Delete, Reject, Revert, Fail/Backout), and failed-state messages ONLY. Never decorative, never on ghost-employee hygiene alerts, never on counts or statuses.*
+
+Every file and element using `--danger-*` in touched modules was audited:
+| File | Element | Purpose | Classification |
+|---|---|---|---|
+| `src/app/(dashboard)/vacancy/page.tsx` | Error toast banner container & icon | System operation failure notice | Failed-state message |
+| `src/app/(dashboard)/hr-emploc/page.tsx` | Error toast notification | System operation failure notice | Failed-state message |
+| `src/components/cencom/CencomTargetDeploymentTab.tsx` | Query failure alert card & retry button | Data fetch error display | Failed-state message |
+| `src/components/vacancy/VacancyTable.tsx` | "Reject" closure request action button | Permanent rejection of closure request | Destructive action |
+| `src/components/vacancy/AddApplicantModal.tsx` | Form validation error text & banner | Missing/invalid field alerts | Validation error |
+| `src/components/vacancy/AdvancePipelineModal.tsx` | Dropout action button & error message | Candidate dropout / pipeline termination | Destructive action & validation error |
+| `src/components/vacancy/EditApplicantModal.tsx` | Audit reason validation & error message | Mandatory audit field check | Validation error |
+| `src/components/vacancy/EditHiredDateModal.tsx` | Date validation error banner | Invalid hired date alert | Validation error |
+| `src/components/vacancy/FailBackoutModal.tsx` | "Confirm Fail / Backout" action button & error banner | Candidate failure / backout recording | Destructive action |
+| `src/components/vacancy/MarkHiredModal.tsx` | Submission error alert banner | RPC placement failure alert | Failed-state message |
+| `src/components/vacancy/ReopenVacancyModal.tsx` | Mutation error alert banner | Reopen failure notice | Failed-state message |
+| `src/components/vacancy/RequestVacancyClosureModal.tsx` | "Submit Closure Request" action button & error banner | Permanent vacancy closure request | Destructive action |
+| `src/components/hr-emploc/AssignEmployeeNoModal.tsx` | Employee number validation error banner | Alphanumeric validation failure | Validation error |
+| `src/components/hr-emploc/DeployToPlantillaModal.tsx` | Capacity blocked alert card & banner | 0 slots capacity error state | Failed-state message |
+| `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` | Locked Deletion Banner & Withdraw button | Active separation lock alert & withdrawal | Destructive state & action |
+| `src/components/hr-emploc/HrEmplocSavedViewsModal.tsx` | "Delete preset" icon button & error note | Deletion of saved browser view | Destructive action & validation error |
+| `src/components/hr-emploc/HrEmplocTable.tsx` | "Revert" review action button | Returning candidate back for correction | Destructive action |
+| `src/components/hr-emploc/RequestEmplocDeletionModal.tsx` | "Submit Deletion Request" button, radio option, lock notice, error | Candidate placement separation / deletion | Destructive action & alert |
+| `src/components/hr-emploc/ReviewApproveModal.tsx` | Approval error banner | RPC approval failure alert | Failed-state message |
+| `src/components/hr-emploc/ReviewRevertModal.tsx` | "Revert to Correction" button & error banner | Returning candidate back for correction | Destructive action |
+| `src/components/hr-emploc/SubmitCorrectionModal.tsx` | Submission error banner | Upload/submission failure alert | Failed-state message |
+| `src/components/hr-emploc/TagDeficiencyModal.tsx` | Mutation error banner | RPC deficiency tagging failure alert | Failed-state message |
+| `src/components/hr-emploc/UploadAttachmentModal.tsx` | File format & size validation error banner | Invalid file type (>5MB or non-PDF/image) | Validation error |
+| `src/components/hr-emploc/import/RejectBatchModal.tsx` | Header badge, radio borders, error alert, "Confirm Rejection" button | Batch rejection / denial | Destructive action & error |
+| `src/components/hr-emploc/import/RollbackBatchModal.tsx` | Header badge, destructive notice, error alert, "Confirm Rollback" button | 72h batch rollback (soft-delete, restore slots) | Destructive action & alert |
+| `src/components/hr-emploc/import/BatchDetailsModal.tsx` | Action error banner, blocked row validation error text, "Reject Batch" button | Validation errors & batch rejection | Validation error & destructive action |
+| `src/components/hr-emploc/import/UploadTab.tsx` | Submission error banner, parse error banner, flagged row error notes | XLSX validation errors | Validation error & failed-state |
+| `src/components/hr-emploc/import/ReviewBatchesTab.tsx` | Action error banner, "Reject" quick button | Batch rejection action & error | Destructive action & failed-state |
+| `src/components/hr-emploc/import/HistoryTab.tsx` | Action error banner, rejected batch audit text, "Rollback Import" button | Batch rollback & rejection notice | Destructive action & audit |
+
+*Confirmation: 100% of `--danger-*` usages across all touched modules are strictly validation errors, destructive actions, or failed-state messages. Zero decorative or count usage.*
+
+---
+
+### 4. Build Evidence & Verification Distinction
+- **Inside Sandbox**:
+  - Command: `TOUCHED_MODULES="hr-emploc,vacancy,dashboard,cencom" python3 .agents/scripts/gate.py`
+  - Output: `{"decision": "allow", "touched_modules": ["cencom", "dashboard", "hr-emploc", "vacancy"], "notes": ["'npm run build' completed successfully (0 errors)."]}`
+  - Executed full `next build` inside the sandbox, passing 100% with 0 errors.
+- **Outside Sandbox (Host Machine)**:
+  - Ohm runs the official `npm run build` locally on `main` outside the sandbox prior to merge.
+
+---
+
+### 5. Loop 5B HR Emploc Import Alignment
+- **Preserved Logic**:
+  - `exceljs` / `xlsx` binary parsing in `src/lib/utils/hr_emploc_xlsx.ts` is completely untouched.
+  - Client-side validation rules and VCode slot reconciliation are untouched.
+  - Batch ingestion mutations, approval RPCs, rejection RPCs, and 72-hour rollback logic are untouched.
+- **Color-Use & Hierarchy**:
+  - Batch counts, row validity numbers (`totalRows`, `validRows`, `blockedRows`, `duplicateRows`), and rollback countdown timers are strictly neutral.
+  - Tables enforce $\ge 14\text{px}$ floor (`text-sm`).
+  - Stacking: Submodals (`RejectBatchModal`, `RollbackBatchModal`) elevated to `z-[70]` over `BatchDetailsModal` (`z-[60]`).
+  - Guards: `disableBackdropClick={true}` on form modals, `isSubmitting` mutation lock, `isDirty` Esc guard.
+
+#### Modal Behavior Diff Table (Loop 5B)
+| Modal Component | Type | Backdrop Click | Esc Key (Clean) | Esc Key (Dirty) | Submitting In-Flight | Stacking Level |
+|---|---|---|---|---|---|---|
+| `BatchDetailsModal.tsx` | Read-only Inspector | Closes (Expected) | Closes | Closes | Blocked during Approve | `z-[60]` |
+| `RejectBatchModal.tsx` | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[70]` over BatchDetails |
+| `RollbackBatchModal.tsx` | Destructive Form | Blocked (`disableBackdropClick`) | Closes | Ignored (`isDirty`) | Hard-blocked | `z-[70]` over BatchDetails/History |
+
+#### Color-Use Audit Table: Loop 5B
+| File | Baseline Literals | Current Literals | Enforced UI Standard Styling |
+|---|---|---|---|
+| `src/components/hr-emploc/import/UploadTab.tsx` | 109 | **0** | Neutral step cards, neutral dropzone, neutral row counts, `--danger` for errors, brand blue CTA |
+| `src/components/hr-emploc/import/ReviewBatchesTab.tsx` | 45 | **0** | Neutral batch cards, neutral status badge, neutral counts, `--danger` for Reject button, brand blue Approve CTA |
+| `src/components/hr-emploc/import/HistoryTab.tsx` | 44 | **0** | Neutral history cards, neutral status badge, neutral audit text, `--danger` for Rollback button |
+| `src/components/hr-emploc/import/BatchDetailsModal.tsx` | 95 | **0** | Read-only inspector, neutral KPI numbers, 14px table floor, `--danger` for errors and Reject button |
+| `src/components/hr-emploc/import/RejectBatchModal.tsx` | 27 | **0** | Destructive modal at `z-[70]`, `disableBackdropClick`, `isSubmitting`, `--danger` for button and errors |
+| `src/components/hr-emploc/import/RollbackBatchModal.tsx` | 24 | **0** | Destructive modal at `z-[70]`, `disableBackdropClick`, `isSubmitting`, `--danger` for button and errors |
+| **Total Loop 5B** | **351** | **0** | **100% Tokenized & Standard-Compliant** |
+| **Grand Total HR Emploc (5A + 5B)** | **1,045** | **0** | **Entire Module at 0 Color Literals** |
+
+---
+
+### 6. Planned Stop Condition Before Plantilla
+Per instruction 6:
+> **After 5B, STOP and wait for Ohm to confirm his manual test results before Plantilla. Plantilla is the largest, riskiest module; Ohm wants a verified checkpoint first. This is the only planned pause.**
+
+Execution has paused. Standing by for Ohm's manual test confirmation and explicit approval before beginning the Plantilla loop.
+
+---
+
+
 
 **Status: COMPLETE — APPROVED `--danger` TOKEN SET IMPLEMENTED IN GLOBALS.CSS WITH WCAG AA CONTRAST >= 4.5:1; RESTORED DANGER STYLING ON VALIDATION ERRORS, DESTRUCTIVE ACTIONS, AND FAILED STATES IN DASHBOARD, CENCOM, AND VACANCY; HARDENED ALL 9 VACANCY MODALS, MIKASYNCMODAL, AND 9 HR EMPLOC MODALS WITH Z-[60], DISABLEBACKDROPCLICK, ISSUBMITTING, AND ISDIRTY ESC-BLOCKING GUARDS; VERIFIED ADR-001 ARCHITECTURE V2 IN PARENTS REPO (ZERO CONFLICTS); COMPLETED LOOP 5A HR EMPLOC ALIGNMENT DROPPING COLOR LITERALS FROM 694 TO 0 ACROSS LIST, TABLE, DRAWER, AND ALL 9 MODALS; ENFORCED TABLE >= 14PX FLOOR; MECHANICAL GATE PASSING WITH DECISION ALLOW ON MAIN**
 
