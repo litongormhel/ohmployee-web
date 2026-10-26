@@ -598,6 +598,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 
 ### Phase 5: Action Mutations Integration
 - Hook up React Query mutations (`useMutation`) to backend action RPCs:
+
+### Phase 6: UI Standard & Motion System Alignment (Loop 6A) ✅ COMPLETE
+- Wrapped `PlantillaDetailDrawer` and all pool/store drawers with canonical `@/components/shared/DetailDrawer` (`drawer-width-lg`).
+- Tokenized all 9 drawers and directory tables: `page.tsx`, `PlantillaDetailDrawer.tsx`, `PoolEmployeeDetailDrawer.tsx`, `PoolOpenSlotsDrawer.tsx`, `PoolRequestHistoryDrawer.tsx`, `PoolReviewQueueDrawer.tsx`, `SlotDetailDrawer.tsx`, `StoreStaffingDrawer.tsx`, `StoreStaffingOverviewDrawer.tsx`.
+- Table text floor strictly enforced at $\ge 14\text{px}$ (`text-sm`).
+- MFR and fill rate bars centralized with semantic `--pct-*` token integration.
+- Exactly 0 non-percentage color literals across all Loop 6A files. Single-account auto-fire and ADR-001 account gate intact.
   - Submit personnel store transfer.
   - Request Additional Headcount (AH).
   - Initiate separation workflow (Resignation / Termination / Backout).

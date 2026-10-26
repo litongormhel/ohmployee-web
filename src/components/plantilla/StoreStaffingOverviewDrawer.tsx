@@ -198,11 +198,11 @@ export function StoreStaffingOverviewDrawer({
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
                       <div className="text-[10px] font-semibold uppercase text-text-muted">Pipeline</div>
-                      <div className="text-sm font-bold font-mono text-amber-700">{row.hrPipelineCount}</div>
+                      <div className="text-sm font-bold font-mono text-text-primary">{row.hrPipelineCount}</div>
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
                       <div className="text-[10px] font-semibold uppercase text-text-muted">Open Vacant</div>
-                      <div className="text-sm font-bold font-mono text-blue-700">{row.openHeadcount}</div>
+                      <div className="text-sm font-bold font-mono text-text-primary">{row.openHeadcount}</div>
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
                       <div className="text-[10px] font-semibold uppercase text-text-muted">Required</div>
@@ -215,14 +215,14 @@ export function StoreStaffingOverviewDrawer({
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted shrink-0">
                       MFR
                     </span>
-                    <div className="relative flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="relative flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden">
                       <div
                         className={`absolute left-0 top-0 h-full rounded-full transition-all ${
                           (row.fillRate ?? 0) >= 1
-                            ? "bg-emerald-500"
+                            ? "bg-[var(--pct-good-bar)]"
                             : (row.fillRate ?? 0) >= 0.95
-                            ? "bg-amber-500"
-                            : "bg-red-500"
+                            ? "bg-[var(--pct-warn-bar)]"
+                            : "bg-[var(--pct-bad-bar)]"
                         }`}
                         style={{ width: `${Math.min(100, Math.round((row.fillRate ?? 0) * 100))}%` }}
                       />

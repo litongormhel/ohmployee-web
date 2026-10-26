@@ -638,7 +638,7 @@ function PlantillaPageContent() {
             onClick={() => handleSwitchView("store")}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               viewMode === "store"
-                ? "bg-white text-brand-700 shadow-xs border border-border-default"
+                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
           >
@@ -650,7 +650,7 @@ function PlantillaPageContent() {
             onClick={() => handleSwitchView("moses_pool")}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               viewMode === "moses_pool"
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
           >
@@ -662,7 +662,7 @@ function PlantillaPageContent() {
             onClick={() => handleSwitchView("analytics")}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               viewMode === "analytics"
-                ? "bg-indigo-600 text-white shadow-xs"
+                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
           >
@@ -846,19 +846,22 @@ function PlantillaPageContent() {
                 const getProgressColors = (rate: number) => {
                   if (rate >= 100) {
                     return {
-                      bar: "bg-emerald-500",
-                      text: "text-emerald-700",
+                      bar: "bg-pct-good-text",
+                      text: "text-pct-good-text",
+                      track: "bg-pct-good-bg",
                     };
                   }
-                  if (rate >= 95) {
+                  if (rate >= 90) {
                     return {
-                      bar: "bg-amber-500",
-                      text: "text-amber-700",
+                      bar: "bg-pct-warn-text",
+                      text: "text-pct-warn-text",
+                      track: "bg-pct-warn-bg",
                     };
                   }
                   return {
-                    bar: "bg-red-500",
-                    text: "text-red-700",
+                    bar: "bg-pct-bad-text",
+                    text: "text-pct-bad-text",
+                    track: "bg-pct-bad-bg",
                   };
                 };
 
@@ -869,13 +872,13 @@ function PlantillaPageContent() {
                     key={account.id}
                     type="button"
                     onClick={() => handleSelectAccount(account.id)}
-                    className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                    className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
                   >
                     <div
                       className={`shrink-0 rounded-lg p-2.5 ${
                         account.isPoolAccount
-                          ? "bg-purple-50 text-purple-600"
-                          : "bg-brand-50/60 text-brand-600"
+                          ? "bg-surface-muted text-brand-primary border border-border-default"
+                          : "bg-brand-50/60 text-brand-primary"
                       }`}
                     >
                       {account.isPoolAccount ? (
@@ -900,7 +903,7 @@ function PlantillaPageContent() {
                             {account.name}
                           </h3>
                           {account.isPoolAccount && (
-                            <p className="text-[10px] font-bold text-purple-600/80 tracking-wider mt-0.5 uppercase">
+                            <p className="text-[10px] font-bold text-text-secondary tracking-wider mt-0.5 uppercase">
                               Workforce Pool Inside Plantilla
                             </p>
                           )}
@@ -908,12 +911,12 @@ function PlantillaPageContent() {
 
                         <div className="shrink-0 flex items-center gap-1.5">
                           {account.isPoolAccount ? (
-                            <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 uppercase">
+                            <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-[10px] font-bold text-text-primary uppercase">
                               Pool
                             </span>
                           ) : (
                             account.fillRate < 80 && (
-                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase">
+                              <span className="inline-flex items-center rounded-full bg-pct-warn-bg border border-pct-warn-border px-2 py-0.5 text-[10px] font-bold text-pct-warn-text uppercase">
                                 Warning
                               </span>
                             )
@@ -946,7 +949,7 @@ function PlantillaPageContent() {
                           <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider shrink-0 w-8">
                             MFR
                           </span>
-                          <div className="relative flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                          <div className={`relative flex-1 h-2 rounded-full overflow-hidden ${colors.track}`}>
                             <div
                               className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${colors.bar}`}
                               style={{ width: `${Math.min(100, account.fillRate)}%` }}
@@ -975,7 +978,7 @@ function PlantillaPageContent() {
 
   if (viewMode === "moses_pool") {
     return (
-      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
+      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
         <AdminPageHeader
           categoryTag="ADMIN PANEL"
           moduleName="Plantilla"
@@ -991,7 +994,7 @@ function PlantillaPageContent() {
 
   if (viewMode === "analytics") {
     return (
-      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
+      <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
         <AdminPageHeader
           categoryTag="ADMIN PANEL"
           moduleName="Plantilla"
@@ -1006,7 +1009,7 @@ function PlantillaPageContent() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-gray-900">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
       {!accountId ? (
         <>
           <AdminPageHeader
@@ -1057,11 +1060,11 @@ function PlantillaPageContent() {
                 <button
                   type="button"
                   onClick={() => setIsStoreStaffingOverviewOpen(true)}
-                  className="group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs"
+                  className="group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-border-strong hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs"
                 >
                   <Building2 className="w-4 h-4 shrink-0 text-text-muted group-hover:text-text-secondary transition-colors" />
                   <span>Store Staffing</span>
-                  <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/80 shadow-2xs transition-colors">
+                  <span className="ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold bg-surface-muted text-text-secondary border border-border-default shadow-2xs transition-colors">
                     {summaryData?.required ?? 0} Quota
                   </span>
                 </button>
@@ -1190,14 +1193,14 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "active"
-                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Users
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "active"
-                        ? "text-brand-700"
+                        ? "text-brand-primary"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
@@ -1205,8 +1208,8 @@ function PlantillaPageContent() {
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "active"
-                        ? "bg-brand-600 text-white"
-                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                        ? "bg-brand-primary text-white"
+                        : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
                     {activeCount}
@@ -1224,14 +1227,14 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "vacancy"
-                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Briefcase
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "vacancy"
-                        ? "text-brand-700"
+                        ? "text-brand-primary"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
@@ -1239,8 +1242,8 @@ function PlantillaPageContent() {
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "vacancy"
-                        ? "bg-brand-600 text-white"
-                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                        ? "bg-brand-primary text-white"
+                        : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
                     {vacancyCount}
@@ -1258,14 +1261,14 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "inactive"
-                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <UserMinus
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "inactive"
-                        ? "text-brand-700"
+                        ? "text-brand-primary"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
@@ -1273,8 +1276,8 @@ function PlantillaPageContent() {
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "inactive"
-                        ? "bg-brand-600 text-white"
-                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                        ? "bg-brand-primary text-white"
+                        : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
                     {inactiveCount}
@@ -1293,14 +1296,14 @@ function PlantillaPageContent() {
                     }}
                     className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       effectiveTab === "needs_hr"
-                        ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                        ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
                     <AlertCircle
                       className={`w-4 h-4 shrink-0 transition-colors ${
                         effectiveTab === "needs_hr"
-                          ? "text-brand-700"
+                          ? "text-brand-primary"
                           : "text-text-muted group-hover:text-text-secondary"
                       }`}
                     />
@@ -1308,8 +1311,8 @@ function PlantillaPageContent() {
                     <span
                       className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                         effectiveTab === "needs_hr"
-                          ? "bg-brand-600 text-white"
-                          : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                          ? "bg-brand-primary text-white"
+                          : "bg-surface-muted text-text-secondary border border-border-default"
                       }`}
                     >
                       {needsHrCount}
@@ -1440,7 +1443,7 @@ function PlantillaPageContent() {
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-rose-200/80 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 hover:text-rose-800 transition-colors shadow-xs"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted px-3 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors shadow-2xs"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     <span>Reset Filters</span>
@@ -1719,7 +1722,7 @@ function EmployeeTable({
               const overlay = deriveDeactivationOverlay(row.plantillaStatus);
 
               const rowClass = overlay.isPendingSeparation
-                ? "border border-dashed border-status-danger-border bg-red-50/30 opacity-80 cursor-pointer transition-colors"
+                ? "border border-dashed border-border-default bg-surface-muted/40 opacity-80 cursor-pointer transition-colors"
                 : isInactive
                 ? "opacity-80 transition-colors hover:bg-table-row-hover cursor-pointer"
                 : "transition-colors hover:bg-table-row-hover cursor-pointer";
@@ -1757,16 +1760,16 @@ function EmployeeTable({
                   {/* MEMBER */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-brand-50 border border-brand-200/70 text-brand-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="h-9 w-9 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
                         {initials}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-table-text text-sm hover:text-brand-600 transition-colors">
+                          <span className="font-semibold text-table-text text-sm hover:text-brand-primary transition-colors">
                             {displayName}
                           </span>
                           {row.plantillaType === "AH" && (
-                            <span className="inline-flex items-center rounded border border-status-warning-border bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-status-warning-text">
+                            <span className="inline-flex items-center rounded border border-pct-warn-border bg-pct-warn-bg px-1.5 py-0.2 text-[10px] font-bold text-pct-warn-text">
                               AH
                             </span>
                           )}
@@ -1822,15 +1825,15 @@ function EmployeeTable({
                   {/* ASSIGNMENT */}
                   <td className="px-4 py-3">
                     {row.assignmentType?.toLowerCase() === "roving" ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/80 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-primary">
                         Roving{row.coveredStoresCount > 1 ? ` (${row.coveredStoresCount})` : ""}
                       </span>
                     ) : row.assignmentType?.toLowerCase() === "reliever" ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-primary">
                         Reliever
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
                         Stationary
                       </span>
                     )}
@@ -1839,7 +1842,7 @@ function EmployeeTable({
                   {/* STATUS */}
                   <td className="px-4 py-3">
                     {isNeedsHr && !accountHasHrco ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-pct-warn-bg text-pct-warn-text border border-pct-warn-border">
                         Needs HRCO
                       </span>
                     ) : row.plantillaStatus ? (
@@ -1870,7 +1873,7 @@ function EmployeeTable({
                         e.stopPropagation();
                         onRowClick(row.id);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs"
                       aria-label={`View details for ${displayName}`}
                     >
                       <Eye className="h-3.5 w-3.5" />
@@ -1895,11 +1898,11 @@ function getAgingBadge(days: number | null | undefined) {
   if (days === null || days === undefined) {
     return <span className="text-xs text-text-muted font-mono">—</span>;
   }
-  let badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+  let badgeClass = "bg-pct-good-bg text-pct-good-text border-pct-good-border";
   if (days > 30) {
-    badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+    badgeClass = "bg-pct-bad-bg text-pct-bad-text border-pct-bad-border";
   } else if (days > 15) {
-    badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+    badgeClass = "bg-pct-warn-bg text-pct-warn-text border-pct-warn-border";
   }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold border ${badgeClass}`}>
@@ -1957,7 +1960,7 @@ function VacancyTable({
                 className="transition-colors hover:bg-table-row-hover cursor-pointer"
                 onClick={() => onSelectVacancy(row)}
               >
-                <td className="px-4 py-3 font-mono font-bold text-brand-700">
+                <td className="px-4 py-3 font-mono font-bold text-brand-primary">
                   {row.cgCode || row.vcode || "Uncoded"}
                 </td>
                 <td className="px-4 py-3 font-medium text-table-text">
@@ -1970,7 +1973,7 @@ function VacancyTable({
                       <div className="flex items-center gap-1.5" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
                         <span className="truncate">{storeObj.displayText}</span>
                         {storeObj.isMulti && (
-                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-surface-muted text-brand-primary border border-border-default shrink-0">
                             +{storeObj.extraCount}
                           </span>
                         )}
@@ -1985,13 +1988,7 @@ function VacancyTable({
                   {getAgingBadge(row.agingDays)}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                      row.pipelineStatus?.toLowerCase() === "pipeline"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold bg-surface-muted text-text-primary border border-border-default">
                     {row.pipelineStatus || "Open"}
                   </span>
                 </td>
@@ -2002,7 +1999,7 @@ function VacancyTable({
                       e.stopPropagation();
                       onSelectVacancy(row);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/40 transition-colors shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
                     aria-label={`Inspect vacancy ${row.cgCode || row.vcode || row.id}`}
                   >
                     <Eye className="h-3.5 w-3.5" />
@@ -2015,11 +2012,11 @@ function VacancyTable({
             {/* Unlisted / Missing store vacancies eligible for direct 1-click import */}
             {missingStores.length > 0 && (
               <>
-                <tr className="bg-amber-50/40 border-t-2 border-amber-200">
-                  <td colSpan={7} className="px-4 py-2 text-xs font-semibold text-amber-800">
+                <tr className="bg-surface-muted border-t-2 border-border-default">
+                  <td colSpan={7} className="px-4 py-2 text-xs font-semibold text-text-primary">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                        <AlertCircle className="h-3.5 w-3.5 text-text-secondary" />
                         Stores without Active Vacancies ({missingStores.length}) — Click Direct Import to provision instantly without wizard
                       </span>
                     </div>
@@ -2028,7 +2025,7 @@ function VacancyTable({
                 {missingStores.map((store) => (
                   <tr
                     key={`missing-${store.id}`}
-                    className="transition-colors hover:bg-amber-50/20 bg-surface-subtle/30"
+                    className="transition-colors hover:bg-surface-hover bg-surface-subtle/30"
                   >
                     <td className="px-4 py-3 font-mono font-bold text-text-secondary">
                       {store.code || "Uncoded"}
@@ -2053,7 +2050,7 @@ function VacancyTable({
                       —
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-pct-warn-bg text-pct-warn-text border border-pct-warn-border">
                         Missing from Vacancies
                       </span>
                     </td>
@@ -2066,7 +2063,7 @@ function VacancyTable({
                             e.stopPropagation();
                             onDirectImport(store);
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 hover:border-brand-400 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 py-1.5 text-xs font-semibold text-brand-primary hover:bg-surface-hover hover:border-border-strong transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                           title={`Directly create vacancy slot for ${store.name} (${store.code || "VCODE"}) without wizard`}
                         >
                           <Plus className="h-3.5 w-3.5" />
@@ -2125,14 +2122,14 @@ function EmployeeCard({
   const isPendingSeparation = overlay.isPendingSeparation || statusLower === "pending separation";
 
   const accentBorderClass = isPendingSeparation
-    ? "border-l-4 border-l-rose-500 bg-rose-50/20"
+    ? "border-l-4 border-l-border-strong bg-surface-muted/20"
     : isOnLeave
-    ? "border-l-4 border-l-amber-500"
+    ? "border-l-4 border-l-pct-warn-text"
     : isInactive
-    ? "border-l-4 border-l-slate-400"
+    ? "border-l-4 border-l-border-default"
     : isNeedsHr && !accountHasHrco
-    ? "border-l-4 border-l-sky-500"
-    : "border-l-4 border-l-emerald-500";
+    ? "border-l-4 border-l-brand-primary"
+    : "border-l-4 border-l-pct-good-text";
 
   return (
     <div
@@ -2145,21 +2142,21 @@ function EmployeeCard({
           onSelect();
         }
       }}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${accentBorderClass}`}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary ${accentBorderClass}`}
     >
       <div>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-brand-50 border border-brand-200 text-brand-700 font-bold text-xs flex items-center justify-center shadow-xs">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-xs flex items-center justify-center shadow-xs">
             {initials}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-600 transition-colors">
+              <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
                 {displayName}
               </h4>
               {row.plantillaType === "AH" && (
-                <span className="shrink-0 rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
+                <span className="shrink-0 rounded border border-pct-warn-border bg-pct-warn-bg px-1.5 py-0.2 text-[10px] font-bold text-pct-warn-text">
                   AH
                 </span>
               )}
@@ -2170,7 +2167,7 @@ function EmployeeCard({
                 {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo || "—"}
               </span>
               <span className="text-text-muted/40">•</span>
-              <span className="font-semibold text-brand-700 truncate">
+              <span className="font-semibold text-brand-primary truncate">
                 {row.positionTitle || "General Staff"}
               </span>
             </div>
@@ -2178,7 +2175,7 @@ function EmployeeCard({
 
           <div className="flex items-center gap-2 shrink-0">
             {isNeedsHr && !accountHasHrco ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-pct-warn-bg text-pct-warn-text border border-pct-warn-border">
                 Needs HRCO
               </span>
             ) : row.plantillaStatus && row.plantillaStatus.toLowerCase() !== "active" ? (
@@ -2203,7 +2200,7 @@ function EmployeeCard({
                 {locationLabel ? ` (${locationLabel})` : ""}
               </span>
               {storeObj.isMulti && (
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-surface-muted text-brand-primary border border-border-default shrink-0">
                   +{storeObj.extraCount}
                 </span>
               )}
@@ -2214,7 +2211,7 @@ function EmployeeCard({
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
             row.assignmentType?.toLowerCase() === "roving"
-              ? "bg-amber-50 text-amber-700 border-amber-200/80"
+              ? "bg-surface-muted text-text-primary border-border-default"
               : "bg-surface-muted text-text-secondary border-border-default"
           }`}
         >
@@ -2248,21 +2245,21 @@ function VacancyCard({
           onSelect();
         }
       }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md cursor-pointer border-l-4 border-l-amber-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer border-l-4 border-l-pct-warn-text focus:outline-none focus:ring-2 focus:ring-brand-primary"
     >
       <div>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shadow-xs">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-pct-warn-bg text-pct-warn-text border border-pct-warn-border flex items-center justify-center shadow-xs">
             <Briefcase className="h-5 w-5" />
           </div>
 
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-600 transition-colors">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
               {vacancy.position_title || "Open Position"}
             </h4>
 
             <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono font-bold text-brand-700">{vacancy.cgCode || vacancy.vcode || "Uncoded"}</span>
+              <span className="font-mono font-bold text-brand-primary">{vacancy.cgCode || vacancy.vcode || "Uncoded"}</span>
               <span className="text-text-muted/40">•</span>
               <span className="font-medium text-text-secondary">
                 HC: {vacancy.activeApplicantCount > 0 ? vacancy.activeApplicantCount : 1}
@@ -2271,13 +2268,7 @@ function VacancyCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                vacancy.pipelineStatus?.toLowerCase() === "pipeline"
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-amber-100 text-amber-700"
-              }`}
-            >
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-surface-muted text-text-primary border border-border-default">
               {vacancy.pipelineStatus || "Open"}
             </span>
             <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
@@ -2295,7 +2286,7 @@ function VacancyCard({
                 {storeObj.displayText}
               </span>
               {storeObj.isMulti && (
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-surface-muted text-brand-primary border border-border-default shrink-0">
                   +{storeObj.extraCount}
                 </span>
               )}
@@ -2329,7 +2320,7 @@ function EmptyTabState({
       <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs">
         <Users className="h-8 w-8 text-brand-600" />
         {hasActiveFilters && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow-xs">
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-pct-warn-text text-[10px] font-bold text-white shadow-xs">
             !
           </span>
         )}

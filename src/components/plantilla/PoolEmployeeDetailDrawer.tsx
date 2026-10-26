@@ -56,16 +56,20 @@ function getAvailabilityVariant(status: string): BadgeVariant {
 function getLoadLevelBadge(level?: string | null) {
   if (!level) return null;
   const l = level.toLowerCase();
-  if (l === "critical") {
-    return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">● Critical Load</span>;
-  }
-  if (l === "high") {
-    return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">● High Load</span>;
-  }
-  if (l === "medium") {
-    return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">● Med Load</span>;
-  }
-  return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">● Low Load</span>;
+  const label =
+    l === "critical"
+      ? "Critical Load"
+      : l === "high"
+      ? "High Load"
+      : l === "medium"
+      ? "Med Load"
+      : "Low Load";
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-primary bg-surface-muted border border-border-default px-2 py-0.5 rounded-full">
+      ● {label}
+    </span>
+  );
 }
 
 export function PoolEmployeeDetailDrawer({
@@ -133,14 +137,14 @@ export function PoolEmployeeDetailDrawer({
       >
         <div className="p-6 space-y-6">
           {/* Top Profile Summary Card */}
-          <div className="p-5 rounded-xl border border-gray-200 bg-linear-to-br from-gray-50 to-white shadow-xs space-y-4">
+          <div className="p-5 rounded-xl border border-border-default bg-surface shadow-xs space-y-4">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-bold text-gray-900">{emp.employeeName}</span>
+                  <span className="text-base font-bold text-text-primary">{emp.employeeName}</span>
                   {getLoadLevelBadge(emp.deploymentLoadLevel)}
                 </div>
-                <p className="text-xs text-gray-500 font-mono">
+                <p className="text-xs text-text-secondary font-mono">
                   No: {emp.employeeNo} {emp.vcode ? `• VCode: ${emp.vcode}` : ""}
                 </p>
               </div>
@@ -149,50 +153,50 @@ export function PoolEmployeeDetailDrawer({
                   {emp.availabilityStatus}
                 </StatusBadge>
                 {emp.hasPendingRequest && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary bg-surface-muted px-2 py-0.5 rounded border border-border-default">
                     Reserved
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-gray-100 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border-subtle text-xs">
               <div>
-                <span className="text-gray-400 block mb-0.5">Pool Type</span>
-                <span className="font-semibold text-gray-800">{emp.poolTypeName}</span>
+                <span className="text-text-muted block mb-0.5">Pool Type</span>
+                <span className="font-semibold text-text-primary">{emp.poolTypeName}</span>
               </div>
               <div>
-                <span className="text-gray-400 block mb-0.5">Position</span>
-                <span className="font-semibold text-gray-800">{emp.position || "Pooled Personnel"}</span>
+                <span className="text-text-muted block mb-0.5">Position</span>
+                <span className="font-semibold text-text-primary">{emp.position || "Pooled Personnel"}</span>
               </div>
               <div>
-                <span className="text-gray-400 block mb-0.5">Active Stores</span>
-                <span className="font-semibold text-gray-800">
+                <span className="text-text-muted block mb-0.5">Active Stores</span>
+                <span className="font-semibold text-text-primary">
                   {emp.activeStoreCount} store{emp.activeStoreCount === 1 ? "" : "s"}
                 </span>
               </div>
               <div>
-                <span className="text-gray-400 block mb-0.5">Home Account</span>
-                <span className="font-semibold text-gray-800">{emp.homeAccount || "Moses HQ"}</span>
+                <span className="text-text-muted block mb-0.5">Home Account</span>
+                <span className="font-semibold text-text-primary">{emp.homeAccount || "Moses HQ"}</span>
               </div>
             </div>
 
             {/* Action Bar */}
             {canMutate && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
                 <button
                   type="button"
                   onClick={() => setIsCoverageModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition shadow-xs cursor-pointer"
                 >
                   <UserCheck className="h-3.5 w-3.5" /> Request Coverage Deployment
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsConversionModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-text-primary bg-surface border border-border-default rounded-lg hover:bg-surface-hover transition cursor-pointer"
                 >
-                  <ArrowRightLeft className="h-3.5 w-3.5" /> Convert to Regular Plantilla
+                  <ArrowRightLeft className="h-3.5 w-3.5 text-text-muted" /> Convert to Regular Plantilla
                 </button>
               </div>
             )}
@@ -200,42 +204,42 @@ export function PoolEmployeeDetailDrawer({
 
           {/* Active Deployments Section */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center justify-between">
               <span>Active Store Deployments ({detail?.activeDeployments.length ?? 0})</span>
-              <span className="text-[11px] font-normal text-gray-400">Real-time Coverage</span>
+              <span className="text-[11px] font-normal text-text-muted">Real-time Coverage</span>
             </h3>
 
             {detailQuery.isLoading ? (
-              <div className="py-4 text-center text-xs text-gray-400">Loading deployments...</div>
+              <div className="py-4 text-center text-xs text-text-muted">Loading deployments...</div>
             ) : (detail?.activeDeployments ?? []).length === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-500 bg-gray-50/50">
+              <div className="p-4 rounded-xl border border-dashed border-border-default text-center text-xs text-text-secondary bg-surface-muted/50">
                 Not currently deployed to any store. Ready for coverage deployment.
               </div>
             ) : (
-              <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs">
+              <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface shadow-xs">
                 {detail?.activeDeployments.map((dep) => (
                   <div key={dep.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
-                          <span className="text-sm font-semibold text-gray-900">
+                          <MapPin className="h-4 w-4 text-text-muted shrink-0" />
+                          <span className="text-sm font-semibold text-text-primary">
                             {dep.storeName || "Store"} {dep.storeBranch ? `(${dep.storeBranch})` : ""}
                           </span>
                           {dep.isPrimary && (
-                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            <span className="text-[10px] font-bold text-text-primary bg-surface-muted px-1.5 py-0.5 rounded border border-border-default">
                               Primary
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-text-secondary mt-1">
                           Account: {dep.accountName || "—"} {dep.positionCovered ? `• Covering: ${dep.positionCovered}` : ""}
                         </p>
                       </div>
                       <StatusBadge variant="success">{dep.status}</StatusBadge>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs text-text-secondary">
                       <span>
                         Dates: {dep.startDate || "—"} &rarr; {dep.endDate || "Ongoing"}
                       </span>
@@ -243,7 +247,7 @@ export function PoolEmployeeDetailDrawer({
                         <button
                           type="button"
                           onClick={() => setClosingAssignmentId(dep.id)}
-                          className="text-xs font-medium text-red-600 hover:text-red-700 underline underline-offset-2"
+                          className="text-xs font-semibold text-danger-text hover:underline cursor-pointer"
                         >
                           Close Assignment
                         </button>
@@ -252,8 +256,8 @@ export function PoolEmployeeDetailDrawer({
 
                     {/* Inline Close Assignment form */}
                     {canMutate && closingAssignmentId === dep.id && (
-                      <div className="p-3 bg-red-50/60 border border-red-200 rounded-lg space-y-2 mt-2">
-                        <label className="block text-xs font-semibold text-red-900">
+                      <div className="p-3 bg-danger-bg border border-danger-border rounded-lg space-y-2 mt-2 text-danger-text">
+                        <label className="block text-xs font-semibold text-danger-text">
                           Reason for closing deployment:
                         </label>
                         <input
@@ -261,7 +265,7 @@ export function PoolEmployeeDetailDrawer({
                           value={closingNotes}
                           onChange={(e) => setClosingNotes(e.target.value)}
                           placeholder="e.g. Regular employee returned, contract concluded..."
-                          className="w-full text-xs rounded border border-red-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                          className="w-full text-xs rounded border border-border-default p-2 bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
                         />
                         <div className="flex justify-end gap-2">
                           <button
@@ -270,7 +274,7 @@ export function PoolEmployeeDetailDrawer({
                               setClosingAssignmentId(null);
                               setClosingNotes("");
                             }}
-                            className="px-2.5 py-1 text-xs text-gray-600 hover:text-gray-800"
+                            className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -278,7 +282,7 @@ export function PoolEmployeeDetailDrawer({
                             type="button"
                             onClick={() => handleCloseAssignment(dep.id)}
                             disabled={closeAssignmentMutation.isPending}
-                            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition"
+                            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-danger-text rounded hover:opacity-90 transition cursor-pointer disabled:opacity-50"
                           >
                             {closeAssignmentMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                             Confirm Close
@@ -295,19 +299,19 @@ export function PoolEmployeeDetailDrawer({
           {/* Pending Requests Section */}
           {(detail?.pendingRequests ?? []).length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center justify-between">
                 <span>Pending Coverage Requests ({detail?.pendingRequests.length})</span>
-                <span className="text-[11px] font-normal text-amber-600">Awaiting Data Team SLA</span>
+                <span className="text-[11px] font-normal text-text-muted">Awaiting Data Team SLA</span>
               </h3>
-              <div className="divide-y divide-amber-100 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+              <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface-muted/50">
                 {detail?.pendingRequests.map((req) => (
                   <div key={req.id} className="p-3.5 flex items-center justify-between gap-3 text-xs">
                     <div className="space-y-0.5">
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-text-primary">
                         {req.accountName ? `${req.accountName} / ` : ""}
                         {req.storeName || "Store"}
                       </div>
-                      <div className="text-gray-500">
+                      <div className="text-text-secondary">
                         Requested by: {req.requestedBy || "Requester"} • Priority: {req.priority}
                         {req.ageDays != null ? ` • ${req.ageDays}d ago` : ""}
                       </div>
@@ -319,7 +323,7 @@ export function PoolEmployeeDetailDrawer({
                           type="button"
                           onClick={() => handleWithdrawRequest(req)}
                           disabled={withdrawMutation.isPending}
-                          className="text-xs font-medium text-red-600 hover:text-red-800 hover:underline"
+                          className="text-xs font-semibold text-danger-text hover:underline cursor-pointer disabled:opacity-50"
                         >
                           Withdraw
                         </button>
@@ -334,14 +338,14 @@ export function PoolEmployeeDetailDrawer({
           {/* Pending Conversions Section */}
           {(detail?.conversionRequests ?? []).length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center justify-between">
                 <span>Conversion Requests ({detail?.conversionRequests.length})</span>
               </h3>
-              <div className="divide-y divide-purple-100 border border-purple-200 rounded-xl overflow-hidden bg-purple-50/30">
+              <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
                 {detail?.conversionRequests.map((c) => (
                   <div key={c.id} className="p-3.5 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-text-primary">
                         Target: {c.targetAccount} / {c.targetStore} &rarr; {c.targetPosition}
                       </span>
                       <StatusBadge
@@ -356,7 +360,7 @@ export function PoolEmployeeDetailDrawer({
                         {c.status}
                       </StatusBadge>
                     </div>
-                    <p className="text-gray-600">Effective: {c.effectiveDate} • Reason: {c.reason}</p>
+                    <p className="text-text-secondary">Effective: {c.effectiveDate} • Reason: {c.reason}</p>
                   </div>
                 ))}
               </div>
@@ -365,26 +369,26 @@ export function PoolEmployeeDetailDrawer({
 
           {/* Assignment History Section */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
               Assignment History ({detail?.assignmentHistory.length ?? 0})
             </h3>
             {detailQuery.isLoading ? (
-              <div className="py-4 text-center text-xs text-gray-400">Loading history...</div>
+              <div className="py-4 text-center text-xs text-text-muted">Loading history...</div>
             ) : (detail?.assignmentHistory ?? []).length === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-500">
+              <div className="p-4 rounded-xl border border-dashed border-border-default text-center text-xs text-text-secondary">
                 No prior deployment assignments found.
               </div>
             ) : (
-              <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white text-xs">
+              <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface text-xs">
                 {detail?.assignmentHistory.map((h) => (
-                  <div key={h.id} className="p-3 hover:bg-gray-50 flex items-center justify-between gap-4">
+                  <div key={h.id} className="p-3 hover:bg-surface-hover flex items-center justify-between gap-4 transition">
                     <div>
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-text-primary">
                         {h.accountName ? `${h.accountName} / ` : ""}
                         {h.storeName || "Store"}
                         {h.positionCovered ? ` (${h.positionCovered})` : ""}
                       </div>
-                      <div className="text-gray-400 mt-0.5">
+                      <div className="text-text-muted mt-0.5">
                         {h.startDate || "—"} to {h.endDate || "Present"} {h.endReason ? `• Reason: ${h.endReason}` : ""}
                       </div>
                     </div>

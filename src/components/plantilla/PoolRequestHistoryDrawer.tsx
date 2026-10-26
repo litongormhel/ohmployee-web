@@ -23,12 +23,12 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
       subtitle="Audit trail of workforce pool quota requests, endorsements, and slot approvals"
     >
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between text-xs text-gray-500 border-b border-gray-100 pb-2">
+        <div className="flex items-center justify-between text-xs text-text-secondary border-b border-border-subtle pb-2">
           <span>
-            Total: <strong className="text-gray-900">{requests.length}</strong> request logs
+            Total: <strong className="text-text-primary">{requests.length}</strong> request logs
           </span>
-          <span className="flex items-center gap-1.5 text-blue-600 font-medium">
-            <History className="h-3.5 w-3.5" /> Immutable Audit Trail
+          <span className="flex items-center gap-1.5 text-text-primary font-medium">
+            <History className="h-3.5 w-3.5 text-text-muted" /> Immutable Audit Trail
           </span>
         </div>
 
@@ -41,20 +41,20 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
             message="No workforce pool requests have been logged yet."
           />
         ) : (
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden bg-white shadow-xs">
+          <div className="divide-y divide-border-subtle border border-border-subtle rounded-xl overflow-hidden bg-surface shadow-xs">
             {requests.map((req) => (
-              <div key={req.id} className="p-4 hover:bg-gray-50/70 transition space-y-2.5">
+              <div key={req.id} className="p-4 hover:bg-surface-hover transition space-y-2.5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">
+                      <span className="text-sm font-bold text-text-primary">
                         {req.poolTypeName || "Workforce Pool"}
                       </span>
-                      <span className="text-xs text-gray-400 font-mono">
+                      <span className="text-xs text-text-muted font-mono">
                         {req.headcountNeeded} slot{req.headcountNeeded > 1 ? "s" : ""}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                    <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
                       <span>Account: {req.requestingAccount || req.operationalAccountName || "—"}</span>
                       {req.positionName && <span>&bull; {req.positionName}</span>}
                     </div>
@@ -79,7 +79,7 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
                     {req.vcodes.map((vcode) => (
                       <span
                         key={vcode}
-                        className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+                        className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-muted text-text-primary border border-border-default"
                       >
                         {vcode}
                       </span>
@@ -87,7 +87,7 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-gray-400 pt-1 border-t border-gray-50">
+                <div className="flex items-center justify-between text-xs text-text-muted pt-1 border-t border-border-subtle">
                   <span className="flex items-center gap-1">
                     <User className="h-3.5 w-3.5" />
                     By: {req.createdBy || "System"}

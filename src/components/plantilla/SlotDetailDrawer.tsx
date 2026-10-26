@@ -157,7 +157,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
       widthClass="w-[var(--drawer-width-lg)] max-w-full"
       badge={
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-1 px-2.5">
+          <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-1 px-2.5">
             {slot?.legacyVcode || "SLOT"}
           </Badge>
           {slot && (
@@ -258,11 +258,11 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
             </div>
 
             {slot.closedAt && (
-              <div className="rounded border border-red-200 bg-red-50 p-2.5 text-xs text-red-800 flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+              <div className="rounded border border-danger-border bg-danger-bg p-2.5 text-xs text-danger-text flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-danger-text mt-0.5" />
                 <div>
                   <div className="font-semibold">Slot Retired / Closed</div>
-                  <div className="text-[11px] mt-0.5 text-red-700">
+                  <div className="text-[11px] mt-0.5 text-danger-text opacity-90">
                     Closed on {formatDate(slot.closedAt)}
                     {slot.closureReasonCode ? ` (Reason: ${slot.closureReasonCode})` : ""}
                   </div>
@@ -321,11 +321,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                     </div>
                   </div>
                   <Badge
-                    className={`text-[11px] font-normal ${
-                      slot.slotStatus === "hr_processing"
-                        ? "border-amber-300 text-amber-800 bg-amber-50"
-                        : "border-blue-300 text-blue-800 bg-blue-50"
-                    }`}
+                    className="text-[11px] font-normal border-border-default text-text-secondary bg-surface-muted"
                   >
                     {slot.slotStatus === "hr_processing" ? "Reserved (HR Processing)" : "Reserved (In Pipeline)"}
                   </Badge>

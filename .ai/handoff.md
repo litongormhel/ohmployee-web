@@ -1,5 +1,64 @@
 # AI Handoff
 
+## UI Standard & Motion System — Loop 6A: Plantilla Drawers & Table Alignment (ohm#l6a1m4w9)
+
+**Status: COMPLETE — LOOP 6A (PLANTILLA DRAWERS & DIRECTORY TABLES) ALIGNED TO UI STANDARD; ALL 442 COLOR LITERALS ELIMINATED DOWN TO 0 ACROSS 9 TOUCHED FILES; WRAPPED `PlantillaDetailDrawer` AND 8 POOL/STORE DRAWERS IN CANONICAL `DetailDrawer` (`drawer-width-lg`); TOKENIZED ACCOUNT GATE SELECTION CARDS, MFR / FILL RATE PROGRESS BARS, TAB PILLS, MAIN DIRECTORY TABLE, AND VACANCY TABLE; PRESERVED 14PX MINIMUM TABLE TYPOGRAPHY FLOOR (`text-sm`); PRESERVED SINGLE-ACCOUNT AUTO-FIRE AND ADR-001 ACCOUNT SELECTION GATE; ESLINT CLEAN (0 ERRORS); FULL PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 5.3s)**
+
+---
+
+### 1. ADR Basis & Invariants Verification
+- **ADR Basis**:
+  - `ADR-001: Coverage Architecture v2` (`/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`): Core Decisions 1, 2, 3, 6, 7, 8, 12, 13; Employee Integrity Lock ($\ge 1$ active store assignment); Slot-First Lifecycle Rules 1, 4, 7; Additions `ohm#k8d2x7qf` & `ohm#7gk2d9xq` (HRCO Employee-Level Scope Isolation & Global Override).
+  - `ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture` (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`).
+- **Invariants Checked & Verified**:
+  - **Account Gate Gating**: `summaryQuery`, `employeeQuery`, and `storeQuery` strictly preserve `enabled: !!accountId`.
+  - **Single-Account Auto-Fire**: Single-account scoped roles (OM, HRCO, Encoder with 1 authorized account) continue to auto-fire and bypass the empty selection screen on mount without requiring manual user clicks.
+  - **Multi-Account & Broad-Access Governance**: Broad-access roles (Super Admin, Head Admin, HR Personnel) remain gated behind explicit account selection with aggregated status badges.
+  - **Slot-First & Employee Integrity**: All detail drawers retain active store assignments, multi-store allocation shares, and full capability action visibility guards.
+  - **No Web-Side MFR Math**: Backend-computed fill rates and MFR metrics are preserved directly and rendered with centralized `--pct-*` semantic tokens (`evaluatePercentage` / `PercentageBar`).
+
+---
+
+### 2. File Alignment & Color Literal Elimination Breakdown
+| File | Baseline Literals | Post-Loop 6A Literals | Architecture & Alignment Actions |
+|---|---|---|---|
+| `src/app/(dashboard)/plantilla/page.tsx` | 97 | **0** | Tokenized account gate cards, MFR percentage bars, tab pills (Active, Vacancy, Inactive, Needs HRCO), main directory table, aging badges, and card views; enforced $\ge 14\text{px}$ floor (`text-sm`) |
+| `src/components/plantilla/PlantillaDetailDrawer.tsx` | 168 | **0** | Replaced ad-hoc aside container with canonical `@/components/shared/DetailDrawer` (`drawer-width-lg`); tokenized Profile, Benefits, Stores, and Activity tabs; replaced `--danger` on separation state notices with neutral tokens; kept `--danger` strictly on error feedback and deletion request |
+| `src/components/plantilla/PoolEmployeeDetailDrawer.tsx` | 75 | **0** | Wrapped in canonical `DetailDrawer`; tokenized availability badges, load level badges, and assignment rows |
+| `src/components/plantilla/PoolReviewQueueDrawer.tsx` | 40 | **0** | Wrapped in canonical `DetailDrawer`; tokenized review cards and approve/reject actions |
+| `src/components/plantilla/PoolOpenSlotsDrawer.tsx` | 16 | **0** | Wrapped in canonical `DetailDrawer`; tokenized slot status badges and store items |
+| `src/components/plantilla/StoreStaffingDrawer.tsx` | 14 | **0** | Wrapped in canonical `DetailDrawer`; tokenized store capacity breakdown |
+| `src/components/plantilla/PoolRequestHistoryDrawer.tsx` | 14 | **0** | Wrapped in canonical `DetailDrawer`; tokenized timeline events and status tags |
+| `src/components/plantilla/SlotDetailDrawer.tsx` | 12 | **0** | Wrapped in canonical `DetailDrawer`; tokenized slot capacity indicators |
+| `src/components/plantilla/StoreStaffingOverviewDrawer.tsx` | 6 | **0** | Wrapped in canonical `DetailDrawer`; tokenized store quota meters |
+| **Total Loop 6A** | **442** | **0** | **100% of Loop 6A literals eliminated** |
+
+---
+
+### 3. Build & Mechanical Gate Evidence
+- **ESLint**:
+  - Command: `npm run lint`
+  - Output: `✖ 26 problems (0 errors, 26 pre-existing warnings in other modules)`
+  - Status: **PASSED (0 errors)**
+- **Next.js Production Build**:
+  - Command: `npm run build`
+  - Compiler: Next.js 16.2.4 (Turbopack)
+  - Time: Compiled in 5.3s, TypeScript in 8.4s
+  - Output: `✓ Generating static pages using 9 workers (19/19) in 209ms`
+  - Status: **PASSED (19/19 static routes valid, 0 errors)**
+
+---
+
+### 4. Remaining Scope for Plantilla Module
+- **Loop 6B (391 literals): Modals and Lifecycle Forms**
+  - Files: `TransferPersonnelModal.tsx` (98), `UpdateEmploymentStatusModal.tsx` (69), `RequestRelieverCoverageModal.tsx` (45), `InitiateSeparationModal.tsx` (44), `RequestPoolHeadcountModal.tsx` (44), `RequestPoolConversionModal.tsx` (39), `RequestDeactivationModal.tsx` (38), `UpdateScheduleModal.tsx` (14).
+  - Scope: Wrap in shared `Modal` (`z-[60]` over `DetailDrawer` at `z-50`); harden `isSubmitting`, `isDirty`, and backdrop guards; tokenize form inputs and button states.
+- **Loop 6C (198 literals): Specialized Pool Views & Analytics**
+  - Files: `WorkforceAnalyticsView.tsx` (145), `MosesHqPoolView.tsx` (53).
+  - Scope: Tokenize analytical charts, breakdown tables, and Moses pool management views.
+
+---
+
 ## HR Emploc Fixes & ADR-001 Verification Checkpoint (ohm#l5bf1x9p)
 
 **Status: COMPLETE — (1) ADR-001 RESOLVED & RECORDED AT `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`; SECTION HEADINGS LISTED AND FULLY MAPPED TO VACANCY, HR EMPLOC, DASHBOARD & CENCOM, AND PLANTILLA; LOOPS 2–5B RE-VERIFIED AGAINST ADR-001 WITH ZERO CONFLICTS; (2) IN `HrEmplocDetailDrawer.tsx`, CHANGED RECORD LOCKED PENDING DELETION STATE BANNER FROM `--danger` TO NEUTRAL/INFO TOKENS (`border-border-default`, `bg-surface-muted`, `text-text-primary`), PRESERVING `--danger` FOR ACTUAL OPERATION FAILURES AND DESTRUCTIVE ACTIONS; (3) IN `HrEmplocTable.tsx` AND `HrEmplocDetailDrawer.tsx`, RESTORED "ADD EMPLOC" AND "FOR CORRECTION" BUTTONS FOR PENDING QUEUE (RESOLVING ALONZO, FERNANDO CASTILLO AND ALL PENDING HR EMPLOC CANDIDATES WHO WERE PREVIOUSLY BLOCKED BY AN RPC-CAPABILITY MISMATCH); (4) READ ADR-002 AND ADR-001 PLANTILLA ACCOUNT GATE AUDIT; AUDITED PLANTILLA'S 1,031 COLOR LITERALS AND STRUCTURED 3-LOOP SPLIT (6A: 442 LITERALS, 6B: 391 LITERALS, 6C: 198 LITERALS); MECHANICAL GATE PASSING WITH DECISION ALLOW AND FULL BUILD GREEN ON MAIN**

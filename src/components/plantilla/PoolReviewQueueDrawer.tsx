@@ -68,14 +68,14 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
     >
       <div className="p-6 space-y-6">
         {/* Tab Switcher */}
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-border-default">
           <button
             type="button"
             onClick={() => setActiveTab("pending")}
-            className={`pb-3 px-4 text-xs font-semibold border-b-2 transition ${
+            className={`pb-3 px-4 text-xs font-semibold border-b-2 transition cursor-pointer ${
               activeTab === "pending"
-                ? "border-amber-500 text-amber-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-brand-primary text-brand-primary"
+                : "border-transparent text-text-muted hover:text-text-primary"
             }`}
           >
             Pending Reviews ({allReviews.filter((r) => r.status.toLowerCase() === "pending").length})
@@ -83,10 +83,10 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
           <button
             type="button"
             onClick={() => setActiveTab("resolved")}
-            className={`pb-3 px-4 text-xs font-semibold border-b-2 transition ${
+            className={`pb-3 px-4 text-xs font-semibold border-b-2 transition cursor-pointer ${
               activeTab === "resolved"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-brand-primary text-brand-primary"
+                : "border-transparent text-text-muted hover:text-text-primary"
             }`}
           >
             Resolved ({allReviews.filter((r) => r.status.toLowerCase() !== "pending").length})
@@ -95,9 +95,9 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
 
         {/* Action Dialog if open */}
         {canReviewSlots && selectedReviewId && actionType && (
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+          <div className="p-4 bg-surface-muted border border-border-default rounded-xl space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
                 Confirm {actionType === "reopen" ? "Reopening Slot" : "Closing Slot"}
               </h4>
               <button
@@ -106,7 +106,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
                   setSelectedReviewId(null);
                   setActionType(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 text-xs"
+                className="text-text-muted hover:text-text-primary text-xs cursor-pointer"
               >
                 Cancel
               </button>
@@ -116,17 +116,17 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
               value={actionNotes}
               onChange={(e) => setActionNotes(e.target.value)}
               placeholder="Optional resolution remarks / rationale..."
-              className="w-full text-xs rounded-lg border border-gray-300 p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs rounded-lg border border-border-default p-2.5 bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={handleExecuteAction}
                 disabled={isPendingAction}
-                className={`px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition inline-flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
                   actionType === "reopen"
-                    ? "bg-emerald-600 hover:bg-emerald-700"
-                    : "bg-red-600 hover:bg-red-700"
+                    ? "bg-brand-500 hover:bg-brand-600"
+                    : "bg-danger-text hover:opacity-90"
                 }`}
               >
                 {isPendingAction && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -146,27 +146,27 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
             message="No slot reviews found matching the current tab."
           />
         ) : (
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden bg-white shadow-xs">
+          <div className="divide-y divide-border-subtle border border-border-subtle rounded-xl overflow-hidden bg-surface shadow-xs">
             {displayedReviews.map((rev) => (
-              <div key={rev.id} className="p-4 hover:bg-gray-50/70 transition space-y-3">
+              <div key={rev.id} className="p-4 hover:bg-surface-hover transition space-y-3">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="font-mono text-xs font-bold text-text-primary bg-surface-muted px-2 py-0.5 rounded border border-border-default">
                         {rev.vcode}
                       </span>
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-semibold text-text-primary">
                         Trigger: {rev.triggerEvent}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Vacated by: <strong className="text-gray-700">{rev.previousEmployeeName || "—"}</strong>{" "}
+                    <p className="text-xs text-text-secondary mt-1">
+                      Vacated by: <strong className="text-text-primary">{rev.previousEmployeeName || "—"}</strong>{" "}
                       {rev.previousPosition ? `(${rev.previousPosition})` : ""}
                     </p>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     {rev.reviewAgeDays != null && (
-                      <span className="text-xs text-gray-400 font-mono">
+                      <span className="text-xs text-text-muted font-mono">
                         {rev.reviewAgeDays}d in review
                       </span>
                     )}
@@ -177,13 +177,13 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
                 </div>
 
                 {rev.reviewNotes && (
-                  <p className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100 italic">
+                  <p className="text-xs text-text-secondary bg-surface-muted p-2.5 rounded-lg border border-border-subtle italic">
                     &ldquo;{rev.reviewNotes}&rdquo;
                   </p>
                 )}
 
                 {canReviewSlots && rev.status.toLowerCase() === "pending" && (
-                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-50">
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-border-subtle">
                     <button
                       type="button"
                       onClick={() => {
@@ -191,7 +191,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
                         setActionType("reopen");
                         setActionNotes("");
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-primary bg-surface border border-border-default rounded-lg hover:bg-surface-hover transition cursor-pointer"
                     >
                       <RefreshCw className="h-3.5 w-3.5" /> Reopen for Replenishment
                     </button>
@@ -202,7 +202,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
                         setActionType("close");
                         setActionNotes("");
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger-text bg-danger-bg border border-danger-border rounded-lg hover:opacity-90 transition cursor-pointer"
                     >
                       <XCircle className="h-3.5 w-3.5" /> Close Slot
                     </button>

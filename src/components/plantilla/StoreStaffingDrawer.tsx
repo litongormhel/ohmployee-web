@@ -111,14 +111,14 @@ export function StoreStaffingDrawer({
         onClose={onClose}
         widthClass="w-[var(--drawer-width-lg)] max-w-full"
         badge={
-          <Badge className="font-mono text-xs font-semibold bg-gray-900 text-white border-none py-1 px-2.5">
+          <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-1 px-2.5">
             {storeRow.storeCode ?? "STORE"}
           </Badge>
         }
         title={storeRow.storeName ?? "Store Staffing Overview"}
         subtitle={
           <>
-            <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
+            <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
             <span className="truncate">
               {[storeRow.accountName, storeRow.region].filter(Boolean).join(" / ") || "Store Location"}
             </span>
@@ -145,11 +145,11 @@ export function StoreStaffingDrawer({
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
                 <div className="text-[10px] font-semibold uppercase text-text-muted">Pipeline</div>
-                <div className="text-lg font-bold font-mono text-amber-700">{storeRow.hrPipelineCount}</div>
+                <div className="text-lg font-bold font-mono text-text-primary">{storeRow.hrPipelineCount}</div>
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
                 <div className="text-[10px] font-semibold uppercase text-text-muted">Open Vacancy</div>
-                <div className="text-lg font-bold font-mono text-blue-700">{storeRow.openHeadcount}</div>
+                <div className="text-lg font-bold font-mono text-text-primary">{storeRow.openHeadcount}</div>
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
                 <div className="text-[10px] font-semibold uppercase text-text-muted">Required</div>
@@ -228,8 +228,8 @@ export function StoreStaffingDrawer({
                   <div className="h-16 rounded-md bg-surface-muted" />
                 </div>
               ) : isSlotsError ? (
-                <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                <div className="flex items-center gap-2 rounded-md border border-danger-border bg-danger-bg p-3 text-xs text-danger-text">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-danger-text" />
                   <span>Error loading slots: {slotsError?.message}</span>
                 </div>
               ) : (slots ?? []).length === 0 ? (
@@ -264,15 +264,15 @@ export function StoreStaffingDrawer({
                           <div className="mt-1 text-xs text-text-secondary flex items-center gap-2 flex-wrap">
                             {slot.slotStatus === "occupied" && slot.occupant ? (
                               <span className="flex items-center gap-1 font-medium text-text-primary">
-                                <User className="h-3 w-3 text-emerald-600" />
+                                <User className="h-3 w-3 text-text-muted" />
                                 {slot.occupant.employeeName}
                                 <span className="font-mono text-[11px] text-text-muted">
                                   ({slot.occupant.employeeNo})
                                 </span>
                               </span>
                             ) : slot.slotStatus === "pipeline" || slot.slotStatus === "hr_processing" ? (
-                              <span className="flex items-center gap-1 text-blue-700">
-                                <User className="h-3 w-3" />
+                              <span className="flex items-center gap-1 text-text-primary font-medium">
+                                <User className="h-3 w-3 text-text-muted" />
                                 {slot.candidate?.name || "Candidate Assigned"}
                               </span>
                             ) : (
@@ -348,8 +348,8 @@ export function StoreStaffingDrawer({
                   <div className="h-20 rounded-md bg-surface-muted" />
                 </div>
               ) : isVacanciesError ? (
-                <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                <div className="flex items-center gap-2 rounded-md border border-danger-border bg-danger-bg p-3 text-xs text-danger-text">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-danger-text" />
                   <span>Error loading position quotas: {vacanciesError?.message}</span>
                 </div>
               ) : (vacancies ?? []).length === 0 ? (
