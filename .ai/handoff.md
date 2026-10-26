@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Docs & Audit — Migration History Baseline for Production and Staging (ohm#mighist1)
+
+**Status: COMPLETE — MIGRATION SCHEMA AUDIT BASELINES RECORDED IN REPO; CREATED `docs/audit/migration_history_prod.txt` AND `docs/audit/migration_history_staging.txt` CONTAINING THE 100 CANONICAL DATABASE MIGRATION ENTRIES FROM `20260520012746` (`remote_schema`) THROUGH `20260625000000` (`hydrate_plantilla_from_baseline_import`); SERVES AS THE STATIC GROUND-TRUTH RECORD OF DEPLOYED SCHEMA DDL FOR AGENTS ELIMINATING DIRECT SUPABASE DATABASE QUERIES; PRESERVED ZERO TOUCH ON SOURCE CODE AND RUNTIME LOGIC; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Summary
+- **Baseline Files Created**:
+  - `docs/audit/migration_history_prod.txt`: Authoritative record of 100 applied production migrations.
+  - `docs/audit/migration_history_staging.txt`: Parity copy for Staging project `qqiiznmqxfoamqytjica`.
+- **Purpose**:
+  - Serves as the primary reference for AI agents to verify database migrations and function/table availability without issuing live SQL or touching Supabase databases directly.
+- **Verification**:
+  - 102 lines each (100 migration rows + table header).
+  - Exact row parity verified between both files.
+
+---
+
 ## UI Standard & Motion System — Final Fix Pass Verification and Parity (ohm#lfix9v2d)
 
 **Status: COMPLETE — FINAL FIX PASS DELIVERED ACROSS ALL 8 DIRECTIVES; HR EMPLOC CAPABILITY GATES RESTORED TO PRE-LOOP-5A BEHAVIOR WITH 0 BUSINESS LOGIC DRIFT; ALL SUPABASE DATABASE QUERIES AUDITED AND TRACED TO READ-ONLY/DDL SCRATCH SCRIPTS AGAINST PROJECT `rwxelulyapjgaarlwkus`; WCAG CONTRAST AUDIT RECOMPUTED WITH CURRENT CSS TOKEN VALUES TO >= 4.5:1 WITH NO AA LARGE EXCEPTIONS FOR 14PX TEXT; MOTION SYSTEM AUDITED AND IMPLEMENTED WITH VALUE TWEENS ON DASHBOARD SCOPE, CENCOM GROUP SCOPE, AND VACANCY METRICS, CONFIRMED DashboardMetricsCards.tsx DOES NOT EXIST, ADDED .page-enter CSS KEYFRAMES TO globals.css, AND VERIFIED 3-STATE FULL/LITE/OFF CONTROL IN SETTINGS WITH AUTO-DEFAULT (hardwareConcurrency/deviceMemory <= 4 -> Lite); DIRTY-ESC GUARDS INSTANTIATED ON ALL APPROVALS MODALS, PAYROLL MODALS, BATCHDETAILSMODAL, USERDETAILDRAWER, AND SECURITYTAB; CANONICAL MODAL & DRAWER GUARD TABLE REGENERATED DERIVED DIRECTLY FROM CODE; getRoleTint RESOLVED TO CSS TOKEN var(--brand-primary) AND REPLACED COLOR TINTING WITH NEUTRAL STRUCTURAL ROLEICONBADGE IN TEAM DIRECTORY; FLUTTER MOBILE REPO PARITY CITED UNDER ADR-001/ADR-002; ZERO IMPORTS OF UNCOMMITTED @ai-sdk/ai/zod CONFIRMED (SAFE FOR DEPLOY); ESLINT CLEAN (0 ERRORS); TURBOPACK BUILD CLEAN (0 ERRORS, 19/19 STATIC ROUTES PRERENDERED); GATE.PY RETURNS {"decision": "allow"}; ALL CHANGES COMMITTED LOCALLY ON MAIN; ZERO PUSHES OR BRANCH MUTATIONS**
