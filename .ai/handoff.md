@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Loop 7F: Settings & System Governance Alignment (ohm#lset6f8p)
+
+**Status: COMPLETE — ALL 6 SETTINGS AND GOVERNANCE SCREENS TOKENIZED TO ZERO COLOR LITERALS (267 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `ChangePasswordModal` AND 2 CONFIRMATION MODALS IN `SecurityTab` (SINGLE SESSION REVOCATION AND MASS REVOCATION) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; DANGER AUDIT PASSED (--danger STRICTLY FOR REVIEWS, EMERGENCIES, SUSPICIOUS INCIDENTS, AND REVOCATIONS); ZERO QUERY, RPC, OR GOVERNANCE POLICY DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions (6 Files)
+- `src/app/(dashboard)/settings/page.tsx`: Aligned admin page header, tab list navigation, active pill styling, and Super Admin badge indicator. (0 literals)
+- `src/components/settings/ProfileTab.tsx`: Standardized profile photo avatar container, mobile number editor, Philippine mobile regex feedback, role clearance card, and action buttons. (0 literals)
+- `src/components/settings/ChangePasswordModal.tsx`: Wrapped legacy dialog with canonical `Modal` component; added `isDirty` state tracking, live criteria validation checkmarks, and brand action button. (0 literals)
+- `src/components/settings/PreferencesTab.tsx`: Standardized theme selector (Light/Dark/System), 30-minute idle session policy notice card, notification alert toggles, and typography scaling selects. (0 literals)
+- `src/components/settings/SecurityTab.tsx`: Standardized active devices strip, current device card, relative timestamp resolver, security audit trail timeline, and wrapped both single session and mass revocation dialogs in canonical `Modal`. (0 literals)
+- `src/components/settings/DiagnosticsTab.tsx`: Standardized latency roundtrip ping card, governance controls RPC card, operational freeze breakdown, and PostgREST schema cache synchronization copy container. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: `ChangePasswordModal` and both revocation dialogs in `SecurityTab` utilize canonical `Modal` with `disableBackdropClick`, `isSubmitting`, and keyboard Esc dismiss.
+- **Danger Audit**: `--danger` strictly applied to session revocation buttons (`bg-danger-button text-danger-button-text`), active emergency freeze flags, suspicious device badges, and probe failures.
+- **Color-Use Audit**: Neutral tokens used for normal system state and probe badges.
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for Settings**: Exactly 0 raw color literals across `src/app/(dashboard)/settings/` and `src/components/settings/`.
+- **ESLint**: 0 errors.
+- **TypeScript**: `npx tsc --noEmit` passed with 0 errors.
+- **Next.js Turbopack Build**: `npm run build` green (0 errors, all 19 routes generated).
+- **ADR Basis**: Compliant with ADR-001/ADR-002; zero security RPCs or session state logic modified.
+
+---
+
 ## Loop 7E: Reports Hub Alignment (ohm#lrpt5m1k)
 
 **Status: COMPLETE — ALL 10 REPORTS VIEWS AND DRILLDOWN DIALOGS TOKENIZED TO ZERO COLOR LITERALS (OVER 400 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `TeamPerformanceIssuesModal`, `DataIntegrityDetailModal`, AND `AttritionDrilldownModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; ENFORCED TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL 7 DATA TABLES; STRICT DESIGN TOKENS ACROSS ALL SUMMARY KPIS, SCOPE FILTERS, SEVERITY CHIPS, AND EXPORT BUTTONS; DANGER AUDIT PASSED (--danger STRICTLY FOR SLA BREACHES, GHOST OCCUPANCY, AND CRITICAL DISCIPLINE FAILURES); ZERO QUERY, RPC, OR FORMULA DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS)**

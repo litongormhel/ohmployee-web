@@ -138,7 +138,7 @@ export function ProfileTab() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="flex items-center gap-2 text-sm text-text-secondary">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />
           <span>Loading profile information...</span>
         </div>
       </div>
@@ -147,17 +147,17 @@ export function ProfileTab() {
 
   if (error || !profile) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
-        <h3 className="mt-2 text-sm font-semibold text-red-900">
+      <div className="rounded-xl border border-danger-border bg-danger-subtle p-6 text-center">
+        <AlertCircle className="mx-auto h-8 w-8 text-danger" />
+        <h3 className="mt-2 text-sm font-semibold text-danger">
           Could not load profile
         </h3>
-        <p className="mt-1 text-xs text-red-700">
+        <p className="mt-1 text-xs text-text-muted">
           {(error as Error)?.message || "Profile data is unavailable."}
         </p>
         <button
           onClick={() => refetch()}
-          className="mt-4 rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+          className="mt-4 rounded-lg bg-danger-button px-3.5 py-1.5 text-xs font-medium text-danger-button-text hover:bg-danger-button-hover cursor-pointer"
         >
           Try Again
         </button>
@@ -181,14 +181,14 @@ export function ProfileTab() {
     <div className="space-y-6">
       {/* Success Banner for Password Update */}
       {passwordSuccessToast && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="flex items-center justify-between rounded-xl border border-border-default bg-surface-subtle px-4 py-3 text-sm text-text-primary">
           <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-emerald-600" />
+            <Check className="h-4 w-4 text-brand-primary" />
             <span>Password updated successfully!</span>
           </div>
           <button
             onClick={() => setPasswordSuccessToast(false)}
-            className="text-xs text-emerald-600 hover:text-emerald-800"
+            className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
           >
             Dismiss
           </button>
@@ -196,11 +196,11 @@ export function ProfileTab() {
       )}
 
       {/* Profile Overview Card */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs">
+      <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Avatar Section */}
           <div className="relative group">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-surface-base bg-blue-100 shadow-sm flex items-center justify-center">
+            <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-surface-base bg-brand-subtle shadow-xs flex items-center justify-center">
               {profile.signedAvatarUrl ? (
                 <Image
                   src={profile.signedAvatarUrl}
@@ -210,7 +210,7 @@ export function ProfileTab() {
                   unoptimized
                 />
               ) : (
-                <span className="text-2xl font-bold tracking-wider text-blue-700">
+                <span className="text-2xl font-bold tracking-wider text-brand-primary">
                   {initials}
                 </span>
               )}
@@ -236,7 +236,7 @@ export function ProfileTab() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingAvatar || isDeletingAvatar}
-              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface-card bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface-base bg-brand-primary text-text-inverse shadow-xs hover:bg-brand-primary/90 disabled:opacity-50 cursor-pointer"
               title="Change Profile Photo"
             >
               <Camera className="h-4 w-4" />
@@ -254,7 +254,7 @@ export function ProfileTab() {
                 text={profile.roleName}
               />
               {profile.roleLevel !== null && (
-                <span className="inline-flex items-center rounded-md bg-surface-hover px-2 py-0.5 text-xs font-semibold text-text-secondary border border-border-default">
+                <span className="inline-flex items-center rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-secondary border border-border-default">
                   Level {profile.roleLevel}
                 </span>
               )}
@@ -269,7 +269,7 @@ export function ProfileTab() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingAvatar || isDeletingAvatar}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover cursor-pointer"
               >
                 <Upload className="h-3.5 w-3.5 text-text-secondary" />
                 Upload New Photo
@@ -280,7 +280,7 @@ export function ProfileTab() {
                   type="button"
                   onClick={handleDeleteAvatar}
                   disabled={isUploadingAvatar || isDeletingAvatar}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100/70"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-danger-border bg-danger-subtle px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger-subtle/80 cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove Photo
@@ -290,15 +290,15 @@ export function ProfileTab() {
               <button
                 type="button"
                 onClick={() => setIsPasswordModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover ml-auto"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover ml-auto cursor-pointer"
               >
-                <KeyRound className="h-3.5 w-3.5 text-blue-600" />
+                <KeyRound className="h-3.5 w-3.5 text-brand-primary" />
                 Change Password
               </button>
             </div>
 
             {avatarError && (
-              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+              <p className="mt-2 text-xs text-danger flex items-center gap-1">
                 <AlertCircle className="h-3.5 w-3.5" />
                 <span>{avatarError}</span>
               </p>
@@ -310,9 +310,9 @@ export function ProfileTab() {
       {/* Account Details & Contact Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Card: Account & Scopes (Read-only) */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+        <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
-            <Shield className="h-4 w-4 text-blue-600" />
+            <Shield className="h-4 w-4 text-brand-primary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
               Account & Security Clearance
             </h3>
@@ -321,7 +321,7 @@ export function ProfileTab() {
           <div className="space-y-3.5 text-sm">
             <div>
               <label className="text-xs font-medium text-text-secondary">Full Legal Name</label>
-              <div className="mt-1 flex items-center gap-2 rounded-lg border border-border-default bg-surface-hover/40 px-3 py-2 text-text-primary">
+              <div className="mt-1 flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle px-3 py-2 text-text-primary">
                 <UserIcon className="h-4 w-4 text-text-muted" />
                 <span className="font-medium">{profile.fullName}</span>
               </div>
@@ -329,7 +329,7 @@ export function ProfileTab() {
 
             <div>
               <label className="text-xs font-medium text-text-secondary">Email Address (Read-only)</label>
-              <div className="mt-1 flex items-center gap-2 rounded-lg border border-border-default bg-surface-hover/40 px-3 py-2 text-text-primary">
+              <div className="mt-1 flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle px-3 py-2 text-text-primary">
                 <Mail className="h-4 w-4 text-text-muted" />
                 <span>{profile.email}</span>
               </div>
@@ -342,7 +342,7 @@ export function ProfileTab() {
                   profile.groups.map((group) => (
                     <span
                       key={group}
-                      className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200"
+                      className="inline-flex items-center gap-1 rounded-md bg-brand-subtle px-2 py-0.5 text-xs font-medium text-brand-primary border border-brand-border"
                     >
                       <Layers className="h-3 w-3" />
                       {group}
@@ -361,7 +361,7 @@ export function ProfileTab() {
                   profile.accounts.map((acc) => (
                     <span
                       key={acc}
-                      className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-200"
+                      className="inline-flex items-center gap-1 rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-default"
                     >
                       <Building className="h-3 w-3" />
                       {acc}
@@ -376,10 +376,10 @@ export function ProfileTab() {
         </div>
 
         {/* Right Card: Contact Details (Editable) */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4 flex flex-col justify-between">
+        <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 border-b border-border-default pb-3">
-              <Phone className="h-4 w-4 text-emerald-600" />
+              <Phone className="h-4 w-4 text-brand-primary" />
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
                 Self-Service Contact Details
               </h3>
@@ -400,20 +400,20 @@ export function ProfileTab() {
                     onChange={handleMobileChange}
                     placeholder="09171234567"
                     maxLength={11}
-                    className="w-full rounded-lg border border-border-default bg-surface-base pl-18 pr-3.5 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 font-mono"
+                    className="w-full rounded-lg border border-border-default bg-surface-base pl-18 pr-3.5 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default font-mono"
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-text-muted">
                   Standard Philippine format: 11 digits starting with <code className="font-mono">09</code>.
                 </p>
                 {mobileError && (
-                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-xs text-danger flex items-center gap-1">
                     <AlertCircle className="h-3.5 w-3.5" />
                     <span>{mobileError}</span>
                   </p>
                 )}
                 {saveSuccess && (
-                  <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                  <p className="mt-1 text-xs text-brand-primary flex items-center gap-1 font-medium">
                     <Check className="h-3.5 w-3.5" />
                     <span>Contact details updated successfully!</span>
                   </p>
@@ -430,7 +430,7 @@ export function ProfileTab() {
               type="button"
               onClick={handleSaveMobile}
               disabled={!isDirty || !!mobileError || updateProfileMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-text-inverse shadow-xs hover:bg-brand-primary/90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {updateProfileMutation.isPending ? (
                 <>

@@ -54,7 +54,7 @@ export function PreferencesTab() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="flex items-center gap-2 text-sm text-text-secondary">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />
           <span>Loading application preferences...</span>
         </div>
       </div>
@@ -63,12 +63,12 @@ export function PreferencesTab() {
 
   if (error || !settings) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
-        <h3 className="mt-2 text-sm font-semibold text-red-900">
+      <div className="rounded-xl border border-danger-border bg-danger-subtle p-6 text-center">
+        <AlertCircle className="mx-auto h-8 w-8 text-danger" />
+        <h3 className="mt-2 text-sm font-semibold text-danger">
           Could not load preferences
         </h3>
-        <p className="mt-1 text-xs text-red-700">
+        <p className="mt-1 text-xs text-text-muted">
           {(error as Error)?.message || "Preferences are temporarily unavailable."}
         </p>
       </div>
@@ -80,8 +80,8 @@ export function PreferencesTab() {
   return (
     <div className="space-y-6">
       {saveToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/80 px-4 py-3 text-sm font-medium text-emerald-800 dark:text-emerald-200 shadow-lg">
-          <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-border-default bg-surface-subtle px-4 py-3 text-sm font-medium text-text-primary shadow-lg">
+          <Check className="h-4 w-4 text-brand-primary" />
           <span>Preference updated successfully!</span>
         </div>
       )}
@@ -89,9 +89,9 @@ export function PreferencesTab() {
       {/* Grid: Appearance & Security Policies */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Appearance & Theme Selector */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+        <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
-            <Sun className="h-4 w-4 text-amber-500" />
+            <Sun className="h-4 w-4 text-text-secondary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
               Appearance & Theme
             </h3>
@@ -108,11 +108,11 @@ export function PreferencesTab() {
               onClick={() => handleThemeChange("light")}
               className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-all cursor-pointer ${
                 currentTheme === "light"
-                  ? "border-blue-600 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-2 ring-blue-600/20 dark:ring-blue-500/30"
+                  ? "border-brand-default bg-brand-subtle text-brand-primary ring-2 ring-brand-default/20"
                   : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
               }`}
             >
-              <Sun className={`h-6 w-6 ${currentTheme === "light" ? "text-blue-600 dark:text-blue-400" : "text-text-muted"}`} />
+              <Sun className={`h-6 w-6 ${currentTheme === "light" ? "text-brand-primary" : "text-text-muted"}`} />
               <span className="text-xs font-semibold">Light Mode</span>
             </button>
 
@@ -122,11 +122,11 @@ export function PreferencesTab() {
               onClick={() => handleThemeChange("dark")}
               className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-all cursor-pointer ${
                 currentTheme === "dark"
-                  ? "border-blue-600 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-2 ring-blue-600/20 dark:ring-blue-500/30"
+                  ? "border-brand-default bg-brand-subtle text-brand-primary ring-2 ring-brand-default/20"
                   : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
               }`}
             >
-              <Moon className={`h-6 w-6 ${currentTheme === "dark" ? "text-blue-600 dark:text-blue-400" : "text-text-muted"}`} />
+              <Moon className={`h-6 w-6 ${currentTheme === "dark" ? "text-brand-primary" : "text-text-muted"}`} />
               <span className="text-xs font-semibold">Dark Mode</span>
             </button>
 
@@ -136,11 +136,11 @@ export function PreferencesTab() {
               onClick={() => handleThemeChange("system")}
               className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center transition-all cursor-pointer ${
                 currentTheme === "system"
-                  ? "border-blue-600 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-2 ring-blue-600/20 dark:ring-blue-500/30"
+                  ? "border-brand-default bg-brand-subtle text-brand-primary ring-2 ring-brand-default/20"
                   : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
               }`}
             >
-              <Laptop className={`h-6 w-6 ${currentTheme === "system" ? "text-blue-600 dark:text-blue-400" : "text-text-muted"}`} />
+              <Laptop className={`h-6 w-6 ${currentTheme === "system" ? "text-brand-primary" : "text-text-muted"}`} />
               <span className="text-xs font-semibold">System Default</span>
             </button>
           </div>
@@ -150,37 +150,36 @@ export function PreferencesTab() {
           </div>
         </div>
 
-
         {/* Security Policy Notice: 30-minute idle auto logout */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+        <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
-            <Clock className="h-4 w-4 text-blue-600" />
+            <Clock className="h-4 w-4 text-brand-primary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
               Session Governance Policy
             </h3>
           </div>
 
-          <div className="rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/30 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-semibold text-sm">
-              <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <div className="rounded-xl border border-border-default bg-surface-subtle p-4 space-y-3">
+            <div className="flex items-center gap-2 text-text-primary font-semibold text-sm">
+              <Clock className="h-4 w-4 text-brand-primary" />
               <span>Fixed 30-Minute Inactivity Timeout</span>
             </div>
-            <p className="text-xs leading-relaxed text-blue-800 dark:text-blue-300">
+            <p className="text-xs leading-relaxed text-text-secondary">
               In accordance with company-wide compliance and workforce privacy standards, all active sessions automatically terminate after <strong>30 minutes</strong> of inactivity.
             </p>
-            <div className="border-t border-blue-200/60 dark:border-blue-900/50 pt-2 text-xs text-blue-700 dark:text-blue-300 space-y-1">
+            <div className="border-t border-border-default pt-2 text-xs text-text-secondary space-y-1">
               <div className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-primary" />
                 <span><strong>25 Minutes:</strong> Inactivity warning dialog is prompted.</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-primary" />
                 <span><strong>30 Minutes:</strong> Automatic session logout and cache eviction.</span>
               </div>
             </div>
           </div>
 
-          <div className="rounded-lg bg-surface-hover/60 p-3 text-xs text-text-secondary flex items-start gap-2">
+          <div className="rounded-lg bg-surface-muted/60 p-3 text-xs text-text-secondary flex items-start gap-2">
             <Info className="h-4 w-4 text-text-muted shrink-0 mt-0.5" />
             <span>
               This policy is mandatory and cannot be disabled. To refresh your timer, interact with the screen or click &ldquo;Stay Signed In&rdquo; when the warning appears.
@@ -190,9 +189,9 @@ export function PreferencesTab() {
       </div>
 
       {/* Notification Preferences Card */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+      <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
-          <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <Bell className="h-4 w-4 text-brand-primary" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
             Notification Alert Preferences
           </h3>
@@ -216,7 +215,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("pushNotificationsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -237,7 +236,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("vacancyAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -258,7 +257,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("approvalAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -279,17 +278,16 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("slaBreachAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
         </div>
       </div>
 
-
       {/* Typography & Accessibility Section */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+      <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
-          <Type className="h-4 w-4 text-purple-600" />
+          <Type className="h-4 w-4 text-brand-primary" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
             Typography & Accessibility
           </h3>
@@ -304,7 +302,7 @@ export function PreferencesTab() {
             <select
               value={formState.textSize ?? "Default"}
               onChange={(e) => handleUpdate("textSize", e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="mt-1.5 w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               <option value="Default">Default (Standard Admin Density)</option>
               <option value="Large">Large (Enhanced Readability)</option>
@@ -319,7 +317,7 @@ export function PreferencesTab() {
             <select
               value={formState.fontFamily ?? "Inter"}
               onChange={(e) => handleUpdate("fontFamily", e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              className="mt-1.5 w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               <option value="Inter">Inter (System Default)</option>
               <option value="SF Pro">SF Pro</option>
@@ -347,15 +345,14 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("reduceMotionEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
         </div>
       </div>
 
       {/* About & Telemetry Card */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs">
+      <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
           <Eye className="h-4 w-4 text-text-muted" />
           <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
@@ -378,7 +375,7 @@ export function PreferencesTab() {
           </div>
           <div>
             <span className="text-text-muted">Environment</span>
-            <p className="font-semibold text-emerald-600 mt-0.5">Production Ready</p>
+            <p className="font-semibold text-text-primary mt-0.5">Production Ready</p>
           </div>
         </div>
       </div>

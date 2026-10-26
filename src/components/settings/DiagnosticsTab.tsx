@@ -21,7 +21,6 @@ import {
 } from "@/lib/queries/settings";
 
 export function DiagnosticsTab() {
-
   const {
     data: latencyResult,
     isFetching: isPinging,
@@ -94,7 +93,7 @@ export function DiagnosticsTab() {
             <h2 className="text-base font-semibold text-text-primary">
               System Diagnostics & Governance Probes
             </h2>
-            <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 border border-purple-200">
+            <span className="rounded-md bg-brand-subtle px-2 py-0.5 text-xs font-bold text-brand-primary border border-brand-border">
               Super Admin Only
             </span>
           </div>
@@ -107,9 +106,9 @@ export function DiagnosticsTab() {
           type="button"
           onClick={runAllDiagnostics}
           disabled={isPinging}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isPinging ? "animate-spin text-blue-600" : "text-text-muted"}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isPinging ? "animate-spin text-brand-primary" : "text-text-muted"}`} />
           Run Health Probes
         </button>
       </div>
@@ -117,10 +116,10 @@ export function DiagnosticsTab() {
       {/* Grid: 3 Health Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: Supabase Connectivity & Latency */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs space-y-3">
+        <div className="rounded-xl border border-border-default bg-surface-base p-5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500" />
+              <Zap className="h-4 w-4 text-brand-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                 Supabase Connectivity
               </h3>
@@ -129,8 +128,8 @@ export function DiagnosticsTab() {
               <span
                 className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold ${
                   latencyResult.status === "connected"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-red-50 text-red-700 border border-red-200"
+                    ? "bg-surface-subtle text-text-primary border border-border-default"
+                    : "bg-danger-subtle text-danger border border-danger-border"
                 }`}
               >
                 {latencyResult.status === "connected" ? "CONNECTED" : "FAILED"}
@@ -156,17 +155,17 @@ export function DiagnosticsTab() {
             </p>
           </div>
 
-          <div className="border-t border-border-default pt-2.5 text-2xs text-text-muted flex items-center justify-between">
+          <div className="border-t border-border-default pt-2.5 text-xs text-text-muted flex items-center justify-between">
             <span>Target: RPC fn_check_governance_control</span>
             <span>{latencyResult?.timestamp ?? ""}</span>
           </div>
         </div>
 
         {/* Card 2: Governance RPC Health */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs space-y-3">
+        <div className="rounded-xl border border-border-default bg-surface-base p-5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-blue-600" />
+              <Server className="h-4 w-4 text-brand-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                 Governance Controls
               </h3>
@@ -174,10 +173,10 @@ export function DiagnosticsTab() {
             <span
               className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold ${
                 controlsStatus === "healthy"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  ? "bg-surface-subtle text-text-primary border border-border-default"
                   : controlsStatus === "failed"
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-blue-50 text-blue-700 border border-blue-200"
+                  ? "bg-danger-subtle text-danger border border-danger-border"
+                  : "bg-brand-subtle text-brand-primary border border-brand-border"
               }`}
             >
               {controlsStatus === "healthy" ? "HEALTHY" : controlsStatus === "failed" ? "DEGRADED" : "PROBING"}
@@ -198,17 +197,17 @@ export function DiagnosticsTab() {
             </p>
           </div>
 
-          <div className="border-t border-border-default pt-2.5 text-2xs text-text-muted flex items-center justify-between">
+          <div className="border-t border-border-default pt-2.5 text-xs text-text-muted flex items-center justify-between">
             <span>Security Definer: Level 100</span>
             <span>{controls.filter((c) => c.enabled).length} Enabled</span>
           </div>
         </div>
 
         {/* Card 3: Operational Freeze Status */}
-        <div className="rounded-xl border border-border-default bg-surface-card p-5 shadow-xs space-y-3">
+        <div className="rounded-xl border border-border-default bg-surface-base p-5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-purple-600" />
+              <Lock className="h-4 w-4 text-brand-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                 Operational Freezes
               </h3>
@@ -216,10 +215,10 @@ export function DiagnosticsTab() {
             <span
               className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold ${
                 freezeStatus === "inactive"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  ? "bg-surface-subtle text-text-primary border border-border-default"
                   : freezeStatus === "active"
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-surface-hover text-text-secondary"
+                  ? "bg-danger-subtle text-danger border border-danger-border"
+                  : "bg-surface-subtle text-text-secondary border border-border-default"
               }`}
             >
               {freezeStatus === "inactive"
@@ -246,7 +245,7 @@ export function DiagnosticsTab() {
             </p>
           </div>
 
-          <div className="border-t border-border-default pt-2.5 text-2xs text-text-muted flex items-center justify-between">
+          <div className="border-t border-border-default pt-2.5 text-xs text-text-muted flex items-center justify-between">
             <span>RPC fn_get_freeze_modes</span>
             <span>{freezeModes.length} Monitored</span>
           </div>
@@ -255,9 +254,9 @@ export function DiagnosticsTab() {
 
       {/* Freeze Controls Detail Breakdown */}
       {freezeModes.length > 0 && (
-        <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+        <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
-            <Flame className="h-4 w-4 text-amber-500" />
+            <Flame className="h-4 w-4 text-brand-primary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
               Emergency Freeze Status Breakdown
             </h3>
@@ -269,7 +268,7 @@ export function DiagnosticsTab() {
                 key={mode.controlKey}
                 className={`rounded-lg border p-3.5 space-y-2 ${
                   mode.enabled
-                    ? "border-red-300 bg-red-50/50"
+                    ? "border-danger-border bg-danger-subtle"
                     : "border-border-default bg-surface-base"
                 }`}
               >
@@ -278,20 +277,20 @@ export function DiagnosticsTab() {
                     {mode.controlKey}
                   </span>
                   <span
-                    className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-2xs font-bold ${
+                    className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold ${
                       mode.enabled
-                        ? "bg-red-600 text-white"
-                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        ? "bg-danger-button text-danger-button-text"
+                        : "bg-surface-subtle text-text-secondary border border-border-default"
                     }`}
                   >
                     {mode.enabled ? "LOCKED" : "NORMAL"}
                   </span>
                 </div>
-                <p className="text-2xs text-text-secondary line-clamp-2">
+                <p className="text-xs text-text-secondary line-clamp-2">
                   {mode.reason || (mode.enabled ? "Active restriction" : "Standard operational flow permitted")}
                 </p>
                 {mode.updatedByName && (
-                  <p className="text-2xs text-text-muted">
+                  <p className="text-xs text-text-muted">
                     By: {mode.updatedByName}
                   </p>
                 )}
@@ -302,15 +301,15 @@ export function DiagnosticsTab() {
       )}
 
       {/* PostgREST Schema Cache Reload Utility */}
-      <div className="rounded-xl border border-border-default bg-surface-card p-6 shadow-xs space-y-4">
+      <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
         <div className="flex items-center justify-between border-b border-border-default pb-3">
           <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-blue-600" />
+            <Database className="h-4 w-4 text-brand-primary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
               PostgREST Schema Cache Synchronization
             </h3>
           </div>
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-medium">
+          <span className="inline-flex items-center gap-1 text-xs text-brand-primary bg-brand-subtle px-2 py-0.5 rounded-md border border-brand-border font-medium">
             <ShieldCheck className="h-3.5 w-3.5" />
             PGRST202 Cache Tool
           </span>
@@ -320,30 +319,30 @@ export function DiagnosticsTab() {
           When new database migrations, table columns, or RPC functions are applied to Supabase, PostgREST might occasionally serve stale schema metadata until notified. Run the command below in the Supabase SQL Editor to invalidate and reload the schema cache instantly.
         </p>
 
-        <div className="relative rounded-lg border border-slate-700 bg-slate-950 p-4 font-mono text-xs text-slate-100 flex items-center justify-between">
+        <div className="relative rounded-lg border border-border-default bg-surface-subtle p-4 font-mono text-xs text-text-primary flex items-center justify-between">
           <span>NOTIFY pgrst, &apos;reload schema&apos;;</span>
 
           <button
             type="button"
             onClick={copySchemaReloadCommand}
-            className="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-md bg-surface-base border border-border-default px-3 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
           >
             {copiedSql ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied!</span>
+                <Check className="h-3.5 w-3.5 text-brand-primary" />
+                <span className="text-brand-primary">Copied!</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className="h-3.5 w-3.5 text-text-secondary" />
                 <span>Copy Command</span>
               </>
             )}
           </button>
         </div>
 
-        <div className="rounded-lg bg-surface-hover/60 p-3 text-xs text-text-secondary flex items-start gap-2">
-          <Activity className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="rounded-lg bg-surface-subtle p-3 text-xs text-text-secondary flex items-start gap-2">
+          <Activity className="h-4 w-4 text-brand-primary shrink-0 mt-0.5" />
           <span>
             Executing this SQL notification takes under 10 milliseconds and triggers zero service downtime.
           </span>

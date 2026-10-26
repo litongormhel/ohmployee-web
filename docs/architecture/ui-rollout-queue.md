@@ -20,7 +20,7 @@ Each item is ticked ONLY after completing its own complete verification:
 - [x] Users and Team Directory
 - [x] Notifications
 - [x] Reports
-- [ ] Settings
+- [x] Settings
 - [ ] More A (governance/security)
 - [ ] More B (import centers/QA)
 - [ ] Final: app-wide route transition and page-enter sequence in the shared (dashboard) layout, consistency sweep across modules, full light/dark/responsive pass, remove dead styles, consolidate docs, final ui-standard.md update
