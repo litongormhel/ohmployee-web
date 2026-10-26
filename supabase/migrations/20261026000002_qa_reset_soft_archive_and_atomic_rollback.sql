@@ -76,8 +76,8 @@ DECLARE
     t TEXT;
     target_tables TEXT[] := ARRAY[
         'plantilla', 'plantilla_slots', 'vacancies', 'hr_emploc', 'applicants',
-        'workforce_pools', 'pool_slots', 'pool_assignments',
-        'stores', 'groups', 'operational_groups', 'accounts',
+        'workforce_pool_slots', 'workforce_pool_requests', 'workforce_pool_request_items',
+        'stores', 'groups', 'accounts',
         'coverage_groups', 'coverage_group_stores', 'coverage_slots', 'coverage_applicants',
         'hr_coverage_links', 'plantilla_store_links',
         'account_group_transfers', 'account_group_transfer_requests',
@@ -85,8 +85,8 @@ DECLARE
         'coverage_requests', 'deactivation_requests', 'employee_deactivation_requests',
         'headcount_requests', 'hr_emploc_deletions', 'hr_emploc_deletion_requests',
         'new_store_requests', 'plantilla_placements', 'plantilla_approvals',
-        'vacancy_closure_requests', 'workforce_assignment_requests', 'workforce_pool_requests',
-        'sla_breaches', 'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
+        'vacancy_closure_requests', 'workforce_assignment_requests',
+        'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
         'possible_ghost_employees', 'mika_import_logs', 'quick_reports', 'notifications',
         'approval_requests'
     ];
@@ -111,54 +111,60 @@ CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, auth
 AS $$
 DECLARE
-    v_valid_actor_id UUID;
-    v_fk_table TEXT;
+    v_valid_actor_id UUID := NULL;
     v_input UUID := COALESCE(p_input_user_id, auth.uid());
+    v_fk_target TEXT := NULL;
 BEGIN
-    -- Inspect which table audit_logs.actor_id references
-    SELECT ccu.table_name INTO v_fk_table
-    FROM information_schema.table_constraints AS tc
-    JOIN information_schema.constraint_column_usage AS ccu
-      ON ccu.constraint_name = tc.constraint_name
-    WHERE tc.table_name = 'audit_logs'
-      AND tc.constraint_name = 'audit_logs_actor_id_fkey'
+    IF v_input IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    -- 1. Inspect direct foreign key referenced table on audit_logs.actor_id using pg_constraint
+    SELECT c.confrelid::regclass::TEXT INTO v_fk_target
+    FROM pg_constraint c
+    WHERE c.conrelid = 'public.audit_logs'::regclass
+      AND c.conname = 'audit_logs_actor_id_fkey'
     LIMIT 1;
 
-    IF v_fk_table = 'users' THEN
-        SELECT id INTO v_valid_actor_id FROM public.users
-        WHERE id = v_input OR auth_id = v_input
-        LIMIT 1;
-    ELSIF v_fk_table = 'user_profiles' THEN
-        SELECT id INTO v_valid_actor_id FROM public.user_profiles
-        WHERE id = v_input OR user_id = v_input
-        LIMIT 1;
-    ELSIF v_fk_table = 'users_profile' THEN
-        SELECT id INTO v_valid_actor_id FROM public.users_profile
+    -- 2. Resolve actor according to the exact foreign table
+    IF v_fk_target = 'public.users_profile' OR v_fk_target = 'users_profile' THEN
+        -- If FK references users_profile directly:
+        SELECT id INTO v_valid_actor_id
+        FROM public.users_profile
         WHERE id = v_input OR auth_user_id = v_input
         LIMIT 1;
     ELSE
-        -- Default: references auth.users
-        SELECT id INTO v_valid_actor_id FROM auth.users
+        -- Default (and live Supabase target): references auth.users(id)
+        -- Step 2a: Check if input UUID is directly a valid auth.users id
+        SELECT id INTO v_valid_actor_id
+        FROM auth.users
         WHERE id = v_input
         LIMIT 1;
 
-        -- If input was a profile ID and not directly an auth.users ID, resolve via profile
+        -- Step 2b: If not direct auth user, resolve via users_profile with strict INNER JOIN against auth.users
+        -- (Ensures orphaned profiles whose auth_user_id does not exist in auth.users are NEVER returned)
         IF v_valid_actor_id IS NULL THEN
-            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users_profile') THEN
-                SELECT auth_user_id INTO v_valid_actor_id FROM public.users_profile WHERE id = v_input LIMIT 1;
-            ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
-                SELECT auth_id INTO v_valid_actor_id FROM public.users WHERE id = v_input LIMIT 1;
-            END IF;
+            SELECT au.id INTO v_valid_actor_id
+            FROM public.users_profile up
+            JOIN auth.users au ON au.id = up.auth_user_id
+            WHERE up.id = v_input
+            LIMIT 1;
+        END IF;
+
+        -- Step 2c: Fallback to auth.uid() if valid in auth.users
+        IF v_valid_actor_id IS NULL AND auth.uid() IS NOT NULL THEN
+            SELECT id INTO v_valid_actor_id
+            FROM auth.users
+            WHERE id = auth.uid()
+            LIMIT 1;
         END IF;
     END IF;
 
-    -- Fallback to auth.uid() or first super admin
-    IF v_valid_actor_id IS NULL THEN
-        v_valid_actor_id := auth.uid();
-    END IF;
-
+    -- If unresolvable (e.g. orphaned profile or non-existent user), return NULL.
+    -- Because public.audit_logs.actor_id is NULLABLE, returning NULL guarantees zero foreign key violation!
     RETURN v_valid_actor_id;
 END;
 $$;
@@ -190,8 +196,8 @@ DECLARE
     t TEXT;
     target_tables TEXT[] := ARRAY[
         'plantilla', 'plantilla_slots', 'vacancies', 'hr_emploc', 'applicants',
-        'workforce_pools', 'pool_slots', 'pool_assignments',
-        'stores', 'groups', 'operational_groups', 'accounts',
+        'workforce_pool_slots', 'workforce_pool_requests', 'workforce_pool_request_items',
+        'stores', 'groups', 'accounts',
         'coverage_groups', 'coverage_group_stores', 'coverage_slots', 'coverage_applicants',
         'hr_coverage_links', 'plantilla_store_links',
         'account_group_transfers', 'account_group_transfer_requests',
@@ -199,8 +205,8 @@ DECLARE
         'coverage_requests', 'deactivation_requests', 'employee_deactivation_requests',
         'headcount_requests', 'hr_emploc_deletions', 'hr_emploc_deletion_requests',
         'new_store_requests', 'plantilla_placements', 'plantilla_approvals',
-        'vacancy_closure_requests', 'workforce_assignment_requests', 'workforce_pool_requests',
-        'sla_breaches', 'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
+        'vacancy_closure_requests', 'workforce_assignment_requests',
+        'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
         'possible_ghost_employees', 'mika_import_logs', 'quick_reports', 'notifications'
     ];
 BEGIN
@@ -285,13 +291,13 @@ BEGIN
     -- 6. Insert audit log entries safely
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
         INSERT INTO public.audit_logs (
-            actor_id, action, module, target_id, details, created_at
+            actor_id, module, action, record_id, new_data, timestamp
         ) VALUES (
             v_resolved_actor,
-            'QA_RESET_ARCHIVE',
             'DATA_ARCHIVAL',
-            v_batch_id::TEXT,
-            jsonb_build_object('reason', p_reason, 'total_records', v_total_affected),
+            'SOFT_DELETE'::public.audit_action,
+            v_batch_id,
+            jsonb_build_object('reason', p_reason, 'total_records', v_total_affected, 'plantilla', v_plantilla_count, 'vacancies', v_vacancy_count, 'hr_emploc', v_hr_emploc_count),
             v_now
         );
     END IF;
@@ -351,8 +357,8 @@ DECLARE
     t TEXT;
     target_tables TEXT[] := ARRAY[
         'plantilla', 'plantilla_slots', 'vacancies', 'hr_emploc', 'applicants',
-        'workforce_pools', 'pool_slots', 'pool_assignments',
-        'stores', 'groups', 'operational_groups', 'accounts',
+        'workforce_pool_slots', 'workforce_pool_requests', 'workforce_pool_request_items',
+        'stores', 'groups', 'accounts',
         'coverage_groups', 'coverage_group_stores', 'coverage_slots', 'coverage_applicants',
         'hr_coverage_links', 'plantilla_store_links',
         'account_group_transfers', 'account_group_transfer_requests',
@@ -360,8 +366,8 @@ DECLARE
         'coverage_requests', 'deactivation_requests', 'employee_deactivation_requests',
         'headcount_requests', 'hr_emploc_deletions', 'hr_emploc_deletion_requests',
         'new_store_requests', 'plantilla_placements', 'plantilla_approvals',
-        'vacancy_closure_requests', 'workforce_assignment_requests', 'workforce_pool_requests',
-        'sla_breaches', 'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
+        'vacancy_closure_requests', 'workforce_assignment_requests',
+        'sla_breach_logs', 'employee_movements', 'mika_ghost_employees',
         'possible_ghost_employees', 'mika_import_logs', 'quick_reports', 'notifications',
         'approval_requests'
     ];
@@ -440,12 +446,12 @@ BEGIN
     -- 4. Audit logging
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
         INSERT INTO public.audit_logs (
-            actor_id, action, module, target_id, details, created_at
+            actor_id, module, action, record_id, new_data, timestamp
         ) VALUES (
             v_resolved_actor,
-            'ARCHIVE_ROLLBACK',
             'DATA_ARCHIVAL',
-            p_batch_id::TEXT,
+            'UPDATE'::public.audit_action,
+            p_batch_id,
             jsonb_build_object('rollback_reason', p_rollback_reason, 'restored_records', v_total_restored),
             v_now
         );

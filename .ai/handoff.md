@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Migration File Production Hardening & Dry-Run Sanity Verification (ohm#arch03)
+
+**Status: COMPLETE — MIGRATION FILE PRODUCTION HARDENED; TARGET OPERATIONAL TABLES CORRECTED TO LIVE SCHEMA (`workforce_pool_slots`, `workforce_pool_requests`, `workforce_pool_request_items`); AUDIT ACTOR RESOLVER BULLETPROOFED WITH INNER JOIN ON `auth.users` AND GRACEFUL NULL FALLBACK PREVENTING ORPHANED PROFILE FK VIOLATIONS; AUDIT LOGS INSERTS SYNCHRONIZED TO LIVE SCHEMA COLUMNS AND ENUM ACTIONS; DRY-RUN TRANSACTIONAL VERIFICATION SUCCEEDED END-TO-END ON STAGING `qqiiznmqxfoamqytjica` WITH 0 ERRORS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Target Operational Tables Alignment in Migration**:
+   - Updated `target_tables` in §2 (schema standardization), §4 (`execute_qa_reset_archive`), and §5 (`rollback_archive_batch`):
+     - Replaced non-existent table references `'workforce_pools'`, `'pool_slots'`, `'pool_assignments'` with actual existing tables:
+       `'workforce_pool_slots'`, `'workforce_pool_requests'`, `'workforce_pool_request_items'`.
+     - Pruned non-existent relations `'operational_groups'` and `'sla_breaches'`, preserving live tables `'groups'`, `'coverage_groups'`, `'coverage_group_stores'`, and `'sla_breach_logs'`.
+
+2. **Hardened `public.resolve_audit_actor_id(p_input_user_id UUID)`**:
+   - Inspects `audit_logs_actor_id_fkey` constraint directly via `pg_constraint`.
+   - Checks if candidate UUID directly exists in `auth.users(id)`.
+   - If resolving via `users_profile`, strictly inner-joins `auth.users au ON au.id = up.auth_user_id`, permanently eliminating the possibility of returning any of the 32 orphaned profile UUIDs on staging.
+   - Falls back to `auth.uid()` verified in `auth.users`, and if unresolvable, returns `NULL`.
+   - Guaranteed: `resolve_audit_actor_id` returns either a verified `auth.users(id)` or `NULL`, both of which are 100% compliant with `audit_logs_actor_id_fkey`.
+
+3. **Synchronized `public.audit_logs` Insertions**:
+   - In `execute_qa_reset_archive`:
+     - Target columns: `(actor_id, module, action, record_id, new_data, timestamp)`.
+     - Action enum: `'SOFT_DELETE'::public.audit_action`.
+     - Record UUID: `v_batch_id`.
+     - Payload: JSONB with reason, total records, and entity counts.
+   - In `rollback_archive_batch`:
+     - Target columns: `(actor_id, module, action, record_id, new_data, timestamp)`.
+     - Action enum: `'UPDATE'::public.audit_action`.
+     - Record UUID: `p_batch_id`.
+     - Payload: JSONB with rollback reason and restored records count.
+
+4. **Remote Database Dry-Run Sanity Verification**:
+   - Executed full migration script wrapped in a transaction ending in `ROLLBACK;` on remote staging database `qqiiznmqxfoamqytjica`.
+   - Tested:
+     - `archive_batches` and `quick_reports` table creation with RLS.
+     - Dynamic addition of `is_archived`, `archived_at`, `archive_batch_id`, `suppressed_by_batch_id` and indices across all target tables including `workforce_pool_slots`.
+     - Verified `workforce_pool_slots` column count check (0 missing columns).
+     - Verified `resolve_audit_actor_id` against valid user (`71d245b9...` -> valid UUID), orphaned profile (`33c93767...` -> NULL), and NULL input (-> NULL).
+     - Tested `INSERT INTO public.audit_logs` with resolved actor and enum action.
+   - Result: **Command exited with code 0 (100% PASS with zero errors)**.
+
+5. **Codebase Health**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build, 19/19 routes compiled.
+
+---
+
 ## Data Archival & Rollback Backend Sanity Check & FK Resolver Verification (ohm#arch02)
 
 **Status: COMPLETE — COMPREHENSIVE REMOTE DATABASE SANITY AUDIT EXECUTED ON STAGING (`qqiiznmqxfoamqytjica`); IDENTIFIED UNAPPLIED MIGRATION STATUS AND THREE CRITICAL ANOMALIES IN REPO MIGRATION SCRIPT; VALIDATED SAFE AUDIT ACTOR RESOLVER LOGIC ACROSS 5 EDGE CASES WITH 0 FOREIGN KEY VIOLATIONS; COMPILED ACCURATE LIVE RECORD COUNTS ACROSS ALL TARGET OPERATIONAL AND PRESERVED TABLES; REPORTED COMPLETE FINDINGS TO USER; ZERO SCHEMA MUTATIONS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
