@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Plantilla Import Role Check Regression Fix & Helper Function Parity (ohm#p9r2k5w8)
+
+**Status: COMPLETE — RESOLVED REGRESSION EXCEPTION `function public.get_current_role() does not exist` OCCURRING DURING PLANTILLA BULK BASELINE UPLOAD; CREATED IDEMPOTENT MIGRATION `20262606000067_fix_plantilla_import_role_check_parity.sql` PROVIDING `public.get_current_role()` AND `public.fn_is_admin()` PARITY WRAPPERS ALIASED TO `public.get_my_role()` AND `public.i_have_full_access()`; ADDED MISSING COMPANION BATCH TRACKING COLUMNS (`commit_error`, `stores_created`, `employees_created`, `allocations_created`) TO `public.plantilla_import_batches`; RESTORED CANONICAL ROLE INITIALIZATION (`v_role text := public.get_my_role();`) AND ROBUST RBAC + OPERATIONAL GOVERNANCE GUARDS (`fn_can_upload_plantilla_import()`, `fn_assert_governance_enabled('import_plantilla')`, `fn_assert_freeze_inactive('audit_freeze')`) IN `submit_plantilla_baseline_import`; PRESERVED 100% OF MIGRATION 65 SET-BASED CTE OPTIMIZATIONS (`statement_timeout = '60s'`) AND MIGRATION 66 MULTI-VCODE STORE NAME GOVERNANCE (`multiple_vcodes_per_store` AS `flagged`); APPLIED AND VERIFIED ON BOTH PRODUCTION (`rwxelulyapjgaarlwkus`, SCHEMA MIGRATION VERSION `20262606000073`) AND STAGING (`qqiiznmqxfoamqytjica`, SCHEMA MIGRATION VERSION `20262606000073`); VERIFIED EXISTING PENDING BATCH `#ff1c4074` IS PROPERLY CLASSIFIED (410 VALID, 914 FLAGGED, 2 BLOCKED); EXECUTED LIVE ROLLED-BACK VERIFICATION UNDER AUTHENTICATED USER CONTEXT ON PRODUCTION FOR BOTH `submit_plantilla_baseline_import` AND `approve_plantilla_import_batch` WITH 0 DATABASE POLLUTION; ESLINT 0 ERRORS; COMMITTED ON `main`**
+
+---
+
+### 1. Root Cause Analysis & Database Verification
+1. **Root Cause of `get_current_role()` Regression:**
+   - Migration `20262606000066_relax_store_name_multivcode_rule.sql` declared `v_role text := public.get_current_role();` and checked `public.fn_is_admin()`.
+   - In Postgres/Supabase, the canonical function is `public.get_my_role()` (which internally executes `public.get_effective_role()`) and `public.i_have_full_access()` (role level $\ge 90$).
+   - Neither `public.get_current_role()` nor `public.fn_is_admin()` existed in `pg_proc` on either Production (`rwxelulyapjgaarlwkus`) or Staging (`qqiiznmqxfoamqytjica`), causing immediate failure when uploading templates.
+2. **Batch Tracking Columns Missing on `plantilla_import_batches`:**
+   - During live execution audit of `approve_plantilla_import_batch`, identified that `approve_plantilla_import_batch` (from migration 64) updates `commit_error`, `stores_created`, `employees_created`, and `allocations_created`.
+   - Added these companion columns to `public.plantilla_import_batches` with `ADD COLUMN IF NOT EXISTS`, preventing runtime schema exceptions during batch approval.
+3. **Audit of All Helper Functions Across Plantilla RPCs & RLS Policies:**
+   - Verified that `get_my_role`, `get_my_role_level`, `i_have_full_access`, `fn_can_upload_plantilla_import`, `fn_can_approve_plantilla_import`, `fn_assert_governance_enabled`, `fn_assert_freeze_inactive`, `get_my_allowed_account_ids`, `get_current_profile_id`, `safe_parse_numeric`, `safe_parse_date`, `get_plantilla_import_first_modified_record`, `rollback_plantilla_import_batch`, and `emergency_rollback_plantilla_import` exist and are 100% healthy on Production and Staging.
+   - Verified all 12 helper calls across RLS policies on `plantilla_import_batches`, `plantilla_import_rows`, `mother_account_configs`, `stores`, `plantilla`, and `employees` are fully satisfied.
+4. **Existing Pending Batch `#ff1c4074` Status:**
+   - Inspected batch `#ff1c4074` on Production: already cleanly re-evaluated from migration 66.
+   - Status: `partially_blocked`, 410 valid rows, 914 flagged rows (`multiple_vcodes_per_store`), 2 blocked rows (Row 813 and Row 900 on duplicate VCODE `VCBPIG1_1092`).
+
+---
+
+### 2. Files Modified & Migrations Applied
+- `supabase/migrations/20262606000067_fix_plantilla_import_role_check_parity.sql`: Created migration defining `public.get_current_role()` and `public.fn_is_admin()`, adding batch tracking columns, and restoring canonical role and governance assertions in `submit_plantilla_baseline_import`.
+- Applied migration `67` cleanly to Production (`rwxelulyapjgaarlwkus`, HTTP 201, schema migration version `20262606000073`).
+- Applied migration `67` cleanly to Staging (`qqiiznmqxfoamqytjica`, HTTP 201, schema migration version `20262606000073`).
+- `docs/state/plantilla_web_state.md`: Documented migration `67` parity helpers and batch column additions.
+- `.ai/briefing.md`: Prepended task entry and trimmed list to 5 tasks.
+
+---
+
+### 3. Verification & Live Proof
+- `npm run lint`: Passed with 0 errors (26 pre-existing warnings in unrelated files).
+- **Live Rolled-Back Production RPC Test**:
+  - Executed authenticated test block on Production under Super Admin (`7280d476-edf7-4fd2-bc8e-c11c5c958cb8`).
+  - Tested `public.get_current_role()` $\rightarrow$ returned `'Super Admin'`.
+  - Tested `public.fn_is_admin()` $\rightarrow$ returned `true`.
+  - Tested `public.submit_plantilla_baseline_import` $\rightarrow$ succeeded and returned `batch_id` with `status: 'pending_approval'`.
+  - Tested `public.approve_plantilla_import_batch` $\rightarrow$ succeeded and processed stores and slots.
+  - Aborted with `TEST_CLEAN_ROLLBACK`, guaranteeing zero data pollution on Production.
+
+---
+
 ## Plantilla Import Review Queue Fetch Pagination, Error Summary Cleanup & Multi-VCODE Store Name Governance (ohm#r7m2k9w5)
 
 **Status: COMPLETE — RESOLVED 500-ROW FETCH LIMIT IN REVIEW QUEUE ROW INSPECTOR BY IMPLEMENTING PAGINATED WHILE-LOOP IN `dataControl.ts` (RETRIEVING ALL 1,326+ ROWS); FILTERED RAW COUNT METRICS FROM DISPLAYING UNDER "ERRORS:" IN `PlantillaImportModal.tsx`; INVESTIGATED 916 BLOCKED ROWS IN BATCH `#ff1c4074` IDENTIFYING 346 MUNICIPALITY STORE NAMES SHARED BY DISTINCT MOTORIZED COLLECTOR VCODES; VERIFIED `public.stores` CONSTRAINTS (NO UNIQUE CONSTRAINT ON `store_name`) AND `approve_plantilla_import_batch` COMPATIBILITY (COMMITS `flagged` ROWS CLEANLY); CREATED AND APPLIED MIGRATION `20262606000066_relax_store_name_multivcode_rule.sql` TO PROD AND STAGING; RE-EVALUATED BATCH `#ff1c4074` IN-PLACE ON PROD UPDATING 914 ROWS TO FLAGGED AND ISOLATING 2 TRUE VCODE COLLISIONS; ESLINT 0 ERRORS; COMMITTED ON `main`**

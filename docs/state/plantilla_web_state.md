@@ -718,3 +718,12 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Phase B2 slot creation now inherits store account/group fallbacks.
     - Repaired orphaned vacancies (including `CPRVJV13`), slots, and stores via SQL backfill.
 
+- **Plantilla Import Role Check Regression Fix & Helper Function Parity (`ohm#p9r2k5w8`)**:
+  - **Database Migration (`20262606000067_fix_plantilla_import_role_check_parity.sql`)**:
+    - Added helper function wrappers `public.get_current_role()` and `public.fn_is_admin()` aliased to `public.get_my_role()` and `public.i_have_full_access()`.
+    - Added missing batch tracking columns `commit_error`, `stores_created`, `employees_created`, and `allocations_created` on `public.plantilla_import_batches`.
+    - Restored canonical `v_role text := public.get_my_role();` and robust RBAC + operational governance assertions (`fn_can_upload_plantilla_import()`, `fn_assert_governance_enabled('import_plantilla')`, `fn_assert_freeze_inactive('audit_freeze')`) inside `submit_plantilla_baseline_import`.
+    - Preserved 100% of migration 65 performance optimizations (set-based CTEs, single bulk insert, `statement_timeout = '60s'`) and migration 66 multi-VCODE store name governance (`multiple_vcodes_per_store` as `flagged` advisory warning).
+    - Applied and verified on both Production (`rwxelulyapjgaarlwkus`, tracking version `20262606000073`) and Staging (`qqiiznmqxfoamqytjica`, tracking version `20262606000073`).
+
+
