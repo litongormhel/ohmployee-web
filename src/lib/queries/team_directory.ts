@@ -116,7 +116,7 @@ export function getUserInitials(user: TeamDirectoryUser): string {
 
 export function getRoleTint(..._args: unknown[]): string {
   void _args;
-  return "var(--brand)";
+  return "var(--brand-primary)";
 }
 
 export function getBroadAccessScopeLabel(user: TeamDirectoryUser): string | null {

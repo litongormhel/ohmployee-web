@@ -665,6 +665,7 @@ export function HeadcountDataTable({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(remarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -753,6 +754,7 @@ export function HeadcountDataTable({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(remarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -876,6 +878,7 @@ export function HeadcountDataTable({
           icon={XCircle}
           isSubmitting={isBulkProcessing}
           disableBackdropClick={isBulkProcessing}
+          isDirty={Boolean(bulkRejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">

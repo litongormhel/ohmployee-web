@@ -405,6 +405,7 @@ export function SecurityTab() {
         maxWidthClass="max-w-md"
         isSubmitting={revokeSessionMutation.isPending}
         disableBackdropClick={revokeSessionMutation.isPending}
+        isDirty={revokeSessionMutation.isPending}
       >
         <div>
           <p className="text-xs leading-relaxed text-text-secondary">
@@ -445,6 +446,7 @@ export function SecurityTab() {
         maxWidthClass="max-w-md"
         isSubmitting={revokeOtherSessionsMutation.isPending}
         disableBackdropClick={revokeOtherSessionsMutation.isPending}
+        isDirty={revokeOtherSessionsMutation.isPending}
       >
         <div>
           <p className="text-xs leading-relaxed text-text-secondary">

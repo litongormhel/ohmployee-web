@@ -320,6 +320,7 @@ export function RelieverCoverageApprovalCard({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-3 text-xs leading-relaxed text-text-secondary">
@@ -403,6 +404,7 @@ export function RelieverCoverageApprovalCard({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-3 text-xs leading-relaxed text-text-secondary">

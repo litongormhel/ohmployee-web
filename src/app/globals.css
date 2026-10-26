@@ -79,7 +79,7 @@
 
   --status-danger-bg: #fdeeee;       /* soft red */
   --status-danger-border: #facdca;   
-  --status-danger-text: var(--bad);  /* #c4372b */
+  --status-danger-text: #b91c1c;
 
   --status-info-bg: var(--pillbg);   /* #eef2ff */
   --status-info-border: #d0dcff;  
@@ -113,6 +113,13 @@
   --danger-bg: #fef2f2;
   --danger-border: #fecaca;
 
+  /* High-contrast solid button tokens */
+  --brand-primary: #2b4fd6;
+  --brand-button: #2b4fd6;
+  --brand-button-hover: #1d4ed8;
+  --danger-button: #b91c1c;
+  --danger-button-hover: #991b1b;
+
   /* Hero card tokens — light (brand-blue) */
   --hero-surface: #f0f4ff;
   --hero-border: #dbeafe;
@@ -136,7 +143,7 @@
   --soft: #131924;
   --line: #1e2638;
   --text: #ececf0;
-  --muted: #828b9e;
+  --muted: #94a3b8;
   --accent: #8aa4ff;
   --ok: #4cc58d;
   --okbg: #1f9d6a;
@@ -220,6 +227,13 @@
   --danger-bg: rgba(248, 113, 113, 0.15);
   --danger-border: rgba(248, 113, 113, 0.35);
 
+  /* High-contrast solid button tokens */
+  --brand-primary: #8aa4ff;
+  --brand-button: #2b4fd6;
+  --brand-button-hover: #1d4ed8;
+  --danger-button: #b91c1c;
+  --danger-button-hover: #991b1b;
+
   /* Hero card tokens — dark (brand navy) */
   --hero-surface: #111a33;
   --hero-border: #1e2f5d;
@@ -239,7 +253,7 @@
     --soft: #131924;
     --line: #1e2638;
     --text: #ececf0;
-    --muted: #828b9e;
+    --muted: #94a3b8;
     --accent: #8aa4ff;
     --ok: #4cc58d;
     --okbg: #1f9d6a;
@@ -322,6 +336,13 @@
     --danger-text: #f87171;
     --danger-bg: rgba(248, 113, 113, 0.15);
     --danger-border: rgba(248, 113, 113, 0.35);
+
+    /* High-contrast solid button tokens */
+    --brand-primary: #8aa4ff;
+    --brand-button: #2b4fd6;
+    --brand-button-hover: #1d4ed8;
+    --danger-button: #b91c1c;
+    --danger-button-hover: #991b1b;
 
     /* Hero card tokens — dark (media) */
     --hero-surface: #111a33;
@@ -418,6 +439,13 @@
   --color-danger-text: var(--danger-text);
   --color-danger-bg: var(--danger-bg);
   --color-danger-border: var(--danger-border);
+
+  /* High-contrast solid action button utilities */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-button: var(--brand-button);
+  --color-brand-button-hover: var(--brand-button-hover);
+  --color-danger-button: var(--danger-button);
+  --color-danger-button-hover: var(--danger-button-hover);
 
   /* Hero card utilities */
   --color-hero-surface: var(--hero-surface);
@@ -560,6 +588,44 @@
   to {
     opacity: 1;
   }
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 200ms var(--ease-standard) forwards;
+}
+
+[data-motion="lite"] .page-enter {
+  animation: fadeIn 150ms var(--ease-standard) forwards;
+}
+
+[data-motion="off"] .page-enter {
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Fallback utilities for existing animate-in fade-in classes */
+.animate-in.fade-in {
+  animation: fadeIn 200ms var(--ease-standard) forwards;
+}
+
+[data-motion="lite"] .animate-in.fade-in {
+  animation: fadeIn 150ms var(--ease-standard) forwards;
+}
+
+[data-motion="off"] .animate-in,
+[data-motion="off"] .fade-in {
+  animation: none !important;
 }
 
 body {

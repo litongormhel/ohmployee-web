@@ -364,6 +364,7 @@ export function HeadcountAmendmentApprovalCard({
           icon={XCircle}
           isSubmitting={rejectMutation.isPending}
           disableBackdropClick={rejectMutation.isPending}
+          isDirty={Boolean(remarks.trim())}
           maxWidthClass="max-w-lg"
         >
           <div className="space-y-3 text-xs text-text-secondary">

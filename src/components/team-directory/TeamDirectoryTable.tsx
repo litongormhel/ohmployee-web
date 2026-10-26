@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Image from "next/image";
 import {
+  Briefcase,
   Check,
   ChevronLeft,
   ChevronRight,
   Copy,
+  FileText,
   Mail,
   Network,
   Phone,
@@ -32,6 +34,20 @@ const tableColumns = [
   "Assigned Jurisdiction",
   "Actions",
 ];
+
+function RoleIconBadge({ role, level, className }: { role: string; level: number | null; className?: string }) {
+  const r = role.toLowerCase();
+  if (level === 100 || r.includes("super admin") || r.includes("head admin")) {
+    return <Shield className={className} />;
+  }
+  if (r.includes("om") || r.includes("operations manager") || r.includes("team leader")) {
+    return <Briefcase className={className} />;
+  }
+  if (r.includes("recruitment") || r.includes("hrco") || r.includes("coordinator")) {
+    return <Users className={className} />;
+  }
+  return <FileText className={className} />;
+}
 
 export interface TeamDirectoryTableProps {
   users: TeamDirectoryUser[];
@@ -238,15 +254,15 @@ export function TeamDirectoryTable({
                     {/* ROLE & TIER */}
                     <td className="border-b border-table-rule px-4 py-3">
                       <div className="flex flex-col items-start gap-1">
-                        <span className="font-medium text-table-text text-sm">
-                          {user.roleName}
-                        </span>
-                        {user.roleLevel !== null && (
-                          <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium bg-surface-muted text-table-text-muted border border-border-subtle">
-                            <Shield className="h-2.5 w-2.5" />
-                            Tier {user.roleLevel}
-                          </span>
-                        )}
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-semibold text-table-text">
+                          <RoleIconBadge role={user.roleName} level={user.roleLevel} className="h-3 w-3 text-text-muted shrink-0" />
+                          <span>{user.roleName}</span>
+                          {user.roleLevel !== null && (
+                            <span className="font-mono text-[10px] text-text-muted border-l border-border-subtle pl-1.5">
+                              L{user.roleLevel}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
 

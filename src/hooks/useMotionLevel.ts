@@ -52,6 +52,13 @@ export function useMotionLevel(): MotionLevel {
     return "off";
   }
 
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("ohm_motion_preference");
+    if (saved === "off") return "off";
+    if (saved === "lite") return "lite";
+    if (saved === "full") return "full";
+  }
+
   if (isWeakDevice()) {
     return "lite";
   }

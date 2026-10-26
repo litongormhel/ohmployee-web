@@ -168,6 +168,9 @@ export function PayrollReviewCenterModal({
       subtitle="Audit, track, and resolve payroll reconciliation discrepancies with Operations remarks."
       icon={FileText}
       maxWidthClass="max-w-5xl"
+      disableBackdropClick={isSubmittingComment || isLoadingItems}
+      isSubmitting={isSubmittingComment || isLoadingItems}
+      isDirty={Boolean(opsComment.trim())}
       footer={
         <div className="flex w-full items-center justify-between text-xs text-text-muted">
           <span>Full Mobile Payroll Review Center Parity: Cross-check review sessions, Ops audit feedback, and variance resolution.</span>

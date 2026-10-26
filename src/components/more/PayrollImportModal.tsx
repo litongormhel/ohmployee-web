@@ -217,6 +217,9 @@ export function PayrollImportModal({
       subtitle="Upload wage and payroll sheets to compare against active Plantilla slots. Pure read-only checker without data mutations."
       icon={FileSpreadsheet}
       maxWidthClass="max-w-5xl"
+      disableBackdropClick={isProcessing || isSendingToOps || isSubmittingSession}
+      isSubmitting={isProcessing || isSendingToOps || isSubmittingSession}
+      isDirty={Boolean(file || result)}
       footer={
         <div className="flex w-full items-center justify-between text-xs text-text-muted">
           <span>OHM2026_0071 Parity: Pure read-only payroll checker with automated variance detection.</span>

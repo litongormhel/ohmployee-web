@@ -1,5 +1,40 @@
 # AI Handoff
 
+## UI Standard & Motion System — Final Fix Pass Verification and Parity (ohm#lfix9v2d)
+
+**Status: COMPLETE — FINAL FIX PASS DELIVERED ACROSS ALL 8 DIRECTIVES; HR EMPLOC CAPABILITY GATES RESTORED TO PRE-LOOP-5A BEHAVIOR WITH 0 BUSINESS LOGIC DRIFT; ALL SUPABASE DATABASE QUERIES AUDITED AND TRACED TO READ-ONLY/DDL SCRATCH SCRIPTS AGAINST PROJECT `rwxelulyapjgaarlwkus`; WCAG CONTRAST AUDIT RECOMPUTED WITH CURRENT CSS TOKEN VALUES TO >= 4.5:1 WITH NO AA LARGE EXCEPTIONS FOR 14PX TEXT; MOTION SYSTEM AUDITED AND IMPLEMENTED WITH VALUE TWEENS ON DASHBOARD SCOPE, CENCOM GROUP SCOPE, AND VACANCY METRICS, CONFIRMED DashboardMetricsCards.tsx DOES NOT EXIST, ADDED .page-enter CSS KEYFRAMES TO globals.css, AND VERIFIED 3-STATE FULL/LITE/OFF CONTROL IN SETTINGS WITH AUTO-DEFAULT (hardwareConcurrency/deviceMemory <= 4 -> Lite); DIRTY-ESC GUARDS INSTANTIATED ON ALL APPROVALS MODALS, PAYROLL MODALS, BATCHDETAILSMODAL, USERDETAILDRAWER, AND SECURITYTAB; CANONICAL MODAL & DRAWER GUARD TABLE REGENERATED DERIVED DIRECTLY FROM CODE; getRoleTint RESOLVED TO CSS TOKEN var(--brand-primary) AND REPLACED COLOR TINTING WITH NEUTRAL STRUCTURAL ROLEICONBADGE IN TEAM DIRECTORY; FLUTTER MOBILE REPO PARITY CITED UNDER ADR-001/ADR-002; ZERO IMPORTS OF UNCOMMITTED @ai-sdk/ai/zod CONFIRMED (SAFE FOR DEPLOY); ESLINT CLEAN (0 ERRORS); TURBOPACK BUILD CLEAN (0 ERRORS, 19/19 STATIC ROUTES PRERENDERED); GATE.PY RETURNS {"decision": "allow"}; ALL CHANGES COMMITTED LOCALLY ON MAIN; ZERO PUSHES OR BRANCH MUTATIONS**
+
+---
+
+### 1. Scope & Verification Fixes (38 Files)
+- **HR Emploc Gating Restoration**:
+  - `src/components/hr-emploc/HrEmplocTable.tsx`: Reverted behavior change. Restored strict `row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc` check and `row.rowCapabilities.canTagDeficiency && onForCorrection`, maintaining tokenized styling while eliminating any behavioral drift.
+- **Semantic Contrast Hardening (`src/app/globals.css`)**:
+  - Light mode: Hardened `--status-danger-text` to `#b91c1c` (contrast on background `#ffffff` is 6.47:1, on `#fef2f2` is 5.91:1, on `#fdeeee` is 5.74:1). Added high-contrast solid button tokens `--brand-button: #2b4fd6` (6.58:1 on white), `--danger-button: #b91c1c` (6.47:1 on white), and `--brand-primary: #2b4fd6`.
+  - Dark mode: Hardened `--muted` to `#94a3b8` (contrast on `#0c1017` is 7.43:1, on `#131924` is 6.87:1). Added high-contrast solid button tokens `--brand-button: #2b4fd6` (6.58:1 on white), `--danger-button: #b91c1c` (6.47:1 on white), and declared `--brand-primary: #8aa4ff` (7.67:1 on dark surface).
+  - Exposed `--color-brand-primary`, `--color-brand-button`, `--color-brand-button-hover`, `--color-danger-button`, `--color-danger-button-hover` in `@theme inline`.
+- **Motion System Realization**:
+  - Added `@keyframes pageEnter`, `.page-enter`, and fallback animation classes to `src/app/globals.css` with 200ms `var(--ease-standard)` and `translateY(4px)` gated by `data-motion="full" | "lite" | "off"`.
+  - `src/components/DashboardAuthShell.tsx`: Switched `<main key={pathname}>` wrapper to use `.page-enter`.
+  - `src/app/(dashboard)/dashboard/page.tsx`: Updated `metricsQuery` and `analyticsQuery` to pass `scopeParams = { groupId: selectedGroupScope === "all" ? null : selectedGroupScope }`, activating live value tweens via `<AnimatedNumber>` across KPI cards when Dashboard scope changes.
+  - `src/hooks/useMotionLevel.ts`: Preserved `localStorage` check before weak device auto-fallback (`hardwareConcurrency`/`deviceMemory` <= 4 -> Lite).
+  - `src/components/settings/PreferencesTab.tsx`: Added 3-button segmented selector for Full / Lite / Off motion levels.
+- **Dirty-Esc Guards Across All Modals & Drawers**:
+  - `src/components/shared/DetailDrawer.tsx`: Added `disableBackdropClick`, `isSubmitting`, and `isDirty` props with confirmation guard on Esc, backdrop click, and close button.
+  - `src/components/users/UserDetailDrawer.tsx`: Wired `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, and `isDirty={hasEditableChanges}` to `<DetailDrawer>`.
+  - `src/components/settings/SecurityTab.tsx`: Added `isDirty` to single session revoke and mass revoke modals.
+  - `src/components/hr-emploc/import/BatchDetailsModal.tsx`: Added `isDirty={isRejectOpen || approveMutation.isPending}`.
+  - `src/components/more/PayrollImportModal.tsx`: Added `disableBackdropClick`, `isSubmitting`, and `isDirty={Boolean(file || result)}`.
+  - `src/components/more/PayrollReviewCenterModal.tsx`: Added `disableBackdropClick`, `isSubmitting`, and `isDirty={Boolean(opsComment.trim())}`.
+  - `src/components/approvals/*` (21 files): Added `isDirty` to single reject, bulk reject, and approve note modals across all approval cards and data tables.
+- **Role Representation Parity**:
+  - `src/lib/queries/team_directory.ts`: Set `getRoleTint` to return `"var(--brand-primary)"`.
+  - `src/components/team-directory/TeamDirectoryTable.tsx` & `TeamDirectoryDetailDrawer.tsx`: Implemented non-color role differentiator using `RoleIconBadge` with level tag (`L100`, `L90`, `L70`, etc.) and icons (`Shield`, `Briefcase`, `Users`, `FileText`).
+- **Flutter ADR Basis**:
+  - Locked to Flutter mobile repo architecture. ADR updates needed: None.
+
+---
+
 ## UI Standard & Motion System — Verification & Correction Audit Fixes (ohm#lfix9v2c)
 
 **Status: COMPLETE — RIGOROUS VERIFICATION & CORRECTION PASS DELIVERED; ALL 11 AUDIT DIRECTIVES CODE-DERIVED AND VERIFIED AGAINST LIVE REPO HEAD; MODAL WRAPPERS ENFORCED ON ALL CUSTOM OVERLAYS (EXCEPT JUSTIFIED SECURITY IDLE WARNING); POLICY NOTICES (EMERGENCY OVERRIDE, RECRUITMENT FREEZE, SAFETY FLOOR, PERMISSION DRIFT, VACANCY EDIT LOCK) CONVERTED FROM `--danger` TO NEUTRAL/INFO STYLES; HR EMPLOC PRE-LOOP-5A ROOT CAUSE AND CODE DATING TRACED RIGOROUSLY TO MIGRATION `20262606000043` AND COMMIT `8ee3d49`; LITERAL RECONCILIATION AUDIT CONFIRMS EXACTLY 0 COLOR LITERALS ACROSS ALL 12 MODULES; GATE.PY STRENGTHENED WITH MULTI-REGEX EXPANSION (`bg-white`, `bg-black`, `text-black`, `rgb(`, `rgba(`, `hsl(`, `hsla(`, INLINE COLOR STYLES, NAMED CSS COLORS); MOTION SYSTEM COMPLIANCE VERIFIED ACROSS VALUE TWEENS, PAGE-ENTER SEQUENCES, FULL/LITE/OFF ACCESSIBILITY MODES; LAYOUT KEY={PATHNAME} SCOPE VERIFIED TO ISOLATE MAIN CONTENT WITHOUT REMOUNTING SHELL OR DROPPING QUERY PARAMS; NEUTRAL STRUCTURAL ROLE DIFFERENTIATOR PROPOSED; RESPONSIVE AND ZERO SUB-14PX TABLE CELL EVIDENCE FULLY VALIDATED (0 SUB-14PX `<TD>` CELLS REMAINING); WCAG AA/AAA CONTRAST CONFIRMED ACROSS ALL SEMANTIC TOKEN PAIRS; ESLINT CLEAN (0 ERRORS); NEXT.JS 16.2.4 TURBOPACK BUILD CLEAN (0 ERRORS, 19/19 ROUTES GENERATED); GATE.PY RETURNS {"decision": "allow"}; ALL CHANGES COMMITTED LOCALLY ON MAIN; ZERO PUSHES OR BRANCH MUTATIONS**

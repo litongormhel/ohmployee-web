@@ -591,6 +591,7 @@ export function DeactivationDataTable({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(approveRemarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -679,6 +680,7 @@ export function DeactivationDataTable({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim() || rejectionRemarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -836,6 +838,7 @@ export function DeactivationDataTable({
           icon={XCircle}
           isSubmitting={isBulkProcessing}
           disableBackdropClick={isBulkProcessing}
+          isDirty={Boolean(bulkRejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">

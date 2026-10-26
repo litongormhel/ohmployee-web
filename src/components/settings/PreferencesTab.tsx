@@ -328,25 +328,58 @@ export function PreferencesTab() {
             </select>
           </div>
 
-          {/* Reduce Motion Toggle */}
-          <div className="flex items-center justify-between md:flex-col md:items-start md:justify-center">
+          {/* Motion Experience Control (Full / Lite / Off) */}
+          <div className="space-y-2 md:col-span-2">
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Reduce Motion
+                Motion Experience
               </h4>
               <p className="text-xs text-text-muted mt-0.5">
-                Disable UI drawer and modal animations
+                Control UI animation velocity, page transitions, and numerical value tweens.
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer mt-2">
-              <input
-                type="checkbox"
-                checked={formState.reduceMotionEnabled ?? false}
-                onChange={(e) => handleUpdate("reduceMotionEnabled", e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
-            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              {[
+                { level: "full", title: "Full", desc: "200ms transitions & tweens" },
+                { level: "lite", title: "Lite", desc: "≤ 150ms fades (low-power auto)" },
+                { level: "off", title: "Off", desc: "0ms instant (reduced motion)" },
+              ].map(({ level, title, desc }) => {
+                const currentMotionLevel = formState.reduceMotionEnabled
+                  ? "off"
+                  : (typeof window !== "undefined" && localStorage.getItem("ohm_motion_preference")) || "full";
+                const isSelected = currentMotionLevel === level;
+
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => {
+                      if (level === "off") {
+                        handleUpdate("reduceMotionEnabled", true);
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem("ohm_motion_preference", "off");
+                          document.documentElement.setAttribute("data-motion", "off");
+                        }
+                      } else {
+                        handleUpdate("reduceMotionEnabled", false);
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem("ohm_motion_preference", level);
+                          document.documentElement.setAttribute("data-motion", level);
+                        }
+                      }
+                    }}
+                    className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
+                      isSelected
+                        ? "border-brand-primary bg-surface-muted text-text-primary ring-1 ring-brand-primary"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-text-primary">{title}</span>
+                    <span className="text-[10px] text-text-muted mt-0.5 leading-tight">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

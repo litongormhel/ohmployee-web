@@ -245,6 +245,7 @@ export function VacancyClosureApprovalCard({
         subtitle={`Archive requisition ${request.vacancyVcode}`}
         isSubmitting={isBusy}
         disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionRemarks.trim())}
         maxWidthClass="max-w-md"
         footer={
           <div className="flex justify-end gap-2">
@@ -328,6 +329,7 @@ export function VacancyClosureApprovalCard({
         subtitle={`Decline closure request for ${request.vacancyVcode}`}
         isSubmitting={isBusy}
         disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionRemarks.trim())}
         maxWidthClass="max-w-md"
         footer={
           <div className="flex justify-end gap-2">

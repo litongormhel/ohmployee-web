@@ -558,6 +558,7 @@ export function VacancyClosureDataTable({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(approveRemarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -637,6 +638,7 @@ export function VacancyClosureDataTable({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionRemarks.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -778,6 +780,7 @@ export function VacancyClosureDataTable({
           icon={XCircle}
           isSubmitting={isBulkProcessing}
           disableBackdropClick={isBulkProcessing}
+          isDirty={Boolean(bulkRejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">

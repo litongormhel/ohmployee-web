@@ -327,12 +327,21 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
   if (!user) return null;
 
+  const isBusy =
+    upsertMutation.isPending ||
+    toggleStatusMutation.isPending ||
+    archiveMutation.isPending ||
+    resetPasswordMutation.isPending;
+
   return (
     <>
       <DetailDrawer
         isOpen={Boolean(user)}
         onClose={onClose}
         widthClass="w-[var(--drawer-width-lg)] max-w-full"
+        disableBackdropClick={isBusy}
+        isSubmitting={isBusy}
+        isDirty={hasEditableChanges}
         title={
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base font-black text-brand-700 border border-brand-200 shadow-xs">

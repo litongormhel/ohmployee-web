@@ -87,9 +87,13 @@ export default function DashboardPage() {
   // Live Queries
   // -------------------------------------------------------------------------
 
+  const scopeParams = {
+    groupId: selectedGroupScope === "all" ? null : selectedGroupScope,
+  };
+
   const metricsQuery = useQuery({
     queryKey: ["dashboard", "metrics", selectedGroupScope === "all" ? null : selectedGroupScope],
-    queryFn: () => getDashboardMetrics(),
+    queryFn: () => getDashboardMetrics(scopeParams),
   });
 
   const analyticsQuery = useQuery({
@@ -98,7 +102,7 @@ export default function DashboardPage() {
       "operational-analytics",
       selectedGroupScope === "all" ? null : selectedGroupScope,
     ],
-    queryFn: () => getDashboardOperationalAnalytics(),
+    queryFn: () => getDashboardOperationalAnalytics(scopeParams),
   });
 
   // Live Group KPI from CENCOM view

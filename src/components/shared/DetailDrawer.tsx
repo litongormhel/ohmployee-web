@@ -17,6 +17,9 @@ export interface DetailDrawerProps {
   footer?: ReactNode;
   contentClassName?: string;
   footerClassName?: string;
+  disableBackdropClick?: boolean;
+  isSubmitting?: boolean;
+  isDirty?: boolean;
 }
 
 export function DetailDrawer({
@@ -31,20 +34,31 @@ export function DetailDrawer({
   footer,
   contentClassName = "p-5 space-y-5",
   footerClassName = "px-5 py-3",
+  disableBackdropClick = false,
+  isSubmitting = false,
+  isDirty = false,
 }: DetailDrawerProps) {
   const motionLevel = useMotionLevel();
+
+  const handleDismiss = () => {
+    if (isSubmitting) return;
+    if (isDirty && !window.confirm("You have unsaved changes. Discard?")) return;
+    onClose();
+  };
 
   // ESC key handler
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isSubmitting) return;
+        if (isDirty && !window.confirm("You have unsaved changes. Discard?")) return;
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSubmitting, isDirty]);
 
   // Body Scroll Lock
   useEffect(() => {
@@ -63,7 +77,7 @@ export function DetailDrawer({
       {/* Backdrop overlay (flat translucent color, no blur) */}
       <div
         className="fixed inset-0 z-40 bg-surface-overlay animate-fade-in"
-        onClick={onClose}
+        onClick={disableBackdropClick ? undefined : handleDismiss}
         aria-hidden="true"
       />
 
@@ -97,8 +111,9 @@ export function DetailDrawer({
             {actionSlot}
             <button
               aria-label="Close details"
-              className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors"
-              onClick={onClose}
+              className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors disabled:opacity-40"
+              onClick={handleDismiss}
+              disabled={isSubmitting}
               type="button"
             >
               <X className="h-5 w-5" aria-hidden="true" />

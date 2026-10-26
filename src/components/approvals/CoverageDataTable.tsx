@@ -642,6 +642,7 @@ export function CoverageDataTable({
           icon={XCircle}
           isSubmitting={rejectMutation.isPending}
           disableBackdropClick={rejectMutation.isPending}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">

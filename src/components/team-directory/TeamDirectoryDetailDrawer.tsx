@@ -4,16 +4,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
+  Briefcase,
   Building2,
   Check,
   ChevronRight,
   Copy,
   ExternalLink,
+  FileText,
   Mail,
   MapPin,
   MessageSquare,
   Network,
   Phone,
+  Shield,
+  Users,
 } from "lucide-react";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +40,20 @@ export interface TeamDirectoryDetailDrawerProps {
   allUsers: TeamDirectoryUser[];
   onClose: () => void;
   onSelectUser: (user: TeamDirectoryUser) => void;
+}
+
+function RoleIconBadge({ role, level, className }: { role: string; level: number | null; className?: string }) {
+  const r = role.toLowerCase();
+  if (level === 100 || r.includes("super admin") || r.includes("head admin")) {
+    return <Shield className={className} />;
+  }
+  if (r.includes("om") || r.includes("operations manager") || r.includes("team leader")) {
+    return <Briefcase className={className} />;
+  }
+  if (r.includes("recruitment") || r.includes("hrco") || r.includes("coordinator")) {
+    return <Users className={className} />;
+  }
+  return <FileText className={className} />;
 }
 
 export function TeamDirectoryDetailDrawer({
@@ -161,15 +179,16 @@ export function TeamDirectoryDetailDrawer({
               <h3 className="text-lg font-bold text-text-primary truncate">
                 {formattedName}
               </h3>
-              <div className="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
-                <span className="font-semibold text-brand-600">
-                  {user.roleName}
-                </span>
-                {user.roleLevel !== null && (
-                  <span className="rounded bg-surface-base px-1.5 py-0.5 font-mono text-[10px] text-text-muted border border-border-subtle">
-                    Tier {user.roleLevel}
-                  </span>
-                )}
+              <div className="mt-1 flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-semibold text-text-primary">
+                  <RoleIconBadge role={user.roleName} level={user.roleLevel} className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                  <span>{user.roleName}</span>
+                  {user.roleLevel !== null && (
+                    <span className="font-mono text-[10px] text-text-muted border-l border-border-subtle pl-1.5">
+                      L{user.roleLevel}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Quick Contact Links */}

@@ -338,7 +338,7 @@ export function HrEmplocTable({
                         {/* ── Pending Queue Actions ──────────────── */}
                         {queue === "pending" && (
                           <>
-                            {handleAddEmploc && (
+                            {row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc && (
                               <button
                                 type="button"
                                 disabled={isPendingDeletion}
@@ -354,7 +354,7 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {onForCorrection && (
+                            {row.rowCapabilities.canTagDeficiency && onForCorrection && (
                               <button
                                 type="button"
                                 disabled={isPendingDeletion}

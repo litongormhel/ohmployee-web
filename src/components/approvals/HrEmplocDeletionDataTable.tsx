@@ -578,6 +578,7 @@ export function HrEmplocDeletionDataTable({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(approveNotes.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -672,6 +673,7 @@ export function HrEmplocDeletionDataTable({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
@@ -813,6 +815,7 @@ export function HrEmplocDeletionDataTable({
           icon={XCircle}
           isSubmitting={isBulkProcessing}
           disableBackdropClick={isBulkProcessing}
+          isDirty={Boolean(bulkRejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">

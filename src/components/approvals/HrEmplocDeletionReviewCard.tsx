@@ -338,6 +338,7 @@ export function HrEmplocDeletionReviewCard({
           icon={XCircle}
           isSubmitting={rejectMutation.isPending}
           disableBackdropClick={rejectMutation.isPending}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-lg"
         >
           <div className="space-y-4 text-xs text-text-secondary">

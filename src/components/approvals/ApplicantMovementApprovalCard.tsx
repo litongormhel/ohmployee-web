@@ -341,6 +341,7 @@ export function ApplicantMovementApprovalCard({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(approveNote.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-3 text-xs">
@@ -416,6 +417,7 @@ export function ApplicantMovementApprovalCard({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-3 text-xs">

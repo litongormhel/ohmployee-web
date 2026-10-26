@@ -126,6 +126,7 @@ export function BatchDetailsModal({
         maxWidthClass="max-w-5xl"
         disableBackdropClick={approveMutation.isPending}
         isSubmitting={approveMutation.isPending}
+        isDirty={isRejectOpen || approveMutation.isPending}
       >
         <div className="flex flex-col h-[75vh] overflow-hidden">
 

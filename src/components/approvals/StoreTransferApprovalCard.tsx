@@ -394,6 +394,7 @@ export function StoreTransferApprovalCard({
           icon={CheckCircle2}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4 text-xs">
@@ -457,6 +458,7 @@ export function StoreTransferApprovalCard({
           icon={XCircle}
           isSubmitting={isBusy}
           disableBackdropClick={isBusy}
+          isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4 text-xs">
