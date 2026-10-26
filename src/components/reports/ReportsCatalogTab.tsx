@@ -43,7 +43,7 @@ export function ReportsCatalogTab({
   return (
     <div className="space-y-8 animate-in fade-in duration-150">
       {/* Hero Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-brand-900 via-brand-800 to-indigo-900 text-white shadow-md relative overflow-hidden">
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-brand-900 via-brand-800 to-brand-950 text-white shadow-md relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-brand-200 bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
             Operational Intelligence & Analytics
@@ -63,7 +63,7 @@ export function ReportsCatalogTab({
       {/* Category 1: Separation & Attrition Reports */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <UserMinus className="w-4 h-4 text-rose-600" />
+          <UserMinus className="w-4 h-4 text-text-primary" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
             Separation & Attrition Reports
           </h3>
@@ -72,25 +72,25 @@ export function ReportsCatalogTab({
           {/* Attrition */}
           <div
             onClick={() => setSelectedReportId("attrition_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-rose-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <TrendingDown className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-rose-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Attrition Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Analyze separation rates across accounts, drill down into affected stores, and inspect separated employee histories.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-rose-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Launch Report & Drilldown</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -99,25 +99,25 @@ export function ReportsCatalogTab({
           {/* Resigned */}
           <div
             onClick={() => setSelectedReportId("resigned_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-amber-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserCheck className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-amber-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Resigned Staff Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Voluntary employee resignations and turnover breakdown by account with date range filtering.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-amber-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>View Resignations</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -126,25 +126,25 @@ export function ReportsCatalogTab({
           {/* AWOL */}
           <div
             onClick={() => setSelectedReportId("awol_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-rose-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserX className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-rose-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 AWOL Separation Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Absence Without Official Leave separations, disciplinary movement, and store impact tracking.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-rose-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Audit AWOL Events</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -153,25 +153,25 @@ export function ReportsCatalogTab({
           {/* Terminated */}
           <div
             onClick={() => setSelectedReportId("terminated_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-orange-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserMinus className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-orange-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Terminated Staff Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Involuntary separations, contract terminations, and end-of-service compliance tracking.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-orange-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>View Terminations</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -180,25 +180,25 @@ export function ReportsCatalogTab({
           {/* Back-Out */}
           <div
             onClick={() => setSelectedReportId("backout_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-amber-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-amber-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Back-Out Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Candidate onboarding back-outs and pre-deployment recruitment leakage audit.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-amber-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>View Back-Outs</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -207,25 +207,25 @@ export function ReportsCatalogTab({
           {/* Back-Out & Terminated Combined */}
           <div
             onClick={() => setSelectedReportId("backout_terminated_report")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-orange-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Layers className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-orange-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Back-Out & Terminated Combined
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Combined leakage view tracking candidate back-outs alongside staff terminations in unified cards.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-orange-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>View Combined Audit</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -236,7 +236,7 @@ export function ReportsCatalogTab({
       {/* Category 2: Recruitment Velocity & Turnaround */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Hourglass className="w-4 h-4 text-emerald-600" />
+          <Hourglass className="w-4 h-4 text-text-primary" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
             Recruitment Velocity & Turnaround
           </h3>
@@ -245,25 +245,25 @@ export function ReportsCatalogTab({
           {/* Time to Fill */}
           <div
             onClick={() => setSelectedReportId("time_to_fill")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-emerald-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-emerald-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Time to Fill Report
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Average requisition days to fill open vacancy slots, hiring speed, and store deployment velocity.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-emerald-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Analyze Fill Velocity</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -272,25 +272,25 @@ export function ReportsCatalogTab({
           {/* Vacancy Aging */}
           <div
             onClick={() => onSwitchTab?.("custom")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-brand-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-brand-50 text-brand-600 border border-brand-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Hourglass className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Custom Builder
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Vacancy Aging & Allocation
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Inspect open vacancy duration, active headcount, and plantilla slot capacity across accounts.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Open in Custom Builder</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -299,25 +299,25 @@ export function ReportsCatalogTab({
           {/* Target Deployment */}
           <a
             href="/cencom"
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-purple-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <MapPin className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   CENCOM Module
                 </span>
               </div>
-              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-purple-600 transition">
+              <h4 className="text-base font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Target Deployment Overview
               </h4>
               <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                 Store-by-store deployment fulfillment rates and geographic coverage breakdown in CENCOM.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-purple-600">
+            <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Navigate to CENCOM</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </div>
@@ -328,7 +328,7 @@ export function ReportsCatalogTab({
       {/* Category 3: Compliance & Dedicated Hub Surfaces */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <FileCheck2 className="w-4 h-4 text-indigo-600" />
+          <FileCheck2 className="w-4 h-4 text-text-primary" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
             Workforce Health & Operational Audit
           </h3>
@@ -337,25 +337,25 @@ export function ReportsCatalogTab({
           {/* HR Emploc Late Update */}
           <div
             onClick={() => setSelectedReportId("emploc_late_update")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-indigo-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+                <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Quick Report
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-indigo-600 transition">
+              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 HR Emploc Late Updates
               </h4>
               <p className="text-xs text-text-secondary mt-1">
                 SLA breaches and delayed location submissions.
               </p>
             </div>
-            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-indigo-600">
+            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Open Report</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
@@ -364,25 +364,25 @@ export function ReportsCatalogTab({
           {/* Floating Staff */}
           <div
             onClick={() => onSwitchTab?.("floating")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-amber-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Users className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-amber-600 transition">
+              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Floating Staff Report
               </h4>
               <p className="text-xs text-text-secondary mt-1">
                 Floating employees aging (&lt;30d, 30–60d, &gt;60d).
               </p>
             </div>
-            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-amber-600">
+            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Switch to Tab 2</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
@@ -391,25 +391,25 @@ export function ReportsCatalogTab({
           {/* Team Performance */}
           <div
             onClick={() => onSwitchTab?.("team_performance")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-teal-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-teal-50 text-teal-600 border border-teal-100">
+                <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Layers className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-teal-600 transition">
+              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Team Performance
               </h4>
               <p className="text-xs text-text-secondary mt-1">
                 Discipline rankings, scorecards, and SLA issues.
               </p>
             </div>
-            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-teal-600">
+            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Switch to Tab 3</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
@@ -418,25 +418,25 @@ export function ReportsCatalogTab({
           {/* Data Integrity */}
           <div
             onClick={() => onSwitchTab?.("data_integrity")}
-            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-rose-300 hover:shadow-md transition cursor-pointer flex flex-col justify-between"
+            className="group relative p-5 rounded-xl border border-border-default bg-surface-base hover:border-border-strong hover:shadow-md transition cursor-pointer flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
+                <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-rose-600 transition">
+              <h4 className="text-sm font-bold text-text-primary mt-3 group-hover:text-brand-primary transition">
                 Data Integrity Audit
               </h4>
               <p className="text-xs text-text-secondary mt-1">
                 Ghost occupancy, delay audit, and pipeline anomalies.
               </p>
             </div>
-            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-rose-600">
+            <div className="mt-4 pt-2.5 border-t border-border-subtle flex items-center justify-between text-xs font-semibold text-brand-primary">
               <span>Switch to Tab 4</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>

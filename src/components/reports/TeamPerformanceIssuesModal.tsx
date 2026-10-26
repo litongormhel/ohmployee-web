@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Download, FileSpreadsheet, Loader2, X } from "lucide-react";
+import { AlertCircle, Download, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { useTeamPerformanceDetail } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
 
@@ -76,34 +77,38 @@ export function TeamPerformanceIssuesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="relative flex flex-col w-full max-w-4xl max-h-[90vh] bg-surface-base rounded-xl border border-border-default shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-surface-muted/40">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                Operational Discipline Audit
-              </span>
-              <span className="text-xs text-text-muted">{groupName}</span>
-            </div>
-            <h2 className="text-lg font-bold text-text-primary mt-1">
-              {accountName} — Operational Issues & SLA Breaches
-            </h2>
-          </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`${accountName} — Operational Issues & SLA Breaches`}
+      subtitle={
+        <div className="flex items-center gap-2 pt-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
+            Operational Discipline Audit
+          </span>
+          <span className="text-xs text-text-muted">{groupName}</span>
+        </div>
+      }
+      maxWidthClass="max-w-4xl"
+      footer={
+        <div className="flex items-center justify-between w-full text-xs text-text-muted">
+          <span>Total: {issues.length} operational issues recorded</span>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition cursor-pointer"
-            aria-label="Close modal"
+            className="px-4 py-1.5 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer shadow-2xs"
           >
-            <X className="w-5 h-5" />
+            Close
           </button>
         </div>
-
+      }
+    >
+      <div className="space-y-4">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-border-subtle bg-surface-base">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              type="button"
               onClick={() => setCategoryFilter("all")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 categoryFilter === "all"
@@ -116,6 +121,7 @@ export function TeamPerformanceIssuesModal({
             {categories.map((cat) => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => setCategoryFilter(cat)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                   categoryFilter === cat
@@ -134,21 +140,23 @@ export function TeamPerformanceIssuesModal({
               placeholder="Search issues, store, employee..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 px-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-48 sm:w-60"
+              className="h-8 px-3 text-xs bg-surface border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-48 sm:w-60"
             />
             <button
+              type="button"
               onClick={handleExportXlsx}
               disabled={isLoading || !issues.length}
-              className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
               title="Export to XLSX"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               XLSX
             </button>
             <button
+              type="button"
               onClick={handleExportCsv}
               disabled={isLoading || !issues.length}
-              className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-secondary bg-surface hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
               title="Export to CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -158,30 +166,30 @@ export function TeamPerformanceIssuesModal({
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-h-[60vh] overflow-y-auto">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-muted">
               <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
               <p className="text-xs font-medium">Loading operational issues...</p>
             </div>
           ) : error ? (
-            <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+            <div className="p-4 rounded-lg bg-danger-subtle border border-danger-border text-danger-text text-sm">
               Failed to load team performance issues. {String(error)}
             </div>
           ) : filteredIssues.length === 0 ? (
             <div className="text-center py-16 text-text-muted text-xs flex flex-col items-center gap-2">
-              <AlertCircle className="w-8 h-8 text-emerald-500" />
+              <AlertCircle className="w-8 h-8 text-pct-high" />
               <p className="font-semibold text-text-primary">No Operational Issues Recorded</p>
               <p>This account currently maintains full SLA compliance and operational discipline.</p>
             </div>
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-sm">
                 <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Issue Category</th>
                     <th className="py-2.5 px-3">Label</th>
-                    <th className="py-2.5 px-3">Detail & Scope</th>
+                    <th className="py-2.5 px-3">Detail &amp; Scope</th>
                     <th className="py-2.5 px-3">Store Branch</th>
                     <th className="py-2.5 px-3">Entity</th>
                     <th className="py-2.5 px-3 text-right">Impact</th>
@@ -191,7 +199,7 @@ export function TeamPerformanceIssuesModal({
                   {filteredIssues.map((issue, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
                       <td className="py-2.5 px-3">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                           {issue.issueCategory}
                         </span>
                       </td>
@@ -217,7 +225,7 @@ export function TeamPerformanceIssuesModal({
                       </td>
                       <td className="py-2.5 px-3 text-right">
                         {issue.daysImpacted != null ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-danger-subtle text-danger-text border border-danger-border">
                             {issue.daysImpacted}d delayed
                           </span>
                         ) : (
@@ -231,18 +239,7 @@ export function TeamPerformanceIssuesModal({
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border-subtle bg-surface-muted/30 text-xs text-text-muted">
-          <span>Total: {issues.length} operational issues recorded</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-text-primary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer shadow-2xs"
-          >
-            Close
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

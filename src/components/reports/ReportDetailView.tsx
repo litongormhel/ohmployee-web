@@ -334,14 +334,16 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
             Refresh
           </button>
           <button
+            type="button"
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredAndSortedRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
           </button>
           <button
+            type="button"
             onClick={handleExportCsv}
             disabled={isLoading || !filteredAndSortedRows.length}
             className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
@@ -360,7 +362,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Overall Attrition
               </div>
-              <div className="text-2xl font-bold text-rose-600 mt-1">
+              <div className="text-2xl font-bold text-pct-low mt-1">
                 {overallAttritionRate}%
               </div>
               <div className="text-[11px] text-text-muted mt-0.5">Weighted separation rate</div>
@@ -399,7 +401,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Avg Days to Fill
               </div>
-              <div className="text-2xl font-bold text-emerald-600 mt-1">
+              <div className="text-2xl font-bold text-text-primary mt-1">
                 {avgTimeToFill}d
               </div>
               <div className="text-[11px] text-text-muted mt-0.5">Requisition turnaround</div>
@@ -438,7 +440,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Late HR Updates
               </div>
-              <div className="text-2xl font-bold text-indigo-600 mt-1">
+              <div className="text-2xl font-bold text-text-primary mt-1">
                 {totalLateUpdates}
               </div>
               <div className="text-[11px] text-text-muted mt-0.5">SLA delayed submissions</div>
@@ -570,7 +572,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                 onClick={() => setSortType(key)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
                   sortType === key
-                    ? "bg-slate-100 text-slate-800 border border-slate-200 font-semibold"
+                    ? "bg-surface-subtle text-text-primary border border-border-default font-semibold"
                     : "text-text-secondary hover:bg-surface-hover border border-transparent"
                 }`}
               >
@@ -637,7 +639,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <p className="text-sm font-semibold text-rose-700">Failed to load report data</p>
+            <p className="text-sm font-semibold text-danger-text">Failed to load report data</p>
             <p className="text-xs text-text-muted mt-1">{String(error)}</p>
             <button
               onClick={() => refetch()}
@@ -652,7 +654,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-sm">
               <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
                 <tr>
                   <th className="py-3 px-4">Group Scope</th>
@@ -677,15 +679,15 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                     </td>
                     <td className="py-3 px-4">
                       {reportId === "attrition_report" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {(row.attritionRate ?? 0).toFixed(2)}%
                         </span>
                       ) : reportId === "time_to_fill" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {(row.avgDaysToFill ?? 0).toFixed(1)} days
                         </span>
                       ) : reportId === "emploc_late_update" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {row.lateCount ?? 0}
                         </span>
                       ) : (

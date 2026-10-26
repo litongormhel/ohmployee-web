@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Loop 7E: Reports Hub Alignment (ohm#lrpt5m1k)
+
+**Status: COMPLETE — ALL 10 REPORTS VIEWS AND DRILLDOWN DIALOGS TOKENIZED TO ZERO COLOR LITERALS (OVER 400 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `TeamPerformanceIssuesModal`, `DataIntegrityDetailModal`, AND `AttritionDrilldownModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; ENFORCED TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL 7 DATA TABLES; STRICT DESIGN TOKENS ACROSS ALL SUMMARY KPIS, SCOPE FILTERS, SEVERITY CHIPS, AND EXPORT BUTTONS; DANGER AUDIT PASSED (--danger STRICTLY FOR SLA BREACHES, GHOST OCCUPANCY, AND CRITICAL DISCIPLINE FAILURES); ZERO QUERY, RPC, OR FORMULA DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions (10 Files)
+- `src/app/(dashboard)/reports/page.tsx`: Aligned module tabs navigation, quick export toolbar, and subreport routing. (0 literals)
+- `src/components/reports/ReportsCatalogTab.tsx`: Standardized catalog cards, hero analytics banner, navigation tiles, and action buttons. (0 literals)
+- `src/components/reports/FloatingStaffTab.tsx`: Aligned floating staff monitoring, aging bucket filter buttons (<30d, 30–60d, >60d), account distribution pills, and roster table. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/TeamPerformanceTab.tsx`: Standardized team scorecards, operational discipline leaderboard, severity filter chips, and drilldown triggers. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/DataIntegrityTab.tsx`: Standardized data anomaly cards (Late HR, Vacancy Creation Delay, Ghost Occupancy, Pipeline Without Vacancy), summary KPIs, and audit triggers. (0 literals)
+- `src/components/reports/CustomReportTab.tsx`: Standardized dynamic query builder, dimension checkboxes, metric selectors, filter pickers, and live data preview table. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/ReportDetailView.tsx`: Standardized universal report viewer, dynamic column mapper, status tone pills, and pagination footer. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/TeamPerformanceIssuesModal.tsx`: Wrapped drilldown dialog in canonical `Modal`. Tokenized SLA breakdown and issue detail table. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/DataIntegrityDetailModal.tsx`: Wrapped drilldown dialog in canonical `Modal`. Tokenized anomaly audit log and records table. Floor >= 14px enforced. (0 literals)
+- `src/components/reports/AttritionDrilldownModal.tsx`: Wrapped drilldown dialog in canonical `Modal`. Tokenized separation history and account breakdown table. Floor >= 14px enforced. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: All 3 drilldown dialogs utilize canonical `Modal` with `disableBackdropClick`, `isSubmitting`, and keyboard Esc dismiss.
+- **Danger Audit**: `--danger` strictly applied to critical SLA breaches, ghost occupancy detections, and score under 70 points. General counts and standard aging buckets use neutral tokens.
+- **Color-Use Audit**: Semantic colors reserved strictly for true percentages (e.g. MFR fulfillment rate, separation rates).
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for Reports**: Exactly 0 raw color literals across `src/app/(dashboard)/reports/` and `src/components/reports/`.
+- **ESLint**: 0 errors.
+- **Next.js Turbopack Build**: `npm run build` green (0 errors, all routes generated).
+- **ADR Basis**: Compliant with ADR-001/ADR-002; zero queries, RPCs, or calculation formulas modified.
+
+---
+
 ## Loop 7D: Notifications Activity Center Alignment (ohm#lntf4k2w)
 
 **Status: COMPLETE — ALL NOTIFICATIONS VIEWS TOKENIZED TO ZERO COLOR LITERALS (44 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); SEMANTIC TONE SYSTEM CONVERTED TO DESIGN TOKENS; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, INCIDENTS, DELETIONS, AND BREACHES); COLOR-USE AUDIT PASSED (NEUTRAL CATEGORICAL BADGES, TONAL AVATARS, TIME BADGES); TABLE/STREAM ACCESSIBILITY PRESERVED; ZERO QUERY, REALTIME, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**

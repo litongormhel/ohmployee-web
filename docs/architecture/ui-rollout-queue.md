@@ -19,7 +19,7 @@ Each item is ticked ONLY after completing its own complete verification:
 - [x] 7B Approvals cards + action modals
 - [x] Users and Team Directory
 - [x] Notifications
-- [ ] Reports
+- [x] Reports
 - [ ] Settings
 - [ ] More A (governance/security)
 - [ ] More B (import centers/QA)

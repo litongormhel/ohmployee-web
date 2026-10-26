@@ -130,7 +130,7 @@ export function DataIntegrityTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-danger bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
               Data Audit & Compliance
             </span>
             <span className="text-xs text-text-muted">Port of DataIntegrityReportScreen</span>
@@ -149,13 +149,13 @@ export function DataIntegrityTab() {
             disabled={isLoading || isRefetching}
             className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
           </button>
           <button
             onClick={handleExportSummaryXlsx}
             disabled={isLoading || !summary}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -174,31 +174,31 @@ export function DataIntegrityTab() {
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
             <span>Critical Issues</span>
-            <ShieldAlert className="w-4 h-4 text-rose-600" />
+            <ShieldAlert className="w-4 h-4 text-danger" />
           </div>
-          <div className="text-2xl font-bold text-rose-700 mt-1">
+          <div className="text-2xl font-bold text-danger mt-1">
             {criticalIssues}
           </div>
-          <div className="text-[11px] text-rose-600/80 mt-0.5">Requires immediate remediation</div>
+          <div className="text-[11px] text-danger/80 mt-0.5">Requires immediate remediation</div>
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
             <span>High Risk Issues</span>
-            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <AlertTriangle className="w-4 h-4 text-text-secondary" />
           </div>
-          <div className="text-2xl font-bold text-amber-700 mt-1">
+          <div className="text-2xl font-bold text-text-primary mt-1">
             {highRiskIssues}
           </div>
-          <div className="text-[11px] text-amber-600/80 mt-0.5">SLA delayed submissions</div>
+          <div className="text-[11px] text-text-muted mt-0.5">SLA delayed submissions</div>
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
             <span>Total Findings</span>
-            <ShieldCheck className="w-4 h-4 text-brand-600" />
+            <ShieldCheck className="w-4 h-4 text-brand-primary" />
           </div>
           <div className="text-2xl font-bold text-text-primary mt-1">
             {totalFindings}
@@ -209,7 +209,7 @@ export function DataIntegrityTab() {
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
             <span>Affected Stores</span>
-            <Store className="w-4 h-4 text-brand-600" />
+            <Store className="w-4 h-4 text-brand-primary" />
           </div>
           <div className="text-2xl font-bold text-text-primary mt-1">
             {affectedStores}
@@ -227,7 +227,7 @@ export function DataIntegrityTab() {
               setSelectedGroupId(e.target.value);
               setSelectedAccountId("");
             }}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Groups (Entire Organization)</option>
             {groups.map((g) => (
@@ -242,7 +242,7 @@ export function DataIntegrityTab() {
           <select
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Accounts</option>
             {filteredAccounts.map((a) => (
@@ -257,16 +257,16 @@ export function DataIntegrityTab() {
       {/* 4 Section Cards Grid */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
+          <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-2" />
           <p className="text-xs font-medium">Scanning workforce database for integrity anomalies...</p>
         </div>
       ) : error ? (
-        <div className="p-8 text-center rounded-xl border border-rose-200 bg-rose-50">
-          <p className="text-sm font-semibold text-rose-800">Failed to load data integrity report</p>
-          <p className="text-xs text-rose-600 mt-1">{String(error)}</p>
+        <div className="p-8 text-center rounded-xl border border-danger-border bg-danger-subtle">
+          <p className="text-sm font-semibold text-danger">Failed to load data integrity report</p>
+          <p className="text-xs text-text-muted mt-1">{String(error)}</p>
           <button
             onClick={() => refetch()}
-            className="mt-4 px-4 py-1.5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-lg hover:bg-rose-100 transition cursor-pointer"
+            className="mt-4 px-4 py-1.5 text-xs font-semibold text-danger bg-surface-base border border-danger-border rounded-lg hover:bg-danger-subtle transition cursor-pointer"
           >
             Retry Scan
           </button>
@@ -274,13 +274,13 @@ export function DataIntegrityTab() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Section 1: Late HR Updates */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-indigo-300 hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   SLA Compliance
                 </span>
               </div>
@@ -294,7 +294,7 @@ export function DataIntegrityTab() {
               <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Findings</div>
-                  <div className="text-base font-bold text-indigo-700 mt-0.5">{lateHr.totalFindings}</div>
+                  <div className="text-base font-bold text-text-primary mt-0.5">{lateHr.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Stores</div>
@@ -302,7 +302,7 @@ export function DataIntegrityTab() {
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Worst Delay</div>
-                  <div className="text-base font-bold text-rose-600 mt-0.5">
+                  <div className="text-base font-bold text-danger mt-0.5">
                     {lateHr.worstDelay ? `${lateHr.worstDelay}d` : "—"}
                   </div>
                 </div>
@@ -313,7 +313,7 @@ export function DataIntegrityTab() {
               onClick={() =>
                 setActiveSection({ key: "late_hr", title: "Late HR Updates" })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition cursor-pointer"
+              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
             >
               <span>Audit Late HR Finding Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -321,13 +321,13 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 2: Vacancy Creation Delay */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-amber-300 hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Requisition Delay
                 </span>
               </div>
@@ -341,7 +341,7 @@ export function DataIntegrityTab() {
               <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Findings</div>
-                  <div className="text-base font-bold text-amber-700 mt-0.5">{vacDelay.totalFindings}</div>
+                  <div className="text-base font-bold text-text-primary mt-0.5">{vacDelay.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Stores</div>
@@ -349,7 +349,7 @@ export function DataIntegrityTab() {
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Worst Delay</div>
-                  <div className="text-base font-bold text-rose-600 mt-0.5">
+                  <div className="text-base font-bold text-danger mt-0.5">
                     {vacDelay.worstDelay ? `${vacDelay.worstDelay}d` : "—"}
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export function DataIntegrityTab() {
                   title: "Vacancy Creation Delay",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition cursor-pointer"
+              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
             >
               <span>Audit Vacancy Delay Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -371,13 +371,13 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 3: Ghost Occupancy */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-rose-300 hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Ghost className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-danger-subtle text-danger border border-danger-border">
                   Plantilla Ghost
                 </span>
               </div>
@@ -391,7 +391,7 @@ export function DataIntegrityTab() {
               <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Ghost Findings</div>
-                  <div className="text-base font-bold text-rose-700 mt-0.5">{ghost.totalFindings}</div>
+                  <div className="text-base font-bold text-danger mt-0.5">{ghost.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Affected Stores</div>
@@ -407,7 +407,7 @@ export function DataIntegrityTab() {
                   title: "Ghost Occupancy",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer"
+              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
             >
               <span>Audit Ghost Occupancy Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -415,13 +415,13 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 4: Pipeline Without Vacancy */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-purple-300 hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <GitFork className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Unlinked Pipeline
                 </span>
               </div>
@@ -435,7 +435,7 @@ export function DataIntegrityTab() {
               <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Unlinked Records</div>
-                  <div className="text-base font-bold text-purple-700 mt-0.5">{pipe.totalFindings}</div>
+                  <div className="text-base font-bold text-text-primary mt-0.5">{pipe.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase text-text-muted">Affected Stores</div>
@@ -451,7 +451,7 @@ export function DataIntegrityTab() {
                   title: "Pipeline Without Vacancy",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition cursor-pointer"
+              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
             >
               <span>Audit Unlinked Pipeline Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />

@@ -113,7 +113,7 @@ export function TeamPerformanceTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Discipline
             </span>
             <span className="text-xs text-text-muted">Port of TeamPerformanceReportScreen</span>
@@ -132,13 +132,13 @@ export function TeamPerformanceTab() {
             disabled={isLoading || isRefetching}
             className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
           </button>
           <button
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredLeaderboard.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -159,49 +159,49 @@ export function TeamPerformanceTab() {
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
             <span>Average Team Score</span>
-            <Award className="w-4 h-4 text-brand-600" />
+            <Award className="w-4 h-4 text-brand-primary" />
           </div>
-          <div className="text-2xl font-bold text-brand-700 mt-1">
+          <div className="text-2xl font-bold text-brand-primary mt-1">
             {kpis.averageScore.toFixed(1)}
           </div>
           <div className="text-[11px] text-text-muted mt-0.5">Scale: 0 to 100 points</div>
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
             <span>Top Performing</span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <TrendingUp className="w-4 h-4 text-text-primary" />
           </div>
-          <div className="text-base font-bold text-emerald-700 mt-1 truncate" title={kpis.bestGroupName || "—"}>
+          <div className="text-base font-bold text-text-primary mt-1 truncate" title={kpis.bestGroupName || "—"}>
             {kpis.bestGroupName || "Top Group"}
           </div>
-          <div className="text-[11px] text-emerald-600/80 mt-0.5">
+          <div className="text-[11px] text-text-muted mt-0.5">
             Score: {kpis.bestGroupScore != null ? kpis.bestGroupScore.toFixed(1) : "—"}
           </div>
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
             <span>Needs Attention</span>
-            <TrendingDown className="w-4 h-4 text-amber-600" />
+            <TrendingDown className="w-4 h-4 text-text-secondary" />
           </div>
-          <div className="text-base font-bold text-amber-700 mt-1 truncate" title={kpis.lowestGroupName || "—"}>
+          <div className="text-base font-bold text-text-primary mt-1 truncate" title={kpis.lowestGroupName || "—"}>
             {kpis.lowestGroupName || "Lowest Group"}
           </div>
-          <div className="text-[11px] text-amber-600/80 mt-0.5">
+          <div className="text-[11px] text-text-muted mt-0.5">
             Score: {kpis.lowestGroupScore != null ? kpis.lowestGroupScore.toFixed(1) : "—"}
           </div>
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
             <span>Critical Accounts</span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <AlertTriangle className="w-4 h-4 text-danger" />
           </div>
-          <div className="text-2xl font-bold text-rose-700 mt-1">
+          <div className="text-2xl font-bold text-danger mt-1">
             {kpis.criticalCount}
           </div>
-          <div className="text-[11px] text-rose-600/80 mt-0.5">Score under 70 points</div>
+          <div className="text-[11px] text-danger/80 mt-0.5">Score under 70 points</div>
         </div>
       </div>
 
@@ -224,7 +224,7 @@ export function TeamPerformanceTab() {
               onClick={() => setSeverityFilter(key)}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
                 severityFilter === key
-                  ? "bg-brand-50 text-brand-700 border border-brand-200 font-semibold"
+                  ? "bg-brand-subtle text-brand-primary border border-brand-border font-semibold"
                   : "text-text-secondary hover:bg-surface-hover border border-transparent"
               }`}
             >
@@ -242,7 +242,7 @@ export function TeamPerformanceTab() {
                 setSelectedGroupId(e.target.value);
                 setSelectedAccountId("");
               }}
-              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
             >
               <option value="">All Groups</option>
               {groups.map((g) => (
@@ -257,7 +257,7 @@ export function TeamPerformanceTab() {
             <select
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
             >
               <option value="">All Accounts</option>
               {filteredAccounts.map((a) => (
@@ -275,7 +275,7 @@ export function TeamPerformanceTab() {
               placeholder="Search account, group, coordinator..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500"
+              className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
             />
           </div>
         </div>
@@ -285,16 +285,16 @@ export function TeamPerformanceTab() {
       <div className="rounded-xl border border-border-default bg-surface-base shadow-2xs overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
+            <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-2" />
             <p className="text-xs font-medium">Computing team performance rankings...</p>
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <p className="text-sm font-semibold text-rose-700">Failed to load performance scorecards</p>
+            <p className="text-sm font-semibold text-danger">Failed to load performance scorecards</p>
             <p className="text-xs text-text-muted mt-1">{String(error)}</p>
             <button
               onClick={() => refetch()}
-              className="mt-4 px-4 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100 transition cursor-pointer"
+              className="mt-4 px-4 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle border border-brand-border rounded-lg hover:bg-brand-subtle/80 transition cursor-pointer"
             >
               Retry Query
             </button>
@@ -305,8 +305,8 @@ export function TeamPerformanceTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-xs tracking-wider font-semibold">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">Rank</th>
                   <th className="py-3 px-4">Account Scope</th>
@@ -318,25 +318,21 @@ export function TeamPerformanceTab() {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle font-medium">
+              <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
                 {filteredLeaderboard.map((entry, idx) => {
                   const badgeColor =
-                    entry.severity === "Excellent"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : entry.severity === "Good"
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : entry.severity === "Watch"
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200";
+                    entry.severity === "Critical"
+                      ? "bg-danger-subtle text-danger border-danger-border"
+                      : "bg-surface-subtle text-text-secondary border-border-default";
 
                   return (
                     <tr key={entry.accountId} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-3 px-4 text-center font-bold text-text-secondary">
+                      <td className="py-3 px-4 text-center font-bold text-text-secondary text-sm">
                         #{idx + 1}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-text-primary">{entry.accountName}</div>
-                        <div className="text-[10px] text-text-muted">{entry.groupName}</div>
+                        <div className="font-semibold text-text-primary text-sm">{entry.accountName}</div>
+                        <div className="text-xs text-text-muted">{entry.groupName}</div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
@@ -344,36 +340,36 @@ export function TeamPerformanceTab() {
                             {entry.score.toFixed(1)}
                           </span>
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${badgeColor}`}
                           >
                             {entry.severity}
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className="font-semibold text-text-primary">
+                        <span className="font-semibold text-text-primary text-sm">
                           {(entry.mfr * 100).toFixed(1)}%
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         {entry.agedVacancies > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                             {entry.agedVacancies}
                           </span>
                         ) : (
-                          <span className="text-text-muted">0</span>
+                          <span className="text-text-muted text-sm">0</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         {entry.lateHrUpdates > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-danger-subtle text-danger border border-danger-border">
                             {entry.lateHrUpdates}
                           </span>
                         ) : (
-                          <span className="text-text-muted">0</span>
+                          <span className="text-text-muted text-sm">0</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-text-secondary">
+                      <td className="py-3 px-4 text-text-secondary text-sm">
                         {entry.hrcoName || "—"}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -385,7 +381,7 @@ export function TeamPerformanceTab() {
                               group: entry.groupName,
                             })
                           }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-md transition cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
                         >
                           Audit Issues
                           <ChevronRight className="w-3 h-3" />

@@ -307,14 +307,16 @@ export function CustomReportTab() {
           {hasGenerated && (
             <>
               <button
+                type="button"
                 onClick={handleExportXlsx}
                 disabled={!filteredResults.length}
-                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 Export XLSX
               </button>
               <button
+                type="button"
                 onClick={handleExportCsv}
                 disabled={!filteredResults.length}
                 className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
@@ -339,12 +341,13 @@ export function CustomReportTab() {
             const isSelected = selectedSource === src;
             return (
               <button
+                type="button"
                 key={src}
                 onClick={() => handleSourceChange(src)}
                 className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                   isSelected
                     ? "border-brand-500 bg-brand-50/50 shadow-2xs ring-2 ring-brand-500/20"
-                    : "border-border-default bg-surface-base hover:border-slate-300"
+                    : "border-border-default bg-surface-base hover:border-border-strong"
                 }`}
               >
                 <div className="text-xs font-bold text-text-primary">{config.label}</div>
@@ -477,12 +480,13 @@ export function CustomReportTab() {
             const isChecked = selectedColumns.includes(col.key);
             return (
               <button
+                type="button"
                 key={col.key}
                 onClick={() => toggleColumn(col.key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
                   isChecked
                     ? "bg-brand-50 border-brand-300 text-brand-800"
-                    : "bg-surface-base border-border-default text-text-muted hover:border-slate-300"
+                    : "bg-surface-base border-border-default text-text-muted hover:border-border-strong"
                 }`}
               >
                 {isChecked ? (
@@ -500,6 +504,7 @@ export function CustomReportTab() {
       {/* 4. Action Trigger */}
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={handleGenerate}
           disabled={isGenerating}
           className="flex items-center gap-2 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-sm"
@@ -512,7 +517,7 @@ export function CustomReportTab() {
           ) : (
             <>
               <Play className="w-4 h-4 fill-white" />
-              Execute & Generate Preview
+              Execute &amp; Generate Preview
             </>
           )}
         </button>
@@ -526,7 +531,7 @@ export function CustomReportTab() {
 
       {/* Error Message */}
       {genError && (
-        <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-xs">
+        <div className="p-4 rounded-xl border border-danger-border bg-danger-subtle text-danger-text text-xs">
           Failed to generate custom report preview: {genError}
         </div>
       )}
@@ -560,7 +565,7 @@ export function CustomReportTab() {
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[500px]">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-sm">
                 <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold sticky top-0 z-10 shadow-2xs">
                   <tr>
                     {activeConfig.columns

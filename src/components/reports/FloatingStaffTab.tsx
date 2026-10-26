@@ -128,7 +128,7 @@ export function FloatingStaffTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Staffing
             </span>
             <span className="text-xs text-text-muted">Port of FloatingReportScreen</span>
@@ -147,13 +147,13 @@ export function FloatingStaffTab() {
             disabled={isLoading || isRefetching}
             className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
           </button>
           <button
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -175,8 +175,8 @@ export function FloatingStaffTab() {
           onClick={() => setActiveBucket("all")}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "all"
-              ? "border-brand-500 bg-brand-50/50 ring-2 ring-brand-500/20"
-              : "border-border-default bg-surface-base hover:border-slate-300"
+              ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
+              : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
           <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
@@ -190,48 +190,48 @@ export function FloatingStaffTab() {
           onClick={() => setActiveBucket("under30")}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "under30"
-              ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20"
-              : "border-border-default bg-surface-base hover:border-emerald-200"
+              ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
+              : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
             <span>&lt; 30 Days</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
-          <div className="text-2xl font-bold text-emerald-700 mt-1">{under30}</div>
-          <div className="text-[11px] text-emerald-600/80 mt-0.5">Fresh floating status</div>
+          <div className="text-2xl font-bold text-text-primary mt-1">{under30}</div>
+          <div className="text-[11px] text-text-muted mt-0.5">Fresh floating status</div>
         </button>
 
         <button
           onClick={() => setActiveBucket("between30And60")}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "between30And60"
-              ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-500/20"
-              : "border-border-default bg-surface-base hover:border-amber-200"
+              ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
+              : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
             <span>30–60 Days</span>
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
-          <div className="text-2xl font-bold text-amber-700 mt-1">{between30And60}</div>
-          <div className="text-[11px] text-amber-600/80 mt-0.5">Moderate aging warning</div>
+          <div className="text-2xl font-bold text-text-primary mt-1">{between30And60}</div>
+          <div className="text-[11px] text-text-muted mt-0.5">Moderate aging warning</div>
         </button>
 
         <button
           onClick={() => setActiveBucket("over60")}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "over60"
-              ? "border-rose-500 bg-rose-50/50 ring-2 ring-rose-500/20"
-              : "border-border-default bg-surface-base hover:border-rose-200"
+              ? "border-danger bg-danger-subtle ring-2 ring-danger/20"
+              : "border-border-default bg-surface-base hover:border-danger/40"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
             <span>&gt; 60 Days</span>
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            <span className="w-2 h-2 rounded-full bg-danger" />
           </div>
-          <div className="text-2xl font-bold text-rose-700 mt-1">{over60}</div>
-          <div className="text-[11px] text-rose-600/80 mt-0.5">Critical stagnation risk</div>
+          <div className="text-2xl font-bold text-danger mt-1">{over60}</div>
+          <div className="text-[11px] text-danger/80 mt-0.5">Critical stagnation risk</div>
         </button>
       </div>
 
@@ -244,7 +244,7 @@ export function FloatingStaffTab() {
               setSelectedGroupId(e.target.value);
               setSelectedAccountId("");
             }}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Groups</option>
             {groups.map((g) => (
@@ -259,7 +259,7 @@ export function FloatingStaffTab() {
           <select
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Accounts</option>
             {filteredAccounts.map((a) => (
@@ -277,7 +277,7 @@ export function FloatingStaffTab() {
             placeholder="Search employee, no, store, position..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500"
+            className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
           />
         </div>
 
@@ -300,9 +300,9 @@ export function FloatingStaffTab() {
                       if (match) setSelectedAccountId(match.id);
                     }
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition cursor-pointer shrink-0 ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition cursor-pointer shrink-0 ${
                     isSelected
-                      ? "bg-brand-50 border-brand-300 text-brand-800 font-semibold"
+                      ? "bg-brand-subtle border-brand-border text-brand-primary font-semibold"
                       : "bg-surface-muted/60 border-border-subtle text-text-secondary hover:bg-surface-hover"
                   }`}
                 >
@@ -321,16 +321,16 @@ export function FloatingStaffTab() {
       <div className="rounded-xl border border-border-default bg-surface-base shadow-2xs overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
+            <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-2" />
             <p className="text-xs font-medium">Loading floating employee roster...</p>
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <p className="text-sm font-semibold text-rose-700">Failed to load floating staff data</p>
+            <p className="text-sm font-semibold text-danger">Failed to load floating staff data</p>
             <p className="text-xs text-text-muted mt-1">{String(error)}</p>
             <button
               onClick={() => refetch()}
-              className="mt-4 px-4 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100 transition cursor-pointer"
+              className="mt-4 px-4 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle border border-brand-border rounded-lg hover:bg-brand-subtle/80 transition cursor-pointer"
             >
               Retry Query
             </button>
@@ -341,8 +341,8 @@ export function FloatingStaffTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-xs tracking-wider font-semibold">
                 <tr>
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Position</th>
@@ -353,43 +353,41 @@ export function FloatingStaffTab() {
                   <th className="py-3 px-4 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle font-medium">
+              <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
                 {filteredRows.map((r) => {
                   const bucket = getBucket(r.daysFloating);
                   return (
                     <tr key={r.plantillaId} className="hover:bg-surface-hover/50 transition">
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-text-primary">{r.employeeName}</div>
-                        <div className="text-[10px] font-mono text-text-muted">
+                        <div className="font-semibold text-text-primary text-sm">{r.employeeName}</div>
+                        <div className="text-xs font-mono text-text-muted">
                           {r.employeeNo ? `#${r.employeeNo}` : "No Emp #"}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-text-secondary">{r.position || "Staff"}</td>
+                      <td className="py-3 px-4 text-text-secondary text-sm">{r.position || "Staff"}</td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-text-primary">{r.accountName}</div>
-                        <div className="text-[10px] text-text-muted">{r.groupName}</div>
+                        <div className="font-medium text-text-primary text-sm">{r.accountName}</div>
+                        <div className="text-xs text-text-muted">{r.groupName}</div>
                       </td>
-                      <td className="py-3 px-4 text-text-secondary">
+                      <td className="py-3 px-4 text-text-secondary text-sm">
                         {r.storeName || "Unassigned"}
                       </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-text-secondary">
+                      <td className="py-3 px-4 font-mono text-xs text-text-secondary">
                         {r.floatingSince ? r.floatingSince.substring(0, 10) : "—"}
                       </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            bucket === "under30"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : bucket === "between30And60"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-rose-50 text-rose-700 border-rose-200"
+                            bucket === "over60"
+                              ? "bg-danger-subtle text-danger border-danger-border"
+                              : "bg-surface-subtle text-text-primary border-border-default"
                           }`}
                         >
                           {r.daysFloating} days
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                           {r.employmentType || "Stationary"}
                         </span>
                       </td>
