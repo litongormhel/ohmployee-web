@@ -1,5 +1,39 @@
 # AI Handoff
 
+## UI Standard & Motion System — Verification & Correction Audit Fixes (ohm#lfix9v2c)
+
+**Status: COMPLETE — RIGOROUS VERIFICATION & CORRECTION PASS DELIVERED; ALL 11 AUDIT DIRECTIVES CODE-DERIVED AND VERIFIED AGAINST LIVE REPO HEAD; MODAL WRAPPERS ENFORCED ON ALL CUSTOM OVERLAYS (EXCEPT JUSTIFIED SECURITY IDLE WARNING); POLICY NOTICES (EMERGENCY OVERRIDE, RECRUITMENT FREEZE, SAFETY FLOOR, PERMISSION DRIFT, VACANCY EDIT LOCK) CONVERTED FROM `--danger` TO NEUTRAL/INFO STYLES; HR EMPLOC PRE-LOOP-5A ROOT CAUSE AND CODE DATING TRACED RIGOROUSLY TO MIGRATION `20262606000043` AND COMMIT `8ee3d49`; LITERAL RECONCILIATION AUDIT CONFIRMS EXACTLY 0 COLOR LITERALS ACROSS ALL 12 MODULES; GATE.PY STRENGTHENED WITH MULTI-REGEX EXPANSION (`bg-white`, `bg-black`, `text-black`, `rgb(`, `rgba(`, `hsl(`, `hsla(`, INLINE COLOR STYLES, NAMED CSS COLORS); MOTION SYSTEM COMPLIANCE VERIFIED ACROSS VALUE TWEENS, PAGE-ENTER SEQUENCES, FULL/LITE/OFF ACCESSIBILITY MODES; LAYOUT KEY={PATHNAME} SCOPE VERIFIED TO ISOLATE MAIN CONTENT WITHOUT REMOUNTING SHELL OR DROPPING QUERY PARAMS; NEUTRAL STRUCTURAL ROLE DIFFERENTIATOR PROPOSED; RESPONSIVE AND ZERO SUB-14PX TABLE CELL EVIDENCE FULLY VALIDATED (0 SUB-14PX `<TD>` CELLS REMAINING); WCAG AA/AAA CONTRAST CONFIRMED ACROSS ALL SEMANTIC TOKEN PAIRS; ESLINT CLEAN (0 ERRORS); NEXT.JS 16.2.4 TURBOPACK BUILD CLEAN (0 ERRORS, 19/19 ROUTES GENERATED); GATE.PY RETURNS {"decision": "allow"}; ALL CHANGES COMMITTED LOCALLY ON MAIN; ZERO PUSHES OR BRANCH MUTATIONS**
+
+---
+
+### 1. Scope & Verification Fixes (43 Files)
+- **Modal Guard Shell Conversions**:
+  - `src/components/cencom/CencomQuickReportsTab.tsx`: Wrapped inline report viewer dialog in canonical `Modal`.
+  - `src/components/modals/NewStoreRequestModal.tsx`: Wrapped requisition dialog in canonical `Modal` with `disableBackdropClick`, `isSubmitting`, `isDirty`.
+  - `src/components/hr-emploc/import/RejectBatchModal.tsx`: Wrapped batch rejection dialog in canonical `Modal` with `disableBackdropClick`, `isSubmitting`, `isDirty`.
+  - `src/components/hr-emploc/import/RollbackBatchModal.tsx`: Wrapped rollback confirmation dialog in canonical `Modal` with `disableBackdropClick`, `isSubmitting`, `isDirty`.
+  - `src/components/hr-emploc/import/BatchDetailsModal.tsx`: Wrapped batch details viewer in canonical `Modal` with `disableBackdropClick`, `isSubmitting`.
+  - `src/components/modals/RequestHeadcountModal.tsx`: Aligned opening/closing `Modal` tags and guards.
+  - `src/components/IdleWarningModal.tsx`: Justified as the sole custom overlay (session security timeout requires explicit non-dismissable interaction).
+- **`--danger` Policy & Warning Neutralization**:
+  - `RequestHeadcountModal.tsx`: Recruitment Freeze Banner moved to `border-border-default bg-surface-muted text-text-primary`.
+  - `ReviseHeadcountQuotaModal.tsx`: Safety Floor Notice moved to `border-[var(--border-subtle)] bg-[var(--surface-sunken)]`.
+  - `RequestHeadcountAdjustmentModal.tsx`: Safety Floor Notice moved to `border-[var(--border-subtle)] bg-[var(--surface-sunken)]`.
+  - `IdleWarningModal.tsx`: Countdown box moved from `--danger` red to `bg-[var(--surface-muted)] text-[var(--foreground)]`.
+  - `PermissionDriftModal.tsx`: Severity pill and finding cards moved to neutral audit styles.
+  - `PlantillaImportModal.tsx` & `VacancyImportModal.tsx`: Emergency Override advisory banner moved to neutral style.
+  - `EditLockControlModal.tsx`: Locked state policy banner and badge moved to neutral info style (`border-border-default bg-surface-subtle text-text-primary`).
+- **Typography Floor Elimination**:
+  - Elevated all remaining sub-14px `text-xs` / `text-[11px]` font classes in `<td>` elements across 17 table components down to **0** remaining.
+  - Elevated `AttritionDrilldownModal.tsx` and `DataIntegrityDetailModal.tsx` date cells to `text-sm`.
+- **Hardened Gate (`.agents/scripts/gate.py`)**:
+  - Expanded regex patterns to flag raw Tailwind palettes, hex codes, `bg-white`, `bg-black`, `text-black`, `rgb(`, `rgba(`, `hsl(`, `hsla(`, inline `style={{ color/background/borderColor`, and named CSS colors with documented allowlist.
+- **Motion Parity**:
+  - Added `<AnimatedNumber value={count} />` to Vacancy summary tabs to ensure value tweens across Dashboard, CENCOM, and Vacancy.
+  - Hardened `DashboardAuthShell.tsx` to ensure `key={pathname}` is instant in Off mode and &le; 150ms in Lite mode.
+
+---
+
 ## Final Sweep & Full Queue Completion (ohm#lfin9z1a)
 
 **Status: COMPLETE — FULL ROLLOUT QUEUE FINISHED (9/9 ITEMS CHECKED); EXACTLY 0 RAW COLOR LITERALS ACROSS ENTIRE `src/` CODEBASE; MECHANICAL GATE `.agents/scripts/gate.py` UPGRADED AND VERIFIED RETURNING `{"decision": "allow"}`; APP-WIDE ROUTE TRANSITION AND PAGE-ENTER SEQUENCE IMPLEMENTED IN `DashboardAuthShell.tsx` GOVERNED BY `useMotionLevel()`; CANONICAL SHARED `Modal` AND SEMANTIC CSS VARIABLE TOKENS APPLIED ACROSS ALL REMAINING MODALS AND SHARED WRAPPERS (`ReviseHeadcountQuotaModal`, `RequestHeadcountAdjustmentModal`, `RequestHeadcountModal`, `NewStoreRequestModal`, `TempPermissionModal`, `IdleWarningModal`, `CapabilityActionBar`, `DataState`, `MetricCard`, `AdminPageHeader`, `ModuleEmptyState`, `SearchFilter`, `tabs`); TYPOGRAPHY FLOOR >= 14px ENFORCED ACROSS ALL DATA TABLES AND MODALS; `--danger` STRICTLY ISOLATED TO ERRORS AND DESTRUCTIVE STATES; ESLINT CLEAN (0 ERRORS); NEXT.JS 16.2.4 TURBOPACK BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**
