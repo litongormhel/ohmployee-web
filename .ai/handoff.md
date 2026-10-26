@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Loop 7G: More A Governance & Security Alignment (ohm#lmora7g2)
+
+**Status: COMPLETE — ALL 13 GOVERNANCE AND SECURITY SCREENS IN MORE A TOKENIZED TO ZERO COLOR LITERALS (OVER 1,200 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS ROOT AND NESTED CONFIRMATION DIALOGS ACROSS `AuditLogsModal`, `SecurityEventsModal`, `RolePermissionsModal`, `PermissionMatrixModal`, `SwitchRoleModal`, `PermissionDriftModal`, `RovingCoverageGroupsModal`, `EditLockControlModal`, `AccountRequestsModal`, `AccessControlCenterModal`, `OhmsSafespaceModal`, AND `TempPermissionModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; ENFORCED TABLE AND STREAM TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL AUDIT LOGS, MATRICES, AND USER STREAMS; STRICT DESIGN TOKENS ACROSS ALL KPI CARDS, STATUS BADGES, AND ROLE TILES; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, FREEZES, GAPS, BREACHES, RESTRICTIONS, AND INCIDENT REPORTS); ZERO QUERY, RPC, OR GOVERNANCE POLICY DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**
+
+---
+
+### 1. Scope & Component Conversions (13 Files)
+- `src/components/more/AuditLogsModal.tsx`: Standardized audit filter toolbar, timeline streams, detail drawer, and CSV export. Enforced floor >= 14px. (0 literals)
+- `src/components/more/SecurityEventsModal.tsx`: Standardized incident severity metrics, event filters, real-time indicator, and event stream. Enforced floor >= 14px. (0 literals)
+- `src/components/more/RolePermissionsModal.tsx`: Standardized role matrix, permission tags, and capabilities breakdown. Enforced floor >= 14px. (0 literals)
+- `src/components/more/PermissionMatrixModal.tsx`: Wrapped root modal and nested commit changes dialog in canonical `Modal`. Tokenized role capability cells, dirty tracking, and diff summary. Floor >= 14px enforced. (0 literals)
+- `src/components/more/SwitchRoleModal.tsx`: Wrapped simulated role switcher in canonical `Modal`. Tokenized role selection list and audit notice. (0 literals)
+- `src/components/more/PermissionDriftModal.tsx`: Wrapped drift inspector in canonical `Modal`. Tokenized drift alert pills, drift rows, and sync actions. Floor >= 14px enforced. (0 literals)
+- `src/components/more/RovingCoverageGroupsModal.tsx`: Wrapped roving coverage groups in canonical `Modal`. Tokenized group cards, assignment selectors, and active rovers list. Floor >= 14px enforced. (0 literals)
+- `src/components/more/EditLockControlModal.tsx`: Wrapped edit lock control in canonical `Modal`. Applied `--danger` to lock freeze action. (0 literals)
+- `src/components/more/AccountRequestsModal.tsx`: Wrapped root request queue and both Approve/Reject sub-modals in canonical `Modal`. Tokenized registration streams, role selector, and scope manager. Floor >= 14px enforced. (0 literals)
+- `src/components/more/AccessControlCenterModal.tsx`: Wrapped root override center and override reason prompt dialog in canonical `Modal`. Tokenized user directory, module visibility matrix, and audit history. Floor >= 14px enforced. (0 literals)
+- `src/components/more/OhmsSafespaceModal.tsx`: Wrapped owner command center and control state toggle confirmation sub-modal in canonical `Modal`. Tokenized system controls, risk controls, freeze modes, live diagnostics, and security audit log. Floor >= 14px enforced. (0 literals)
+- `src/components/more/TempPermissionModal.tsx`: Wrapped temporary access manager in canonical `Modal`. Tokenized active overrides stream, duration window selector, and past history log. Floor >= 14px enforced. (0 literals)
+- `src/app/(dashboard)/more/page.tsx`: Standardized categorized tab navigation, profile identity card, temporary access banner, command tools, and all feature tiles. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: All 12 modals utilize canonical `Modal` with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, dirty tracking on mutation forms, and keyboard Esc dismiss.
+- **Danger Audit**: `--danger` strictly applied to actual destructive/failed states (account rejection, operational freezes, critical security incidents, permission gaps, session revocations, and capability restrictions). Normal active controls and status chips use neutral tokens.
+- **Color-Use Audit**: Semantic colors reserved strictly for true percentages and verified status boundaries.
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for More A**: Exactly 0 raw color literals across all 13 files.
+- **ESLint**: 0 errors.
+- **Next.js Turbopack Build**: `npm run build` green (0 errors, all 19 routes generated).
+- **ADR Basis**: Compliant with ADR-001/ADR-002; zero security RPCs, RBAC policies, or audit queries modified.
+
+---
+
 ## Loop 7F: Settings & System Governance Alignment (ohm#lset6f8p)
 
 **Status: COMPLETE — ALL 6 SETTINGS AND GOVERNANCE SCREENS TOKENIZED TO ZERO COLOR LITERALS (267 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `ChangePasswordModal` AND 2 CONFIRMATION MODALS IN `SecurityTab` (SINGLE SESSION REVOCATION AND MASS REVOCATION) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; DANGER AUDIT PASSED (--danger STRICTLY FOR REVIEWS, EMERGENCIES, SUSPICIOUS INCIDENTS, AND REVOCATIONS); ZERO QUERY, RPC, OR GOVERNANCE POLICY DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS)**

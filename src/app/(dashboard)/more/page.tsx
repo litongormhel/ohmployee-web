@@ -669,7 +669,7 @@ function MorePageContent() {
                 className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
                     ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                    : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                    : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                 }`}
               >
                 <Icon
@@ -694,26 +694,26 @@ function MorePageContent() {
             {/* Top Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Profile Identity Card */}
-              <div className="md:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="md:col-span-2 bg-surface-primary rounded-2xl p-5 border border-border-default shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-700 text-white flex items-center justify-center font-bold text-xl shadow-md border-2 border-white shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-surface-elevated text-text-primary flex items-center justify-center font-bold text-xl shadow-md border-2 border-border-default shrink-0">
                     {currentUser?.displayName
                       ? currentUser.displayName.slice(0, 2).toUpperCase()
                       : "OH"}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                      <h2 className="text-lg font-bold text-text-primary leading-tight">
                         {currentUser?.displayName || "Signed In User"}
                       </h2>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-900 text-white">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-surface-subtle text-text-primary border border-border-default">
                         {roleName}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-text-secondary mt-0.5">
                       {currentUser?.email || "No email available"}
                     </p>
-                    <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-400">
+                    <div className="flex items-center gap-2 mt-2 text-xs text-text-muted">
                       <span>
                         Scope:{" "}
                         {currentUser?.groupScope.mode === "all"
@@ -729,7 +729,7 @@ function MorePageContent() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/settings"
-                    className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-2 text-xs font-semibold text-text-primary bg-surface-primary hover:bg-surface-hover border border-border-default rounded-xl transition-colors flex items-center gap-1.5"
                   >
                     <Settings className="w-3.5 h-3.5" />
                     <span>Account Settings</span>
@@ -738,7 +738,7 @@ function MorePageContent() {
                     type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="px-3.5 py-2 text-xs font-semibold text-danger-text bg-danger-surface hover:bg-danger-border/30 border border-danger-border rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>{isLoggingOut ? "Signing Out..." : "Sign Out"}</span>
@@ -747,26 +747,26 @@ function MorePageContent() {
               </div>
 
               {/* Quick Metrics / Temp Access Banner Card */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex flex-col justify-between">
+              <div className="bg-surface-primary rounded-2xl p-5 border border-border-default shadow-2xs flex flex-col justify-between">
                 {activeTempAccess && !activeTempAccess.isExpired ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
-                        <Key className="w-4 h-4 text-amber-600" />
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+                        <Key className="w-4 h-4 text-brand-primary" />
                         <span>Temporary Access Active</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 uppercase">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default uppercase">
                         Override
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-text-secondary">
                       Groups:{" "}
-                      <span className="font-semibold">
+                      <span className="font-semibold text-text-primary">
                         {activeTempAccess.additionalGroups.join(", ")}
                       </span>
                     </p>
-                    <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-600" />
+                    <p className="text-xs text-text-muted flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-text-muted" />
                       Expires{" "}
                       {new Date(activeTempAccess.expiresAt).toLocaleString()}
                     </p>
@@ -774,30 +774,30 @@ function MorePageContent() {
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+                        <ShieldCheck className="w-4 h-4 text-text-primary" />
                         <span>Standard Governance Scope</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase">
                         Normal
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-text-secondary">
                       Operating with persistent role permissions. No temporary
                       overrides applied.
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-text-muted">
                       CENCOM Cutoff Window:{" "}
-                      <span className="font-medium text-slate-600">
+                      <span className="font-medium text-text-secondary">
                         Mon 5PM – Tue 2PM
                       </span>
                     </p>
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <div className="pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-secondary">
                   <span>Security Level:</span>
-                  <span className="font-bold text-slate-800">
+                  <span className="font-bold text-text-primary">
                     {isSuperAdmin
                       ? "Root Authority"
                       : isHeadAdmin
@@ -831,10 +831,10 @@ function MorePageContent() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-rose-600" />
+                  <ShieldAlert className="w-4 h-4 text-danger-text" />
                   <span>High-Level Command Tools</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-danger-surface text-danger-text border border-danger-border uppercase tracking-wider">
                   Super Admin Level 100
                 </span>
               </div>
@@ -853,10 +853,10 @@ function MorePageContent() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Key className="w-4 h-4 text-purple-600" />
+                  <Key className="w-4 h-4 text-brand-primary" />
                   <span>Authorization & Role Governance</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase tracking-wider">
                   Security Matrix
                 </span>
               </div>
@@ -875,10 +875,10 @@ function MorePageContent() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-blue-600" />
+                  <FileText className="w-4 h-4 text-brand-primary" />
                   <span>Integrity Checks & System Audit Trails</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-900 border border-brand-200 uppercase tracking-wider">
                   Compliance
                 </span>
               </div>
@@ -898,17 +898,17 @@ function MorePageContent() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Database className="w-4 h-4 text-emerald-600" />
+                  <Database className="w-4 h-4 text-text-primary" />
                   <span>Data Control & Batch Ingestion</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase tracking-wider">
                   Mobile Parity
                 </span>
               </div>
             </div>
 
             {/* Secondary Pill-Style Sub-Tab Navigation Bar */}
-            <div className="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 gap-1 self-start">
+            <div className="inline-flex p-1 bg-surface-subtle rounded-xl border border-border-default gap-1 self-start">
               <button
                 type="button"
                 role="tab"
@@ -916,17 +916,17 @@ function MorePageContent() {
                 onClick={() => handleSubTabChange("operations")}
                 className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   dataControlSubTab === "operations"
-                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent"
+                    ? "bg-surface-primary text-text-primary shadow-2xs border border-border-default font-bold"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+                <ShieldCheck className="w-3.5 h-3.5 text-text-muted" />
                 <span>Operations & Governance</span>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
                     dataControlSubTab === "operations"
-                      ? "bg-slate-100 text-slate-900"
-                      : "bg-slate-200/70 text-slate-600"
+                      ? "bg-surface-subtle text-text-primary"
+                      : "bg-surface-primary text-text-muted"
                   }`}
                 >
                   {visibleOperationsTiles.length}
@@ -940,17 +940,17 @@ function MorePageContent() {
                 onClick={() => handleSubTabChange("batch_imports")}
                 className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   dataControlSubTab === "batch_imports"
-                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent"
+                    ? "bg-surface-primary text-text-primary shadow-2xs border border-border-default font-bold"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
                 }`}
               >
-                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <Upload className="w-3.5 h-3.5 text-text-muted" />
                 <span>Batch Imports</span>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
                     dataControlSubTab === "batch_imports"
-                      ? "bg-slate-100 text-slate-900"
-                      : "bg-slate-200/70 text-slate-600"
+                      ? "bg-surface-subtle text-text-primary"
+                      : "bg-surface-primary text-text-muted"
                   }`}
                 >
                   {visibleBatchImportTiles.length}
@@ -1116,26 +1116,20 @@ function TileCard({ tile }: { tile: MoreFeatureTile }) {
   const Icon = tile.icon;
 
   const content = (
-    <div className="h-full bg-white rounded-2xl p-5 border border-slate-200/90 hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer">
+    <div className="h-full bg-surface-primary rounded-2xl p-5 border border-border-default hover:border-brand-primary hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-slate-900 group-hover:text-white text-slate-700 flex items-center justify-center transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-surface-subtle group-hover:bg-brand-50 group-hover:text-brand-900 text-text-secondary flex items-center justify-center transition-colors">
             <Icon className="w-5 h-5" />
           </div>
 
           <div className="flex items-center gap-1.5">
             {tile.badgeLabel && (
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                   tile.badgeVariant === "rose"
-                    ? "bg-rose-100 text-rose-800 border border-rose-200/60"
-                    : tile.badgeVariant === "purple"
-                    ? "bg-purple-100 text-purple-800 border border-purple-200/60"
-                    : tile.badgeVariant === "amber"
-                    ? "bg-amber-100 text-amber-800 border border-amber-200/60"
-                    : tile.badgeVariant === "emerald"
-                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200/60"
-                    : "bg-slate-100 text-slate-800 border border-slate-200/60"
+                    ? "bg-danger-surface text-danger-text border border-danger-border"
+                    : "bg-surface-subtle text-text-secondary border border-border-default"
                 }`}
               >
                 {tile.badgeLabel}
@@ -1143,16 +1137,16 @@ function TileCard({ tile }: { tile: MoreFeatureTile }) {
             )}
 
             {tile.href && (
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition-colors ml-1" />
+              <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-brand-primary transition-colors ml-1" />
             )}
           </div>
         </div>
 
         <div>
-          <h3 className="text-sm font-bold text-slate-900 group-hover:text-slate-950 transition-colors leading-tight">
+          <h3 className="text-sm font-semibold text-text-primary group-hover:text-brand-primary transition-colors leading-tight">
             {tile.title}
           </h3>
-          <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-text-secondary mt-1 line-clamp-2 leading-relaxed">
             {tile.description}
           </p>
         </div>

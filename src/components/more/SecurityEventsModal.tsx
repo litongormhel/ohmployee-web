@@ -11,10 +11,10 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { useSecurityEvents } from "@/lib/queries/governance";
 import { createClient } from "@/lib/supabase/client";
+import { Modal } from "@/components/shared/Modal";
 
 export interface SecurityEventsModalProps {
   isOpen: boolean;
@@ -26,7 +26,6 @@ export function SecurityEventsModal({
   isOpen,
   onClose,
 }: SecurityEventsModalProps) {
-
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [dateRangeDays, setDateRangeDays] = useState<number>(7);
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,8 +65,6 @@ export function SecurityEventsModal({
     };
   }, [isOpen, refetch]);
 
-  if (!isOpen) return null;
-
   const toggleExpand = (id: string) => {
     setExpandedEvents((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -93,112 +90,68 @@ export function SecurityEventsModal({
   ).length;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 sm:p-6"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Security Events & Threat Stream"
+      subtitle="Real-time security telemetry, suspicious authentication alerts, and administrative session terminations."
+      icon={ShieldAlert}
+      maxWidthClass="max-w-6xl"
     >
-      <div className="relative flex h-[90vh] max-h-[850px] w-full max-w-6xl flex-col rounded-2xl border border-border-default bg-surface-card shadow-2xl overflow-hidden">
-        {/* Modal Header */}
-        <div className="flex flex-wrap items-center justify-between border-b border-border-subtle bg-surface-base/80 px-6 py-4 gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 border border-purple-500/20">
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-text-primary">Security Events & Threat Stream</h2>
-                <span className="rounded-md bg-purple-50 px-2 py-0.5 text-2xs font-extrabold text-purple-700 border border-purple-200 uppercase">
-                  Super Admin
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-2xs font-bold text-emerald-700 border border-emerald-200">
-                  <span className={`h-1.5 w-1.5 rounded-full ${isLiveActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
-                  {isLiveActive ? "Live Realtime" : "Polling"}
-                </span>
-              </div>
-              <p className="text-xs text-text-secondary mt-0.5">
-                Real-time security telemetry, suspicious authentication alerts, and administrative session terminations.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-card px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${
-                  isFetching ? "animate-spin text-purple-600" : "text-text-muted"
-                }`}
-              />
-              Refresh
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
+      <div className="flex flex-col h-[75vh]">
         {/* Top Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-border-subtle bg-surface-card px-6 py-4">
-          <div className="rounded-xl border border-border-subtle bg-surface-base p-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 border-b border-border-subtle bg-surface-base px-2 py-4">
+          <div className="rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-text-secondary font-semibold">
               <span>Total Events</span>
-              <Shield className="h-4 w-4 text-purple-600" />
+              <Shield className="h-4 w-4 text-brand-primary" />
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-text-primary">{events.length}</span>
-              <span className="text-2xs font-semibold text-purple-600">Captured</span>
+              <span className="text-xs font-semibold text-text-muted">Captured</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border-subtle bg-surface-base p-3.5">
-            <div className="flex items-center justify-between text-xs text-text-secondary font-semibold">
+          <div className="rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-danger font-semibold">
               <span>Critical Incidents</span>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTriangle className="h-4 w-4 text-danger" />
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-red-600">{criticalCount}</span>
+              <span className="text-2xl font-extrabold text-danger">{criticalCount}</span>
               {criticalCount > 0 ? (
-                <span className="text-2xs font-bold text-red-700">Immediate Investigation</span>
+                <span className="text-xs font-bold text-danger">Immediate Action</span>
               ) : (
-                <span className="text-2xs font-semibold text-emerald-600">Zero Critical</span>
+                <span className="text-xs font-semibold text-text-muted">Zero Critical</span>
               )}
             </div>
           </div>
 
-          <div className="rounded-xl border border-border-subtle bg-surface-base p-3.5">
+          <div className="rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-text-secondary font-semibold">
               <span>High Severity</span>
-              <Flame className="h-4 w-4 text-orange-600" />
+              <Flame className="h-4 w-4 text-text-secondary" />
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-orange-600">{highCount}</span>
-              <span className="text-2xs font-semibold text-orange-600">Flagged</span>
+              <span className="text-2xl font-extrabold text-text-primary">{highCount}</span>
+              <span className="text-xs font-semibold text-text-muted">Flagged</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border-subtle bg-surface-base p-3.5">
+          <div className="rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-text-secondary font-semibold">
               <span>Terminated Sessions</span>
-              <LogOut className="h-4 w-4 text-brand-600" />
+              <LogOut className="h-4 w-4 text-text-secondary" />
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-text-primary">{terminatedCount}</span>
-              <span className="text-2xs font-semibold text-text-muted">Revoked</span>
+              <span className="text-xs font-semibold text-text-muted">Revoked</span>
             </div>
           </div>
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="flex flex-wrap items-center justify-between border-b border-border-subtle bg-surface-base px-6 py-3 gap-3">
+        <div className="flex flex-wrap items-center justify-between border-b border-border-subtle bg-surface-base px-2 py-3 gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
@@ -207,7 +160,7 @@ export function SecurityEventsModal({
                 placeholder="Search event, actor, details..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8.5 w-full rounded-lg border border-border-default bg-surface-card pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+                className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default"
               />
             </div>
 
@@ -217,10 +170,10 @@ export function SecurityEventsModal({
                   key={sev}
                   type="button"
                   onClick={() => setSeverityFilter(sev)}
-                  className={`rounded-lg px-2.5 py-1 text-2xs font-bold uppercase transition cursor-pointer ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase transition cursor-pointer ${
                     severityFilter === sev
-                      ? "bg-purple-600 text-white"
-                      : "bg-surface-card text-text-secondary hover:bg-surface-hover border border-border-subtle"
+                      ? "bg-brand-primary text-text-inverse"
+                      : "bg-surface-base text-text-secondary hover:bg-surface-hover border border-border-subtle"
                   }`}
                 >
                   {sev}
@@ -231,7 +184,7 @@ export function SecurityEventsModal({
             <select
               value={dateRangeDays}
               onChange={(e) => setDateRangeDays(Number(e.target.value))}
-              className="h-8.5 rounded-lg border border-border-default bg-surface-card px-2.5 text-xs font-medium text-text-primary focus:border-brand-500 focus:outline-hidden"
+              className="h-8.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               <option value={1}>Last 24 Hours</option>
               <option value={7}>Last 7 Days</option>
@@ -240,21 +193,36 @@ export function SecurityEventsModal({
             </select>
           </div>
 
-          <span className="text-2xs text-text-muted font-mono">
-            Showing {filteredEvents.length} events
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-muted font-mono">
+              Showing {filteredEvents.length} events
+            </span>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${
+                  isFetching ? "animate-spin text-brand-primary" : "text-text-muted"
+                }`}
+              />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Events Feed Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {isLoading ? (
             <div className="flex h-64 flex-col items-center justify-center gap-3 text-text-muted">
-              <RefreshCw className="h-8 w-8 animate-spin text-purple-600" />
+              <RefreshCw className="h-8 w-8 animate-spin text-brand-primary" />
               <p className="text-xs">Fetching security events stream...</p>
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border-default p-12 text-center text-xs text-text-muted">
-              <ShieldCheck className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
+              <ShieldCheck className="mx-auto h-8 w-8 text-brand-primary mb-2" />
               <p className="font-semibold text-text-primary">No security events found</p>
               <p className="mt-0.5 text-text-muted">
                 No threat indicators or authentication alerts recorded for the selected period.
@@ -263,7 +231,6 @@ export function SecurityEventsModal({
           ) : (
             filteredEvents.map((ev) => {
               const isCrit = ev.severity.toLowerCase() === "critical";
-              const isHigh = ev.severity.toLowerCase() === "high";
               const isExpanded = expandedEvents[ev.id];
 
               return (
@@ -271,38 +238,34 @@ export function SecurityEventsModal({
                   key={ev.id}
                   className={`rounded-xl border p-4 transition shadow-2xs ${
                     isCrit
-                      ? "border-red-200 bg-red-50/15"
-                      : isHigh
-                      ? "border-orange-200 bg-orange-50/15"
-                      : "border-border-default bg-surface-card"
+                      ? "border-danger-border bg-danger-subtle/50"
+                      : "border-border-default bg-surface-base"
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <span
-                        className={`rounded-md px-2 py-0.5 text-2xs font-extrabold uppercase tracking-wider ${
+                        className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
                           isCrit
-                            ? "bg-red-100 text-red-800 border border-red-200"
-                            : isHigh
-                            ? "bg-orange-100 text-orange-800 border border-orange-200"
-                            : "bg-blue-100 text-blue-800 border border-blue-200"
+                            ? "bg-danger-subtle text-danger border border-danger-border"
+                            : "bg-surface-subtle text-text-primary border border-border-default"
                         }`}
                       >
                         {ev.severity}
                       </span>
-                      <h4 className="text-xs font-bold text-text-primary">{ev.action}</h4>
-                      <span className="font-mono text-2xs bg-surface-base px-2 py-0.5 rounded-md border border-border-subtle text-text-muted">
+                      <h4 className="text-sm font-bold text-text-primary">{ev.action}</h4>
+                      <span className="font-mono text-xs bg-surface-subtle px-2 py-0.5 rounded-md border border-border-subtle text-text-muted">
                         {ev.eventType}
                       </span>
                     </div>
 
-                    <span className="text-2xs font-mono text-text-muted flex items-center gap-1">
+                    <span className="text-xs font-mono text-text-muted flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {new Date(ev.happenedAt).toLocaleString()}
                     </span>
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-4 text-2xs text-text-secondary">
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-text-secondary">
                     {ev.actorName && (
                       <span>
                         Actor: <strong className="text-text-primary">{ev.actorName}</strong> ({ev.actorRole ?? "User"})
@@ -317,7 +280,7 @@ export function SecurityEventsModal({
                       <button
                         type="button"
                         onClick={() => toggleExpand(ev.id)}
-                        className="text-brand-600 font-semibold hover:underline cursor-pointer"
+                        className="text-brand-primary font-semibold hover:underline cursor-pointer"
                       >
                         {isExpanded ? "Hide Payload" : "Inspect Payload"}
                       </button>
@@ -325,7 +288,7 @@ export function SecurityEventsModal({
                   </div>
 
                   {isExpanded && ev.details && (
-                    <pre className="mt-3 rounded-lg bg-surface-base p-3 font-mono text-2xs text-text-secondary border border-border-subtle overflow-x-auto">
+                    <pre className="mt-3 rounded-lg bg-surface-subtle p-3 font-mono text-xs text-text-secondary border border-border-subtle overflow-x-auto">
                       {JSON.stringify(ev.details, null, 2)}
                     </pre>
                   )}
@@ -336,19 +299,25 @@ export function SecurityEventsModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-border-subtle bg-surface-base px-6 py-3">
-          <span className="text-2xs text-text-muted font-mono">
-            Table: public.security_events • Realtime channel: gov_sec_events
-          </span>
+        <div className="flex items-center justify-between border-t border-border-subtle bg-surface-base px-2 py-3 pt-4">
+          <div className="flex items-center gap-2 text-xs text-text-muted font-mono">
+            <span>Table: public.security_events • Realtime channel: gov_sec_events</span>
+            {isLiveActive && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-primary animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border-default bg-surface-card px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition cursor-pointer"
+            className="rounded-lg border border-border-default bg-surface-base px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition cursor-pointer"
           >
             Close
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
