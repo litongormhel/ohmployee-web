@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Clock, FileText, Loader2, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, Clock, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { useCreateDeactivationRequest } from "@/lib/queries/plantilla";
+import { Modal } from "@/components/shared/Modal";
 
 export interface RequestDeactivationModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export function RequestDeactivationModal({
 
   const mutation = useCreateDeactivationRequest();
 
-  if (!isOpen) return null;
+  const isDirty = remarks.trim() !== "" || reason !== DEACTIVATION_REASONS[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,129 +68,109 @@ export function RequestDeactivationModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="deactivation-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Request Personnel Deactivation"
+      subtitle={
+        <span className="font-mono text-text-secondary text-xs">
+          {employeeNo} • {employeeName} • Status: {currentStatus || "Inactive"}
+        </span>
+      }
+      icon={ShieldAlert}
+      isSubmitting={mutation.isPending}
+      isDirty={isDirty}
+      maxWidthClass="max-w-lg"
     >
-      <div className="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-amber-50/70">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700 border border-amber-200">
-              <ShieldAlert className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 id="deactivation-modal-title" className="text-base font-semibold text-gray-900">
-                Request Personnel Deactivation
-              </h2>
-              <p className="text-xs text-gray-500 font-mono">
-                {employeeNo} &bull; {employeeName} &bull; Status: {currentStatus || "Inactive"}
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* 15-day clearance policy notice */}
+        <div className="rounded-lg border border-border-default bg-surface-muted p-3.5 flex items-start gap-3">
+          <Clock className="h-5 w-5 shrink-0 text-text-secondary mt-0.5" />
+          <div className="text-xs text-text-primary leading-relaxed">
+            <span className="font-semibold text-text-primary">Standard 15-Day Clearance Notice:</span>
+            <p className="mt-0.5 text-text-secondary">
+              Standard operating policy mandates a 15-day clearance and asset recovery window before final
+              Super Admin / Head Admin deactivation approval. Submitting this request places the personnel
+              record in the <strong className="text-text-primary">Approvals Center</strong> queue.
+            </p>
           </div>
+        </div>
+
+        {/* Deactivation Reason Category */}
+        <div className="space-y-1.5">
+          <label htmlFor="deactivation-reason" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            Deactivation Justification <span className="text-danger-text">*</span>
+          </label>
+          <select
+            id="deactivation-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs text-text-primary shadow-xs focus:border-brand-primary focus:outline-hidden"
+          >
+            {DEACTIVATION_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Mandatory Remarks Textarea */}
+        <div className="space-y-1.5">
+          <label htmlFor="deactivation-remarks" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            Mandatory Remarks &amp; Clearance Notes <span className="text-danger-text">*</span>
+          </label>
+          <textarea
+            id="deactivation-remarks"
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            rows={3}
+            required
+            placeholder="State the detailed justification, clearance verification status, or exit notes (required)..."
+            className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-muted shadow-xs focus:border-brand-primary focus:outline-hidden"
+          />
+          <p className="text-[11px] text-text-secondary">
+            Explain why this profile should be formally queued for archiving and locking.
+          </p>
+        </div>
+
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger-text flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-danger-text mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Action Footer */}
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-default">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
-            aria-label="Close modal"
+            disabled={mutation.isPending}
+            className="rounded-lg border border-border-default bg-surface px-4 py-2 text-xs font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary disabled:opacity-50 transition-colors cursor-pointer"
           >
-            <X className="h-5 w-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={mutation.isPending || !remarks.trim()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {mutation.isPending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Submitting Request...
+              </>
+            ) : (
+              <>
+                <FileText className="h-3.5 w-3.5" />
+                Submit Deactivation Request
+              </>
+            )}
           </button>
         </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* 15-day clearance policy notice */}
-          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3.5 flex items-start gap-3">
-            <Clock className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
-            <div className="text-xs text-amber-900 leading-relaxed">
-              <span className="font-semibold">Standard 15-Day Clearance Notice:</span>
-              <p className="mt-0.5 text-amber-800">
-                Standard operating policy mandates a 15-day clearance and asset recovery window before final
-                Super Admin / Head Admin deactivation approval. Submitting this request places the personnel
-                record in the <strong>Approvals Center</strong> queue.
-              </p>
-            </div>
-          </div>
-
-          {/* Deactivation Reason Category */}
-          <div className="space-y-1.5">
-            <label htmlFor="deactivation-reason" className="block text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Deactivation Justification <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="deactivation-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
-              {DEACTIVATION_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Mandatory Remarks Textarea */}
-          <div className="space-y-1.5">
-            <label htmlFor="deactivation-remarks" className="block text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Mandatory Remarks &amp; Clearance Notes <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="deactivation-remarks"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              rows={3}
-              required
-              placeholder="State the detailed justification, clearance verification status, or exit notes (required)..."
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            />
-            <p className="text-[11px] text-gray-500">
-              Explain why this profile should be formally queued for archiving and locking.
-            </p>
-          </div>
-
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Action Footer */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={mutation.isPending}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending || !remarks.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 disabled:opacity-50 transition cursor-pointer"
-            >
-              {mutation.isPending ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Submitting Request...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-3.5 w-3.5" />
-                  Submit Deactivation Request
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

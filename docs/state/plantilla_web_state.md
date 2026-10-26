@@ -599,12 +599,9 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 ### Phase 5: Action Mutations Integration
 - Hook up React Query mutations (`useMutation`) to backend action RPCs:
 
-### Phase 6: UI Standard & Motion System Alignment (Loop 6A) ✅ COMPLETE
-- Wrapped `PlantillaDetailDrawer` and all pool/store drawers with canonical `@/components/shared/DetailDrawer` (`drawer-width-lg`).
-- Tokenized all 9 drawers and directory tables: `page.tsx`, `PlantillaDetailDrawer.tsx`, `PoolEmployeeDetailDrawer.tsx`, `PoolOpenSlotsDrawer.tsx`, `PoolRequestHistoryDrawer.tsx`, `PoolReviewQueueDrawer.tsx`, `SlotDetailDrawer.tsx`, `StoreStaffingDrawer.tsx`, `StoreStaffingOverviewDrawer.tsx`.
-- Table text floor strictly enforced at $\ge 14\text{px}$ (`text-sm`).
-- MFR and fill rate bars centralized with semantic `--pct-*` token integration.
-- Exactly 0 non-percentage color literals across all Loop 6A files. Single-account auto-fire and ADR-001 account gate intact.
+### Phase 6: UI Standard & Motion System Alignment (Loop 6A & 6B) ✅ COMPLETE
+- **Loop 6A (Drawers & Tables)**: Wrapped `PlantillaDetailDrawer` and all 8 pool/store drawers with canonical `@/components/shared/DetailDrawer` (`drawer-width-lg`). Tokenized directory page, account gate selection, MFR / fill rate bars, tab pills, and member/vacancy tables (0 literals, $\ge 14\text{px}$ floor).
+- **Loop 6B (Modals & Forms)**: Standardized all 8 Plantilla lifecycle modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`) with canonical `Modal` at `z-[60]` (stacks above `DetailDrawer` at `z-50`). Hardened `isSubmitting`, `isDirty`, and backdrop guards. Preserved `--danger` strictly for validation errors and destructive actions. Exactly 0 literals across all 8 modals.
   - Submit personnel store transfer.
   - Request Additional Headcount (AH).
   - Initiate separation workflow (Resignation / Termination / Backout).

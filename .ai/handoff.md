@@ -1,5 +1,59 @@
 # AI Handoff
 
+## UI Standard & Motion System — Loop 6B: Plantilla Modals & Forms Alignment (ohm#l6b2n7k4)
+
+**Status: COMPLETE — LOOP 6B (PLANTILLA MODALS & FORMS) ALIGNED TO UI STANDARD; ALL 391 COLOR LITERALS ELIMINATED DOWN TO 0 ACROSS 8 LIFECYCLE MODALS; WRAPPED IN CANONICAL `Modal` AT `z-[60]` STACKING CLEANLY OVER `DetailDrawer` AT `z-50`; FORM SUBMISSION (`isSubmitting`) AND DIRTY FORM PROTECTION (`isDirty`) HARDENED TO PREVENT ACCIDENTAL DISMISSAL ON BACKDROP OR ESCAPE; PRESERVED `--danger` TOKENS STRICTLY FOR ACTUAL VALIDATION ERROR ALERTS AND DESTRUCTIVE ACTIONS (`InitiateSeparationModal`); ESLINT CLEAN (0 ERRORS); FULL PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 3.0s)**
+
+---
+
+### 1. ADR Basis & Invariants Verification
+- **ADR Basis**:
+  - `ADR-001: Coverage Architecture v2`: Core Decisions 6, 7, 8, 12, 13 (Workforce Slot vacancy on separation, Store vacancy retention); Employee Integrity Lock ($\ge 1$ active store assignment retained during movements); Addition `ohm#k8d2x7qf` & `ohm#7gk2d9xq` (HRCO Scope Isolation).
+  - `ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture`.
+- **Invariants Checked & Verified**:
+  - **Slot Vacancy Invariant**: `InitiateSeparationModal` and `TransferPersonnelModal` retain explicit ADR-001 slot vacancy notices and preserve `openVacancy: true` parameter logic.
+  - **Cross-Island Guard**: `TransferPersonnelModal` retains the dynamic island group derivation (`deriveIslandGroup`) and alerts operations on inter-island regional reassignments.
+  - **Pool Conversion Contract**: `RequestPoolConversionModal` preserves the account and store cascading pickers and submits payload to `useRequestPoolConversion` with full parameter parity.
+  - **15-Day Clearance Notice**: `RequestDeactivationModal` maintains the standard 15-day asset clearance policy and routes to the Approvals queue.
+
+---
+
+### 2. File Alignment & Color Literal Elimination Breakdown
+| File | Baseline Literals | Post-Loop 6B Literals | Architecture & Alignment Actions |
+|---|---|---|---|
+| `src/components/plantilla/UpdateScheduleModal.tsx` | 14 | **0** | Wrapped in canonical `Modal`; tokenized day-of-week pills, time presets, and dayoff buttons; error banner tokenized |
+| `src/components/plantilla/InitiateSeparationModal.tsx` | 44 | **0** | Wrapped in canonical `Modal`; destructive separation button styled with `--danger`; ADR-001 slot notice tokenized |
+| `src/components/plantilla/RequestDeactivationModal.tsx` | 38 | **0** | Wrapped in canonical `Modal`; 15-day clearance policy notice tokenized; error alert tokenized with `--danger` |
+| `src/components/plantilla/RequestPoolConversionModal.tsx` | 39 | **0** | Wrapped in canonical `Modal`; account/store cascading dropdowns tokenized; submit states hardened |
+| `src/components/plantilla/RequestPoolHeadcountModal.tsx` | 44 | **0** | Wrapped in canonical `Modal`; pool type and position select inputs tokenized; priority selectors tokenized |
+| `src/components/plantilla/RequestRelieverCoverageModal.tsx` | 45 | **0** | Wrapped in canonical `Modal`; date range pickers and priority selectors tokenized; error alert tokenized |
+| `src/components/plantilla/UpdateEmploymentStatusModal.tsx` | 69 | **0** | Wrapped in canonical `Modal`; status selection radio cards tokenized using semantic `--pct-*` tokens for Active/On-Leave; conditional leave reason inputs tokenized |
+| `src/components/plantilla/TransferPersonnelModal.tsx` | 98 | **0** | Wrapped in canonical `Modal` (`maxWidthClass="max-w-2xl"`); source vs destination comparison cards tokenized; searchable store list box tokenized; cross-island warning banner tokenized |
+| **Total Loop 6B** | **391** | **0** | **100% of Loop 6B literals eliminated** |
+
+---
+
+### 3. Build & Mechanical Gate Evidence
+- **ESLint**:
+  - Command: `npm run lint`
+  - Output: `✖ 26 problems (0 errors, 26 pre-existing warnings in other modules)`
+  - Status: **PASSED (0 errors)**
+- **Next.js Production Build**:
+  - Command: `npm run build`
+  - Compiler: Next.js 16.2.4 (Turbopack)
+  - Time: Compiled in 3.0s, TypeScript in 7.9s
+  - Output: `✓ Generating static pages using 9 workers (19/19) in 205ms`
+  - Status: **PASSED (19/19 static routes valid, 0 errors)**
+
+---
+
+### 4. Remaining Scope for Plantilla Module
+- **Loop 6C (198 literals): Specialized Pool Views & Analytics**
+  - Files: `WorkforceAnalyticsView.tsx` (145), `MosesHqPoolView.tsx` (53).
+  - Scope: Tokenize analytical charts, breakdown tables, and Moses pool management views to bring entire Plantilla module (1,031 baseline literals) to 0.
+
+---
+
 ## UI Standard & Motion System — Loop 6A: Plantilla Drawers & Table Alignment (ohm#l6a1m4w9)
 
 **Status: COMPLETE — LOOP 6A (PLANTILLA DRAWERS & DIRECTORY TABLES) ALIGNED TO UI STANDARD; ALL 442 COLOR LITERALS ELIMINATED DOWN TO 0 ACROSS 9 TOUCHED FILES; WRAPPED `PlantillaDetailDrawer` AND 8 POOL/STORE DRAWERS IN CANONICAL `DetailDrawer` (`drawer-width-lg`); TOKENIZED ACCOUNT GATE SELECTION CARDS, MFR / FILL RATE PROGRESS BARS, TAB PILLS, MAIN DIRECTORY TABLE, AND VACANCY TABLE; PRESERVED 14PX MINIMUM TABLE TYPOGRAPHY FLOOR (`text-sm`); PRESERVED SINGLE-ACCOUNT AUTO-FIRE AND ADR-001 ACCOUNT SELECTION GATE; ESLINT CLEAN (0 ERRORS); FULL PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 5.3s)**
