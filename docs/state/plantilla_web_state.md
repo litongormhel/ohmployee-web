@@ -622,7 +622,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Expanded `pib_status_check` constraint on `plantilla_import_batches` to include `'blocked'`, `'partially_blocked'`, and `'pending_review'`.
     - Refactored `submit_plantilla_baseline_import` from $O(N^2)$ row-by-row nested JSON lookups to $O(N)$ set-based CTE aggregation with single bulk insert, reducing 1,326-row ingestion time from >25s to <1s.
     - Attached `SET statement_timeout = '60s'` to `submit_plantilla_baseline_import`, `approve_plantilla_import_batch`, and all 4 rollback RPCs, permanently preventing role-level 8s timeout aborts on large files.
-  - **Store Name Multi-VCODE Governance & Review Queue Scaling (Migration `20262606000066`)**:
+  - **Store Name Multi-VCODE Governance & Review Queue Scaling (Migration `20262606000072_relax_store_name_multivcode_rule.sql`, formerly `...066`)**:
     - Relaxed `STORE_NAME is mapped to multiple different VCODEs in upload` from a hard block (`validation_errors`) to an advisory warning (`validation_flags` with flag `multiple_vcodes_per_store`), permitting motorized collection accounts (e.g., Alturas/BPI) with multiple collector VCODEs in a single municipality to be imported and approved.
     - Retained strict hard-block corruption guard on the inverse check (`VCODE is mapped to multiple different STORE_NAMEs in upload`).
     - Client Row Fetching Pagination (`dataControl.ts`): Implemented async while-loop in `fetchPlantillaImportRows` querying `get_plantilla_import_rows` in chunks of 1,000, removing the former 500-row cap and ensuring all 1,326+ rows are displayed in the Review Queue row inspector with 100% filter pill alignment.
@@ -723,7 +723,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Repaired orphaned vacancies (including `CPRVJV13`), slots, and stores via SQL backfill.
 
 - **Plantilla Import Role Check Regression Fix & Helper Function Parity (`ohm#p9r2k5w8`)**:
-  - **Database Migration (`20262606000067_fix_plantilla_import_role_check_parity.sql`)**:
+  - **Database Migration (`20262606000073_fix_plantilla_import_role_check_parity.sql`, formerly `...067`)**:
     - Added helper function wrappers `public.get_current_role()` and `public.fn_is_admin()` aliased to `public.get_my_role()` and `public.i_have_full_access()`.
     - Added missing batch tracking columns `commit_error`, `stores_created`, `employees_created`, and `allocations_created` on `public.plantilla_import_batches`.
     - Restored canonical `v_role text := public.get_my_role();` and robust RBAC + operational governance assertions (`fn_can_upload_plantilla_import()`, `fn_assert_governance_enabled('import_plantilla')`, `fn_assert_freeze_inactive('audit_freeze')`) inside `submit_plantilla_baseline_import`.

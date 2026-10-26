@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Safe Fix Pass — Migration Reconciliation & Light Mode Muted Contrast Hardening (ohm#sfix01)
+
+**Status: COMPLETE — LOCAL MIGRATION FILENAMES RECONCILED TO MATCH PRODUCTION SCHEMA MIGRATION VERSIONS VIA `git mv` WITH ZERO SQL CONTENT MODIFICATIONS; GENERATED `docs/audit/migration_reconciliation.md` AUDITING ALL 104 PRODUCTION MIGRATION ENTRIES (100 MATCHES, 2 RENAMED, 2 MISSING IN REPO, 376 LOCAL DEVELOPMENT MIGRATIONS); LIGHT-MODE `--muted` TOKEN IN `globals.css` HARDENED FROM `#8a8a94` TO `#6b6b75` (ELEVATING CONTRAST RATIO FROM 3.42:1 TO 5.27:1 ON WHITE AND FROM 3.11:1 TO 4.80:1 ON SURFACE-MUTED, PASSING WCAG AA >= 4.5:1 ACROSS ALL 14PX TEXT USES); ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Summary
+- **ADR Basis**: `none: file renames and one token value`.
+- **Migration Reconciliation (`supabase/migrations/`)**:
+  - `git mv supabase/migrations/20262606000066_relax_store_name_multivcode_rule.sql supabase/migrations/20262606000072_relax_store_name_multivcode_rule.sql`
+  - `git mv supabase/migrations/20262606000067_fix_plantilla_import_role_check_parity.sql supabase/migrations/20262606000073_fix_plantilla_import_role_check_parity.sql`
+  - SQL Content Change: 0 bytes (names only).
+  - Target Collisions: 0.
+  - Missing in Repo (not recreated): `20262606000066_wrap_get_my_scoped_vcodes_initplan` and `20262606000067_restore_security_invoker_vw_slot_derived_vacancy_shadow`.
+  - Extra in Repo: 376 local feature/governance migration files preserved without deletion or edits.
+  - Documentation updated: `docs/state/plantilla_web_state.md`.
+  - Audit artifact created: `docs/audit/migration_reconciliation.md`.
+- **Contrast Hardening (`src/app/globals.css`)**:
+  - Light-mode `--muted` changed from `#8a8a94` to `#6b6b75`.
+  - Relative luminance: `#6b6b75` $L = 0.1493$; `#ffffff` $L = 1.0000$; `#f4f4f6` $L = 0.9059$.
+  - Contrast on `#ffffff`: **5.27:1** (was 3.42:1).
+  - Contrast on `#f4f4f6` (`--surface-muted`): **4.80:1** (was 3.11:1).
+  - Zero other token values changed; all other semantic pairs confirmed $\ge 4.5:1$.
+- **Environment & Governance Notes**:
+  - **Zero Database Access:** No queries, scripts, MCP tools, or Supabase API calls were executed.
+  - **Scratch Directory Notice:** `scratch/` contains scripts with DB access; Ohm decides whether to delete.
+  - **Pre-existing Working Tree State:** `package.json` and `package-lock.json` contained pre-existing uncommitted modifications and were excluded from staging.
+- **Verification Outputs**:
+  - `npm run lint`: 0 errors, 4 warnings (`VacancyTable.tsx`).
+  - `npm run build`: 0 errors, 19/19 static routes prerendered.
+  - `python3 .agents/scripts/gate.py`: `{"decision": "allow"}`.
+
+---
+
 ## Docs & Audit — Migration History Baseline for Production and Staging (ohm#mighist1)
 
 **Status: COMPLETE — MIGRATION SCHEMA AUDIT BASELINES RECORDED IN REPO; CREATED `docs/audit/migration_history_prod.txt` AND `docs/audit/migration_history_staging.txt` CONTAINING THE 100 CANONICAL DATABASE MIGRATION ENTRIES FROM `20260520012746` (`remote_schema`) THROUGH `20260625000000` (`hydrate_plantilla_from_baseline_import`); SERVES AS THE STATIC GROUND-TRUTH RECORD OF DEPLOYED SCHEMA DDL FOR AGENTS ELIMINATING DIRECT SUPABASE DATABASE QUERIES; PRESERVED ZERO TOUCH ON SOURCE CODE AND RUNTIME LOGIC; LOCAL COMMIT ONLY ON MAIN**
