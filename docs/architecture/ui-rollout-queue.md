@@ -15,7 +15,7 @@ Each item is ticked ONLY after completing its own complete verification:
 
 ## Rollout Queue Checklist
 
-- [ ] 7A Approvals navigation + data tables
+- [x] 7A Approvals navigation + data tables
 - [ ] 7B Approvals cards + action modals
 - [ ] Users and Team Directory
 - [ ] Notifications

@@ -9,6 +9,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useCompleteDeactivation,
@@ -43,23 +44,8 @@ function formatDate(dateStr: string | null): string {
 }
 
 function SeparationStatusBadge({ status }: { status: string }) {
-  const s = status.toLowerCase();
-  let badgeClasses = "bg-slate-100 text-slate-700 border-slate-200";
-
-  if (s.includes("awol")) {
-    badgeClasses = "bg-rose-100 text-rose-800 border-rose-200";
-  } else if (s.includes("contract") || s.includes("eoc")) {
-    badgeClasses = "bg-purple-100 text-purple-800 border-purple-200";
-  } else if (s.includes("resigned")) {
-    badgeClasses = "bg-amber-100 text-amber-800 border-amber-200";
-  } else if (s.includes("term") || s.includes("dismiss")) {
-    badgeClasses = "bg-red-100 text-red-800 border-red-200";
-  }
-
   return (
-    <span
-      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${badgeClasses}`}
-    >
+    <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
       {status}
     </span>
   );
@@ -297,8 +283,8 @@ export function DeactivationDataTable({
         <div
           className={`mb-3 flex items-center justify-between rounded-md p-2.5 text-xs ${
             bulkFeedback.type === "success"
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border border-rose-200 bg-rose-50 text-rose-800"
+              ? "border border-border-brand/40 bg-brand-500/10 text-text-brand-bold"
+              : "border border-border-danger bg-danger-subtle text-text-danger"
           }`}
         >
           <span>{bulkFeedback.message}</span>
@@ -314,7 +300,7 @@ export function DeactivationDataTable({
 
       {/* Multi-selection Bar (Pending only) */}
       {tab === "pending" && requests.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-default bg-slate-50/80 px-3.5 py-2 text-xs">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-default bg-surface-subtle px-3.5 py-2 text-xs">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -325,12 +311,12 @@ export function DeactivationDataTable({
                 }
               }}
               onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+              className="h-4 w-4 rounded border-border-default text-text-brand-bold focus:ring-brand-500 cursor-pointer"
             />
             <span className="font-medium text-text-primary">
               {selectedIds.size > 0 ? (
                 <>
-                  <span className="font-bold text-brand-700">{selectedIds.size}</span> of{" "}
+                  <span className="font-bold text-text-brand-bold">{selectedIds.size}</span> of{" "}
                   <span className="font-semibold">{requests.length}</span> selected
                 </>
               ) : (
@@ -353,8 +339,9 @@ export function DeactivationDataTable({
               type="button"
               onClick={handleOpenBulkReject}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-transparent px-2.5 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border-danger bg-surface px-2.5 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
             >
+              <XCircle className="h-3 w-3" />
               <span>Reject {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
 
@@ -362,8 +349,9 @@ export function DeactivationDataTable({
               type="button"
               onClick={handleOpenBulkApprove}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ok)] bg-[var(--ok)] px-3 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
             >
+              <CheckCircle2 className="h-3 w-3" />
               <span>Approve {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
           </div>
@@ -371,10 +359,10 @@ export function DeactivationDataTable({
       )}
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border-default bg-surface overflow-hidden">
         <div className="flex-1 overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
+          <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-surface text-sm font-medium text-text-secondary border-b border-border-default">
               <tr>
                 {tab === "pending" && (
                   <th scope="col" className="w-10 px-4 py-2.5 text-left">
@@ -388,40 +376,40 @@ export function DeactivationDataTable({
                       }}
                       onChange={toggleSelectAll}
                       aria-label="Select all rows"
-                      className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                      className="h-4 w-4 rounded border-border-default text-text-brand-bold focus:ring-brand-500 cursor-pointer"
                     />
                   </th>
                 )}
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   GROUP
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   ACCOUNT
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   EMPLOC
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   FULLNAME
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   POSITION
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   SEPARATION STATUS
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                <th scope="col" className="px-4 py-2.5 font-medium">
                   REQUESTED BY
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-[var(--muted)] text-right"
+                  className="px-4 py-2.5 font-medium text-right"
                 >
                   ACTION
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--line)]">
+            <tbody className="divide-y divide-border-default text-sm">
               {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
@@ -441,8 +429,8 @@ export function DeactivationDataTable({
                 return (
                   <tr
                     key={request.id}
-                    className={`transition-colors hover:bg-[var(--soft)] ${
-                      isRowSelected ? "bg-[var(--pillbg)]/40" : ""
+                    className={`transition-colors hover:bg-surface-hover ${
+                      isRowSelected ? "bg-surface-subtle" : ""
                     }`}
                   >
                     {tab === "pending" && (
@@ -452,41 +440,41 @@ export function DeactivationDataTable({
                           checked={isRowSelected}
                           onChange={() => toggleSelectOne(request.id)}
                           aria-label={`Select ${request.employeeName}`}
-                          className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                          className="h-4 w-4 rounded border-border-default text-text-brand-bold focus:ring-brand-500 cursor-pointer"
                         />
                       </td>
                     )}
 
                     {/* GROUP */}
-                    <td className="px-4 py-3 text-xs text-[var(--text)] whitespace-nowrap align-middle font-medium">
+                    <td className="px-4 py-3 text-sm text-text-primary whitespace-nowrap align-middle font-medium">
                       {request.groupName || "—"}
                     </td>
 
                     {/* ACCOUNT */}
                     <td className="px-4 py-3 whitespace-nowrap align-middle">
-                      <span className="inline-flex items-center rounded-[6px] border border-[var(--status-accent-border)] bg-[var(--pillbg)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+                      <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-secondary">
                         {request.accountName}
                       </span>
                     </td>
 
                     {/* EMPLOC */}
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--text)] whitespace-nowrap align-middle">
+                    <td className="px-4 py-3 font-mono text-sm text-text-primary whitespace-nowrap align-middle">
                       {request.employeeNo || "—"}
                     </td>
 
                     {/* FULLNAME */}
                     <td className="px-4 py-3 align-middle">
                       <div className="flex flex-col">
-                        <span className="font-bold text-[var(--text)] text-xs">
+                        <span className="font-bold text-text-primary text-sm">
                           {request.employeeName}
                         </span>
                         {request.resubmitCount > 0 && (
-                          <span className="inline-flex items-center text-[10px] font-medium text-amber-700 dark:text-amber-400 mt-0.5">
+                          <span className="inline-flex items-center text-xs text-text-secondary mt-0.5">
                             Resubmit #{request.resubmitCount}
                           </span>
                         )}
                         {request.storeName && (
-                          <span className="text-[11px] text-[var(--muted)]">
+                          <span className="text-xs text-text-secondary">
                             {request.storeName}
                           </span>
                         )}
@@ -494,7 +482,7 @@ export function DeactivationDataTable({
                     </td>
 
                     {/* POSITION */}
-                    <td className="px-4 py-3 text-xs text-[var(--text)] whitespace-nowrap align-middle">
+                    <td className="px-4 py-3 text-sm text-text-primary whitespace-nowrap align-middle">
                       {request.positionTitle || "—"}
                     </td>
 
@@ -506,10 +494,10 @@ export function DeactivationDataTable({
                     {/* REQUESTED BY */}
                     <td className="px-4 py-3 whitespace-nowrap align-middle">
                       <div className="flex flex-col">
-                        <span className="text-xs font-medium text-[var(--text)]">
+                        <span className="text-sm font-medium text-text-primary">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="text-[11px] text-[var(--muted)]">
+                        <span className="text-xs text-text-secondary">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>
@@ -523,7 +511,7 @@ export function DeactivationDataTable({
                             type="button"
                             onClick={() => handleOpenReject(request)}
                             disabled={isBusy}
-                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--bad)]/40 bg-transparent px-3 text-xs font-normal text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-8 items-center justify-center rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Reject</span>
                           </button>
@@ -531,37 +519,37 @@ export function DeactivationDataTable({
                             type="button"
                             onClick={() => handleOpenApprove(request)}
                             disabled={isBusy}
-                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-8 items-center justify-center rounded-md border border-brand-500 bg-brand-500 px-3.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Approve Deactivation</span>
                           </button>
                         </div>
                       ) : isApproved ? (
                         <div className="inline-flex flex-col items-end gap-0.5">
-                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ok)] font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
+                          <span className="inline-flex items-center gap-1.5 text-xs text-text-primary font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
                             Deactivated
                           </span>
                           {request.processedAt && (
-                            <span className="text-[11px] text-[var(--muted)]">
+                            <span className="text-xs text-text-muted">
                               {formatDate(request.processedAt)}
                             </span>
                           )}
                         </div>
                       ) : isRejected ? (
                         <div className="inline-flex flex-col items-end gap-0.5">
-                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--bad)] font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--bad)]" />
+                          <span className="inline-flex items-center gap-1.5 text-xs text-text-danger font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-text-danger" />
                             Rejected
                           </span>
                           {request.processedAt && (
-                            <span className="text-[11px] text-[var(--muted)]">
+                            <span className="text-xs text-text-muted">
                               {formatDate(request.processedAt)}
                             </span>
                           )}
                           {request.rejectionReason && (
                             <span
-                              className="text-[10px] text-[var(--muted)] max-w-[200px] truncate"
+                              className="text-xs text-text-secondary max-w-[200px] truncate"
                               title={request.rejectionReason}
                             >
                               {request.rejectionReason}
@@ -569,7 +557,7 @@ export function DeactivationDataTable({
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--text)]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-medium text-text-primary border border-border-default">
                           {request.status}
                         </span>
                       )}
@@ -595,87 +583,70 @@ export function DeactivationDataTable({
 
       {/* Approve Confirmation Modal (Single) */}
       {selectedApproveRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Approve Employee Deactivation
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Confirm separation clearance and record archiving
-                  </p>
-                </div>
+        <Modal
+          isOpen={!!selectedApproveRequest}
+          onClose={() => setSelectedApproveRequest(null)}
+          title="Approve Employee Deactivation"
+          subtitle="Confirm separation clearance and record archiving"
+          icon={CheckCircle2}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Employee:</span>
+                <span className="font-bold text-text-primary">
+                  {selectedApproveRequest.employeeName}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedApproveRequest(null)}
-                disabled={isBusy}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
+              {selectedApproveRequest.employeeNo && (
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Employee:</span>
-                  <span className="font-bold text-text-primary">
-                    {selectedApproveRequest.employeeName}
+                  <span className="text-text-secondary">Employee No:</span>
+                  <span className="font-mono font-medium text-text-primary">
+                    {selectedApproveRequest.employeeNo}
                   </span>
-                </div>
-                {selectedApproveRequest.employeeNo && (
-                  <div className="flex justify-between">
-                    <span className="text-text-secondary">Employee No:</span>
-                    <span className="font-mono font-medium text-text-primary">
-                      {selectedApproveRequest.employeeNo}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Account:</span>
-                  <span className="font-medium text-text-primary">
-                    {selectedApproveRequest.accountName}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Separation:</span>
-                  <SeparationStatusBadge status={selectedApproveRequest.separationStatus} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-primary">
-                  Approval Remarks (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={approveRemarks}
-                  onChange={(e) => setApproveRemarks(e.target.value)}
-                  placeholder="Additional clearance notes or reference..."
-                  className="mt-1 w-full rounded-md border border-border-default bg-white p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {actionError && (
-                <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{actionError}</span>
                 </div>
               )}
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Account:</span>
+                <span className="font-medium text-text-primary">
+                  {selectedApproveRequest.accountName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Separation:</span>
+                <SeparationStatusBadge status={selectedApproveRequest.separationStatus} />
+              </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-border-default pt-4">
+            <div>
+              <label className="block text-xs font-medium text-text-primary">
+                Approval Remarks (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={approveRemarks}
+                onChange={(e) => setApproveRemarks(e.target.value)}
+                placeholder="Additional clearance notes or reference..."
+                className="mt-1 w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-border-brand focus:outline-hidden"
+              />
+            </div>
+
+            {actionError && (
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-4">
               <button
                 type="button"
                 onClick={() => setSelectedApproveRequest(null)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -683,7 +654,7 @@ export function DeactivationDataTable({
                 type="button"
                 onClick={handleConfirmApprove}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {isBusy && (
                   <RefreshCw
@@ -695,105 +666,88 @@ export function DeactivationDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Reject Confirmation Modal (Single) */}
       {selectedRejectRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Reject Deactivation Request
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Provide reason for denying separation clearance
-                  </p>
-                </div>
+        <Modal
+          isOpen={!!selectedRejectRequest}
+          onClose={() => setSelectedRejectRequest(null)}
+          title="Reject Deactivation Request"
+          subtitle="Provide reason for denying separation clearance"
+          icon={XCircle}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Employee:</span>
+                <span className="font-bold text-text-primary">
+                  {selectedRejectRequest.employeeName}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRejectRequest(null)}
-                disabled={isBusy}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Account:</span>
+                <span className="font-medium text-text-primary">
+                  {selectedRejectRequest.accountName}
+                </span>
+              </div>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Employee:</span>
-                  <span className="font-bold text-text-primary">
-                    {selectedRejectRequest.employeeName}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Account:</span>
-                  <span className="font-medium text-text-primary">
-                    {selectedRejectRequest.accountName}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-primary">
-                  Reason for Rejection <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={rejectionReason}
-                  onChange={(e) => {
-                    setRejectionReason(e.target.value);
-                    if (e.target.value.trim()) setRejectReasonError(false);
-                  }}
-                  placeholder="e.g., Incomplete clearance, Active store endorsement pending..."
-                  className={`mt-1 w-full rounded-md border p-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden ${
-                    rejectReasonError
-                      ? "border-rose-300 focus:border-rose-500"
-                      : "border-border-default focus:border-brand-500"
-                  }`}
-                />
-                {rejectReasonError && (
-                  <p className="mt-1 text-2xs text-rose-600">
-                    Rejection reason is required.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-primary">
-                  Actionable Remarks / Instructions (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={rejectionRemarks}
-                  onChange={(e) => setRejectionRemarks(e.target.value)}
-                  placeholder="Provide specific notes or steps required by requester..."
-                  className="w-full rounded-md border border-border-default bg-white p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
-              </div>
-
-              {actionError && (
-                <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{actionError}</span>
-                </div>
+            <div>
+              <label className="block text-xs font-medium text-text-primary">
+                Reason for Rejection <span className="text-text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                value={rejectionReason}
+                onChange={(e) => {
+                  setRejectionReason(e.target.value);
+                  if (e.target.value.trim()) setRejectReasonError(false);
+                }}
+                placeholder="e.g., Incomplete clearance, Active store endorsement pending..."
+                className={`mt-1 w-full rounded-md border p-2 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
+                  rejectReasonError
+                    ? "border-border-danger focus:border-border-danger"
+                    : "border-border-default focus:border-border-brand"
+                }`}
+              />
+              {rejectReasonError && (
+                <p className="mt-1 text-2xs text-text-danger">
+                  Rejection reason is required.
+                </p>
               )}
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-border-default pt-4">
+            <div>
+              <label className="block text-xs font-medium text-text-primary">
+                Actionable Remarks / Instructions (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={rejectionRemarks}
+                onChange={(e) => setRejectionRemarks(e.target.value)}
+                placeholder="Provide specific notes or steps required by requester..."
+                className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-border-brand focus:outline-hidden"
+              />
+            </div>
+
+            {actionError && (
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-4">
               <button
                 type="button"
                 onClick={() => setSelectedRejectRequest(null)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -801,7 +755,7 @@ export function DeactivationDataTable({
                 type="button"
                 onClick={handleConfirmReject}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-rose-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger-button hover:bg-danger-button-hover px-4 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {isBusy && (
                   <RefreshCw
@@ -813,41 +767,26 @@ export function DeactivationDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Bulk Approve Confirmation Modal */}
       {isBulkApproveOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Approve {selectedIds.size} Deactivation Request{selectedIds.size === 1 ? "" : "s"}
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Bulk separation clearance confirmation
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBulkApproveOpen(false)}
-                disabled={isBulkProcessing}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-2">
+        <Modal
+          isOpen={isBulkApproveOpen}
+          onClose={() => setIsBulkApproveOpen(false)}
+          title={`Approve ${selectedIds.size} Deactivation Request${selectedIds.size === 1 ? "" : "s"}`}
+          subtitle="Bulk separation clearance confirmation"
+          icon={CheckCheck}
+          isSubmitting={isBulkProcessing}
+          disableBackdropClick={isBulkProcessing}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-2">
               <p className="text-text-primary font-medium">
                 Are you sure you want to approve and deactivate all{" "}
-                <span className="font-bold text-emerald-700">{selectedIds.size}</span>{" "}
+                <span className="font-bold text-text-brand-bold">{selectedIds.size}</span>{" "}
                 selected employee records?
               </p>
               <p className="text-text-secondary">
@@ -855,12 +794,12 @@ export function DeactivationDataTable({
               </p>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsBulkApproveOpen(false)}
                 disabled={isBulkProcessing}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -868,7 +807,7 @@ export function DeactivationDataTable({
                 type="button"
                 onClick={handleConfirmBulkApprove}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {isBulkProcessing ? (
                   <>
@@ -884,70 +823,53 @@ export function DeactivationDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Bulk Reject Confirmation Modal */}
       {isBulkRejectOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Reject {selectedIds.size} Deactivation Request{selectedIds.size === 1 ? "" : "s"}
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Bulk rejection justification
-                  </p>
-                </div>
-              </div>
+        <Modal
+          isOpen={isBulkRejectOpen}
+          onClose={() => setIsBulkRejectOpen(false)}
+          title={`Reject ${selectedIds.size} Deactivation Request${selectedIds.size === 1 ? "" : "s"}`}
+          subtitle="Bulk rejection justification"
+          icon={XCircle}
+          isSubmitting={isBulkProcessing}
+          disableBackdropClick={isBulkProcessing}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-text-primary">
+                Rejection Reason <span className="text-text-danger">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={bulkRejectionReason}
+                onChange={(e) => {
+                  setBulkRejectionReason(e.target.value);
+                  if (e.target.value.trim().length >= 3) setBulkRejectReasonError(false);
+                }}
+                placeholder="State the reason for rejecting these deactivation requests..."
+                className={`mt-1 w-full rounded-md border p-2.5 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
+                  bulkRejectReasonError
+                    ? "border-border-danger focus:border-border-danger"
+                    : "border-border-default focus:border-border-brand"
+                }`}
+              />
+              {bulkRejectReasonError && (
+                <p className="mt-1 text-2xs text-text-danger">
+                  Please provide a rejection reason (minimum 3 characters).
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsBulkRejectOpen(false)}
                 disabled={isBulkProcessing}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-text-primary">
-                  Rejection Reason <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={bulkRejectionReason}
-                  onChange={(e) => {
-                    setBulkRejectionReason(e.target.value);
-                    if (e.target.value.trim().length >= 3) setBulkRejectReasonError(false);
-                  }}
-                  placeholder="State the reason for rejecting these deactivation requests..."
-                  className={`mt-1 w-full rounded-md border p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden ${
-                    bulkRejectReasonError
-                      ? "border-rose-300 focus:border-rose-500"
-                      : "border-border-default focus:border-brand-500"
-                  }`}
-                />
-                {bulkRejectReasonError && (
-                  <p className="mt-1 text-2xs text-rose-600">
-                    Please provide a rejection reason (minimum 3 characters).
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsBulkRejectOpen(false)}
-                disabled={isBulkProcessing}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -955,7 +877,7 @@ export function DeactivationDataTable({
                 type="button"
                 onClick={handleConfirmBulkReject}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger-button hover:bg-danger-button-hover px-4 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {isBulkProcessing ? (
                   <>
@@ -971,7 +893,7 @@ export function DeactivationDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

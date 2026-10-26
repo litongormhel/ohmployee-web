@@ -76,15 +76,15 @@ export function RequestCategoryNavigation({
             onClick={() => onSelectCategory(cat.key)}
             className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               isSelected
-                ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                ? "border-border-brand bg-brand-subtle text-text-brand-bold shadow-2xs"
+                : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
             {Icon && (
               <Icon
                 className={`w-4 h-4 shrink-0 transition-colors ${
                   isSelected
-                    ? "text-brand-700"
+                    ? "text-brand-600"
                     : "text-text-muted group-hover:text-text-secondary"
                 }`}
               />
@@ -96,8 +96,8 @@ export function RequestCategoryNavigation({
               <span
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                   isSelected
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                    ? "bg-brand-500 text-white"
+                    : "bg-surface-subtle text-text-secondary border border-border-default"
                 }`}
               >
                 {rawCount}

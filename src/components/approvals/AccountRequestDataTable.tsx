@@ -8,6 +8,7 @@ import {
   Phone,
   RefreshCw,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveAccountRequest,
@@ -67,7 +68,7 @@ export function AccountRequestDataTable({
     useState<AccountRequestItem | null>(null);
 
   // Approval Form Inputs
-  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("" );
   const [scopeType, setScopeType] = useState<"global" | "scoped">("scoped");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
@@ -177,10 +178,10 @@ export function AccountRequestDataTable({
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border-default bg-surface overflow-hidden">
         <div className="flex-1 overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
+          <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-surface-subtle text-xs font-semibold text-text-secondary border-b border-border-default">
               <tr>
                 <th scope="col" className="px-4 py-2.5 font-medium">
                   Applicant Name
@@ -210,7 +211,7 @@ export function AccountRequestDataTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--line)]">
+            <tbody className="divide-y divide-border-default">
               {paginatedRequests.map((request) => {
                 const isPending = tab === "pending" || request.status === "pending";
                 const isApproved = tab === "approved" || request.status === "approved";
@@ -218,52 +219,50 @@ export function AccountRequestDataTable({
                 return (
                   <tr
                     key={request.id}
-                    className="transition-colors hover:bg-[var(--soft)]"
+                    className="transition-colors hover:bg-surface-hover"
                   >
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-[var(--text)]">
+                    <td className="px-4 py-2.5">
+                      <div className="font-semibold text-text-primary text-sm">
                         {request.fullName}
                       </div>
-                      <div className="text-[11px] text-[var(--muted)]">
+                      <div className="text-xs text-text-muted font-mono">
                         ID: {request.id.slice(0, 8)}…
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
                       <div className="flex items-center gap-1.5 font-medium">
-                        <Mail className="h-3 w-3 text-[var(--muted)]" />
+                        <Mail className="h-3.5 w-3.5 text-text-muted" />
                         <span>{request.email}</span>
                       </div>
                       {request.mobileNumber && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] mt-0.5">
-                          <Phone className="h-3 w-3 text-[var(--muted)]" />
+                        <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5">
+                          <Phone className="h-3.5 w-3.5 text-text-muted" />
                           <span>{request.mobileNumber}</span>
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
-                      <span className="inline-flex items-center rounded-md bg-[var(--soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
+                      <span className="inline-flex items-center rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary border border-border-default">
                         {request.requestedRoleName || "Standard User"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
-                      <div className="text-xs">
-                        <strong className="text-[var(--accent)] font-medium">
-                          {request.requestedScopeType === "global"
-                            ? "Global"
-                            : request.requestedGroupNames.length > 0
-                            ? request.requestedGroupNames.join(", ")
-                            : "Scoped"}
-                        </strong>
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
+                      <div className="text-xs font-semibold text-text-brand-bold">
+                        {request.requestedScopeType === "global"
+                          ? "Global"
+                          : request.requestedGroupNames.length > 0
+                          ? request.requestedGroupNames.join(", ")
+                          : "Scoped"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[var(--muted)] max-w-xs truncate text-[11px]">
+                    <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate text-xs">
                       {request.notes ? `"${request.notes}"` : "—"}
                     </td>
-                    <td className="px-4 py-3 text-[var(--muted)] whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-xs font-mono">
                       {formatDate(request.createdAt)}
                     </td>
                     <td
-                      className={`px-4 py-3 ${
+                      className={`px-4 py-2.5 ${
                         tab === "rejected" ? "text-left" : "text-right"
                       }`}
                     >
@@ -273,7 +272,7 @@ export function AccountRequestDataTable({
                             type="button"
                             onClick={() => handleOpenReject(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center rounded-md border border-[var(--bad)]/40 bg-transparent px-2 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-7 items-center rounded-md border border-border-danger bg-transparent px-2.5 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Reject</span>
                           </button>
@@ -281,26 +280,26 @@ export function AccountRequestDataTable({
                             type="button"
                             onClick={() => handleOpenApprove(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center rounded-md border border-[var(--ok)] bg-[var(--ok)] px-2.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-7 items-center rounded-md border border-border-brand bg-brand-500 hover:bg-brand-600 px-2.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Approve</span>
                           </button>
                         </div>
                       ) : isApproved ? (
-                        <div className="inline-flex items-center gap-1 text-xs font-medium text-[var(--ok)]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        <div className="inline-flex items-center gap-1 text-xs font-medium text-text-primary">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />
                           <span>Assigned: {request.assignedRoleName || "User"}</span>
                           {request.reviewerDisplayName && (
-                            <span className="text-[11px] text-[var(--muted)] ml-1">
+                            <span className="text-xs text-text-muted ml-1">
                               by {request.reviewerDisplayName}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <div className="text-xs text-[var(--bad)] max-w-xs truncate">
+                        <div className="text-xs text-text-danger max-w-xs truncate">
                           {request.rejectionReason || "Rejected"}
                           {request.reviewerDisplayName && (
-                            <div className="text-[10px] text-[var(--muted)]">
+                            <div className="text-xs text-text-muted">
                               by {request.reviewerDisplayName}
                             </div>
                           )}
@@ -328,33 +327,33 @@ export function AccountRequestDataTable({
 
       {/* Approve Modal Dialog */}
       {selectedApproveRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-[var(--bg)] rounded-2xl shadow-xl border border-[var(--line)] w-full max-w-lg p-5 space-y-4 max-h-[85vh] flex flex-col animate-in fade-in-0 zoom-in-95">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text)]">Approve Account Registration</h3>
-              <p className="text-xs text-[var(--muted)] mt-0.5">
-                Assign role and operational scope for <strong>{selectedApproveRequest.fullName}</strong> (
-                {selectedApproveRequest.email})
-              </p>
-            </div>
-
+        <Modal
+          isOpen={Boolean(selectedApproveRequest)}
+          onClose={() => setSelectedApproveRequest(null)}
+          title="Approve Account Registration"
+          subtitle={`Assign role and operational scope for ${selectedApproveRequest.fullName} (${selectedApproveRequest.email})`}
+          isSubmitting={approveMutation.isPending}
+          disableBackdropClick={approveMutation.isPending}
+          maxWidthClass="max-w-lg"
+        >
+          <div className="space-y-4">
             {actionError && (
-              <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2 text-xs text-text-danger">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <form onSubmit={handleConfirmApprove} className="space-y-4 flex-1 overflow-y-auto pr-1">
+            <form onSubmit={handleConfirmApprove} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[var(--text)] mb-1">
+                <label className="block text-xs font-bold text-text-primary mb-1">
                   Assigned Role *
                 </label>
                 <select
                   required
                   value={selectedRoleId}
                   onChange={(e) => setSelectedRoleId(e.target.value)}
-                  className="w-full p-2.5 text-xs rounded-xl border border-[var(--line)] bg-[var(--bg)] text-[var(--text)] focus:outline-hidden focus:border-[var(--accent)]"
+                  className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface text-text-primary focus:outline-hidden focus:border-border-brand"
                 >
                   <option value="">Select Role...</option>
                   {assignableRoles.map((r) => (
@@ -366,15 +365,15 @@ export function AccountRequestDataTable({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--text)] mb-1">Scope Mode *</label>
+                <label className="block text-xs font-bold text-text-primary mb-1">Scope Mode *</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setScopeType("scoped")}
                     className={`py-2 text-xs font-semibold rounded-xl border transition cursor-pointer ${
                       scopeType === "scoped"
-                        ? "border-[var(--accent)] bg-[var(--soft)] text-[var(--accent)]"
-                        : "border-[var(--line)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--soft)]"
+                        ? "border-border-brand bg-brand-subtle text-text-brand-bold"
+                        : "border-border-default bg-surface text-text-primary hover:bg-surface-hover"
                     }`}
                   >
                     Scoped Groups
@@ -384,8 +383,8 @@ export function AccountRequestDataTable({
                     onClick={() => setScopeType("global")}
                     className={`py-2 text-xs font-semibold rounded-xl border transition cursor-pointer ${
                       scopeType === "global"
-                        ? "border-[var(--accent)] bg-[var(--soft)] text-[var(--accent)]"
-                        : "border-[var(--line)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--soft)]"
+                        ? "border-border-brand bg-brand-subtle text-text-brand-bold"
+                        : "border-border-default bg-surface text-text-primary hover:bg-surface-hover"
                     }`}
                   >
                     Global (All Groups)
@@ -396,20 +395,20 @@ export function AccountRequestDataTable({
               {scopeType === "scoped" && (
                 <>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-[var(--text)]">
+                    <label className="block text-xs font-bold text-text-primary">
                       Assign Operational Groups *
                     </label>
-                    <div className="border border-[var(--line)] rounded-xl p-3 max-h-36 overflow-y-auto space-y-1.5 bg-[var(--soft)]/50">
+                    <div className="border border-border-default rounded-xl p-3 max-h-36 overflow-y-auto space-y-1.5 bg-surface-subtle">
                       {groups.map((g) => (
                         <label
                           key={g.id}
-                          className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer hover:opacity-80"
+                          className="flex items-center gap-2 text-xs text-text-primary cursor-pointer hover:opacity-80"
                         >
                           <input
                             type="checkbox"
                             checked={selectedGroupIds.includes(g.id)}
                             onChange={() => handleToggleGroup(g.id)}
-                            className="rounded text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                            className="rounded text-brand-500 focus:ring-brand-500 cursor-pointer"
                           />
                           <span>{g.name}</span>
                         </label>
@@ -419,20 +418,20 @@ export function AccountRequestDataTable({
 
                   {accounts.length > 0 && (
                     <div className="space-y-2">
-                      <label className="block text-xs font-bold text-[var(--text)]">
+                      <label className="block text-xs font-bold text-text-primary">
                         Assign Specific Accounts (Optional)
                       </label>
-                      <div className="border border-[var(--line)] rounded-xl p-3 max-h-36 overflow-y-auto space-y-1.5 bg-[var(--soft)]/50">
+                      <div className="border border-border-default rounded-xl p-3 max-h-36 overflow-y-auto space-y-1.5 bg-surface-subtle">
                         {accounts.map((a) => (
                           <label
                             key={a.id}
-                            className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer hover:opacity-80"
+                            className="flex items-center gap-2 text-xs text-text-primary cursor-pointer hover:opacity-80"
                           >
                             <input
                               type="checkbox"
                               checked={selectedAccountIds.includes(a.id)}
                               onChange={() => handleToggleAccount(a.id)}
-                              className="rounded text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                              className="rounded text-brand-500 focus:ring-brand-500 cursor-pointer"
                             />
                             <span>{a.account_name}</span>
                           </label>
@@ -443,18 +442,18 @@ export function AccountRequestDataTable({
                 </>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--line)]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setSelectedApproveRequest(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--soft)] rounded-xl transition cursor-pointer"
+                  className="px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={approveMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold text-white bg-[var(--ok)] hover:brightness-105 rounded-xl transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5 shadow-2xs"
                 >
                   {approveMutation.isPending && (
                     <RefreshCw className="h-3 w-3 animate-spin" />
@@ -464,22 +463,23 @@ export function AccountRequestDataTable({
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Reject Modal Dialog */}
       {selectedRejectRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-[var(--bg)] rounded-2xl shadow-xl border border-[var(--line)] w-full max-w-md p-5 space-y-4 animate-in fade-in-0 zoom-in-95">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text)]">Reject Account Request</h3>
-              <p className="text-xs text-[var(--muted)] mt-0.5">
-                Decline registration for <strong>{selectedRejectRequest.fullName}</strong>.
-              </p>
-            </div>
-
+        <Modal
+          isOpen={Boolean(selectedRejectRequest)}
+          onClose={() => setSelectedRejectRequest(null)}
+          title="Reject Account Request"
+          subtitle={`Decline registration for ${selectedRejectRequest.fullName}.`}
+          isSubmitting={rejectMutation.isPending}
+          disableBackdropClick={rejectMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
             {actionError && (
-              <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2 text-xs text-text-danger">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>{actionError}</span>
               </div>
@@ -487,7 +487,7 @@ export function AccountRequestDataTable({
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[var(--text)] mb-1">
+                <label className="block text-xs font-bold text-text-primary mb-1">
                   Rejection Reason *
                 </label>
                 <select
@@ -499,10 +499,10 @@ export function AccountRequestDataTable({
                       setRejectReasonError(false);
                     }
                   }}
-                  className={`w-full p-2.5 text-xs rounded-xl border bg-[var(--bg)] text-[var(--text)] focus:outline-hidden ${
+                  className={`w-full p-2.5 text-xs rounded-xl border bg-surface text-text-primary focus:outline-hidden ${
                     rejectReasonError
-                      ? "border-[var(--bad)] focus:border-[var(--bad)]"
-                      : "border-[var(--line)] focus:border-[var(--accent)]"
+                      ? "border-border-danger focus:border-border-danger"
+                      : "border-border-default focus:border-border-brand"
                   }`}
                 >
                   <option value="">Select Reason...</option>
@@ -519,14 +519,14 @@ export function AccountRequestDataTable({
                   <option value="Other / Role mismatch">Other / Role mismatch</option>
                 </select>
                 {rejectReasonError && (
-                  <p className="mt-1 text-2xs text-[var(--bad)]">
+                  <p className="mt-1 text-2xs text-text-danger">
                     Please select a rejection reason.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--text)] mb-1">
+                <label className="block text-xs font-bold text-text-primary mb-1">
                   Additional Notes (Optional)
                 </label>
                 <textarea
@@ -534,22 +534,22 @@ export function AccountRequestDataTable({
                   value={rejectionRemarks}
                   onChange={(e) => setRejectionRemarks(e.target.value)}
                   placeholder="Details for user audit record"
-                  className="w-full p-2 text-xs rounded-xl border border-[var(--line)] bg-[var(--bg)] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-hidden focus:border-[var(--accent)]"
+                  className="w-full p-2 text-xs rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-border-brand"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--line)]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setSelectedRejectRequest(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--soft)] rounded-xl transition cursor-pointer"
+                  className="px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={rejectMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold text-white bg-[var(--bad)] hover:brightness-105 rounded-xl transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-white bg-danger-button hover:bg-danger-button-hover rounded-xl transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5 shadow-2xs"
                 >
                   {rejectMutation.isPending && (
                     <RefreshCw className="h-3 w-3 animate-spin" />
@@ -559,7 +559,7 @@ export function AccountRequestDataTable({
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

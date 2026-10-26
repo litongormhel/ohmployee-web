@@ -116,8 +116,8 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
       <span
         className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
           isSelected
-            ? "bg-brand-600 text-white"
-            : "bg-slate-100 text-slate-600 border border-slate-200/80"
+            ? "bg-brand-500 text-white"
+            : "bg-surface-subtle text-text-secondary border border-border-default"
         }`}
       >
         {count}
@@ -153,8 +153,8 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
               onClick={() => onTabChange("pending" as T)}
               className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 currentTab === "pending"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-border-brand bg-brand-subtle text-text-brand-bold shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <span>Pending</span>
@@ -168,8 +168,8 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
               onClick={() => onTabChange("approved" as T)}
               className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 currentTab === "approved"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-border-brand bg-brand-subtle text-text-brand-bold shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <span>{approvedLabel}</span>
@@ -183,8 +183,8 @@ function QueueToolbar<T extends string = ApprovalStatusTab>({
               onClick={() => onTabChange("rejected" as T)}
               className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 currentTab === "rejected"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  ? "border-border-brand bg-brand-subtle text-text-brand-bold shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <span>Rejected</span>
@@ -1586,7 +1586,7 @@ export function ActiveQueueReviewPane({
             {currentCategoryConfig.label}
           </h2>
           {count > 0 && (
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-semibold text-blue-800">
+            <span className="rounded-full bg-brand-subtle px-2.5 py-0.5 font-mono text-xs font-semibold text-text-brand-bold">
               {count} pending
             </span>
           )}
@@ -1598,7 +1598,7 @@ export function ActiveQueueReviewPane({
 
       {/* Info Card */}
       <div className="mt-6 rounded-xl border border-border-default bg-surface-base p-8 text-center shadow-xs">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface-subtle text-text-secondary">
           <Building2 className="h-6 w-6" />
         </div>
 

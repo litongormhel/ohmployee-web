@@ -9,6 +9,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApprovePlantillaRequest,
@@ -261,8 +262,8 @@ export function PlantillaApprovalDataTable({
         <div
           className={`mb-3 flex items-center justify-between rounded-md p-2.5 text-xs ${
             bulkFeedback.type === "success"
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border border-rose-200 bg-rose-50 text-rose-800"
+              ? "border border-border-default bg-surface-subtle text-text-primary"
+              : "border border-border-danger bg-danger-subtle text-text-danger"
           }`}
         >
           <span>{bulkFeedback.message}</span>
@@ -278,7 +279,7 @@ export function PlantillaApprovalDataTable({
 
       {/* Multi-selection Bar (Pending only) */}
       {tab === "pending" && requests.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-default bg-slate-50/80 px-3.5 py-2 text-xs">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-border-default bg-surface-subtle px-3.5 py-2 text-xs">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -289,12 +290,12 @@ export function PlantillaApprovalDataTable({
                 }
               }}
               onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
+              className="h-4 w-4 rounded border-border-default text-brand-500 focus:ring-brand-500 cursor-pointer"
             />
             <span className="font-medium text-text-primary">
               {selectedIds.size > 0 ? (
                 <>
-                  <span className="font-bold text-brand-700">{selectedIds.size}</span> of{" "}
+                  <span className="font-bold text-text-brand-bold">{selectedIds.size}</span> of{" "}
                   <span className="font-semibold">{requests.length}</span> selected
                 </>
               ) : (
@@ -317,7 +318,7 @@ export function PlantillaApprovalDataTable({
               type="button"
               onClick={handleOpenBulkReject}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-[var(--bad)]/40 bg-transparent px-2.5 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border-danger bg-transparent px-2.5 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
             >
               <span>Reject {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
@@ -326,7 +327,7 @@ export function PlantillaApprovalDataTable({
               type="button"
               onClick={handleOpenBulkApprove}
               disabled={isBusy}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--ok)] bg-[var(--ok)] px-3 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
             >
               <span>Approve {selectedIds.size > 0 ? `(${selectedIds.size})` : "All"}</span>
             </button>
@@ -335,10 +336,10 @@ export function PlantillaApprovalDataTable({
       )}
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[var(--line)] bg-[var(--bg)] overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border-default bg-surface overflow-hidden">
         <div className="flex-1 overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-[var(--bg)] text-[12.5px] font-medium text-[var(--muted)] border-b border-[var(--line)]">
+          <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-surface-subtle text-xs font-semibold text-text-secondary border-b border-border-default">
               <tr>
                 {tab === "pending" && (
                   <th scope="col" className="w-10 px-4 py-2.5 text-left">
@@ -352,7 +353,7 @@ export function PlantillaApprovalDataTable({
                       }}
                       onChange={toggleSelectAll}
                       aria-label="Select all rows"
-                      className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                      className="h-4 w-4 rounded border-border-default text-brand-500 focus:ring-brand-500 cursor-pointer"
                     />
                   </th>
                 )}
@@ -387,7 +388,7 @@ export function PlantillaApprovalDataTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--line)]">
+            <tbody className="divide-y divide-border-default">
               {paginatedRequests.map((request) => {
                 const reqStatus = (request.status || "").toLowerCase();
                 const isPending =
@@ -401,51 +402,51 @@ export function PlantillaApprovalDataTable({
                 return (
                   <tr
                     key={request.id}
-                    className={`transition-colors hover:bg-[var(--soft)] ${
-                      isRowSelected ? "bg-[var(--pillbg)]/40" : ""
+                    className={`transition-colors hover:bg-surface-hover ${
+                      isRowSelected ? "bg-brand-subtle" : ""
                     }`}
                   >
                     {tab === "pending" && (
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <input
                           type="checkbox"
                           checked={isRowSelected}
                           onChange={() => toggleSelectOne(request.id)}
                           aria-label={`Select deployment for ${request.applicantName}`}
-                          className="h-4 w-4 rounded border-[var(--line)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                          className="h-4 w-4 rounded border-border-default text-brand-500 focus:ring-brand-500 cursor-pointer"
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-[var(--text)]">
+                    <td className="px-4 py-2.5">
+                      <div className="font-semibold text-text-primary text-sm">
                         {request.applicantName}
                       </div>
-                      <div className="text-[11px] text-[var(--muted)]">
+                      <div className="text-xs text-text-muted font-mono">
                         ID: {request.id.slice(0, 8)}…
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
                       <span className="font-medium">{request.account || "—"}</span>
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
-                      <span className="inline-flex items-center rounded-md bg-[var(--soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
+                      <span className="inline-flex items-center rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary border border-border-default">
                         {request.position || "—"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-[var(--accent)] font-semibold">
+                    <td className="px-4 py-2.5 font-mono text-text-brand-bold font-semibold text-sm">
                       {request.vcode}
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)] font-mono text-xs">
+                    <td className="px-4 py-2.5 text-text-primary font-mono text-xs">
                       {request.emplocNo || "—"}
                     </td>
-                    <td className="px-4 py-3 text-[var(--text)]">
+                    <td className="px-4 py-2.5 text-text-primary text-sm">
                       <div>{request.requestedBy}</div>
                     </td>
-                    <td className="px-4 py-3 text-[var(--muted)] whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-xs font-mono">
                       {formatDate(request.createdAt)}
                     </td>
                     <td
-                      className={`px-4 py-3 ${
+                      className={`px-4 py-2.5 ${
                         tab === "rejected" ? "text-left" : "text-right"
                       }`}
                     >
@@ -455,7 +456,7 @@ export function PlantillaApprovalDataTable({
                             type="button"
                             onClick={() => handleOpenReject(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center rounded-md border border-[var(--bad)]/40 bg-transparent px-2 text-xs font-medium text-[var(--bad)] hover:bg-[var(--bad)]/10 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-7 items-center rounded-md border border-border-danger bg-transparent px-2.5 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Reject</span>
                           </button>
@@ -463,26 +464,26 @@ export function PlantillaApprovalDataTable({
                             type="button"
                             onClick={() => handleOpenApprove(request)}
                             disabled={isBusy}
-                            className="inline-flex h-7 items-center rounded-md border border-[var(--ok)] bg-[var(--ok)] px-2.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 transition cursor-pointer"
+                            className="inline-flex h-7 items-center rounded-md border border-border-brand bg-brand-500 hover:bg-brand-600 px-2.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
                           >
                             <span>Approve</span>
                           </button>
                         </div>
                       ) : isApproved ? (
-                        <div className="inline-flex items-center gap-1 text-xs font-medium text-[var(--ok)]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        <div className="inline-flex items-center gap-1 text-xs font-medium text-text-primary">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-text-muted" />
                           <span>Approved</span>
                           {request.reviewedBy && (
-                            <span className="text-[11px] text-[var(--muted)] ml-1">
+                            <span className="text-xs text-text-muted ml-1">
                               by {request.reviewedBy}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <div className="text-xs text-[var(--bad)] max-w-xs truncate">
+                        <div className="text-xs text-text-danger max-w-xs truncate">
                           {request.remarks || "Rejected"}
                           {request.reviewedBy && (
-                            <div className="text-[10px] text-[var(--muted)]">
+                            <div className="text-xs text-text-muted">
                               by {request.reviewedBy}
                             </div>
                           )}
@@ -510,77 +511,63 @@ export function PlantillaApprovalDataTable({
 
       {/* Single Approve Modal */}
       {selectedApproveRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-[var(--line)] bg-[var(--bg)] p-5 shadow-xl animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--ok)]/15 text-[var(--ok)]">
-                  <UserCheck className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text)]">
-                    Approve Plantilla Deployment
-                  </h3>
-                  <p className="text-xs text-[var(--muted)]">
-                    Candidate will be officially linked to slot {selectedApproveRequest.vcode}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedApproveRequest(null)}
-                className="text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
+        <Modal
+          isOpen={Boolean(selectedApproveRequest)}
+          onClose={() => setSelectedApproveRequest(null)}
+          title="Approve Plantilla Deployment"
+          subtitle={`Candidate will be officially linked to slot ${selectedApproveRequest.vcode}`}
+          icon={UserCheck}
+          isSubmitting={approveMutation.isPending}
+          disableBackdropClick={approveMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
             {actionError && (
-              <div className="mt-3 flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2 text-xs text-text-danger">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <div className="mt-4 space-y-2 text-xs">
-              <div className="flex justify-between border-b border-[var(--line)] pb-1.5">
-                <span className="text-[var(--muted)]">Candidate:</span>
-                <span className="font-semibold text-[var(--text)]">
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between border-b border-border-default pb-1.5">
+                <span className="text-text-secondary">Candidate:</span>
+                <span className="font-semibold text-text-primary">
                   {selectedApproveRequest.applicantName}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-[var(--line)] pb-1.5">
-                <span className="text-[var(--muted)]">Account & Position:</span>
-                <span className="text-[var(--text)]">
+              <div className="flex justify-between border-b border-border-default pb-1.5">
+                <span className="text-text-secondary">Account & Position:</span>
+                <span className="text-text-primary">
                   {selectedApproveRequest.account} · {selectedApproveRequest.position}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-[var(--line)] pb-1.5">
-                <span className="text-[var(--muted)]">VCode Slot:</span>
-                <span className="font-mono text-[var(--accent)] font-semibold">
+              <div className="flex justify-between border-b border-border-default pb-1.5">
+                <span className="text-text-secondary">VCode Slot:</span>
+                <span className="font-mono text-text-brand-bold font-semibold">
                   {selectedApproveRequest.vcode}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-[var(--line)] pb-1.5">
-                <span className="text-[var(--muted)]">EMPLOC #:</span>
-                <span className="font-mono text-[var(--text)]">
+              <div className="flex justify-between border-b border-border-default pb-1.5">
+                <span className="text-text-secondary">EMPLOC #:</span>
+                <span className="font-mono text-text-primary">
                   {selectedApproveRequest.emplocNo}
                 </span>
               </div>
               <div className="flex justify-between pb-1">
-                <span className="text-[var(--muted)]">Requested By:</span>
-                <span className="text-[var(--text)]">
+                <span className="text-text-secondary">Requested By:</span>
+                <span className="text-text-primary">
                   {selectedApproveRequest.requestedBy}
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[var(--line)] pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-3">
               <button
                 type="button"
                 onClick={() => setSelectedApproveRequest(null)}
                 disabled={approveMutation.isPending}
-                className="rounded-lg border border-[var(--line)] bg-transparent px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--soft)] disabled:opacity-50 cursor-pointer"
+                className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -588,7 +575,7 @@ export function PlantillaApprovalDataTable({
                 type="button"
                 onClick={handleConfirmApprove}
                 disabled={approveMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3 py-1.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {approveMutation.isPending && (
                   <RefreshCw className="h-3 w-3 animate-spin" />
@@ -597,55 +584,41 @@ export function PlantillaApprovalDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Single Reject Modal */}
       {selectedRejectRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-[var(--line)] bg-[var(--bg)] p-5 shadow-xl animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bad)]/15 text-[var(--bad)]">
-                  <XCircle className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text)]">
-                    Reject Plantilla Deployment
-                  </h3>
-                  <p className="text-xs text-[var(--muted)]">
-                    Provide a mandatory reason for candidate rejection
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRejectRequest(null)}
-                className="text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
+        <Modal
+          isOpen={Boolean(selectedRejectRequest)}
+          onClose={() => setSelectedRejectRequest(null)}
+          title="Reject Plantilla Deployment"
+          subtitle="Provide a mandatory reason for candidate rejection"
+          icon={XCircle}
+          isSubmitting={rejectMutation.isPending}
+          disableBackdropClick={rejectMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
             {actionError && (
-              <div className="mt-3 flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2 text-xs text-text-danger">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
-            <div className="mt-3 space-y-3">
-              <div className="text-xs text-[var(--muted)]">
+            <div className="space-y-3">
+              <div className="text-xs text-text-secondary">
                 Rejecting deployment for{" "}
-                <strong className="text-[var(--text)]">
+                <strong className="text-text-primary">
                   {selectedRejectRequest.applicantName}
                 </strong>{" "}
                 (Slot {selectedRejectRequest.vcode}).
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--text)] mb-1">
-                  Rejection Remarks <span className="text-[var(--bad)]">*</span>
+                <label className="block text-xs font-medium text-text-primary mb-1">
+                  Rejection Remarks <span className="text-text-danger">*</span>
                 </label>
                 <textarea
                   rows={3}
@@ -657,26 +630,26 @@ export function PlantillaApprovalDataTable({
                     }
                   }}
                   placeholder="e.g. Candidate failed qualification check, slot freeze active, etc."
-                  className={`w-full rounded-lg border p-2.5 text-xs text-[var(--text)] bg-[var(--bg)] placeholder:text-[var(--muted)] focus:outline-hidden ${
+                  className={`w-full rounded-lg border p-2.5 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
                     rejectReasonError
-                      ? "border-[var(--bad)] focus:border-[var(--bad)]"
-                      : "border-[var(--line)] focus:border-[var(--accent)]"
+                      ? "border-border-danger focus:border-border-danger"
+                      : "border-border-default focus:border-border-brand"
                   }`}
                 />
                 {rejectReasonError && (
-                  <p className="mt-1 text-2xs text-[var(--bad)]">
+                  <p className="mt-1 text-2xs text-text-danger">
                     Rejection remarks are required.
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[var(--line)] pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-3">
               <button
                 type="button"
                 onClick={() => setSelectedRejectRequest(null)}
                 disabled={rejectMutation.isPending}
-                className="rounded-lg border border-[var(--line)] bg-transparent px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--soft)] disabled:opacity-50 cursor-pointer"
+                className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -684,7 +657,7 @@ export function PlantillaApprovalDataTable({
                 type="button"
                 onClick={handleConfirmReject}
                 disabled={rejectMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--bad)] bg-[var(--bad)] px-3 py-1.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-danger bg-danger-button hover:bg-danger-button-hover px-3 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {rejectMutation.isPending && (
                   <RefreshCw className="h-3 w-3 animate-spin" />
@@ -693,47 +666,33 @@ export function PlantillaApprovalDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Bulk Approve Modal */}
       {isBulkApproveOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-[var(--line)] bg-[var(--bg)] p-5 shadow-xl animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--ok)]/15 text-[var(--ok)]">
-                  <UserCheck className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text)]">
-                    Bulk Approve Deployments
-                  </h3>
-                  <p className="text-xs text-[var(--muted)]">
-                    Deploy {selectedIds.size} candidate(s) to permanent plantilla
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBulkApproveOpen(false)}
-                className="text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="mt-3 text-xs text-[var(--muted)]">
+        <Modal
+          isOpen={isBulkApproveOpen}
+          onClose={() => setIsBulkApproveOpen(false)}
+          title="Bulk Approve Deployments"
+          subtitle={`Deploy ${selectedIds.size} candidate(s) to permanent plantilla`}
+          icon={UserCheck}
+          isSubmitting={isBulkProcessing}
+          disableBackdropClick={isBulkProcessing}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-text-secondary">
               Are you sure you want to approve all {selectedIds.size} selected candidate deployments?
               This will update their HR Emploc status and place them into their assigned plantilla slots.
             </p>
 
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[var(--line)] pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-3">
               <button
                 type="button"
                 onClick={() => setIsBulkApproveOpen(false)}
                 disabled={isBulkProcessing}
-                className="rounded-lg border border-[var(--line)] bg-transparent px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--soft)] disabled:opacity-50 cursor-pointer"
+                className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -741,7 +700,7 @@ export function PlantillaApprovalDataTable({
                 type="button"
                 onClick={handleConfirmBulkApprove}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--ok)] bg-[var(--ok)] px-3 py-1.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {isBulkProcessing && (
                   <RefreshCw className="h-3 w-3 animate-spin" />
@@ -750,40 +709,26 @@ export function PlantillaApprovalDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Bulk Reject Modal */}
       {isBulkRejectOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl border border-[var(--line)] bg-[var(--bg)] p-5 shadow-xl animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bad)]/15 text-[var(--bad)]">
-                  <XCircle className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text)]">
-                    Bulk Reject Deployments
-                  </h3>
-                  <p className="text-xs text-[var(--muted)]">
-                    Reject {selectedIds.size} candidate deployment(s)
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBulkRejectOpen(false)}
-                className="text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-3">
+        <Modal
+          isOpen={isBulkRejectOpen}
+          onClose={() => setIsBulkRejectOpen(false)}
+          title="Bulk Reject Deployments"
+          subtitle={`Reject ${selectedIds.size} candidate deployment(s)`}
+          icon={XCircle}
+          isSubmitting={isBulkProcessing}
+          disableBackdropClick={isBulkProcessing}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--text)] mb-1">
-                  Reason for Bulk Rejection <span className="text-[var(--bad)]">*</span>
+                <label className="block text-xs font-medium text-text-primary mb-1">
+                  Reason for Bulk Rejection <span className="text-text-danger">*</span>
                 </label>
                 <textarea
                   rows={3}
@@ -795,26 +740,26 @@ export function PlantillaApprovalDataTable({
                     }
                   }}
                   placeholder="Provide a reason for rejecting all selected deployments (min 3 chars)..."
-                  className={`w-full rounded-lg border p-2.5 text-xs text-[var(--text)] bg-[var(--bg)] placeholder:text-[var(--muted)] focus:outline-hidden ${
+                  className={`w-full rounded-lg border p-2.5 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
                     bulkRejectReasonError
-                      ? "border-[var(--bad)] focus:border-[var(--bad)]"
-                      : "border-[var(--line)] focus:border-[var(--accent)]"
+                      ? "border-border-danger focus:border-border-danger"
+                      : "border-border-default focus:border-border-brand"
                   }`}
                 />
                 {bulkRejectReasonError && (
-                  <p className="mt-1 text-2xs text-[var(--bad)]">
+                  <p className="mt-1 text-2xs text-text-danger">
                     A valid rejection reason (minimum 3 characters) is required.
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-[var(--line)] pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-3">
               <button
                 type="button"
                 onClick={() => setIsBulkRejectOpen(false)}
                 disabled={isBulkProcessing}
-                className="rounded-lg border border-[var(--line)] bg-transparent px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--soft)] disabled:opacity-50 cursor-pointer"
+                className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -822,7 +767,7 @@ export function PlantillaApprovalDataTable({
                 type="button"
                 onClick={handleConfirmBulkReject}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--bad)] bg-[var(--bad)] px-3 py-1.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-danger bg-danger-button hover:bg-danger-button-hover px-3 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {isBulkProcessing && (
                   <RefreshCw className="h-3 w-3 animate-spin" />
@@ -831,7 +776,7 @@ export function PlantillaApprovalDataTable({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

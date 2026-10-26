@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Loop 7A: Approvals Navigation & Data Tables Alignment (ohm#l7a01n2v)
+
+**Status: COMPLETE — APPROVALS NAVIGATION & ALL 11 APPROVAL DATA TABLES TOKENIZED TO ZERO COLOR LITERALS; CANONICAL MODAL INTEGRATION ON 44 MODAL DIALOGS (SINGLE APPROVE, SINGLE REJECT, BULK APPROVE, BULK REJECT) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; TABLE TYPOGRAPHY FLOOR ENFORCED TO >= 14px (`text-sm`); STRICT SEMANTIC TOKENS ON ALL BUTTONS, CHIPS, AND BANNERS; ZERO QUERY, RPC, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions
+- **Navigation & Pane Components**:
+  - `src/components/approvals/RequestCategoryNavigation.tsx`: Category selector aligned with canonical design tokens, active brand pill states, and keyboard accessibility. (0 literals)
+  - `src/components/approvals/ActiveQueueReviewPane.tsx`: Review header, queue stats bar, and filter controls tokenized. (0 literals)
+- **Data Table Components (11 Data Tables)**:
+  - `AccountRequestDataTable.tsx`: Single/Bulk action modals wrapped with canonical `Modal`. Table text floor $\ge 14\text{px}$ (`text-sm`). (0 literals)
+  - `PlantillaApprovalDataTable.tsx`: Single/Bulk approve/reject dialogs converted to `Modal`. Quota and slot indicators aligned. (0 literals)
+  - `CoverageDataTable.tsx`: Single/Bulk review dialogs converted to `Modal`. Shift coverage indicators tokenized. (0 literals)
+  - `AccountTransferDataTable.tsx`: Single/Bulk account transfer dialogs converted to `Modal`. Target operational group chips neutral. (0 literals)
+  - `NewStoreDataTable.tsx`: Single/Bulk new store deployment clearance modals converted to `Modal`. (0 literals)
+  - `RelieverDataTable.tsx`: Reliever assignment review dialogs converted to `Modal`. Neutral priority indicators. (0 literals)
+  - `ApplicantMovementDataTable.tsx`: Applicant pipeline advancement and lateral transfer review dialogs converted to `Modal`. (0 literals)
+  - `VacancyClosureDataTable.tsx`: Single/Bulk vacancy closure approval and rejection modals wrapped with `Modal`. ADR-001 quota reconciliation indicators tokenized. (0 literals)
+  - `HrEmplocDeletionDataTable.tsx`: Single/Bulk locator deletion modals wrapped with `Modal`. Backout vacancy re-open controls tokenized. (0 literals)
+  - `DeactivationDataTable.tsx`: Single/Bulk deactivation approval and rejection modals wrapped with `Modal`. Separation status chips converted to neutral semantic badges. (0 literals)
+  - `HeadcountDataTable.tsx`: Single/Bulk headcount expansion and quota amendment modals wrapped with `Modal`. Mint VCode action aligned. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: Every data table replaces hand-rolled `fixed inset-0` overlays with canonical `@/components/shared/Modal`. Modals pass `isSubmitting={isBusy}`, `disableBackdropClick={isBusy}`, and handle Escape key dismissal.
+- **Danger Audit**: `--danger` is strictly isolated to destructive confirmation buttons (`bg-danger-button hover:bg-danger-button-hover text-danger-button-text`) and form error alert banners (`border-border-danger bg-danger-subtle text-text-danger`).
+- **Color-Use Audit**: Status chips, priority badges, and separation tags use neutral tokens (`border border-border-default bg-surface-subtle text-text-secondary`). Color is reserved strictly for real metrics or brand interactions.
+- **Typography Floor**: Table text floor strictly enforced to $\ge 14\text{px}$ (`text-sm`) across all table rows, cells, and headers.
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for 7A Module**: Exactly 0 raw color literals remain across all 13 files.
+- **ESLint**: 0 errors.
+- **TypeScript**: `npx tsc --noEmit` passed with 0 errors.
+- **ADR-001 / ADR-002 Invariants**: Completely preserved; zero non-styling logic changed.
+
+---
+
 ## Loop 6 Closeout Reverts & Rollout Queue Gate Upgrade (ohm#l6cl0s9e)
 
 **Status: COMPLETE — REPORT-ONLY AUDIT & REVERTS FROM LOOP 6 RESOLVED; REVERTED NON-STYLING `onUpdated` REFRESH CALLBACK FROM `PoolReviewQueueDrawer.tsx` AND `MosesHqPoolView.tsx`; AUDITED 100% OF PLANTILLA CHANGES IN LOOPS 6A-6C CONFIRMING ZERO QUERY, RPC, RBAC, OR BUSINESS LOGIC CHANGES; DISCLOSED DATABASE RPC CAPABILITIES COMPUTATION FOR HR EMPLOC PENDING QUEUE (`can_assign_employee_no` & `can_tag_deficiency`); CREATED `docs/architecture/ui-rollout-queue.md` WITH ALL 9 EXPEDITION ITEMS; UPGRADED `.agents/scripts/gate.py` INTO AN AUTOMATIC COMPLETION GATE WITH STRICT ALLOWLIST AND OFFLINE FONT RESILIENCE; PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 3.0s); ESLINT CLEAN (0 ERRORS)**
