@@ -1,5 +1,82 @@
 # AI Handoff
 
+## Data Archival & Rollback Backend Sanity Check & FK Resolver Verification (ohm#arch02)
+
+**Status: COMPLETE — COMPREHENSIVE REMOTE DATABASE SANITY AUDIT EXECUTED ON STAGING (`qqiiznmqxfoamqytjica`); IDENTIFIED UNAPPLIED MIGRATION STATUS AND THREE CRITICAL ANOMALIES IN REPO MIGRATION SCRIPT; VALIDATED SAFE AUDIT ACTOR RESOLVER LOGIC ACROSS 5 EDGE CASES WITH 0 FOREIGN KEY VIOLATIONS; COMPILED ACCURATE LIVE RECORD COUNTS ACROSS ALL TARGET OPERATIONAL AND PRESERVED TABLES; REPORTED COMPLETE FINDINGS TO USER; ZERO SCHEMA MUTATIONS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Key Findings & Technical Audit Results
+
+1. **Migration & Schema Check**:
+   - **Migration Status**: Migration `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` has **NOT YET BEEN APPLIED** to remote staging database `qqiiznmqxfoamqytjica`.
+     - `supabase_migrations.schema_migrations` stops at version `20262606000073`.
+     - Tables `archive_batches` and `quick_reports`, and functions `execute_qa_reset_archive`, `rollback_archive_batch`, and `resolve_audit_actor_id` do not exist in the remote database yet.
+   - **Operational Table Column Inspection**:
+     - Columns `archive_batch_id` and `suppressed_by_batch_id` DO NOT EXIST on any table in the database yet.
+     - `is_archived` and `archived_at` only exist on `plantilla`, `vacancies`, `headcount_requests`, and `coverage_requests` from legacy migrations.
+     - `hr_emploc`, `plantilla_slots`, `stores`, `groups`, and Moses pool tables do NOT have archive columns yet.
+   - **Target Table Name Drift in Migration File**:
+     - Migration specifies `'workforce_pools'`, `'pool_slots'`, `'pool_assignments'`, `'operational_groups'`, `'sla_breaches'`.
+     - In the live DB schema: Moses HQ pool slot table is `workforce_pool_slots`, group table is `groups` / `coverage_groups`, and SLA log is `sla_breach_logs`. `workforce_pools` does not exist; `workforce_pool_slots` would be omitted unless updated in `target_tables`.
+   - **Non-Operational User Tables Verified**:
+     - `account_requests` (Account Sign-Ups): 0 archive columns exist. Excluded from target tables in migration. Fully preserved.
+     - `users_profile`: Has pre-existing `archived_at` for individual user soft-deactivation, but 0 batch archival flags. Excluded from target tables in migration. Fully preserved.
+
+2. **Foreign Key & Actor Resolver Check (`audit_logs_actor_id_fkey`)**:
+   - **Foreign Key Constraint**: `public.audit_logs.actor_id` references `auth.users(id)` ON DELETE NO ACTION.
+   - **Root Cause of Rollback FK Violation Discovered**:
+     - In `public.users_profile`, **32 out of 41 profiles are orphaned** (their `auth_user_id` does NOT exist in `auth.users` on staging).
+     - If `resolve_audit_actor_id` resolves a profile to `users_profile.auth_user_id` without verifying existence in `auth.users`, it passes an unreferenced UUID, causing `ERROR: insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"`.
+     - Furthermore, `information_schema.constraint_column_usage` returns 0 rows when queried for `auth.users` due to PostgreSQL schema permissions on `auth`, causing the migration's dynamic schema inspection to fall through to `ELSE`.
+   - **Column & Enum Mismatch in Migration Script**:
+     - `audit_logs` has columns `(id, actor_id, module, action, record_id, old_data, new_data, timestamp, role)`.
+     - Migration lines 287-296 attempt to insert `(actor_id, action, module, target_id, details, created_at)` with `action = 'QA_RESET_ARCHIVE'`.
+     - `action` is enum `public.audit_action` which does not include `'QA_RESET_ARCHIVE'`, and columns `target_id`, `details`, `created_at` do not exist. Correct columns are `record_id`, `new_data`, `timestamp`, and action `'SOFT_DELETE'` / `'DELETE'`.
+   - **Simulated Test Execution**:
+     - Tested verified resolver logic directly in Postgres across 5 edge cases:
+       1. Valid profile ID (mapped to real `auth.users`) -> [PASS]
+       2. Direct `auth.users` UUID -> [PASS]
+       3. Orphaned profile ID (mapped to NULL) -> [PASS]
+       4. Arbitrary bogus UUID (mapped to NULL) -> [PASS]
+       5. NULL input (mapped to NULL) -> [PASS]
+     - Zero foreign key constraint violations thrown.
+
+3. **Functional State & Zero-Out Live Row Counts**:
+   - **Core Operational Data**:
+     - `plantilla`: 4,005 rows (31 active, 3,974 legacy-archived)
+     - `plantilla_slots`: 1,749 rows
+     - `plantilla_store_links`: 118 rows
+     - `vacancies`: 283 rows (42 active, 241 legacy-archived)
+     - `applicants`: 210 rows
+     - `hr_emploc`: 96 rows
+     - `workforce_pool_slots`: 83 rows
+     - `workforce_pool_requests`: 21 rows
+     - `stores`: 4,163 rows
+     - `groups`: 6 rows
+     - `accounts`: 117 rows
+     - `coverage_groups`: 23 rows
+     - `coverage_group_stores`: 67 rows
+     - `coverage_slots`: 27 rows
+     - `sla_breach_logs`: 37 rows
+   - **Operational Request Queues (265 pending/historical records)**:
+     - `headcount_requests`: 103 (5 active, 98 legacy-archived)
+     - `coverage_requests`: 45 (42 active, 3 legacy-archived)
+     - `vacancy_closure_requests`: 42
+     - `new_store_requests`: 39
+     - `employee_deactivation_requests`: 11
+     - `applicant_movement_requests`: 9
+     - `hr_emploc_deletion_requests`: 8
+     - `workforce_assignment_requests`: 6
+     - `account_group_transfer_requests`: 2
+   - **Preserved Non-Operational Tables**:
+     - `users_profile`: 41 rows
+     - `account_requests` (Account Sign-Ups): 29 rows
+   - **Batch Registry (`system_archive_batches`)**:
+     - Active table exists and tracks previous QA reset batches (e.g., active batch `81ec3623...` tracking 42 plantilla, 19 vacancies, 17 hr_emploc, 100 moses_hq).
+
+---
+
 ## QA Reset Soft-Archive & 72-Hour Rollback System (ohm#arch01)
 
 **Status: COMPLETE — FULL ARCHITECTURAL BLUEPRINT IMPLEMENTED; 100% SOFT-ARCHIVE SWEEP & ATOMIC ROLLBACK STANDARDIZED; SAFE ACTOR ID RESOLVER FOR AUDIT_LOGS PERMANENTLY RESOLVING AUDIT_LOGS_ACTOR_ID_FKEY VIOLATION; ARCHIVAL COLUMNS STANDARDIZED ACROSS ALL 25+ OPERATIONAL TABLES; DUAL REGISTRY INTEGRATION IN ARCHIVE_BATCHES AND SYSTEM_ARCHIVE_BATCHES; DASHBOARD, CENCOM, APPROVALS, AND NOTIFICATIONS FILTERING SYNCHRONIZED; GLOBAL QUERY CACHE INVALIDATION WIRED TO MORE MODAL; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED); ZERO DIRECT DATABASE MUTATIONS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
