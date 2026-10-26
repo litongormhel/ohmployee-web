@@ -152,7 +152,7 @@ function NotificationsPageContent() {
               type="button"
               onClick={() => markAllMutation.mutate()}
               disabled={unreadCount === 0 || markAllMutation.isPending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-slate-300 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:border-border-strong hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
             >
               <CheckCheck className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
               <span>{markAllMutation.isPending ? "Marking..." : "Mark All as Read"}</span>
@@ -163,7 +163,7 @@ function NotificationsPageContent() {
               onClick={handleRefresh}
               disabled={isRefetching || isLoading}
               title="Refresh notifications"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-default bg-surface-base text-text-secondary hover:border-slate-300 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-default bg-surface-base text-text-secondary hover:border-border-strong hover:bg-surface-hover hover:text-text-primary transition cursor-pointer shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 ${
@@ -199,7 +199,7 @@ function NotificationsPageContent() {
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     isActive
                       ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                      : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                      : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Icon
@@ -214,10 +214,10 @@ function NotificationsPageContent() {
                   <span
                     className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                       isActive
-                        ? "bg-brand-600 text-white"
+                        ? "bg-brand-500 text-white"
                         : tab.key === "unread" && tab.count > 0
-                        ? "bg-amber-100 text-amber-800 border border-amber-300"
-                        : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                        ? "border border-border-default bg-surface-subtle text-text-primary"
+                        : "border border-border-default bg-surface-subtle text-text-secondary"
                     }`}
                   >
                     {tab.count}
@@ -237,19 +237,19 @@ function NotificationsPageContent() {
                   key={i}
                   className="flex items-start gap-3.5 rounded-xl border border-border-default/70 bg-surface-base p-4 animate-pulse"
                 >
-                  <div className="h-9 w-9 rounded-full bg-slate-200 shrink-0" />
+                  <div className="h-9 w-9 rounded-full bg-surface-muted shrink-0" />
                   <div className="flex-1 space-y-2">
                     <div className="flex justify-between items-center">
-                      <div className="h-4 w-1/3 rounded bg-slate-200" />
-                      <div className="h-3 w-16 rounded bg-slate-200" />
+                      <div className="h-4 w-1/3 rounded bg-surface-muted" />
+                      <div className="h-3 w-16 rounded bg-surface-muted" />
                     </div>
-                    <div className="h-3 w-3/4 rounded bg-slate-200" />
+                    <div className="h-3 w-3/4 rounded bg-surface-muted" />
                   </div>
                 </div>
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-6 text-center text-rose-700">
+            <div className="rounded-xl border border-danger-border bg-danger-subtle/50 p-6 text-center text-danger-text">
               <p className="text-xs font-medium">Failed to load notifications stream.</p>
               <button
                 type="button"

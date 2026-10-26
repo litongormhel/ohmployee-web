@@ -18,7 +18,7 @@ Each item is ticked ONLY after completing its own complete verification:
 - [x] 7A Approvals navigation + data tables
 - [x] 7B Approvals cards + action modals
 - [x] Users and Team Directory
-- [ ] Notifications
+- [x] Notifications
 - [ ] Reports
 - [ ] Settings
 - [ ] More A (governance/security)

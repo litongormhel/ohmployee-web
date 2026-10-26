@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Loop 7D: Notifications Activity Center Alignment (ohm#lntf4k2w)
+
+**Status: COMPLETE — ALL NOTIFICATIONS VIEWS TOKENIZED TO ZERO COLOR LITERALS (44 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); SEMANTIC TONE SYSTEM CONVERTED TO DESIGN TOKENS; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, INCIDENTS, DELETIONS, AND BREACHES); COLOR-USE AUDIT PASSED (NEUTRAL CATEGORICAL BADGES, TONAL AVATARS, TIME BADGES); TABLE/STREAM ACCESSIBILITY PRESERVED; ZERO QUERY, REALTIME, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions (2 Files)
+- `src/app/(dashboard)/notifications/page.tsx`: Aligned admin page header, category tabs, filter pill badges, loading skeletons, and error state banner. (0 literals)
+- `src/components/notifications/NotificationCard.tsx`: Standardized card tone resolver (`resolveNotificationTone`) to semantic design tokens (`--danger-*` for rejections/breaches, `--border-default`/`--surface-subtle` for approved notices, pending alerts, and general notices). Tokenized read/unread toggles and empty state illustration. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Danger Audit**: `--danger` strictly isolated to breach/incident notifications and destructive states. Notice pills, approval confirmations, and pending action chips use neutral tokens (`border border-border-default bg-surface-subtle text-text-primary` or `text-text-secondary`).
+- **Typography & Interactions**: Notification card title typography floor enforced $\ge 14\text{px}$ (`text-sm`), read/unread toggle controls and deep-link actions preserved without layout shifts.
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for Notifications**: Exactly 0 raw color literals across `src/app/(dashboard)/notifications/` and `src/components/notifications/`.
+- **ESLint**: 0 errors.
+- **TypeScript**: `npx tsc --noEmit` passed with 0 errors.
+- **ADR-001 / ADR-002 Invariants**: Completely preserved; zero non-styling logic changed.
+
+---
+
 ## Loop 7C: Users & Team Directory Alignment (ohm#lutd3n8k)
 
 **Status: COMPLETE — ALL 9 FILES IN USERS AND TEAM DIRECTORY TOKENIZED TO ZERO COLOR LITERALS (390 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `CreateUserModal`, `TempPermissionModal`, AND `UserDetailDrawer` ACTION CONFIRMATIONS (SAVE, TOGGLE STATUS, RESET PASSWORD, ARCHIVE, REVOKE) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; DETAIL DRAWER ALIGNMENT FOR `TeamDirectoryDetailDrawer` AND `UserDetailDrawer`; TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`); STRICT DESIGN TOKENS ACROSS ALL BUTTONS, CHIPS, AND BANNERS; ZERO QUERY, RPC, OR BUSINESS LOGIC DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**

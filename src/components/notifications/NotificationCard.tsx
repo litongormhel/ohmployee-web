@@ -85,8 +85,8 @@ function resolveNotificationTone(item: NotificationItem): ToneConfig {
   ) {
     return {
       icon: AlertCircle,
-      containerClass: "bg-rose-50 text-rose-600 border border-rose-200/80 ring-2 ring-rose-500/10",
-      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      containerClass: "bg-danger-subtle text-danger-text border border-danger-border ring-2 ring-danger-border/20",
+      badgeClass: "bg-danger-subtle text-danger-text border-danger-border",
       badgeLabel: item.sla_level ? `SLA Breach (L${item.sla_level})` : "Attention Required",
     };
   }
@@ -106,8 +106,8 @@ function resolveNotificationTone(item: NotificationItem): ToneConfig {
   ) {
     return {
       icon: CheckCircle2,
-      containerClass: "bg-emerald-50 text-emerald-600 border border-emerald-200/80 ring-2 ring-emerald-500/10",
-      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      containerClass: "bg-surface-subtle text-text-primary border border-border-default ring-2 ring-border-default/20",
+      badgeClass: "bg-surface-subtle text-text-primary border-border-default",
       badgeLabel: "Approved",
     };
   }
@@ -127,8 +127,8 @@ function resolveNotificationTone(item: NotificationItem): ToneConfig {
   ) {
     return {
       icon: Clock,
-      containerClass: "bg-amber-50 text-amber-600 border border-amber-200/80 ring-2 ring-amber-500/10",
-      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      containerClass: "bg-surface-subtle text-text-secondary border border-border-default ring-2 ring-border-default/20",
+      badgeClass: "bg-surface-subtle text-text-secondary border-border-default",
       badgeLabel: item.sla_level ? `SLA Alert (L${item.sla_level})` : "Pending Action",
     };
   }
@@ -136,8 +136,8 @@ function resolveNotificationTone(item: NotificationItem): ToneConfig {
   // 4. Info / System Default
   return {
     icon: Bell,
-    containerClass: "bg-blue-50 text-blue-600 border border-blue-200/80 ring-2 ring-blue-500/10",
-    badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+    containerClass: "bg-surface-subtle text-text-secondary border border-border-default ring-2 ring-border-default/20",
+    badgeClass: "bg-surface-subtle text-text-secondary border-border-default",
     badgeLabel: "Notice",
   };
 }
@@ -176,7 +176,7 @@ export function NotificationCard({
       {/* Unread Accent Pill Indicator */}
       {!notification.is_read && (
         <span
-          className="absolute left-0 top-3 h-7 w-1 rounded-r-md bg-brand-600"
+          className="absolute left-0 top-3 h-7 w-1 rounded-r-md bg-brand-500"
           aria-label="Unread notification indicator"
         />
       )}
@@ -246,7 +246,7 @@ export function NotificationCard({
             onClick={() => onToggleRead(notification)}
             disabled={isToggling}
             title={notification.is_read ? "Mark as unread" : "Mark as read"}
-            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary hover:border-slate-300 hover:bg-surface-hover hover:text-text-primary transition cursor-pointer disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary hover:border-border-strong hover:bg-surface-hover hover:text-text-primary transition cursor-pointer disabled:opacity-50"
           >
             {notification.is_read ? (
               <>
@@ -255,7 +255,7 @@ export function NotificationCard({
               </>
             ) : (
               <>
-                <Check className="h-3 w-3 text-emerald-600" aria-hidden="true" />
+                <Check className="h-3 w-3 text-pct-high" aria-hidden="true" />
                 <span>Mark read</span>
               </>
             )}
@@ -310,7 +310,7 @@ export function NotificationEmptyState({ tab }: NotificationEmptyStateProps) {
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-default bg-surface-base/50 p-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-text-muted">
         <BellOff className="h-6 w-6" aria-hidden="true" />
       </div>
       <h3 className="mt-3 text-sm font-bold text-text-primary">{info.title}</h3>
