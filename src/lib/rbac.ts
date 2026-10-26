@@ -9,6 +9,9 @@
  */
 
 import type { RequestCategoryKey } from "@/lib/queries/requests";
+import type { DrawerActionItem } from "@/types/rbac";
+
+export * from "@/types/rbac";
 
 export enum AppRole {
   SUPER_ADMIN = "super_admin",
@@ -182,15 +185,15 @@ export function canManageApplicantPipeline(userOrRole?: RoleIdentifiable | strin
 
 /**
  * Can edit applicant profile details (first name, last name, middle name, contact number).
- * Strictly mirrors fn_update_applicant_profile_once & Mobile vacancyCanEditApplicantPipeline:
- * Allowed: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20).
- * Denied: Encoder (30), HR Personnel (25), Backoffice Personnel (15), Viewer (10).
+ * Strictly mirrors 55-item Drawer Actions & Mutations Matrix item 22:
+ * Allowed: Super Admin (100), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20).
+ * Denied: Head Admin (90), Encoder (30), HR Personnel (25), Backoffice Personnel (15), Viewer (10).
  */
 export function canEditApplicantProfile(userOrRole?: RoleIdentifiable | string | null): boolean {
-  if (hasFullAccess(userOrRole)) return true;
-  const role = normalizeRole(extractRoleString(userOrRole));
-  return isOpsTeam(userOrRole) || role === AppRole.RECRUITMENT;
+  return canPerformDrawerAction("Edit Applicant Profile (Once)", userOrRole);
 }
+
+export const canEditApplicantProfileOnce = canEditApplicantProfile;
 
 /**
  * Can review/approve/reject vacancy closures.
@@ -339,7 +342,7 @@ export function canViewTeamDirectory(userOrRole?: RoleIdentifiable | string | nu
 export function getAllowedApprovalCategories(
   userOrRole?: RoleIdentifiable | string | null,
 ): RequestCategoryKey[] {
-  if (hasFullAccess(userOrRole)) {
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) {
     return [
       "new_stores",
       "headcount",
@@ -356,19 +359,35 @@ export function getAllowedApprovalCategories(
   }
 
   const role = normalizeRole(extractRoleString(userOrRole));
+  const level = getRoleLevel(userOrRole);
 
-  if (role === AppRole.ENCODER) {
+  if (role === AppRole.HEAD_ADMIN || level === 90) {
     return [
+      "new_stores",
       "headcount",
+      "plantilla_approvals",
+      "account_requests",
       "coverage",
       "vacancy_closures",
       "hr_emploc_deletions",
       "applicant_movements",
+      "account_group_transfers",
       "relievers",
     ];
   }
 
-  if (role === AppRole.BACKOFFICE_PERSONNEL) {
+  if (role === AppRole.ENCODER || level === 30) {
+    return [
+      "headcount",
+      "plantilla_approvals",
+      "applicant_movements",
+      "relievers",
+      "vacancy_closures",
+      "hr_emploc_deletions",
+    ];
+  }
+
+  if (role === AppRole.BACKOFFICE_PERSONNEL || level === 15) {
     return ["deactivations"];
   }
 
@@ -445,3 +464,149 @@ export function isModuleAllowedForUser(
       return false;
   }
 }
+
+// ── Authoritative 55-Item Drawer Actions & Mutations Matrix Evaluator ──────
+
+export const DRAWER_ACTION_RULES: Record<DrawerActionItem, number[]> = {
+  // Vacancy
+  "Edit Applicant Profile (Once)": [100, 70, 45, 42, 41, 20],
+  "Edit Hired Date": [100, 70, 45, 42, 41, 30],
+  "Reopen Vacancy Slot": [100, 70, 45, 42, 41, 30],
+  "Request Applicant Movement": [100, 70, 45, 42, 41, 20],
+  "Export Full Vacancy Dataset": [100, 90, 30],
+
+  // HR Emploc
+  "Approve Deficiency Correction Review": [100, 70, 45, 42, 41, 30, 25],
+  "Revert / Reject Deficiency Correction Review": [100, 70, 45, 42, 41, 30, 25],
+  "Rollback / Reject Import Batch": [100, 90, 30],
+
+  // Plantilla
+  "Update Employment Lifecycle Status": [100, 70, 45, 42, 41],
+  "Update Work Schedule & Day-Off": [100, 70, 45, 42, 41],
+  "Request Pool to Regular Slot Conversion": [100, 70, 45, 42, 41],
+  "Request Reliever Coverage Assignment": [100, 70, 45, 42, 41],
+  "Submit New Store Opening Request": [100, 70, 45, 42, 41],
+
+  // Approvals
+  "Approve / Reject New Store Requests": [100, 90],
+  "Approve / Reject Headcount Adjustments": [100, 90, 30],
+  "Approve / Reject Plantilla Reassignments": [100, 90, 30],
+  "Approve / Reject User Signup Requests": [100, 90],
+  "Approve / Reject Coverage Group Requests": [100, 90],
+  "Approve / Reject Applicant Movements": [100, 90, 30],
+  "Approve / Reject Account Group Transfers": [100, 90],
+  "Approve / Reject Reliever Requests": [100, 90, 30],
+
+  // Users
+  "Grant / Revoke Temporary Elevated Permissions": [100, 90],
+  "Deactivate / Reactivate User Account": [100, 90],
+  "Archive / Soft-Delete User Account": [100],
+  "Admin Forced Password Reset": [100, 90],
+  "Terminate Active User Sessions": [100],
+
+  // Data Control
+  "HR Emploc XLSX Bulk Import": [100, 90, 30],
+  "Vacancy Roster XLSX Bulk Import": [100, 90, 30],
+  "Plantilla Structure XLSX Import": [100, 90, 30],
+  "Payroll Hours & Deductions Import": [100, 90, 30],
+  "Live MIKA Sync Trigger": [100, 90, 30],
+
+  // Governance
+  "Toggle System Edit Lock (Freeze Mode)": [100],
+  "Manage Permission Matrix Overrides": [100],
+};
+
+/**
+ * Checks whether the given user/role is allowed to perform a specific drawer action or mutation.
+ */
+export function canPerformDrawerAction(
+  actionItem: DrawerActionItem,
+  userOrRole?: RoleIdentifiable | string | null,
+): boolean {
+  if (!userOrRole) return false;
+  const level = getRoleLevel(userOrRole);
+  const allowedLevels = DRAWER_ACTION_RULES[actionItem];
+  if (!allowedLevels) return false;
+  return allowedLevels.includes(level);
+}
+
+// ── Convenience Helpers for Drawer Actions ──────────────────────────────────
+
+// Vacancy
+export const canEditHiredDate = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Edit Hired Date", u);
+export const canReopenVacancySlot = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Reopen Vacancy Slot", u);
+export const canRequestApplicantMovement = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Request Applicant Movement", u);
+export const canExportVacancyDataset = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Export Full Vacancy Dataset", u);
+
+// HR Emploc
+export const canApproveDeficiencyCorrection = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve Deficiency Correction Review", u);
+export const canRevertDeficiencyCorrection = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Revert / Reject Deficiency Correction Review", u);
+export const canRollbackImportBatch = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Rollback / Reject Import Batch", u);
+
+// Plantilla
+export const canUpdateEmploymentLifecycleStatus = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Update Employment Lifecycle Status", u);
+export const canUpdateWorkSchedule = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Update Work Schedule & Day-Off", u);
+export const canRequestPoolConversion = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Request Pool to Regular Slot Conversion", u);
+export const canRequestRelieverCoverage = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Request Reliever Coverage Assignment", u);
+export const canSubmitNewStoreRequest = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Submit New Store Opening Request", u);
+
+// Approvals
+export const canApproveNewStoreRequests = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject New Store Requests", u);
+export const canApproveHeadcountAdjustments = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Headcount Adjustments", u);
+export const canApprovePlantillaReassignments = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Plantilla Reassignments", u);
+export const canApproveUserSignups = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject User Signup Requests", u);
+export const canApproveCoverageGroups = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Coverage Group Requests", u);
+export const canApproveApplicantMovements = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Applicant Movements", u);
+export const canApproveAccountGroupTransfers = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Account Group Transfers", u);
+export const canApproveRelieverRequests = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Approve / Reject Reliever Requests", u);
+
+// Users
+export const canGrantElevatedPermissions = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Grant / Revoke Temporary Elevated Permissions", u);
+export const canDeactivateUserAccount = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Deactivate / Reactivate User Account", u);
+export const canArchiveUserAccount = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Archive / Soft-Delete User Account", u);
+export const canAdminForcePasswordReset = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Admin Forced Password Reset", u);
+export const canTerminateUserSessions = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Terminate Active User Sessions", u);
+
+// Data Control
+export const canExecuteHrEmplocBulkImport = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("HR Emploc XLSX Bulk Import", u);
+export const canExecuteVacancyBulkImport = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Vacancy Roster XLSX Bulk Import", u);
+export const canExecutePlantillaBulkImport = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Plantilla Structure XLSX Import", u);
+export const canExecutePayrollBulkImport = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Payroll Hours & Deductions Import", u);
+export const canTriggerLiveMikaSync = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Live MIKA Sync Trigger", u);
+
+// Governance
+export const canToggleSystemEditLock = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Toggle System Edit Lock (Freeze Mode)", u);
+export const canManagePermissionMatrixOverrides = (u?: RoleIdentifiable | string | null) =>
+  canPerformDrawerAction("Manage Permission Matrix Overrides", u);
+

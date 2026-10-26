@@ -57,7 +57,7 @@ import {
 } from "@/lib/queries/vacancy";
 import { getWebFreezeModeStatus } from "@/lib/queries/freeze";
 import { isVacancyExportRole, useCurrentUser } from "@/lib/auth";
-import { canReviewVacancyClosures } from "@/lib/rbac";
+import { canReviewVacancyClosures, canExportVacancyDataset } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 
 const statusTabs: Array<{
@@ -281,7 +281,7 @@ export default function VacancyPage() {
     return canReviewVacancyClosures(currentUser);
   }, [currentUser]);
   const canExport = useMemo(() => {
-    return isVacancyExportRole(currentUser?.roleKey || currentUser?.roleName);
+    return canExportVacancyDataset(currentUser) || isVacancyExportRole(currentUser?.roleKey || currentUser?.roleName);
   }, [currentUser]);
 
   const accountsQuery = useQuery({

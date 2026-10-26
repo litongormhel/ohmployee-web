@@ -287,3 +287,39 @@ Validation:
   - Runs registered in `public.qa_agent_runs` (`qa_start_detection_run`, `qa_complete_detection_run`).
   - Findings persisted in `public.qa_agent_findings` (`qa_log_detection_finding`).
 
+---
+
+## 55-Item Drawer Actions & Mutations RBAC Matrix
+
+### Matrix Architecture & Hierarchy
+The authoritative 55-item matrix governs operational drawer actions, mutations, and approval queues across all 11 role levels:
+- **100: Super Admin** (Owner recovery, full system edit lock, overrides, sessions, archives)
+- **90: Head Admin** (Data team leader, all approvals except owner recovery, bulk import)
+- **70: Operations Manager (OM)** (Ops team lead, pipeline management, deficiency reviews, schedule/pool mutations)
+- **45: HRCO** (Ops coordinator, vacancy lifecycle, applicant movements, pool conversions)
+- **42: ATL** (Assistant Team Leader, ops field action execution)
+- **41: TL** (Team Leader, ops field action execution)
+- **30: Encoder** (Data team operator, bulk imports, MIKA trigger, applicant movements, relievers, headcount approvals)
+- **25: HR Personnel** (HR Emploc deficiency correction approval/revert)
+- **20: Recruitment** (Applicant profile single edits, applicant movement requests)
+- **15: Backoffice** (Deactivation processing)
+- **10: Viewer** (Read-only presentation)
+
+### Implementation Artifacts
+- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`
+  - Upserts definitions into `public.role_permission_definitions_compat`
+  - Registers definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`)
+  - Ensures deny-fill in `public.role_permission_matrix`
+- **TypeScript Types & Constants:** `src/types/rbac.ts`
+  - `DrawerActionItem`: union of all 33 drawer action strings
+  - `RolePermissionRule`, `RoleLevel`, `DrawerActionModule`
+- **Web Evaluation & Helpers:** `src/lib/rbac.ts`
+  - `DRAWER_ACTION_RULES`: Record mapping each action to allowed numeric levels
+  - `canPerformDrawerAction(action, userOrRole)`
+  - Individual action helper functions: `canEditHiredDate`, `canReopenVacancySlot`, `canRequestApplicantMovement`, `canExportVacancyDataset`, `canApproveDeficiencyCorrection`, `canRevertDeficiencyCorrection`, `canRollbackImportBatch`, `canUpdateEmploymentLifecycleStatus`, `canUpdateWorkSchedule`, `canRequestPoolConversion`, `canRequestRelieverCoverage`, `canSubmitNewStoreRequest`, `canArchiveUserAccount`, etc.
+  - Reconciled `getAllowedApprovalCategories(userOrRole)` matching matrix item 35-42
+- **Hook & Guard Component:** `src/hooks/useRolePermissions.tsx`
+  - `useRolePermissions()`: exposes `canPerformAction`, `roleLevel`, `role`, and groupings
+  - `<RoleGuard action="..." minLevel={...} fallback={...}>`: declarative UI barrier
+
+

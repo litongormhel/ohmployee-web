@@ -45,6 +45,8 @@ import {
   AppRole,
   canAddApplicant,
   canEditApplicantProfile,
+  canEditHiredDate,
+  canReopenVacancySlot,
   canManageApplicantPipeline,
   canReviewVacancyClosures,
   canRequestVacancyClosure,
@@ -248,6 +250,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const userIsOps = isOpsTeam(currentUser);
   const userCanAddApplicant = canAddApplicant(currentUser);
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
+  const userCanReopenSlot = canReopenVacancySlot(currentUser);
+  const userCanEditHiredDate = canEditHiredDate(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userCanRequestClosure = canRequestVacancyClosure(currentUser);
   const isExemptFromClosureApplicantBlock = Boolean(
@@ -449,7 +453,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Reopen Slot",
                 isAvailable:
-                  userCanManagePipeline &&
+                  userCanReopenSlot &&
                   !isPendingClosure &&
                   (detail.derivedStatus?.toLowerCase() === "failed_backout" ||
                     detail.derivedStatus?.toLowerCase() === "rejected" ||
@@ -471,7 +475,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {
                 label: "Edit Hired Date",
                 isAvailable:
-                  userCanManagePipeline &&
+                  userCanEditHiredDate &&
                   !isPendingClosure &&
                   Boolean(detail.activeApplicantsList?.[0] || detail.applicantName) &&
                   (detail.derivedStatus?.toLowerCase() === "hired" || detail.confirmedOnboardCount > 0),

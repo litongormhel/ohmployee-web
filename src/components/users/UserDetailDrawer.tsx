@@ -657,18 +657,20 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     <span className="text-[11px] text-text-muted">Dispatch reset link</span>
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={isSelf || isTargetLocked || archiveMutation.isPending}
-                    onClick={() => setArchiveConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-danger-border bg-surface px-3 py-2 text-xs font-semibold text-danger-text shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Archive className="h-3.5 w-3.5 text-danger-icon" />
-                      Archive Account
-                    </span>
-                    <span className="text-[11px] text-danger-text">Soft-archive profile</span>
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      disabled={isSelf || isTargetLocked || archiveMutation.isPending}
+                      onClick={() => setArchiveConfirmOpen(true)}
+                      className="flex w-full items-center justify-between rounded-md border border-danger-border bg-surface px-3 py-2 text-xs font-semibold text-danger-text shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Archive className="h-3.5 w-3.5 text-danger-icon" />
+                        Archive Account
+                      </span>
+                      <span className="text-[11px] text-danger-text">Soft-archive profile</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

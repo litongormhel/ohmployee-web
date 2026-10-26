@@ -26,6 +26,8 @@ import {
   hasFullAccess,
   normalizeRole,
   AppRole,
+  canRequestRelieverCoverage,
+  canRequestPoolConversion,
 } from "@/lib/rbac";
 
 export interface PoolEmployeeDetailDrawerProps {
@@ -84,6 +86,8 @@ export function PoolEmployeeDetailDrawer({
   const [closingNotes, setClosingNotes] = useState<string>("");
 
   const currentUser = useCurrentUser();
+  const canRequestCoverage = canRequestRelieverCoverage(currentUser);
+  const canRequestConversion = canRequestPoolConversion(currentUser);
   const canMutate = Boolean(
     currentUser &&
       (isOpsTeam(currentUser) || isDataTeam(currentUser) || hasFullAccess(currentUser)) &&
@@ -182,22 +186,26 @@ export function PoolEmployeeDetailDrawer({
             </div>
 
             {/* Action Bar */}
-            {canMutate && (
+            {(canRequestCoverage || canRequestConversion) && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
-                <button
-                  type="button"
-                  onClick={() => setIsCoverageModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition shadow-xs cursor-pointer"
-                >
-                  <UserCheck className="h-3.5 w-3.5" /> Request Coverage Deployment
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsConversionModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-text-primary bg-surface border border-border-default rounded-lg hover:bg-surface-hover transition cursor-pointer"
-                >
-                  <ArrowRightLeft className="h-3.5 w-3.5 text-text-muted" /> Convert to Regular Plantilla
-                </button>
+                {canRequestCoverage && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCoverageModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition shadow-xs cursor-pointer"
+                  >
+                    <UserCheck className="h-3.5 w-3.5" /> Request Coverage Deployment
+                  </button>
+                )}
+                {canRequestConversion && (
+                  <button
+                    type="button"
+                    onClick={() => setIsConversionModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-text-primary bg-surface border border-border-default rounded-lg hover:bg-surface-hover transition cursor-pointer"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5 text-text-muted" /> Convert to Regular Plantilla
+                  </button>
+                )}
               </div>
             )}
           </div>

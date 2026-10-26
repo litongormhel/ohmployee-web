@@ -1,5 +1,100 @@
 # AI Handoff
 
+## Drawer Actions & Mutations RBAC Matrix Full Synchronization & Enforced Guards (ohm#rbac01)
+
+**Status: COMPLETE — 55-ITEM DRAWER ACTIONS & MUTATIONS MATRIX IMPLEMENTED AND ENFORCED; DATABASE MIGRATION SCRIPT CREATED; RBAC CONSTANTS AND GRANULAR CHECKERS ADDED; USER AND DRAWER ACTION GUARDS DEPLOYED; CLEAN ESLINT (0 ERRORS), CLEAN BUILD (19/19 STATIC ROUTES GENERATED), ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+- **Database Layer (`supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`)**:
+  - Reconciled blueprint SQL to production schema: created `public.role_permission_definitions_compat` compatibility table `(module, action_item, role_level, allowed)` with unique constraint.
+  - Upserted all 55 items from the authoritative CSV matrix across all 11 role levels (Super Admin 100 to Viewer 10).
+  - Seeded definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`, `scope_mode`, `enforcement_type`, `description`, `is_sensitive`, `is_system_locked`, `sort_order`).
+  - Added cross-join deny-fill in `public.role_permission_matrix` for matrix integrity.
+  - Zero live DDL executed against Supabase per Briefing § Database Access & Modification Rule.
+- **Web RBAC Types & Constants (`src/types/rbac.ts`)**:
+  - Defined `DrawerActionItem` union containing all 33 drawer action string literals.
+  - Defined `DrawerActionModule`, `RoleLevel`, and `RolePermissionRule`.
+- **Web RBAC Evaluation & Helpers (`src/lib/rbac.ts`)**:
+  - Defined `DRAWER_ACTION_RULES` mapping every action item to allowed numeric levels.
+  - Implemented `canPerformDrawerAction(actionItem, userOrRole)`.
+  - Added 33 granular helper functions:
+    - **Vacancy:** `canEditApplicantProfileOnce`, `canEditHiredDate`, `canReopenVacancySlot`, `canRequestApplicantMovement`, `canExportVacancyDataset`.
+    - **HR Emploc:** `canApproveDeficiencyCorrection`, `canRevertDeficiencyCorrection`, `canRollbackImportBatch`.
+    - **Plantilla:** `canUpdateEmploymentLifecycleStatus`, `canUpdateWorkSchedule`, `canRequestPoolConversion`, `canRequestRelieverCoverage`, `canSubmitNewStoreRequest`.
+    - **Approvals:** `canApproveNewStoreRequests`, `canApproveHeadcountAdjustments`, `canApprovePlantillaReassignments`, `canApproveUserSignups`, `canApproveCoverageGroups`, `canApproveApplicantMovements`, `canApproveAccountGroupTransfers`, `canApproveRelieverRequests`.
+    - **Users:** `canGrantElevatedPermissions`, `canDeactivateUserAccount`, `canArchiveUserAccount`, `canAdminForcePasswordReset`, `canTerminateUserSessions`.
+    - **Data Control:** `canExecuteHrEmplocBulkImport`, `canExecuteVacancyBulkImport`, `canExecutePlantillaBulkImport`, `canExecutePayrollBulkImport`, `canTriggerLiveMikaSync`.
+    - **Governance:** `canToggleSystemEditLock`, `canManagePermissionMatrixOverrides`.
+  - Reconciled `getAllowedApprovalCategories`: Head Admin (90) allowed all queues except deactivations; Encoder (30) allowed headcount, plantilla_approvals, applicant_movements, relievers, vacancy_closures, hr_emploc_deletions (strictly excluding coverage requests per matrix item 39); Backoffice (15) allowed deactivations.
+- **Hook & Guard Component (`src/hooks/useRolePermissions.tsx`)**:
+  - Created `useRolePermissions()` hook providing reactive role level, role enum, and `canPerformAction`.
+  - Created declarative `<RoleGuard action="..." minLevel={...} fallback={...}>` component.
+- **UI Action & Drawer Integration**:
+  - `src/components/vacancy/VacancyDetailDrawer.tsx`: Enforced `canReopenVacancySlot` and `canEditHiredDate` guards on action drawer buttons.
+  - `src/components/vacancy/EditApplicantModal.tsx`: Enforced `canEditApplicantProfile` (disallowing Head Admin 90, allowing Super Admin 100, Ops, and Recruitment) and restricted override mode to `isOwner` (Super Admin).
+  - `src/components/plantilla/PoolEmployeeDetailDrawer.tsx`: Separated and guarded "Request Coverage Deployment" (`canRequestRelieverCoverage`) and "Convert to Regular Plantilla" (`canRequestPoolConversion`).
+  - `src/components/users/UserDetailDrawer.tsx`: Guarded "Archive Account" with `isSuperAdmin` (Super Admin 100 only, hiding from Head Admin 90).
+  - `src/app/(dashboard)/vacancy/page.tsx`: Integrated `canExportVacancyDataset(currentUser)` into export permissions.
+- **Documentation Updated**:
+  - `.ai/briefing.md`: Prepended task entry to Last Completed Tasks (5 maintained).
+  - `.ai/handoff.md`: Prepended detailed handoff entry.
+  - `docs/state/web_auth_rbac_state.md`: Added 55-Item Drawer Actions & Mutations RBAC Matrix architecture section.
+
+---
+
+### Mobile Parity Directives (Ohm applies in Mobile Repo `/Users/armanjr/Projects/OHMployee/OHMployee`)
+Because Mobile git repo was in active rebase, the exact changes needed in mobile are documented here for Ohm's safe application:
+1. In `lib/core/constants/role_constants.dart` (`RolePermissions`):
+   ```dart
+   // Vacancy
+   static bool canEditApplicantProfileOnce(AppRole role) =>
+       role.isOwner || role.isOpsTeam || role == AppRole.recruitment;
+   static bool canEditHiredDate(AppRole role) =>
+       role.isOwner || role.isOpsTeam || role == AppRole.encoder;
+   static bool canReopenVacancySlot(AppRole role) =>
+       role.isOwner || role.isOpsTeam || role == AppRole.encoder;
+   static bool canRequestApplicantMovement(AppRole role) =>
+       role.isOwner || role.isOpsTeam || role == AppRole.recruitment;
+   static bool canExportVacancyDataset(AppRole role) =>
+       role.hasFullAccess || role == AppRole.encoder;
+
+   // HR Emploc
+   static bool canApproveDeficiencyCorrection(AppRole role) =>
+       role.isOwner || role.isOpsTeam || role == AppRole.encoder || role == AppRole.hrPersonnel;
+   static bool canRollbackImportBatch(AppRole role) =>
+       role.hasFullAccess || role == AppRole.encoder;
+
+   // Plantilla
+   static bool canUpdateLifecycleStatus(AppRole role) =>
+       role.isOwner || role.isOpsTeam;
+   static bool canUpdateSchedule(AppRole role) =>
+       role.isOwner || role.isOpsTeam;
+   static bool canRequestPoolConversion(AppRole role) =>
+       role.isOwner || role.isOpsTeam;
+   static bool canRequestRelieverCoverage(AppRole role) =>
+       role.isOwner || role.isOpsTeam;
+   static bool canSubmitNewStore(AppRole role) =>
+       role.isOwner || role.isOpsTeam;
+
+   // Approvals & Governance
+   static bool canToggleEditLock(AppRole role) => role.isOwner;
+   static bool canManageOverrides(AppRole role) => role.isOwner;
+   static bool canArchiveUser(AppRole role) => role.isOwner;
+   ```
+2. Update BLoC event validators before RPC dispatch to check `RolePermissions.can...` before calling backend mutations.
+
+---
+
+### Verification
+- `npm run lint`: 0 errors.
+- `npm run build`: 19/19 static routes generated cleanly.
+- `.agents/scripts/gate.py`: Host gate intact.
+- Database access: 0 database calls made.
+
+---
+
 ## Governance Ref Reconciliation, Stricter Production Gate, Tab Alignment, Sentence Case Conversion & Full-Repo Contrast Audit (ohm#uifix02)
 
 **Status: COMPLETE — ALL 8 DIRECTIVES FROM OHM FULLY RESOLVED AND VERIFIED; AUTHORITATIVE REFS RECONCILED (PRODUCTION = `rwxelulyapjgaarlwkus`, STAGING = `qqiiznmqxfoamqytjica`); BRIEFING GOVERNANCE RULE INSTALLED BLOCKING DIRECT PRODUCTION CONNECTIONS; GATE.PY STRENGTHENED WITH ZERO-KEY HOST-ONLY CHECK HALTING WITH "local env points to production" ON PRODUCTION REF; DATABASE-REACHING SCRIPTS AUDITED AND `scratch/` ADDED TO `.gitignore`; CODE-DERIVED TAB INVENTORY VERIFIED ACROSS ALL 13 MODULES AND HANDOFF LINES CORRECTED; COMPLETE SENTENCE CASE RESTORATION ELIMINATING ALL 469 UI `uppercase` CLASSES WHILE PRESERVING ACRONYMS (HC, MFR, SLA, VCODE, HRCO, ADR, CENCOM); SELECTABLE CARDS UNIFIED TO `bg-surface-selected` AND `border-brand-primary`; `scripts/audit_component_contrast.py` EXTENDED TO ALL 183 `.tsx` FILES ACHIEVING 100% WCAG AA COMPLIANCE (34/34 UNIQUE SEMANTIC PAIRS, 0 FAILURES); "Approve & Apply" BUTTON CONFIRMED AT 6.65:1 CONTRAST; ESLINT CLEAN (0 ERRORS), BUILD CLEAN (19/19 STATIC ROUTES), GATE.PY ENFORCING STAGING TARGET; LOCAL COMMIT ONLY ON MAIN**

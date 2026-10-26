@@ -4,7 +4,7 @@ import { useState, useId } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, Edit3, Loader2, ShieldAlert } from "lucide-react";
 import { useUpdateApplicantProfile } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
-import { hasFullAccess, canEditApplicantProfile } from "@/lib/rbac";
+import { canEditApplicantProfile, isOwner } from "@/lib/rbac";
 import { Modal } from "@/components/shared/Modal";
 
 export interface EditApplicantTarget {
@@ -66,7 +66,6 @@ function EditApplicantModalContent({
   const currentUser = useCurrentUser();
   const updateMutation = useUpdateApplicantProfile();
 
-  const isUserFullAccess = hasFullAccess(currentUser);
   const isUserAuthorized = canEditApplicantProfile(currentUser);
 
   // Locked statuses from database RPC: confirmed_onboard, transferred, hired
@@ -76,10 +75,11 @@ function EditApplicantModalContent({
     statusNorm === "transferred" ||
     statusNorm === "hired";
 
+  const isOwnerAdmin = isOwner(currentUser);
   const editCount = applicant.profileEditCount ?? 0;
   const isOneTimeUsed = editCount >= 1;
-  const isOverrideMode = isOneTimeUsed && isUserFullAccess;
-  const isBlockedByEditLimit = isOneTimeUsed && !isUserFullAccess;
+  const isOverrideMode = isOneTimeUsed && isOwnerAdmin;
+  const isBlockedByEditLimit = isOneTimeUsed && !isOwnerAdmin;
 
   // Form State
   const [firstName, setFirstName] = useState(applicant.firstName || "");
