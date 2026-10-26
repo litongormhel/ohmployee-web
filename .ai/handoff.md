@@ -1,5 +1,72 @@
 # AI Handoff
 
+## Loop 6 Closeout Reverts & Rollout Queue Gate Upgrade (ohm#l6cl0s9e)
+
+**Status: COMPLETE — REPORT-ONLY AUDIT & REVERTS FROM LOOP 6 RESOLVED; REVERTED NON-STYLING `onUpdated` REFRESH CALLBACK FROM `PoolReviewQueueDrawer.tsx` AND `MosesHqPoolView.tsx`; AUDITED 100% OF PLANTILLA CHANGES IN LOOPS 6A-6C CONFIRMING ZERO QUERY, RPC, RBAC, OR BUSINESS LOGIC CHANGES; DISCLOSED DATABASE RPC CAPABILITIES COMPUTATION FOR HR EMPLOC PENDING QUEUE (`can_assign_employee_no` & `can_tag_deficiency`); CREATED `docs/architecture/ui-rollout-queue.md` WITH ALL 9 EXPEDITION ITEMS; UPGRADED `.agents/scripts/gate.py` INTO AN AUTOMATIC COMPLETION GATE WITH STRICT ALLOWLIST AND OFFLINE FONT RESILIENCE; PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 3.0s); ESLINT CLEAN (0 ERRORS)**
+
+---
+
+### 1. Loop 6 Non-Styling Diff Audit & `onUpdated` Revert
+- **Plantilla Non-Styling Audit**:
+  - `src/app/(dashboard)/plantilla/page.tsx`: Tokenized UI elements only. Preserved `enabled: !!accountId`, single-account auto-fire on mount, and multi-account modal selector.
+  - Drawers (6A): Replaced ad-hoc containers with canonical `DetailDrawer` (`drawer-width-lg`). Zero mutations or query logic modified.
+  - Modals (6B): Wrapped 8 lifecycle modals in canonical `Modal` at `z-[60]` with form dirty/submitting escape guards. Preserved parameter schemas and mutation hooks.
+  - `PoolReviewQueueDrawer.tsx` & `MosesHqPoolView.tsx` (6C): Added `onUpdated` callback prop to notify parent pool view on review mutation. Per strict briefing scope (no changes to component contracts/APIs), **this was cleanly reverted**. The drawer now maintains its original internal query refetch only.
+- **Verification**: Verified 0 non-styling diffs across the entire Plantilla module.
+
+---
+
+### 2. HR Emploc Pending Queue Capabilities & DB Query Disclosure
+- **Database RPC Disclosure**:
+  - Query: `get_hr_emploc_pending_queue` in `supabase/migrations/20262606000043_fix_hr_emploc_mobile_web_parity_prod.sql`.
+  - Computes row-level permissions dynamically:
+    ```sql
+    'can_tag_deficiency', (
+      (public.i_am_hr_dept() OR public.i_have_full_access())
+      AND h.status <> 'Moved to Plantilla'
+      AND h.hr_status <> 'Complete'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.hr_emploc_deletion_requests dr
+        WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+      )
+    ),
+    'can_assign_employee_no', (
+      (v_role_name = 'Encoder' OR v_role_level = 30 OR v_role_level >= 100)
+      AND h.hr_status = 'Complete'
+      AND COALESCE(h.employee_no, '') = ''
+      AND h.status = 'Pending Emploc'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.hr_emploc_deletion_requests dr
+        WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+      )
+    )
+    ```
+- **Context on Alonzo, Fernando Castillo & Pending Candidates**:
+  - If a candidate in the Pending queue has `hr_status = 'Pending'` or `'In Review'`, they qualify for `can_tag_deficiency`, but NOT `can_assign_employee_no` (since assignment requires HR clearance `h.hr_status = 'Complete'`).
+  - In commit `a855423`, the pending action buttons in `HrEmplocTable.tsx` were decoupled from `row.rowCapabilities.canAssignEmployeeNo` and `canTagDeficiency` to make the buttons accessible to operators in the pending queue without blocking on role mismatch.
+
+---
+
+### 3. Modal Guard, Danger & Color-Use Audits
+- **Plantilla Modals Form Guards (Loop 6B)**:
+  - All 8 modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`) implement canonical `Modal` with `disableBackdropClick={isSubmitting}`, `isDirty` form protection, and `z-[60]` stacking over drawers (`z-50`).
+- **Danger Audit**:
+  - `--danger` strictly confined to validation errors, submission error banners, and the destructive separation confirmation action (`InitiateSeparationModal`).
+- **Color-Use Audit**:
+  - All 1,031 baseline color literals in Plantilla completely eliminated (0 remain).
+
+---
+
+### 4. Completion Gate Upgrade Evidence
+- **Queue Initialization**: Created `docs/architecture/ui-rollout-queue.md` with 9 continuous items.
+- **Completion Gate**: Upgraded `.agents/scripts/gate.py` to enforce zero color literals across all of `src/` (with documented non-UI allowlist `globals.css`, `web_design_tokens.md`, and `data_control_xlsx.ts`), clean lint, clean build, and 100% queue completion.
+- **Evidence**:
+  - `Touch: TOUCHED_MODULES="plantilla" python3 .agents/scripts/gate.py`
+  - Output: `{"decision": "continue", "reason": "Queue in progress (0 completed, 9 remaining). Next item: 7A Approvals navigation + data tables", "completed_items": [], "next_item": "7A Approvals navigation + data tables", "notes": ["'npm run build' completed successfully (0 errors)."]}`
+  - ESLint: 0 errors. Next.js 16.2.4: 19/19 routes generated cleanly.
+
+---
+
 ## UI Standard & Motion System — Loop 6C: Plantilla Analytics & Moses Pool Views Alignment (ohm#l6c3w8m2)
 
 **Status: COMPLETE — LOOP 6C (PLANTILLA ANALYTICS & MOSES POOL VIEWS) ALIGNED TO UI STANDARD; ALL 198 COLOR LITERALS ELIMINATED DOWN TO 0; COMPLETE 100% ELIMINATION OF ALL 1,031 BASELINE COLOR LITERALS ACROSS ENTIRE PLANTILLA MODULE (LOOP 6A: 442, LOOP 6B: 391, LOOP 6C: 198); SVG PROGRESS DONUTS AND HORIZONTAL BAR CHARTS CONVERTED TO SEMANTIC TOKENS (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); TABLE AND FEED TEXT PRESERVED AT $\ge 14\text{px}$ (`text-sm`); ADDED `onUpdated` REFRESH CALLBACK PARITY TO `PoolReviewQueueDrawer`; MECHANICAL GATE ALLOWED; ESLINT CLEAN (0 ERRORS); NEXT.JS PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED)**

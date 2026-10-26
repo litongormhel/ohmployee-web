@@ -502,10 +502,6 @@ export function MosesHqPoolView() {
         <PoolReviewQueueDrawer
           isOpen={isReviewQueueOpen}
           onClose={() => setIsReviewQueueOpen(false)}
-          onUpdated={() => {
-            employeesQuery.refetch();
-            summariesQuery.refetch();
-          }}
         />
       )}
 
