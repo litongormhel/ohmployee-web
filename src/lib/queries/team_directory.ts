@@ -114,24 +114,8 @@ export function getUserInitials(user: TeamDirectoryUser): string {
   return words[0]?.[0]?.toUpperCase() ?? "?";
 }
 
-export function getRoleTint(user: TeamDirectoryUser): string {
-  const role = user.roleName.toLowerCase().trim();
-  if (user.roleLevel === 100 || role.includes("super admin")) {
-    return "#7C3AED"; // Purple
-  }
-  if (user.roleLevel === 90 || role.includes("head admin")) {
-    return "#0F766E"; // Teal
-  }
-  if (role === "om" || role.includes("operations manager")) {
-    return "#0053A6"; // Brand Blue
-  }
-  if (role.includes("recruitment")) {
-    return "#B45309"; // Amber
-  }
-  if (role.includes("encoder")) {
-    return "#475569"; // Slate
-  }
-  return "#0053A6"; // Brand Primary for TL, ATL, HRCO, etc.
+export function getRoleTint(_user: TeamDirectoryUser): string {
+  return "var(--brand)";
 }
 
 export function getBroadAccessScopeLabel(user: TeamDirectoryUser): string | null {

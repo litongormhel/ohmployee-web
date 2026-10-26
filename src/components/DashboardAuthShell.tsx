@@ -6,13 +6,14 @@ import { AdminTopbar } from "@/components/AdminTopbar";
 import { Sidebar } from "@/components/Sidebar";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
+import { useMotionLevel } from "@/hooks/useMotionLevel";
 import {
   getVisibleModules,
   loadCurrentUserContext,
   type WebBlockedAccess,
   type WebCurrentUserContext,
 } from "@/lib/auth";
-import { getActiveModule, getMatchedModule } from "@/lib/modules";
+import { getMatchedModule } from "@/lib/modules";
 import { isModuleAllowedForUser } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveActingSession, useStopActingSession } from "@/lib/queries/more";
@@ -32,6 +33,7 @@ function AuthenticatedShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const motionLevel = useMotionLevel();
   const [idleWarningOpen, setIdleWarningOpen] = useState(false);
 
   const { data: activeActingSession } = useActiveActingSession();
@@ -53,11 +55,6 @@ function AuthenticatedShell({
   const matchedModule = useMemo(
     () => getMatchedModule(pathname),
     [pathname],
-  );
-
-  const activeModule = useMemo(
-    () => getActiveModule(pathname, visibleModules),
-    [pathname, visibleModules],
   );
 
   const canViewActiveModule = useMemo(() => {
@@ -107,15 +104,15 @@ function AuthenticatedShell({
 
   if (visibleModules.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
-        <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
+        <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
-          <h1 className="mt-3 text-xl font-semibold text-slate-950">
+          <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
             No Module Access
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             Your account is verified, but no web workspace modules are assigned to your role.
             Please contact an administrator to provision access.
           </p>
@@ -123,7 +120,7 @@ function AuthenticatedShell({
             <button
               type="button"
               onClick={handleIdleLogout}
-              className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] shadow-xs hover:bg-[var(--surface-muted)] cursor-pointer transition-colors"
             >
               Sign Out
             </button>
@@ -135,7 +132,7 @@ function AuthenticatedShell({
 
   if (!canViewActiveModule) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 text-sm font-medium text-slate-600">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6 text-sm font-medium text-[var(--text-muted)]">
         Redirecting to authorized module...
       </div>
     );
@@ -148,7 +145,7 @@ function AuthenticatedShell({
         onStaySignedIn={handleStaySignedIn}
         onSignOut={handleIdleLogout}
       />
-      <div className="flex min-h-screen bg-[var(--bg)]">
+      <div className="flex min-h-screen bg-[var(--background)]">
         <Sidebar
           visibleModules={visibleModules}
           moduleCapabilities={currentUser.moduleCapabilities}
@@ -161,9 +158,9 @@ function AuthenticatedShell({
             moduleCapabilities={currentUser.moduleCapabilities}
           />
           {activeActingSession && !activeActingSession.isExpired && (
-            <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-semibold flex items-center justify-between border-b border-amber-600 shadow-xs z-10">
+            <div className="bg-[var(--surface-sunken)] text-[var(--foreground)] px-4 py-2 text-xs font-semibold flex items-center justify-between border-b border-[var(--border-subtle)] shadow-xs z-10">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--foreground)] animate-pulse" />
                 <span>
                   ACTING MODE ACTIVE: Previewing scoped access as <strong>{activeActingSession.actingRole}</strong>
                   {activeActingSession.reason ? ` (“${activeActingSession.reason}”)` : ""}
@@ -173,13 +170,18 @@ function AuthenticatedShell({
                 type="button"
                 onClick={handleStopActing}
                 disabled={stopActingMutation.isPending}
-                className="px-2.5 py-1 rounded bg-slate-950 text-white text-[11px] font-bold hover:bg-slate-900 transition-colors shadow-2xs"
+                className="px-2.5 py-1 rounded-md bg-[var(--foreground)] text-[var(--card)] text-xs font-bold hover:opacity-90 transition-colors shadow-2xs"
               >
                 Revert to Super Admin
               </button>
             </div>
           )}
-          <main className="flex-1 overflow-auto">
+          <main
+            key={pathname}
+            className={`flex-1 overflow-auto ${
+              motionLevel === "off" ? "" : "animate-in fade-in duration-200"
+            }`}
+          >
             <div className="w-full px-4 py-5 sm:px-5 lg:px-6 2xl:px-8">
               {children}
             </div>
@@ -301,25 +303,25 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
 
   if (blockedAccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
-        <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
+        <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
-          <h1 className="mt-3 text-xl font-semibold text-slate-950">
+          <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
             {blockedAccess.title}
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             {blockedAccess.message}
           </p>
-          <p className="mt-5 rounded-md bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+          <p className="mt-5 rounded-md bg-[var(--surface-sunken)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] border border-[var(--border-subtle)]">
             Access state: {blockedAccess.reason.replaceAll("_", " ")}
           </p>
           <div className="mt-6">
             <button
               type="button"
               onClick={handleGoToLogin}
-              className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] shadow-xs hover:bg-[var(--surface-muted)] cursor-pointer transition-colors"
             >
               Back to Login
             </button>
@@ -331,29 +333,29 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
 
   if (isTimedOut) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
-        <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
+        <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
-          <h1 className="mt-3 text-xl font-semibold text-slate-950">
+          <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
             Workspace Loading Delayed
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             Connecting to the secure workspace is taking longer than expected. This can happen on slow connections or during server cold-starts.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={handleRetry}
-              className="inline-flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 cursor-pointer"
+              className="inline-flex flex-1 items-center justify-center rounded-lg bg-[var(--primary)] text-white px-4 py-2.5 text-sm font-semibold shadow-xs hover:opacity-90 cursor-pointer transition-colors"
             >
               Retry Connection
             </button>
             <button
               type="button"
               onClick={handleGoToLogin}
-              className="inline-flex flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
+              className="inline-flex flex-1 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] shadow-xs hover:bg-[var(--surface-muted)] cursor-pointer transition-colors"
             >
               Back to Login
             </button>
@@ -365,29 +367,29 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
-        <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
+        <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
-          <h1 className="mt-3 text-xl font-semibold text-slate-950">
+          <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
             Workspace Connection Error
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
             {loadError}
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={handleRetry}
-              className="inline-flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 cursor-pointer"
+              className="inline-flex flex-1 items-center justify-center rounded-lg bg-[var(--primary)] text-white px-4 py-2.5 text-sm font-semibold shadow-xs hover:opacity-90 cursor-pointer transition-colors"
             >
               Try Again
             </button>
             <button
               type="button"
               onClick={handleGoToLogin}
-              className="inline-flex flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
+              className="inline-flex flex-1 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] shadow-xs hover:bg-[var(--surface-muted)] cursor-pointer transition-colors"
             >
               Back to Login
             </button>
@@ -399,7 +401,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
 
   if (isRedirecting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 text-sm font-medium text-slate-600">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6 text-sm font-medium text-[var(--text-muted)]">
         Redirecting to login...
       </div>
     );
@@ -407,7 +409,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
 
   if (isLoading || !currentUser) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 text-sm font-medium text-slate-600">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6 text-sm font-medium text-[var(--text-muted)]">
         Loading secure workspace...
       </div>
     );

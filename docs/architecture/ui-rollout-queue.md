@@ -23,4 +23,4 @@ Each item is ticked ONLY after completing its own complete verification:
 - [x] Settings
 - [x] More A (governance/security)
 - [x] More B (import centers/QA)
-- [ ] Final: app-wide route transition and page-enter sequence in the shared (dashboard) layout, consistency sweep across modules, full light/dark/responsive pass, remove dead styles, consolidate docs, final ui-standard.md update
+- [x] Final: app-wide route transition and page-enter sequence in the shared (dashboard) layout, consistency sweep across modules, full light/dark/responsive pass, remove dead styles, consolidate docs, final ui-standard.md update

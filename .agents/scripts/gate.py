@@ -22,7 +22,7 @@ import sys
 QUEUE_FILE = "docs/architecture/ui-rollout-queue.md"
 
 COLOR_PATTERN = re.compile(
-    r'\b(?:bg|text|border)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b|#[0-9a-fA-F]{3,8}'
+    r'\b(?:bg|text|border|ring|shadow|fill|stroke|placeholder|from|to|via)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b|#[0-9a-fA-F]{3,8}'
 )
 
 # Documented allowlist for non-UI colors

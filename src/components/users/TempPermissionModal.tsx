@@ -93,8 +93,6 @@ export function TempPermissionModal({
   const {
     data: permissionsData,
     isLoading: isPermissionsLoading,
-    refetch,
-    isFetching,
   } = useTempPermissionsQuery(activeUserIdFilter);
 
   const { data: allUsers = [] } = useUsersList();
@@ -518,7 +516,7 @@ export function TempPermissionModal({
                   placeholder="Filter active overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
@@ -679,7 +677,7 @@ export function TempPermissionModal({
                   placeholder="Search past overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
@@ -1082,7 +1080,7 @@ export function TempPermissionModal({
                   placeholder="e.g. Temporary coverage for CENCOM Area 1 during regional system training and audit review..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full p-3 border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:border-brand-500"
+                  className="w-full p-3 border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:border-brand-500"
                 />
 
                 <div className="flex items-center gap-2 pt-1">

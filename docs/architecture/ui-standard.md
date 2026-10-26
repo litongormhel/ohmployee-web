@@ -211,6 +211,39 @@ Every module loop must satisfy:
 
 ## 10. Changelog & Implementation History
 
+- **Final Sweep & App-Wide Completion (`ohm#lfin9z1a`)**:
+  - Upgraded completion gate `.agents/scripts/gate.py` to mechanical zero-tolerance gate requiring all 9 queue items checked, 0 color literals across entire `src/` (with documented non-UI allowlist), clean ESLint (0 errors), and clean Next.js build.
+  - Tokenized all remaining global and dashboard components (`DashboardAuthShell.tsx`, `IdleWarningModal.tsx`, `CapabilityActionBar.tsx`, `DataState.tsx`, `MetricCard.tsx`, `AdminPageHeader.tsx`, `ModuleEmptyState.tsx`, `SearchFilter.tsx`, `tabs.tsx`, `NewStoreRequestModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `RequestHeadcountModal.tsx`, `TempPermissionModal.tsx`).
+  - Added app-wide subtle route transition and page-enter sequence (`key={pathname}` with `animate-in fade-in duration-200`) governed by `useMotionLevel()`.
+  - Achieved **0 color literals across the entire `src/` directory**.
+- **Queue Item 8: More B (Import Centers & QA) (`ohm#lmorb8h3`)**:
+  - Standardized all 9 import centers and QA modals (`HrEmplocImportModal.tsx`, `PayrollImportModal.tsx`, `PayrollReviewCenterModal.tsx`, `MikaImportModal.tsx`, `QaCenterModal.tsx`, `GlobalStoreTransferModal.tsx`, `DataArchivalCenterModal.tsx`, `VacancyImportModal.tsx`, `PlantillaImportModal.tsx`).
+  - Adopted canonical shared `Modal` (`@/components/shared/Modal`) across all modals with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, and dirty-Esc handling. 0 color literals, 14px text minimum.
+- **Queue Item 7: More A (Governance & Security) (`ohm#lmora7h2`)**:
+  - Standardized all 6 governance modals (`AuditLogViewerModal.tsx`, `SystemKillSwitchModal.tsx`, `EmergencyBannerConfigModal.tsx`, `GlobalFreezeModal.tsx`, `MaintenanceModeModal.tsx`, `FieldConfigurationDrawer.tsx`).
+  - Strict `--danger` isolation for destructive actions (kill switch, emergency banner, global freeze, maintenance mode toggle). 0 color literals.
+- **Queue Item 6: Settings (`ohm#lset6h1`)**:
+  - Standardized `src/app/(dashboard)/settings/page.tsx` and all settings tabs (`GeneralSettingsTab.tsx`, `AppearanceSettingsTab.tsx`, `SecuritySettingsTab.tsx`, `SystemAdminSettingsTab.tsx`).
+  - Real theme toggle and motion toggle integration with `useTheme()` and `useMotionLevel()`. 0 color literals.
+- **Queue Item 5: Reports (`ohm#lrep5h9`)**:
+  - Standardized `src/app/(dashboard)/reports/page.tsx` and all report drawers (`ReportConfigurationDrawer.tsx`, `ScheduledExportsDrawer.tsx`, `ExportHistoryDrawer.tsx`, `CustomMetricsBuilderDrawer.tsx`).
+  - Replaced non-percentage green/amber badges with neutral token chips. 0 color literals, 14px typography floor.
+- **Queue Item 4: Notifications (`ohm#lnot4h8`)**:
+  - Standardized `src/app/(dashboard)/notifications/page.tsx` and drawer/dialog (`NotificationPreferencesDrawer.tsx`, `NotificationDetailDialog.tsx`).
+  - 0 color literals, semantic `--danger` strictly for urgent/critical alerts.
+- **Queue Item 3: Users and Team Directory (`ohm#lusr3h7`)**:
+  - Standardized `src/app/(dashboard)/users/page.tsx`, `src/app/(dashboard)/team-directory/page.tsx`, and all user/team modals (`CreateUserModal.tsx`, `EditUserModal.tsx`, `ResetPasswordModal.tsx`, `DeactivateUserModal.tsx`, `TempPermissionModal.tsx`, `TeamMemberDrawer.tsx`).
+  - 0 color literals, canonical `Modal` and `DetailDrawer`.
+- **Queue Item 2: 7B Approvals Cards + Action Modals (`ohm#l7b2h6`)**:
+  - Standardized all 5 Approvals action modals (`ApproveRequestModal.tsx`, `RejectRequestModal.tsx`, `RequestMoreInfoModal.tsx`, `EmergencyOverrideModal.tsx`, `HeadcountRequisitionDetailsModal.tsx`).
+  - Canonical `Modal` integration with dirty-Esc handling. 0 color literals.
+- **Queue Item 1: 7A Approvals Navigation + Data Tables (`ohm#l7a1h5`)**:
+  - Standardized `src/app/(dashboard)/approvals/page.tsx`, navigation tabs, filter toolbar, and requisition tables (`HeadcountRequisitionTable.tsx`).
+  - 14px typography floor, neutral status chips, 0 color literals.
+- **Loop 6 (Plantilla / Moses HQ & HR Emploc Closeout) (`ohm#l6p5k1m8`)**:
+  - Standardized Plantilla and Moses HQ pool view (`MosesHqPoolView.tsx`, `PoolReviewQueueDrawer.tsx`, `StoreStaffingOverviewDrawer.tsx`, `WorkforceAnalyticsView.tsx`).
+- **Loop 5A & 5B (HR Emploc) (`ohm#l5a8k3x1`, `ohm#l5b9k4x2`)**:
+  - Standardized HR Emploc module navigation, table, and import wizard.
 - **Loop 4 (Vacancy) & Color-Use Audit (`ohm#l4v9k2x1`)**:
   - Conducted full Color-Use Audit across Dashboard, CENCOM, and Vacancy enforcing Blueprint Section 3, Rule 3 & 4 (color strictly reserved for percentage metrics).
   - Neutralized aging brackets in days, vacancy counts, operational totals, deployment statuses, and modal completion states in Dashboard and CENCOM.

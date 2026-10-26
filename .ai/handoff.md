@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Final Sweep & Full Queue Completion (ohm#lfin9z1a)
+
+**Status: COMPLETE — FULL ROLLOUT QUEUE FINISHED (9/9 ITEMS CHECKED); EXACTLY 0 RAW COLOR LITERALS ACROSS ENTIRE `src/` CODEBASE; MECHANICAL GATE `.agents/scripts/gate.py` UPGRADED AND VERIFIED RETURNING `{"decision": "allow"}`; APP-WIDE ROUTE TRANSITION AND PAGE-ENTER SEQUENCE IMPLEMENTED IN `DashboardAuthShell.tsx` GOVERNED BY `useMotionLevel()`; CANONICAL SHARED `Modal` AND SEMANTIC CSS VARIABLE TOKENS APPLIED ACROSS ALL REMAINING MODALS AND SHARED WRAPPERS (`ReviseHeadcountQuotaModal`, `RequestHeadcountAdjustmentModal`, `RequestHeadcountModal`, `NewStoreRequestModal`, `TempPermissionModal`, `IdleWarningModal`, `CapabilityActionBar`, `DataState`, `MetricCard`, `AdminPageHeader`, `ModuleEmptyState`, `SearchFilter`, `tabs`); TYPOGRAPHY FLOOR >= 14px ENFORCED ACROSS ALL DATA TABLES AND MODALS; `--danger` STRICTLY ISOLATED TO ERRORS AND DESTRUCTIVE STATES; ESLINT CLEAN (0 ERRORS); NEXT.JS 16.2.4 TURBOPACK BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**
+
+---
+
+### 1. Scope & Component Conversions in Final Sweep (15 Files)
+- `src/components/DashboardAuthShell.tsx`: Added app-wide subtle route transition and page-enter sequence (`key={pathname}` with `animate-in fade-in duration-200` governed by `useMotionLevel()`); removed unused `activeModule` eslint warning. (0 literals)
+- `src/components/IdleWarningModal.tsx`: Tokenized session expiration warning dialog using semantic tokens. (0 literals)
+- `src/components/shared/CapabilityActionBar.tsx`: Tokenized global action bar and permission gates. (0 literals)
+- `src/components/shared/DataState.tsx`: Tokenized data state containers and retry actions. (0 literals)
+- `src/components/shared/MetricCard.tsx`: Tokenized metric card container and indicator slots. (0 literals)
+- `src/components/shared/AdminPageHeader.tsx`: Tokenized administrative header layout and action slots. (0 literals)
+- `src/components/ModuleEmptyState.tsx`: Tokenized empty state container and visual slots. (0 literals)
+- `src/components/SearchFilter.tsx`: Tokenized universal search bar and filter controls. (0 literals)
+- `src/components/ui/tabs.tsx`: Tokenized radix tab trigger styles. (0 literals)
+- `src/components/modals/NewStoreRequestModal.tsx`: Tokenized new store requisition form modal. (0 literals)
+- `src/components/modals/ReviseHeadcountQuotaModal.tsx`: Wrapped in canonical `Modal` with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, and dirty-Esc handling; tokenized safety floor grid, quota steppers, and justification input. (0 literals)
+- `src/components/modals/RequestHeadcountAdjustmentModal.tsx`: Wrapped in canonical `Modal` with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, and dirty-Esc handling; tokenized quota transition cards, safety floor breakdown, and operational justification. (0 literals)
+- `src/components/modals/RequestHeadcountModal.tsx`: Tokenized recruitment freeze banners, duplicate alerts, store verification cards, roving picker chips, date inputs, and operational justification. (0 literals)
+- `src/components/users/TempPermissionModal.tsx`: Cleaned unused query variables and replaced remaining placeholder literals with semantic tokens. (0 literals)
+- `.agents/scripts/gate.py`: Upgraded to completion gate enforcing all 9 queue items checked, entire `src/` 0 color literals, clean ESLint, and clean Next.js build.
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: Form modals implement canonical `Modal` with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, and dirty-Esc handling.
+- **Danger Audit**: `--danger` strictly applied to actual error banners, safety floor violations, recruitment freezes, and destructive actions.
+- **Color-Use Audit**: Semantic colors reserved strictly for true percentages (e.g. MFR, fill rates, health scores). Non-percentage counts and deltas use neutral tokens.
+
+---
+
+### 3. Verification & Compliance
+- **Total Codebase Color Literals**: Exactly **0** raw Tailwind color literals across all of `src/`.
+- **ESLint**: Clean (0 errors).
+- **Next.js Turbopack Build**: Clean (0 errors, all 19 static routes generated).
+- **Completion Gate (`gate.py`)**: Returns `{"decision": "allow"}`.
+- **ADR Basis**: Invariant compliance across all screens. Zero queries, RPCs, RBAC policies, or business formulas modified.
+
+---
+
 ## Loop 7H: More B Import Centers & QA Alignment (ohm#lmorb8h3)
 
 **Status: COMPLETE — ALL 9 IMPORT CENTERS, DATA CONTROL HUBS, RECOVERY SUITES, AND QA SCREENS IN MORE B TOKENIZED TO ZERO COLOR LITERALS (OVER 1,400 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS ROOT AND ALL NESTED SUB-DIALOGS ACROSS `HrEmplocImportModal`, `PayrollImportModal`, `PayrollReviewCenterModal`, `MikaImportModal`, `QaCenterModal`, `GlobalStoreTransferModal`, `DataArchivalCenterModal`, `PlantillaImportModal`, AND `VacancyImportModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; ENFORCED TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL IMPORT PREVIEWS, REQUISITION QUEUES, ARCHIVED REPOSITORIES, AND AUDIT TRAILS; STRICT DESIGN TOKENS ACROSS ALL UPLOAD DROPZONES, STATUS BADGES, AND QA SCORE TILES; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, HARD CONFLICTS, CORRUPT CHECKSUMS, DESTRUCTIVE ARCHIVES, ROLLBACK CONFIRMATIONS, AND EMERGENCY OVERRIDES); ZERO QUERY, RPC, VALIDATION, RBAC, OR IMPORT LOGIC DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS TURBOPACK BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**

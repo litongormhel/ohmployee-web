@@ -16,7 +16,7 @@ export function ModuleEmptyState({ href }: ModuleEmptyStateProps) {
   const Icon = currentModule.icon;
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-gray-900">
+    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-[var(--foreground)]">
       <AdminPageHeader
         categoryTag="ADMIN PANEL"
         moduleName={currentModule.title}

@@ -44,15 +44,9 @@ export function MetricCard({
   const displayBadge = badge ?? badgeLabel ?? (isCurrentlyBlocked ? "Blocked" : undefined);
 
   const variantColor =
-    variant === "positive"
-      ? "text-emerald-600"
-      : variant === "info"
-      ? "text-blue-600"
-      : variant === "warning"
-      ? "text-amber-600"
-      : variant === "danger"
-      ? "text-red-600"
-      : "text-text-secondary";
+    variant === "danger"
+      ? "text-[var(--danger)]"
+      : "text-[var(--text-muted)]";
 
   return (
     <div
@@ -84,7 +78,7 @@ export function MetricCard({
       </div>
       <div className="mt-2 text-sm leading-5">
         {isCurrentlyError && !isCurrentlyBlocked ? (
-          <span className="text-red-500">{errorText ?? "Retryable summary error"}</span>
+          <span className="text-[var(--danger)]">{errorText ?? "Retryable summary error"}</span>
         ) : (
           <span className="text-text-muted">{isCurrentlyLoading && !isCurrentlyBlocked ? "Loading..." : displayHelper}</span>
         )}

@@ -785,11 +785,11 @@ function RequestHeadcountModalDialog({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Recruitment Freeze Banner */}
           {isRecruitmentFreezeActive && (
-            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800">
-              <ShieldAlert className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-4 text-xs text-[var(--danger)]">
+              <ShieldAlert className="h-5 w-5 shrink-0 text-[var(--danger)] mt-0.5" />
               <div>
                 <p className="font-semibold text-sm">Recruitment Freeze Active</p>
-                <p className="mt-0.5 text-red-700">
+                <p className="mt-0.5 text-[var(--danger)]">
                   System governance has locked headcount requisitions under a global freeze. You can explore the options, but submission is blocked.
                 </p>
               </div>
@@ -798,15 +798,15 @@ function RequestHeadcountModalDialog({
 
           {/* Validation & Error Alert */}
           {validationError && (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3.5 text-xs text-[var(--foreground)]">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
               <span>{validationError}</span>
             </div>
           )}
 
           {submissionError && (
-            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3.5 text-xs text-red-800">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-3.5 text-xs text-[var(--danger)]">
+              <AlertCircle className="h-4 w-4 shrink-0 text-[var(--danger)] mt-0.5" />
               <span>{submissionError}</span>
             </div>
           )}
@@ -941,51 +941,51 @@ function RequestHeadcountModalDialog({
                   {selectedStore ? (
                     /* Store Verification Card */
                     linkedNewStoreRequestId ? (
-                      <div className="flex items-start justify-between rounded-lg border border-amber-300 bg-amber-50/70 p-4">
+                      <div className="flex items-start justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-amber-600" />
-                            <h4 className="font-semibold text-sm text-amber-950">
+                            <Sparkles className="h-4 w-4 text-[var(--foreground)]" />
+                            <h4 className="font-semibold text-sm text-[var(--foreground)]">
                               {selectedStore.store_name}
                             </h4>
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 uppercase">
+                            <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
                               New Store Request
                             </span>
                           </div>
-                          <p className="text-xs text-amber-800">
+                          <p className="text-xs text-[var(--text-muted)]">
                             {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
                               .filter(Boolean)
                               .join(", ") || "Pending Registration"}
                           </p>
-                          <p className="text-[11px] text-amber-700 font-medium">
+                          <p className="text-[11px] text-[var(--text-muted)] font-medium">
                             Linked with NSR reference: <span className="font-mono">{linkedNewStoreRequestId}</span>
                           </p>
                         </div>
-                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                        <span className="rounded-full bg-[var(--surface-base)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)] border border-[var(--border-subtle)]">
                           NSR Linked
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-start justify-between rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+                      <div className="flex items-start justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                            <h4 className="font-semibold text-sm text-emerald-950">
+                            <CheckCircle2 className="h-4 w-4 text-[var(--foreground)]" />
+                            <h4 className="font-semibold text-sm text-[var(--foreground)]">
                               {selectedStore.store_name}
                             </h4>
                             {selectedStore.island_group && (
-                              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold font-mono text-emerald-800 uppercase">
+                              <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold font-mono text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
                                 {selectedStore.island_group}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-emerald-800">
+                          <p className="text-xs text-[var(--text-muted)]">
                             {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
                               .filter(Boolean)
                               .join(", ") || "Active Store"}
                           </p>
                         </div>
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                        <span className="rounded-full bg-[var(--surface-base)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)] border border-[var(--border-subtle)]">
                           Verified Store
                         </span>
                       </div>
@@ -1051,26 +1051,26 @@ function RequestHeadcountModalDialog({
                                 Loading stores...
                               </div>
                             ) : (
-                              <div className="p-4 bg-amber-50/70 border-b border-amber-200/50 space-y-3 text-xs text-amber-900">
+                              <div className="p-4 bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] space-y-3 text-xs text-[var(--foreground)]">
                                 <div className="flex items-start gap-2.5">
-                                  <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+                                  <AlertTriangle className="h-5 w-5 shrink-0 text-[var(--text-muted)] mt-0.5" />
                                   <div className="space-y-1">
-                                    <h4 className="font-bold text-sm text-amber-950">
+                                    <h4 className="font-bold text-sm text-[var(--foreground)]">
                                       Store Not Found
                                     </h4>
-                                    <p className="text-amber-800">
+                                    <p className="text-[var(--text-muted)]">
                                       The store you are looking for is not yet registered under this operational account.
                                     </p>
-                                    <p className="text-[11px] text-amber-700">
+                                    <p className="text-[11px] text-[var(--text-muted)]">
                                       Store not found in masterlist. Do you want to submit a New Store Request with this headcount requisition?
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/60">
+                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
                                   <button
                                     type="button"
                                     onClick={() => setIsNsrModalOpen(true)}
-                                    className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition-colors"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:opacity-90 transition-colors"
                                   >
                                     <Plus className="h-3.5 w-3.5" />
                                     <span>+ Request New Store</span>
@@ -1083,7 +1083,7 @@ function RequestHeadcountModalDialog({
                                         setSelectedCity("");
                                         setSelectedProvince("");
                                       }}
-                                      className="rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100/50 transition-colors"
+                                      className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2.5 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
                                     >
                                       Clear Filters & Search
                                     </button>
@@ -1110,7 +1110,7 @@ function RequestHeadcountModalDialog({
                                   </div>
                                 </div>
                                 {s.island_group && (
-                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-gray-700">
+                                  <span className="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] font-mono font-medium text-[var(--foreground)] border border-[var(--border-subtle)]">
                                     {s.island_group}
                                   </span>
                                 )}
@@ -1124,8 +1124,8 @@ function RequestHeadcountModalDialog({
 
                   {/* Warning: In-flight requests for this store */}
                   {selectedStore && storePendingRequests.length > 0 && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <div className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3 text-xs text-[var(--foreground)]">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
                       <div>
                         <span className="font-semibold">Pending Requests Notice: </span>
                         {storePendingRequests.length} pending request(s) already submitted for{" "}
@@ -1136,8 +1136,8 @@ function RequestHeadcountModalDialog({
 
                   {/* Warning: Exact Duplicate Candidate */}
                   {duplicateCandidate && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-orange-300 bg-orange-50 p-3 text-xs text-orange-900">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600 mt-0.5" />
+                    <div className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3 text-xs text-[var(--foreground)]">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
                       <div>
                         <span className="font-semibold">Potential Duplicate Warning: </span>
                         A similar recent request exists for this store, position,{" "}
@@ -1159,8 +1159,8 @@ function RequestHeadcountModalDialog({
 
                   {/* Island Group Violation Alert */}
                   {rovingIslandGroupError && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-900">
-                      <ShieldAlert className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                    <div className="flex items-start gap-2.5 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger)]">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-[var(--danger)] mt-0.5" />
                       <div>
                         <span className="font-semibold">Island Group Restriction (Hard Block): </span>
                         {rovingIslandGroupError}
@@ -1258,7 +1258,7 @@ function RequestHeadcountModalDialog({
                                 }}
                                 className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
                                   isSelected
-                                    ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                    ? "bg-[var(--danger-bg)] text-[var(--danger)] hover:opacity-90"
                                     : "bg-brand-600 text-white hover:bg-brand-700"
                                 }`}
                               >
@@ -1426,11 +1426,11 @@ function RequestHeadcountModalDialog({
                           setIsTargetDateUserOverridden(true);
                         }}
                         className={`w-full rounded-md border bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 ${
-                          isDateOrderInvalid ? "border-red-400" : "border-border-default"
+                          isDateOrderInvalid ? "border-[var(--danger)]" : "border-border-default"
                         }`}
                       />
                       {isDateOrderInvalid && (
-                        <p className="mt-1 text-[11px] text-red-600">
+                        <p className="mt-1 text-[11px] text-[var(--danger)]">
                           Target date cannot precede vacant date
                         </p>
                       )}
@@ -1448,7 +1448,7 @@ function RequestHeadcountModalDialog({
                   <span className="text-xs text-text-muted">
                     {reason.length}/500 chars{" "}
                     {requestType === "HC Reduction" && (
-                      <span className={reason.trim().length >= 20 ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>
+                      <span className={reason.trim().length >= 20 ? "text-[var(--foreground)] font-semibold" : "text-[var(--text-muted)] font-semibold"}>
                         (Min 20 required)
                       </span>
                     )}
@@ -1516,7 +1516,7 @@ function RequestHeadcountModalDialog({
                           {selectedStore?.store_name}
                         </span>
                         {linkedNewStoreRequestId && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 uppercase">
+                          <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
                             NSR Linked
                           </span>
                         )}

@@ -70,7 +70,7 @@ export function TabsTrigger({
       className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
         isActive
           ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-          : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+          : "border-transparent bg-transparent text-text-secondary hover:border-[var(--border-bold)] hover:bg-surface-hover hover:text-text-primary"
       } ${className}`}
       onClick={() => tabs.setValue(value)}
       role="tab"

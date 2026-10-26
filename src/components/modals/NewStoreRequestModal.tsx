@@ -297,12 +297,12 @@ function NewStoreRequestModalDialog({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-default px-6 py-4 shrink-0 bg-surface-base">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-50 p-2 text-amber-700 border border-amber-200">
+            <div className="rounded-lg bg-[var(--surface-sunken)] p-2 text-[var(--foreground)] border border-[var(--border-subtle)]">
               <Store className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 border border-amber-200">
+                <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] border border-[var(--border-subtle)]">
                   New Store Request (NSR)
                 </span>
               </div>
@@ -330,7 +330,7 @@ function NewStoreRequestModalDialog({
           {submittedResult ? (
             /* Success State */
             <div className="space-y-5 text-center py-2">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--foreground)] border border-[var(--border-subtle)]">
                 <CheckCircle2 className="h-7 w-7" />
               </div>
               <div className="space-y-1.5">
@@ -353,7 +353,7 @@ function NewStoreRequestModalDialog({
               <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-left text-xs space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-text-muted font-medium">Request Status:</span>
-                  <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase">
+                  <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
                     Pending Review
                   </span>
                 </div>
@@ -406,16 +406,16 @@ function NewStoreRequestModalDialog({
 
               {/* Form Errors */}
               {formError && (
-                <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger)]">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-[var(--danger)] mt-0.5" />
                   <span>{formError}</span>
                 </div>
               )}
 
               {/* Duplicate Warning */}
               {duplicateWarning && (
-                <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3 text-xs text-[var(--foreground)]">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
                   <span>{duplicateWarning}</span>
                 </div>
               )}
@@ -426,7 +426,7 @@ function NewStoreRequestModalDialog({
                   htmlFor="nsr-store-name"
                   className="text-xs font-semibold text-text-primary block"
                 >
-                  Store Name <span className="text-red-500">*</span>
+                  Store Name <span className="text-[var(--danger)]">*</span>
                 </label>
                 <input
                   id="nsr-store-name"
@@ -446,7 +446,7 @@ function NewStoreRequestModalDialog({
                     htmlFor="nsr-province"
                     className="text-xs font-semibold text-text-primary block"
                   >
-                    Province <span className="text-red-500">*</span>
+                    Province <span className="text-[var(--danger)]">*</span>
                   </label>
                   <select
                     id="nsr-province"
@@ -473,7 +473,7 @@ function NewStoreRequestModalDialog({
                     htmlFor="nsr-city"
                     className="text-xs font-semibold text-text-primary block"
                   >
-                    City / Municipality <span className="text-red-500">*</span>
+                    City / Municipality <span className="text-[var(--danger)]">*</span>
                   </label>
                   {availableCities.length > 0 ? (
                     <select
@@ -525,7 +525,7 @@ function NewStoreRequestModalDialog({
                   htmlFor="nsr-reason"
                   className="text-xs font-semibold text-text-primary block"
                 >
-                  Justification / Operational Reason <span className="text-red-500">*</span>
+                  Justification / Operational Reason <span className="text-[var(--danger)]">*</span>
                 </label>
                 <textarea
                   id="nsr-reason"
@@ -551,7 +551,7 @@ function NewStoreRequestModalDialog({
                 <button
                   type="submit"
                   disabled={submitMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-4 py-2 text-xs font-semibold text-[var(--card)] shadow-xs hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {submitMutation.isPending ? (
                     <span>Submitting NSR...</span>
