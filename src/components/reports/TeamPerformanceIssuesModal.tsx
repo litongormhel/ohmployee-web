@@ -185,7 +185,7 @@ export function TeamPerformanceIssuesModal({
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
               <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-sm font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Issue Category</th>
                     <th className="py-2.5 px-3">Label</th>

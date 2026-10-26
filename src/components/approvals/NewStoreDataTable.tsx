@@ -506,7 +506,7 @@ export function NewStoreDataTable({
                             Approved
                           </span>
                           {request.reviewedAt && (
-                            <span className="text-xs text-text-muted font-mono">
+                            <span className="text-xs text-text-muted font-sans tabular-nums">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}

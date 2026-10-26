@@ -218,7 +218,7 @@ export function ApplicantMovementApprovalCard({
           {/* Source Slot */}
           <div className="rounded-md border border-border-default bg-surface p-3 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-text-secondary uppercase tracking-wider text-2xs">
+              <span className="font-semibold text-text-secondary text-xs">
                 {isSwap ? "Candidate A (Source Slot)" : "Origin Slot"}
               </span>
               <span className="font-mono text-xs font-semibold text-text-brand-bold bg-surface-subtle border border-border-default px-1.5 py-0.5 rounded-md">
@@ -247,7 +247,7 @@ export function ApplicantMovementApprovalCard({
           {/* Target Slot */}
           <div className="rounded-md border border-border-default bg-surface p-3 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-text-secondary uppercase tracking-wider text-2xs">
+              <span className="font-semibold text-text-secondary text-xs">
                 {isSwap ? "Candidate B (Counterpart Slot)" : "Destination Slot"}
               </span>
               <span className="font-mono text-xs font-semibold text-text-brand-bold bg-surface-subtle border border-border-default px-1.5 py-0.5 rounded-md">
@@ -319,7 +319,7 @@ export function ApplicantMovementApprovalCard({
           <div className="flex items-center gap-1 text-text-muted">
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Requested: {formatDate(request.requestedAt)}</span>
-            {relativeAge && <span className="font-mono text-2xs">({relativeAge})</span>}
+            {relativeAge && <span className="font-sans tabular-nums text-2xs">({relativeAge})</span>}
           </div>
 
           {request.effectiveDate && (

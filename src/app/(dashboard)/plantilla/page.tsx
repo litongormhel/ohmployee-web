@@ -911,12 +911,12 @@ function PlantillaPageContent() {
 
                         <div className="shrink-0 flex items-center gap-1.5">
                           {account.isPoolAccount ? (
-                            <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-[10px] font-bold text-text-primary uppercase">
+                            <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-primary">
                               Pool
                             </span>
                           ) : (
                             account.fillRate < 80 && (
-                              <span className="inline-flex items-center rounded-full bg-pct-warn-bg border border-pct-warn-border px-2 py-0.5 text-[10px] font-bold text-pct-warn-text uppercase">
+                              <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
                                 Warning
                               </span>
                             )
@@ -980,7 +980,7 @@ function PlantillaPageContent() {
     return (
       <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
         <AdminPageHeader
-          categoryTag="ADMIN PANEL"
+          categoryTag="Admin panel"
           moduleName="Plantilla"
           title="Moses HQ Pool Management"
           subtitle="Tracking, filtering, and managing non-plantilla pooled personnel (Relievers, Commandos, Seasonals)."
@@ -996,7 +996,7 @@ function PlantillaPageContent() {
     return (
       <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
         <AdminPageHeader
-          categoryTag="ADMIN PANEL"
+          categoryTag="Admin panel"
           moduleName="Plantilla"
           title="Workforce Analytics Dashboard"
           subtitle="7-Tab executive workforce analytics: Overview, Deployment, Coverage, Conversion, Slots, Health, Executive."
@@ -1013,7 +1013,7 @@ function PlantillaPageContent() {
       {!accountId ? (
         <>
           <AdminPageHeader
-            categoryTag="ADMIN PANEL"
+            categoryTag="Admin panel"
             moduleName="Plantilla"
             title="Plantilla Directory"
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
@@ -1026,7 +1026,7 @@ function PlantillaPageContent() {
         <>
           {/* 1. Header & Context Action Bar (Enterprise Web Header) */}
           <AdminPageHeader
-            categoryTag="ADMIN PANEL"
+            categoryTag="Admin panel"
             moduleName="Plantilla"
             title={
               <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
@@ -1193,22 +1193,22 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "active"
-                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Users
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "active"
-                        ? "text-brand-primary"
+                        ? "text-tab-active-text"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
                   <span>Active Roster</span>
                   <span
-                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "active"
-                        ? "bg-brand-primary text-white"
+                        ? "bg-brand-button text-white"
                         : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
@@ -1227,22 +1227,22 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "vacancy"
-                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Briefcase
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "vacancy"
-                        ? "text-brand-primary"
+                        ? "text-tab-active-text"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
                   <span>Vacancy</span>
                   <span
-                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "vacancy"
-                        ? "bg-brand-primary text-white"
+                        ? "bg-brand-button text-white"
                         : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
@@ -1261,22 +1261,22 @@ function PlantillaPageContent() {
                   }}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     effectiveTab === "inactive"
-                      ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                      ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <UserMinus
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       effectiveTab === "inactive"
-                        ? "text-brand-primary"
+                        ? "text-tab-active-text"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
                   <span>Inactive / Floating</span>
                   <span
-                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                       effectiveTab === "inactive"
-                        ? "bg-brand-primary text-white"
+                        ? "bg-brand-button text-white"
                         : "bg-surface-muted text-text-secondary border border-border-default"
                     }`}
                   >
@@ -1296,22 +1296,22 @@ function PlantillaPageContent() {
                     }}
                     className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       effectiveTab === "needs_hr"
-                        ? "border-brand-primary bg-brand-50 text-brand-primary shadow-2xs"
+                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
                     <AlertCircle
                       className={`w-4 h-4 shrink-0 transition-colors ${
                         effectiveTab === "needs_hr"
-                          ? "text-brand-primary"
+                          ? "text-tab-active-text"
                           : "text-text-muted group-hover:text-text-secondary"
                       }`}
                     />
                     <span>Needs HRCO</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                         effectiveTab === "needs_hr"
-                          ? "bg-brand-primary text-white"
+                          ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
                       }`}
                     >
@@ -1697,22 +1697,22 @@ function EmployeeTable({
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Assignment
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Status
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary">
                 Actions
               </th>
             </tr>
@@ -1930,25 +1930,25 @@ function VacancyTable({
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 VCode
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 HC Needed
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Aging
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
                 Pipeline Status
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-normal text-table-text-muted">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary">
                 Actions
               </th>
             </tr>

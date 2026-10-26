@@ -258,7 +258,7 @@ export function AccountRequestDataTable({
                     <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate text-sm">
                       {request.notes ? `"${request.notes}"` : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-sm font-mono">
+                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-sm font-sans tabular-nums">
                       {formatDate(request.createdAt)}
                     </td>
                     <td

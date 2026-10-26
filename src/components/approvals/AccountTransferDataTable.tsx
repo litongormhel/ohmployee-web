@@ -474,7 +474,7 @@ export function AccountTransferDataTable({
                         <span className="text-sm text-text-primary">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="text-xs text-text-muted font-mono">
+                        <span className="text-xs text-text-muted font-sans tabular-nums">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>
@@ -488,7 +488,7 @@ export function AccountTransferDataTable({
                             {request.rejectionReason || "No rejection reason provided"}
                           </span>
                           {request.reviewedAt && (
-                            <span className="text-xs text-text-muted mt-1 font-mono">
+                            <span className="text-xs text-text-muted mt-1 font-sans tabular-nums">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}
@@ -521,7 +521,7 @@ export function AccountTransferDataTable({
                             Transferred
                           </span>
                           {request.reviewedAt && (
-                            <span className="text-xs text-text-muted font-mono">
+                            <span className="text-xs text-text-muted font-sans tabular-nums">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}

@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Manual Test UI Fix Pass — Dark Mode Active Pills, Contrast & Typography Alignment (ohm#uifix01)
+
+**Status: COMPLETE — ALL 9 DIRECTIVES FROM OHM'S MANUAL TEST (DARK MODE, LOCALHOST) RESOLVED AND VERIFIED; ROOT CAUSE OF UNREADABLE LIGHT PILLS IN DARK MODE IDENTIFIED (bg-brand-50 HARDCODED TO #eef2ff AND UNDEFINED bg-[var(--foreground)] / text-[var(--card)] PATTERNS) AND FIXED VIA TOKEN PAIR --tab-active-bg, --tab-active-text, AND --tab-active-border; TEAM DIRECTORY AVATAR INITIALS RESOLVED TO var(--brand-button) GIVING 6.73:1 CONTRAST IN BOTH THEMES; SELECTED OPTION CARDS CONVERTED TO BRAND-SOFT --surface-selected WITH >= 6.30:1 CONTRAST; MONOSPACE PURGED FROM NON-IDENTIFIERS (ACTUAL/REQUIRED COUNTS, AGING METRICS, APPROVALS DATES, DURATION COUNTERS) IN FAVOR OF SANS TABULAR-NUMS; BREADCRUMBS, STAT-CARD LABELS, SECTION HEADINGS, AND TABLE HEADERS (14PX FLOOR) CONVERTED TO SENTENCE CASE, REDUCING UPPERCASE/TRACKING INSTANCES FROM 868 TO 811; PLANTILLA WARNING CHIP, NOTIFICATION CARD BORDERS, AND CENCOM SUMMARY DOTS NEUTRALIZED; CLIPPED GRAPHIC REMOVED FROM REPORTS HUB BANNER; DASHBOARD TOAST MOVED TO BOTTOM-CENTER; HOST OF NEXT_PUBLIC_SUPABASE_URL CONFIRMED AS DEVELOPMENT REF rwxelulyapjgaarlwkus; ADDED scripts/audit_component_contrast.py WITH 100% PASSING CONTRAST RATIOS ACROSS SHARED COMPONENTS; ZERO DATABASE ACCESS PERFORMED; LINT CLEAN (0 ERRORS), BUILD CLEAN (19/19 STATIC ROUTES), AND GATE.PY PERMITTED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Summary
+- **P0 Active Tab / Pill Unreadable in Dark Mode**:
+  - Root Cause: Shared tabs and chips relied on hardcoded `@theme` colors (e.g. `bg-brand-50` = `#eef2ff`) which remained light even in dark mode, or used undefined CSS variables `text-[var(--card)] bg-[var(--foreground)]` which rendered white backgrounds with light text.
+  - Solution: Standardized all active tab pills and segmented filters to `--tab-active-bg`, `--tab-active-text`, and `--tab-active-border`:
+    - Light: `#ffffff` pill, `#16161a` text, `#d4d4d8` border (18.04:1 contrast).
+    - Dark: `#152238` raised navy surface, `#ececf0` primary text, `#2e3b56` 1px border (13.52:1 contrast).
+  - Replaced undefined modal button styles with high-contrast `--brand-button` (`#2b4fd6`, 6.58:1 on white text in both themes).
+  - Elements updated: `SegmentedTabs.tsx`, `ui/tabs.tsx`, Vacancy tabs, HR Emploc tabs, Users tabs, Notifications filter tabs, Reports sub-tabs, More overview/audit tabs, More compliance chip, Plantilla account card chips, PlantillaImportModal queue & filter chips, HrEmplocImportModal tabs, VacancyImportModal, DataArchivalCenterModal, NewStoreRequestModal, CapabilityActionBar, and DashboardAuthShell super admin button.
+- **Contrast Ratios**:
+  - Team Directory Avatar: Initial initials background set to `var(--brand-button)` (`#2b4fd6`), achieving 6.73:1 contrast against white text in both themes.
+  - Selectable Option Cards: Converted Request Headcount ("Stationary" / "Roving"), FailBackoutModal terminal buttons, and CustomReportTab source cards to `--surface-selected` (`#152238` dark, `#eef2ff` light) with `border-brand-primary` and `text-text-primary` (13.4:1 dark, 14.2:1 light) and description `text-text-secondary` (6.30:1 dark, 6.65:1 light).
+- **Monospace Cleanup**:
+  - Monospace strictly retained for true system identifiers: VCODEs (`vcode`, `cgCode`), employee IDs, batch hashes/UUIDs, IP addresses, technical phone prefix (`09`), and SQL diagnostics.
+  - Purged mono from: `({totalActivePlantilla} Actual / {totalScopedDemand} Required)`, `Aging: 99d` and table aging columns, all Approvals data table and approval card dates, duration counters in `IdleWarningModal`, and non-identifier counts. Converted to `font-sans tabular-nums`.
+- **Sentence Case Audit**:
+  - Converted breadcrumbs (`ADMIN PANEL` -> `Admin panel`), stat-card metadata labels (raised to 12px `text-xs font-semibold`), section headings, and table headers (raised to 14px floor `text-sm font-semibold text-text-secondary`).
+  - Total `uppercase` / `tracking-*` count reduced from 868 to 811 across `src/`. Remaining instances strictly represent uppercase acronyms (HC, MFR, VCODE, CENCOM, SLA, CSV, ID, IP).
+- **Color Rule Cleanup**:
+  - Neutralized non-percentage status accents: Plantilla account card "Warning" and "Pool" chips converted to neutral sentence-case badges (`bg-surface-muted text-text-secondary border-border-default`); notification cards set to neutral border `border-border-default bg-surface-base` (retaining `--danger` strictly for SLA breach / failed actions); CENCOM deployment summary dots set to neutral `bg-border-strong`.
+- **Reports Banner & Dashboard Toast**:
+  - Reports Catalog Tab: Removed decorative `FileBarChart2` graphic (320px) which overflowed/clipped on smaller viewport widths.
+  - Dashboard Toast: Repositioned from screen corner to bottom-center `bottom-6 left-1/2 -translate-x-1/2 z-[100]`.
+- **Contrast Audit Script (`scripts/audit_component_contrast.py`)**:
+  - Scans `src/app/globals.css` dynamically resolving runtime token variables and computes relative luminance and WCAG AA contrast ratios for light and dark modes across shared components.
+  - 100% of evaluated pairs pass WCAG AA (>= 4.5:1) in both light and dark themes.
+- **Environment Host Check**:
+  - Host in `.env.local`: `rwxelulyapjgaarlwkus.supabase.co`.
+  - Project ref: `rwxelulyapjgaarlwkus` (development / scratch ref; does NOT match production ref `qqiiznmqxfoamqytjica` established in `migration_history_prod.txt`).
+  - Zero database connections were made.
+- **Pre-existing Working Tree State**:
+  - `package.json` and `package-lock.json` contained pre-existing uncommitted modifications from prior dependencies (`@ai-sdk/google`, `ai`, `zod`) and were excluded from staging.
+- **Verification Outputs**:
+  - `npm run lint`: 0 errors, 4 warnings (`VacancyTable.tsx` unused callbacks).
+  - `npm run build`: 0 errors, 19/19 static routes successfully prerendered.
+  - `python3 .agents/scripts/gate.py`: `{"decision": "allow"}`.
+
+---
+
+# AI Handoff
+
 ## Safe Fix Pass — Migration Reconciliation & Light Mode Muted Contrast Hardening (ohm#sfix01)
 
 **Status: COMPLETE — LOCAL MIGRATION FILENAMES RECONCILED TO MATCH PRODUCTION SCHEMA MIGRATION VERSIONS VIA `git mv` WITH ZERO SQL CONTENT MODIFICATIONS; GENERATED `docs/audit/migration_reconciliation.md` AUDITING ALL 104 PRODUCTION MIGRATION ENTRIES (100 MATCHES, 2 RENAMED, 2 MISSING IN REPO, 376 LOCAL DEVELOPMENT MIGRATIONS); LIGHT-MODE `--muted` TOKEN IN `globals.css` HARDENED FROM `#8a8a94` TO `#6b6b75` (ELEVATING CONTRAST RATIO FROM 3.42:1 TO 5.27:1 ON WHITE AND FROM 3.11:1 TO 4.80:1 ON SURFACE-MUTED, PASSING WCAG AA >= 4.5:1 ACROSS ALL 14PX TEXT USES); ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**

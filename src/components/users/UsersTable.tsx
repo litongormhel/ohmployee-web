@@ -50,7 +50,7 @@ export function UsersTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-border-default bg-surface-muted/50 text-[11px] font-bold uppercase tracking-wider text-text-muted">
+            <tr className="border-b border-border-default bg-surface-muted/50 text-sm font-semibold text-text-secondary">
               <th className="px-4 py-3">User</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Assigned Scopes</th>

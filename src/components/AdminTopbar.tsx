@@ -30,7 +30,7 @@ export function AdminTopbar({
         <div className="flex items-center gap-2 min-w-0">
           <Link
             href="/vacancy"
-            className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0 hover:text-text-primary"
+            className="text-xs font-semibold text-text-muted shrink-0 hover:text-text-primary"
           >
             Admin panel
           </Link>

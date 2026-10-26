@@ -43,7 +43,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
         <div className="p-3 sm:px-4 sm:py-2">
           <div className="flex items-center gap-2">
             <span
-              className="h-2 w-2 rounded-full bg-status-success-text shrink-0"
+              className="h-2 w-2 rounded-full bg-border-strong shrink-0"
               aria-hidden="true"
             />
             <span className="text-xs font-medium text-text-secondary">
@@ -66,7 +66,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
         <div className="p-3 sm:px-4 sm:py-2">
           <div className="flex items-center gap-2">
             <span
-              className="h-2 w-2 rounded-full bg-status-info-text shrink-0"
+              className="h-2 w-2 rounded-full bg-border-strong shrink-0"
               aria-hidden="true"
             />
             <span className="text-xs font-medium text-text-secondary">
@@ -89,7 +89,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
         <div className="p-3 sm:px-4 sm:py-2">
           <div className="flex items-center gap-2">
             <span
-              className="h-2 w-2 rounded-full bg-status-danger-text shrink-0"
+              className="h-2 w-2 rounded-full bg-border-strong shrink-0"
               aria-hidden="true"
             />
             <span className="text-xs font-medium text-text-secondary">
@@ -112,7 +112,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
         <div className="p-3 sm:px-4 sm:py-2">
           <div className="flex items-center gap-2">
             <span
-              className="h-2 w-2 rounded-full bg-status-neutral-text shrink-0"
+              className="h-2 w-2 rounded-full bg-border-strong shrink-0"
               aria-hidden="true"
             />
             <span className="text-xs font-medium text-text-secondary">

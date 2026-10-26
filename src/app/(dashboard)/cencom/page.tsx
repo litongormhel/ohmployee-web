@@ -169,7 +169,7 @@ function CencomPageContent() {
     <div className="space-y-6">
       {/* 1. Header */}
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="CENCOM"
         title={
           <span className="text-[28px] sm:text-[34px] lg:text-[40px] font-semibold tracking-[-0.035em] leading-tight text-text-primary">

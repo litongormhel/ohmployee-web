@@ -483,7 +483,7 @@ export function ApplicantMovementDataTable({
                         <span className="text-sm text-text-primary">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="text-xs text-text-muted font-mono">
+                        <span className="text-xs text-text-muted font-sans tabular-nums">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>
@@ -497,7 +497,7 @@ export function ApplicantMovementDataTable({
                             {request.rejectionReason || "No rejection reason provided"}
                           </span>
                           {(request.effectiveDate || request.createdAt) && (
-                            <span className="text-xs text-text-muted mt-1 font-mono">
+                            <span className="text-xs text-text-muted mt-1 font-sans tabular-nums">
                               {formatDate(request.effectiveDate || request.createdAt)}
                             </span>
                           )}

@@ -141,7 +141,7 @@ function NotificationsPageContent() {
     <div className="space-y-6">
       {/* Top Header */}
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="Notifications"
         title="Alerts & Activity Center"
         subtitle="Operational alerts, approval actions, and system notices"
@@ -198,23 +198,23 @@ function NotificationsPageContent() {
                   onClick={() => handleTabChange(tab.key)}
                   className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     isActive
-                      ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                      ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                       : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
                   <Icon
                     className={`h-4 w-4 shrink-0 transition-colors ${
                       isActive
-                        ? "text-brand-700"
+                        ? "text-tab-active-text"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                     aria-hidden="true"
                   />
                   <span>{tab.label}</span>
                   <span
-                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                    className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                       isActive
-                        ? "bg-brand-500 text-white"
+                        ? "bg-brand-button text-white"
                         : tab.key === "unread" && tab.count > 0
                         ? "border border-border-default bg-surface-subtle text-text-primary"
                         : "border border-border-default bg-surface-subtle text-text-secondary"

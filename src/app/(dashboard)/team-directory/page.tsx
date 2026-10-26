@@ -120,7 +120,7 @@ export default function TeamDirectoryPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="Team Directory"
         title="Team Directory"
         subtitle="Corporate operations, recruitment, and field leadership roster."

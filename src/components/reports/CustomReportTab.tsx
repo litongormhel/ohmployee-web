@@ -346,12 +346,12 @@ export function CustomReportTab() {
                 onClick={() => handleSourceChange(src)}
                 className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? "border-brand-500 bg-brand-50/50 shadow-2xs ring-2 ring-brand-500/20"
+                    ? "border-brand-primary bg-surface-selected shadow-2xs ring-1 ring-brand-primary"
                     : "border-border-default bg-surface-base hover:border-border-strong"
                 }`}
               >
                 <div className="text-xs font-bold text-text-primary">{config.label}</div>
-                <div className="text-[10px] text-text-muted mt-1 line-clamp-2">
+                <div className="text-xs text-text-secondary mt-1 line-clamp-2">
                   {config.description}
                 </div>
               </button>

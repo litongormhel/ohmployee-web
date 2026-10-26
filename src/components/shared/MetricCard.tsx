@@ -55,7 +55,7 @@ export function MetricCard({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold uppercase tracking-normal text-text-secondary truncate">
+        <div className="text-xs font-semibold text-text-secondary truncate">
           {label}
         </div>
         {Icon ? <Icon className={`h-4 w-4 shrink-0 ${variantColor}`} /> : null}

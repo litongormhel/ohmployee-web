@@ -211,8 +211,8 @@ export function HrEmplocDetailDrawer({
               <div className="flex items-start gap-2.5">
                 <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-text-secondary" />
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold uppercase tracking-wide">
-                    Record Locked: Pending Deletion
+                  <h4 className="text-xs font-semibold">
+                    Record locked: pending deletion
                   </h4>
                   <p className="text-xs leading-relaxed text-text-secondary">
                     This allocation is currently subject to a separation or duplicate record separation request. All audits, corrections, employee ID assignments, and deployment triggers are strictly locked.
@@ -290,8 +290,8 @@ export function HrEmplocDetailDrawer({
           {/* Status & SLA Metrics Row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
-              <div className="text-[10px] font-medium uppercase text-text-muted">
-                Deployment Status
+              <div className="text-xs font-medium text-text-muted">
+                Deployment status
               </div>
               <div className="mt-1 flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-text-primary bg-surface border border-border-default rounded px-2 py-0.5">
@@ -301,8 +301,8 @@ export function HrEmplocDetailDrawer({
             </div>
 
             <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
-              <div className="text-[10px] font-medium uppercase text-text-muted">
-                HR Status
+              <div className="text-xs font-medium text-text-muted">
+                HR status
               </div>
               <div className="mt-1">
                 <StatusBadge

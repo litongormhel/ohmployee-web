@@ -146,7 +146,7 @@ export function HrEmplocTable({
       {/* Main Table Container (Without redundant inner card header bar) */}
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-[0.9375rem]">
-          <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
+          <thead className="sticky top-0 z-10 bg-table-header text-sm font-semibold text-text-secondary">
             <tr>
               {columns.map((column) => (
                 <th

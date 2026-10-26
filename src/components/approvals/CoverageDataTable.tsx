@@ -478,7 +478,7 @@ export function CoverageDataTable({
                         <span className="text-sm text-text-primary">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="text-xs text-text-muted font-mono">
+                        <span className="text-xs text-text-muted font-sans tabular-nums">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>
@@ -492,7 +492,7 @@ export function CoverageDataTable({
                             {request.rejectionReason || request.reviewerRemarks || "No rejection reason provided"}
                           </span>
                           {request.rejectedAt && (
-                            <span className="text-xs text-text-muted mt-1 font-mono">
+                            <span className="text-xs text-text-muted mt-1 font-sans tabular-nums">
                               {formatDate(request.rejectedAt)}
                             </span>
                           )}
@@ -523,7 +523,7 @@ export function CoverageDataTable({
                             Approved
                           </span>
                           {request.approvedAt && (
-                            <span className="text-xs text-text-muted font-mono">
+                            <span className="text-xs text-text-muted font-sans tabular-nums">
                               {formatDate(request.approvedAt)}
                             </span>
                           )}

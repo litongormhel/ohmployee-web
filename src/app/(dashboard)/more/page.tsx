@@ -641,7 +641,7 @@ function MorePageContent() {
     <div className="space-y-6">
       {/* Standard Admin Header */}
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="More"
         title="System Hub & Governance Tools"
         subtitle="Access administrator utilities, security matrices, audit trails, data control, and command controls."
@@ -668,14 +668,14 @@ function MorePageContent() {
                 onClick={() => handleTabChange(tab.key)}
                 className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
-                    ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                    ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                     : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                 }`}
               >
                 <Icon
                   className={`w-4 h-4 shrink-0 transition-colors ${
                     isActive
-                      ? "text-brand-700"
+                      ? "text-tab-active-text"
                       : "text-text-muted group-hover:text-text-secondary"
                   }`}
                 />
@@ -874,11 +874,11 @@ function MorePageContent() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-brand-primary" />
-                  <span>Integrity Checks & System Audit Trails</span>
+                  <span>Integrity checks & system audit trails</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-900 border border-brand-200 uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-tab-active-bg text-tab-active-text border border-tab-active-border">
                   Compliance
                 </span>
               </div>

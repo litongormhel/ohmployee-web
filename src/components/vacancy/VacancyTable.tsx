@@ -300,7 +300,7 @@ export function VacancyTable({
     <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-left text-[0.9375rem]">
-          <thead className="sticky top-0 z-10 bg-table-header text-xs font-semibold uppercase text-table-text-muted">
+          <thead className="sticky top-0 z-10 bg-table-header text-sm font-semibold text-text-secondary">
             <tr>
               {activeColumns.map((column) => (
                 <th

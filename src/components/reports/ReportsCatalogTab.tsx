@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Clock,
-  FileBarChart2,
   FileCheck2,
   Hourglass,
   Layers,
@@ -45,8 +44,8 @@ export function ReportsCatalogTab({
       {/* Hero Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-brand-900 via-brand-800 to-brand-950 text-white shadow-md relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-brand-200 bg-[var(--surface-overlay)] px-2.5 py-1 rounded-full border border-[var(--border-subtle)]">
-            Operational Intelligence & Analytics
+          <span className="text-xs font-semibold text-brand-200 bg-[var(--surface-overlay)] px-2.5 py-1 rounded-full border border-[var(--border-subtle)]">
+            Operational intelligence & analytics
           </span>
           <h2 className="text-2xl font-bold tracking-tight mt-2">
             Workforce Reports & Compliance Hub
@@ -54,9 +53,6 @@ export function ReportsCatalogTab({
           <p className="text-sm text-brand-100 mt-1 leading-relaxed">
             Consolidated operational reporting engine. Audit attrition trends, tracking floating staff aging, SLA discipline, data integrity anomalies, and custom workforce extractions.
           </p>
-        </div>
-        <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-10 translate-y-10">
-          <FileBarChart2 className="w-80 h-80" />
         </div>
       </div>
 

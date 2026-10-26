@@ -523,7 +523,7 @@ function NewStoreRequestModalDialog({
                 <button
                   type="submit"
                   disabled={submitMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-4 py-2 text-xs font-semibold text-[var(--card)] shadow-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button hover:bg-brand-button-hover px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors disabled:opacity-50"
                 >
                   {submitMutation.isPending ? (
                     <span>Submitting NSR...</span>

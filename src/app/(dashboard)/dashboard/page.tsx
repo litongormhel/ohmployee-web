@@ -321,7 +321,7 @@ export default function DashboardPage() {
       <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border-default bg-surface-card p-4 sm:p-5 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-            <span>ADMIN PANEL</span>
+            <span>Admin panel</span>
             <span>/</span>
             <span className="font-semibold text-brand-500">Dashboard Overview</span>
             <NeutralChip label="Live RPC Telemetry Connected" />
@@ -398,7 +398,7 @@ export default function DashboardPage() {
           footer={
             <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
               <span>{activeSlaBreaches} Logged Inactivity Breaches</span>
-              <span className="font-mono text-text-muted">
+              <span className="font-sans tabular-nums text-text-muted">
                 Aging: {slaBreachesData?.[0]?.aging ?? "—"}
               </span>
             </div>
@@ -525,7 +525,7 @@ export default function DashboardPage() {
                     {avgFillRateFormatted}
                   </span>
                 </span>
-                <span className="font-mono text-xs text-text-muted">
+                <span className="font-sans tabular-nums text-xs text-text-muted">
                   ({totalActivePlantilla} Actual / {totalScopedDemand} Required)
                 </span>
               </div>
@@ -797,7 +797,7 @@ export default function DashboardPage() {
                                 {b.owner}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center font-mono font-semibold tabular-nums text-sm">
+                            <td className="py-2.5 px-3 text-center font-sans font-semibold tabular-nums text-sm">
                               {b.aging}
                             </td>
                             <td className="py-2.5 px-4 sm:px-5 text-right">

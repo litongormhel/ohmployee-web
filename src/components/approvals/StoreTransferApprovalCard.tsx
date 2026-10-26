@@ -303,7 +303,7 @@ export function StoreTransferApprovalCard({
               <Store className="h-3 w-3" />
               <span>Stores</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-primary">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-primary">
               {affectedStores}
             </div>
           </div>
@@ -313,7 +313,7 @@ export function StoreTransferApprovalCard({
               <Users className="h-3 w-3" />
               <span>Plantilla</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-primary">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-primary">
               {affectedPlantilla}
             </div>
           </div>
@@ -323,7 +323,7 @@ export function StoreTransferApprovalCard({
               <Building2 className="h-3 w-3" />
               <span>Vacancies</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-primary">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-primary">
               {affectedVacancies}
             </div>
           </div>
@@ -333,7 +333,7 @@ export function StoreTransferApprovalCard({
               <MapPin className="h-3 w-3" />
               <span>HR Emploc</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-primary">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-primary">
               {affectedHrEmploc}
             </div>
           </div>
@@ -343,7 +343,7 @@ export function StoreTransferApprovalCard({
               <Eye className="h-3 w-3" />
               <span>Visibility +</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-brand-bold">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-brand-bold">
               +{usersGaining}
             </div>
           </div>
@@ -353,7 +353,7 @@ export function StoreTransferApprovalCard({
               <Eye className="h-3 w-3" />
               <span>Visibility −</span>
             </div>
-            <div className="mt-1 text-base font-bold font-mono text-text-primary">
+            <div className="mt-1 text-base font-bold font-sans tabular-nums text-text-primary">
               −{usersLosing}
             </div>
           </div>

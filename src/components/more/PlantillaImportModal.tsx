@@ -882,10 +882,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                       ? `Cannot approve batch: ${batch.blockedRows} row(s) failed validation.`
                                       : "Approve & Apply batch"
                                   }
-                                  className={`h-9 px-3 rounded-lg text-[var(--card)] text-sm font-semibold transition ${
+                                  className={`h-9 px-3 rounded-lg text-white text-sm font-semibold transition ${
                                     isValidationFailed
-                                      ? "bg-[var(--text-subtle)] cursor-not-allowed opacity-50"
-                                      : "bg-[var(--foreground)] hover:opacity-90 disabled:opacity-50"
+                                      ? "bg-surface-muted text-text-muted cursor-not-allowed opacity-50"
+                                      : "bg-brand-button hover:bg-brand-button-hover disabled:opacity-50"
                                   }`}
                                 >
                                   Approve & Apply
@@ -919,8 +919,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   onClick={() => setRowFilter("all")}
                                   className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                                     rowFilter === "all"
-                                      ? "bg-[var(--foreground)] text-[var(--card)]"
-                                      : "bg-[var(--card)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                                      ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
+                                      : "bg-surface-card border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
                                   }`}
                                 >
                                   All ({previewRows.length})
@@ -930,7 +930,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   onClick={() => setRowFilter("blocked")}
                                   className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                                     rowFilter === "blocked"
-                                      ? "bg-[var(--danger)] text-white"
+                                      ? "bg-danger-button text-white shadow-2xs"
                                       : "bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger)]"
                                   }`}
                                 >
@@ -941,7 +941,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   onClick={() => setRowFilter("flagged")}
                                   className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                                     rowFilter === "flagged"
-                                      ? "bg-[var(--foreground)] text-[var(--card)]"
+                                      ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                                       : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
                                   }`}
                                 >
@@ -952,7 +952,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   onClick={() => setRowFilter("valid")}
                                   className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                                     rowFilter === "valid"
-                                      ? "bg-[var(--foreground)] text-[var(--card)]"
+                                      ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                                       : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
                                   }`}
                                 >
@@ -963,7 +963,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                   onClick={() => setRowFilter("skipped")}
                                   className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                                     rowFilter === "skipped"
-                                      ? "bg-[var(--foreground)] text-[var(--card)]"
+                                      ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                                       : "bg-[var(--card)] border border-[var(--border-subtle)] text-[var(--text-muted)]"
                                   }`}
                                 >
@@ -1413,8 +1413,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             onClick={() => setHistoryRowFilter("all")}
                             className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                               historyRowFilter === "all"
-                                ? "bg-[var(--foreground)] text-[var(--card)]"
-                                : "bg-[var(--card)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
+                                : "bg-surface-card border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
                             }`}
                           >
                             All ({historyRows.length})
@@ -1424,7 +1424,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             onClick={() => setHistoryRowFilter("blocked")}
                             className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                               historyRowFilter === "blocked"
-                                ? "bg-[var(--danger)] text-white"
+                                ? "bg-danger-button text-white shadow-2xs"
                                 : "bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger)]"
                             }`}
                           >
@@ -1435,7 +1435,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             onClick={() => setHistoryRowFilter("flagged")}
                             className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                               historyRowFilter === "flagged"
-                                ? "bg-[var(--foreground)] text-[var(--card)]"
+                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                                 : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
                             }`}
                           >
@@ -1446,7 +1446,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             onClick={() => setHistoryRowFilter("valid")}
                             className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
                               historyRowFilter === "valid"
-                                ? "bg-[var(--foreground)] text-[var(--card)]"
+                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                                 : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
                             }`}
                           >

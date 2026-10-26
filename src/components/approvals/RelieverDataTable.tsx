@@ -539,7 +539,7 @@ export function RelieverDataTable({
                             Assigned
                           </span>
                           {request.reviewedAt && (
-                            <span className="text-xs text-text-muted font-mono">
+                            <span className="text-xs text-text-muted font-sans tabular-nums">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}
@@ -550,7 +550,7 @@ export function RelieverDataTable({
                             {request.rejectionReason || "No reason specified"}
                           </span>
                           {request.reviewedAt && (
-                            <span className="text-xs text-text-muted mt-1 font-mono">
+                            <span className="text-xs text-text-muted mt-1 font-sans tabular-nums">
                               {formatDate(request.reviewedAt)}
                             </span>
                           )}

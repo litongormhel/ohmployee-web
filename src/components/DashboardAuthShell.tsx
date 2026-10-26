@@ -170,7 +170,7 @@ function AuthenticatedShell({
                 type="button"
                 onClick={handleStopActing}
                 disabled={stopActingMutation.isPending}
-                className="px-2.5 py-1 rounded-md bg-[var(--foreground)] text-[var(--card)] text-xs font-bold hover:opacity-90 transition-colors shadow-2xs"
+                className="px-2.5 py-1 rounded-md bg-brand-button text-white text-xs font-bold hover:bg-brand-button-hover transition-colors shadow-2xs cursor-pointer"
               >
                 Revert to Super Admin
               </button>

@@ -203,8 +203,8 @@ function AddApplicantModalContent({
 
           {/* Candidate Form Fields */}
           <div className="space-y-3.5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-              Candidate Information
+            <h3 className="text-xs font-semibold text-text-muted">
+              Candidate information
             </h3>
 
             {/* 3-Column Name Row: First Name *, Middle Name *, Last Name * */}

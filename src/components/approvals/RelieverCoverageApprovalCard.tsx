@@ -251,7 +251,7 @@ export function RelieverCoverageApprovalCard({
               <div className="text-xs font-semibold text-text-primary">
                 {durationDays !== null ? (
                   <span>
-                    <strong className="font-mono text-text-primary">{durationDays}</strong> day
+                    <strong className="font-sans tabular-nums font-semibold text-text-primary">{durationDays}</strong> day
                     {durationDays !== 1 ? "s" : ""} deployment
                   </span>
                 ) : (

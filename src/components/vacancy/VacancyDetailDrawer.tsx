@@ -741,16 +741,16 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       {(detail.agingDays !== null || hasPenalty) && (
                         <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-md bg-surface-muted/70 px-2.5 py-1.5 text-xs border border-border-subtle">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] uppercase font-semibold text-text-muted">Aging:</span>
+                            <span className="text-xs font-semibold text-text-muted">Aging:</span>
                             {detail.agingDays !== null ? (
-                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium border border-border-default bg-surface-muted text-text-secondary">
+                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border border-border-default bg-surface-muted text-text-secondary tabular-nums">
                                 {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
                               </span>
                             ) : (
                               <span className="font-semibold text-text-primary">--</span>
                             )}
                             {detail.agingBucket && (
-                              <Badge className="border-border-default bg-surface-muted text-text-secondary uppercase font-mono text-[9px] py-0 px-1.5">
+                              <Badge className="border-border-default bg-surface-muted text-text-secondary font-sans text-xs py-0.5 px-1.5">
                                 {detail.agingBucket}
                               </Badge>
                             )}

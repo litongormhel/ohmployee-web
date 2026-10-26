@@ -267,7 +267,7 @@ export function TeamDirectoryDetailDrawer({
           <div className="space-y-3 text-xs">
             {/* Groups */}
             <div>
-              <div className="text-[11px] font-bold uppercase text-text-muted tracking-wider mb-1.5">
+              <div className="text-xs font-semibold text-text-muted mb-1.5">
                 CENCOM Groups ({displayGroups.length})
               </div>
               {displayGroups.length === 0 ? (
@@ -289,7 +289,7 @@ export function TeamDirectoryDetailDrawer({
 
             {/* Accounts */}
             <div>
-              <div className="text-[11px] font-bold uppercase text-text-muted tracking-wider mb-1.5">
+              <div className="text-xs font-semibold text-text-muted mb-1.5">
                 Accounts ({displayAccounts.length})
               </div>
               {displayAccounts.length === 0 ? (
@@ -324,8 +324,8 @@ export function TeamDirectoryDetailDrawer({
 
           {/* Reports To Section */}
           <div>
-            <div className="text-[11px] font-bold uppercase text-text-muted tracking-wider mb-2">
-              Reports To (Supervisor)
+            <div className="text-xs font-semibold text-text-muted mb-2">
+              Reports to (supervisor)
             </div>
             {reportingStructure.reportsTo.length === 0 ? (
               <div className="rounded-md border border-dashed border-border-default bg-surface-muted/40 p-3 text-center text-xs text-text-muted">
@@ -364,7 +364,7 @@ export function TeamDirectoryDetailDrawer({
                           <div className="text-xs font-bold text-text-primary truncate group-hover:text-brand-600">
                             {sName}
                           </div>
-                          <div className="text-[11px] text-text-secondary truncate">
+                          <div className="text-xs text-text-secondary truncate">
                             {supervisor.roleName}
                             {sScope !== "No scope assigned" && ` • ${sScope}`}
                           </div>
@@ -381,8 +381,8 @@ export function TeamDirectoryDetailDrawer({
           {/* Direct Reports Section */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase text-text-muted tracking-wider">
-                Direct Reports ({reportingStructure.directReports.length})
+              <span className="text-xs font-semibold text-text-muted">
+                Direct reports ({reportingStructure.directReports.length})
               </span>
             </div>
             {reportingStructure.directReports.length === 0 ? (

@@ -47,7 +47,7 @@ function SettingsPageContent() {
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="Settings"
         title="Settings & System Governance"
         subtitle="Manage your profile security, application preferences, device sessions, and platform diagnostics."

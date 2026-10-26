@@ -70,7 +70,7 @@ export const HeroCard = memo(function HeroCard({
           <div className="flex flex-col gap-3 text-left">
             {actual !== undefined && (
               <div>
-                <span className="text-[11px] font-medium uppercase tracking-wider text-hero-muted">
+                <span className="text-xs font-medium text-hero-muted">
                   {actualLabel}
                 </span>
                 <p className="text-2xl font-bold tracking-tight text-hero-text tabular-nums">
@@ -80,7 +80,7 @@ export const HeroCard = memo(function HeroCard({
             )}
             {required !== undefined && (
               <div>
-                <span className="text-[11px] font-medium uppercase tracking-wider text-hero-muted">
+                <span className="text-xs font-medium text-hero-muted">
                   {requiredLabel}
                 </span>
                 <p className="text-2xl font-bold tracking-tight text-hero-text tabular-nums">

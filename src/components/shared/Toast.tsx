@@ -43,9 +43,9 @@ export const Toast = memo(function Toast({
     },
     info: {
       icon: Info,
-      border: "border-brand-200 dark:border-brand-500/30",
-      bg: "bg-brand-50 dark:bg-brand-500/15",
-      text: "text-brand-700 dark:text-brand-300",
+      border: "border-border-default",
+      bg: "bg-surface-selected",
+      text: "text-brand-primary",
     },
   }[variant];
 
@@ -55,7 +55,7 @@ export const Toast = memo(function Toast({
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-6 right-6 z-[100] flex items-center gap-2.5 rounded-xl border ${config.border} ${config.bg} px-4 py-3 text-xs font-semibold ${config.text} shadow-lg animate-fade-in ${className}`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 rounded-xl border ${config.border} ${config.bg} px-4 py-3 text-xs font-semibold ${config.text} shadow-lg animate-fade-in ${className}`}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span>{message}</span>

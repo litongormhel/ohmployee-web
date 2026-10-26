@@ -89,6 +89,11 @@ This project leverages **Tailwind CSS v4** where the `@theme` directive inside t
   --color-status-neutral-border: #e2e8f0; /* Slate 200 */
   --color-status-neutral-text: #475569;   /* Slate 600 */
 
+  /* Active Tab / Pill Tokens */
+  --color-tab-active-bg: var(--tab-active-bg);
+  --color-tab-active-text: var(--tab-active-text);
+  --color-tab-active-border: var(--tab-active-border);
+
   /* 3. Border Radii Tiers */
   --radius-xs: 2px;
   --radius-sm: 6px;

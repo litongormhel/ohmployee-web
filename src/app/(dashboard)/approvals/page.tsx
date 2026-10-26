@@ -106,7 +106,7 @@ function ApprovalsPageContent() {
     return (
       <div className="space-y-6">
         <AdminPageHeader
-          categoryTag="ADMIN PANEL"
+          categoryTag="Admin panel"
           moduleName="Approvals"
           title="Request Center"
           subtitle="Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments."
@@ -126,7 +126,7 @@ function ApprovalsPageContent() {
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="Approvals"
         title="Request Center"
         subtitle="Operational request hub and approval queue for headcount quota amendments, store additions, and workforce adjustments."

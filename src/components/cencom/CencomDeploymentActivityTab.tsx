@@ -317,8 +317,8 @@ export function CencomDeploymentActivityTab({
       {/* 4. High-Density Deployment Personnel Table */}
       <div className="rounded-xl border border-border-default bg-surface-base overflow-hidden shadow-xs">
         <div className="border-b border-border-default bg-surface-muted px-4 py-3 flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
-            DEPLOYED PERSONNEL ACTIVITY ROSTER ({filteredRecords.length})
+          <h3 className="text-sm font-semibold text-text-secondary">
+            Deployed personnel activity roster ({filteredRecords.length})
           </h3>
           <span className="text-xs text-text-muted">
             Page {currentPage} of {totalPages}
@@ -326,8 +326,8 @@ export function CencomDeploymentActivityTab({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border-default bg-surface-muted/50 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border-default bg-surface-muted/50 text-sm font-semibold text-text-secondary">
               <tr>
                 <th className="py-2.5 px-4">Candidate / Personnel</th>
                 <th className="py-2.5 px-3">Emploc / Emp #</th>

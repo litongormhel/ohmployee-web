@@ -49,19 +49,19 @@ export function CapabilityActionBar({
               const Icon = action.icon;
 
               let buttonStyle =
-                "border border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--surface-muted)]";
+                "border border-border-default bg-surface-base text-text-primary hover:bg-surface-muted";
               if (action.variant === "primary") {
                 buttonStyle =
-                  "border border-transparent bg-[var(--primary)] text-white hover:opacity-90 shadow-xs";
+                  "border border-transparent bg-brand-button text-white hover:bg-brand-button-hover shadow-xs";
               } else if (action.variant === "success") {
                 buttonStyle =
-                  "border border-transparent bg-[var(--foreground)] text-[var(--card)] hover:opacity-90 shadow-xs";
+                  "border border-transparent bg-brand-button text-white hover:bg-brand-button-hover shadow-xs";
               } else if (action.variant === "danger") {
                 buttonStyle =
-                  "border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger)] hover:opacity-90";
+                  "border border-danger-border bg-danger-bg text-danger-text hover:bg-danger-bg/80";
               } else if (action.variant === "warning") {
                 buttonStyle =
-                  "border border-[var(--border-subtle)] bg-[var(--surface-sunken)] text-[var(--foreground)] hover:bg-[var(--surface-muted)]";
+                  "border border-border-default bg-surface-muted text-text-primary hover:bg-surface-hover";
               }
 
               return (

@@ -85,8 +85,8 @@ function resolveNotificationTone(item: NotificationItem): ToneConfig {
   ) {
     return {
       icon: AlertCircle,
-      containerClass: "bg-danger-subtle text-danger-text border border-danger-border ring-2 ring-danger-border/20",
-      badgeClass: "bg-danger-subtle text-danger-text border-danger-border",
+      containerClass: "bg-surface-subtle text-danger-text border border-border-default",
+      badgeClass: "bg-surface-subtle text-danger-text border-border-default",
       badgeLabel: item.sla_level ? `SLA Breach (L${item.sla_level})` : "Attention Required",
     };
   }
@@ -169,8 +169,8 @@ export function NotificationCard({
     <article
       className={`group relative flex flex-col sm:flex-row sm:items-start gap-3.5 rounded-xl border p-4 transition duration-150 ${
         !notification.is_read
-          ? "border-brand-200 bg-surface-base shadow-xs"
-          : "border-border-default/80 bg-surface-base/60 hover:bg-surface-base hover:border-border-default"
+          ? "border-border-default bg-surface-base shadow-xs"
+          : "border-border-subtle bg-surface-base/60 hover:bg-surface-base hover:border-border-default"
       }`}
     >
       {/* Unread Accent Pill Indicator */}

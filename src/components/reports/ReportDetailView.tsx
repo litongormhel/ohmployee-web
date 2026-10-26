@@ -655,7 +655,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-sm font-semibold">
                 <tr>
                   <th className="py-3 px-4">Group Scope</th>
                   <th className="py-3 px-4">Account Name</th>

@@ -84,7 +84,7 @@ export function SegmentedTabs<T extends string = string>({
       {/* Sliding active pill indicator */}
       {indicatorStyle.width > 0 && (
         <span
-          className={`absolute top-1 bottom-1 rounded-lg border border-border-subtle bg-surface-card shadow-2xs ${
+          className={`absolute top-1 bottom-1 rounded-lg border border-tab-active-border bg-tab-active-bg shadow-2xs ${
             motionLevel === "full"
               ? "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
               : ""
@@ -115,7 +115,7 @@ export function SegmentedTabs<T extends string = string>({
             onKeyDown={(e) => handleKeyDown(e, idx)}
             className={`relative z-10 inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
               isActive
-                ? "text-text-primary"
+                ? "text-tab-active-text"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >
@@ -124,7 +124,7 @@ export function SegmentedTabs<T extends string = string>({
               <span
                 className={`inline-flex items-center rounded-full px-1.5 py-0.2 text-[10px] font-bold tabular-nums ${
                   isActive
-                    ? "bg-surface-muted text-text-primary"
+                    ? "bg-surface-muted text-tab-active-text"
                     : "bg-surface-card text-text-muted"
                 }`}
               >

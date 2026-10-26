@@ -18,7 +18,7 @@ export interface AdminPageHeaderProps {
 }
 
 export function AdminPageHeader({
-  categoryTag = "ADMIN PANEL",
+  categoryTag = "Admin panel",
   moduleName,
   title,
   subtitle,
@@ -36,7 +36,7 @@ export function AdminPageHeader({
       <div className="flex items-center gap-4 min-w-0">
         {/* Left Section (Module Scope) */}
         <div className="shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+          <p className="text-xs font-semibold text-text-muted">
             {categoryTag}
           </p>
           <h1 className="text-xl font-bold text-text-primary tracking-tight leading-none">

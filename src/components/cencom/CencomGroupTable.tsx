@@ -163,7 +163,7 @@ export function CencomGroupTable({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm" role="table">
           <thead>
-            <tr className="border-b border-border-default bg-surface-header text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <tr className="border-b border-border-default bg-surface-header text-sm font-semibold text-text-secondary">
               <th className="py-3 pl-4 pr-3 sm:pl-6" scope="col">
                 <button
                   type="button"

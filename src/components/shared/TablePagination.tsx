@@ -110,7 +110,7 @@ export function TablePagination({
                 onClick={() => onPageChange(item)}
                 className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors cursor-pointer ${
                   isActive
-                    ? "bg-brand-600 text-white font-semibold shadow-2xs"
+                    ? "bg-brand-button text-white font-semibold shadow-2xs"
                     : "border border-table-rule-section bg-table-row text-table-text-sub hover:bg-table-row-hover"
                 }`}
                 aria-current={isActive ? "page" : undefined}

@@ -523,7 +523,7 @@ export function HeadcountDataTable({
                           )}
                         </div>
                       ) : (
-                        <span className="font-mono text-sm font-semibold text-text-primary">
+                        <span className="font-sans tabular-nums text-sm font-semibold text-text-primary">
                           +{request.headcountNeeded} needed
                         </span>
                       )}
@@ -535,7 +535,7 @@ export function HeadcountDataTable({
                         <span className="text-sm text-text-primary">
                           {request.requestedByName || "Unknown"}
                         </span>
-                        <span className="text-xs text-text-secondary">
+                        <span className="text-xs text-text-secondary tabular-nums">
                           {formatDate(request.requestedAt)}
                         </span>
                       </div>

@@ -716,7 +716,7 @@ export default function VacancyPage() {
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-4 text-text-primary">
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="Vacancy"
         title="Vacancy Management"
         subtitle="Monitor unfilled store vacancies, applicant pipeline, and aging requisitions."
@@ -817,7 +817,7 @@ export default function VacancyPage() {
                 aria-selected={isActive}
                 className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                   isActive
-                    ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                    ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                     : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                 }`}
                 onClick={() => updateStatus(tab.value)}
@@ -828,16 +828,16 @@ export default function VacancyPage() {
                   <Icon
                     className={`w-4 h-4 shrink-0 transition-colors ${
                       isActive
-                        ? "text-brand-700"
+                        ? "text-tab-active-text"
                         : "text-text-muted group-hover:text-text-secondary"
                     }`}
                   />
                 )}
                 <span>{tab.label}</span>
                 <span
-                  className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                  className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                     isActive
-                      ? "bg-brand-600 text-white"
+                      ? "bg-brand-button text-white"
                       : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >

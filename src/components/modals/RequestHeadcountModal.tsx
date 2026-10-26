@@ -857,15 +857,15 @@ function RequestHeadcountModalDialog({
                     }}
                     className={`flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-all ${
                       workforceType === "stationary"
-                        ? "border-brand-600 bg-brand-50/50 text-brand-900 shadow-xs ring-1 ring-brand-500"
-                        : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover"
+                        ? "border-brand-primary bg-surface-selected text-text-primary shadow-xs ring-1 ring-brand-primary"
+                        : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-semibold text-sm">
-                      <MapPin className="h-4 w-4 text-brand-600" />
+                      <MapPin className="h-4 w-4 text-brand-primary" />
                       <span>Stationary</span>
                     </div>
-                    <p className="text-xs text-text-muted">Single dedicated store assignment</p>
+                    <p className="text-xs text-text-secondary">Single dedicated store assignment</p>
                   </button>
 
                   <button
@@ -876,15 +876,15 @@ function RequestHeadcountModalDialog({
                     }}
                     className={`flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-all ${
                       workforceType === "roving"
-                        ? "border-brand-600 bg-brand-50/50 text-brand-900 shadow-xs ring-1 ring-brand-500"
-                        : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover"
+                        ? "border-brand-primary bg-surface-selected text-text-primary shadow-xs ring-1 ring-brand-primary"
+                        : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-semibold text-sm">
-                      <Layers className="h-4 w-4 text-brand-600" />
+                      <Layers className="h-4 w-4 text-brand-primary" />
                       <span>Roving</span>
                     </div>
-                    <p className="text-xs text-text-muted">Multi-store coverage cluster (2–20)</p>
+                    <p className="text-xs text-text-secondary">Multi-store coverage cluster (2–20)</p>
                   </button>
 
                   <div
@@ -1460,12 +1460,12 @@ function RequestHeadcountModalDialog({
           {/* ========================================================================= */}
           {currentStep === "review" && (
             <div className="space-y-6">
-              <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-4 text-xs text-brand-900">
+              <div className="rounded-lg border border-border-default bg-surface-selected p-4 text-xs text-text-primary">
                 <h4 className="font-semibold text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-brand-600" />
+                  <Sparkles className="h-4 w-4 text-brand-primary" />
                   Review Headcount Requisition
                 </h4>
-                <p className="mt-0.5 text-brand-800">
+                <p className="mt-0.5 text-text-secondary">
                   Please confirm the requisition parameters before submitting to the approval pipeline.
                 </p>
               </div>

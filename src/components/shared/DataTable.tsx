@@ -77,7 +77,7 @@ export function DataTable<T>({
                   key={col.key}
                   scope="col"
                   style={{ width: col.width }}
-                  className={`${cellPadding} ${alignClass} font-semibold uppercase tracking-wider text-[11px] text-text-muted ${col.className ?? ""}`}
+                  className={`${cellPadding} ${alignClass} font-semibold text-sm text-text-secondary ${col.className ?? ""}`}
                 >
                   {col.header}
                 </th>

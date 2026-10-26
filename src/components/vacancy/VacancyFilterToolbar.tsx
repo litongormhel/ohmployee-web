@@ -200,7 +200,7 @@ export function VacancyFilterToolbar({
               aria-label="Advanced filters"
               className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                 activeSecondaryCount > 0
-                  ? "border-brand-300 bg-brand-50 text-brand-900 shadow-2xs hover:bg-brand-100"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                   : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               }`}
               disabled={disabled}
@@ -222,7 +222,7 @@ export function VacancyFilterToolbar({
                   Advanced Filters
                 </span>
                 {activeSecondaryCount > 0 && (
-                  <span className="rounded-full bg-brand-50 border border-brand-200 px-2 py-0.5 text-[10px] font-bold text-brand-700">
+                  <span className="rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-primary">
                     {activeSecondaryCount} active
                   </span>
                 )}
@@ -354,7 +354,7 @@ export function VacancyFilterToolbar({
           <FileSearch className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
           <span>Saved View</span>
           {typeof savedViewsCount === "number" && savedViewsCount > 0 && (
-            <span className="ml-0.5 rounded-full bg-brand-50 border border-brand-200 px-1.5 py-0.2 text-[10px] font-semibold text-brand-700">
+            <span className="ml-0.5 rounded-full bg-surface-muted border border-border-default px-1.5 py-0.2 text-xs font-semibold text-text-primary">
               {savedViewsCount}
             </span>
           )}

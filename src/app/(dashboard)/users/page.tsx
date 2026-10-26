@@ -151,7 +151,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       {/* Top Header */}
       <AdminPageHeader
-        categoryTag="ADMIN PANEL"
+        categoryTag="Admin panel"
         moduleName="User Management"
         title="User Access & Security"
         subtitle="Manage user directories, organizational roles, and cascaded group/account scopes."
@@ -214,22 +214,22 @@ export default function UsersPage() {
               onClick={() => setActiveTab("active")}
               className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "active"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                   : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <UserCheck
                 className={`w-4 h-4 shrink-0 transition-colors ${
                   activeTab === "active"
-                    ? "text-brand-700"
+                    ? "text-tab-active-text"
                     : "text-text-muted group-hover:text-text-secondary"
                 }`}
               />
               <span>Active</span>
               <span
-                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "active"
-                    ? "bg-brand-500 text-white"
+                    ? "bg-brand-button text-white"
                     : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >
@@ -244,22 +244,22 @@ export default function UsersPage() {
               onClick={() => setActiveTab("inactive")}
               className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "inactive"
-                  ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                   : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <UserX
                 className={`w-4 h-4 shrink-0 transition-colors ${
                   activeTab === "inactive"
-                    ? "text-brand-700"
+                    ? "text-tab-active-text"
                     : "text-text-muted group-hover:text-text-secondary"
                 }`}
               />
               <span>Inactive</span>
               <span
-                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "inactive"
-                    ? "bg-brand-500 text-white"
+                    ? "bg-brand-button text-white"
                     : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >

@@ -147,12 +147,12 @@ export function RequestHeadcountAdjustmentModal({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="text-center">
-                    <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Current</div>
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">Current</div>
                     <div className="text-xl font-bold font-mono text-[var(--foreground)]">{currentQuota}</div>
                   </div>
                   <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                   <div className="text-center">
-                    <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Proposed</div>
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">Proposed</div>
                     <div className="text-xl font-bold font-mono text-[var(--brand)]">{proposedQuota}</div>
                   </div>
                 </div>
@@ -179,7 +179,7 @@ export function RequestHeadcountAdjustmentModal({
             {/* Live Commitments Safety Floor */}
             <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[var(--foreground)] uppercase tracking-wide text-[11px]">
+                <span className="font-semibold text-[var(--foreground)] text-xs">
                   Live Commitments Floor
                 </span>
                 <span className="font-mono font-semibold text-[var(--foreground)] bg-[var(--surface-base)] border border-[var(--border-subtle)] rounded px-2 py-0.5 text-xs">
@@ -189,15 +189,15 @@ export function RequestHeadcountAdjustmentModal({
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Occupied</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Occupied</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{occupied}</div>
                 </div>
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">HR Processing</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">HR Processing</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{hrProcessing}</div>
                 </div>
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Pipeline</div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">Pipeline</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{pipeline}</div>
                 </div>
               </div>

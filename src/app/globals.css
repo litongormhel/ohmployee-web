@@ -120,6 +120,11 @@
   --danger-button: #b91c1c;
   --danger-button-hover: #991b1b;
 
+  /* Active tab / pill token pair */
+  --tab-active-bg: #ffffff;
+  --tab-active-text: #16161a;
+  --tab-active-border: #d4d4d8;
+
   /* Hero card tokens — light (brand-blue) */
   --hero-surface: #f0f4ff;
   --hero-border: #dbeafe;
@@ -234,6 +239,11 @@
   --danger-button: #b91c1c;
   --danger-button-hover: #991b1b;
 
+  /* Active tab / pill token pair (raised navy surface, 1px border) */
+  --tab-active-bg: #152238;
+  --tab-active-text: #ececf0;
+  --tab-active-border: #2e3b56;
+
   /* Hero card tokens — dark (brand navy) */
   --hero-surface: #111a33;
   --hero-border: #1e2f5d;
@@ -344,6 +354,11 @@
     --danger-button: #b91c1c;
     --danger-button-hover: #991b1b;
 
+    /* Active tab / pill token pair (raised navy surface, 1px border) */
+    --tab-active-bg: #152238;
+    --tab-active-text: #ececf0;
+    --tab-active-border: #2e3b56;
+
     /* Hero card tokens — dark (media) */
     --hero-surface: #111a33;
     --hero-border: #1e2f5d;
@@ -446,6 +461,11 @@
   --color-brand-button-hover: var(--brand-button-hover);
   --color-danger-button: var(--danger-button);
   --color-danger-button-hover: var(--danger-button-hover);
+
+  /* Active tab / pill utilities */
+  --color-tab-active-bg: var(--tab-active-bg);
+  --color-tab-active-text: var(--tab-active-text);
+  --color-tab-active-border: var(--tab-active-border);
 
   /* Hero card utilities */
   --color-hero-surface: var(--hero-surface);

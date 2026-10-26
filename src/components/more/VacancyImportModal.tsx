@@ -594,7 +594,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                               type="button"
                               onClick={() => handleApproveBatch(batch.id)}
                               disabled={isActionPending}
-                              className="h-9 px-3 rounded-lg bg-[var(--foreground)] hover:opacity-90 text-[var(--card)] text-sm font-semibold transition disabled:opacity-50"
+                              className="h-9 px-3 rounded-lg bg-brand-button hover:bg-brand-button-hover text-white text-sm font-semibold transition disabled:opacity-50"
                             >
                               Approve & Migrate
                             </button>

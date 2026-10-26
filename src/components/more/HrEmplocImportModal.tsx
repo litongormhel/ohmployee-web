@@ -75,7 +75,7 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
             aria-selected={activeTab === "upload"}
             className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-lg transition cursor-pointer ${
               activeTab === "upload"
-                ? "bg-brand-50 text-brand-900 border border-brand-200"
+                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
             onClick={() => setActiveTab("upload")}
@@ -90,7 +90,7 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
             aria-selected={activeTab === "review"}
             className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-lg transition cursor-pointer ${
               activeTab === "review"
-                ? "bg-brand-50 text-brand-900 border border-brand-200"
+                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
             onClick={() => setActiveTab("review")}
@@ -110,7 +110,7 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
             aria-selected={activeTab === "history"}
             className={`flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-lg transition cursor-pointer ${
               activeTab === "history"
-                ? "bg-brand-50 text-brand-900 border border-brand-200"
+                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
                 : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
             }`}
             onClick={() => setActiveTab("history")}

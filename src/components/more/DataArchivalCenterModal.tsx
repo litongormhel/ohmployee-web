@@ -463,8 +463,8 @@ export function DataArchivalCenterModal({
                         }}
                         className={`w-full py-2 px-3 rounded-lg text-sm font-bold transition-colors ${
                           action.actionType === "qa_reset"
-                            ? "bg-[var(--danger)] text-white hover:opacity-90"
-                            : "bg-[var(--foreground)] text-[var(--card)] hover:opacity-90"
+                            ? "bg-danger-button text-white hover:bg-danger-button-hover"
+                            : "bg-brand-button text-white hover:bg-brand-button-hover"
                         }`}
                       >
                         Launch Archive Wizard

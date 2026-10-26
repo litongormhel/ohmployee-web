@@ -71,7 +71,7 @@ function ReportsPageContent() {
           onClick={() => handleTabChange("catalog")}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === "catalog"
-              ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs"
+              ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
               : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
           }`}
         >
@@ -83,7 +83,7 @@ function ReportsPageContent() {
           onClick={() => handleTabChange("floating")}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === "floating"
-              ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs"
+              ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
               : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
           }`}
         >
@@ -95,7 +95,7 @@ function ReportsPageContent() {
           onClick={() => handleTabChange("team_performance")}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === "team_performance"
-              ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs"
+              ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
               : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
           }`}
         >
@@ -107,7 +107,7 @@ function ReportsPageContent() {
           onClick={() => handleTabChange("data_integrity")}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === "data_integrity"
-              ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs"
+              ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
               : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
           }`}
         >
@@ -119,7 +119,7 @@ function ReportsPageContent() {
           onClick={() => handleTabChange("custom")}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === "custom"
-              ? "bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs"
+              ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
               : "text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent"
           }`}
         >

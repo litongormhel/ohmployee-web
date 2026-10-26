@@ -150,8 +150,8 @@ function FailBackoutModalContent({
               onClick={() => setTerminalType("Backout")}
               className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition cursor-pointer ${
                 terminalType === "Backout"
-                  ? "border-brand-500 bg-brand-50/20 text-brand-700 font-bold"
-                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
+                  ? "border-brand-primary bg-surface-selected text-text-primary font-bold shadow-2xs"
+                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               Candidate Backout
@@ -161,8 +161,8 @@ function FailBackoutModalContent({
               onClick={() => setTerminalType("Failed")}
               className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold transition cursor-pointer ${
                 terminalType === "Failed"
-                  ? "border-brand-500 bg-brand-50/20 text-brand-700 font-bold"
-                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
+                  ? "border-brand-primary bg-surface-selected text-text-primary font-bold shadow-2xs"
+                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               Failed / Rejected by Ops
