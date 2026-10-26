@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Loop 7H: More B Import Centers & QA Alignment (ohm#lmorb8h3)
+
+**Status: COMPLETE — ALL 9 IMPORT CENTERS, DATA CONTROL HUBS, RECOVERY SUITES, AND QA SCREENS IN MORE B TOKENIZED TO ZERO COLOR LITERALS (OVER 1,400 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS ROOT AND ALL NESTED SUB-DIALOGS ACROSS `HrEmplocImportModal`, `PayrollImportModal`, `PayrollReviewCenterModal`, `MikaImportModal`, `QaCenterModal`, `GlobalStoreTransferModal`, `DataArchivalCenterModal`, `PlantillaImportModal`, AND `VacancyImportModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; ENFORCED TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL IMPORT PREVIEWS, REQUISITION QUEUES, ARCHIVED REPOSITORIES, AND AUDIT TRAILS; STRICT DESIGN TOKENS ACROSS ALL UPLOAD DROPZONES, STATUS BADGES, AND QA SCORE TILES; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, HARD CONFLICTS, CORRUPT CHECKSUMS, DESTRUCTIVE ARCHIVES, ROLLBACK CONFIRMATIONS, AND EMERGENCY OVERRIDES); ZERO QUERY, RPC, VALIDATION, RBAC, OR IMPORT LOGIC DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS TURBOPACK BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**
+
+---
+
+### 1. Scope & Component Conversions (9 Files)
+- `src/components/more/HrEmplocImportModal.tsx`: Wrapped root wizard in canonical `Modal`. Tokenized upload zone, scope selector, preview table, review queue, and batch history. (0 literals)
+- `src/components/more/PayrollImportModal.tsx`: Wrapped root wizard in canonical `Modal`. Tokenized period selector, format switch, and preview table. Floor >= 14px enforced. (0 literals)
+- `src/components/more/PayrollReviewCenterModal.tsx`: Wrapped payroll review center in canonical `Modal`. Tokenized period review cards, disbursement summary, and breakdown table. Floor >= 14px enforced. (0 literals)
+- `src/components/more/MikaImportModal.tsx`: Wrapped MIKA AI sync wizard in canonical `Modal`. Tokenized sync config, conflict policy toggles, status pills, and sync progress log. Floor >= 14px enforced. (0 literals)
+- `src/components/more/QaCenterModal.tsx`: Wrapped QA diagnostic center in canonical `Modal`. Tokenized test suite triggers, test run log, and health score percentage color metrics. Floor >= 14px enforced. (0 literals)
+- `src/components/more/GlobalStoreTransferModal.tsx`: Wrapped cross-store personnel transfer center in canonical `Modal`. Tokenized origin/destination store selectors, slot validation pills, and transfer preview table. Floor >= 14px enforced. (0 literals)
+- `src/components/more/DataArchivalCenterModal.tsx`: Wrapped root archival center, single restore prompt, bulk archive wizard with typed confirmation phrase, and batch rollback prompt in canonical `Modal`. Tokenized data impact counters, soft-deleted recycle bin, and audit log. Floor >= 14px enforced. (0 literals)
+- `src/components/more/PlantillaImportModal.tsx`: Wrapped root baseline wizard, dedicated rejection modal, rollback request modal, approve rollback modal, emergency override modal, and rollback history audit modal in canonical `Modal`. Tokenized preview table, review drawer, and error summary pills. Floor >= 14px enforced. (0 literals)
+- `src/components/more/VacancyImportModal.tsx`: Wrapped root requisition wizard, rollback request modal, approve rollback modal, emergency override modal, and rollback history audit modal in canonical `Modal`. Tokenized preview table, inspection drawer, and rollback state badges. Floor >= 14px enforced. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: All 9 root modals and 10 nested action dialogs utilize canonical `Modal` with `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, dirty tracking on mutation forms, and keyboard Esc dismiss.
+- **Danger Audit**: `--danger` strictly applied to actual destructive/failed states (batch rejections, validation conflicts, rollback executions, destructive bulk archives, corrupt checksums, and super admin emergency overrides). Normal import status chips and preview headers use neutral tokens.
+- **Color-Use Audit**: Semantic colors reserved strictly for true percentages (e.g. QA system health score, verified completion ratios).
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for More B**: Exactly 0 raw color literals across all 9 files.
+- **ESLint**: 0 errors.
+- **Next.js Turbopack Build**: `npm run build` green (0 errors, all 19 routes generated).
+- **ADR Basis**: Compliant with ADR-001/ADR-002; zero security RPCs, RBAC policies, or import parsing formulas modified.
+- **Loop 6 Non-Styling Audit**: Plantilla `onUpdated` non-existence verified preserved (reverted in `76b43f7`).
+
+---
+
 ## Loop 7G: More A Governance & Security Alignment (ohm#lmora7g2)
 
 **Status: COMPLETE — ALL 13 GOVERNANCE AND SECURITY SCREENS IN MORE A TOKENIZED TO ZERO COLOR LITERALS (OVER 1,200 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS ROOT AND NESTED CONFIRMATION DIALOGS ACROSS `AuditLogsModal`, `SecurityEventsModal`, `RolePermissionsModal`, `PermissionMatrixModal`, `SwitchRoleModal`, `PermissionDriftModal`, `RovingCoverageGroupsModal`, `EditLockControlModal`, `AccountRequestsModal`, `AccessControlCenterModal`, `OhmsSafespaceModal`, AND `TempPermissionModal` WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, DIRTY TRACKING, AND ESC HANDLING; ENFORCED TABLE AND STREAM TYPOGRAPHY FLOOR >= 14px (`text-sm`) ACROSS ALL AUDIT LOGS, MATRICES, AND USER STREAMS; STRICT DESIGN TOKENS ACROSS ALL KPI CARDS, STATUS BADGES, AND ROLE TILES; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS, FREEZES, GAPS, BREACHES, RESTRICTIONS, AND INCIDENT REPORTS); ZERO QUERY, RPC, OR GOVERNANCE POLICY DIFFS; ESLINT CLEAN (0 ERRORS); NEXT.JS BUILD GREEN (0 ERRORS, ALL 19 ROUTES GENERATED)**

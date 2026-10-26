@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Send,
   Store,
-  X,
 } from "lucide-react";
 import {
   useStoreTransferAccounts,
@@ -22,6 +21,7 @@ import {
   useSubmitGlobalStoreTransfer,
   type StoreTransferEmployeeOption,
 } from "@/lib/queries/more";
+import { Modal } from "@/components/shared/Modal";
 
 export interface GlobalStoreTransferModalProps {
   isOpen: boolean;
@@ -89,8 +89,6 @@ export function GlobalStoreTransferModal({
   });
 
   const submitMutation = useSubmitGlobalStoreTransfer();
-
-  if (!isOpen) return null;
 
   const handleToggleEmployee = (emp: StoreTransferEmployeeOption) => {
     setSelectedEmployees((prev) => {
@@ -180,108 +178,104 @@ export function GlobalStoreTransferModal({
     setErrorMessage(null);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-              <Store className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-900">Global Store Transfer</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wider">
-                  SA Approval Workflow
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                Transfer active employees across groups, accounts, and stores with vacant slot assignment
-              </p>
-            </div>
-          </div>
+  const isFormDirty = selectedEmployees.length > 0 || reason.trim().length > 0;
 
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Global Store Transfer"
+      subtitle="Transfer active employees across groups, accounts, and stores with vacant slot assignment"
+      icon={Store}
+      maxWidthClass="max-w-3xl"
+      isSubmitting={submitMutation.isPending}
+      disableBackdropClick={submitMutation.isPending}
+      isDirty={isFormDirty}
+      footer={
+        <div className="flex w-full items-center justify-between text-xs text-text-muted">
+          <span>Target: StoreTransferApprovalCard (/approvals)</span>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
+            className="rounded-xl border border-border-default bg-surface-primary px-4 py-2 text-xs font-semibold text-text-primary transition hover:bg-surface-hover cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            Close
           </button>
         </div>
-
+      }
+    >
+      <div className="space-y-4">
         {/* Step Progression Bar */}
-        <div className="px-6 py-2.5 bg-slate-100/60 border-b border-slate-200 flex items-center justify-between text-xs font-semibold">
+        <div className="p-2.5 bg-surface-subtle border border-border-default rounded-xl flex flex-wrap items-center justify-between text-xs font-semibold gap-2">
           <div className="flex items-center gap-2">
             <span
-              className={`px-2 py-0.5 rounded-md ${
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
                 currentStep === 1
-                  ? "bg-blue-600 text-white"
+                  ? "bg-brand-primary text-surface-primary"
                   : currentStep > 1
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-200 text-slate-500"
+                  ? "bg-surface-primary text-text-primary border border-border-default"
+                  : "bg-surface-subtle text-text-muted"
               }`}
             >
               1. Source
             </span>
-            <ArrowRight className="w-3 h-3 text-slate-400" />
+            <ArrowRight className="w-3 h-3 text-text-muted" />
             <span
-              className={`px-2 py-0.5 rounded-md ${
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
                 currentStep === 2
-                  ? "bg-blue-600 text-white"
+                  ? "bg-brand-primary text-surface-primary"
                   : currentStep > 2
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-200 text-slate-500"
+                  ? "bg-surface-primary text-text-primary border border-border-default"
+                  : "bg-surface-subtle text-text-muted"
               }`}
             >
               2. Employees ({selectedEmployees.length})
             </span>
-            <ArrowRight className="w-3 h-3 text-slate-400" />
+            <ArrowRight className="w-3 h-3 text-text-muted" />
             <span
-              className={`px-2 py-0.5 rounded-md ${
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
                 currentStep === 3
-                  ? "bg-blue-600 text-white"
+                  ? "bg-brand-primary text-surface-primary"
                   : currentStep > 3
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-200 text-slate-500"
+                  ? "bg-surface-primary text-text-primary border border-border-default"
+                  : "bg-surface-subtle text-text-muted"
               }`}
             >
               3. Target & Slot
             </span>
-            <ArrowRight className="w-3 h-3 text-slate-400" />
+            <ArrowRight className="w-3 h-3 text-text-muted" />
             <span
-              className={`px-2 py-0.5 rounded-md ${
-                currentStep === 4 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                currentStep === 4 ? "bg-brand-primary text-surface-primary" : "bg-surface-subtle text-text-muted"
               }`}
             >
               4. Review
             </span>
           </div>
 
-          <span className="text-[11px] text-slate-500">Requester: {currentUserFullName}</span>
+          <span className="text-xs text-text-secondary">Requester: {currentUserFullName}</span>
         </div>
 
         {/* Error / Alert */}
         {errorMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-xl bg-danger-surface border border-danger-border text-danger-text text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {/* Content Body */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="max-h-[58vh] overflow-y-auto space-y-4 pr-1">
           {submissionSuccess ? (
             <div className="py-12 text-center space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-surface-subtle border border-border-default text-brand-primary flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-sm font-bold text-text-primary">
                   Store Transfer Request Submitted
                 </h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                <p className="text-xs text-text-secondary max-w-md mx-auto mt-1">
                   Your request has been routed to the Super Admin approval queue (/approvals). On
                   approval, source slots will become vacant and target slots will become occupied.
                 </p>
@@ -290,7 +284,7 @@ export function GlobalStoreTransferModal({
                 <button
                   type="button"
                   onClick={resetAll}
-                  className="px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-brand-primary bg-brand-50 hover:bg-brand-100 rounded-xl transition cursor-pointer"
                 >
                   Submit Another Transfer
                 </button>
@@ -299,14 +293,14 @@ export function GlobalStoreTransferModal({
           ) : currentStep === 1 ? (
             /* Step 1: Source Scope Selection */
             <div className="space-y-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                  <Layers className="w-4 h-4 text-blue-600" />
+              <div className="p-4 rounded-xl border border-border-default bg-surface-subtle space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-text-primary">
+                  <Layers className="w-4 h-4 text-brand-primary" />
                   <span>Select Source Scope</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-text-primary mb-1">
                       Source Group *
                     </label>
                     <select
@@ -316,7 +310,7 @@ export function GlobalStoreTransferModal({
                         setSourceAccountId("");
                         setSelectedEmployees([]);
                       }}
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary"
                     >
                       <option value="">Select Group...</option>
                       {groups.map((g) => (
@@ -328,7 +322,7 @@ export function GlobalStoreTransferModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-text-primary mb-1">
                       Source Account *
                     </label>
                     <select
@@ -338,7 +332,7 @@ export function GlobalStoreTransferModal({
                         setSourceAccountId(e.target.value);
                         setSelectedEmployees([]);
                       }}
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 disabled:opacity-50"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary disabled:opacity-50"
                     >
                       <option value="">Select Account...</option>
                       {sourceAccounts.map((a) => (
@@ -351,12 +345,12 @@ export function GlobalStoreTransferModal({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end pt-2 border-t border-border-default">
                 <button
                   type="button"
                   disabled={!sourceGroupId || !sourceAccountId}
                   onClick={() => setCurrentStep(2)}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 text-xs font-semibold text-surface-primary bg-brand-primary hover:bg-brand-primary-hover rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <span>Continue to Employee Selection</span>
                   <ChevronRight className="w-4 h-4" />
@@ -366,28 +360,28 @@ export function GlobalStoreTransferModal({
           ) : currentStep === 2 ? (
             /* Step 2: Employee Selection */
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-border-default pb-3">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900">
+                  <h3 className="text-sm font-semibold text-text-primary">
                     Active Employees in {sourceAccount?.name}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-text-secondary">
                     Select one or more employees to be transferred
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-subtle text-text-primary border border-border-default">
                   {selectedEmployees.length} selected
                 </span>
               </div>
 
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-72 overflow-y-auto bg-white">
+              <div className="border border-border-default rounded-2xl divide-y divide-border-subtle max-h-72 overflow-y-auto bg-surface-primary">
                 {isLoadingEmployees ? (
-                  <div className="p-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
-                    <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+                  <div className="p-8 text-center text-xs text-text-muted flex flex-col items-center gap-2">
+                    <RefreshCw className="w-5 h-5 animate-spin text-brand-primary" />
                     <span>Loading employees...</span>
                   </div>
                 ) : employees.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-400">
+                  <div className="p-8 text-center text-xs text-text-muted">
                     No active employees found for this account.
                   </div>
                 ) : (
@@ -397,8 +391,8 @@ export function GlobalStoreTransferModal({
                       <div
                         key={emp.id}
                         onClick={() => handleToggleEmployee(emp)}
-                        className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
-                          isSelected ? "bg-blue-50/70" : "hover:bg-slate-50"
+                        className={`p-3.5 flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected ? "bg-brand-50/50" : "hover:bg-surface-hover"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -406,18 +400,18 @@ export function GlobalStoreTransferModal({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {}} // Controlled by outer div
-                            className="rounded text-blue-600 focus:ring-blue-500"
+                            className="rounded border-border-default text-brand-primary focus:ring-brand-primary"
                           />
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">
+                              <span className="text-sm font-semibold text-text-primary">
                                 {emp.displayName}
                               </span>
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-xs text-text-muted font-mono">
                                 #{emp.employeeNo || "N/A"}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                            <div className="text-xs text-text-secondary flex items-center gap-2 mt-0.5">
                               <span>Store: {emp.currentStore || "Unassigned"}</span>
                               <span>•</span>
                               <span>Vcode: {emp.currentVcode}</span>
@@ -432,11 +426,11 @@ export function GlobalStoreTransferModal({
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-2 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition cursor-pointer"
                 >
                   Back
                 </button>
@@ -444,7 +438,7 @@ export function GlobalStoreTransferModal({
                   type="button"
                   disabled={selectedEmployees.length === 0}
                   onClick={() => setCurrentStep(3)}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 text-xs font-semibold text-surface-primary bg-brand-primary hover:bg-brand-primary-hover rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <span>Continue to Target Scope</span>
                   <ChevronRight className="w-4 h-4" />
@@ -454,14 +448,14 @@ export function GlobalStoreTransferModal({
           ) : currentStep === 3 ? (
             /* Step 3: Target Scope & Vacant Slot Assignment */
             <div className="space-y-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                  <Building className="w-4 h-4 text-blue-600" />
+              <div className="p-4 rounded-xl border border-border-default bg-surface-subtle space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-text-primary">
+                  <Building className="w-4 h-4 text-brand-primary" />
                   <span>Target Destination Scope</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-text-primary mb-1">
                       Target Group *
                     </label>
                     <select
@@ -471,7 +465,7 @@ export function GlobalStoreTransferModal({
                         setTargetAccountId("");
                         setTargetStoreId("");
                       }}
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary"
                     >
                       <option value="">Select Group...</option>
                       {groups.map((g) => (
@@ -483,7 +477,7 @@ export function GlobalStoreTransferModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-text-primary mb-1">
                       Target Account *
                     </label>
                     <select
@@ -493,7 +487,7 @@ export function GlobalStoreTransferModal({
                         setTargetAccountId(e.target.value);
                         setTargetStoreId("");
                       }}
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 disabled:opacity-50"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary disabled:opacity-50"
                     >
                       <option value="">Select Account...</option>
                       {targetAccounts.map((a) => (
@@ -505,14 +499,14 @@ export function GlobalStoreTransferModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-text-primary mb-1">
                       Target Store *
                     </label>
                     <select
                       value={targetStoreId}
                       disabled={!targetAccountId || isLoadingTargetStores}
                       onChange={(e) => setTargetStoreId(e.target.value)}
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 disabled:opacity-50"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary disabled:opacity-50"
                     >
                       <option value="">Select Store...</option>
                       {targetStores.map((s) => (
@@ -528,10 +522,10 @@ export function GlobalStoreTransferModal({
               {/* Slot Assignments for each selected employee */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-900">
+                  <h4 className="text-sm font-semibold text-text-primary">
                     Assign Vacant Slots in {targetStore?.name || "Target Store"}
                   </h4>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-xs text-text-secondary">
                     {vacantSlots.length} vacant slots available
                   </span>
                 </div>
@@ -542,11 +536,11 @@ export function GlobalStoreTransferModal({
                     return (
                       <div
                         key={emp.id}
-                        className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className="p-3.5 rounded-xl border border-border-default bg-surface-primary flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
                       >
                         <div>
-                          <div className="text-xs font-bold text-slate-900">{emp.displayName}</div>
-                          <div className="text-[11px] text-slate-500">
+                          <div className="text-sm font-semibold text-text-primary">{emp.displayName}</div>
+                          <div className="text-xs text-text-secondary">
                             Current: {emp.currentVcode} ({emp.position}) @ {emp.currentStore}
                           </div>
                         </div>
@@ -566,7 +560,7 @@ export function GlobalStoreTransferModal({
                                 });
                               }
                             }}
-                            className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 disabled:opacity-50"
+                            className="w-full p-2 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:border-brand-primary disabled:opacity-50"
                           >
                             <option value="">Select Target Slot...</option>
                             {vacantSlots.map((s) => (
@@ -582,11 +576,11 @@ export function GlobalStoreTransferModal({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-2 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition cursor-pointer"
                 >
                   Back
                 </button>
@@ -597,7 +591,7 @@ export function GlobalStoreTransferModal({
                     selectedEmployees.some((emp) => !assignedSlotsByEmployeeId[emp.id])
                   }
                   onClick={() => setCurrentStep(4)}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 text-xs font-semibold text-surface-primary bg-brand-primary hover:bg-brand-primary-hover rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <span>Review & Submit</span>
                   <ChevronRight className="w-4 h-4" />
@@ -607,27 +601,27 @@ export function GlobalStoreTransferModal({
           ) : (
             /* Step 4: Final Review & Submission */
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                  <span className="text-xs font-bold text-slate-800">Transfer Plan Summary</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+              <div className="p-4 rounded-xl border border-border-default bg-surface-subtle space-y-3">
+                <div className="flex items-center justify-between border-b border-border-default pb-2">
+                  <span className="text-xs font-bold text-text-primary">Transfer Plan Summary</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
                     {selectedEmployees.length} Transfers
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    <span className="text-text-muted block text-xs uppercase font-bold">
                       Source Scope
                     </span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-text-primary">
                       {sourceGroup?.name} ➔ {sourceAccount?.name}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    <span className="text-text-muted block text-xs uppercase font-bold">
                       Target Scope
                     </span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-text-primary">
                       {targetGroup?.name} ➔ {targetAccount?.name} ➔ {targetStore?.name}
                     </span>
                   </div>
@@ -635,26 +629,26 @@ export function GlobalStoreTransferModal({
               </div>
 
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-800">Employee Slot Transitions</span>
-                <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-48 overflow-y-auto bg-white">
+                <span className="text-xs font-bold text-text-primary">Employee Slot Transitions</span>
+                <div className="border border-border-default rounded-2xl divide-y divide-border-subtle max-h-48 overflow-y-auto bg-surface-primary">
                   {selectedEmployees.map((emp) => {
                     const slot = assignedSlotsByEmployeeId[emp.id];
                     return (
                       <div
                         key={emp.id}
-                        className="p-3 text-xs flex items-center justify-between gap-4"
+                        className="p-3.5 text-xs flex items-center justify-between gap-4"
                       >
                         <div>
-                          <div className="font-bold text-slate-900">{emp.displayName}</div>
-                          <div className="text-[11px] text-slate-500">
+                          <div className="font-semibold text-sm text-text-primary">{emp.displayName}</div>
+                          <div className="text-xs text-text-secondary">
                             From: {emp.currentVcode} ({emp.currentStore})
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-blue-700">
+                          <div className="font-semibold text-sm text-text-primary">
                             To: {slot?.vcode || "N/A"}
                           </div>
-                          <div className="text-[11px] text-slate-500">
+                          <div className="text-xs text-text-secondary">
                             {slot?.storeName || targetStore?.name}
                           </div>
                         </div>
@@ -665,7 +659,7 @@ export function GlobalStoreTransferModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-text-primary mb-1">
                   Reason for Store Transfer *
                 </label>
                 <textarea
@@ -674,22 +668,22 @@ export function GlobalStoreTransferModal({
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="e.g. Store expansion, operational balancing, or request by store management"
-                  className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                  className="w-full p-2.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-brand-primary"
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-2 border-t border-border-default">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(3)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover rounded-xl transition cursor-pointer"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={submitMutation.isPending}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 text-xs font-semibold text-surface-primary bg-brand-primary hover:bg-brand-primary-hover rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>
@@ -700,19 +694,7 @@ export function GlobalStoreTransferModal({
             </form>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500">
-          <span>Target: StoreTransferApprovalCard (/approvals)</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
