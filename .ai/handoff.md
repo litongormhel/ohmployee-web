@@ -1,5 +1,61 @@
 # AI Handoff
 
+## UI Standard & Motion System — Loop 6C: Plantilla Analytics & Moses Pool Views Alignment (ohm#l6c3w8m2)
+
+**Status: COMPLETE — LOOP 6C (PLANTILLA ANALYTICS & MOSES POOL VIEWS) ALIGNED TO UI STANDARD; ALL 198 COLOR LITERALS ELIMINATED DOWN TO 0; COMPLETE 100% ELIMINATION OF ALL 1,031 BASELINE COLOR LITERALS ACROSS ENTIRE PLANTILLA MODULE (LOOP 6A: 442, LOOP 6B: 391, LOOP 6C: 198); SVG PROGRESS DONUTS AND HORIZONTAL BAR CHARTS CONVERTED TO SEMANTIC TOKENS (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); TABLE AND FEED TEXT PRESERVED AT $\ge 14\text{px}$ (`text-sm`); ADDED `onUpdated` REFRESH CALLBACK PARITY TO `PoolReviewQueueDrawer`; MECHANICAL GATE ALLOWED; ESLINT CLEAN (0 ERRORS); NEXT.JS PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED)**
+
+---
+
+### 1. ADR Basis & Invariants Verification
+- **ADR Basis**:
+  - `ADR-001: Coverage Architecture v2`: Read-only from `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`. Core Decisions 6, 7, 8, 12, 13 (Workforce Slot vacancy on separation, Store vacancy retention, Reliever Coverage, Single Account Scope Gate).
+  - `ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture`.
+- **Invariants Checked & Preserved**:
+  - **Account Filter Scope**: `WorkforceAnalyticsView` retains strict Account Scope filter, Date From/To constraints, and propagates `WfAnalyticsFilter` across all 7 analytics queries.
+  - **Workforce Pool Lifecycle Integration**: `MosesHqPoolView` retains interactive launchers for `RequestPoolHeadcountModal`, `PoolOpenSlotsDrawer`, `PoolReviewQueueDrawer`, `PoolRequestHistoryDrawer`, and `PoolEmployeeDetailDrawer` with bidirectional refresh hooks.
+  - **XLSX Export Capabilities**: Verified all sheet export routines (`Workforce_Overview_*`, `Workforce_Deployment_*`, `Workforce_Executive_*`, `Moses_HQ_Pool_*`) retain exact column schemas and operational metrics.
+  - **Single-Account Gate & RBAC**: Preserved full RBAC evaluation (`canMutatePool`, `canExportPool`) and Ops/Data team permission assertions.
+
+---
+
+### 2. File Alignment & Color Literal Elimination Breakdown
+| File | Baseline Literals | Post-Loop 6C Literals | Architecture & Alignment Actions |
+|---|---|---|---|
+| `src/components/plantilla/MosesHqPoolView.tsx` | 53 | **0** | Replaced raw Tailwind colors with design tokens; tokenized filter pills, search input, status badges, and employee table; table text strictly $\ge 14\text{px}$ (`text-sm`); typed `useWorkforcePoolEmployees` parameters correctly |
+| `src/components/plantilla/WorkforceAnalyticsView.tsx` | 145 | **0** | Tokenized all 7 tab panels (Overview, Deployment, Coverage, Conversion, Slots, Health, Executive); converted SVG progress donut stroke attributes to CSS tokens (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); tokenized `HorizontalBarRow` bar fills and text; aligned recent incident feed |
+| `src/components/plantilla/PoolReviewQueueDrawer.tsx` | 0 | **0** | Added optional `onUpdated?: () => void` to interface and mutation callback to enable live summary refresh from `MosesHqPoolView` |
+| **Total Loop 6C** | **198** | **0** | **100% of Loop 6C literals eliminated** |
+| **Total Plantilla Module (6A + 6B + 6C)** | **1,031** | **0** | **ALL 1,031 Plantilla literals eliminated across 19 files** |
+
+---
+
+### 3. Build & Mechanical Gate Evidence
+- **Color Literal Zero-Tolerance Gate**:
+  - Command: `TOUCHED_MODULES="plantilla" python3 .agents/scripts/gate.py`
+  - Total literals found across `src/app/(dashboard)/plantilla` and `src/components/plantilla`: **0**
+- **ESLint**:
+  - Command: `npm run lint`
+  - Result: `0 errors, 26 pre-existing warnings in other modules`
+  - Status: **PASSED**
+- **Next.js Production Build**:
+  - Command: `npm run build`
+  - Compiler: Next.js 16.2.4 (Turbopack)
+  - Result: `✓ Generating static pages using 9 workers (19/19)`
+  - Status: **PASSED (19/19 static routes valid, 0 errors)**
+- **Mechanical Gate Decision**:
+  - Output: `{"decision": "allow", "touched_modules": ["plantilla"], "notes": ["'npm run build' completed successfully (0 errors)."]}`
+
+---
+
+### 4. Plantilla Module Complete Closeout Summary
+With the completion of Loop 6C, the entire **Plantilla Module** is fully aligned to the UI Standard & Motion System:
+- **Loop 6A (442 literals eliminated)**: `plantilla/page.tsx`, `PlantillaDetailDrawer.tsx`, and 7 pool/store drawers.
+- **Loop 6B (391 literals eliminated)**: 8 lifecycle modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`).
+- **Loop 6C (198 literals eliminated)**: `MosesHqPoolView.tsx` and `WorkforceAnalyticsView.tsx`.
+- **Total Result**: **0 raw color literals remain across the entire Plantilla module**.
+
+---
+
 ## UI Standard & Motion System — Loop 6B: Plantilla Modals & Forms Alignment (ohm#l6b2n7k4)
 
 **Status: COMPLETE — LOOP 6B (PLANTILLA MODALS & FORMS) ALIGNED TO UI STANDARD; ALL 391 COLOR LITERALS ELIMINATED DOWN TO 0 ACROSS 8 LIFECYCLE MODALS; WRAPPED IN CANONICAL `Modal` AT `z-[60]` STACKING CLEANLY OVER `DetailDrawer` AT `z-50`; FORM SUBMISSION (`isSubmitting`) AND DIRTY FORM PROTECTION (`isDirty`) HARDENED TO PREVENT ACCIDENTAL DISMISSAL ON BACKDROP OR ESCAPE; PRESERVED `--danger` TOKENS STRICTLY FOR ACTUAL VALIDATION ERROR ALERTS AND DESTRUCTIVE ACTIONS (`InitiateSeparationModal`); ESLINT CLEAN (0 ERRORS); FULL PRODUCTION BUILD CLEAN (19/19 ROUTES GENERATED IN 3.0s)**

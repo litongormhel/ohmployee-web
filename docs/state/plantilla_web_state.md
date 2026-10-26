@@ -730,4 +730,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Preserved 100% of migration 65 performance optimizations (set-based CTEs, single bulk insert, `statement_timeout = '60s'`) and migration 66 multi-VCODE store name governance (`multiple_vcodes_per_store` as `flagged` advisory warning).
     - Applied and verified on both Production (`rwxelulyapjgaarlwkus`, tracking version `20262606000073`) and Staging (`qqiiznmqxfoamqytjica`, tracking version `20262606000073`).
 
+- **UI Standard & Motion System Alignment (Loop 6A, 6B, 6C: `ohm#l6a1m4w9`, `ohm#l6b2n7k4`, `ohm#l6c3w8m2`)**:
+  - **Zero Color Literals**: Eliminated 100% of raw color literals (all 1,031 baseline occurrences across 19 files) down to 0, replacing them with standard design tokens (`bg-surface`, `bg-surface-muted`, `border-border-default`, `text-text-primary`, `text-text-secondary`, `text-accent`, `--pct-*`, and `--danger-*`).
+  - **Drawer & Table Standardization (Loop 6A)**: Standardized `PlantillaDetailDrawer` (`drawer-width-lg`) and all 8 pool/store drawers with canonical `DetailDrawer`; strictly preserved table text floor $\ge 14\text{px}$ (`text-sm`) across members, vacancies, and store tables; preserved single-account auto-fire and ADR-001 account gate query rules.
+  - **Modal Hardening & Canonical Stacking (Loop 6B)**: Aligned all 8 Plantilla lifecycle modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`) with canonical `Modal` at `z-[60]` over `DetailDrawer` at `z-50`; hardened against backdrop clicks during dirty states; disabled Esc/close buttons during `isSubmitting`.
+  - **Specialized Views & Analytics Parity (Loop 6C)**: Standardized `MosesHqPoolView.tsx` and `WorkforceAnalyticsView.tsx` across all 7 analytics tabs (Overview, Deployment, Coverage, Conversion, Slots, Health, Executive); converted SVG progress donuts and horizontal bar indicators to standard tokens (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); preserved 100% RPC integration contracts and XLSX export capabilities.
+
+
 

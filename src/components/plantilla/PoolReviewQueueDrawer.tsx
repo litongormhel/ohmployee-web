@@ -16,9 +16,10 @@ import { hasFullAccess, isEncoder } from "@/lib/rbac";
 export interface PoolReviewQueueDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onUpdated?: () => void;
 }
 
-export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawerProps) {
+export function PoolReviewQueueDrawer({ isOpen, onClose, onUpdated }: PoolReviewQueueDrawerProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "resolved">("pending");
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState<string>("");
@@ -52,6 +53,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
           setActionType(null);
           setActionNotes("");
           reviewsQuery.refetch();
+          onUpdated?.();
         },
       }
     );
