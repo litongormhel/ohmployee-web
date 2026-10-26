@@ -21,11 +21,26 @@ import sys
 
 QUEUE_FILE = "docs/architecture/ui-rollout-queue.md"
 
-COLOR_PATTERN = re.compile(
-    r'\b(?:bg|text|border|ring|shadow|fill|stroke|placeholder|from|to|via)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b|#[0-9a-fA-F]{3,8}'
-)
+COLOR_PATTERNS = [
+    # 1. Raw Tailwind palette colors (slate-500, red-600, etc.)
+    re.compile(r'\b(?:bg|text|border|ring|shadow|fill|stroke|placeholder|from|to|via)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b'),
+    # 2. Hex colors (#fff, #1a2b3c)
+    re.compile(r'#[0-9a-fA-F]{3,8}'),
+    # 3. Hardcoded background and text colors that break dark mode
+    re.compile(r'\b(?:bg-white|bg-black|text-black)\b'),
+    # 4. Functional color constructors
+    re.compile(r'\b(?:rgb|rgba|hsl|hsla)\('),
+    # 5. Inline style color literals
+    re.compile(r'style=\{\{[^}]*\b(?:color|background|borderColor)\s*:\s*[\x27\x22](?!var\()[^\x27\x22]+[\x27\x22]'),
+    # 6. Named CSS colors in className or style
+    re.compile(r'\b(?:bg|text|border)-(?:red|green|blue|black)\b'),
+]
 
-# Documented allowlist for non-UI colors
+# Documented allowlist for non-UI colors and justified exceptions:
+# 1. Non-UI spreadsheets (ExcelJS fills) and globals.css design token definitions.
+# 2. `text-white`: Strictly allowlisted on high-contrast solid primary action buttons and badges
+#    (e.g. `bg-brand-500`, `bg-brand-600`, `bg-danger-button`, `bg-[var(--primary)]`)
+#    where WCAG AA text contrast (>= 4.5:1) against saturated backgrounds is mathematically required in both themes.
 ALLOWLIST_FILES = {
     "src/app/globals.css",
     "docs/state/web_design_tokens.md",
@@ -157,9 +172,13 @@ def check_color_literals(touched_modules, check_entire_src=False):
                         continue
                     with open(os.path.join(root, f), "r", errors="ignore") as fp:
                         content = fp.read()
-                        matches = COLOR_PATTERN.findall(content)
-                        if matches:
-                            violations.append(f"{rel_path}: {len(matches)} color literals found (e.g. {matches[:3]})")
+                        file_matches = []
+                        for pat in COLOR_PATTERNS:
+                            m = pat.findall(content)
+                            if m:
+                                file_matches.extend(m)
+                        if file_matches:
+                            violations.append(f"{rel_path}: {len(file_matches)} color literals found (e.g. {file_matches[:3]})")
     else:
         if not touched_modules:
             return True, ""
@@ -179,9 +198,13 @@ def check_color_literals(touched_modules, check_entire_src=False):
                                 continue
                             with open(os.path.join(root, f), "r", errors="ignore") as fp:
                                 content = fp.read()
-                                matches = COLOR_PATTERN.findall(content)
-                                if matches:
-                                    violations.append(f"{rel_path}: {len(matches)} color literals found (e.g. {matches[:3]})")
+                                file_matches = []
+                                for pat in COLOR_PATTERNS:
+                                    m = pat.findall(content)
+                                    if m:
+                                        file_matches.extend(m)
+                                if file_matches:
+                                    violations.append(f"{rel_path}: {len(file_matches)} color literals found (e.g. {file_matches[:3]})")
 
     if violations:
         scope = "entire src/" if check_entire_src else f"touched modules ({', '.join(touched_modules)})"

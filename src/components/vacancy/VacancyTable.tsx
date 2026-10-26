@@ -465,7 +465,7 @@ export function VacancyTable({
                         </td>
 
                         {/* 7. REQUESTED BY */}
-                        <td className="border-b border-table-rule px-4 py-2.5 text-xs text-table-text-muted">
+                        <td className="border-b border-table-rule px-4 py-2.5 text-sm text-table-text-muted">
                           <span className="font-medium text-table-text-sub">
                             {row.closureRequestedBy || "Operations"}
                           </span>
@@ -514,7 +514,7 @@ export function VacancyTable({
                         </td>
 
                         {/* 7. DATE OF BACKOUT */}
-                        <td className="border-b border-table-rule px-4 py-2.5 text-xs text-table-text-muted font-mono">
+                        <td className="border-b border-table-rule px-4 py-2.5 text-sm text-table-text-muted font-mono">
                           {formatDropoutDate(row.dropoutDate)}
                         </td>
 

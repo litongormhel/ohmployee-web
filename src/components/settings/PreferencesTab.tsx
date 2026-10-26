@@ -215,7 +215,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("pushNotificationsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -236,7 +236,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("vacancyAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -257,7 +257,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("approvalAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
 
@@ -278,7 +278,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("slaBreachAlertsEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
         </div>
@@ -345,7 +345,7 @@ export function PreferencesTab() {
                 onChange={(e) => handleUpdate("reduceMotionEnabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+              <div className="w-11 h-6 bg-surface-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--border-subtle)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--surface-base)] after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
             </label>
           </div>
         </div>

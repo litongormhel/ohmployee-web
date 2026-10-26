@@ -270,10 +270,10 @@ export function RequestHeadcountAdjustmentModal({
                 </div>
               </div>
 
-              {/* Safety Floor Enforced Alert */}
+              {/* Safety Floor Enforced Policy Notice */}
               {isFloorViolated && (
-                <div className="flex items-start gap-2 rounded-md border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-2.5 text-xs text-[var(--danger)]">
-                  <ShieldAlert className="h-4 w-4 shrink-0 text-[var(--danger)] mt-0.5" />
+                <div className="flex items-start gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-2.5 text-xs text-[var(--foreground)]">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
                   <div>
                     <strong className="font-semibold">Safety Floor Enforced: </strong>
                     Proposed target ({proposedQuota}) cannot be lower than active commitments floor of {safetyFloor}.

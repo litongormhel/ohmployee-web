@@ -1628,7 +1628,7 @@ export function ActiveQueueReviewPane({
           <button
             type="button"
             onClick={() => onSelectCategory("headcount")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-default bg-white px-4 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover transition"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-default bg-surface-base px-4 text-xs font-medium text-text-secondary shadow-2xs hover:bg-surface-hover transition"
           >
             <Users className="h-3.5 w-3.5" />
             <span>Switch to Headcount Approvals Queue</span>

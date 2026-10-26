@@ -445,8 +445,8 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                             <td className="py-2.5 px-3 font-medium text-text-primary">
                               {[row.lastName, row.firstName, row.middleName].filter(Boolean).join(", ")}
                             </td>
-                            <td className="py-2.5 px-3 text-xs text-text-secondary">{row.account}</td>
-                            <td className="py-2.5 px-3 text-xs text-text-secondary">{row.flagReason || "Verified match"}</td>
+                            <td className="py-2.5 px-3 text-sm text-text-secondary">{row.account}</td>
+                            <td className="py-2.5 px-3 text-sm text-text-secondary">{row.flagReason || "Verified match"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -592,13 +592,13 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                                 <tr key={i} className="hover:bg-surface-hover/50">
                                   <td className="py-2 px-3 font-mono font-semibold text-text-primary">{r.employeeNo}</td>
                                   <td className="py-2 px-3 font-medium text-text-primary">{[r.lastName, r.firstName].filter(Boolean).join(", ")}</td>
-                                  <td className="py-2 px-3 text-xs text-text-secondary">{r.account}</td>
+                                  <td className="py-2 px-3 text-sm text-text-secondary">{r.account}</td>
                                   <td className="py-2 px-3">
                                     <span className="rounded-full bg-surface-subtle text-text-secondary border border-border-default text-xs font-semibold px-2 py-0.5 uppercase">
                                       {r.flagType}
                                     </span>
                                   </td>
-                                  <td className="py-2 px-3 text-xs text-text-muted">{r.flagReason || "—"}</td>
+                                  <td className="py-2 px-3 text-sm text-text-muted">{r.flagReason || "—"}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -649,9 +649,9 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                               {l.status}
                             </span>
                           </td>
-                          <td className="py-2.5 px-4 text-xs text-text-secondary">{l.uploadedBy}</td>
-                          <td className="py-2.5 px-4 text-xs text-text-secondary">{l.approvedBy || "—"}</td>
-                          <td className="py-2.5 px-4 text-xs text-text-muted">
+                          <td className="py-2.5 px-4 text-sm text-text-secondary">{l.uploadedBy}</td>
+                          <td className="py-2.5 px-4 text-sm text-text-secondary">{l.approvedBy || "—"}</td>
+                          <td className="py-2.5 px-4 text-sm text-text-muted">
                             {new Date(l.submittedAt).toLocaleDateString()}
                           </td>
                         </tr>

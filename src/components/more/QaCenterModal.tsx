@@ -499,10 +499,10 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-xs text-text-muted">
+                            <td className="py-2.5 px-4 font-mono text-sm text-text-muted">
                               {r.startedAt ? new Date(r.startedAt).toLocaleString() : "-"}
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-xs text-text-muted">
+                            <td className="py-2.5 px-4 font-mono text-sm text-text-muted">
                               {r.completedAt ? new Date(r.completedAt).toLocaleTimeString() : "In progress"}
                             </td>
                           </tr>

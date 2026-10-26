@@ -100,15 +100,15 @@ export function PermissionDriftModal({
           </div>
 
           <div className="rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-danger font-semibold">
+            <div className="flex items-center justify-between text-xs text-text-primary font-semibold">
               <span>Critical Gaps</span>
-              <AlertTriangle className="h-4 w-4 text-danger" />
+              <AlertTriangle className="h-4 w-4 text-text-muted" />
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-danger">
+              <span className="text-2xl font-extrabold text-text-primary">
                 {summary?.criticalCount ?? 0}
               </span>
-              <span className="text-xs font-bold text-danger">Immediate Action</span>
+              <span className="text-xs font-bold text-text-muted">Immediate Action</span>
             </div>
           </div>
 
@@ -241,27 +241,16 @@ export function PermissionDriftModal({
           ) : (
             filteredFindings.map((finding) => {
               const isExpanded = expandedFindings[finding.findingId];
-              const isCrit = finding.severity.toLowerCase() === "critical";
 
               return (
                 <div
                   key={finding.findingId}
-                  className={`rounded-xl border transition shadow-2xs overflow-hidden ${
-                    isCrit
-                      ? "border-danger-border bg-danger-subtle/50"
-                      : "border-border-default bg-surface-base"
-                  }`}
+                  className="rounded-xl border border-border-default bg-surface-base transition shadow-2xs overflow-hidden"
                 >
                   {/* Card Header Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-border-subtle bg-surface-subtle/50">
                     <div className="flex items-center gap-2.5">
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
-                          isCrit
-                            ? "bg-danger-subtle text-danger border border-danger-border"
-                            : "bg-surface-subtle text-text-primary border border-border-default"
-                        }`}
-                      >
+                      <span className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-surface-subtle text-text-primary border border-border-default">
                         {finding.severity}
                       </span>
                       <span className="font-mono text-sm font-bold text-text-primary">
@@ -276,13 +265,7 @@ export function PermissionDriftModal({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
-                          finding.status === "open"
-                            ? "bg-danger-subtle text-danger border border-danger-border"
-                            : "bg-surface-subtle text-text-primary border border-border-default"
-                        }`}
-                      >
+                      <span className="rounded-full px-2 py-0.5 text-xs font-bold uppercase bg-surface-subtle text-text-primary border border-border-default">
                         {finding.status}
                       </span>
                       <button

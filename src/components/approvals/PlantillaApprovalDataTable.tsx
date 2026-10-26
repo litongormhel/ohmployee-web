@@ -436,13 +436,13 @@ export function PlantillaApprovalDataTable({
                     <td className="px-4 py-2.5 font-mono text-text-brand-bold font-semibold text-sm">
                       {request.vcode}
                     </td>
-                    <td className="px-4 py-2.5 text-text-primary font-mono text-xs">
+                    <td className="px-4 py-2.5 text-text-primary font-mono text-sm">
                       {request.emplocNo || "—"}
                     </td>
                     <td className="px-4 py-2.5 text-text-primary text-sm">
                       <div>{request.requestedBy}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-xs font-mono">
+                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-sm font-mono">
                       {formatDate(request.createdAt)}
                     </td>
                     <td

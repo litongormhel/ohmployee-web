@@ -22,10 +22,10 @@ import {
   ArrowRight,
   Search,
   HelpCircle,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { ReportDetailView } from "@/components/reports/ReportDetailView";
+import { Modal } from "@/components/shared/Modal";
 
 export interface CencomQuickReportsTabProps {
   onSwitchTab?: (tabKey: string) => void;
@@ -450,21 +450,19 @@ export function CencomQuickReportsTab({
 
       {/* Inline Report Detail Modal */}
       {selectedReportId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-surface-base p-6 shadow-2xl border border-border-default">
-            <button
-              onClick={() => setSelectedReportId(null)}
-              className="absolute right-4 top-4 rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
-              title="Close modal"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <Modal
+          isOpen={Boolean(selectedReportId)}
+          onClose={() => setSelectedReportId(null)}
+          title="Report Inspection"
+          maxWidthClass="max-w-5xl"
+        >
+          <div className="p-6">
             <ReportDetailView
               reportId={selectedReportId}
               onBack={() => setSelectedReportId(null)}
             />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

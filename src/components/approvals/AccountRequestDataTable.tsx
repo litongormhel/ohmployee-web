@@ -255,10 +255,10 @@ export function AccountRequestDataTable({
                           : "Scoped"}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate text-xs">
+                    <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate text-sm">
                       {request.notes ? `"${request.notes}"` : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-xs font-mono">
+                    <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap text-sm font-mono">
                       {formatDate(request.createdAt)}
                     </td>
                     <td

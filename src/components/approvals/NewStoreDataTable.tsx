@@ -443,7 +443,7 @@ export function NewStoreDataTable({
                     </td>
 
                     {/* LOCATION */}
-                    <td className="px-4 py-2.5 text-xs text-text-secondary whitespace-nowrap align-middle">
+                    <td className="px-4 py-2.5 text-sm text-text-secondary whitespace-nowrap align-middle">
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
                         {request.city || "—"}, {request.province || "—"}

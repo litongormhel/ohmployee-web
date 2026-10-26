@@ -2013,7 +2013,7 @@ function VacancyTable({
             {missingStores.length > 0 && (
               <>
                 <tr className="bg-surface-muted border-t-2 border-border-default">
-                  <td colSpan={7} className="px-4 py-2 text-xs font-semibold text-text-primary">
+                  <td colSpan={7} className="px-4 py-2 text-sm font-semibold text-text-primary">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <AlertCircle className="h-3.5 w-3.5 text-text-secondary" />
@@ -2046,7 +2046,7 @@ function VacancyTable({
                     <td className="px-4 py-3 font-mono font-bold text-text-muted">
                       1
                     </td>
-                    <td className="px-4 py-3 text-xs text-text-muted font-mono">
+                    <td className="px-4 py-3 text-sm text-text-muted font-mono">
                       —
                     </td>
                     <td className="px-4 py-3">

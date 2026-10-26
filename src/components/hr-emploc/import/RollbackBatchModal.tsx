@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertTriangle, Loader2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Loader2, Undo2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 
 interface RollbackBatchModalProps {
   isOpen: boolean;
@@ -38,48 +39,20 @@ export function RollbackBatchModal({
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      if (isSubmitting || isDirty) {
-        e.preventDefault();
-        return;
-      }
-      onClose();
-    }
-  };
-
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in"
-      role="dialog"
-      onKeyDown={handleKeyDown}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Rollback Import Batch"
+      subtitle={fileName}
+      icon={Undo2}
+      maxWidthClass="max-w-md"
+      disableBackdropClick={isSubmitting}
+      isSubmitting={isSubmitting}
+      isDirty={isDirty}
     >
-      {/* Backdrop: click disabled per modal hardening rules */}
-      <div className="absolute inset-0" />
-
-      <div className="relative w-full max-w-md rounded-xl border border-border-default bg-surface p-6 shadow-xl z-10">
-        <button
-          className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition cursor-pointer disabled:opacity-40"
-          disabled={isSubmitting}
-          onClick={onClose}
-          type="button"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
-            <Undo2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-text-primary">Rollback Import Batch</h2>
-            <p className="text-xs text-text-muted truncate max-w-[260px]">{fileName}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-[var(--danger-text)]">
+      <div className="p-6">
+        <div className="mb-4 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-[var(--danger-text)]">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <div className="text-xs">
@@ -92,42 +65,43 @@ export function RollbackBatchModal({
         </div>
 
         {error && (
-          <div className="mt-4 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)]">
+          <div className="mb-4 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)]">
             {error}
           </div>
         )}
 
-        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-1">
-              Rollback Justification / Reason * (min 10 characters)
+              Rollback Justification Reason *
             </label>
             <textarea
-              className="w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-border-strong focus:outline-hidden focus:ring-1 focus:ring-border-strong"
-              disabled={isSubmitting}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Explain why this import batch is being rolled back (e.g., duplicated deployment batch from wrong branch)..."
-              rows={3}
               value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Explain why this batch must be rolled back (min 10 characters)..."
+              className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary outline-none focus:border-brand-500"
+              rows={3}
+              disabled={isSubmitting}
+              required
             />
             <p className="mt-1 text-[11px] text-text-muted">
-              {reason.trim().length} / 10 characters minimum
+              {reason.trim().length}/10 characters minimum
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
             <button
-              className="rounded-lg border border-border-default bg-surface px-4 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer disabled:opacity-50"
-              disabled={isSubmitting}
-              onClick={onClose}
               type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-3.5 py-1.5 rounded-md border border-border-default bg-surface text-xs font-medium text-text-secondary hover:bg-surface-hover transition disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-2 text-xs font-semibold text-[var(--danger-text)] shadow-xs hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
-              disabled={isSubmitting || !isValid}
               type="submit"
+              disabled={!isValid || isSubmitting}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-[var(--danger-text)] text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-40"
             >
               {isSubmitting ? (
                 <>
@@ -141,6 +115,6 @@ export function RollbackBatchModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

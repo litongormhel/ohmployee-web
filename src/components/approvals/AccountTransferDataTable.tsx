@@ -426,7 +426,7 @@ export function AccountTransferDataTable({
                     )}
 
                     {/* REQUEST # */}
-                    <td className="px-4 py-2.5 font-bold font-mono text-xs text-text-primary whitespace-nowrap align-middle">
+                    <td className="px-4 py-2.5 font-bold font-mono text-sm text-text-primary whitespace-nowrap align-middle">
                       {request.requestNumber}
                     </td>
 
@@ -464,7 +464,7 @@ export function AccountTransferDataTable({
                     </td>
 
                     {/* REASON */}
-                    <td className="px-4 py-2.5 text-xs text-text-secondary max-w-xs truncate align-middle" title={request.reason}>
+                    <td className="px-4 py-2.5 text-sm text-text-secondary max-w-xs truncate align-middle" title={request.reason}>
                       {request.reason}
                     </td>
 

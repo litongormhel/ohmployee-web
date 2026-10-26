@@ -2064,7 +2064,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           title={
             <span className="flex items-center gap-2">
               <span>Emergency Rollback Override</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
+              <span className="rounded-md bg-surface-muted text-text-primary text-xs font-bold px-2 py-0.5 border border-border-default">
                 EMERGENCY OVERRIDE
               </span>
             </span>
@@ -2076,7 +2076,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           isDirty={Boolean(emergencyReason.trim())}
         >
           <div className="space-y-4">
-            <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] leading-relaxed font-medium">
+            <div className="rounded-xl border border-border-default bg-surface-muted p-3 text-sm text-text-primary leading-relaxed font-medium">
               Super Admin Emergency Override: Bypasses standard window or block constraints. All actions are
               permanently recorded in immutable audit logs.
             </div>

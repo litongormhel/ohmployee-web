@@ -461,7 +461,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
                       key={p.rowNum}
                       className={isValid ? "hover:bg-surface-hover" : "bg-[var(--danger-bg)]/20 hover:bg-[var(--danger-bg)]/30"}
                     >
-                      <td className="py-2 px-3 font-mono text-xs text-text-muted">{p.rowNum}</td>
+                      <td className="py-2 px-3 font-mono text-sm text-text-muted">{p.rowNum}</td>
                       <td className="py-2 px-3">
                         <span
                           className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold border border-border-default bg-surface text-text-primary"
@@ -476,7 +476,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
                       <td className="py-2 px-3 text-text-muted">{p.accountName || "—"}</td>
                       <td className="py-2 px-3 font-mono text-text-muted">{p.middleName}</td>
                       <td className="py-2 px-3 text-text-muted">{p.dateHired}</td>
-                      <td className="py-2 px-3 max-w-xs text-xs">
+                      <td className="py-2 px-3 max-w-xs text-sm">
                         {isValid ? (
                           <span className="text-text-muted">Passed basic checks</span>
                         ) : (

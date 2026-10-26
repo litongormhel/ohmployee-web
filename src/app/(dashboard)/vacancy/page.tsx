@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
+import { AnimatedNumber } from "@/components/shared/AnimatedNumber";
 import {
   VacancyTable,
   type VacancyStatus,
@@ -839,7 +840,7 @@ export default function VacancyPage() {
                       : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >
-                  {summaryQuery.isLoading ? "–" : count}
+                  {summaryQuery.isLoading ? "–" : <AnimatedNumber value={count} />}
                 </span>
               </button>
             );

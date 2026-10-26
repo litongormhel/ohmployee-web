@@ -216,7 +216,7 @@ export function ProfileTab() {
               )}
 
               {(isUploadingAvatar || isDeletingAvatar) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
+                <div className="absolute inset-0 flex items-center justify-center bg-[var(--surface-overlay)] text-[var(--foreground)]">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               )}

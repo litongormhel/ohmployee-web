@@ -468,7 +468,7 @@ export function CoverageDataTable({
                     </td>
 
                     {/* REASON / DESCRIPTION */}
-                    <td className="px-4 py-2.5 text-xs text-text-secondary max-w-xs truncate align-middle" title={request.reason || undefined}>
+                    <td className="px-4 py-2.5 text-sm text-text-secondary max-w-xs truncate align-middle" title={request.reason || undefined}>
                       {request.reason || "—"}
                     </td>
 

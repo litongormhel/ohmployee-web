@@ -489,7 +489,7 @@ export function RelieverDataTable({
                     </td>
 
                     {/* DATES */}
-                    <td className="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-primary align-middle">
+                    <td className="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-text-primary align-middle">
                       {request.startDate ? (
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5 text-text-muted inline" />
@@ -501,7 +501,7 @@ export function RelieverDataTable({
                     </td>
 
                     {/* REASON */}
-                    <td className="px-4 py-2.5 max-w-xs truncate text-xs text-text-secondary align-middle" title={request.reason || ""}>
+                    <td className="px-4 py-2.5 max-w-xs truncate text-sm text-text-secondary align-middle" title={request.reason || ""}>
                       {request.reason || "—"}
                     </td>
 

@@ -364,7 +364,7 @@ export function PayrollReviewCenterModal({
                         <td className="py-2.5 px-3.5 font-mono font-semibold text-text-primary">
                           {item.employeeNumber}
                         </td>
-                        <td className="py-2.5 px-3.5 text-xs text-text-secondary font-medium">
+                        <td className="py-2.5 px-3.5 text-sm text-text-secondary font-medium">
                           {item.findingType}
                         </td>
                         <td className="py-2.5 px-3.5">
@@ -374,7 +374,7 @@ export function PayrollReviewCenterModal({
                         </td>
                         <td className="py-2.5 px-3.5 text-text-primary">{item.payrollFullName || "—"}</td>
                         <td className="py-2.5 px-3.5 text-text-primary">{item.plantillaFullName || "—"}</td>
-                        <td className="py-2.5 px-3.5 text-xs text-text-secondary">
+                        <td className="py-2.5 px-3.5 text-sm text-text-secondary">
                           {item.opsResponse ? (
                             <div className="space-y-0.5">
                               <span className="font-semibold text-text-primary">{item.opsResponse}</span>

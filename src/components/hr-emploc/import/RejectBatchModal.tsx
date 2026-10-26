@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertCircle, Loader2, X } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 
 export const REJECTION_REASONS = [
   { code: "invalid_file", label: "Invalid or incorrect file" },
@@ -47,78 +48,50 @@ export function RejectBatchModal({
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      if (isSubmitting || isDirty) {
-        e.preventDefault();
-        return;
-      }
-      onClose();
-    }
-  };
-
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in"
-      role="dialog"
-      onKeyDown={handleKeyDown}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Reject Import Batch"
+      subtitle={fileName}
+      icon={AlertCircle}
+      maxWidthClass="max-w-md"
+      disableBackdropClick={isSubmitting}
+      isSubmitting={isSubmitting}
+      isDirty={isDirty}
     >
-      {/* Backdrop: clicks disabled per modal hardening rule */}
-      <div className="absolute inset-0" />
-
-      <div className="relative w-full max-w-md rounded-xl border border-border-default bg-surface p-6 shadow-xl z-10">
-        <button
-          className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition cursor-pointer disabled:opacity-40"
-          disabled={isSubmitting}
-          onClick={onClose}
-          type="button"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
-            <AlertCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-text-primary">Reject Import Batch</h2>
-            <p className="text-xs text-text-muted truncate max-w-[260px]">{fileName}</p>
-          </div>
-        </div>
-
+      <div className="p-6">
         {error && (
-          <div className="mt-4 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)]">
+          <div className="mb-4 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)]">
             {error}
           </div>
         )}
 
-        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-2">
               Select Reason for Rejection *
             </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {REJECTION_REASONS.map((reason) => (
+            <div className="space-y-2">
+              {REJECTION_REASONS.map((r) => (
                 <label
-                  key={reason.code}
-                  className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-xs font-medium cursor-pointer transition ${
-                    selectedCode === reason.code
-                      ? "border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)]"
-                      : "border-border-default bg-surface text-text-primary hover:bg-surface-hover"
+                  key={r.code}
+                  className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition ${
+                    selectedCode === r.code
+                      ? "border-border-default bg-surface-muted text-text-primary font-semibold"
+                      : "border-border-default bg-surface text-text-secondary hover:bg-surface-hover"
                   }`}
                 >
                   <input
-                    checked={selectedCode === reason.code}
-                    className="h-4 w-4 border-border-default"
-                    disabled={isSubmitting}
-                    name="rejectionReason"
-                    onChange={() => setSelectedCode(reason.code)}
                     type="radio"
-                    value={reason.code}
+                    name="rejectionReason"
+                    value={r.code}
+                    checked={selectedCode === r.code}
+                    onChange={() => setSelectedCode(r.code)}
+                    className="accent-brand-600"
+                    disabled={isSubmitting}
                   />
-                  <span>{reason.label}</span>
+                  <span>{r.label}</span>
                 </label>
               ))}
             </div>
@@ -126,31 +99,32 @@ export function RejectBatchModal({
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-1">
-              Additional Note (Optional)
+              Internal Rejection Note {selectedCode === "others" ? "*" : "(Optional)"}
             </label>
             <textarea
-              className="w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-border-strong focus:outline-hidden focus:ring-1 focus:ring-border-strong"
-              disabled={isSubmitting}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Provide extra details for the encoder..."
-              rows={3}
               value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Provide context on why this batch was rejected..."
+              className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary outline-none focus:border-brand-500"
+              rows={3}
+              disabled={isSubmitting}
+              required={selectedCode === "others"}
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
             <button
-              className="rounded-lg border border-border-default bg-surface px-4 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer disabled:opacity-50"
-              disabled={isSubmitting}
-              onClick={onClose}
               type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-3.5 py-1.5 rounded-md border border-border-default bg-surface text-xs font-medium text-text-secondary hover:bg-surface-hover transition disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-2 text-xs font-semibold text-[var(--danger-text)] shadow-xs hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
-              disabled={isSubmitting || !selectedCode}
               type="submit"
+              disabled={isSubmitting || (selectedCode === "others" && !note.trim())}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-[var(--danger-text)] text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-40"
             >
               {isSubmitting ? (
                 <>
@@ -164,6 +138,6 @@ export function RejectBatchModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

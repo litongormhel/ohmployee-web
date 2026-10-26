@@ -410,7 +410,7 @@ export function TempPermissionModal({
       <div className="-mx-6 -my-4 flex flex-col">
 
         {/* Preset User Scope Banner & Tab Header */}
-        <div className="px-6 pt-3 border-b border-border-default bg-white">
+        <div className="px-6 pt-3 border-b border-border-default bg-surface-base">
           {presetUser && (
             <div className="mb-3 flex items-center justify-between rounded-lg border border-border-default bg-surface-subtle p-2.5 text-xs text-text-primary">
               <div className="flex items-center gap-2">
@@ -516,7 +516,7 @@ export function TempPermissionModal({
                   placeholder="Filter active overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-surface-base border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
@@ -527,7 +527,7 @@ export function TempPermissionModal({
                   <p className="text-xs text-text-secondary">Loading active permission overrides...</p>
                 </div>
               ) : filteredActive.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-white p-6">
+                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-surface-base p-6">
                   <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center text-text-muted mb-3">
                     <Key className="w-6 h-6" />
                   </div>
@@ -553,7 +553,7 @@ export function TempPermissionModal({
                   {filteredActive.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-xl border border-border-default bg-white p-4 shadow-2xs hover:border-border-default transition-all space-y-3"
+                      className="rounded-xl border border-border-default bg-surface-base p-4 shadow-2xs hover:border-border-default transition-all space-y-3"
                     >
                       {/* Top Row: User Avatar, Name, Expiry Badge */}
                       <div className="flex items-start justify-between gap-3">
@@ -677,7 +677,7 @@ export function TempPermissionModal({
                   placeholder="Search past overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-surface-base border border-border-default rounded-xl text-xs text-text-primary placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
@@ -687,7 +687,7 @@ export function TempPermissionModal({
                   <p className="text-xs text-text-secondary">Loading override history...</p>
                 </div>
               ) : filteredHistory.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-white p-6">
+                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-surface-base p-6">
                   <RotateCcw className="w-8 h-8 text-text-muted mb-2" />
                   <h3 className="text-sm font-semibold text-text-primary">No historical overrides</h3>
                   <p className="text-xs text-text-secondary mt-1 max-w-sm">
@@ -701,7 +701,7 @@ export function TempPermissionModal({
                   {filteredHistory.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-xl border border-border-default bg-white/80 p-4 shadow-2xs opacity-85 hover:opacity-100 transition-all space-y-2.5"
+                      className="rounded-xl border border-border-default bg-surface-base/80 p-4 shadow-2xs opacity-85 hover:opacity-100 transition-all space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -809,14 +809,14 @@ export function TempPermissionModal({
               )}
 
               {/* Step 1: Target User Selection */}
-              <div className="space-y-2 rounded-xl border border-border-default bg-white p-4">
+              <div className="space-y-2 rounded-xl border border-border-default bg-surface-base p-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                   1. Select Target User
                 </label>
                 <select
                   value={selectedTargetUserId}
                   onChange={(e) => setSelectedTargetUserId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border-default bg-white px-3 text-xs font-semibold text-text-primary outline-none focus:border-brand-500"
+                  className="w-full h-10 rounded-lg border border-border-default bg-surface-base px-3 text-xs font-semibold text-text-primary outline-none focus:border-brand-500"
                 >
                   <option value="">-- Choose an active user --</option>
                   {allUsers
@@ -843,7 +843,7 @@ export function TempPermissionModal({
               </div>
 
               {/* Step 2: Delegation Scope Type Selector */}
-              <div className="space-y-3 rounded-xl border border-border-default bg-white p-4">
+              <div className="space-y-3 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                     2. Scope Delegation Type
@@ -860,7 +860,7 @@ export function TempPermissionModal({
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "group"
                         ? "border-brand-500 bg-brand-50 text-brand-900 shadow-2xs"
-                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
                     <Layers className="w-4 h-4 text-brand-600" />
@@ -873,7 +873,7 @@ export function TempPermissionModal({
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "account"
                         ? "border-brand-500 bg-surface-subtle text-text-primary shadow-2xs"
-                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
                     <Store className="w-4 h-4 text-text-secondary" />
@@ -886,7 +886,7 @@ export function TempPermissionModal({
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "module"
                         ? "border-brand-500 bg-surface-subtle text-text-primary shadow-2xs"
-                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
                     <AppWindow className="w-4 h-4 text-text-secondary" />
@@ -931,7 +931,7 @@ export function TempPermissionModal({
                               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                                 isSelected
                                   ? "bg-brand-600 text-white shadow-2xs"
-                                  : "bg-white text-text-primary border border-border-default hover:bg-surface-muted"
+                                  : "bg-surface-base text-text-primary border border-border-default hover:bg-surface-muted"
                               }`}
                             >
                               <Layers className="w-3 h-3" />
@@ -953,7 +953,7 @@ export function TempPermissionModal({
                           placeholder="Search accounts / stores..."
                           value={scopeSearch}
                           onChange={(e) => setScopeSearch(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-border-default rounded-lg text-xs"
+                          className="w-full pl-8 pr-3 py-1.5 bg-surface-base border border-border-default rounded-lg text-xs"
                         />
                       </div>
 
@@ -974,7 +974,7 @@ export function TempPermissionModal({
                                 className={`text-left p-2 rounded-lg text-xs font-semibold border transition truncate cursor-pointer ${
                                   isSelected
                                     ? "bg-brand-500 text-white border-brand-500 shadow-2xs"
-                                    : "bg-white text-text-primary border-border-default hover:bg-surface-muted"
+                                    : "bg-surface-base text-text-primary border-border-default hover:bg-surface-muted"
                                 }`}
                               >
                                 <div className="truncate">{acc.account_name}</div>
@@ -1001,7 +1001,7 @@ export function TempPermissionModal({
                             className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                               isSelected
                                 ? "bg-brand-500 text-white border-brand-500 shadow-2xs"
-                                : "bg-white text-text-primary border-border-default hover:bg-surface-subtle"
+                                : "bg-surface-base text-text-primary border-border-default hover:bg-surface-subtle"
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -1017,7 +1017,7 @@ export function TempPermissionModal({
               </div>
 
               {/* Step 3: Expiration Duration & Picker */}
-              <div className="space-y-3 rounded-xl border border-border-default bg-white p-4">
+              <div className="space-y-3 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                     3. Expiration Time Limit
@@ -1040,7 +1040,7 @@ export function TempPermissionModal({
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                         presetDurationDays === preset.days
                           ? "bg-brand-500 text-white border-brand-500"
-                          : "bg-white text-text-secondary border-border-default hover:bg-surface-subtle"
+                          : "bg-surface-base text-text-secondary border-border-default hover:bg-surface-subtle"
                       }`}
                     >
                       {preset.label}
@@ -1068,7 +1068,7 @@ export function TempPermissionModal({
               </div>
 
               {/* Step 4: Mandatory Audit Justification */}
-              <div className="space-y-2 rounded-xl border border-border-default bg-white p-4">
+              <div className="space-y-2 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                     4. Mandatory Audit Justification Reason <span className="text-danger-text">*</span>

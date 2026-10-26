@@ -124,9 +124,9 @@ export function IdleWarningModal({
 
         {/* Countdown */}
         <div className="mt-4 flex justify-center">
-          <div className="rounded-xl bg-[var(--danger-bg)] border border-[var(--danger-border)] px-6 py-3">
+          <div className="rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)] px-6 py-3">
             <span
-              className="font-mono text-3xl font-extrabold tabular-nums text-[var(--danger)]"
+              className="font-mono text-3xl font-extrabold tabular-nums text-[var(--foreground)]"
               aria-live="polite"
               aria-atomic="true"
             >

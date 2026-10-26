@@ -113,7 +113,7 @@ export function RolePermissionsModal({
                 <span>{r.name}</span>
                 <span
                   className={`rounded-full px-1.5 py-0.2 text-xs font-mono ${
-                    isSelected ? "bg-white/20 text-white" : "bg-surface-subtle text-text-muted"
+                    isSelected ? "bg-[var(--surface-overlay)] text-[var(--foreground)]" : "bg-surface-subtle text-text-muted"
                   }`}
                 >
                   Lvl {r.level}

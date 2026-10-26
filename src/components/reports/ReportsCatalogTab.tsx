@@ -45,7 +45,7 @@ export function ReportsCatalogTab({
       {/* Hero Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-brand-900 via-brand-800 to-brand-950 text-white shadow-md relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-brand-200 bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-brand-200 bg-[var(--surface-overlay)] px-2.5 py-1 rounded-full border border-[var(--border-subtle)]">
             Operational Intelligence & Analytics
           </span>
           <h2 className="text-2xl font-bold tracking-tight mt-2">

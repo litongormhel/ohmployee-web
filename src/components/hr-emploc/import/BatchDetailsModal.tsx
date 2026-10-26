@@ -8,7 +8,6 @@ import {
   FileSpreadsheet,
   Loader2,
   Search,
-  X,
 } from "lucide-react";
 import {
   type HrEmplocImportBatch,
@@ -16,6 +15,7 @@ import {
   useApproveImportBatch,
 } from "@/lib/queries/hr_emploc_import";
 import { RejectBatchModal } from "./RejectBatchModal";
+import { Modal } from "@/components/shared/Modal";
 
 interface BatchDetailsModalProps {
   isOpen: boolean;
@@ -107,50 +107,27 @@ export function BatchDetailsModal({
   const isPending = batch.status === "pending_approval";
 
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in"
-      role="dialog"
-    >
-      {/* Backdrop: click closes this read-only inspector modal unless mutation pending */}
-      <div
-        className="absolute inset-0"
-        onClick={approveMutation.isPending ? undefined : onClose}
-      />
-
-      <div className="relative z-10 flex flex-col h-[90vh] w-full max-w-5xl rounded-2xl border border-border-default bg-surface shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4 bg-surface-muted/30">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted text-brand-primary border border-border-subtle">
-              <FileSpreadsheet className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-text-primary">{batch.fileName}</h2>
-                <span
-                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border border-border-default bg-surface-muted text-text-primary font-mono"
-                >
-                  {batch.status.replace("_", " ").toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xs text-text-muted">
-                Group: <span className="font-semibold text-text-primary">{batch.groupName || "—"}</span>
-                {" • "}Submitted by {batch.uploadedByName || "Encoder"} on{" "}
-                {batch.uploadedAt ? new Date(batch.uploadedAt).toLocaleDateString() : "—"}
-              </p>
-            </div>
-          </div>
-          <button
-            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer disabled:opacity-40"
-            disabled={approveMutation.isPending}
-            onClick={onClose}
-            type="button"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={
+          <span className="flex items-center gap-2">
+            <span>{batch.fileName}</span>
+            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border border-border-default bg-surface-muted text-text-primary font-mono">
+              {batch.status.replace("_", " ").toUpperCase()}
+            </span>
+          </span>
+        }
+        subtitle={`Group: ${batch.groupName || "—"} • Submitted by ${batch.uploadedByName || "Encoder"} on ${
+          batch.uploadedAt ? new Date(batch.uploadedAt).toLocaleDateString() : "—"
+        }`}
+        icon={FileSpreadsheet}
+        maxWidthClass="max-w-5xl"
+        disableBackdropClick={approveMutation.isPending}
+        isSubmitting={approveMutation.isPending}
+      >
+        <div className="flex flex-col h-[75vh] overflow-hidden">
 
         {/* Action Error Banner */}
         {actionError && (
@@ -321,7 +298,7 @@ export function BatchDetailsModal({
                             !isValid ? "bg-[var(--danger-bg)]/20" : ""
                           }`}
                         >
-                          <td className="py-2 px-3 font-mono text-xs text-text-muted">
+                          <td className="py-2 px-3 font-mono text-sm text-text-muted">
                             {row.rowNumber}
                           </td>
                           <td className="py-2 px-3">
@@ -354,7 +331,7 @@ export function BatchDetailsModal({
                           <td className="py-2 px-3 text-text-muted">
                             {row.dateHired || "—"}
                           </td>
-                          <td className="py-2 px-3 max-w-xs text-xs">
+                          <td className="py-2 px-3 max-w-xs text-sm">
                             {isValid ? (
                               <span className="text-text-muted">
                                 Slot reserved in Plantilla
@@ -435,7 +412,8 @@ export function BatchDetailsModal({
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </Modal>
 
       <RejectBatchModal
         fileName={batch.fileName}
@@ -448,6 +426,6 @@ export function BatchDetailsModal({
           onClose();
         }}
       />
-    </div>
+    </>
   );
 }

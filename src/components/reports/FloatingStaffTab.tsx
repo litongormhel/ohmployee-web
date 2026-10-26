@@ -372,7 +372,7 @@ export function FloatingStaffTab() {
                       <td className="py-3 px-4 text-text-secondary text-sm">
                         {r.storeName || "Unassigned"}
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs text-text-secondary">
+                      <td className="py-3 px-4 font-mono text-sm text-text-secondary">
                         {r.floatingSince ? r.floatingSince.substring(0, 10) : "—"}
                       </td>
                       <td className="py-3 px-4">

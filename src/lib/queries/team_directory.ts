@@ -114,7 +114,8 @@ export function getUserInitials(user: TeamDirectoryUser): string {
   return words[0]?.[0]?.toUpperCase() ?? "?";
 }
 
-export function getRoleTint(_user: TeamDirectoryUser): string {
+export function getRoleTint(..._args: unknown[]): string {
+  void _args;
   return "var(--brand)";
 }
 

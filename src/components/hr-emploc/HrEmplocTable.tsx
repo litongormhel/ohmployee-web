@@ -287,7 +287,7 @@ export function HrEmplocTable({
 
                     {/* 8. Requested By (Correction Tab) */}
                     {queue === "correction" && (
-                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px] text-xs">
+                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px] text-sm">
                         {row.requestedByName ?? "--"}
                       </td>
                     )}

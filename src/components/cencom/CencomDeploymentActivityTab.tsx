@@ -357,7 +357,6 @@ export function CencomDeploymentActivityTab({
                 </tr>
               ) : (
                 paginatedRecords.map((record) => {
-                  const isPending = record.status.toLowerCase().includes("pending");
                   const isPlantilla =
                     record.status.toLowerCase().includes("plantilla") ||
                     record.status.toLowerCase().includes("moved");
@@ -382,7 +381,7 @@ export function CencomDeploymentActivityTab({
                         </div>
                       </td>
 
-                      <td className="py-3 px-3 font-mono text-xs text-text-secondary">
+                      <td className="py-3 px-3 font-mono text-sm text-text-secondary">
                         {record.emplocNo || record.employeeNo || (
                           <span className="text-text-muted italic">Pending</span>
                         )}
@@ -409,11 +408,11 @@ export function CencomDeploymentActivityTab({
                         {record.position}
                       </td>
 
-                      <td className="py-3 px-3 font-mono text-xs text-text-secondary">
+                      <td className="py-3 px-3 font-mono text-sm text-text-secondary">
                         {record.vcode || "--"}
                       </td>
 
-                      <td className="py-3 px-3 font-mono text-xs text-text-secondary">
+                      <td className="py-3 px-3 font-mono text-sm text-text-secondary">
                         {record.hiredDate ? (
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-text-muted" />

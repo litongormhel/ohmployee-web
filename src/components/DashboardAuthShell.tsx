@@ -179,7 +179,11 @@ function AuthenticatedShell({
           <main
             key={pathname}
             className={`flex-1 overflow-auto ${
-              motionLevel === "off" ? "" : "animate-in fade-in duration-200"
+              motionLevel === "off"
+                ? ""
+                : motionLevel === "lite"
+                ? "animate-in fade-in duration-150"
+                : "animate-in fade-in duration-200"
             }`}
           >
             <div className="w-full px-4 py-5 sm:px-5 lg:px-6 2xl:px-8">

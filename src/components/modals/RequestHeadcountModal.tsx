@@ -27,6 +27,7 @@ import {
   type SubmitHeadcountRequestResult,
 } from "@/lib/queries/requests";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
+import { Modal } from "@/components/shared/Modal";
 
 export interface RequestHeadcountModalProps {
   isOpen: boolean;
@@ -734,62 +735,46 @@ function RequestHeadcountModalDialog({
     });
   };
 
+  const isFormDirty = Boolean(
+    reason.trim() ||
+      selectedStore ||
+      selectedRovingStores.length > 0 ||
+      selectedPosition ||
+      headcountNeeded !== 1
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-        onClick={submitMutation.isPending ? undefined : onClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal Dialog Card */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="headcount-modal-title"
-        className="relative z-10 w-full max-w-3xl rounded-xl border border-border-default bg-surface-base shadow-2xl transition-all my-8 max-h-[90vh] flex flex-col overflow-hidden"
+    <>
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title={
+          <span className="flex items-center gap-2">
+            <span>Request Headcount</span>
+            <span className="inline-flex items-center rounded bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-text-primary border border-border-default">
+              Requisition
+            </span>
+          </span>
+        }
+        subtitle={
+          currentStep === "form"
+            ? "Step 1 of 2: Requisition Details"
+            : "Step 2 of 2: Review & Submit"
+        }
+        icon={UsersRound}
+        maxWidthClass="max-w-3xl"
+        disableBackdropClick={submitMutation.isPending}
+        isSubmitting={submitMutation.isPending}
+        isDirty={isFormDirty}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-default px-6 py-4 shrink-0 bg-surface-base">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-brand-50 p-2 text-brand-600 border border-brand-200">
-              <UsersRound className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded bg-brand-100 px-2 py-0.5 text-[11px] font-semibold text-brand-800">
-                  New Requisition
-                </span>
-                <span className="text-xs text-text-muted">
-                  {currentStep === "form" ? "Step 1 of 2: Requisition Details" : "Step 2 of 2: Review & Submit"}
-                </span>
-              </div>
-              <h2 id="headcount-modal-title" className="text-lg font-bold text-text-primary">
-                Request Headcount
-              </h2>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitMutation.isPending}
-            className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-40"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Modal Body - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[75vh]">
           {/* Recruitment Freeze Banner */}
           {isRecruitmentFreezeActive && (
-            <div className="flex items-start gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-4 text-xs text-[var(--danger)]">
-              <ShieldAlert className="h-5 w-5 shrink-0 text-[var(--danger)] mt-0.5" />
+            <div className="flex items-start gap-3 rounded-lg border border-border-default bg-surface-muted p-4 text-xs text-text-primary">
+              <ShieldAlert className="h-5 w-5 shrink-0 text-text-secondary mt-0.5" />
               <div>
                 <p className="font-semibold text-sm">Recruitment Freeze Active</p>
-                <p className="mt-0.5 text-[var(--danger)]">
+                <p className="mt-0.5 text-text-secondary">
                   System governance has locked headcount requisitions under a global freeze. You can explore the options, but submission is blocked.
                 </p>
               </div>
@@ -1641,7 +1626,7 @@ function RequestHeadcountModalDialog({
             </>
           )}
         </div>
-      </div>
+      </Modal>
 
       {isNsrModalOpen && (
         <NewStoreRequestModal
@@ -1673,6 +1658,6 @@ function RequestHeadcountModalDialog({
           }}
         />
       )}
-    </div>
+    </>
   );
 }

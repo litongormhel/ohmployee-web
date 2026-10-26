@@ -445,10 +445,10 @@ export function PayrollImportModal({
                         <td className="py-2.5 px-3.5 font-medium text-text-primary">
                           {f.plantillaFullName || "—"}
                         </td>
-                        <td className="py-2.5 px-3.5 text-xs text-text-secondary">
+                        <td className="py-2.5 px-3.5 text-sm text-text-secondary">
                           {f.payrollAccountGroup || "—"}
                         </td>
-                        <td className="py-2.5 px-3.5 text-xs text-text-secondary">
+                        <td className="py-2.5 px-3.5 text-sm text-text-secondary">
                           {f.plantillaAccountGroup || "—"}
                         </td>
                       </tr>

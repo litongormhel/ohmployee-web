@@ -10,8 +10,8 @@ import {
   ExternalLink,
   Sparkles,
   Store,
-  X,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { createClient } from "@/lib/supabase/client";
 import {
   useSubmitNewStoreRequest,
@@ -54,6 +54,7 @@ export function NewStoreRequestModal(props: NewStoreRequestModalProps) {
 }
 
 function NewStoreRequestModalDialog({
+  isOpen = true,
   onClose,
   initialAccountId,
   initialAccountName,
@@ -279,55 +280,26 @@ function NewStoreRequestModalDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
-        onClick={submitMutation.isPending ? undefined : onClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal Dialog Card */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-store-modal-title"
-        className="relative z-10 w-full max-w-lg rounded-xl border border-border-default bg-surface-base shadow-2xl transition-all my-8 flex flex-col overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-default px-6 py-4 shrink-0 bg-surface-base">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-[var(--surface-sunken)] p-2 text-[var(--foreground)] border border-[var(--border-subtle)]">
-              <Store className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] border border-[var(--border-subtle)]">
-                  New Store Request (NSR)
-                </span>
-              </div>
-              <h2
-                id="new-store-modal-title"
-                className="text-base font-bold text-text-primary"
-              >
-                Request Store Addition
-              </h2>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitMutation.isPending}
-            className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors disabled:opacity-40"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
-          {submittedResult ? (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2">
+          <span>Request Store Addition</span>
+          <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] border border-[var(--border-subtle)]">
+            NSR
+          </span>
+        </span>
+      }
+      subtitle="Submit operational store addition to masterlist"
+      icon={Store}
+      maxWidthClass="max-w-lg"
+      disableBackdropClick={submitMutation.isPending}
+      isSubmitting={submitMutation.isPending}
+      isDirty={Boolean(storeName.trim() || reason.trim())}
+    >
+      <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+        {submittedResult ? (
             /* Success State */
             <div className="space-y-5 text-center py-2">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--foreground)] border border-[var(--border-subtle)]">
@@ -566,7 +538,6 @@ function NewStoreRequestModalDialog({
             </form>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
