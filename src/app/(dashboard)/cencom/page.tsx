@@ -160,7 +160,7 @@ function CencomPageContent() {
         count: kpi?.vacant && kpi.vacant > 0 ? kpi.vacant : undefined,
       },
       { key: "deployments", label: "Deployment Activity" },
-      { key: "reports", label: "Quick Reports", count: 18 },
+      { key: "reports", label: "Quick Reports", count: groups.length > 0 ? 18 : 0 },
     ],
     [groups.length, kpi?.vacant]
   );

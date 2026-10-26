@@ -207,6 +207,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("new_store_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
 
     // 2. Headcount
@@ -216,6 +218,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("headcount_requests")
         .select("id", { count: "exact", head: true })
         .eq("is_archived", false)
+        .is("suppressed_by_batch_id", null)
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
@@ -226,9 +229,11 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("plantilla_approvals")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
 
-    // 4. Account Sign-Up Requests
+    // 4. Account Sign-Up Requests (Preserved across QA Reset)
     countItem(
       "account_requests",
       supabase
@@ -244,6 +249,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("coverage_requests")
         .select("id", { count: "exact", head: true })
         .is("archived_at", null)
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
         .in("status", ["pending", "draft"])
     ),
 
@@ -263,6 +270,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("vacancy_closure_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
 
     // 8. HR Emploc Deletions
@@ -272,6 +281,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("hr_emploc_deletion_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
 
     // 9. Deactivations
@@ -290,6 +301,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("applicant_movement_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
 
     // 11. Account Group Transfers
@@ -299,6 +312,8 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("account_group_transfer_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null)
     ),
   ];
 
@@ -353,7 +368,8 @@ export async function fetchHeadcountRequests(
       created_vcodes,
       vacancy_created
     `)
-    .eq("is_archived", false);
+    .eq("is_archived", false)
+    .is("suppressed_by_batch_id", null);
 
   if (tab === "pending") {
     query = query.or("status.ilike.pending,status.ilike.under_review");
@@ -364,7 +380,10 @@ export async function fetchHeadcountRequests(
   }
 
   const { data, error } = await applyPagination(
-    query.order("created_at", { ascending: false }),
+    query
+      .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
+      .order("created_at", { ascending: false }),
     pagination
   );
 
@@ -985,6 +1004,7 @@ export async function fetchNewStoreRequests(
   const { data, error } = await applyPagination(
     query
       .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
       .order("requested_at", { ascending: false }),
     pagination
   );
@@ -1320,7 +1340,10 @@ export async function fetchVacancyClosureRequests(
   }
 
   const { data, error } = await applyPagination(
-    query.order("created_at", { ascending: false }),
+    query
+      .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
+      .order("created_at", { ascending: false }),
     pagination
   );
 
@@ -1619,7 +1642,10 @@ export async function fetchApplicantMovementRequests(
   }
 
   const { data, error } = await applyPagination(
-    query.order("created_at", { ascending: false }),
+    query
+      .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
+      .order("created_at", { ascending: false }),
     pagination
   );
 
@@ -1994,7 +2020,10 @@ export async function fetchDeactivationRequests(
   }
 
   const { data, error } = await applyPagination(
-    query.order("created_at", { ascending: false }),
+    query
+      .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
+      .order("created_at", { ascending: false }),
     pagination
   );
 
@@ -2423,7 +2452,10 @@ export async function fetchAccountGroupTransfers(
   }
 
   const { data, error } = await applyPagination(
-    query.order("created_at", { ascending: false }),
+    query
+      .eq("is_archived", false)
+      .is("suppressed_by_batch_id", null)
+      .order("created_at", { ascending: false }),
     pagination
   );
 
@@ -2844,6 +2876,8 @@ export async function fetchCoverageRequests(
   const { data, error } = await applyPagination(
     query
       .is("archived_at", null)
+      .or("is_archived.is.null,is_archived.eq.false")
+      .is("suppressed_by_batch_id", null)
       .order("created_at", { ascending: false }),
     pagination
   );
@@ -3220,6 +3254,8 @@ export async function fetchPlantillaApprovals(
   let query = supabase
     .from("plantilla_approvals")
     .select("id, hr_emploc_id, applicant_name, vcode, account, position, emploc_no, requested_by, status, reviewed_by, reviewed_at, remarks, created_at")
+    .or("is_archived.is.null,is_archived.eq.false")
+    .is("suppressed_by_batch_id", null)
     .order("created_at", { ascending: false });
 
   if (tab === "pending") {

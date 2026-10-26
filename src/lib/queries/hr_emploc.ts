@@ -1303,6 +1303,10 @@ export async function fetchEmplocDeletionRequests(
     query = query.or("status.ilike.rejected,status.ilike.withdrawn");
   }
 
+  query = query
+    .or("is_archived.is.null,is_archived.eq.false")
+    .is("suppressed_by_batch_id", null);
+
   let orderedQuery = query.order("created_at", { ascending: false });
   if (pagination?.page && pagination?.limit) {
     const page = Math.max(1, Math.trunc(pagination.page));
@@ -1353,7 +1357,11 @@ export async function fetchEmplocDeletionCounts(): Promise<{
   rejected: number;
 }> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("hr_emploc_deletion_requests").select("status");
+  const { data, error } = await supabase
+    .from("hr_emploc_deletion_requests")
+    .select("status")
+    .or("is_archived.is.null,is_archived.eq.false")
+    .is("suppressed_by_batch_id", null);
   if (error) {
     console.error("[fetchEmplocDeletionCounts] query failed:", error.code, error.message);
     throwHrEmplocError(error);

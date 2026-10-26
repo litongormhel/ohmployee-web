@@ -1920,6 +1920,23 @@ export function useExecuteBulkArchive() {
       queryClient.invalidateQueries({ queryKey: ["archive-observation-snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-allocation-kpi"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-group-kpi"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-deployment-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-store-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["request-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["applicants"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc"] });
     },
   });
 }
@@ -1934,6 +1951,23 @@ export function useRollbackArchiveBatch() {
       queryClient.invalidateQueries({ queryKey: ["archive-observation-snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-allocation-kpi"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-group-kpi"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-deployment-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom-store-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["request-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["applicants"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc"] });
     },
   });
 }

@@ -204,6 +204,8 @@ export function DataArchivalCenterModal({
       setArchiveReason("");
       setActiveTab("batch_history");
       refetchHistory();
+      refetchSnapshot();
+      refetchImpact();
     } catch (err) {
       setWizardError(err instanceof Error ? err.message : "Bulk archive failed.");
     }
@@ -227,6 +229,8 @@ export function DataArchivalCenterModal({
       setPendingRollbackBatchId(null);
       setRollbackReason("");
       refetchHistory();
+      refetchSnapshot();
+      refetchImpact();
     } catch (err) {
       setRollbackError(err instanceof Error ? err.message : "Rollback batch failed.");
     }

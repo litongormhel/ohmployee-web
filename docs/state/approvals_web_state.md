@@ -55,3 +55,11 @@ export interface RequestPaginationParams {
 }
 ```
 When pagination parameters are provided, queries apply `.range((page - 1) * limit, page * limit - 1)`. When omitted, full dataset queries enable exhaustive client-side multi-field searching without backend serialization barriers.
+
+---
+
+## 5. Archival, QA Reset & Rollback Filtering Contract
+- **Operational Queues Swept**: `account_group_transfers`, `applicant_movements`, `coverage`, `deactivations`, `headcount`, `hr_emploc_deletions`, `new_stores`, `plantilla_approvals`, `relievers`, `vacancy_closures`.
+- **Gated Predicates**: All operational queue queries and badge counters enforce `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
+- **Preserved Queues**: `account_requests` (Account Sign-Ups) are explicitly preserved and never archived or suppressed during QA Reset cycles.
+- **Rollback Behavior**: Batch rollback restores active requests to `is_archived = false` and clears `suppressed_by_batch_id = NULL` on pre-archived items without reopening closed records.

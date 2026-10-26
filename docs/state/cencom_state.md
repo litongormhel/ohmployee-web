@@ -69,3 +69,10 @@ When `"All groups"` is selected, metrics match global baseline views 1:1. When a
 ### Color Literal Audit
 - Module Total: **0 color literals** across all CENCOM files (dropped from 237).
 - Gate Verification: `TOUCHED_MODULES=cencom python3 .agents/scripts/gate.py` passed with 0 violations.
+
+---
+
+## 5. Archival, QA Reset & Rollback Behavior
+- **Stores & Groups**: Queries filter `stores` and `accounts` by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
+- **Deployment Summary**: `fn_cencom_deployment_summary` filters `deleted_vcode` by `v.suppressed_by_batch_id IS NULL AND v.archive_batch_id IS NULL`, ensuring pre-existing deleted VCodes drop to 0 during QA Reset and restore on rollback without reopening into active operational views.
+- **Quick Reports Tab Badge**: Displays 0 when groups = 0 post QA Reset.

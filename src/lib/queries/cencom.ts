@@ -261,7 +261,9 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
     const { data: accountsData } = await supabase
       .from("accounts")
       .select("id, account_name, group_id")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .or("is_archived.is.null,is_archived.eq.false")
+      .is("suppressed_by_batch_id", null);
 
     if (accountsData) {
       for (const acc of accountsData) {
@@ -285,7 +287,9 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
   try {
     const { data: storeRows } = await supabase
       .from("stores")
-      .select("id, group_id, is_active");
+      .select("id, group_id, is_active")
+      .or("is_archived.is.null,is_archived.eq.false")
+      .is("suppressed_by_batch_id", null);
 
     if (storeRows) {
       for (const st of storeRows) {
@@ -395,7 +399,9 @@ export async function fetchCencomStoreStats(): Promise<CencomStoreStats> {
   try {
     const { data, error } = await supabase
       .from("stores")
-      .select("id, is_active");
+      .select("id, is_active")
+      .or("is_archived.is.null,is_archived.eq.false")
+      .is("suppressed_by_batch_id", null);
 
     if (error || !data) {
       return { totalStores: 0, activeStores: 0, deploymentRate: 0 };

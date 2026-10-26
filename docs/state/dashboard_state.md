@@ -117,15 +117,14 @@ Rendered in a responsive 5-column row consuming shared `KpiCard` (`@/components/
 
 ## 6. Guardrails
 
-- The dashboard page calls only the two approved RPCs. No raw table queries, no fallback values, no CRUD mutations.
+- The dashboard page calls only the two approved RPCs plus live SLA breach / understaffed stores queries. All telemetry adheres to `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
 - All filter parameters (if any) are blank on this page — the RPCs use `auth.uid()` scoping server-side.
 - React Query keys: `["dashboard", "metrics"]` and `["dashboard", "operational-analytics"]`.
-- No cache invalidation is wired from mutations (dashboard is read-only).
+- Cache invalidation is wired from `useExecuteBulkArchive` and `useRollbackArchiveBatch` to immediately reflect zeroed state on QA Reset and full restoration on Rollback.
 
 ---
 
-## 7. Remaining Gaps
-
-- `fn_dashboard_metrics()` and `fn_dashboard_operational_analytics()` backend implementations must be deployed remotely.
-- Exact return field names may differ from normalizer assumptions once backend migration is applied; normalizer falls back gracefully (returns `0` for missing counts, `null` for missing nullable fields).
-- Dashboard mutations (if any future requirement) are out of scope until backend action RPCs are defined.
+## 7. Archival & QA Reset Governance
+- `fn_dashboard_metrics` filters `sla_breach_logs`, `possible_ghost_employees`, `hr_emploc`, `vacancies`, and all 11 request queues by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL` (preserving Account Sign-Ups).
+- `fn_dashboard_operational_analytics` filters applicants, hr_emploc, and separation logs by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
+- All metrics correctly drop to 0 post QA Reset and restore atomically upon 72-hour batch rollback.

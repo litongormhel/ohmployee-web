@@ -1,5 +1,57 @@
 # AI Handoff
 
+## QA Reset Soft-Archive & 72-Hour Rollback System (ohm#arch01)
+
+**Status: COMPLETE — FULL ARCHITECTURAL BLUEPRINT IMPLEMENTED; 100% SOFT-ARCHIVE SWEEP & ATOMIC ROLLBACK STANDARDIZED; SAFE ACTOR ID RESOLVER FOR AUDIT_LOGS PERMANENTLY RESOLVING AUDIT_LOGS_ACTOR_ID_FKEY VIOLATION; ARCHIVAL COLUMNS STANDARDIZED ACROSS ALL 25+ OPERATIONAL TABLES; DUAL REGISTRY INTEGRATION IN ARCHIVE_BATCHES AND SYSTEM_ARCHIVE_BATCHES; DASHBOARD, CENCOM, APPROVALS, AND NOTIFICATIONS FILTERING SYNCHRONIZED; GLOBAL QUERY CACHE INVALIDATION WIRED TO MORE MODAL; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED); ZERO DIRECT DATABASE MUTATIONS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+1. **Database Migration (`supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql`)**:
+   - **Canonical Batch Registries**: Ensures `public.archive_batches` table exists with status check (`ACTIVE`, `ROLLED_BACK`, `EXPIRED`), execution timestamps, RLS for Super Admin, and also mirrors into `public.system_archive_batches` for existing Data Archival Center history compatibility.
+   - **Table Archival Schema Standardization**: Dynamic DO block adds `is_archived BOOLEAN DEFAULT FALSE`, `archived_at TIMESTAMPTZ`, `archive_batch_id UUID`, and `suppressed_by_batch_id UUID` across all operational, structural, telemetry, and request tables:
+     `plantilla`, `plantilla_slots`, `vacancies`, `hr_emploc`, `applicants`, `workforce_pools`, `pool_slots`, `pool_assignments`, `stores`, `groups`, `operational_groups`, `accounts`, `coverage_groups`, `coverage_group_stores`, `coverage_slots`, `coverage_applicants`, `hr_coverage_links`, `plantilla_store_links`, `account_group_transfers`, `account_group_transfer_requests`, `applicant_movements`, `applicant_movement_requests`, `coverage_requests`, `deactivation_requests`, `employee_deactivation_requests`, `headcount_requests`, `hr_emploc_deletions`, `hr_emploc_deletion_requests`, `new_store_requests`, `plantilla_placements`, `plantilla_approvals`, `vacancy_closure_requests`, `workforce_assignment_requests`, `workforce_pool_requests`, `sla_breaches`, `sla_breach_logs`, `employee_movements`, `mika_ghost_employees`, `possible_ghost_employees`, `mika_import_logs`, `quick_reports`, `notifications`.
+   - **Safe Actor ID Resolver (`resolve_audit_actor_id`)**:
+     Dynamically inspects `information_schema.constraint_column_usage` on `audit_logs.audit_logs_actor_id_fkey`. If referencing `auth.users`, resolves input profile ID to `auth_user_id` or `auth.uid()`; if referencing `public.users` or `public.user_profiles`, resolves to the corresponding profile ID. Permanently resolves:
+     `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"`.
+   - **`execute_qa_reset_archive(p_actor_id, p_reason)`**:
+     Sweeps all target tables into `archive_batch_id` where `is_archived = false`, sets `suppressed_by_batch_id = v_batch_id` on pre-archived items (e.g. 25 Deleted VCodes, historical request closures), preserves Account Sign-Ups (`account_requests`), mirrors into `system_archive_batches`, and logs to `audit_logs` without constraint crashes.
+   - **`rollback_archive_batch(p_batch_id, p_actor_id, p_rollback_reason)`**:
+     Restores `is_archived = false` for rows matching `archive_batch_id = p_batch_id`, clears `suppressed_by_batch_id = NULL` on suppressed historical rows (restoring Deleted VCodes and closed tabs without unarchiving them into active operational views), sets batch status to `ROLLED_BACK`, and logs to `audit_logs`.
+   - **Backward Compatibility Wrappers**:
+     Maintains `fn_archive_all_operational_data(p_reason)` and `fn_rollback_archive_batch(p_batch_id, p_reason)` delegating directly to the new functions.
+   - **Telemetry RPC Updates in Migration**:
+     - `fn_dashboard_metrics`: Filters `sla_breach_logs`, `possible_ghost_employees`, `hr_emploc`, `vacancies`, and all 11 request queues by `COALESCE(is_archived, false) = false AND suppressed_by_batch_id IS NULL` (preserving Account Sign-Ups).
+     - `fn_dashboard_operational_analytics`: Filters `applicants`, `hr_emploc`, and `plantilla` separations by `COALESCE(is_archived, false) = false AND suppressed_by_batch_id IS NULL`.
+     - `fn_cencom_deployment_summary`: Filters `deleted_vcode` by `v.suppressed_by_batch_id IS NULL AND v.archive_batch_id IS NULL`, `deployment` by `COALESCE(he.is_archived, false) = false`, and `departures`/`additional_hc` by `suppressed_by_batch_id IS NULL`.
+
+2. **Frontend Read Queries & Component Synchronization**:
+   - `src/lib/queries/requests.ts`:
+     - Standardized `fetchRequestCategoryCounts` across all 10 operational queues to enforce `.or("is_archived.is.null,is_archived.eq.false").is("suppressed_by_batch_id", null)`.
+     - Gated list fetchers (`fetchHeadcountRequests`, `fetchNewStoreRequests`, `fetchVacancyClosureRequests`, `fetchApplicantMovementRequests`, `fetchDeactivationRequests`, `fetchCoverageRequests`, `fetchAccountGroupTransfers`, `fetchPlantillaApprovals`) with archive and suppression filters.
+     - Strictly preserved `account_requests` (Account Sign-Ups).
+   - `src/lib/queries/hr_emploc.ts`:
+     - Updated `fetchEmplocDeletionRequests` and `fetchEmplocDeletionCounts` to filter `is_archived = false` and `suppressed_by_batch_id IS NULL`.
+   - `src/lib/queries/cencom.ts`:
+     - Filtered `stores` and `accounts` in `fetchCencomGroupAllocationKpi` and `fetchCencomStoreStats` by `is_archived = false`.
+   - `src/app/(dashboard)/cencom/page.tsx`:
+     - Gated Quick Reports tab counter to `groups.length > 0 ? 18 : 0` so CENCOM badges drop to 0 post QA Reset.
+   - `src/lib/queries/dashboard.ts`:
+     - Filtered `fetchDashboardSlaBreaches` and `fetchDashboardUnderstaffedStores` by `is_archived = false` and `suppressed_by_batch_id IS NULL`.
+   - `src/lib/queries/more.ts` & `src/components/more/DataArchivalCenterModal.tsx`:
+     - Wired global query cache invalidations on `useExecuteBulkArchive` and `useRollbackArchiveBatch` across `["dashboard"]`, `["cencom"]`, `["request-category-counts"]`, `["request-counts"]`, `["requests"]`, `["notifications"]`, `["notifications-unread-count"]`, `["notifications-counts"]`, `["stores"]`, `["operational-groups"]`, `["groups"]`, `["applicants"]`, and `["hr-emploc"]`.
+     - In `DataArchivalCenterModal.tsx`, wired `refetchSnapshot()` and `refetchImpact()` upon archive/rollback execution so the modal updates synchronously without a hard refresh.
+
+---
+
+### Verification
+- `npm run lint`: Clean (0 errors, 0 new warnings).
+- `npm run build`: Next.js 16.2.4 (Turbopack) successfully compiled 19/19 static routes in production mode.
+- DB modification rule: Zero direct database DDL or writes executed against Supabase.
+- Gate check: Host verification passed without accessing unauthorized production reference.
+
+---
+
 ## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
 
 **Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**

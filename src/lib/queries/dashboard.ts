@@ -240,6 +240,8 @@ export async function fetchDashboardSlaBreaches(): Promise<DashboardSlaBreachIte
   const { data, error } = await supabase
     .from("sla_breach_logs")
     .select("id, account, breach_type, days_elapsed, vcode, created_at")
+    .or("is_archived.is.null,is_archived.eq.false")
+    .is("suppressed_by_batch_id", null)
     .order("days_elapsed", { ascending: false })
     .limit(30);
 
@@ -311,6 +313,8 @@ export async function fetchDashboardUnderstaffedStores(): Promise<DashboardUnder
       )
     `)
     .eq("status", "Open")
+    .eq("is_archived", false)
+    .is("suppressed_by_batch_id", null)
     .is("deleted_at", null)
     .not("store_id", "is", null);
 
