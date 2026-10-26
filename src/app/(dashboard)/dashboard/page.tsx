@@ -445,7 +445,9 @@ export default function DashboardPage() {
           footer={
             <div className="flex items-center justify-between text-xs text-text-secondary">
               <span>{assignedVacancies} Assigned to HRCO</span>
-              <span className="font-semibold text-brand-500">{avgFillRateFormatted} Fill</span>
+              <span className={`font-semibold ${fillRateStatus.classes.text}`}>
+                {avgFillRateFormatted} Fill
+              </span>
             </div>
           }
         />
@@ -674,13 +676,13 @@ export default function DashboardPage() {
                 ) : (
                   <table className="w-full border-collapse text-left text-sm">
                     <thead>
-                      <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold text-text-muted">
-                        <th className="py-2.5 px-4 sm:px-5">Group Name</th>
-                        <th className="py-2.5 px-3 text-center">Plantilla</th>
-                        <th className="py-2.5 px-3 text-center">Open Vacancy</th>
-                        <th className="py-2.5 px-3 text-center">HR Emploc</th>
-                        <th className="py-2.5 px-4 text-center">Fill Rate (MFR)</th>
-                        <th className="py-2.5 px-4 sm:px-5 text-right">SLA Status</th>
+                      <tr className="border-b border-table-rule-section bg-table-header text-sm font-semibold text-text-secondary">
+                        <th className="py-2.5 px-4 sm:px-5 whitespace-nowrap">Group name</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">Plantilla</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">Open vacancy</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">HR Emploc</th>
+                        <th className="py-2.5 px-4 text-center whitespace-nowrap">Fill rate (MFR)</th>
+                        <th className="py-2.5 px-4 sm:px-5 text-right whitespace-nowrap">SLA status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-subtle">
@@ -716,7 +718,10 @@ export default function DashboardPage() {
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-text-muted text-sm">Standby (0 Demand)</span>
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-16 h-1.5 rounded-full bg-surface-muted" />
+                                <span className="font-semibold tabular-nums text-sm text-text-muted">—</span>
+                              </div>
                             )}
                           </td>
                           <td className="py-2.5 px-4 sm:px-5 text-right">
@@ -769,12 +774,12 @@ export default function DashboardPage() {
                   ) : (
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
-                        <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold text-text-muted">
-                          <th className="py-2.5 px-4 sm:px-5">Breach Lane / Account</th>
-                          <th className="py-2.5 px-3">Category</th>
-                          <th className="py-2.5 px-3">Scope Owner</th>
-                          <th className="py-2.5 px-3 text-center">Aging</th>
-                          <th className="py-2.5 px-4 sm:px-5 text-right">Action</th>
+                        <tr className="border-b border-table-rule-section bg-table-header text-sm font-semibold text-text-secondary">
+                          <th className="py-2.5 px-4 sm:px-5 whitespace-nowrap">Breach lane / account</th>
+                          <th className="py-2.5 px-3 whitespace-nowrap">Category</th>
+                          <th className="py-2.5 px-3 whitespace-nowrap">Scope owner</th>
+                          <th className="py-2.5 px-3 text-center whitespace-nowrap">Aging</th>
+                          <th className="py-2.5 px-4 sm:px-5 text-right whitespace-nowrap">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border-subtle">

@@ -165,6 +165,7 @@
   --surface-muted: var(--soft);
   --surface-hover: var(--soft);
   --surface-selected: var(--pillbg);
+  --surface-overlay: rgba(0, 0, 0, 0.65); /* drawer / modal backdrop */
 
   --text-primary: var(--text);
   --text-secondary: #9ca3af;
@@ -280,6 +281,7 @@
     --surface-muted: var(--soft);
     --surface-hover: var(--soft);
     --surface-selected: var(--pillbg);
+    --surface-overlay: rgba(0, 0, 0, 0.65); /* drawer / modal backdrop */
 
     --text-primary: var(--text);
     --text-secondary: #9ca3af;
@@ -384,6 +386,22 @@
   --color-surface-subtle: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-elevated: var(--surface-card);
+  --color-surface-primary: var(--surface-base);
+  --color-brand-subtle: var(--surface-selected);
+  --color-brand-border: var(--border-default);
+  --color-brand-default: var(--border-default);
+  --color-danger: var(--danger-text);
+  --color-danger-subtle: var(--danger-bg);
+  --color-danger-surface: var(--danger-bg);
+  --color-danger-button-text: var(--text-inverted);
+  --color-danger-icon: var(--danger-text);
+  --color-text-brand-bold: var(--brand-primary);
+  --color-text-danger: var(--danger-text);
+  --color-text-inverse: var(--text-inverted);
+  --color-pct-high: var(--pct-good-text);
+  --color-pct-low: var(--pct-bad-text);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);

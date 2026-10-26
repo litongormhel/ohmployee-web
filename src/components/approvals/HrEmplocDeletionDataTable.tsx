@@ -351,10 +351,10 @@ export function HrEmplocDeletionDataTable({
       <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border-default bg-surface overflow-hidden">
         <div className="flex-1 overflow-x-auto">
           <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-surface text-sm font-medium text-text-secondary border-b border-border-default">
+            <thead className="sticky top-0 z-10 bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section">
               <tr>
                 {tab === "pending" && (
-                  <th scope="col" className="w-10 px-4 py-2.5 text-left">
+                  <th scope="col" className="w-10 px-4 py-2.5 text-left whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -369,30 +369,30 @@ export function HrEmplocDeletionDataTable({
                     />
                   </th>
                 )}
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Type
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Group
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Account
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Emploc / VCode
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Emploc / VCODE
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Applicant name
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Store / Position
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Store / position
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Requested by
                 </th>
                 <th
                   scope="col"
-                  className={`px-4 py-2.5 font-medium ${tab === "rejected" ? "text-left" : "text-right"}`}
+                  className={`px-4 py-2.5 font-semibold whitespace-nowrap ${tab === "rejected" ? "text-left" : "text-right"}`}
                 >
                   {tab === "rejected" ? "Rejected reason" : "Action"}
                 </th>

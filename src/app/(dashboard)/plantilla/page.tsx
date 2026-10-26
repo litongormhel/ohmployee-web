@@ -48,7 +48,14 @@ import {
   fetchOccupiedStoreIdentifiers,
   type VacancyListItem,
 } from "@/lib/queries/vacancy";
-import { formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
+import { formatStoreDisplay } from "@/lib/utils/formatName";
+import {
+  formatPersonName,
+  formatPosition,
+  formatStoreName,
+  formatAccountName,
+  formatDisplayText,
+} from "@/lib/utils/displayText";
 import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import { StoreStaffingDrawer } from "@/components/plantilla/StoreStaffingDrawer";
@@ -895,12 +902,12 @@ function PlantillaPageContent() {
                             {!account.isPoolAccount && account.groupName && (
                               <span className="text-text-secondary font-normal text-sm mr-1">
                                 {account.groupName.trim().toLowerCase().startsWith("group")
-                                  ? account.groupName
-                                  : `Group ${account.groupName}`}{" "}
+                                  ? formatDisplayText(account.groupName)
+                                  : `Group ${formatDisplayText(account.groupName)}`}{" "}
                                 •
                               </span>
                             )}
-                            {account.name}
+                            {formatAccountName(account.name)}
                           </h3>
                           {account.isPoolAccount && (
                             <p className="text-[10px] font-bold text-text-secondary tracking-wider mt-0.5">
@@ -915,7 +922,7 @@ function PlantillaPageContent() {
                               Pool
                             </span>
                           ) : (
-                            account.fillRate < 80 && (
+                            account.required > 0 && account.fillRate < 80 && (
                               <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
                                 Warning
                               </span>
@@ -949,14 +956,24 @@ function PlantillaPageContent() {
                           <span className="text-[10px] font-bold text-text-secondary shrink-0 w-8">
                             MFR
                           </span>
-                          <div className={`relative flex-1 h-2 rounded-full overflow-hidden ${colors.track}`}>
-                            <div
-                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${colors.bar}`}
-                              style={{ width: `${Math.min(100, account.fillRate)}%` }}
-                            />
+                          <div
+                            className={`relative flex-1 h-2 rounded-full overflow-hidden ${
+                              account.required > 0 ? colors.track : "bg-surface-muted"
+                            }`}
+                          >
+                            {account.required > 0 && (
+                              <div
+                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${colors.bar}`}
+                                style={{ width: `${Math.min(100, account.fillRate)}%` }}
+                              />
+                            )}
                           </div>
-                          <span className={`text-xs font-semibold shrink-0 w-8 text-right font-mono ${colors.text}`}>
-                            {account.fillRate}%
+                          <span
+                            className={`text-xs font-semibold shrink-0 w-8 text-right font-mono ${
+                              account.required > 0 ? colors.text : "text-text-muted"
+                            }`}
+                          >
+                            {account.required > 0 ? `${account.fillRate}%` : "—"}
                           </span>
                         </div>
                       )}
@@ -1091,9 +1108,9 @@ function PlantillaPageContent() {
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               <MetricCard
                 label="Fulfillment Rate (MFR)"
-                value={`${fulfillmentRate}%`}
+                value={summaryData && summaryData.required > 0 ? `${fulfillmentRate}%` : "—"}
                 helperText={`${summaryData?.actual ?? 0} active / ${summaryData?.required ?? 0} quota`}
-                badge={summaryData?.required ? `${fulfillmentRate}%` : undefined}
+                badge={summaryData && summaryData.required > 0 ? `${fulfillmentRate}%` : undefined}
                 isLoading={summaryQuery.isLoading}
                 isBlocked={summaryBlocked}
                 isError={!summaryBlocked && summaryQuery.isError}
@@ -1697,22 +1714,22 @@ function EmployeeTable({
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Status
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -1788,7 +1805,7 @@ function EmployeeTable({
                       return (
                         <div className="min-w-0" title={storeObj.isMulti ? storeObj.tooltip : undefined}>
                           <div className="font-medium text-table-text flex items-center gap-1.5">
-                            <span className="truncate">{storeObj.displayText}</span>
+                            <span className="truncate">{formatStoreName(storeObj.displayText)}</span>
                             {storeObj.isMulti && (
                               <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
                                 +{storeObj.extraCount}
@@ -1798,11 +1815,11 @@ function EmployeeTable({
                           {locationLabel ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
                               <MapPin className="h-3 w-3 text-text-muted shrink-0" />
-                              <span className="truncate max-w-[150px]">{locationLabel}</span>
+                              <span className="truncate max-w-[150px]">{formatStoreName(locationLabel)}</span>
                             </span>
                           ) : row.accountName ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-muted border border-border-subtle mt-1 truncate max-w-[150px]">
-                              {row.accountName}
+                              {formatAccountName(row.accountName)}
                             </span>
                           ) : null}
                         </div>
@@ -1814,7 +1831,7 @@ function EmployeeTable({
                   <td className="px-4 py-3">
                     <div className="flex flex-col">
                       <span className="font-medium text-table-text text-sm">
-                        {row.positionTitle ?? "General Staff"}
+                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
                       </span>
                       <span className="text-xs text-table-text-muted mt-0.5">
                         {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
@@ -1930,25 +1947,25 @@ function VacancyTable({
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
-                VCode
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+                VCODE
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
-                HC Needed
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+                HC needed
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Aging
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
-                Pipeline Status
+              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+                Pipeline status
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>

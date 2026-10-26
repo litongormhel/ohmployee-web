@@ -22,7 +22,13 @@ import {
   type VacancyListItem,
   type VacancyStatus,
 } from "@/lib/queries/vacancy";
-import { formatHrcoName, formatPersonName, formatStoreDisplay } from "@/lib/utils/formatName";
+import { formatHrcoName, formatStoreDisplay } from "@/lib/utils/formatName";
+import {
+  formatPersonName,
+  formatPosition,
+  formatAccountName,
+  formatStoreName,
+} from "@/lib/utils/displayText";
 import { useCurrentUser } from "@/lib/auth";
 import {
   canAddApplicant,
@@ -37,78 +43,78 @@ function getTableColumns(status: VacancyStatus): string[] {
   if (status === "open") {
     return [
       "VCODE",
-      "POSITION",
-      "ACCOUNT / GROUP",
-      "OUTLET NAME",
+      "Position",
+      "Account / group",
+      "Outlet name",
       "HRCO",
-      "AGING",
+      "Aging",
       "HC",
-      "ACTIONS",
+      "Actions",
     ];
   }
   if (status === "closure") {
     return [
       "VCODE",
-      "POSITION",
-      "ACCOUNT / GROUP",
-      "OUTLET NAME",
+      "Position",
+      "Account / group",
+      "Outlet name",
       "HRCO",
-      "REASON FOR DELETION",
-      "REQUESTED BY",
-      "AGING",
+      "Reason for deletion",
+      "Requested by",
+      "Aging",
       "HC",
-      "ACTIONS",
+      "Actions",
     ];
   }
   if (status === "hired") {
     return [
       "VCODE",
-      "POSITION",
-      "ACCOUNT / GROUP",
-      "OUTLET NAME",
+      "Position",
+      "Account / group",
+      "Outlet name",
       "HRCO",
-      "APPLICANT",
-      "ONBOARD DATE",
-      "DAYS TO FILL",
+      "Applicant",
+      "Onboard date",
+      "Days to fill",
     ];
   }
   if (status === "failed_backout") {
     return [
       "VCODE",
-      "POSITION",
-      "ACCOUNT / GROUP",
-      "OUTLET NAME",
+      "Position",
+      "Account / group",
+      "Outlet name",
       "HRCO",
-      "APPLICANT",
-      "DATE OF BACKOUT",
-      "STATUS",
-      "AGING",
+      "Applicant",
+      "Date of backout",
+      "Status",
+      "Aging",
     ];
   }
   if (status === "pipeline") {
     return [
       "VCODE",
-      "POSITION",
-      "ACCOUNT / GROUP",
-      "OUTLET NAME",
+      "Position",
+      "Account / group",
+      "Outlet name",
       "HRCO",
-      "APPLICANT",
-      "STATUS",
-      "AGING",
-      "ACTIONS",
+      "Applicant",
+      "Status",
+      "Aging",
+      "Actions",
     ];
   }
   return [
     "VCODE",
-    "POSITION",
-    "ACCOUNT / GROUP",
-    "OUTLET NAME",
+    "Position",
+    "Account / group",
+    "Outlet name",
     "HRCO",
-    "APPLICANT",
-    "STATUS",
-    "AGING",
+    "Applicant",
+    "Status",
+    "Aging",
     "HC",
-    "ACTIONS",
+    "Actions",
   ];
 }
 
@@ -304,7 +310,7 @@ export function VacancyTable({
             <tr>
               {activeColumns.map((column) => (
                 <th
-                  className="border-b border-table-rule-section px-4 py-2.5"
+                  className="border-b border-table-rule-section px-4 py-2.5 whitespace-nowrap"
                   key={column || "actions"}
                   scope="col"
                 >
@@ -399,34 +405,34 @@ export function VacancyTable({
                       {row.cgCode || row.vcode || "Uncoded"}
                     </td>
 
-                    {/* 2. POSITION */}
+                    {/* 2. Position */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="font-medium text-table-text">
-                        {row.position_title ?? "—"}
+                        {row.position_title ? formatPosition(row.position_title) : "—"}
                       </div>
                       <div className="text-xs text-table-text-muted">
                         {row.employmentType || "Stationary"}
                       </div>
                     </td>
 
-                    {/* 3. ACCOUNT / GROUP */}
+                    {/* 3. Account / group */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       <div className="font-medium text-table-text">
-                        {row.accountName ?? "—"}
+                        {row.accountName ? formatAccountName(row.accountName) : "—"}
                       </div>
                       <div className="text-xs text-table-text-muted">
                         {formatGroupName(row.groupName, row.accountName) || "—"}
                       </div>
                     </td>
 
-                    {/* 4. OUTLET NAME */}
+                    {/* 4. Outlet name */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       {(() => {
                         const storeInfo = formatStoreDisplay(row.storeName, row.assignedStores);
                         return (
                           <div title={storeInfo.isMulti ? storeInfo.tooltip : undefined}>
                             <div className="font-medium text-table-text flex items-center gap-1.5">
-                              <span className="truncate">{storeInfo.displayText}</span>
+                              <span className="truncate">{formatStoreName(storeInfo.displayText)}</span>
                               {storeInfo.isMulti && (
                                 <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
                                   +{storeInfo.extraCount}
@@ -435,7 +441,7 @@ export function VacancyTable({
                             </div>
                             {row.storeLocation ? (
                               <div className="text-xs text-table-text-muted">
-                                {row.storeLocation}
+                                {formatStoreName(row.storeLocation)}
                               </div>
                             ) : null}
                           </div>
@@ -447,7 +453,7 @@ export function VacancyTable({
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.hrcoName ? (
                         <div className="font-medium text-table-text">
-                          {formatHrcoName(row.hrcoName)}
+                          {formatPersonName(formatHrcoName(row.hrcoName))}
                         </div>
                       ) : (
                         <span className="inline-flex items-center rounded-md border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
@@ -467,7 +473,7 @@ export function VacancyTable({
                         {/* 7. REQUESTED BY */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-sm text-table-text-muted">
                           <span className="font-medium text-table-text-sub">
-                            {row.closureRequestedBy || "Operations"}
+                            {row.closureRequestedBy ? formatPersonName(row.closureRequestedBy) : "Operations"}
                           </span>
                           {row.closureRequestedAt && (
                             <span className="text-text-muted">

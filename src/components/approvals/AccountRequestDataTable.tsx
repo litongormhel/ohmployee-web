@@ -181,33 +181,33 @@ export function AccountRequestDataTable({
       <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border-default bg-surface overflow-hidden">
         <div className="flex-1 overflow-x-auto">
           <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-subtle text-xs font-semibold text-text-secondary border-b border-border-default">
+            <thead className="sticky top-0 z-10 bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section">
               <tr>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Applicant Name
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Applicant name
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Email & Contact
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Email & contact
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Requested Role
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Requested role
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
-                  Requested Scope
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Requested scope
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Notes
                 </th>
-                <th scope="col" className="px-4 py-2.5 font-medium">
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Submitted
                 </th>
                 <th
                   scope="col"
-                  className={`px-4 py-2.5 font-medium ${
+                  className={`px-4 py-2.5 font-semibold whitespace-nowrap ${
                     tab === "rejected" ? "text-left" : "text-right"
                   }`}
                 >
-                  {tab === "rejected" ? "Rejection Reason" : "Action"}
+                  {tab === "rejected" ? "Rejection reason" : "Action"}
                 </th>
               </tr>
             </thead>

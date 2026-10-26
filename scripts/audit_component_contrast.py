@@ -170,11 +170,13 @@ def main():
     # Scans all .tsx files in src/
     all_pairs = defaultdict(list)
     src_dir = os.path.join(base_dir, "src")
+    tsx_files = []
 
     for root, _, files in os.walk(src_dir):
         for file in sorted(files):
             if file.endswith('.tsx'):
                 full_p = os.path.join(root, file)
+                tsx_files.append(full_p)
                 rel_p = os.path.relpath(full_p, base_dir)
                 found = find_bg_text_pairs(full_p)
                 for bg, tx, lno in found:
@@ -230,6 +232,63 @@ def main():
             print(f"  {fi['file']}:{fi['line']} (bg-{fi['bg']} text-{fi['tx']}) - Light: {fi['light_ratio']:.2f}:1 ({'PASS' if fi['light_pass'] else 'FAIL'}), Dark: {fi['dark_ratio']:.2f}:1 ({'PASS' if fi['dark_pass'] else 'FAIL'})")
     else:
         print("All evaluated pairs across all .tsx files pass WCAG AA (>= 4.5:1) in both themes with 0 failures!")
+
+    # Check for unregistered semantic color tokens in @theme inline
+    audit_unregistered_theme_tokens(globals_path, tsx_files)
+
+def audit_unregistered_theme_tokens(globals_path, tsx_files):
+    print("\n" + "=" * 105)
+    print("AUDIT: @theme inline COLOR TOKEN REGISTRATION")
+    print("=" * 105)
+    with open(globals_path, 'r', encoding='utf-8') as f:
+        css = f.read()
+
+    theme_block = re.search(r'@theme inline\s*\{(.*?)\}', css, re.DOTALL)
+    registered = set()
+    if theme_block:
+        for line in theme_block.group(1).splitlines():
+            m = re.match(r'\s*--color-([a-zA-Z0-9-]+)\s*:', line)
+            if m:
+                registered.add(m.group(1))
+
+    tailwind_builtins = {
+        'white', 'black', 'transparent', 'current', 'inherit', 'none',
+        'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl', '7xl', '8xl', '9xl', '2xs', '3xs',
+        'left', 'center', 'right', 'justify', 'start', 'end',
+        '0', '1', '2', '4', '8', 'px', 't', 'r', 'b', 'l', 'x', 'y', 's', 'e',
+        'solid', 'dashed', 'dotted', 'double', 'hidden',
+        'red', 'blue', 'green', 'yellow', 'amber', 'emerald', 'indigo', 'purple', 'pink', 'rose', 'slate', 'gray', 'zinc', 'neutral', 'stone',
+        'brand', 'status', 'pct', 'table', 'mono', 'hero'
+    }
+
+    unregistered = defaultdict(list)
+    for tf in tsx_files:
+        with open(tf, 'r', encoding='utf-8') as f:
+            for lno, line in enumerate(f, 1):
+                # Match bg-*, text-*, border-*, border-[trblxy]-*
+                matches = re.findall(r'[\s\"\'\`{](bg|text|border(?:-[trblxy])?)-([a-zA-Z0-9-]+)', line)
+                for prefix, name in matches:
+                    if prefix.startswith('border') and name.startswith(('spacing-', 'collapse', 'separate')):
+                        continue
+                    if prefix == 'bg' and name.startswith('gradient-'):
+                        continue
+                    if prefix == 'text' and name in ['2xs', '3xs']:
+                        continue
+                    parts = name.split('-')
+                    if parts[0] in tailwind_builtins and len(parts) > 1 and parts[1].isdigit():
+                        continue
+                    if name in tailwind_builtins or parts[0] in ['border', 'rounded', 'collapse', 'separate']:
+                        continue
+                    if name not in registered:
+                        unregistered[f"{prefix}-{name}"].append((os.path.basename(tf), lno))
+
+    if not unregistered:
+        print(f"Verified {len(registered)} registered @theme inline tokens. Zero unregistered semantic color tokens found in TSX files!")
+    else:
+        print(f"Found {len(unregistered)} potentially unregistered color tokens:")
+        for tok, occ in sorted(unregistered.items()):
+            files_str = ", ".join([f"{fn}:{ln}" for fn, ln in occ[:3]])
+            print(f"  {tok} ({len(occ)} usages) -> e.g. {files_str}")
 
 if __name__ == "__main__":
     main()

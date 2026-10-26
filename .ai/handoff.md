@@ -1,5 +1,65 @@
 # AI Handoff
 
+## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
+
+**Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+1. **Table Headers Unified (`text-sm font-semibold whitespace-nowrap text-text-secondary`)**:
+   - `src/components/shared/DataTable.tsx`: Exported shared `TABLE_THEAD_CLASS` and `TABLE_TH_CLASS` with `text-sm font-semibold whitespace-nowrap text-text-secondary bg-table-header`.
+   - `src/components/vacancy/VacancyTable.tsx`: Converted uppercase string arrays across all tabs (Active, Pipeline, Hired, Backout, Inactive, All) to sentence case (`Position`, `Account / group`, `Outlet name`, `Reason for deletion`, `Requested by`, `Onboard date`, `Days to fill`, `Date of backout`, etc., strictly preserving `VCODE`, `HRCO`, `HC`). Short headers like `Account / group` prevented from wrapping via `whitespace-nowrap`.
+   - `src/components/hr-emploc/HrEmplocTable.tsx`: Updated `Requested by` and wrapped cells with `whitespace-nowrap`.
+   - `src/components/team-directory/TeamDirectoryTable.tsx`: Updated `Role & tier`, `Assigned jurisdiction`, added `whitespace-nowrap`.
+   - `src/components/users/UsersTable.tsx`: Updated `Assigned scopes`, applied `bg-table-header text-text-secondary whitespace-nowrap`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Tables 1 & 2 headers sentence case (`VCODE`, `HC needed`, `Pipeline status`), added `whitespace-nowrap`.
+   - All 11 `Approvals` tables: Standardized `thead` to `bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section whitespace-nowrap` (`AccountRequestDataTable`, `AccountTransferDataTable`, `ApplicantMovementDataTable`, `CoverageDataTable`, `DeactivationDataTable`, `HeadcountDataTable`, `HrEmplocDeletionDataTable`, `NewStoreDataTable`, `PlantillaApprovalDataTable`, `RelieverDataTable`, `VacancyClosureDataTable`).
+   - `Reports` tables: `ReportDetailView.tsx`, `TeamPerformanceTab.tsx`, `FloatingStaffTab.tsx`, `CustomReportTab.tsx`.
+   - `Dashboard` matrix: `src/app/(dashboard)/dashboard/page.tsx`.
+
+2. **Zero-Headcount Display Guard**:
+   - Gated Warning chip display by `required > 0`. When required HC = 0:
+     - `src/app/(dashboard)/plantilla/page.tsx`: Account cards hide Warning chip (`account.required > 0 && account.fillRate < 80`), display `"—"` instead of `"0%"`, and render MFR bar as an empty neutral track (`bg-border-subtle`). Plantilla Executive KPI `MetricCard` shows `"—"` when `summaryData.required === 0`.
+     - `src/components/cencom/CencomGroupTable.tsx`: MFR progress bar displays neutral track and `"—"` when `group.required === 0`; status pill renders neutral `"Standby"` rather than Critical.
+     - `src/app/(dashboard)/dashboard/page.tsx`: Fill rate cell renders neutral track and `"—"` when `row.fillRatePct === null`.
+
+3. **Display Casing Formatter (`src/lib/utils/displayText.ts`)**:
+   - Implemented `formatDisplayText`, `formatPersonName`, `formatPosition`, `formatStoreName`, `formatAccountName`, `formatAgingBucket`, `formatVacancySource`.
+   - Preserves `ACRONYM_ALLOWLIST`: `HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`.
+   - Preserves tokens containing digits (e.g., `VCAG5_0056`, `HRG3`), hyphens, apostrophes (e.g., `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+   - Render-layer only: verified by grep that no queries, sort, search, filters, or API payloads consume formatted values.
+   - Tested and verified against 15 specific sample inputs via `scripts/test_display_text.mjs` (all passed).
+   - Applied across `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `HrEmplocTable.tsx`, `plantilla/page.tsx`, `UsersTable.tsx`, `TeamDirectoryTable.tsx`, `NotificationCard.tsx`.
+
+4. **Scrim & Theme Token Registration (`src/app/globals.css`)**:
+   - Declared `--surface-overlay: rgba(0, 0, 0, 0.65);` in dark `:root` and dark media queries (light mode remains `rgba(0, 0, 0, 0.45)`).
+   - Registered `--color-surface-overlay: var(--surface-overlay);` in `@theme inline`.
+   - Audited and registered missing theme color tokens in `@theme inline`: `--color-danger: var(--danger-text);`, `--color-surface-elevated`, `--color-surface-primary`, `--color-brand-subtle`, `--color-brand-border`, `--color-brand-default`, `--color-danger-subtle`, `--color-danger-surface`, `--color-danger-button-text`, `--color-danger-icon`, `--color-text-brand-bold`, `--color-text-danger`, `--color-text-inverse`, `--color-pct-high`, `--color-pct-low`.
+   - Extended `scripts/audit_component_contrast.py` with `@theme inline` registration check (100 tokens verified, 0 unregistered).
+
+5. **Humanized Vacancy Drawer Enums**:
+   - Aging brackets humanized based on definitions in `src/lib/queries/vacancy.ts`:
+     - `0_7` -> `0-7 days`
+     - `8_14` -> `8-14 days`
+     - `15_30` -> `15-30 days`
+     - `31_plus` -> `31+ days`
+   - Source: `pool` -> `Pool`, `active_recruitment` -> `Active recruitment`.
+   - Pipeline status: `pipeline` -> `Pipeline`, `endorsed` -> `Endorsed`, `for_interview` -> `For interview`, `for_exam` -> `For exam`, `passed` -> `Passed`, `for_onboarding` -> `For onboarding`, `hired` -> `Hired`, `failed` -> `Failed`, `backed_out` -> `Backed out`.
+
+6. **Percentage Color Consistency**:
+   - `src/app/(dashboard)/dashboard/page.tsx#L448`: Replaced ad-hoc `text-brand-500` on Open Vacancies "Fill" rate text with `fillRateStatus.classes.text` from the named `fill_rate` scale.
+
+7. **Disabled Primary Button Contrast**:
+   - Converted washed-out disabled primary buttons across 14 modals from opacity reduction to high-contrast solid pattern:
+     `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`.
+   - Updated modals: `AddApplicantModal`, `AdvancePipelineModal`, `EditHiredDateModal`, `MarkHiredModal`, `ReopenVacancyModal`, `FailBackoutModal`, `RequestVacancyClosureModal`, `EditApplicantModal`, `AssignEmployeeNoModal`, `InitiateSeparationModal`, `RequestDeactivationModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `CreateUserModal`.
+
+8. **Sidebar Focus Ring**:
+   - `src/components/Sidebar.tsx`: Replaced default mouse click focus rings with `:focus-visible` only (`outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500`) on logo brand link, nav items, and sign out button.
+
+---
+
 ## Drawer Actions & Mutations RBAC Matrix Full Synchronization & Enforced Guards (ohm#rbac01)
 
 **Status: COMPLETE — 55-ITEM DRAWER ACTIONS & MUTATIONS MATRIX IMPLEMENTED AND ENFORCED; DATABASE MIGRATION SCRIPT CREATED; RBAC CONSTANTS AND GRANULAR CHECKERS ADDED; USER AND DRAWER ACTION GUARDS DEPLOYED; CLEAN ESLINT (0 ERRORS), CLEAN BUILD (19/19 STATIC ROUTES GENERATED), ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
@@ -165,6 +225,66 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
+
+**Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+1. **Table Headers Unified (`text-sm font-semibold whitespace-nowrap text-text-secondary`)**:
+   - `src/components/shared/DataTable.tsx`: Exported shared `TABLE_THEAD_CLASS` and `TABLE_TH_CLASS` with `text-sm font-semibold whitespace-nowrap text-text-secondary bg-table-header`.
+   - `src/components/vacancy/VacancyTable.tsx`: Converted uppercase string arrays across all tabs (Active, Pipeline, Hired, Backout, Inactive, All) to sentence case (`Position`, `Account / group`, `Outlet name`, `Reason for deletion`, `Requested by`, `Onboard date`, `Days to fill`, `Date of backout`, etc., strictly preserving `VCODE`, `HRCO`, `HC`). Short headers like `Account / group` prevented from wrapping via `whitespace-nowrap`.
+   - `src/components/hr-emploc/HrEmplocTable.tsx`: Updated `Requested by` and wrapped cells with `whitespace-nowrap`.
+   - `src/components/team-directory/TeamDirectoryTable.tsx`: Updated `Role & tier`, `Assigned jurisdiction`, added `whitespace-nowrap`.
+   - `src/components/users/UsersTable.tsx`: Updated `Assigned scopes`, applied `bg-table-header text-text-secondary whitespace-nowrap`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Tables 1 & 2 headers sentence case (`VCODE`, `HC needed`, `Pipeline status`), added `whitespace-nowrap`.
+   - All 11 `Approvals` tables: Standardized `thead` to `bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section whitespace-nowrap` (`AccountRequestDataTable`, `AccountTransferDataTable`, `ApplicantMovementDataTable`, `CoverageDataTable`, `DeactivationDataTable`, `HeadcountDataTable`, `HrEmplocDeletionDataTable`, `NewStoreDataTable`, `PlantillaApprovalDataTable`, `RelieverDataTable`, `VacancyClosureDataTable`).
+   - `Reports` tables: `ReportDetailView.tsx`, `TeamPerformanceTab.tsx`, `FloatingStaffTab.tsx`, `CustomReportTab.tsx`.
+   - `Dashboard` matrix: `src/app/(dashboard)/dashboard/page.tsx`.
+
+2. **Zero-Headcount Display Guard**:
+   - Gated Warning chip display by `required > 0`. When required HC = 0:
+     - `src/app/(dashboard)/plantilla/page.tsx`: Account cards hide Warning chip (`account.required > 0 && account.fillRate < 80`), display `"—"` instead of `"0%"`, and render MFR bar as an empty neutral track (`bg-border-subtle`). Plantilla Executive KPI `MetricCard` shows `"—"` when `summaryData.required === 0`.
+     - `src/components/cencom/CencomGroupTable.tsx`: MFR progress bar displays neutral track and `"—"` when `group.required === 0`; status pill renders neutral `"Standby"` rather than Critical.
+     - `src/app/(dashboard)/dashboard/page.tsx`: Fill rate cell renders neutral track and `"—"` when `row.fillRatePct === null`.
+
+3. **Display Casing Formatter (`src/lib/utils/displayText.ts`)**:
+   - Implemented `formatDisplayText`, `formatPersonName`, `formatPosition`, `formatStoreName`, `formatAccountName`, `formatAgingBucket`, `formatVacancySource`.
+   - Preserves `ACRONYM_ALLOWLIST`: `HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`.
+   - Preserves tokens containing digits (e.g., `VCAG5_0056`, `HRG3`), hyphens, apostrophes (e.g., `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+   - Render-layer only: verified by grep that no queries, sort, search, filters, or API payloads consume formatted values.
+   - Tested and verified against 15 specific sample inputs via `scripts/test_display_text.mjs` (all passed).
+   - Applied across `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `HrEmplocTable.tsx`, `plantilla/page.tsx`, `UsersTable.tsx`, `TeamDirectoryTable.tsx`, `NotificationCard.tsx`.
+
+4. **Scrim & Theme Token Registration (`src/app/globals.css`)**:
+   - Declared `--surface-overlay: rgba(0, 0, 0, 0.65);` in dark `:root` and dark media queries (light mode remains `rgba(0, 0, 0, 0.45)`).
+   - Registered `--color-surface-overlay: var(--surface-overlay);` in `@theme inline`.
+   - Audited and registered missing theme color tokens in `@theme inline`: `--color-danger: var(--danger-text);`, `--color-surface-elevated`, `--color-surface-primary`, `--color-brand-subtle`, `--color-brand-border`, `--color-brand-default`, `--color-danger-subtle`, `--color-danger-surface`, `--color-danger-button-text`, `--color-danger-icon`, `--color-text-brand-bold`, `--color-text-danger`, `--color-text-inverse`, `--color-pct-high`, `--color-pct-low`.
+   - Extended `scripts/audit_component_contrast.py` with `@theme inline` registration check (100 tokens verified, 0 unregistered).
+
+5. **Humanized Vacancy Drawer Enums**:
+   - Aging brackets humanized based on definitions in `src/lib/queries/vacancy.ts`:
+     - `0_7` -> `0-7 days`
+     - `8_14` -> `8-14 days`
+     - `15_30` -> `15-30 days`
+     - `31_plus` -> `31+ days`
+   - Source: `pool` -> `Pool`, `active_recruitment` -> `Active recruitment`.
+   - Pipeline status: `pipeline` -> `Pipeline`, `endorsed` -> `Endorsed`, `for_interview` -> `For interview`, `for_exam` -> `For exam`, `passed` -> `Passed`, `for_onboarding` -> `For onboarding`, `hired` -> `Hired`, `failed` -> `Failed`, `backed_out` -> `Backed out`.
+
+6. **Percentage Color Consistency**:
+   - `src/app/(dashboard)/dashboard/page.tsx#L448`: Replaced ad-hoc `text-brand-500` on Open Vacancies "Fill" rate text with `fillRateStatus.classes.text` from the named `fill_rate` scale.
+
+7. **Disabled Primary Button Contrast**:
+   - Converted washed-out disabled primary buttons across 14 modals from opacity reduction to high-contrast solid pattern:
+     `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`.
+   - Updated modals: `AddApplicantModal`, `AdvancePipelineModal`, `EditHiredDateModal`, `MarkHiredModal`, `ReopenVacancyModal`, `FailBackoutModal`, `RequestVacancyClosureModal`, `EditApplicantModal`, `AssignEmployeeNoModal`, `InitiateSeparationModal`, `RequestDeactivationModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `CreateUserModal`.
+
+8. **Sidebar Focus Ring**:
+   - `src/components/Sidebar.tsx`: Replaced default mouse click focus rings with `:focus-visible` only (`outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500`) on logo brand link, nav items, and sign out button.
+
+---
+
 ## Manual Test UI Fix Pass — Dark Mode Active Pills, Contrast & Typography Alignment (ohm#uifix01)
 
 **Status: COMPLETE — ALL 9 DIRECTIVES FROM OHM'S MANUAL TEST (DARK MODE, LOCALHOST) RESOLVED AND VERIFIED; ROOT CAUSE OF UNREADABLE LIGHT PILLS IN DARK MODE IDENTIFIED (bg-brand-50 HARDCODED TO #eef2ff AND UNDEFINED bg-[var(--foreground)] / text-[var(--card)] PATTERNS) AND FIXED VIA TOKEN PAIR --tab-active-bg, --tab-active-text, AND --tab-active-border; TEAM DIRECTORY AVATAR INITIALS RESOLVED TO var(--brand-button) GIVING 6.73:1 CONTRAST IN BOTH THEMES; SELECTED OPTION CARDS CONVERTED TO BRAND-SOFT --surface-selected WITH >= 6.30:1 CONTRAST; MONOSPACE PURGED FROM NON-IDENTIFIERS (ACTUAL/REQUIRED COUNTS, AGING METRICS, APPROVALS DATES, DURATION COUNTERS) IN FAVOR OF SANS TABULAR-NUMS; BREADCRUMBS, STAT-CARD LABELS, SECTION HEADINGS, AND TABLE HEADERS (14PX FLOOR) CONVERTED TO SENTENCE CASE, REDUCING UPPERCASE/TRACKING INSTANCES FROM 868 TO 811; PLANTILLA WARNING CHIP, NOTIFICATION CARD BORDERS, AND CENCOM SUMMARY DOTS NEUTRALIZED; CLIPPED GRAPHIC REMOVED FROM REPORTS HUB BANNER; DASHBOARD TOAST MOVED TO BOTTOM-CENTER; HOST OF NEXT_PUBLIC_SUPABASE_URL CONFIRMED AS PRODUCTION REF rwxelulyapjgaarlwkus (CORRECTED: rwxelulyapjgaarlwkus IS PRODUCTION, qqiiznmqxfoamqytjica IS STAGING); ADDED scripts/audit_component_contrast.py WITH 100% PASSING CONTRAST RATIOS ACROSS SHARED COMPONENTS; ZERO DATABASE ACCESS PERFORMED; LINT CLEAN (0 ERRORS), BUILD CLEAN (19/19 STATIC ROUTES), AND GATE.PY PERMITTED; LOCAL COMMIT ONLY ON MAIN**
@@ -210,6 +330,66 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
+
+**Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+1. **Table Headers Unified (`text-sm font-semibold whitespace-nowrap text-text-secondary`)**:
+   - `src/components/shared/DataTable.tsx`: Exported shared `TABLE_THEAD_CLASS` and `TABLE_TH_CLASS` with `text-sm font-semibold whitespace-nowrap text-text-secondary bg-table-header`.
+   - `src/components/vacancy/VacancyTable.tsx`: Converted uppercase string arrays across all tabs (Active, Pipeline, Hired, Backout, Inactive, All) to sentence case (`Position`, `Account / group`, `Outlet name`, `Reason for deletion`, `Requested by`, `Onboard date`, `Days to fill`, `Date of backout`, etc., strictly preserving `VCODE`, `HRCO`, `HC`). Short headers like `Account / group` prevented from wrapping via `whitespace-nowrap`.
+   - `src/components/hr-emploc/HrEmplocTable.tsx`: Updated `Requested by` and wrapped cells with `whitespace-nowrap`.
+   - `src/components/team-directory/TeamDirectoryTable.tsx`: Updated `Role & tier`, `Assigned jurisdiction`, added `whitespace-nowrap`.
+   - `src/components/users/UsersTable.tsx`: Updated `Assigned scopes`, applied `bg-table-header text-text-secondary whitespace-nowrap`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Tables 1 & 2 headers sentence case (`VCODE`, `HC needed`, `Pipeline status`), added `whitespace-nowrap`.
+   - All 11 `Approvals` tables: Standardized `thead` to `bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section whitespace-nowrap` (`AccountRequestDataTable`, `AccountTransferDataTable`, `ApplicantMovementDataTable`, `CoverageDataTable`, `DeactivationDataTable`, `HeadcountDataTable`, `HrEmplocDeletionDataTable`, `NewStoreDataTable`, `PlantillaApprovalDataTable`, `RelieverDataTable`, `VacancyClosureDataTable`).
+   - `Reports` tables: `ReportDetailView.tsx`, `TeamPerformanceTab.tsx`, `FloatingStaffTab.tsx`, `CustomReportTab.tsx`.
+   - `Dashboard` matrix: `src/app/(dashboard)/dashboard/page.tsx`.
+
+2. **Zero-Headcount Display Guard**:
+   - Gated Warning chip display by `required > 0`. When required HC = 0:
+     - `src/app/(dashboard)/plantilla/page.tsx`: Account cards hide Warning chip (`account.required > 0 && account.fillRate < 80`), display `"—"` instead of `"0%"`, and render MFR bar as an empty neutral track (`bg-border-subtle`). Plantilla Executive KPI `MetricCard` shows `"—"` when `summaryData.required === 0`.
+     - `src/components/cencom/CencomGroupTable.tsx`: MFR progress bar displays neutral track and `"—"` when `group.required === 0`; status pill renders neutral `"Standby"` rather than Critical.
+     - `src/app/(dashboard)/dashboard/page.tsx`: Fill rate cell renders neutral track and `"—"` when `row.fillRatePct === null`.
+
+3. **Display Casing Formatter (`src/lib/utils/displayText.ts`)**:
+   - Implemented `formatDisplayText`, `formatPersonName`, `formatPosition`, `formatStoreName`, `formatAccountName`, `formatAgingBucket`, `formatVacancySource`.
+   - Preserves `ACRONYM_ALLOWLIST`: `HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`.
+   - Preserves tokens containing digits (e.g., `VCAG5_0056`, `HRG3`), hyphens, apostrophes (e.g., `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+   - Render-layer only: verified by grep that no queries, sort, search, filters, or API payloads consume formatted values.
+   - Tested and verified against 15 specific sample inputs via `scripts/test_display_text.mjs` (all passed).
+   - Applied across `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `HrEmplocTable.tsx`, `plantilla/page.tsx`, `UsersTable.tsx`, `TeamDirectoryTable.tsx`, `NotificationCard.tsx`.
+
+4. **Scrim & Theme Token Registration (`src/app/globals.css`)**:
+   - Declared `--surface-overlay: rgba(0, 0, 0, 0.65);` in dark `:root` and dark media queries (light mode remains `rgba(0, 0, 0, 0.45)`).
+   - Registered `--color-surface-overlay: var(--surface-overlay);` in `@theme inline`.
+   - Audited and registered missing theme color tokens in `@theme inline`: `--color-danger: var(--danger-text);`, `--color-surface-elevated`, `--color-surface-primary`, `--color-brand-subtle`, `--color-brand-border`, `--color-brand-default`, `--color-danger-subtle`, `--color-danger-surface`, `--color-danger-button-text`, `--color-danger-icon`, `--color-text-brand-bold`, `--color-text-danger`, `--color-text-inverse`, `--color-pct-high`, `--color-pct-low`.
+   - Extended `scripts/audit_component_contrast.py` with `@theme inline` registration check (100 tokens verified, 0 unregistered).
+
+5. **Humanized Vacancy Drawer Enums**:
+   - Aging brackets humanized based on definitions in `src/lib/queries/vacancy.ts`:
+     - `0_7` -> `0-7 days`
+     - `8_14` -> `8-14 days`
+     - `15_30` -> `15-30 days`
+     - `31_plus` -> `31+ days`
+   - Source: `pool` -> `Pool`, `active_recruitment` -> `Active recruitment`.
+   - Pipeline status: `pipeline` -> `Pipeline`, `endorsed` -> `Endorsed`, `for_interview` -> `For interview`, `for_exam` -> `For exam`, `passed` -> `Passed`, `for_onboarding` -> `For onboarding`, `hired` -> `Hired`, `failed` -> `Failed`, `backed_out` -> `Backed out`.
+
+6. **Percentage Color Consistency**:
+   - `src/app/(dashboard)/dashboard/page.tsx#L448`: Replaced ad-hoc `text-brand-500` on Open Vacancies "Fill" rate text with `fillRateStatus.classes.text` from the named `fill_rate` scale.
+
+7. **Disabled Primary Button Contrast**:
+   - Converted washed-out disabled primary buttons across 14 modals from opacity reduction to high-contrast solid pattern:
+     `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`.
+   - Updated modals: `AddApplicantModal`, `AdvancePipelineModal`, `EditHiredDateModal`, `MarkHiredModal`, `ReopenVacancyModal`, `FailBackoutModal`, `RequestVacancyClosureModal`, `EditApplicantModal`, `AssignEmployeeNoModal`, `InitiateSeparationModal`, `RequestDeactivationModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `CreateUserModal`.
+
+8. **Sidebar Focus Ring**:
+   - `src/components/Sidebar.tsx`: Replaced default mouse click focus rings with `:focus-visible` only (`outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500`) on logo brand link, nav items, and sign out button.
+
+---
 
 ## Governance Ref Reconciliation, Stricter Production Gate, Tab Alignment, Sentence Case Conversion & Full-Repo Contrast Audit (ohm#uifix02)
 
@@ -280,6 +460,66 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
+
+**Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Scope & Delivered Changes
+1. **Table Headers Unified (`text-sm font-semibold whitespace-nowrap text-text-secondary`)**:
+   - `src/components/shared/DataTable.tsx`: Exported shared `TABLE_THEAD_CLASS` and `TABLE_TH_CLASS` with `text-sm font-semibold whitespace-nowrap text-text-secondary bg-table-header`.
+   - `src/components/vacancy/VacancyTable.tsx`: Converted uppercase string arrays across all tabs (Active, Pipeline, Hired, Backout, Inactive, All) to sentence case (`Position`, `Account / group`, `Outlet name`, `Reason for deletion`, `Requested by`, `Onboard date`, `Days to fill`, `Date of backout`, etc., strictly preserving `VCODE`, `HRCO`, `HC`). Short headers like `Account / group` prevented from wrapping via `whitespace-nowrap`.
+   - `src/components/hr-emploc/HrEmplocTable.tsx`: Updated `Requested by` and wrapped cells with `whitespace-nowrap`.
+   - `src/components/team-directory/TeamDirectoryTable.tsx`: Updated `Role & tier`, `Assigned jurisdiction`, added `whitespace-nowrap`.
+   - `src/components/users/UsersTable.tsx`: Updated `Assigned scopes`, applied `bg-table-header text-text-secondary whitespace-nowrap`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Tables 1 & 2 headers sentence case (`VCODE`, `HC needed`, `Pipeline status`), added `whitespace-nowrap`.
+   - All 11 `Approvals` tables: Standardized `thead` to `bg-table-header text-sm font-semibold text-text-secondary border-b border-table-rule-section whitespace-nowrap` (`AccountRequestDataTable`, `AccountTransferDataTable`, `ApplicantMovementDataTable`, `CoverageDataTable`, `DeactivationDataTable`, `HeadcountDataTable`, `HrEmplocDeletionDataTable`, `NewStoreDataTable`, `PlantillaApprovalDataTable`, `RelieverDataTable`, `VacancyClosureDataTable`).
+   - `Reports` tables: `ReportDetailView.tsx`, `TeamPerformanceTab.tsx`, `FloatingStaffTab.tsx`, `CustomReportTab.tsx`.
+   - `Dashboard` matrix: `src/app/(dashboard)/dashboard/page.tsx`.
+
+2. **Zero-Headcount Display Guard**:
+   - Gated Warning chip display by `required > 0`. When required HC = 0:
+     - `src/app/(dashboard)/plantilla/page.tsx`: Account cards hide Warning chip (`account.required > 0 && account.fillRate < 80`), display `"—"` instead of `"0%"`, and render MFR bar as an empty neutral track (`bg-border-subtle`). Plantilla Executive KPI `MetricCard` shows `"—"` when `summaryData.required === 0`.
+     - `src/components/cencom/CencomGroupTable.tsx`: MFR progress bar displays neutral track and `"—"` when `group.required === 0`; status pill renders neutral `"Standby"` rather than Critical.
+     - `src/app/(dashboard)/dashboard/page.tsx`: Fill rate cell renders neutral track and `"—"` when `row.fillRatePct === null`.
+
+3. **Display Casing Formatter (`src/lib/utils/displayText.ts`)**:
+   - Implemented `formatDisplayText`, `formatPersonName`, `formatPosition`, `formatStoreName`, `formatAccountName`, `formatAgingBucket`, `formatVacancySource`.
+   - Preserves `ACRONYM_ALLOWLIST`: `HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`.
+   - Preserves tokens containing digits (e.g., `VCAG5_0056`, `HRG3`), hyphens, apostrophes (e.g., `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+   - Render-layer only: verified by grep that no queries, sort, search, filters, or API payloads consume formatted values.
+   - Tested and verified against 15 specific sample inputs via `scripts/test_display_text.mjs` (all passed).
+   - Applied across `VacancyTable.tsx`, `VacancyDetailDrawer.tsx`, `HrEmplocTable.tsx`, `plantilla/page.tsx`, `UsersTable.tsx`, `TeamDirectoryTable.tsx`, `NotificationCard.tsx`.
+
+4. **Scrim & Theme Token Registration (`src/app/globals.css`)**:
+   - Declared `--surface-overlay: rgba(0, 0, 0, 0.65);` in dark `:root` and dark media queries (light mode remains `rgba(0, 0, 0, 0.45)`).
+   - Registered `--color-surface-overlay: var(--surface-overlay);` in `@theme inline`.
+   - Audited and registered missing theme color tokens in `@theme inline`: `--color-danger: var(--danger-text);`, `--color-surface-elevated`, `--color-surface-primary`, `--color-brand-subtle`, `--color-brand-border`, `--color-brand-default`, `--color-danger-subtle`, `--color-danger-surface`, `--color-danger-button-text`, `--color-danger-icon`, `--color-text-brand-bold`, `--color-text-danger`, `--color-text-inverse`, `--color-pct-high`, `--color-pct-low`.
+   - Extended `scripts/audit_component_contrast.py` with `@theme inline` registration check (100 tokens verified, 0 unregistered).
+
+5. **Humanized Vacancy Drawer Enums**:
+   - Aging brackets humanized based on definitions in `src/lib/queries/vacancy.ts`:
+     - `0_7` -> `0-7 days`
+     - `8_14` -> `8-14 days`
+     - `15_30` -> `15-30 days`
+     - `31_plus` -> `31+ days`
+   - Source: `pool` -> `Pool`, `active_recruitment` -> `Active recruitment`.
+   - Pipeline status: `pipeline` -> `Pipeline`, `endorsed` -> `Endorsed`, `for_interview` -> `For interview`, `for_exam` -> `For exam`, `passed` -> `Passed`, `for_onboarding` -> `For onboarding`, `hired` -> `Hired`, `failed` -> `Failed`, `backed_out` -> `Backed out`.
+
+6. **Percentage Color Consistency**:
+   - `src/app/(dashboard)/dashboard/page.tsx#L448`: Replaced ad-hoc `text-brand-500` on Open Vacancies "Fill" rate text with `fillRateStatus.classes.text` from the named `fill_rate` scale.
+
+7. **Disabled Primary Button Contrast**:
+   - Converted washed-out disabled primary buttons across 14 modals from opacity reduction to high-contrast solid pattern:
+     `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`.
+   - Updated modals: `AddApplicantModal`, `AdvancePipelineModal`, `EditHiredDateModal`, `MarkHiredModal`, `ReopenVacancyModal`, `FailBackoutModal`, `RequestVacancyClosureModal`, `EditApplicantModal`, `AssignEmployeeNoModal`, `InitiateSeparationModal`, `RequestDeactivationModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `CreateUserModal`.
+
+8. **Sidebar Focus Ring**:
+   - `src/components/Sidebar.tsx`: Replaced default mouse click focus rings with `:focus-visible` only (`outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500`) on logo brand link, nav items, and sign out button.
+
+---
 
 ## Safe Fix Pass — Migration Reconciliation & Light Mode Muted Contrast Hardening (ohm#sfix01)
 

@@ -15,6 +15,7 @@ import {
   parseNotificationDeepLink,
   type NotificationItem,
 } from "@/lib/queries/notifications";
+import { formatDisplayText } from "@/lib/utils/displayText";
 
 // ============================================================================
 // Relative Timestamp Formatter
@@ -201,7 +202,7 @@ export function NotificationCard({
                   : "font-semibold text-text-secondary"
               }`}
             >
-              {notification.title}
+              {formatDisplayText(notification.title)}
             </h3>
 
             {/* Categorical Badge */}

@@ -417,7 +417,7 @@ function AddApplicantModalContent({
               <button
                 type="submit"
                 disabled={!isFormValid}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-brand-500 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-brand-500 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-600 disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 {endorseMutation.isPending ? (
                   <>

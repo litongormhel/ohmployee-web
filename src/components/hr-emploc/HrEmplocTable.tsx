@@ -16,6 +16,12 @@ import {
 import { DataState } from "@/components/shared/DataState";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
+  formatPersonName,
+  formatPosition,
+  formatAccountName,
+  formatDisplayText,
+} from "@/lib/utils/displayText";
+import {
   isBenefitsOnlyCorrection,
   type HrEmplocDataErrorKind,
   type HrEmplocListItem,
@@ -60,7 +66,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "HRCO",
         "SLA",
         "Reason",
-        "Requested By",
+        "Requested by",
         "Actions",
       ];
     case "review":
@@ -150,7 +156,7 @@ export function HrEmplocTable({
             <tr>
               {columns.map((column) => (
                 <th
-                  className={`border-b border-table-rule-section px-4 py-3 ${
+                  className={`border-b border-table-rule-section px-4 py-3 whitespace-nowrap ${
                     column === "Actions" ? "text-right" : ""
                   }`}
                   key={column}
@@ -227,12 +233,12 @@ export function HrEmplocTable({
                   >
                     {/* 1. Group */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text font-medium truncate max-w-[140px]">
-                      {row.groupName ?? "--"}
+                      {row.groupName ? formatDisplayText(row.groupName) : "--"}
                     </td>
 
                     {/* 2. Account */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text truncate max-w-[160px]">
-                      {row.accountName ?? "--"}
+                      {row.accountName ? formatAccountName(row.accountName) : "--"}
                     </td>
 
                     {/* 3. Applicant */}
@@ -245,19 +251,19 @@ export function HrEmplocTable({
                           />
                         )}
                         <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
-                          {row.applicantName}
+                          {row.applicantName ? formatPersonName(row.applicantName) : "--"}
                         </span>
                       </div>
                     </td>
 
                     {/* 4. Position */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text truncate max-w-[160px]">
-                      {row.positionTitle ?? "--"}
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "--"}
                     </td>
 
                     {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px]">
-                      {row.hrcoName ?? "--"}
+                      {row.hrcoName ? formatPersonName(row.hrcoName) : "--"}
                     </td>
 
                     {/* 6. SLA (Aging) */}

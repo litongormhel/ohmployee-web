@@ -153,7 +153,7 @@ function RequestVacancyClosureModalContent({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-danger-button text-white hover:opacity-90 px-4 py-2 text-sm font-semibold disabled:opacity-50 cursor-pointer transition-opacity"
+            className="inline-flex items-center gap-2 rounded-lg bg-danger-button text-white hover:bg-danger-button-hover px-4 py-2 text-sm font-semibold disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             {mutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />

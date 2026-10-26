@@ -51,7 +51,7 @@ const SOURCES: Record<CustomReportSource, SourceConfig> = {
       { key: "slot_vacant_hc", label: "Vacant HC" },
       { key: "required_hc", label: "Required HC" },
       { key: "pipeline_count", label: "Pipeline" },
-      { key: "mfr", label: "MFR Rate" },
+      { key: "mfr", label: "MFR rate" },
     ],
   },
   hr_emploc: {
@@ -62,13 +62,13 @@ const SOURCES: Record<CustomReportSource, SourceConfig> = {
     hasGroupAccount: true,
     hasStatus: true,
     columns: [
-      { key: "applicant_name", label: "Applicant Name" },
+      { key: "applicant_name", label: "Applicant name" },
       { key: "position", label: "Position" },
-      { key: "store_name", label: "Store Branch" },
-      { key: "hr_status", label: "HR Status" },
-      { key: "status", label: "Review Status" },
+      { key: "store_name", label: "Store branch" },
+      { key: "hr_status", label: "HR status" },
+      { key: "status", label: "Review status" },
       { key: "account", label: "Account" },
-      { key: "date_requested", label: "Date Requested" },
+      { key: "date_requested", label: "Date requested" },
     ],
   },
   plantilla: {
@@ -80,11 +80,11 @@ const SOURCES: Record<CustomReportSource, SourceConfig> = {
     hasStatus: false,
     columns: [
       { key: "account_name", label: "Account" },
-      { key: "actual_hc", label: "Active Headcount" },
-      { key: "required_hc", label: "Authorized Required" },
-      { key: "slot_vacant_hc", label: "Vacant Capacity" },
-      { key: "pipeline_count", label: "Pipeline Progress" },
-      { key: "mfr", label: "Fulfillment Rate (MFR)" },
+      { key: "actual_hc", label: "Active headcount" },
+      { key: "required_hc", label: "Authorized required" },
+      { key: "slot_vacant_hc", label: "Vacant capacity" },
+      { key: "pipeline_count", label: "Pipeline progress" },
+      { key: "mfr", label: "Fulfillment rate (MFR)" },
     ],
   },
   deployment: {
@@ -95,8 +95,8 @@ const SOURCES: Record<CustomReportSource, SourceConfig> = {
     hasGroupAccount: false,
     hasStatus: false,
     columns: [
-      { key: "metric", label: "Deployment Metric" },
-      { key: "value", label: "Value / Count" },
+      { key: "metric", label: "Deployment metric" },
+      { key: "value", label: "Value / count" },
     ],
   },
   data_integrity: {
@@ -566,7 +566,7 @@ export function CustomReportTab() {
           ) : (
             <div className="overflow-x-auto max-h-[500px]">
               <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold sticky top-0 z-10 shadow-2xs">
+                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold sticky top-0 z-10 shadow-2xs">
                   <tr>
                     {activeConfig.columns
                       .filter((c) => selectedColumns.includes(c.key))

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { UserProfileItem } from "@/lib/queries/users";
+import { formatPersonName } from "@/lib/utils/displayText";
 
 export interface UsersTableProps {
   users: UserProfileItem[];
@@ -50,12 +51,12 @@ export function UsersTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-border-default bg-surface-muted/50 text-sm font-semibold text-text-secondary">
-              <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Assigned Scopes</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+            <tr className="border-b border-table-rule-section bg-table-header text-sm font-semibold text-text-secondary">
+              <th className="px-4 py-3 whitespace-nowrap">User</th>
+              <th className="px-4 py-3 whitespace-nowrap">Role</th>
+              <th className="px-4 py-3 whitespace-nowrap">Assigned scopes</th>
+              <th className="px-4 py-3 whitespace-nowrap">Status</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -80,7 +81,7 @@ export function UsersTable({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="truncate font-semibold text-text-primary">
-                            {user.normalizedName || user.fullName}
+                            {formatPersonName(user.normalizedName || user.fullName)}
                           </span>
                           {!user.isLinked && (
                             <span

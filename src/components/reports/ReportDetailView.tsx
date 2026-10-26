@@ -655,14 +655,14 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-sm font-semibold">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Group Scope</th>
-                  <th className="py-3 px-4">Account Name</th>
-                  <th className="py-3 px-4">{meta.metricLabel}</th>
-                  <th className="py-3 px-4 text-center">Total Events</th>
-                  <th className="py-3 px-4 text-center">Stores Affected</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Group scope</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Account name</th>
+                  <th className="py-3 px-4 whitespace-nowrap">{meta.metricLabel}</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Total events</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Stores affected</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium">

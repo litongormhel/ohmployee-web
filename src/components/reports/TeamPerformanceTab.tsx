@@ -306,16 +306,16 @@ export function TeamPerformanceTab() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-sm font-semibold">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center">Rank</th>
-                  <th className="py-3 px-4">Account Scope</th>
-                  <th className="py-3 px-4">Performance Score</th>
-                  <th className="py-3 px-4 text-center">MFR Rate</th>
-                  <th className="py-3 px-4 text-center">Aged Vacancies</th>
-                  <th className="py-3 px-4 text-center">Late HR</th>
-                  <th className="py-3 px-4">Coordinator</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 w-12 text-center whitespace-nowrap">Rank</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Account scope</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Performance score</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">MFR rate</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Aged vacancies</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Late HR</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Coordinator</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">

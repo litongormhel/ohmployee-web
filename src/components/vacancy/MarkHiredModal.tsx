@@ -272,7 +272,7 @@ function MarkHiredModalContent({
           <button
             type="submit"
             disabled={confirmOnboardMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
           >
             {confirmOnboardMutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />

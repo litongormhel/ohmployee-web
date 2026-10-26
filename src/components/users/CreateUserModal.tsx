@@ -334,7 +334,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
           <button
             type="submit"
             disabled={isBusy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-600 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-600 disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none cursor-pointer"
           >
             {isBusy ? "Creating..." : "Create User"}
           </button>

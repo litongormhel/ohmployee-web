@@ -233,11 +233,12 @@ export function CencomGroupTable({
             {filteredAndSortedGroups.map((group) => {
               const isExpanded = expandedGroups.has(group.groupId);
               const mfrRate = group.mfrPercent;
-              const isHealthy = group.healthStatus === "healthy" || mfrRate >= 100;
-              const isAtRisk = group.healthStatus === "at_risk";
+              const isHealthy = group.required > 0 && (group.healthStatus === "healthy" || mfrRate >= 100);
+              const isAtRisk = group.required > 0 && group.healthStatus === "at_risk";
+              const isStandby = group.required === 0;
 
-              const statusVariant = isHealthy ? "success" : isAtRisk ? "warning" : "danger";
-              const statusLabel = isHealthy ? "Healthy" : isAtRisk ? "At Risk" : "Critical";
+              const statusVariant = isStandby ? "neutral" : isHealthy ? "success" : isAtRisk ? "warning" : "danger";
+              const statusLabel = isStandby ? "Standby" : isHealthy ? "Healthy" : isAtRisk ? "At Risk" : "Critical";
 
               return (
                 <tr
@@ -354,13 +355,26 @@ export function CencomGroupTable({
                         <span className="text-[11px] text-text-muted">
                           {group.actual} / {group.required}
                         </span>
+                        {group.required === 0 && (
+                          <span className="font-semibold text-text-muted tabular-nums">—</span>
+                        )}
                       </div>
-                      <PercentageBar
-                        percent={mfrRate}
-                        scale="mfr"
-                        heightClass="h-2"
-                        showLabel={true}
-                      />
+                      {group.required > 0 ? (
+                        <PercentageBar
+                          percent={mfrRate}
+                          scale="mfr"
+                          heightClass="h-2"
+                          showLabel={true}
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-2 rounded-full bg-surface-muted overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={0}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        />
+                      )}
                     </div>
                   </td>
 

@@ -440,10 +440,10 @@ function EditApplicantModalContent({
               type="submit"
               form="edit-applicant-form"
               disabled={!isFormValid}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-xs transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
                 !isFormValid
-                  ? "bg-brand-500/40 cursor-not-allowed"
-                  : "bg-brand-500 hover:bg-brand-600 cursor-pointer"
+                  ? "bg-surface-muted text-text-secondary border border-border-default shadow-none cursor-not-allowed"
+                  : "bg-brand-500 hover:bg-brand-600 text-white cursor-pointer"
               }`}
             >
               <CheckCircle2 className="h-4 w-4" />

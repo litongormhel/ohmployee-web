@@ -342,15 +342,15 @@ export function FloatingStaffTab() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-xs tracking-wider font-semibold">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Position</th>
-                  <th className="py-3 px-4">Account / Group</th>
-                  <th className="py-3 px-4">Last Store Branch</th>
-                  <th className="py-3 px-4">Floating Since</th>
-                  <th className="py-3 px-4">Duration & Aging</th>
-                  <th className="py-3 px-4 text-right">Status</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Employee</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Position</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Account / group</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Last store branch</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Floating since</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Duration & aging</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">

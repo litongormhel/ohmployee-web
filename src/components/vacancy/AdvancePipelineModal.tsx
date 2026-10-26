@@ -364,7 +364,7 @@ function AdvancePipelineModalContent({
           <button
             type="submit"
             disabled={isPending}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed transition cursor-pointer ${
               isTerminalSelected
                 ? "bg-danger-text hover:opacity-90"
                 : "bg-brand-500 hover:bg-brand-600"

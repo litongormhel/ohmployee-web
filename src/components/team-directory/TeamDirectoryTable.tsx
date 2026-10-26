@@ -26,12 +26,13 @@ import {
   type TeamDirectoryErrorKind,
   type TeamDirectoryUser,
 } from "@/lib/queries/team_directory";
+import { formatPersonName } from "@/lib/utils/displayText";
 
 const tableColumns = [
   "Member",
-  "Role & Tier",
+  "Role & tier",
   "Contact",
-  "Assigned Jurisdiction",
+  "Assigned jurisdiction",
   "Actions",
 ];
 
@@ -127,7 +128,7 @@ export function TeamDirectoryTable({
                 <th
                   key={col || `col-${idx}`}
                   scope="col"
-                  className={`border-b border-table-rule-section px-4 py-2.5 ${
+                  className={`border-b border-table-rule-section px-4 py-2.5 whitespace-nowrap ${
                     col === "Actions" ? "text-right" : ""
                   }`}
                 >
@@ -179,7 +180,7 @@ export function TeamDirectoryTable({
             ) : (
               visibleUsers.map((user) => {
                 const isSelected = user.authUserId === selectedUserId;
-                const formattedName = formatDirectoryName(user);
+                const formattedName = formatPersonName(formatDirectoryName(user));
                 const initials = getUserInitials(user);
                 const roleTint = getRoleTint(user);
                 const isAvailable = user.directoryStatus === "Available";

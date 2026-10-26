@@ -181,7 +181,7 @@ export function AssignEmployeeNoModal({
             <button
               type="submit"
               disabled={assignMutation.isPending || isBlockedRole || !employeeNo.trim()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-button-hover transition disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
               {assignMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {assignMutation.isPending ? "Assigning..." : "Assign & Mark Ready"}

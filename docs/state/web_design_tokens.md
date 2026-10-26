@@ -266,3 +266,28 @@ To support hybrid operational environments (laptops, desk screens, floor tablets
   - Drawers slide overlaying the right list.
 - **Ultra-Wide Desktop** (`>= 1536px`)
   - Ample spacing allows the table grid, expanded sidebar, and details drawer to remain open simultaneously without visual overlapping.
+
+---
+
+## 11. Scrim & Backdrop Overlay Tokens (OHM2026_1100)
+
+Backdrops for Modals and DetailDrawers require calibrated opacity tokens registered in Tailwind v4 `@theme inline`:
+
+- **Light Mode Scrim**: `--surface-overlay: rgba(0, 0, 0, 0.45);` (45% flat black)
+- **Dark Mode Scrim**: `--surface-overlay: rgba(0, 0, 0, 0.65);` (65% flat black)
+- **Tailwind Utility**: `bg-surface-overlay` (bound via `--color-surface-overlay: var(--surface-overlay);` in `@theme inline`)
+- **Backdrop Rules**: Flat translucent token, no blur (`backdrop-blur-none`), no backdrop-click close on form/mutation modals; Esc keyboard and `isSubmitting` guards remain enforced.
+
+---
+
+## 12. Display Text & High-Contrast Disabled Controls (OHM2026_1101)
+
+### Display Formatting (`src/lib/utils/displayText.ts`)
+- **Render Layer Boundary**: Pure JSX presentation only. Never mutates raw stored values in search filters, sorting algorithms, URL params, or API payloads.
+- **Title Casing Rules**: Words are capitalized while preserving hyphens, apostrophes (e.g. `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+- **Acronym Allowlist**: Tokens matching known acronyms (`HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`) or tokens containing digits (e.g. `VCAG5_0056`, `HRG3`) are strictly preserved in their original casing.
+
+### Disabled Action Button Pattern
+Primary buttons in disabled states must preserve readable text contrast rather than applying generic container opacity:
+- **Style Rule**: `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`
+- **Contrast Assurance**: Yields >= 7.23:1 contrast ratio against the muted button surface in both light and dark themes.

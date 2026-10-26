@@ -272,7 +272,7 @@ export function UpdateEmploymentStatusModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none transition-colors cursor-pointer"
           >
             {mutation.isPending ? (
               <>

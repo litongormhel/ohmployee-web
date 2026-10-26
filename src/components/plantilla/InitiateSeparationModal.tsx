@@ -186,7 +186,7 @@ export function InitiateSeparationModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-danger-bg hover:bg-danger-bg/80 text-danger-text border border-danger-border px-4 py-2 text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-danger-bg hover:bg-danger-bg/80 text-danger-text border border-danger-border px-4 py-2 text-xs font-semibold shadow-xs disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none transition-colors cursor-pointer"
           >
             {mutation.isPending ? (
               <>

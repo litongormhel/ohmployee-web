@@ -467,7 +467,7 @@ export function TransferPersonnelModal({
           <button
             type="submit"
             disabled={!selectedStore || mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-button-hover disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none transition-colors shadow-xs cursor-pointer"
           >
             {mutation.isPending ? (
               <>

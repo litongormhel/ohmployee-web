@@ -40,6 +40,14 @@ import {
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { CapabilityActionBar } from "@/components/shared/CapabilityActionBar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  formatPersonName,
+  formatPosition,
+  formatAccountName,
+  formatStoreName,
+  formatAgingBucket,
+  formatVacancySource,
+} from "@/lib/utils/displayText";
 import { useCurrentUser } from "@/lib/auth";
 import {
   AppRole,
@@ -411,7 +419,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
         isLoading ? (
           <div className="h-6 w-48 animate-pulse rounded bg-surface-muted mt-1" />
         ) : detail ? (
-          detail.position_title ?? "Position Title"
+          detail.position_title ? formatPosition(detail.position_title) : "Position Title"
         ) : (
           "Vacancy Detail"
         )
@@ -422,9 +430,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
             <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
             <span className="truncate">
               {[
-                detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : null,
+                detail.accountName && detail.accountName !== "Unknown Account" ? formatAccountName(detail.accountName) : null,
                 formatGroupName(detail.groupName, detail.accountName),
-                detail.storeName,
+                detail.storeName ? formatStoreName(detail.storeName) : null,
               ]
                 .filter(Boolean)
                 .join(" / ") || "Global Account"}
@@ -632,7 +640,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         <div>
                           <span className="text-[10px] font-medium text-text-muted block">Source</span>
                           <span className="font-semibold text-text-primary block truncate">
-                            {detail.source || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
+                            {formatVacancySource(detail.source) || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
                           </span>
                         </div>
                         <div>
@@ -649,8 +657,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
                         <div>
                           <span className="text-[10px] font-medium text-text-muted block">Account</span>
-                          <span className="font-semibold text-text-primary block truncate" title={detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : "--"}>
-                            {detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : "--"}
+                          <span className="font-semibold text-text-primary block truncate" title={detail.accountName && detail.accountName !== "Unknown Account" ? formatAccountName(detail.accountName) : "--"}>
+                            {detail.accountName && detail.accountName !== "Unknown Account" ? formatAccountName(detail.accountName) : "--"}
                           </span>
                         </div>
                         <div className={storesList.length > 1 ? "col-span-2" : ""}>
@@ -755,7 +763,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             )}
                             {detail.agingBucket && (
                               <Badge className="border-border-default bg-surface-muted text-text-secondary font-sans text-xs py-0.5 px-1.5">
-                                {detail.agingBucket}
+                                {formatAgingBucket(detail.agingBucket)}
                               </Badge>
                             )}
                           </div>
@@ -1003,7 +1011,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                 {candidate.displayName.charAt(0)}
                               </div>
                               <div className="font-bold text-text-primary text-xs">
-                                {candidate.displayName}
+                                {formatPersonName(candidate.displayName)}
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1209,7 +1217,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     firstName: detail.applicantFirstName,
                                     middleName: detail.applicantMiddleName,
                                     contactNumber: detail.contactNumber,
-                                    status: detail.pipelineStatus || "pipeline",
+                                    status: detail.pipelineStatus || "Pipeline",
                                     vcode: detail.vcode,
                                     positionTitle: detail.position_title,
                                   });
@@ -1232,7 +1240,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     firstName: detail.applicantFirstName,
                                     middleName: detail.applicantMiddleName,
                                     contactNumber: detail.contactNumber,
-                                    status: detail.pipelineStatus || "pipeline",
+                                    status: detail.pipelineStatus || "Pipeline",
                                     vcode: detail.vcode,
                                     positionTitle: detail.position_title,
                                   });
@@ -1375,7 +1383,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       id: detail.vacancyId,
                       fullName: detail.applicantName || "Candidate",
                       contactNumber: detail.contactNumber,
-                      status: detail.pipelineStatus || "pipeline",
+                      status: detail.pipelineStatus || "Pipeline",
                       vcode: detail.vcode,
                       positionTitle: detail.position_title,
                     }
@@ -1428,7 +1436,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     selectedCandidate || {
                       id: detail.applicantId || detail.vacancyId,
                       fullName: detail.applicantName || "Candidate",
-                      status: detail.pipelineStatus || "pipeline",
+                      status: detail.pipelineStatus || "Pipeline",
                       vcode: detail.vcode,
                       positionTitle: detail.position_title,
                     }

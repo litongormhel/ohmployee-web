@@ -27,6 +27,11 @@ export interface DataTableProps<T> {
   className?: string;
 }
 
+export const TABLE_THEAD_CLASS =
+  "border-b border-table-rule-section bg-table-header text-sm font-semibold text-text-secondary";
+export const TABLE_TH_CLASS =
+  "font-semibold text-sm text-text-secondary whitespace-nowrap";
+
 export function DataTable<T>({
   columns,
   data,
@@ -59,7 +64,7 @@ export function DataTable<T>({
     >
       <table className="w-full min-w-full border-collapse text-left text-sm text-table-text">
         <thead
-          className={`border-b border-table-rule-section bg-table-header text-xs font-semibold text-text-secondary ${
+          className={`${TABLE_THEAD_CLASS} ${
             stickyHeader ? "sticky top-0 z-10" : ""
           }`}
         >
@@ -77,7 +82,7 @@ export function DataTable<T>({
                   key={col.key}
                   scope="col"
                   style={{ width: col.width }}
-                  className={`${cellPadding} ${alignClass} font-semibold text-sm text-text-secondary ${col.className ?? ""}`}
+                  className={`${cellPadding} ${alignClass} ${TABLE_TH_CLASS} ${col.className ?? ""}`}
                 >
                   {col.header}
                 </th>
