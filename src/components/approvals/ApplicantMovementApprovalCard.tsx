@@ -134,14 +134,14 @@ export function ApplicantMovementApprovalCard({
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {isSwap ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-primary">
                 <ArrowLeftRight className="h-3 w-3" aria-hidden="true" />
-                SWAP MOVEMENT
+                Swap Movement
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-primary">
                 <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                TRANSFER MOVEMENT
+                Transfer Movement
               </span>
             )}
 

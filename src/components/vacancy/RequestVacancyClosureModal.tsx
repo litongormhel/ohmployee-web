@@ -107,7 +107,7 @@ function RequestVacancyClosureModalContent({
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Closure Reason *
           </label>
           <select
@@ -124,7 +124,7 @@ function RequestVacancyClosureModalContent({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Details / Supporting Justification
           </label>
           <textarea
@@ -153,7 +153,7 @@ function RequestVacancyClosureModalContent({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-danger-text text-white hover:opacity-90 px-4 py-2 text-sm font-semibold disabled:opacity-50 cursor-pointer transition-opacity"
+            className="inline-flex items-center gap-2 rounded-lg bg-danger-button text-white hover:opacity-90 px-4 py-2 text-sm font-semibold disabled:opacity-50 cursor-pointer transition-opacity"
           >
             {mutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />

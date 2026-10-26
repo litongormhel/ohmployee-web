@@ -188,7 +188,7 @@ function HrEmplocSavedViewsModalContent({
                 </button>
                 <button
                   type="submit"
-                  className="h-9 px-4 text-xs font-semibold rounded-lg bg-brand-primary hover:bg-brand-primary-hover text-white shadow-2xs transition-colors cursor-pointer"
+                  className="h-9 px-4 text-xs font-semibold rounded-lg bg-brand-button hover:bg-brand-primary-hover text-white shadow-2xs transition-colors cursor-pointer"
                 >
                   Save Preset
                 </button>
@@ -225,7 +225,7 @@ function HrEmplocSavedViewsModalContent({
                     <button
                       type="button"
                       onClick={() => setActiveTab("create")}
-                      className="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                      className="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-brand-button hover:bg-brand-primary-hover text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Save Current View
@@ -244,7 +244,7 @@ function HrEmplocSavedViewsModalContent({
                         onClick={() => setSelectedViewId(isSelected ? null : view.id)}
                         className={`group rounded-lg border p-3.5 transition-all cursor-pointer ${
                           isSelected
-                            ? "border-brand-primary bg-surface-muted shadow-2xs"
+                            ? "border-brand-primary bg-surface-selected shadow-2xs"
                             : "border-border-subtle bg-surface hover:border-border-strong hover:bg-surface-hover"
                         }`}
                       >
@@ -281,7 +281,7 @@ function HrEmplocSavedViewsModalContent({
                                 onApplyView(view);
                                 onClose();
                               }}
-                              className="h-7 px-2.5 rounded-md bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-semibold shadow-2xs flex items-center gap-1 transition-colors cursor-pointer"
+                              className="h-7 px-2.5 rounded-md bg-brand-button hover:bg-brand-primary-hover text-white text-xs font-semibold shadow-2xs flex items-center gap-1 transition-colors cursor-pointer"
                               title="Apply this saved view"
                             >
                               <Check className="h-3 w-3" />

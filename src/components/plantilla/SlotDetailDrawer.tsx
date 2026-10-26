@@ -213,7 +213,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
           {/* Header & Status Banner */}
           <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              <span className="text-xs font-semibold text-text-secondary">
                 Lifecycle State
               </span>
               <StatusBadge
@@ -224,7 +224,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
 
             <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border-subtle">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                <div className="text-[10px] font-semibold text-text-muted">
                   Slot ID
                 </div>
                 <div className="font-mono text-xs text-text-primary truncate" title={slot.id}>
@@ -232,7 +232,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                <div className="text-[10px] font-semibold text-text-muted">
                   Position Type
                 </div>
                 <div className="text-xs font-medium text-text-primary">
@@ -240,7 +240,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                <div className="text-[10px] font-semibold text-text-muted">
                   Created Date
                 </div>
                 <div className="text-xs text-text-primary">
@@ -248,7 +248,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                <div className="text-[10px] font-semibold text-text-muted">
                   Last Updated
                 </div>
                 <div className="text-xs text-text-primary">
@@ -273,7 +273,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
 
           {/* Occupant / Reservation Card */}
           <div className="space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
               <User className="h-4 w-4 text-text-muted" />
               <span>Personnel & Reservation Status</span>
             </div>
@@ -297,7 +297,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                       <span>{slot.occupant.position || slot.position}</span>
                     </div>
                   </div>
-                  <Badge className="text-[11px] font-normal border-status-success-border text-status-success-text bg-status-success-bg">
+                  <Badge className="text-xs font-medium border-border-default bg-surface-muted text-text-primary">
                     Active Occupant
                   </Badge>
                 </div>
@@ -359,7 +359,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
 
           {/* Capacity Context */}
           <div className="space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
               <Layers className="h-4 w-4 text-text-muted" />
               <span>Capacity Context & Quota Rules</span>
             </div>
@@ -367,7 +367,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
             <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                  <div className="text-[10px] font-semibold text-text-muted">
                     Headcount Quota (Target)
                   </div>
                   <div className="font-mono text-sm font-bold text-text-primary">
@@ -375,7 +375,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                  <div className="text-[10px] font-semibold text-text-muted">
                     Slot Sequence Index
                   </div>
                   <div className="font-mono text-sm font-bold text-text-primary">
@@ -393,7 +393,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
           {/* Slot History Timeline */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
                 <Clock className="h-4 w-4 text-text-muted" />
                 <span>Slot Audit Trail ({sortedHistory.length})</span>
               </div>

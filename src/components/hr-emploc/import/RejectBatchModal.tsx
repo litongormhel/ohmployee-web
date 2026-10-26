@@ -69,7 +69,7 @@ export function RejectBatchModal({
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-2">
+            <label className="block text-xs font-semibold text-text-primary mb-2">
               Select Reason for Rejection *
             </label>
             <div className="space-y-2">
@@ -78,7 +78,7 @@ export function RejectBatchModal({
                   key={r.code}
                   className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition ${
                     selectedCode === r.code
-                      ? "border-border-default bg-surface-muted text-text-primary font-semibold"
+                      ? "border-brand-primary bg-surface-selected text-text-primary font-semibold shadow-2xs"
                       : "border-border-default bg-surface text-text-secondary hover:bg-surface-hover"
                   }`}
                 >
@@ -98,7 +98,7 @@ export function RejectBatchModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               Internal Rejection Note {selectedCode === "others" ? "*" : "(Optional)"}
             </label>
             <textarea

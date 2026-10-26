@@ -239,8 +239,8 @@ export function CencomTargetDeploymentTab({
         <div className="flex items-center justify-between border-b border-border-subtle pb-3">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-brand-600" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
-              VACANCY AGING SUMMARY BRACKETS
+            <h3 className="text-xs font-semibold text-text-secondary">
+              Vacancy aging summary brackets
             </h3>
           </div>
           <span className="text-xs font-semibold text-text-secondary">
@@ -368,7 +368,7 @@ export function CencomTargetDeploymentTab({
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-text-secondary">ADVANCE VACANCY</span>
+              <span className="text-xs font-semibold text-text-secondary">Advance Vacancy</span>
               <span className="h-2 w-2 rounded-full bg-brand-500" />
             </div>
             <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
@@ -444,14 +444,14 @@ export function CencomTargetDeploymentTab({
       {/* 5. Province Vacancy Aging Summary Table */}
       <div className="rounded-xl border border-border-default bg-surface-base overflow-hidden shadow-xs">
         <div className="border-b border-border-default bg-surface-muted px-4 py-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
-            VACANCY AGING BY PROVINCE & AREA
+          <h3 className="text-xs font-semibold text-text-secondary">
+            Vacancy aging by province & area
           </h3>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-border-default bg-surface-muted/50 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+            <thead className="border-b border-border-default bg-surface-muted/50 text-xs font-semibold text-text-secondary">
               <tr>
                 <th className="py-2.5 px-4">Province / Area</th>
                 <th className="py-2.5 px-3 text-right">Total Open</th>
@@ -611,7 +611,7 @@ export function CencomTargetDeploymentTab({
                     <div className="flex items-center gap-3 self-end sm:self-auto">
                       {/* Oldest aging badge */}
                       <div className="text-right">
-                        <div className="text-[10px] uppercase font-bold text-text-muted">
+                        <div className="text-[10px] font-bold text-text-muted">
                           Oldest Aging
                         </div>
                         <span className="inline-flex items-center gap-1 text-xs font-bold font-mono px-2 py-0.5 rounded border bg-surface-muted text-text-secondary border-border-default">
@@ -642,7 +642,7 @@ export function CencomTargetDeploymentTab({
                   {/* Expanded Vacancies at this Store */}
                   {isExpanded && (
                     <div className="border-t border-border-subtle bg-surface-muted/40 p-4">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-text-secondary mb-2">
+                      <div className="text-[11px] font-bold text-text-secondary mb-2">
                         Active Vacancies at {outlet.store} ({outlet.vacancies.length})
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -655,7 +655,7 @@ export function CencomTargetDeploymentTab({
                               <span className="font-mono text-xs font-bold text-brand-700">
                                 {v.vcode}
                               </span>
-                              <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border bg-surface-muted text-text-secondary border-border-default">
+                              <span className="rounded px-1.5 py-0.5 text-[9px] font-bold border bg-surface-muted text-text-secondary border-border-default">
                                 {v.urgencyLevel || "Normal"}
                               </span>
                             </div>

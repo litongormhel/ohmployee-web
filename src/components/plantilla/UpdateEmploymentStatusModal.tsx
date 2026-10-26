@@ -121,7 +121,7 @@ export function UpdateEmploymentStatusModal({
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Target Status Radios */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label className="block text-xs font-semibold text-text-secondary">
             Select New Employment Status <span className="text-danger-text">*</span>
           </label>
           <div className="grid gap-2">
@@ -133,7 +133,7 @@ export function UpdateEmploymentStatusModal({
                   key={opt.value}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     isSelected
-                      ? "border-brand-primary bg-surface-muted ring-1 ring-brand-primary"
+                      ? "border-brand-primary bg-surface-selected ring-1 ring-brand-primary"
                       : "border-border-default hover:border-border-strong hover:bg-surface-hover"
                   }`}
                 >
@@ -238,7 +238,7 @@ export function UpdateEmploymentStatusModal({
 
         {/* General Remarks / Notes */}
         <div className="space-y-1.5">
-          <label htmlFor="status-remarks" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="status-remarks" className="block text-xs font-semibold text-text-secondary">
             Operational Remarks (Optional)
           </label>
           <textarea
@@ -272,7 +272,7 @@ export function UpdateEmploymentStatusModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
           >
             {mutation.isPending ? (
               <>

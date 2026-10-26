@@ -201,7 +201,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Step 1: Target Operational Group */}
         <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs">
-          <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
+          <label className="block text-xs font-bold text-text-primary mb-1.5">
             1. Select Target CENCOM Group *
           </label>
           <p className="text-xs text-text-muted mb-3">
@@ -243,7 +243,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
         {/* Step 2: Download Official Template */}
         <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
+            <label className="block text-xs font-bold text-text-primary mb-1.5">
               2. Download Standard Template
             </label>
             <p className="text-xs text-text-muted mb-3">
@@ -274,7 +274,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
       {/* Step 3: Drag & Drop Dropzone */}
       <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs">
-        <label className="block text-xs font-bold uppercase tracking-wider text-text-primary mb-1.5">
+        <label className="block text-xs font-bold text-text-primary mb-1.5">
           3. Upload XLSX File *
         </label>
         <p className="text-xs text-text-muted mb-3">
@@ -503,7 +503,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
             </p>
 
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-button px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={!canSubmit}
               onClick={handleSubmit}
               type="button"

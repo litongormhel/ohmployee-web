@@ -439,7 +439,7 @@ export function TeamDirectoryDetailDrawer({
 
         {/* Primary Contact Action Strip */}
         <div className="rounded-lg border border-border-default bg-surface-base p-3 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-text-muted tracking-wider mb-2">
+          <div className="text-[11px] font-bold text-text-muted tracking-wider mb-2">
             Direct Communications
           </div>
           <div className="grid grid-cols-3 gap-2">

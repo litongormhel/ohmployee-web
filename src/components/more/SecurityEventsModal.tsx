@@ -170,7 +170,7 @@ export function SecurityEventsModal({
                   key={sev}
                   type="button"
                   onClick={() => setSeverityFilter(sev)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase transition cursor-pointer ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold  transition cursor-pointer ${
                     severityFilter === sev
                       ? "bg-brand-primary text-text-inverse"
                       : "bg-surface-base text-text-secondary hover:bg-surface-hover border border-border-subtle"
@@ -245,7 +245,7 @@ export function SecurityEventsModal({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <span
-                        className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                        className={`rounded-md px-2 py-0.5 text-xs font-bold  ${
                           isCrit
                             ? "bg-danger-subtle text-danger border border-danger-border"
                             : "bg-surface-subtle text-text-primary border border-border-default"

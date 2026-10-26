@@ -153,7 +153,7 @@ export function PoolEmployeeDetailDrawer({
                   {emp.availabilityStatus}
                 </StatusBadge>
                 {emp.hasPendingRequest && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary bg-surface-muted px-2 py-0.5 rounded border border-border-default">
+                  <span className="text-[10px] font-bold text-text-primary bg-surface-muted px-2 py-0.5 rounded border border-border-default">
                     Reserved
                   </span>
                 )}
@@ -204,7 +204,7 @@ export function PoolEmployeeDetailDrawer({
 
           {/* Active Deployments Section */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+            <h3 className="text-xs font-bold text-text-secondary flex items-center justify-between">
               <span>Active Store Deployments ({detail?.activeDeployments.length ?? 0})</span>
               <span className="text-[11px] font-normal text-text-muted">Real-time Coverage</span>
             </h3>
@@ -282,7 +282,7 @@ export function PoolEmployeeDetailDrawer({
                             type="button"
                             onClick={() => handleCloseAssignment(dep.id)}
                             disabled={closeAssignmentMutation.isPending}
-                            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-danger-text rounded hover:opacity-90 transition cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-danger-button rounded hover:opacity-90 transition cursor-pointer disabled:opacity-50"
                           >
                             {closeAssignmentMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                             Confirm Close
@@ -299,7 +299,7 @@ export function PoolEmployeeDetailDrawer({
           {/* Pending Requests Section */}
           {(detail?.pendingRequests ?? []).length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center justify-between">
+              <h3 className="text-xs font-bold text-text-primary flex items-center justify-between">
                 <span>Pending Coverage Requests ({detail?.pendingRequests.length})</span>
                 <span className="text-[11px] font-normal text-text-muted">Awaiting Data Team SLA</span>
               </h3>
@@ -338,7 +338,7 @@ export function PoolEmployeeDetailDrawer({
           {/* Pending Conversions Section */}
           {(detail?.conversionRequests ?? []).length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center justify-between">
+              <h3 className="text-xs font-bold text-text-primary flex items-center justify-between">
                 <span>Conversion Requests ({detail?.conversionRequests.length})</span>
               </h3>
               <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
@@ -369,7 +369,7 @@ export function PoolEmployeeDetailDrawer({
 
           {/* Assignment History Section */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+            <h3 className="text-xs font-bold text-text-secondary">
               Assignment History ({detail?.assignmentHistory.length ?? 0})
             </h3>
             {detailQuery.isLoading ? (

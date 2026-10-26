@@ -87,7 +87,7 @@ export function DataIntegrityDetailModal({
       icon={ShieldAlert}
       subtitle={
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-danger-text bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
+          <span className="text-[10px] font-bold text-danger-text bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
             Workforce Data Audit
           </span>
         </div>
@@ -162,7 +162,7 @@ export function DataIntegrityDetailModal({
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
               <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Store Branch</th>
                     <th className="py-2.5 px-3">Account &amp; Group</th>

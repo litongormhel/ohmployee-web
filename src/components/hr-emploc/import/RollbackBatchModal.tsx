@@ -72,7 +72,7 @@ export function RollbackBatchModal({
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-primary mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               Rollback Justification Reason *
             </label>
             <textarea

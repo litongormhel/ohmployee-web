@@ -39,6 +39,7 @@ yarn-error.log*
 # tooling
 .claude/
 supabase/.temp/
+scratch/
 
 # typescript
 *.tsbuildinfo

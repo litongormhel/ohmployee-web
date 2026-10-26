@@ -97,7 +97,7 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
         {canReviewSlots && selectedReviewId && actionType && (
           <div className="p-4 bg-surface-muted border border-border-default rounded-xl space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+              <h4 className="text-xs font-bold text-text-primary">
                 Confirm {actionType === "reopen" ? "Reopening Slot" : "Closing Slot"}
               </h4>
               <button

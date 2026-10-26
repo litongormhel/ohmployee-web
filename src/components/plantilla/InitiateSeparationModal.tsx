@@ -109,7 +109,7 @@ export function InitiateSeparationModal({
 
         {/* Separation Type Selector */}
         <div className="space-y-1.5">
-          <label htmlFor="separation-type" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="separation-type" className="block text-xs font-semibold text-text-secondary">
             Separation Type <span className="text-danger-text">*</span>
           </label>
           <select
@@ -131,7 +131,7 @@ export function InitiateSeparationModal({
 
         {/* Effective Date Picker */}
         <div className="space-y-1.5">
-          <label htmlFor="effective-date" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="effective-date" className="block text-xs font-semibold text-text-secondary">
             Effective Date <span className="text-danger-text">*</span>
           </label>
           <div className="relative">
@@ -152,7 +152,7 @@ export function InitiateSeparationModal({
 
         {/* Remarks / Reason Textarea */}
         <div className="space-y-1.5">
-          <label htmlFor="separation-remarks" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="separation-remarks" className="block text-xs font-semibold text-text-secondary">
             Reason / Explanatory Remarks
           </label>
           <textarea

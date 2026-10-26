@@ -181,7 +181,7 @@ export function StoreTransferApprovalCard({
           </div>
 
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <span className="text-xs font-semibold text-text-muted">
               Account:
             </span>
             <h3 className="text-base font-bold text-text-primary">
@@ -232,7 +232,7 @@ export function StoreTransferApprovalCard({
           <div className="flex items-center gap-3">
             {/* From Group */}
             <div className="flex flex-col">
-              <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+              <span className="text-2xs font-semibold text-text-muted">
                 From Group
               </span>
               <div className="flex items-center gap-1.5">
@@ -249,7 +249,7 @@ export function StoreTransferApprovalCard({
 
             {/* To Group */}
             <div className="flex flex-col">
-              <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+              <span className="text-2xs font-semibold text-text-muted">
                 To Group
               </span>
               <div className="flex items-center gap-1.5">
@@ -287,7 +287,7 @@ export function StoreTransferApprovalCard({
       {/* ── Impact Simulation Snapshot Panel ── */}
       <div className="mt-4 rounded-lg border border-border-default bg-surface p-3.5">
         <div className="flex items-center justify-between pb-2 border-b border-border-default">
-          <span className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+          <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-text-brand-bold" aria-hidden="true" />
             Impact Simulation (Live Snapshot)
           </span>

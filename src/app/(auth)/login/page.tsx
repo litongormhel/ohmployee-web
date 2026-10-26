@@ -84,7 +84,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              <label className="text-xs font-semibold text-text-secondary">
                 Email Address
               </label>
               <div className="relative">
@@ -104,7 +104,7 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                <label className="text-xs font-semibold text-text-secondary">
                   Password
                 </label>
                 <a href="/forgot-password" className="text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">

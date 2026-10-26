@@ -152,7 +152,7 @@ function MarkHiredModalContent({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               Last Name *
             </label>
             <input
@@ -164,7 +164,7 @@ function MarkHiredModalContent({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               First Name *
             </label>
             <input
@@ -179,7 +179,7 @@ function MarkHiredModalContent({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               Middle Name
             </label>
             <input
@@ -190,7 +190,7 @@ function MarkHiredModalContent({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               Contact Number *
             </label>
             <input
@@ -206,7 +206,7 @@ function MarkHiredModalContent({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               Hired / Deployment Date *
             </label>
             <input
@@ -218,7 +218,7 @@ function MarkHiredModalContent({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-text-secondary mb-1">
               Endorsed By Deployer
             </label>
             <input
@@ -232,7 +232,7 @@ function MarkHiredModalContent({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Onboarding Remarks
           </label>
           <textarea

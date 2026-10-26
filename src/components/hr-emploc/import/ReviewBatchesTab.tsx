@@ -147,8 +147,8 @@ export function ReviewBatchesTab({
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="text-sm font-bold text-text-primary">{batch.fileName}</h4>
-                    <span className="inline-flex items-center rounded-full border border-border-default bg-surface-muted px-2.5 py-0.5 text-[10px] font-bold text-text-primary font-mono">
-                      PENDING APPROVAL
+                    <span className="inline-flex items-center rounded-full border border-border-default bg-surface-muted px-2.5 py-0.5 text-xs font-semibold text-text-primary">
+                      Pending approval
                     </span>
                   </div>
 
@@ -200,7 +200,7 @@ export function ReviewBatchesTab({
                       Reject
                     </button>
                     <button
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
                       disabled={
                         approveMutation.isPending ||
                         rejectMutation.isPending ||

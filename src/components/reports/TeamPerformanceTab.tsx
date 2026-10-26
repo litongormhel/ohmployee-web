@@ -113,7 +113,7 @@ export function TeamPerformanceTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
+            <span className="text-[10px] font-bold text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Discipline
             </span>
             <span className="text-xs text-text-muted">Port of TeamPerformanceReportScreen</span>
@@ -157,7 +157,7 @@ export function TeamPerformanceTab() {
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Average Team Score</span>
             <Award className="w-4 h-4 text-brand-primary" />
           </div>
@@ -168,7 +168,7 @@ export function TeamPerformanceTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>Top Performing</span>
             <TrendingUp className="w-4 h-4 text-text-primary" />
           </div>
@@ -181,7 +181,7 @@ export function TeamPerformanceTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>Needs Attention</span>
             <TrendingDown className="w-4 h-4 text-text-secondary" />
           </div>
@@ -194,7 +194,7 @@ export function TeamPerformanceTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-danger flex items-center justify-between">
             <span>Critical Accounts</span>
             <AlertTriangle className="w-4 h-4 text-danger" />
           </div>

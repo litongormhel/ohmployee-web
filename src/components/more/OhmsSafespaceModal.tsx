@@ -311,7 +311,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <Sliders className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
-                      ACTIVE
+                      Active
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary group-hover:text-brand-primary">
@@ -331,7 +331,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <AlertTriangle className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
-                      ACTIVE
+                      Active
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary group-hover:text-brand-primary">
@@ -351,7 +351,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <Snowflake className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
-                      ACTIVE
+                      Active
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary group-hover:text-brand-primary">
@@ -374,7 +374,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <Activity className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
-                      MONITOR
+                      Monitor
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary group-hover:text-brand-primary">
@@ -394,7 +394,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <Terminal className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
-                      LOGGED
+                      Logged
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary group-hover:text-brand-primary">
@@ -411,7 +411,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                       <Wrench className="w-4 h-4" />
                     </div>
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-primary text-text-primary border border-border-default">
-                      SYSTEM READY
+                      System ready
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-text-primary">
@@ -666,7 +666,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl border border-border-default bg-surface-primary">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    <span className="text-xs font-semibold text-text-muted">
                       Supabase Latency
                     </span>
                     <div className="mt-1 flex items-baseline gap-2">
@@ -678,7 +678,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                   </div>
 
                   <div className="p-4 rounded-xl border border-border-default bg-surface-primary">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    <span className="text-xs font-semibold text-text-muted">
                       Governance RPCs
                     </span>
                     <div className="mt-1 flex items-center gap-2">
@@ -690,7 +690,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                   </div>
 
                   <div className="p-4 rounded-xl border border-border-default bg-surface-primary">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                    <span className="text-xs font-semibold text-text-muted">
                       Freeze State
                     </span>
                     <div className="mt-1 flex items-center gap-2">
@@ -716,11 +716,11 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-muted">Audit Logs Availability:</span>
-                    <span className="font-semibold text-text-primary">ONLINE</span>
+                    <span className="font-semibold text-text-primary">Online</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-muted">Client Session Level:</span>
-                    <span className="font-semibold text-text-primary">SUPER ADMIN (100)</span>
+                    <span className="font-semibold text-text-primary">Super Admin (100)</span>
                   </div>
                 </div>
               </div>
@@ -763,7 +763,7 @@ export function OhmsSafespaceModal({ isOpen, onClose }: OhmsSafespaceModalProps)
                             <span className="font-bold text-text-primary font-mono">
                               [{log.controlKey.toUpperCase()}]
                             </span>
-                            <span className="px-1.5 py-0.2 rounded text-xs font-semibold bg-surface-primary border border-border-default text-text-secondary uppercase">
+                            <span className="px-1.5 py-0.2 rounded text-xs font-semibold bg-surface-primary border border-border-default text-text-secondary">
                               {log.action}
                             </span>
                             {log.changedByName && (

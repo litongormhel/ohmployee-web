@@ -1,7 +1,7 @@
 # Migration File Reconciliation Audit
 
 **Date:** 2026-10-26
-**Audited Inputs:** `docs/audit/migration_history_prod.txt` (authoritative production baseline export), production sequence directives from Ohm, and `supabase/migrations/`.
+**Audited Inputs:** `docs/audit/migration_history_prod.txt` (authoritative production baseline export, exported by Ohm from production `rwxelulyapjgaarlwkus`), production sequence directives from Ohm, and `supabase/migrations/`.
 **Scope:** Local migration file naming reconciliation only. Zero SQL content modified. Zero database access performed.
 
 ---

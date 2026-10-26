@@ -312,7 +312,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           )}
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+              <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
                 {meta.category}
               </span>
               <span className="text-xs text-text-muted">Universal Report Detail</span>
@@ -359,7 +359,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         {reportId === "attrition_report" ? (
           <>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Overall Attrition
               </div>
               <div className="text-2xl font-bold text-pct-low mt-1">
@@ -368,7 +368,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Weighted separation rate</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Total Separations
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -377,7 +377,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Employees departed</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Affected Stores
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -386,7 +386,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Store locations impacted</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Reporting Accounts
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -398,7 +398,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         ) : reportId === "time_to_fill" ? (
           <>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Avg Days to Fill
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -407,7 +407,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Requisition turnaround</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Total Filled Vacancies
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -416,7 +416,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Confirmed deployments</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Stores Staffed
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -425,7 +425,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Store branches with hires</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Active Accounts
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -437,7 +437,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         ) : reportId === "emploc_late_update" ? (
           <>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Late HR Updates
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -446,7 +446,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">SLA delayed submissions</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Total HR Requests
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -455,7 +455,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Total Emploc movements</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Stores Impacted
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -464,7 +464,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Stores with updates</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Accounts Monitored
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -476,7 +476,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         ) : (
           <>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Total Events
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -485,7 +485,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Cumulative incidents</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Affected Stores
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -494,7 +494,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Store locations involved</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Active Accounts
               </div>
               <div className="text-2xl font-bold text-text-primary mt-1">
@@ -503,7 +503,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               <div className="text-[11px] text-text-muted mt-0.5">Reporting account rows</div>
             </div>
             <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              <div className="text-[11px] font-semibold text-text-muted">
                 Scope Filter
               </div>
               <div className="text-sm font-bold text-brand-700 mt-2 truncate">

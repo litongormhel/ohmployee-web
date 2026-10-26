@@ -109,7 +109,7 @@ export function AttritionDrilldownModal({
       title={`${accountName} — Movement & Separation Details`}
       subtitle={
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+          <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
             Attrition Audit Drilldown
           </span>
           {startDate && endDate && (
@@ -215,7 +215,7 @@ export function AttritionDrilldownModal({
             ) : (
               <div className="overflow-x-auto border border-border-subtle rounded-lg">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+                  <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
                     <tr>
                       <th className="py-2.5 px-3">Employee</th>
                       <th className="py-2.5 px-3">Position</th>
@@ -260,7 +260,7 @@ export function AttritionDrilldownModal({
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
               <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold">
+                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Store Branch</th>
                     <th className="py-2.5 px-3">Location / Area</th>

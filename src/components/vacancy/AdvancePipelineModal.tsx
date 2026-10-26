@@ -233,7 +233,7 @@ function AdvancePipelineModalContent({
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Select Pipeline Stage / Outcome *
           </label>
           <select
@@ -268,7 +268,7 @@ function AdvancePipelineModalContent({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Standard Reason *
               </label>
               {isLoadingReasons ? (
@@ -294,7 +294,7 @@ function AdvancePipelineModalContent({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Custom Reason / Additional Notes
               </label>
               <textarea
@@ -310,7 +310,7 @@ function AdvancePipelineModalContent({
           /* Progressive Stage Details Section */
           <>
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Follow-up / Action Date
               </label>
               <div className="relative">
@@ -324,7 +324,7 @@ function AdvancePipelineModalContent({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Recruitment Remarks
               </label>
               <textarea
@@ -337,7 +337,7 @@ function AdvancePipelineModalContent({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
                 Ops Remarks
               </label>
               <textarea

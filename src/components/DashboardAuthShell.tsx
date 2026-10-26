@@ -106,7 +106,7 @@ function AuthenticatedShell({
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
         <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <p className="text-xs font-semibold tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
           <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
@@ -305,7 +305,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
         <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <p className="text-xs font-semibold tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
           <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
@@ -335,7 +335,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
         <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <p className="text-xs font-semibold tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
           <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">
@@ -369,7 +369,7 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--surface-muted)] px-6">
         <section className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-6 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          <p className="text-xs font-semibold tracking-[0.18em] text-[var(--text-muted)]">
             OHMployee Web
           </p>
           <h1 className="mt-3 text-xl font-semibold text-[var(--foreground)]">

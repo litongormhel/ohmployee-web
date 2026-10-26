@@ -234,7 +234,7 @@ export function SecurityTab() {
         <div className="flex items-center justify-between border-b border-border-default pb-3">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Other Active Sessions ({otherActiveSessions.length})
             </h3>
           </div>
@@ -312,7 +312,7 @@ export function SecurityTab() {
         <div className="flex items-center justify-between border-b border-border-default pb-3">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Security Compliance & Audit Trail
             </h3>
           </div>
@@ -360,7 +360,7 @@ export function SecurityTab() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 font-bold uppercase tracking-wider text-xs ${
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 font-bold  text-xs ${
                           isDanger
                             ? "bg-danger-subtle text-danger border border-danger-border"
                             : "bg-surface-subtle text-text-primary border border-border-default"

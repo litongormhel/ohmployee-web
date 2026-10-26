@@ -130,7 +130,7 @@ export function DataIntegrityTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-danger bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
+            <span className="text-[10px] font-bold text-danger bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
               Data Audit & Compliance
             </span>
             <span className="text-xs text-text-muted">Port of DataIntegrityReportScreen</span>
@@ -174,7 +174,7 @@ export function DataIntegrityTab() {
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-danger flex items-center justify-between">
             <span>Critical Issues</span>
             <ShieldAlert className="w-4 h-4 text-danger" />
           </div>
@@ -185,7 +185,7 @@ export function DataIntegrityTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>High Risk Issues</span>
             <AlertTriangle className="w-4 h-4 text-text-secondary" />
           </div>
@@ -196,7 +196,7 @@ export function DataIntegrityTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Total Findings</span>
             <ShieldCheck className="w-4 h-4 text-brand-primary" />
           </div>
@@ -207,7 +207,7 @@ export function DataIntegrityTab() {
         </div>
 
         <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Affected Stores</span>
             <Store className="w-4 h-4 text-brand-primary" />
           </div>
@@ -280,7 +280,7 @@ export function DataIntegrityTab() {
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   SLA Compliance
                 </span>
               </div>
@@ -293,15 +293,15 @@ export function DataIntegrityTab() {
 
               <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Findings</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Findings</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{lateHr.totalFindings}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Stores</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Stores</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{lateHr.affectedStores}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Worst Delay</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Worst Delay</div>
                   <div className="text-base font-bold text-danger mt-0.5">
                     {lateHr.worstDelay ? `${lateHr.worstDelay}d` : "—"}
                   </div>
@@ -327,7 +327,7 @@ export function DataIntegrityTab() {
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Requisition Delay
                 </span>
               </div>
@@ -340,15 +340,15 @@ export function DataIntegrityTab() {
 
               <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Findings</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Findings</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{vacDelay.totalFindings}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Stores</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Stores</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{vacDelay.affectedStores}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Worst Delay</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Worst Delay</div>
                   <div className="text-base font-bold text-danger mt-0.5">
                     {vacDelay.worstDelay ? `${vacDelay.worstDelay}d` : "—"}
                   </div>
@@ -377,7 +377,7 @@ export function DataIntegrityTab() {
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Ghost className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-danger-subtle text-danger border border-danger-border">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-danger-subtle text-danger border border-danger-border">
                   Plantilla Ghost
                 </span>
               </div>
@@ -390,11 +390,11 @@ export function DataIntegrityTab() {
 
               <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Ghost Findings</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Ghost Findings</div>
                   <div className="text-base font-bold text-danger mt-0.5">{ghost.totalFindings}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Affected Stores</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Affected Stores</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{ghost.affectedStores}</div>
                 </div>
               </div>
@@ -421,7 +421,7 @@ export function DataIntegrityTab() {
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <GitFork className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Unlinked Pipeline
                 </span>
               </div>
@@ -434,11 +434,11 @@ export function DataIntegrityTab() {
 
               <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Unlinked Records</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Unlinked Records</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{pipe.totalFindings}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold uppercase text-text-muted">Affected Stores</div>
+                  <div className="text-[10px] font-semibold text-text-muted">Affected Stores</div>
                   <div className="text-base font-bold text-text-primary mt-0.5">{pipe.affectedStores}</div>
                 </div>
               </div>

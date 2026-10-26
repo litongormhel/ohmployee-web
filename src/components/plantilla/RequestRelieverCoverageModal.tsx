@@ -242,7 +242,7 @@ export function RequestRelieverCoverageModal({
                   onClick={() => setPriority(p)}
                   className={`py-2 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
                     priority === p
-                      ? "bg-brand-primary text-white border-brand-primary shadow-xs"
+                      ? "bg-brand-button text-white border-brand-primary shadow-xs"
                       : "bg-surface text-text-secondary border-border-default hover:bg-surface-hover hover:text-text-primary"
                   }`}
                 >
@@ -278,7 +278,7 @@ export function RequestRelieverCoverageModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-brand-button rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit Request

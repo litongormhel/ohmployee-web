@@ -245,8 +245,8 @@ export function DataArchivalCenterModal({
         title={
           <span className="flex items-center gap-2">
             <span>Data Archival & Recovery Center</span>
-            <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-              LEVEL 100 SUPER ADMIN
+            <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+              Level 100 Super Admin
             </span>
           </span>
         }
@@ -392,7 +392,7 @@ export function DataArchivalCenterModal({
               {/* Impact summary counters */}
               <div className="p-4 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">
+                  <h3 className="text-sm font-bold text-[var(--foreground)]">
                     Live Active Data Impact Preview
                   </h3>
                   <button
@@ -409,19 +409,19 @@ export function DataArchivalCenterModal({
                 ) : impactPreview ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border-subtle)]">
-                      <span className="text-xs uppercase font-semibold text-[var(--text-muted)]">Plantilla</span>
+                      <span className="text-xs font-semibold text-[var(--text-muted)]">Plantilla</span>
                       <p className="text-base font-bold text-[var(--foreground)]">{impactPreview.plantillaCount}</p>
                     </div>
                     <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border-subtle)]">
-                      <span className="text-xs uppercase font-semibold text-[var(--text-muted)]">Vacancies</span>
+                      <span className="text-xs font-semibold text-[var(--text-muted)]">Vacancies</span>
                       <p className="text-base font-bold text-[var(--foreground)]">{impactPreview.vacancyCount}</p>
                     </div>
                     <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border-subtle)]">
-                      <span className="text-xs uppercase font-semibold text-[var(--text-muted)]">HR Emploc</span>
+                      <span className="text-xs font-semibold text-[var(--text-muted)]">HR Emploc</span>
                       <p className="text-base font-bold text-[var(--foreground)]">{impactPreview.hrEmplocCount}</p>
                     </div>
                     <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border-subtle)]">
-                      <span className="text-xs uppercase font-semibold text-[var(--text-muted)]">Moses HQ Items</span>
+                      <span className="text-xs font-semibold text-[var(--text-muted)]">Moses HQ Items</span>
                       <p className="text-base font-bold text-[var(--foreground)]">{impactPreview.mosesHqTotal}</p>
                     </div>
                   </div>
@@ -430,7 +430,7 @@ export function DataArchivalCenterModal({
 
               {/* Action triggers grid */}
               <div className="space-y-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">
+                <h3 className="text-sm font-bold text-[var(--foreground)]">
                   Bulk & Single-Module Archival Actions
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -556,7 +556,7 @@ export function DataArchivalCenterModal({
           {activeTab === "plantilla" && (
             <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-semibold uppercase tracking-wider text-xs">
+                <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-semibold text-xs">
                   <tr>
                     <th className="px-4 py-3">Employee</th>
                     <th className="px-4 py-3">Account & Store</th>
@@ -619,7 +619,7 @@ export function DataArchivalCenterModal({
           {activeTab === "vacancies" && (
             <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-semibold uppercase tracking-wider text-xs">
+                <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] font-semibold text-xs">
                   <tr>
                     <th className="px-4 py-3">VCODE</th>
                     <th className="px-4 py-3">Account & Store</th>
@@ -688,7 +688,7 @@ export function DataArchivalCenterModal({
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--foreground)] uppercase tracking-wider text-xs">
+                        <span className="font-semibold text-[var(--foreground)] text-xs">
                           [{log.module}] {log.actionType}
                         </span>
                         <span className="text-xs font-mono text-[var(--text-muted)]">ID: {log.recordId}</span>
@@ -772,12 +772,12 @@ export function DataArchivalCenterModal({
           title={
             <span className="flex items-center gap-2">
               <span>Execute {activeArchiveWizard.title}</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                DESTRUCTIVE
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Destructive
               </span>
             </span>
           }
-          subtitle="HIGH-RISK OPERATION • 72-HOUR REVERSIBLE"
+          subtitle="High-risk operation • 72-hour reversible"
           icon={AlertTriangle}
           maxWidthClass="max-w-lg"
           disableBackdropClick={bulkArchiveMutation.isPending}
@@ -818,7 +818,7 @@ export function DataArchivalCenterModal({
                 value={typedConfirmation}
                 onChange={(e) => setTypedConfirmation(e.target.value)}
                 placeholder={activeArchiveWizard.confirmPhrase}
-                className="w-full px-3 py-2 text-sm border border-[var(--danger-border)] rounded-xl bg-[var(--card)] font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-[var(--danger)] text-[var(--foreground)]"
+                className="w-full px-3 py-2 text-sm border border-[var(--danger-border)] rounded-xl bg-[var(--card)] font-mono focus:outline-hidden focus:ring-2 focus:ring-[var(--danger)] text-[var(--foreground)]"
               />
             </div>
 

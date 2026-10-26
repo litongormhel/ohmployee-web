@@ -128,23 +128,23 @@ export function DeployToPlantillaModal({
 
           <div className="grid grid-cols-2 gap-2 text-text-muted">
             <div>
-              <span className="text-[10px] uppercase text-text-muted block">Assigned ID</span>
+              <span className="text-[10px] text-text-muted block">Assigned ID</span>
               <span className="font-mono font-semibold text-text-primary">
                 {employeeNo ?? "Not Assigned"}
               </span>
             </div>
             <div>
-              <span className="text-[10px] uppercase text-text-muted block">Target VCode</span>
+              <span className="text-[10px] text-text-muted block">Target VCode</span>
               <span className="font-mono font-semibold text-text-primary">{vcode}</span>
             </div>
             <div>
-              <span className="text-[10px] uppercase text-text-muted block">Designation</span>
+              <span className="text-[10px] text-text-muted block">Designation</span>
               <span className="font-medium text-text-primary truncate block">
                 {positionTitle ?? "Staff"}
               </span>
             </div>
             <div>
-              <span className="text-[10px] uppercase text-text-muted block">Deployment Outlet</span>
+              <span className="text-[10px] text-text-muted block">Deployment Outlet</span>
               <span className="font-medium text-text-primary truncate block">
                 {[accountName, storeName].filter(Boolean).join(" / ") || "Direct Assignment"}
               </span>
@@ -242,7 +242,7 @@ export function DeployToPlantillaModal({
             type="button"
             disabled={moveMutation.isPending || checkingCapacity || isBlockedCapacity}
             onClick={handleConfirm}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer"
           >
             {moveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {moveMutation.isPending ? "Deploying..." : "Confirm & Deploy to Plantilla"}

@@ -349,7 +349,7 @@ export function TempPermissionModal({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm text-text-primary">{item.userFullName}</span>
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider bg-surface-subtle text-text-secondary border border-border-default">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-subtle text-text-secondary border border-border-default">
                             {item.userRole}
                           </span>
                         </div>

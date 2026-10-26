@@ -804,7 +804,7 @@ function RequestHeadcountModalDialog({
               {/* Account Context */}
               <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                     <Building2 className="h-4 w-4 text-text-muted" />
                     Target Operational Account
                   </span>
@@ -845,7 +845,7 @@ function RequestHeadcountModalDialog({
 
               {/* SECTION 1: WORKFORCE TYPE TOGGLE */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                <label className="text-xs font-semibold text-text-secondary">
                   Workforce Deployment Type
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -905,7 +905,7 @@ function RequestHeadcountModalDialog({
                 /* Stationary: Province -> City -> Store */
                 <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                       <MapPin className="h-4 w-4 text-brand-600" />
                       Target Store & Area
                     </span>
@@ -933,7 +933,7 @@ function RequestHeadcountModalDialog({
                             <h4 className="font-semibold text-sm text-[var(--foreground)]">
                               {selectedStore.store_name}
                             </h4>
-                            <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
+                            <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] border border-[var(--border-subtle)]">
                               New Store Request
                             </span>
                           </div>
@@ -959,7 +959,7 @@ function RequestHeadcountModalDialog({
                               {selectedStore.store_name}
                             </h4>
                             {selectedStore.island_group && (
-                              <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold font-mono text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
+                              <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold font-mono text-[var(--foreground)] border border-[var(--border-subtle)]">
                                 {selectedStore.island_group}
                               </span>
                             )}
@@ -1135,7 +1135,7 @@ function RequestHeadcountModalDialog({
                 /* Roving: Multi-Store Chip Picker */
                 <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                       <Layers className="h-4 w-4 text-brand-600" />
                       Selected Roving Stores ({selectedRovingStores.length}/20)
                     </span>
@@ -1259,7 +1259,7 @@ function RequestHeadcountModalDialog({
 
               {/* SECTION 3: POSITION & DEMAND DETAILS */}
               <div className="space-y-4 rounded-lg border border-border-default bg-surface-base p-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-brand-600" />
                   Position & Headcount
                 </span>
@@ -1351,7 +1351,7 @@ function RequestHeadcountModalDialog({
               {/* SECTION 4: TIMELINE & URGENCY (Bypassed if HC Reduction) */}
               {requestType !== "HC Reduction" && (
                 <div className="space-y-4 rounded-lg border border-border-default bg-surface-base p-4">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                     <Clock className="h-4 w-4 text-brand-600" />
                     Timeline & Fulfillment Urgency
                   </span>
@@ -1427,7 +1427,7 @@ function RequestHeadcountModalDialog({
               {/* SECTION 5: OPERATIONAL JUSTIFICATION */}
               <div className="space-y-2 rounded-lg border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  <span className="text-xs font-semibold text-text-secondary">
                     Operational Justification {requestType === "HC Reduction" ? "(Mandatory)" : "(Optional)"}
                   </span>
                   <span className="text-xs text-text-muted">
@@ -1474,11 +1474,11 @@ function RequestHeadcountModalDialog({
               <div className="rounded-xl border border-border-default bg-surface-base overflow-hidden divide-y divide-border-subtle shadow-xs">
                 <div className="p-4 grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-[11px] font-semibold text-text-muted uppercase">Operational Account</span>
+                    <span className="text-[11px] font-semibold text-text-muted">Operational Account</span>
                     <div className="text-sm font-bold text-text-primary mt-0.5">{selectedAccountName}</div>
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-text-muted uppercase">Deployment Mode</span>
+                    <span className="text-[11px] font-semibold text-text-muted">Deployment Mode</span>
                     <div className="text-sm font-semibold text-text-primary mt-0.5 capitalize flex items-center gap-1.5">
                       {workforceType === "stationary" ? (
                         <MapPin className="h-3.5 w-3.5 text-brand-600" />
@@ -1491,7 +1491,7 @@ function RequestHeadcountModalDialog({
                 </div>
 
                 <div className="p-4">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase">
+                  <span className="text-[11px] font-semibold text-text-muted">
                     {workforceType === "stationary" ? "Assigned Store" : `Roving Cluster (${selectedRovingStores.length} stores)`}
                   </span>
                   {workforceType === "stationary" ? (
@@ -1501,7 +1501,7 @@ function RequestHeadcountModalDialog({
                           {selectedStore?.store_name}
                         </span>
                         {linkedNewStoreRequestId && (
-                          <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
+                          <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--foreground)] border border-[var(--border-subtle)]">
                             NSR Linked
                           </span>
                         )}
@@ -1528,19 +1528,19 @@ function RequestHeadcountModalDialog({
 
                 <div className="p-4 grid grid-cols-3 gap-4">
                   <div>
-                    <span className="text-[11px] font-semibold text-text-muted uppercase">Position</span>
+                    <span className="text-[11px] font-semibold text-text-muted">Position</span>
                     <div className="text-sm font-bold text-text-primary mt-0.5">
                       {selectedPosition?.position_name}
                     </div>
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-text-muted uppercase">Request Type</span>
+                    <span className="text-[11px] font-semibold text-text-muted">Request Type</span>
                     <div className="text-sm font-semibold text-text-primary mt-0.5">
                       {requestType}
                     </div>
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-text-muted uppercase">Headcount</span>
+                    <span className="text-[11px] font-semibold text-text-muted">Headcount</span>
                     <div className="text-sm font-mono font-bold text-brand-700 mt-0.5">
                       {headcountNeeded} {headcountNeeded === 1 ? "Slot" : "Slots"}
                     </div>
@@ -1550,22 +1550,22 @@ function RequestHeadcountModalDialog({
                 {requestType !== "HC Reduction" && (
                   <div className="p-4 grid grid-cols-3 gap-4">
                     <div>
-                      <span className="text-[11px] font-semibold text-text-muted uppercase">Vacant Date</span>
+                      <span className="text-[11px] font-semibold text-text-muted">Vacant Date</span>
                       <div className="text-sm font-medium text-text-primary mt-0.5">{vacantDate}</div>
                     </div>
                     <div>
-                      <span className="text-[11px] font-semibold text-text-muted uppercase">Urgency Tier</span>
+                      <span className="text-[11px] font-semibold text-text-muted">Urgency Tier</span>
                       <div className="text-sm font-semibold text-text-primary mt-0.5">{urgency}</div>
                     </div>
                     <div>
-                      <span className="text-[11px] font-semibold text-text-muted uppercase">Target Fill Date</span>
+                      <span className="text-[11px] font-semibold text-text-muted">Target Fill Date</span>
                       <div className="text-sm font-bold text-text-primary mt-0.5">{targetFillDate}</div>
                     </div>
                   </div>
                 )}
 
                 <div className="p-4">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase">Operational Justification</span>
+                  <span className="text-[11px] font-semibold text-text-muted">Operational Justification</span>
                   <div className="text-xs text-text-secondary mt-1 italic whitespace-pre-wrap">
                     {reason.trim() || "No additional justification notes provided."}
                   </div>

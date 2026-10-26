@@ -311,7 +311,7 @@ export function PermissionMatrixModal({
                           }`}
                         />
                         <Layers className="h-4 w-4 text-brand-primary" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                        <span className="text-xs font-bold text-text-primary">
                           {moduleKey}
                         </span>
                         <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-mono font-semibold text-text-muted">
@@ -348,7 +348,7 @@ export function PermissionMatrixModal({
                                   <span className="font-mono text-sm font-bold text-text-primary">
                                     {row.resourceKey}
                                   </span>
-                                  <span className="rounded-md bg-surface-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-text-muted uppercase border border-border-subtle">
+                                  <span className="rounded-md bg-surface-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-text-muted border border-border-subtle">
                                     {row.actionKey}
                                   </span>
 

@@ -430,7 +430,7 @@ export function HrEmplocDeletionDataTable({
 
                     {/* TYPE */}
                     <td className="px-4 py-3.5 whitespace-nowrap align-middle">
-                      <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary uppercase">
+                      <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-primary">
                         {request.deletionType}
                       </span>
                     </td>
@@ -597,7 +597,7 @@ export function HrEmplocDeletionDataTable({
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Type:</span>
-                <span className="font-semibold text-text-primary uppercase">
+                <span className="font-semibold text-text-primary">
                   {selectedApproveRequest.deletionType}
                 </span>
               </div>

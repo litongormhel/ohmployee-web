@@ -113,7 +113,7 @@ export function TagDeficiencyModal({
 
         {/* Scrollable body */}
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+          <div className="text-[10px] font-semibold text-text-muted">
             Deficient Requirements (select at least one)
           </div>
           <div className="space-y-2">
@@ -174,7 +174,7 @@ export function TagDeficiencyModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+            <div className="text-[10px] font-semibold text-text-muted">
               HR Compliance Remarks (Optional)
             </div>
             <textarea
@@ -208,7 +208,7 @@ export function TagDeficiencyModal({
             Cancel
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
             disabled={!hasSelected || isPending}
             onClick={handleSubmit}
             type="button"

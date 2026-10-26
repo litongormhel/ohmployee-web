@@ -289,7 +289,7 @@ export function WorkforceAnalyticsView() {
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border-subtle">
           <div>
-            <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">Account Scope</label>
+            <label className="block text-[11px] font-bold text-text-muted mb-1">Account Scope</label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
@@ -305,7 +305,7 @@ export function WorkforceAnalyticsView() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">Date From</label>
+            <label className="block text-[11px] font-bold text-text-muted mb-1">Date From</label>
             <input
               type="date"
               value={dateFrom}
@@ -315,7 +315,7 @@ export function WorkforceAnalyticsView() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">Date To</label>
+            <label className="block text-[11px] font-bold text-text-muted mb-1">Date To</label>
             <input
               type="date"
               value={dateTo}
@@ -359,7 +359,7 @@ export function WorkforceAnalyticsView() {
             ) : overviewQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Workforce Headcount Breakdown
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -373,7 +373,7 @@ export function WorkforceAnalyticsView() {
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Operational Indicators
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -394,7 +394,7 @@ export function WorkforceAnalyticsView() {
 
                 {overviewQuery.data.byPoolType.length > 0 && (
                   <div className="space-y-4 pt-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <h3 className="text-xs font-bold text-text-muted">
                       Distribution by Pool Type
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -433,7 +433,7 @@ export function WorkforceAnalyticsView() {
             ) : deploymentQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Deployment KPIs
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -454,7 +454,7 @@ export function WorkforceAnalyticsView() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {/* Load Distribution */}
                   <div className="p-5 rounded-xl border border-border-default bg-surface space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    <h4 className="text-xs font-bold text-text-secondary">
                       Deployment Load Distribution
                     </h4>
                     {(() => {
@@ -473,7 +473,7 @@ export function WorkforceAnalyticsView() {
 
                   {/* Aging Buckets */}
                   <div className="p-5 rounded-xl border border-border-default bg-surface space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    <h4 className="text-xs font-bold text-text-secondary">
                       Deployment Duration (Aging Buckets)
                     </h4>
                     {(() => {
@@ -503,7 +503,7 @@ export function WorkforceAnalyticsView() {
             ) : coverageQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Request Pipeline & SLAs
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -519,7 +519,7 @@ export function WorkforceAnalyticsView() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {/* Rejection Rate & Age */}
                   <div className="p-5 rounded-xl border border-border-default bg-surface space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    <h4 className="text-xs font-bold text-text-secondary">
                       Approval & Rejection Performance
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
@@ -540,7 +540,7 @@ export function WorkforceAnalyticsView() {
 
                   {/* Top Requesting Pools */}
                   <div className="p-5 rounded-xl border border-border-default bg-surface space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    <h4 className="text-xs font-bold text-text-secondary">
                       Top Requesting Workforce Pools
                     </h4>
                     {coverageQuery.data.topRequestingPools.length === 0 ? (
@@ -580,7 +580,7 @@ export function WorkforceAnalyticsView() {
             ) : conversionQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Pool-to-Plantilla Conversion Funnel
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -599,7 +599,7 @@ export function WorkforceAnalyticsView() {
                     <ProgressDonut pct={conversionQuery.data.rejectionRatePct} label="Rejection Rate" color="var(--danger-text)" />
                   </div>
                   <div className="p-5 rounded-xl border border-border-default bg-surface flex flex-col items-center justify-center space-y-2 text-center">
-                    <span className="text-xs font-bold uppercase text-text-muted tracking-wider">Decision Speed</span>
+                    <span className="text-xs font-bold text-text-muted tracking-wider">Decision Speed</span>
                     <span className="text-3xl font-black text-accent">
                       {conversionQuery.data.avgDaysToDecision != null ? `${conversionQuery.data.avgDaysToDecision.toFixed(1)} days` : "—"}
                     </span>
@@ -619,7 +619,7 @@ export function WorkforceAnalyticsView() {
             ) : slotReviewQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Slot Review Pipeline
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -638,7 +638,7 @@ export function WorkforceAnalyticsView() {
                 </div>
 
                 <div className="p-5 rounded-xl border border-border-default bg-surface space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                  <h4 className="text-xs font-bold text-text-secondary">
                     Review Status Volume Breakdown
                   </h4>
                   {(() => {
@@ -681,7 +681,7 @@ export function WorkforceAnalyticsView() {
                   />
                   <div className="space-y-1 text-center sm:text-left">
                     <span
-                      className={`inline-block text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                      className={`inline-block text-xs font-bold  px-2.5 py-0.5 rounded-full border ${
                         healthQuery.data.healthScore >= 80
                           ? "bg-pct-good-bg text-pct-good-text border-pct-good-border"
                           : healthQuery.data.healthScore >= 60
@@ -707,7 +707,7 @@ export function WorkforceAnalyticsView() {
 
                 {/* Warning Indicators Grid */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h4 className="text-xs font-bold text-text-muted">
                     Warning & Risk Indicators
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -725,7 +725,7 @@ export function WorkforceAnalyticsView() {
                 {/* Recent Import Incidents Feed */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                    <h4 className="text-xs font-bold text-text-muted">
                       Recent Plantilla Import Incidents (Last 7 Days)
                     </h4>
                     {incidentsQuery.data && (
@@ -796,7 +796,7 @@ export function WorkforceAnalyticsView() {
             ) : executiveQuery.data ? (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Utilization & Capacity Metrics
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -816,7 +816,7 @@ export function WorkforceAnalyticsView() {
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-bold text-text-muted">
                     Executive Operational KPIs
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

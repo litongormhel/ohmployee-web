@@ -92,7 +92,7 @@ export function PreferencesTab() {
         <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
             <Sun className="h-4 w-4 text-text-secondary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Appearance & Theme
             </h3>
           </div>
@@ -154,7 +154,7 @@ export function PreferencesTab() {
         <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
             <Clock className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Session Governance Policy
             </h3>
           </div>
@@ -192,7 +192,7 @@ export function PreferencesTab() {
       <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
           <Bell className="h-4 w-4 text-brand-primary" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-semibold text-text-primary">
             Notification Alert Preferences
           </h3>
         </div>
@@ -288,7 +288,7 @@ export function PreferencesTab() {
       <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
           <Type className="h-4 w-4 text-brand-primary" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-semibold text-text-primary">
             Typography & Accessibility
           </h3>
         </div>
@@ -296,7 +296,7 @@ export function PreferencesTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Text Size */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <label className="block text-xs font-semibold text-text-secondary">
               Text Scaling
             </label>
             <select
@@ -311,7 +311,7 @@ export function PreferencesTab() {
 
           {/* Font Family */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <label className="block text-xs font-semibold text-text-secondary">
               Font Family
             </label>
             <select
@@ -331,7 +331,7 @@ export function PreferencesTab() {
           {/* Motion Experience Control (Full / Lite / Off) */}
           <div className="space-y-2 md:col-span-2">
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              <h4 className="text-xs font-semibold text-text-secondary">
                 Motion Experience
               </h4>
               <p className="text-xs text-text-muted mt-0.5">
@@ -370,7 +370,7 @@ export function PreferencesTab() {
                     }}
                     className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? "border-brand-primary bg-surface-muted text-text-primary ring-1 ring-brand-primary"
+                        ? "border-brand-primary bg-surface-selected text-text-primary ring-1 ring-brand-primary"
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
                     }`}
                   >
@@ -388,7 +388,7 @@ export function PreferencesTab() {
       <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs">
         <div className="flex items-center gap-2 border-b border-border-default pb-3">
           <Eye className="h-4 w-4 text-text-muted" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-semibold text-text-primary">
             Application Telemetry
           </h3>
         </div>

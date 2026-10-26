@@ -395,26 +395,26 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-xl border border-border-default bg-surface-primary p-3 text-center">
-                      <p className="text-xs uppercase font-bold text-text-muted">Total Rows</p>
+                      <p className="text-xs font-bold text-text-muted">Total Rows</p>
                       <p className="text-lg font-bold text-text-primary">{stagedRows.length}</p>
                     </div>
                     <div className="rounded-xl border border-border-default bg-surface-subtle p-3 text-center">
-                      <p className="text-xs uppercase font-bold text-text-secondary">Matched Clean</p>
+                      <p className="text-xs font-bold text-text-secondary">Matched Clean</p>
                       <p className="text-lg font-bold text-text-primary">{matchedCount}</p>
                     </div>
                     <div className="rounded-xl border border-border-default bg-surface-subtle p-3 text-center">
-                      <p className="text-xs uppercase font-bold text-text-secondary">Possible Ghost</p>
+                      <p className="text-xs font-bold text-text-secondary">Possible Ghost</p>
                       <p className="text-lg font-bold text-text-primary">{ghostCount}</p>
                     </div>
                     <div className="rounded-xl border border-danger-border bg-danger-surface p-3 text-center">
-                      <p className="text-xs uppercase font-bold text-danger-text">Blocked (Mismatch)</p>
+                      <p className="text-xs font-bold text-danger-text">Blocked (Mismatch)</p>
                       <p className="text-lg font-bold text-danger-text">{blockedCount}</p>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border-default overflow-hidden max-h-60 overflow-y-auto">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs uppercase text-text-muted font-bold">
+                      <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                         <tr>
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3">Flag</th>
@@ -430,7 +430,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                             <td className="py-2.5 px-3 text-text-muted">{idx + 1}</td>
                             <td className="py-2.5 px-3">
                               <span
-                                className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${
+                                className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
                                   row.flagType === "matched"
                                     ? "bg-surface-subtle text-text-primary border border-border-default"
                                     : row.flagType === "ghost"
@@ -517,7 +517,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm text-text-primary">{log.fileName}</span>
                           <span className="rounded-full bg-surface-subtle text-text-secondary border border-border-default text-xs font-semibold px-2 py-0.5">
-                            PENDING
+                            Pending
                           </span>
                         </div>
                         <div className="text-xs text-text-muted flex flex-wrap gap-x-3 gap-y-1">
@@ -578,7 +578,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                       ) : (
                         <div className="rounded-xl border border-border-default bg-surface-primary overflow-x-auto max-h-56">
                           <table className="w-full text-left text-sm">
-                            <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs uppercase text-text-muted font-bold">
+                            <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                               <tr>
                                 <th className="py-2.5 px-3">Emp No</th>
                                 <th className="py-2.5 px-3">Name</th>
@@ -594,7 +594,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                                   <td className="py-2 px-3 font-medium text-text-primary">{[r.lastName, r.firstName].filter(Boolean).join(", ")}</td>
                                   <td className="py-2 px-3 text-sm text-text-secondary">{r.account}</td>
                                   <td className="py-2 px-3">
-                                    <span className="rounded-full bg-surface-subtle text-text-secondary border border-border-default text-xs font-semibold px-2 py-0.5 uppercase">
+                                    <span className="rounded-full bg-surface-subtle text-text-secondary border border-border-default text-xs font-semibold px-2 py-0.5">
                                       {r.flagType}
                                     </span>
                                   </td>
@@ -625,7 +625,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
               ) : (
                 <div className="rounded-xl border border-border-default bg-surface-primary overflow-hidden">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-surface-subtle border-b border-border-default text-xs uppercase text-text-muted font-bold">
+                    <thead className="bg-surface-subtle border-b border-border-default text-xs text-text-muted font-bold">
                       <tr>
                         <th className="py-2.5 px-4">File Name</th>
                         <th className="py-2.5 px-4">Status</th>
@@ -640,7 +640,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                           <td className="py-2.5 px-4 font-semibold text-text-primary">{l.fileName}</td>
                           <td className="py-2.5 px-4">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
                                 l.status.toLowerCase() === "rejected"
                                   ? "bg-danger-surface text-danger-text border border-danger-border"
                                   : "bg-surface-subtle text-text-primary border border-border-default"

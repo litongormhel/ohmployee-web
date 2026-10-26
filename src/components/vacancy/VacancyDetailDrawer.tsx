@@ -114,7 +114,7 @@ function CompactSection({
 }) {
   return (
     <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
-      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
         <Icon className="h-3.5 w-3.5 text-brand-600 shrink-0" />
         <span>{title}</span>
       </div>
@@ -614,11 +614,11 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <CompactSection icon={Building2} title="Vacancy & Assignment">
                       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">VCode</span>
+                          <span className="text-[10px] font-medium text-text-muted block">VCode</span>
                           <span className="font-mono text-xs font-semibold text-text-primary block truncate">{detail.vcode}</span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Urgency Level</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Urgency Level</span>
                           <div className="mt-0.5">
                             <StatusBadge variant={urgencyVariant} className="text-[11px] py-0 px-2 font-semibold">
                               {detail.urgencyLevel ?? "Normal"}
@@ -626,31 +626,31 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           </div>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Source</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Source</span>
                           <span className="font-semibold text-text-primary block truncate">
                             {detail.source || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Vacancy Type</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Vacancy Type</span>
                           <span className="font-semibold text-text-primary block truncate">
                             {detail.vacancyType || (detail.source === "Plantilla" ? "Replacement" : "New Demand")}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Group</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Group</span>
                           <span className="font-semibold text-text-primary block truncate" title={formatGroupName(detail.groupName, detail.accountName) || "--"}>
                             {formatGroupName(detail.groupName, detail.accountName) || "--"}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Account</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Account</span>
                           <span className="font-semibold text-text-primary block truncate" title={detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : "--"}>
                             {detail.accountName && detail.accountName !== "Unknown Account" ? detail.accountName : "--"}
                           </span>
                         </div>
                         <div className={storesList.length > 1 ? "col-span-2" : ""}>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">
+                          <span className="text-[10px] font-medium text-text-muted block">
                             {storesList.length > 1 ? `Assigned Stores (${storesList.length})` : "Store Name"}
                           </span>
                           {storesList.length > 1 ? (
@@ -668,14 +668,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           )}
                         </div>
                         <div className={storesList.length > 1 ? "col-span-2" : ""}>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Province / City</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Province / City</span>
                           <span className="font-semibold text-text-primary block truncate">
                             {[detail.areaProvince, detail.areaCity].filter(Boolean).join(" / ") || detail.storeLocation || "--"}
                           </span>
                         </div>
                         {detail.employmentType && (
                           <div className="col-span-2">
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Employment Type</span>
+                            <span className="text-[10px] font-medium text-text-muted block">Employment Type</span>
                             <span className="font-semibold text-text-primary">
                               {detail.employmentType}
                             </span>
@@ -719,19 +719,19 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <CompactSection icon={Calendar} title="Timeline & SLA Status">
                       <div className="grid grid-cols-3 gap-2 text-xs py-0.5">
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Vacant Since</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
                           <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
                             {formatDate(detail.vacantDate)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Target Fill Date</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Target Fill Date</span>
                           <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
                             {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Date Created</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Date Created</span>
                           <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
                             {formatDate(detail.createdAt || detail.vacantDate)}
                           </span>
@@ -782,7 +782,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <CompactSection icon={User} title="Ownership & Team">
                       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">HRCO Assignee</span>
+                          <span className="text-[10px] font-medium text-text-muted block">HRCO Assignee</span>
                           <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
                             <User className="h-3 w-3 shrink-0 text-text-muted" />
                             <span className="truncate">{detail.hrcoName ?? "Unassigned"}</span>
@@ -790,7 +790,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
 
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Recruiter</span>
+                          <span className="text-[10px] font-medium text-text-muted block">Recruiter</span>
                           <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
                             <User className="h-3 w-3 shrink-0 text-text-muted" />
                             <span className="truncate">{detail.recruiterName ?? "Unassigned"}</span>
@@ -798,7 +798,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
 
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">OM</span>
+                          <span className="text-[10px] font-medium text-text-muted block">OM</span>
                           <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
                             <User className="h-3 w-3 shrink-0 text-text-muted" />
                             <span className="truncate">{leadership.om}</span>
@@ -806,7 +806,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
 
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">TL</span>
+                          <span className="text-[10px] font-medium text-text-muted block">TL</span>
                           <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
                             <User className="h-3 w-3 shrink-0 text-text-muted" />
                             <span className="truncate">{leadership.tl}</span>
@@ -814,7 +814,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                         </div>
 
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">ATL</span>
+                          <span className="text-[10px] font-medium text-text-muted block">ATL</span>
                           <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
                             <User className="h-3 w-3 shrink-0 text-text-muted" />
                             <span className="truncate">{leadership.atl}</span>
@@ -823,21 +823,21 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
                         {isHiredTab ? (
                           <div>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Deployed By</span>
+                            <span className="text-[10px] font-medium text-text-muted block">Deployed By</span>
                             <div className="mt-0.5 font-semibold text-text-primary truncate">
                               {detail.deployedByName ?? "--"}
                             </div>
                           </div>
                         ) : detail.triggeredByName ? (
                           <div>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Triggered By</span>
+                            <span className="text-[10px] font-medium text-text-muted block">Triggered By</span>
                             <div className="mt-0.5 font-semibold text-text-primary truncate">
                               {detail.triggeredByName}
                             </div>
                           </div>
                         ) : (
                           <div>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted block">Triggered By</span>
+                            <span className="text-[10px] font-medium text-text-muted block">Triggered By</span>
                             <div className="mt-0.5 font-semibold text-text-primary truncate">
                               --
                             </div>
@@ -846,7 +846,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
                         {(detail.hasReliever || detail.relieverOnDuty) && (
                           <div className="col-span-2 pt-1.5 border-t border-border-subtle/50 flex items-center justify-between text-xs">
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Reliever on Duty</span>
+                            <span className="text-[10px] font-medium text-text-muted">Reliever on Duty</span>
                             <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-default">
                               <UserCheck className="h-3 w-3 text-text-muted" />
                               {detail.relieverOnDuty ?? "Reliever Assigned"}
@@ -862,7 +862,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {/* HRCO Remarks - Only rendered when actual operational remarks are recorded */}
               {detail.hrcoRemarks && detail.hrcoRemarks.trim().length > 0 && (
                 <div className="rounded-lg border border-border-subtle p-3 space-y-1.5 bg-surface-muted/30">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  <h3 className="text-xs font-semibold text-text-muted">
                     HRCO Remarks
                   </h3>
                   <p className="text-xs text-text-primary bg-surface-base p-2.5 rounded border border-border-subtle leading-relaxed whitespace-pre-line">
@@ -875,7 +875,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {!isHiredTab && (
                 <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
                       <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                       <span>Requisition & Quota Controls</span>
                     </div>
@@ -964,7 +964,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {/* 6. Applicant & Pipeline Section with Candidate Cards */}
               <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                  <h3 className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                     <span>Applicant & Pipeline</span>
                   </h3>
@@ -995,7 +995,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           {/* Candidate Top Header */}
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold uppercase text-[10px]">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
                                 {candidate.displayName.charAt(0)}
                               </div>
                               <div className="font-bold text-text-primary text-xs">
@@ -1127,7 +1127,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                     <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2.5">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold uppercase text-[10px]">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
                             {detail.applicantName.charAt(0)}
                           </div>
                           <div className="font-bold text-text-primary text-xs">
@@ -1261,7 +1261,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {/* Headcount Origin & Approvals Context - Hidden if completely empty */}
               {hasHeadcountContext && (
                 <div className="rounded-lg border border-border-subtle p-3 space-y-2 text-xs bg-surface-base">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  <h3 className="text-[11px] font-bold text-text-secondary">
                     Headcount & Approvals Context
                   </h3>
                   <div className="space-y-1.5">
@@ -1312,7 +1312,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {/* Audit Activity Timeline - Hidden when no real audit logs exist */}
               {hasActivityLogs && (
                 <div className="rounded-lg border border-border-subtle p-3 space-y-2 bg-surface-base">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
                     <History className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                     <span>Activity History</span>
                   </div>

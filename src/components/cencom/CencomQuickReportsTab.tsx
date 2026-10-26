@@ -363,7 +363,7 @@ export function CencomQuickReportsTab({
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted text-text-primary group-hover:bg-brand-500/10 group-hover:text-brand-500 transition-colors">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary border border-border-default">
+                  <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-[10px] font-bold text-text-secondary border border-border-default">
                     {item.badge}
                   </span>
                 </div>

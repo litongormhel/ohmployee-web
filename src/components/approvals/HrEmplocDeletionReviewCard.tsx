@@ -173,7 +173,7 @@ export function HrEmplocDeletionReviewCard({
       {/* Reason / remarks */}
       {request.reason && (
         <div className="mt-3.5 space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+          <p className="text-xs font-medium text-text-muted">
             Requester Remarks
           </p>
           <p className="rounded-md border border-border-default bg-surface px-3 py-2 text-xs leading-relaxed text-text-secondary">

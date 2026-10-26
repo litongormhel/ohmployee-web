@@ -810,7 +810,7 @@ export function TempPermissionModal({
 
               {/* Step 1: Target User Selection */}
               <div className="space-y-2 rounded-xl border border-border-default bg-surface-base p-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
+                <label className="block text-xs font-bold text-text-secondary">
                   1. Select Target User
                 </label>
                 <select
@@ -845,7 +845,7 @@ export function TempPermissionModal({
               {/* Step 2: Delegation Scope Type Selector */}
               <div className="space-y-3 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
+                  <label className="block text-xs font-bold text-text-secondary">
                     2. Scope Delegation Type
                   </label>
                   <span className="text-[11px] text-text-muted">
@@ -1019,7 +1019,7 @@ export function TempPermissionModal({
               {/* Step 3: Expiration Duration & Picker */}
               <div className="space-y-3 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
+                  <label className="block text-xs font-bold text-text-secondary">
                     3. Expiration Time Limit
                   </label>
                   <span className="text-[11px] text-text-muted">Max limit: 30 days</span>
@@ -1070,7 +1070,7 @@ export function TempPermissionModal({
               {/* Step 4: Mandatory Audit Justification */}
               <div className="space-y-2 rounded-xl border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
+                  <label className="block text-xs font-bold text-text-secondary">
                     4. Mandatory Audit Justification Reason <span className="text-danger-text">*</span>
                   </label>
                   <span className="text-[11px] text-text-muted">Recorded in compliance logs</span>

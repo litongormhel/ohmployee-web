@@ -193,26 +193,26 @@ export function StoreStaffingOverviewDrawer({
                   {/* Staffing Breakdown Numbers */}
                   <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center border-t border-border-subtle pt-3">
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
-                      <div className="text-[10px] font-semibold uppercase text-text-muted">Actual</div>
+                      <div className="text-[10px] font-semibold text-text-muted">Actual</div>
                       <div className="text-sm font-bold font-mono text-text-primary">{row.onboardCount}</div>
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
-                      <div className="text-[10px] font-semibold uppercase text-text-muted">Pipeline</div>
+                      <div className="text-[10px] font-semibold text-text-muted">Pipeline</div>
                       <div className="text-sm font-bold font-mono text-text-primary">{row.hrPipelineCount}</div>
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
-                      <div className="text-[10px] font-semibold uppercase text-text-muted">Open Vacant</div>
+                      <div className="text-[10px] font-semibold text-text-muted">Open Vacant</div>
                       <div className="text-sm font-bold font-mono text-text-primary">{row.openHeadcount}</div>
                     </div>
                     <div className="rounded border border-border-subtle bg-surface-muted/50 p-2">
-                      <div className="text-[10px] font-semibold uppercase text-text-muted">Required</div>
+                      <div className="text-[10px] font-semibold text-text-muted">Required</div>
                       <div className="text-sm font-bold font-mono text-text-primary">{row.requiredHeadcount}</div>
                     </div>
                   </div>
 
                   {/* Fill Rate Progress Bar */}
                   <div className="mt-3 flex items-center gap-2.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted shrink-0">
+                    <span className="text-[10px] font-semibold text-text-muted shrink-0">
                       MFR
                     </span>
                     <div className="relative flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden">

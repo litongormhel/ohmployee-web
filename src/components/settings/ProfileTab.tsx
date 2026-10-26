@@ -313,7 +313,7 @@ export function ProfileTab() {
         <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
             <Shield className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Account & Security Clearance
             </h3>
           </div>
@@ -380,7 +380,7 @@ export function ProfileTab() {
           <div>
             <div className="flex items-center gap-2 border-b border-border-default pb-3">
               <Phone className="h-4 w-4 text-brand-primary" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+              <h3 className="text-sm font-semibold text-text-primary">
                 Self-Service Contact Details
               </h3>
             </div>

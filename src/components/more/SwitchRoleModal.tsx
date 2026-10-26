@@ -175,7 +175,7 @@ export function SwitchRoleModal({ isOpen, onClose }: SwitchRoleModalProps) {
 
         {/* Quick Switch Chips */}
         <div>
-          <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+          <label className="block text-xs font-bold text-text-secondary mb-2">
             Quick Role Switch
           </label>
           <div className="flex flex-wrap gap-2">

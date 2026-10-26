@@ -152,7 +152,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
         {isSuperAdmin && (
           <div className="flex flex-wrap items-center justify-between gap-3 border border-border-default bg-surface-subtle rounded-2xl p-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+              <span className="text-xs font-bold text-text-secondary">
                 Exec Actions:
               </span>
               <button
@@ -431,7 +431,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                 <div className="rounded-2xl border border-border-default overflow-hidden">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-border-default bg-surface-subtle text-xs font-bold text-text-muted uppercase tracking-wider">
+                      <tr className="border-b border-border-default bg-surface-subtle text-xs font-bold text-text-muted">
                         <th className="py-2.5 px-4">Status</th>
                         <th className="py-2.5 px-4">Agent / Suite</th>
                         <th className="py-2.5 px-4">Target Module</th>
@@ -448,7 +448,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                           <tr key={r.id} className="hover:bg-surface-hover/50">
                             <td className="py-2.5 px-4">
                               <span
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold  ${
                                   isSuccess
                                     ? "bg-surface-subtle text-text-primary border border-border-default"
                                     : isFailed
@@ -535,7 +535,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                         key={sev}
                         type="button"
                         onClick={() => setFindingSeverityFilter(sev)}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase transition cursor-pointer ${
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold  transition cursor-pointer ${
                           findingSeverityFilter === sev
                             ? "bg-brand-primary text-surface-primary"
                             : "bg-surface-primary text-text-secondary hover:bg-surface-hover border border-border-default"
@@ -575,7 +575,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
                                 isCrit
                                   ? "bg-danger-surface text-danger-text border border-danger-border"
                                   : "bg-surface-subtle text-text-secondary border border-border-default"
@@ -604,7 +604,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                           </span>
                           <span>•</span>
                           <span>
-                            Status: <strong className="uppercase text-text-primary">{f.status}</strong>
+                            Status: <strong className="text-text-primary">{f.status}</strong>
                           </span>
                         </div>
 
@@ -685,7 +685,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                             <span className="font-mono text-xs font-bold text-text-primary">
                               Queue #{q.id.slice(0, 8)}
                             </span>
-                            <span className="rounded-full bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary uppercase">
+                            <span className="rounded-full bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
                               {q.status}
                             </span>
                           </div>
@@ -738,7 +738,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                               <h4 className="text-sm font-bold text-text-primary">
                                 Daily Report — {dr.reportDate}
                               </h4>
-                              <span className="rounded-full bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-mono font-semibold uppercase text-text-secondary">
+                              <span className="rounded-full bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-mono font-semibold text-text-secondary">
                                 {dr.environment}
                               </span>
                             </div>

@@ -427,7 +427,7 @@ export function PayrollImportModal({
                 </div>
               ) : (
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs uppercase text-text-muted font-bold">
+                  <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                     <tr>
                       <th className="py-2.5 px-3.5">Emp No</th>
                       <th className="py-2.5 px-3.5">Payroll Name</th>

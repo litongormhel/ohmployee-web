@@ -948,11 +948,11 @@ export default function HrEmplocPage() {
           <div className="space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-xl border border-border-default bg-surface-muted p-3 text-center">
-                <span className="text-[10px] uppercase font-semibold text-text-muted block">Moved</span>
+                <span className="text-[10px] font-semibold text-text-muted block">Moved</span>
                 <span className="text-xl font-bold tabular-nums text-text-primary">{bulkResultModal.moved}</span>
               </div>
               <div className="rounded-xl border border-border-default bg-surface-muted p-3 text-center">
-                <span className="text-[10px] uppercase font-semibold text-text-muted block">Skipped / Capacity</span>
+                <span className="text-[10px] font-semibold text-text-muted block">Skipped / Capacity</span>
                 <span className="text-xl font-bold tabular-nums text-text-primary">{bulkResultModal.skipped}</span>
               </div>
             </div>

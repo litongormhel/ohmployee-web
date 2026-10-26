@@ -325,7 +325,7 @@ export function HrEmplocDetailDrawer({
 
           {/* Operational Metadata Grid */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <h3 className="text-xs font-semibold text-text-muted">
               Placement Parameters
             </h3>
             <div className="grid grid-cols-2 gap-y-3 text-sm">
@@ -410,7 +410,7 @@ export function HrEmplocDetailDrawer({
           {/* SLA Performance Section */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <h3 className="text-xs font-semibold text-text-muted">
                 SLA & Aging Performance
               </h3>
               {detail.slaBreached && (
@@ -454,7 +454,7 @@ export function HrEmplocDetailDrawer({
 
           {/* Requirements Compliance Checklist & Deficiencies */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <h3 className="text-xs font-semibold text-text-muted">
               Onboarding Requirements Compliance
             </h3>
             <div className="grid gap-2">
@@ -507,7 +507,7 @@ export function HrEmplocDetailDrawer({
               <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
                 {detail.hrRemarks && (
                   <div>
-                    <div className="text-[10px] font-semibold uppercase text-text-muted">
+                    <div className="text-[10px] font-semibold text-text-muted">
                       HR Compliance Remarks
                     </div>
                     <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2.5 rounded border border-border-subtle italic">
@@ -517,7 +517,7 @@ export function HrEmplocDetailDrawer({
                 )}
                 {detail.opsRemarks && (
                   <div>
-                    <div className="text-[10px] font-semibold uppercase text-text-muted">
+                    <div className="text-[10px] font-semibold text-text-muted">
                       Ops Coordinator Remarks
                     </div>
                     <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2.5 rounded border border-border-subtle italic">
@@ -532,7 +532,7 @@ export function HrEmplocDetailDrawer({
           {/* Corrected File Attachments viewer */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <h3 className="text-xs font-semibold text-text-muted">
                 Correction Submissions & Attachments
               </h3>
               <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
@@ -592,7 +592,7 @@ export function HrEmplocDetailDrawer({
 
           {/* Audit Timeline Section */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted">
               <History className="h-4 w-4 text-text-muted" />
               <span>Activity History Trail</span>
             </div>
@@ -832,7 +832,7 @@ function TagDeficiencyModal({
 
         {/* Scrollable body */}
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="text-[10px] font-semibold uppercase text-text-muted">
+          <div className="text-[10px] font-semibold text-text-muted">
             Deficient Requirements (select at least one)
           </div>
           <div className="space-y-2">
@@ -893,7 +893,7 @@ function TagDeficiencyModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase text-text-muted">
+            <div className="text-[10px] font-semibold text-text-muted">
               HR Compliance Remarks (Optional)
             </div>
             <textarea
@@ -927,7 +927,7 @@ function TagDeficiencyModal({
             Cancel
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={!hasSelected || isPending}
             onClick={handleSubmit}
             type="button"
@@ -1046,7 +1046,7 @@ function ReviewCorrectionModal({
             </div>
           ) : (
             <>
-              <div className="text-[10px] font-semibold uppercase text-text-muted">
+              <div className="text-[10px] font-semibold text-text-muted">
                 Tagged Deficiencies — mark each as resolved or still deficient
               </div>
               <div className="space-y-2">
@@ -1124,7 +1124,7 @@ function ReviewCorrectionModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase text-text-muted">
+            <div className="text-[10px] font-semibold text-text-muted">
               Reviewer Remarks (Optional)
             </div>
             <textarea
@@ -1158,7 +1158,7 @@ function ReviewCorrectionModal({
             Cancel
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             disabled={isPending}
             onClick={handleSubmit}
             type="button"

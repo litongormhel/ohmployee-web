@@ -110,9 +110,9 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-text-primary">
               <Store className="h-3 w-3" aria-hidden="true" />
-              NEW STORE
+              New Store
             </span>
             <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
               {request.accountName || "Unassigned Account"}

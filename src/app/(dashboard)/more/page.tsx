@@ -706,7 +706,7 @@ function MorePageContent() {
                       <h2 className="text-lg font-bold text-text-primary leading-tight">
                         {currentUser?.displayName || "Signed In User"}
                       </h2>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-surface-subtle text-text-primary border border-border-default">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                         {roleName}
                       </span>
                     </div>
@@ -755,7 +755,7 @@ function MorePageContent() {
                         <Key className="w-4 h-4 text-brand-primary" />
                         <span>Temporary Access Active</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default uppercase">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                         Override
                       </span>
                     </div>
@@ -778,7 +778,7 @@ function MorePageContent() {
                         <ShieldCheck className="w-4 h-4 text-text-primary" />
                         <span>Standard Governance Scope</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default">
                         Normal
                       </span>
                     </div>
@@ -811,7 +811,7 @@ function MorePageContent() {
             {/* Overview Primary Shortcuts Grid */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                   <Users2 className="w-4 h-4 text-text-muted" />
                   <span>Primary Shortcuts</span>
                 </h3>
@@ -830,11 +830,11 @@ function MorePageContent() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4 text-danger-text" />
                   <span>High-Level Command Tools</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-danger-surface text-danger-text border border-danger-border uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-danger-surface text-danger-text border border-danger-border">
                   Super Admin Level 100
                 </span>
               </div>
@@ -852,11 +852,11 @@ function MorePageContent() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                   <Key className="w-4 h-4 text-brand-primary" />
                   <span>Authorization & Role Governance</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default">
                   Security Matrix
                 </span>
               </div>
@@ -897,11 +897,11 @@ function MorePageContent() {
             {/* Main Header / Description */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                   <Database className="w-4 h-4 text-text-primary" />
                   <span>Data Control & Batch Ingestion</span>
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-secondary border border-border-default">
                   Mobile Parity
                 </span>
               </div>
@@ -1126,7 +1126,7 @@ function TileCard({ tile }: { tile: MoreFeatureTile }) {
           <div className="flex items-center gap-1.5">
             {tile.badgeLabel && (
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                className={`px-2 py-0.5 rounded-full text-xs font-bold  ${
                   tile.badgeVariant === "rose"
                     ? "bg-danger-surface text-danger-text border border-danger-border"
                     : "bg-surface-subtle text-text-secondary border border-border-default"

@@ -151,7 +151,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
 
         {/* Basic Information */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+          <h3 className="text-xs font-bold text-text-muted">
             Basic Information
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -206,7 +206,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
         {/* Group Scope Assignment */}
         <div className="space-y-3 border-t border-border-subtle pt-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            <h3 className="text-xs font-bold text-text-muted">
               Group Scopes
             </h3>
             <span className="text-[11px] text-text-secondary">
@@ -245,7 +245,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
         {/* Account Scope Assignment */}
         <div className="space-y-3 border-t border-border-subtle pt-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            <h3 className="text-xs font-bold text-text-muted">
               Account Scopes
             </h3>
             {!isGlobalHQSelected && selectedGroupIds.length > 0 && (

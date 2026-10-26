@@ -128,7 +128,7 @@ export function FloatingStaffTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
+            <span className="text-[10px] font-bold text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Staffing
             </span>
             <span className="text-xs text-text-muted">Port of FloatingReportScreen</span>
@@ -179,7 +179,7 @@ export function FloatingStaffTab() {
               : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+          <div className="text-[11px] font-semibold text-text-muted">
             Total Floating Staff
           </div>
           <div className="text-2xl font-bold text-text-primary mt-1">{total}</div>
@@ -194,7 +194,7 @@ export function FloatingStaffTab() {
               : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>&lt; 30 Days</span>
             <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
@@ -210,7 +210,7 @@ export function FloatingStaffTab() {
               : "border-border-default bg-surface-base hover:border-border-strong"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-text-secondary flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>30–60 Days</span>
             <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
@@ -226,7 +226,7 @@ export function FloatingStaffTab() {
               : "border-border-default bg-surface-base hover:border-danger/40"
           }`}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-danger flex items-center justify-between">
+          <div className="text-[11px] font-semibold text-danger flex items-center justify-between">
             <span>&gt; 60 Days</span>
             <span className="w-2 h-2 rounded-full bg-danger" />
           </div>
@@ -284,7 +284,7 @@ export function FloatingStaffTab() {
         {/* Account distribution pills */}
         {accountBreakdown.length > 0 && (
           <div className="sm:col-span-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-            <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider shrink-0 mr-1">
+            <span className="text-[10px] font-semibold text-text-muted shrink-0 mr-1">
               By Account:
             </span>
             {accountBreakdown.map((item) => {
@@ -342,7 +342,7 @@ export function FloatingStaffTab() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-xs tracking-wider font-semibold">
+              <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-xs tracking-wider font-semibold">
                 <tr>
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Position</th>

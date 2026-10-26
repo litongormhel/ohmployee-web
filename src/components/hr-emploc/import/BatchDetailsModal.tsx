@@ -149,7 +149,7 @@ export function BatchDetailsModal({
           {/* KPI metrics bar: row counts are neutral */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+              <p className="text-[11px] font-medium text-text-muted">
                 Total Rows
               </p>
               <p className="mt-1 text-2xl font-bold text-text-primary">
@@ -157,7 +157,7 @@ export function BatchDetailsModal({
               </p>
             </div>
             <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+              <p className="text-[11px] font-medium text-text-muted">
                 Ready to Import
               </p>
               <p className="mt-1 text-2xl font-bold text-text-primary">
@@ -165,7 +165,7 @@ export function BatchDetailsModal({
               </p>
             </div>
             <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+              <p className="text-[11px] font-medium text-text-muted">
                 Blocked Rows
               </p>
               <p className="mt-1 text-2xl font-bold text-text-primary">
@@ -173,7 +173,7 @@ export function BatchDetailsModal({
               </p>
             </div>
             <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 shadow-2xs">
-              <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+              <p className="text-[11px] font-medium text-text-muted">
                 Duplicates
               </p>
               <p className="mt-1 text-2xl font-bold text-text-primary">
@@ -391,7 +391,7 @@ export function BatchDetailsModal({
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-primary-hover transition disabled:opacity-50 cursor-pointer"
                   disabled={
                     approveMutation.isPending || (summary?.validRows ?? batch.validRows) === 0
                   }

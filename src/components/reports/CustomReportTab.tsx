@@ -290,7 +290,7 @@ export function CustomReportTab() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+            <span className="text-[10px] font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
               Query Builder
             </span>
             <span className="text-xs text-text-muted">Port of CustomReportScreen</span>
@@ -331,7 +331,7 @@ export function CustomReportTab() {
 
       {/* 1. Report Data Source Selector */}
       <div className="space-y-2">
-        <label className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+        <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
           <Layers className="w-3.5 h-3.5 text-brand-600" />
           1. Select Primary Data Source
         </label>
@@ -363,7 +363,7 @@ export function CustomReportTab() {
       {/* 2. Scope & Condition Filters */}
       <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
-          <label className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+          <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <Filter className="w-3.5 h-3.5 text-brand-600" />
             2. Scope & Condition Filters
           </label>
@@ -463,7 +463,7 @@ export function CustomReportTab() {
       {/* 3. Column Selection Strip */}
       <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
-          <label className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center gap-1.5">
+          <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <CheckSquare className="w-3.5 h-3.5 text-brand-600" />
             3. Choose Columns to Include ({selectedColumns.length} of {activeConfig.columns.length})
           </label>
@@ -507,7 +507,7 @@ export function CustomReportTab() {
           type="button"
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="flex items-center gap-2 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-sm"
+          className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-sm"
         >
           {isGenerating ? (
             <>
@@ -542,7 +542,7 @@ export function CustomReportTab() {
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border-subtle bg-surface-muted/40">
             <div className="flex items-center gap-2">
               <Table className="w-4 h-4 text-brand-600" />
-              <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+              <span className="text-xs font-bold text-text-primary">
                 Report Preview ({filteredResults.length} Rows)
               </span>
             </div>
@@ -566,7 +566,7 @@ export function CustomReportTab() {
           ) : (
             <div className="overflow-x-auto max-h-[500px]">
               <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary uppercase text-[10px] tracking-wider font-semibold sticky top-0 z-10 shadow-2xs">
+                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold sticky top-0 z-10 shadow-2xs">
                   <tr>
                     {activeConfig.columns
                       .filter((c) => selectedColumns.includes(c.key))

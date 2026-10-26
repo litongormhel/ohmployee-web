@@ -265,7 +265,7 @@ export function AccountRequestsModal({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-text-primary">{req.fullName}</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider bg-surface-subtle text-text-secondary border border-border-default">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-subtle text-text-secondary border border-border-default">
                           {req.requestedRoleName || "Requested Role"}
                         </span>
                         {req.daysPending !== null && req.status === "pending" && (

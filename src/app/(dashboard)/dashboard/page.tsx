@@ -674,7 +674,7 @@ export default function DashboardPage() {
                 ) : (
                   <table className="w-full border-collapse text-left text-sm">
                     <thead>
-                      <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold uppercase text-text-muted">
+                      <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold text-text-muted">
                         <th className="py-2.5 px-4 sm:px-5">Group Name</th>
                         <th className="py-2.5 px-3 text-center">Plantilla</th>
                         <th className="py-2.5 px-3 text-center">Open Vacancy</th>
@@ -769,7 +769,7 @@ export default function DashboardPage() {
                   ) : (
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
-                        <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold uppercase text-text-muted">
+                        <tr className="border-b border-border-subtle bg-surface-muted/60 text-xs font-semibold text-text-muted">
                           <th className="py-2.5 px-4 sm:px-5">Breach Lane / Account</th>
                           <th className="py-2.5 px-3">Category</th>
                           <th className="py-2.5 px-3">Scope Owner</th>

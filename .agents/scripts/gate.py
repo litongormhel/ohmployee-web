@@ -211,12 +211,51 @@ def check_color_literals(touched_modules, check_entire_src=False):
         return False, f"Color literal gate FAILED (must be 0 for {scope}):\n" + "\n".join(violations[:15])
     return True, ""
 
+def check_env_target():
+    """
+    Stricter-only security gate: Reads ONLY the host of NEXT_PUBLIC_SUPABASE_URL
+    from .env.local (never keys).
+    If it contains the production ref 'rwxelulyapjgaarlwkus', blocks completion.
+    """
+    env_local_path = ".env.local"
+    if not os.path.exists(env_local_path):
+        return True, ""
+
+    prod_ref = "rwxelulyapjgaarlwkus"
+    try:
+        with open(env_local_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line_str = line.strip()
+                if line_str.startswith("NEXT_PUBLIC_SUPABASE_URL="):
+                    url_val = line_str.split("=", 1)[1].strip().strip("'\"")
+                    # Extract only the host part (never keys or query params)
+                    m = re.match(r"^https?://([^/:]+)", url_val)
+                    host = m.group(1) if m else url_val
+                    if prod_ref in host:
+                        return False, "local env points to production"
+    except Exception as e:
+        return False, f"Failed to verify .env.local host: {e}"
+
+    return True, ""
+
 def main():
     checked_items, unchecked_items = get_queue_status()
     all_queue_done = len(unchecked_items) == 0
 
     touched_files = get_git_touched_files()
     touched_modules, global_touched = derive_touched_modules(touched_files)
+
+    # 0. Environment Target Gate (stricter only):
+    # Reads ONLY the host of NEXT_PUBLIC_SUPABASE_URL from .env.local (never keys);
+    # if it contains rwxelulyapjgaarlwkus, returns continue with reason "local env points to production".
+    env_ok, env_msg = check_env_target()
+    if not env_ok:
+        print(json.dumps({
+            "decision": "continue",
+            "reason": env_msg,
+            "touched_modules": touched_modules
+        }))
+        sys.exit(0)
 
     notes = []
     if global_touched:

@@ -94,7 +94,7 @@ function EditHiredDateModalContent({
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Effective Hired / Onboard Date *
           </label>
           <input

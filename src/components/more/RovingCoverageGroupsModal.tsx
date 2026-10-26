@@ -173,7 +173,7 @@ export function RovingCoverageGroupsModal({
                 {/* KPI block */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-surface-subtle border border-border-default">
-                    <span className="text-xs uppercase font-bold text-text-muted">
+                    <span className="text-xs font-bold text-text-muted">
                       Cluster Stores
                     </span>
                     <p className="text-lg font-bold text-text-primary mt-0.5">
@@ -181,7 +181,7 @@ export function RovingCoverageGroupsModal({
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-surface-subtle border border-border-default">
-                    <span className="text-xs uppercase font-bold text-text-muted">
+                    <span className="text-xs font-bold text-text-muted">
                       Headcount Slots
                     </span>
                     <p className="text-lg font-bold text-text-primary mt-0.5">
@@ -192,7 +192,7 @@ export function RovingCoverageGroupsModal({
 
                 {/* Stores in Group */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-text-secondary mb-2 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-brand-primary" />
                     <span>Designated Stores ({selectedDetail.stores.length})</span>
                   </h4>
@@ -211,8 +211,8 @@ export function RovingCoverageGroupsModal({
                           )}
                         </div>
                         {s.isAnchor && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
-                            ANCHOR
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-surface-subtle text-text-primary border border-border-default">
+                            Anchor
                           </span>
                         )}
                       </div>
@@ -222,7 +222,7 @@ export function RovingCoverageGroupsModal({
 
                 {/* Slots in Group */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-text-secondary mb-2 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-brand-primary" />
                     <span>Coverage Slots ({selectedDetail.slots.length})</span>
                   </h4>

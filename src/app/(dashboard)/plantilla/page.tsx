@@ -903,7 +903,7 @@ function PlantillaPageContent() {
                             {account.name}
                           </h3>
                           {account.isPoolAccount && (
-                            <p className="text-[10px] font-bold text-text-secondary tracking-wider mt-0.5 uppercase">
+                            <p className="text-[10px] font-bold text-text-secondary tracking-wider mt-0.5">
                               Workforce Pool Inside Plantilla
                             </p>
                           )}
@@ -946,7 +946,7 @@ function PlantillaPageContent() {
 
                       {!account.isPoolAccount && (
                         <div className="mt-3.5 flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider shrink-0 w-8">
+                          <span className="text-[10px] font-bold text-text-secondary shrink-0 w-8">
                             MFR
                           </span>
                           <div className={`relative flex-1 h-2 rounded-full overflow-hidden ${colors.track}`}>
@@ -1132,7 +1132,7 @@ function PlantillaPageContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border-default bg-surface-muted/40 px-4 py-2.5 text-xs text-text-secondary shadow-xs">
               <div className="flex items-center gap-2 shrink-0">
                 <Users className="h-4 w-4 text-brand-600" />
-                <span className="font-bold uppercase tracking-wider text-[11px] text-text-primary">
+                <span className="font-bold text-[11px] text-text-primary">
                   Leadership Team:
                 </span>
               </div>
@@ -2320,7 +2320,7 @@ function EmptyTabState({
       <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs">
         <Users className="h-8 w-8 text-brand-600" />
         {hasActiveFilters && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-pct-warn-text text-[10px] font-bold text-white shadow-xs">
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-button text-xs font-bold text-white shadow-xs">
             !
           </span>
         )}

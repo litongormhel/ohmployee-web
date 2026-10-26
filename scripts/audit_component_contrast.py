@@ -142,26 +142,24 @@ def extract_pairs_from_string(s):
 
 def find_bg_text_pairs(file_path):
     pairs = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        lines = f.readlines()
 
-    # Find literal strings inside className="..." or className={`...`}
-    # Break down template literals by string segments (avoiding ternary crosses)
-    class_matches = re.findall(r'className=(?:["\'](.*?)["\']|{`([^`]*)`})', content)
-    for m in class_matches:
-        if m[0]:
-            pairs.extend(extract_pairs_from_string(m[0]))
-        elif m[1]:
-            # Split template literal by expressions ${...}
-            raw_tmpl = m[1]
-            # Also extract quoted strings inside expressions
-            expr_strings = re.findall(r'["\']([^"\']+)["\']', raw_tmpl)
-            for es in expr_strings:
-                pairs.extend(extract_pairs_from_string(es))
-            # And static parts outside ${...}
-            static_parts = re.split(r'\$\{[^}]*\}', raw_tmpl)
-            for sp in static_parts:
-                pairs.extend(extract_pairs_from_string(sp))
+    for idx, line in enumerate(lines, 1):
+        class_matches = re.findall(r'className=(?:["\'](.*?)["\']|{`([^`]*)`})', line)
+        for m in class_matches:
+            raw = m[0] or m[1]
+            if raw:
+                # Also extract quoted strings inside expressions
+                expr_strings = re.findall(r'["\']([^"\']+)["\']', raw)
+                for es in expr_strings:
+                    for bg, tx in extract_pairs_from_string(es):
+                        pairs.append((bg, tx, idx))
+                # And static parts outside ${...}
+                static_parts = re.split(r'\$\{[^}]*\}', raw)
+                for sp in static_parts:
+                    for bg, tx in extract_pairs_from_string(sp):
+                        pairs.append((bg, tx, idx))
     return pairs
 
 def main():
@@ -169,35 +167,29 @@ def main():
     globals_path = os.path.join(base_dir, "src/app/globals.css")
     light_colors, dark_colors = parse_globals_css(globals_path)
 
-    shared_dirs = [
-        "src/components/shared",
-        "src/components/ui",
-    ]
-
+    # Scans all .tsx files in src/
     all_pairs = defaultdict(list)
+    src_dir = os.path.join(base_dir, "src")
 
-    for d in shared_dirs:
-        dir_path = os.path.join(base_dir, d)
-        if not os.path.isdir(dir_path):
-            continue
-        for root, _, files in os.walk(dir_path):
-            for file in files:
-                if file.endswith(('.tsx', '.jsx', '.ts', '.js')):
-                    full_p = os.path.join(root, file)
-                    rel_p = os.path.relpath(full_p, base_dir)
-                    found = find_bg_text_pairs(full_p)
-                    for bg, tx in found:
-                        all_pairs[(bg, tx)].append(rel_p)
+    for root, _, files in os.walk(src_dir):
+        for file in sorted(files):
+            if file.endswith('.tsx'):
+                full_p = os.path.join(root, file)
+                rel_p = os.path.relpath(full_p, base_dir)
+                found = find_bg_text_pairs(full_p)
+                for bg, tx, lno in found:
+                    all_pairs[(bg, tx)].append((rel_p, lno))
 
     print(f"{'BG Class':<24} | {'Text Class':<24} | {'Light Ratio':<12} | {'Dark Ratio':<12} | {'WCAG AA (4.5:1)':<16} | Usages")
     print("-" * 105)
 
     evaluated = 0
     passed = 0
+    failing_instances = []
 
     sorted_pairs = sorted(all_pairs.items(), key=lambda x: len(x[1]), reverse=True)
 
-    for (bg, tx), files in sorted_pairs:
+    for (bg, tx), occurrences in sorted_pairs:
         l_bg = light_colors.get(bg)
         l_tx = light_colors.get(tx)
         d_bg = dark_colors.get(bg)
@@ -213,12 +205,31 @@ def main():
             status = "PASS BOTH" if (l_pass and d_pass) else ("PASS L ONLY" if l_pass else ("PASS D ONLY" if d_pass else "FAIL BOTH"))
             if l_pass and d_pass:
                 passed += 1
+            else:
+                for file_path, lno in occurrences:
+                    failing_instances.append({
+                        "file": file_path,
+                        "line": lno,
+                        "bg": bg,
+                        "tx": tx,
+                        "light_ratio": l_ratio,
+                        "dark_ratio": d_ratio,
+                        "light_pass": l_pass,
+                        "dark_pass": d_pass,
+                    })
 
-            unique_files = sorted(list(set([os.path.basename(f) for f in files])))
-            print(f"bg-{bg:<21} | text-{tx:<19} | {l_ratio:6.2f}:1 ({'P' if l_pass else 'F'}) | {d_ratio:6.2f}:1 ({'P' if d_pass else 'F'}) | {status:<16} | {len(files)} files ({', '.join(unique_files)})")
+            unique_files = sorted(list(set([os.path.basename(f) for f, _ in occurrences])))
+            print(f"bg-{bg:<21} | text-{tx:<19} | {l_ratio:6.2f}:1 ({'P' if l_pass else 'F'}) | {d_ratio:6.2f}:1 ({'P' if d_pass else 'F'}) | {status:<16} | {len(occurrences)} usages ({', '.join(unique_files[:4])})")
 
     print("-" * 105)
-    print(f"Total evaluated pairs in shared components: {evaluated} | Both themes pass >= 4.5:1: {passed}")
+    print(f"Total evaluated unique semantic pairs across ALL .tsx files: {evaluated} | Both themes pass >= 4.5:1: {passed}")
+
+    if failing_instances:
+        print("\nPairs under 4.5:1 with file:line:")
+        for fi in failing_instances:
+            print(f"  {fi['file']}:{fi['line']} (bg-{fi['bg']} text-{fi['tx']}) - Light: {fi['light_ratio']:.2f}:1 ({'PASS' if fi['light_pass'] else 'FAIL'}), Dark: {fi['dark_ratio']:.2f}:1 ({'PASS' if fi['dark_pass'] else 'FAIL'})")
+    else:
+        print("All evaluated pairs across all .tsx files pass WCAG AA (>= 4.5:1) in both themes with 0 failures!")
 
 if __name__ == "__main__":
     main()

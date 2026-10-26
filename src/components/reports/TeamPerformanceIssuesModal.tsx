@@ -83,7 +83,7 @@ export function TeamPerformanceIssuesModal({
       title={`${accountName} — Operational Issues & SLA Breaches`}
       subtitle={
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-text-primary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
+          <span className="text-[10px] font-bold text-text-primary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
             Operational Discipline Audit
           </span>
           <span className="text-xs text-text-muted">{groupName}</span>

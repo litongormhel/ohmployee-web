@@ -286,7 +286,7 @@ function NewStoreRequestModalDialog({
       title={
         <span className="flex items-center gap-2">
           <span>Request Store Addition</span>
-          <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] border border-[var(--border-subtle)]">
+          <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold text-[var(--foreground)] border border-[var(--border-subtle)]">
             NSR
           </span>
         </span>
@@ -325,7 +325,7 @@ function NewStoreRequestModalDialog({
               <div className="rounded-lg border border-border-default bg-surface-muted p-3 text-left text-xs space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-text-muted font-medium">Request Status:</span>
-                  <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold text-[var(--foreground)] uppercase border border-[var(--border-subtle)]">
+                  <span className="rounded bg-[var(--surface-sunken)] px-2 py-0.5 text-xs font-bold text-[var(--foreground)] border border-[var(--border-subtle)]">
                     Pending Review
                   </span>
                 </div>
@@ -367,7 +367,7 @@ function NewStoreRequestModalDialog({
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Account Scope Badge */}
               <div className="rounded-lg border border-border-default bg-surface-muted p-3 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                   <Building2 className="h-4 w-4 text-text-muted" />
                   Target Account
                 </span>

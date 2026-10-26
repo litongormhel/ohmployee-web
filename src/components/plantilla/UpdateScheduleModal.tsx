@@ -126,7 +126,7 @@ export function UpdateScheduleModal({
         {/* SCHEDULE_DAYS */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-2xs font-bold uppercase tracking-wider text-text-secondary">
+            <label className="text-2xs font-bold text-text-secondary">
               Schedule Days
             </label>
             <div className="flex items-center gap-1">
@@ -157,7 +157,7 @@ export function UpdateScheduleModal({
                   onClick={() => setScheduleDays(toggleDay(scheduleDays, d))}
                   className={`py-1.5 text-3xs font-bold rounded-lg border transition-colors cursor-pointer ${
                     selected
-                      ? "bg-brand-primary text-white border-brand-primary shadow-xs"
+                      ? "bg-brand-button text-white border-brand-primary shadow-xs"
                       : "bg-surface border-border-default text-text-secondary hover:border-border-strong hover:text-text-primary"
                   }`}
                 >
@@ -177,7 +177,7 @@ export function UpdateScheduleModal({
 
         {/* SCHEDULE_TIME */}
         <div>
-          <label className="block text-2xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
+          <label className="block text-2xs font-bold text-text-secondary mb-1.5">
             Schedule Time / Flexi Visit Window
           </label>
           <div className="flex flex-wrap gap-1 mb-2">
@@ -208,7 +208,7 @@ export function UpdateScheduleModal({
         {/* DAYOFF */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-2xs font-bold uppercase tracking-wider text-text-secondary">
+            <label className="text-2xs font-bold text-text-secondary">
               Dayoff
             </label>
             <div className="flex items-center gap-1">
@@ -269,7 +269,7 @@ export function UpdateScheduleModal({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-brand-primary text-xs font-semibold text-white hover:bg-brand-secondary shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-brand-button text-xs font-semibold text-white hover:bg-brand-secondary shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>

@@ -162,7 +162,7 @@ export function MosesHqPoolView() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight">Moses HQ Workforce Pool</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-surface-muted text-brand-primary border border-border-default px-2 py-0.5 rounded-full">
+            <span className="text-[11px] font-bold bg-surface-muted text-brand-primary border border-border-default px-2 py-0.5 rounded-full">
               Mobile Parity
             </span>
           </div>
@@ -177,7 +177,7 @@ export function MosesHqPoolView() {
             <button
               type="button"
               onClick={() => setIsHeadcountModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-button rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="h-3.5 w-3.5" /> Request Pool Headcount
             </button>
@@ -268,7 +268,7 @@ export function MosesHqPoolView() {
             }}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               selectedPoolType === "all"
-                ? "bg-brand-primary text-white shadow-xs"
+                ? "bg-brand-button text-white shadow-xs"
                 : "bg-surface-muted text-text-secondary hover:bg-surface-hover hover:text-text-primary"
             }`}
           >
@@ -287,7 +287,7 @@ export function MosesHqPoolView() {
                 }}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                   selectedPoolType === pt.id
-                    ? "bg-brand-primary text-white shadow-xs"
+                    ? "bg-brand-button text-white shadow-xs"
                     : "bg-surface-muted text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                 }`}
               >
@@ -363,7 +363,7 @@ export function MosesHqPoolView() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-table-header border-b border-table-rule text-table-text-muted font-bold uppercase tracking-wider text-xs">
+                <thead className="bg-table-header border-b border-table-rule text-table-text-muted font-bold text-xs">
                   <tr>
                     <th className="py-3 px-4">Employee</th>
                     <th className="py-3 px-4">Pool Type</th>
@@ -417,7 +417,7 @@ export function MosesHqPoolView() {
                               {emp.availabilityStatus}
                             </StatusBadge>
                             {emp.hasPendingRequest && (
-                              <span className="text-[10px] font-bold text-pct-warn-text bg-pct-warn-bg px-1.5 py-0.5 rounded border border-pct-warn-border uppercase">
+                              <span className="text-[10px] font-bold text-pct-warn-text bg-pct-warn-bg px-1.5 py-0.5 rounded border border-pct-warn-border">
                                 Req
                               </span>
                             )}

@@ -98,7 +98,7 @@ export function RequestDeactivationModal({
 
         {/* Deactivation Reason Category */}
         <div className="space-y-1.5">
-          <label htmlFor="deactivation-reason" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="deactivation-reason" className="block text-xs font-semibold text-text-secondary">
             Deactivation Justification <span className="text-danger-text">*</span>
           </label>
           <select
@@ -117,7 +117,7 @@ export function RequestDeactivationModal({
 
         {/* Mandatory Remarks Textarea */}
         <div className="space-y-1.5">
-          <label htmlFor="deactivation-remarks" className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          <label htmlFor="deactivation-remarks" className="block text-xs font-semibold text-text-secondary">
             Mandatory Remarks &amp; Clearance Notes <span className="text-danger-text">*</span>
           </label>
           <textarea
@@ -155,7 +155,7 @@ export function RequestDeactivationModal({
           <button
             type="submit"
             disabled={mutation.isPending || !remarks.trim()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-secondary disabled:opacity-50 transition-colors cursor-pointer"
           >
             {mutation.isPending ? (
               <>

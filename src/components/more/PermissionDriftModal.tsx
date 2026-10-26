@@ -250,7 +250,7 @@ export function PermissionDriftModal({
                   {/* Card Header Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-border-subtle bg-surface-subtle/50">
                     <div className="flex items-center gap-2.5">
-                      <span className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-surface-subtle text-text-primary border border-border-default">
+                      <span className="rounded-md px-2 py-0.5 text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                         {finding.severity}
                       </span>
                       <span className="font-mono text-sm font-bold text-text-primary">
@@ -265,7 +265,7 @@ export function PermissionDriftModal({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="rounded-full px-2 py-0.5 text-xs font-bold uppercase bg-surface-subtle text-text-primary border border-border-default">
+                      <span className="rounded-full px-2 py-0.5 text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                         {finding.status}
                       </span>
                       <button
@@ -292,7 +292,7 @@ export function PermissionDriftModal({
                     {/* Comparison Grid: Expected vs Observed */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                       <div className="rounded-lg border border-border-default bg-surface-subtle p-3">
-                        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                        <span className="text-xs font-bold text-text-secondary">
                           Expected Enforcement:
                         </span>
                         <p className="mt-1 font-mono text-xs text-text-primary font-medium">
@@ -301,7 +301,7 @@ export function PermissionDriftModal({
                       </div>
 
                       <div className="rounded-lg border border-border-default bg-surface-subtle p-3">
-                        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                        <span className="text-xs font-bold text-text-secondary">
                           Observed / Code Enforcement:
                         </span>
                         <p className="mt-1 font-mono text-xs text-text-primary font-medium">
@@ -326,7 +326,7 @@ export function PermissionDriftModal({
                     {/* Expandable Evidence Details */}
                     {isExpanded && (
                       <div className="pt-3 border-t border-border-subtle space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                           <Code2 className="h-3.5 w-3.5 text-brand-primary" />
                           Code & Runtime Evidence Trace
                         </h4>

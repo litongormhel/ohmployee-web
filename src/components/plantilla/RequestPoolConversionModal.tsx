@@ -252,7 +252,7 @@ export function RequestPoolConversionModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-brand-button rounded-lg hover:bg-brand-secondary transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit Conversion Request

@@ -207,7 +207,7 @@ export function AuditLogsModal({
                     <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-border-subtle bg-surface-subtle/50">
                       <div className="flex items-center gap-2.5">
                         <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider border ${getActionBadgeColor(
+                          className={`rounded-md px-2 py-0.5 text-xs font-bold  border ${getActionBadgeColor(
                             log.action
                           )}`}
                         >
@@ -275,14 +275,14 @@ export function AuditLogsModal({
                     {/* Expandable Before & After Diff Viewer */}
                     {isExpanded && hasDiff && (
                       <div className="p-4 pt-0 border-t border-border-subtle bg-surface-subtle/30">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary my-3 flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-text-secondary my-3 flex items-center gap-1.5">
                           <FileCode className="h-3.5 w-3.5 text-brand-primary" />
                           Forensic Change Snapshot
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <span className="text-xs font-bold uppercase tracking-wider text-danger">
+                            <span className="text-xs font-bold text-danger">
                               Previous Data (old_data):
                             </span>
                             <pre className="mt-1 rounded-lg border border-danger-border bg-danger-subtle/50 p-3 font-mono text-xs text-danger-text overflow-x-auto max-h-56">
@@ -291,7 +291,7 @@ export function AuditLogsModal({
                           </div>
 
                           <div>
-                            <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                            <span className="text-xs font-bold text-text-primary">
                               Mutated Data (new_data):
                             </span>
                             <pre className="mt-1 rounded-lg border border-border-default bg-surface-subtle p-3 font-mono text-xs text-text-primary overflow-x-auto max-h-56">

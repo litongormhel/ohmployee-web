@@ -286,8 +286,8 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
         title={
           <span className="flex items-center gap-2">
             <span>Import Vacancy</span>
-            <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-bold px-2 py-0.5 border border-[var(--border-subtle)]">
-              MIGRATION INTAKE
+            <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-semibold px-2 py-0.5 border border-[var(--border-subtle)]">
+              Migration intake
             </span>
           </span>
         }
@@ -377,7 +377,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
               {/* Scope & Template */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                     1. Target Group
                   </label>
                   <select
@@ -395,7 +395,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                     2. Target Account
                   </label>
                   <select
@@ -464,7 +464,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
               {parsedRows.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">
+                    <h3 className="text-sm font-bold text-[var(--foreground)]">
                       File Preview ({parsedRows.length} total rows)
                     </h3>
                     <span className="text-sm text-[var(--foreground)] font-semibold flex items-center gap-1">
@@ -474,7 +474,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
 
                   <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden max-h-60 overflow-y-auto">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs uppercase text-[var(--text-muted)] font-bold">
+                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                         <tr>
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3">VCode</th>
@@ -629,7 +629,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                       ) : (
                         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-56">
                           <table className="w-full text-left text-sm">
-                            <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs uppercase text-[var(--text-muted)] font-bold">
+                            <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                               <tr>
                                 <th className="py-2 px-3">#</th>
                                 <th className="py-2 px-3">Status</th>
@@ -651,7 +651,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                                   <td className="py-2 px-3 font-semibold text-[var(--foreground)]">{r.vcode}</td>
                                   <td className="py-2 px-3 text-[var(--foreground)]">{r.storeName}</td>
                                   <td className="py-2 px-3 text-[var(--text-muted)]">{r.position}</td>
-                                  <td className="py-2 px-3 uppercase text-sm font-bold text-[var(--foreground)]">{r.tab}</td>
+                                  <td className="py-2 px-3 text-sm font-bold text-[var(--foreground)]">{r.tab}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -687,7 +687,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
               ) : (
                 <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] overflow-hidden">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-xs uppercase text-[var(--text-muted)] font-bold">
+                    <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] text-xs text-[var(--text-muted)] font-bold">
                       <tr>
                         <th className="py-2.5 px-4">File Name</th>
                         <th className="py-2.5 px-4">Status</th>
@@ -722,7 +722,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                             </td>
                             <td className="py-2.5 px-4">
                               <span
-                                className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
+                                className={`rounded-md px-2 py-0.5 text-xs font-bold  ${
                                   b.status.includes("rolled_back") || b.status.includes("reject")
                                     ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                                     : "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
@@ -733,15 +733,15 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                             </td>
                             <td className="py-2.5 px-4">
                               {b.rollbackStatus === "requested" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] px-2 py-0.5 text-xs font-bold uppercase border border-[var(--border-subtle)]">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] px-2 py-0.5 text-xs font-bold border border-[var(--border-subtle)]">
                                   <Clock className="h-3 w-3" /> Rollback Requested
                                 </span>
                               ) : b.rollbackStatus === "completed" || b.status === "rolled_back" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] px-2 py-0.5 text-xs font-bold uppercase border border-[var(--danger-border)]">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] px-2 py-0.5 text-xs font-bold border border-[var(--danger-border)]">
                                   <RotateCcw className="h-3 w-3" /> Rolled Back
                                 </span>
                               ) : b.rollbackStatus === "failed" ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] px-2 py-0.5 text-xs font-bold uppercase border border-[var(--danger-border)]">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--danger-bg)] text-[var(--danger)] px-2 py-0.5 text-xs font-bold border border-[var(--danger-border)]">
                                   <AlertCircle className="h-3 w-3" /> Rollback Failed
                                 </span>
                               ) : isApproved ? (
@@ -797,13 +797,13 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
                       <span className="text-[var(--text-muted)] block">Batch Status</span>
-                      <span className="font-bold text-[var(--foreground)] uppercase mt-0.5 block">
+                      <span className="font-bold text-[var(--foreground)] mt-0.5 block">
                         {historySelectedBatch.status}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
                       <span className="text-[var(--text-muted)] block">Rollback Status</span>
-                      <span className="font-bold text-[var(--foreground)] uppercase mt-0.5 block">
+                      <span className="font-bold text-[var(--foreground)] mt-0.5 block">
                         {historySelectedBatch.rollbackStatus || "None"}
                       </span>
                     </div>
@@ -930,8 +930,8 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
           title={
             <span className="flex items-center gap-2">
               <span>Request Vacancy Import Rollback</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                DESTRUCTIVE
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Destructive
               </span>
             </span>
           }
@@ -1032,8 +1032,8 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
           title={
             <span className="flex items-center gap-2">
               <span>Approve and Execute Rollback?</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                DESTRUCTIVE
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Destructive
               </span>
             </span>
           }
@@ -1108,8 +1108,8 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
           title={
             <span className="flex items-center gap-2">
               <span>Emergency Rollback Override</span>
-              <span className="rounded-md bg-surface-muted text-text-primary text-xs font-bold px-2 py-0.5 border border-border-default">
-                EMERGENCY OVERRIDE
+              <span className="rounded-md bg-surface-muted text-text-primary text-xs font-semibold px-2 py-0.5 border border-border-default">
+                Emergency override
               </span>
             </span>
           }
@@ -1239,7 +1239,7 @@ function VacancyRollbackHistoryModal({
             <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)]">
               <span className="font-semibold text-[var(--foreground)]">Current Status</span>
               <span
-                className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
+                className={`rounded-md px-2 py-0.5 text-xs font-bold  ${
                   history.status === "failed"
                     ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                     : "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"

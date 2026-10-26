@@ -176,7 +176,7 @@ export function UploadAttachmentModal({
             <button
               type="submit"
               disabled={isUploading || !selectedFile}
-              className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition cursor-pointer disabled:opacity-50"
             >
               {isUploading ? (
                 <>

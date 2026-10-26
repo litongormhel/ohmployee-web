@@ -604,13 +604,13 @@ export function GlobalStoreTransferModal({
               <div className="p-4 rounded-xl border border-border-default bg-surface-subtle space-y-3">
                 <div className="flex items-center justify-between border-b border-border-default pb-2">
                   <span className="text-xs font-bold text-text-primary">Transfer Plan Summary</span>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  <span className="text-xs font-semibold text-text-secondary">
                     {selectedEmployees.length} Transfers
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-text-muted block text-xs uppercase font-bold">
+                    <span className="text-text-muted block text-xs font-bold">
                       Source Scope
                     </span>
                     <span className="font-semibold text-text-primary">
@@ -618,7 +618,7 @@ export function GlobalStoreTransferModal({
                     </span>
                   </div>
                   <div>
-                    <span className="text-text-muted block text-xs uppercase font-bold">
+                    <span className="text-text-muted block text-xs font-bold">
                       Target Scope
                     </span>
                     <span className="font-semibold text-text-primary">

@@ -211,7 +211,7 @@ export function HeadcountAmendmentApprovalCard({
 
       {/* Operational Justification */}
       <div className="mt-3.5 space-y-1">
-        <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
+        <p className="text-xs font-medium text-text-muted">
           Operational Justification
         </p>
         <p className="rounded-md border border-border-default bg-surface px-3 py-2 text-xs leading-relaxed text-text-secondary">

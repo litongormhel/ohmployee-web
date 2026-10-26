@@ -128,7 +128,7 @@ export function StoreStaffingDrawer({
         <div className="space-y-6">
           {/* Store Overview Cards */}
           <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary uppercase tracking-wider">
+            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span className="flex items-center gap-1.5">
                 <Building2 className="h-4 w-4 text-text-muted" />
                 Store Staffing Metrics
@@ -140,19 +140,19 @@ export function StoreStaffingDrawer({
 
             <div className="grid grid-cols-4 gap-2 text-center">
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
-                <div className="text-[10px] font-semibold uppercase text-text-muted">Actual</div>
+                <div className="text-[10px] font-semibold text-text-muted">Actual</div>
                 <div className="text-lg font-bold font-mono text-text-primary">{storeRow.onboardCount}</div>
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
-                <div className="text-[10px] font-semibold uppercase text-text-muted">Pipeline</div>
+                <div className="text-[10px] font-semibold text-text-muted">Pipeline</div>
                 <div className="text-lg font-bold font-mono text-text-primary">{storeRow.hrPipelineCount}</div>
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
-                <div className="text-[10px] font-semibold uppercase text-text-muted">Open Vacancy</div>
+                <div className="text-[10px] font-semibold text-text-muted">Open Vacancy</div>
                 <div className="text-lg font-bold font-mono text-text-primary">{storeRow.openHeadcount}</div>
               </div>
               <div className="rounded border border-border-subtle bg-surface-base p-2.5">
-                <div className="text-[10px] font-semibold uppercase text-text-muted">Required</div>
+                <div className="text-[10px] font-semibold text-text-muted">Required</div>
                 <div className="text-lg font-bold font-mono text-text-primary">{storeRow.requiredHeadcount}</div>
               </div>
             </div>
@@ -207,7 +207,7 @@ export function StoreStaffingDrawer({
           {activeTab === "slots" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
                   <Layers className="h-4 w-4 text-text-muted" />
                   <span>Workforce Slots (ADR-001)</span>
                 </div>
@@ -315,7 +315,7 @@ export function StoreStaffingDrawer({
           {activeTab === "quotas" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
                   <Sliders className="h-4 w-4 text-text-muted" />
                   <span>Position Quotas & VCodes</span>
                 </div>
@@ -393,7 +393,7 @@ export function StoreStaffingDrawer({
                         </div>
 
                         <div className="text-right">
-                          <div className="text-[10px] uppercase font-semibold text-text-muted">Quota</div>
+                          <div className="text-[10px] font-semibold text-text-muted">Quota</div>
                           <div className="font-mono text-base font-bold text-text-primary">
                             {vac.requiredHeadcount} slot{vac.requiredHeadcount !== 1 ? "s" : ""}
                           </div>

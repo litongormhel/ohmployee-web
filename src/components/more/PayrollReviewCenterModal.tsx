@@ -241,7 +241,7 @@ export function PayrollReviewCenterModal({
                         <span className="font-semibold text-sm text-text-primary">
                           {session.payrollFileName}
                         </span>
-                        <span className="rounded-full px-2 py-0.5 text-xs font-semibold uppercase bg-surface-subtle text-text-secondary border border-border-default">
+                        <span className="rounded-full px-2 py-0.5 text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                           {session.status}
                         </span>
                       </div>
@@ -350,7 +350,7 @@ export function PayrollReviewCenterModal({
                 </div>
               ) : (
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs uppercase text-text-muted font-bold">
+                  <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                     <tr>
                       <th className="py-2.5 px-3.5">Emp No</th>
                       <th className="py-2.5 px-3.5">Type</th>
@@ -441,7 +441,7 @@ export function PayrollReviewCenterModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-text-secondary uppercase mb-1">
+                    <label className="block text-xs font-bold text-text-secondary mb-1">
                       Ops Resolution Status
                     </label>
                     <select
@@ -456,7 +456,7 @@ export function PayrollReviewCenterModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-text-secondary uppercase mb-1">
+                    <label className="block text-xs font-bold text-text-secondary mb-1">
                       Audited Remarks
                     </label>
                     <input

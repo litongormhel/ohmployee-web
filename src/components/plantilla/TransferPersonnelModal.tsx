@@ -186,7 +186,7 @@ export function TransferPersonnelModal({
           {/* Source Store */}
           <div className="rounded-lg border border-border-default bg-surface-muted p-3.5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-text-secondary flex items-center gap-1.5">
                 <Store className="h-3.5 w-3.5 text-text-muted" />
                 Source Store (Current)
               </span>
@@ -219,12 +219,12 @@ export function TransferPersonnelModal({
           <div
             className={`rounded-lg border p-3.5 space-y-2 transition-colors ${
               selectedStore
-                ? "border-brand-primary bg-surface"
+                ? "border-brand-primary bg-surface-selected"
                 : "border-dashed border-border-default bg-surface-muted/40"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-primary flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-brand-primary flex items-center gap-1.5">
                 <Store className="h-3.5 w-3.5 text-brand-primary" />
                 Destination Store (Target)
               </span>
@@ -295,7 +295,7 @@ export function TransferPersonnelModal({
 
         {/* Destination Store Picker with Search Filter */}
         <div className="space-y-2">
-          <label htmlFor="store-search-input" className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">
+          <label htmlFor="store-search-input" className="block text-xs font-semibold text-text-secondary">
             Search &amp; Select Destination Store <span className="text-danger-text">*</span>
           </label>
           <div className="relative">
@@ -395,7 +395,7 @@ export function TransferPersonnelModal({
         {/* Transfer Reason & Effective Date */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="transfer-reason" className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="transfer-reason" className="block text-xs font-semibold text-text-secondary mb-1.5">
               Transfer Reason <span className="text-danger-text">*</span>
             </label>
             <select
@@ -413,7 +413,7 @@ export function TransferPersonnelModal({
           </div>
 
           <div>
-            <label htmlFor="transfer-effective-date" className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+            <label htmlFor="transfer-effective-date" className="block text-xs font-semibold text-text-secondary mb-1.5">
               Effective Transfer Date <span className="text-danger-text">*</span>
             </label>
             <div className="relative">
@@ -431,7 +431,7 @@ export function TransferPersonnelModal({
 
         {/* Justification / Remarks */}
         <div>
-          <label htmlFor="transfer-remarks" className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+          <label htmlFor="transfer-remarks" className="block text-xs font-semibold text-text-secondary mb-1.5">
             Transfer Justification / Operational Remarks
           </label>
           <textarea
@@ -467,7 +467,7 @@ export function TransferPersonnelModal({
           <button
             type="submit"
             disabled={!selectedStore || mutation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
           >
             {mutation.isPending ? (
               <>

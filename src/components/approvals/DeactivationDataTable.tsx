@@ -381,31 +381,31 @@ export function DeactivationDataTable({
                   </th>
                 )}
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  GROUP
+                  Group
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  ACCOUNT
+                  Account
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  EMPLOC
+                  Emploc
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  FULLNAME
+                  Full name
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  POSITION
+                  Position
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  SEPARATION STATUS
+                  Separation status
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-medium">
-                  REQUESTED BY
+                  Requested by
                 </th>
                 <th
                   scope="col"
                   className="px-4 py-2.5 font-medium text-right"
                 >
-                  ACTION
+                  Action
                 </th>
               </tr>
             </thead>

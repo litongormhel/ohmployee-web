@@ -173,7 +173,7 @@ export function CoverageGroupApprovalCard({
               <Layers className="h-3 w-3" />
               {humanizeRequestType(request.requestType)}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-text-secondary">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-2xs font-semibold text-text-secondary">
               {request.status}
             </span>
           </div>
@@ -191,7 +191,7 @@ export function CoverageGroupApprovalCard({
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Target Group */}
           <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="text-2xs font-semibold text-text-muted">
               Target Coverage Group
             </div>
             <div className="mt-1 flex items-center gap-2">
@@ -211,7 +211,7 @@ export function CoverageGroupApprovalCard({
 
           {/* Account / Store Allocation */}
           <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="text-2xs font-semibold text-text-muted">
               Scope & Allocation
             </div>
             <div className="mt-1 flex items-start gap-2">
@@ -315,7 +315,7 @@ export function CoverageGroupApprovalCard({
             </div>
 
             <div>
-              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+              <label className="block text-2xs font-semibold text-text-muted mb-1">
                 Reviewer Remarks (Optional)
               </label>
               <textarea
@@ -383,7 +383,7 @@ export function CoverageGroupApprovalCard({
             </p>
 
             <div>
-              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+              <label className="block text-2xs font-semibold text-text-muted mb-1">
                 Rejection Reason <span className="text-text-danger">*</span>
               </label>
               <textarea

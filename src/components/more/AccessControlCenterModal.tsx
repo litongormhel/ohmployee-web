@@ -188,7 +188,7 @@ export function AccessControlCenterModal({
                             <span className="text-sm font-semibold text-text-primary">
                               {user.fullName}
                             </span>
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider bg-surface-subtle text-text-secondary border border-border-default">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-subtle text-text-secondary border border-border-default">
                               {user.roleName}
                             </span>
                           </div>
@@ -310,7 +310,7 @@ export function AccessControlCenterModal({
                                 <span className="text-xs text-text-muted font-mono">({key})</span>
                                 {overrideState !== "inherit" && (
                                   <span
-                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold  ${
                                       overrideState === "allow"
                                         ? "bg-surface-subtle text-text-primary border border-border-default"
                                         : "bg-danger-surface text-danger-text border border-danger-border"
@@ -421,11 +421,11 @@ export function AccessControlCenterModal({
                           <div className="flex items-center gap-2 text-xs text-text-secondary">
                             <span>
                               Transition:{" "}
-                              <span className="font-mono uppercase text-text-muted">
+                              <span className="font-mono text-text-muted">
                                 {item.previousValue}
                               </span>{" "}
                               ➔{" "}
-                              <span className="font-mono uppercase font-bold text-text-primary">
+                              <span className="font-mono font-bold text-text-primary">
                                 {item.newValue}
                               </span>
                             </span>

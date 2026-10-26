@@ -60,7 +60,7 @@ export function ReportsCatalogTab({
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <UserMinus className="w-4 h-4 text-text-primary" />
-          <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-bold text-text-primary">
             Separation & Attrition Reports
           </h3>
         </div>
@@ -75,7 +75,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <TrendingDown className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -102,7 +102,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserCheck className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -129,7 +129,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserX className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -156,7 +156,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <UserMinus className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -183,7 +183,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -210,7 +210,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Layers className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -233,7 +233,7 @@ export function ReportsCatalogTab({
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Hourglass className="w-4 h-4 text-text-primary" />
-          <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-bold text-text-primary">
             Recruitment Velocity & Turnaround
           </h3>
         </div>
@@ -248,7 +248,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Universal Viewer
                 </span>
               </div>
@@ -275,7 +275,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Hourglass className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Custom Builder
                 </span>
               </div>
@@ -302,7 +302,7 @@ export function ReportsCatalogTab({
                 <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <MapPin className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   CENCOM Module
                 </span>
               </div>
@@ -325,7 +325,7 @@ export function ReportsCatalogTab({
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <FileCheck2 className="w-4 h-4 text-text-primary" />
-          <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
+          <h3 className="text-sm font-bold text-text-primary">
             Workforce Health & Operational Audit
           </h3>
         </div>
@@ -340,7 +340,7 @@ export function ReportsCatalogTab({
                 <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Clock className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Quick Report
                 </span>
               </div>
@@ -367,7 +367,7 @@ export function ReportsCatalogTab({
                 <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Users className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>
@@ -394,7 +394,7 @@ export function ReportsCatalogTab({
                 <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <Layers className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>
@@ -421,7 +421,7 @@ export function ReportsCatalogTab({
                 <div className="p-2 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Dedicated Hub Tab
                 </span>
               </div>

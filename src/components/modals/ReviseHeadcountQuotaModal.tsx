@@ -138,7 +138,7 @@ export function ReviseHeadcountQuotaModal({
             {/* Safety Floor Breakdown Grid */}
             <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[var(--foreground)] uppercase tracking-wide text-[11px]">
+                <span className="font-semibold text-[var(--foreground)] tracking-wide text-[11px]">
                   Safety Floor Breakdown
                 </span>
                 <span className="font-mono font-semibold text-[var(--foreground)] bg-[var(--surface-base)] border border-[var(--border-subtle)] rounded px-2 py-0.5 text-xs">
@@ -148,15 +148,15 @@ export function ReviseHeadcountQuotaModal({
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Occupied</div>
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)]">Occupied</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{occupied}</div>
                 </div>
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">HR Processing</div>
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)]">HR Processing</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{hrProcessing}</div>
                 </div>
                 <div className="rounded border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2">
-                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Pipeline</div>
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)]">Pipeline</div>
                   <div className="text-base font-bold text-[var(--foreground)] font-mono">{pipeline}</div>
                 </div>
               </div>

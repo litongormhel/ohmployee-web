@@ -99,7 +99,7 @@ export function CapabilityActionBar({
 
   return (
     <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-4 space-y-3">
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]">
         <Lock className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
         <span>{title}</span>
       </div>

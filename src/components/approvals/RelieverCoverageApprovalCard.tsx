@@ -164,7 +164,7 @@ export function RelieverCoverageApprovalCard({
               <Users className="h-3 w-3" />
               {poolType}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-secondary">
               <AlertTriangle className="h-3 w-3" />
               {request.priority || "Normal"}
             </span>
@@ -187,7 +187,7 @@ export function RelieverCoverageApprovalCard({
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Employee Info */}
           <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="text-2xs font-semibold text-text-muted">
               Requested Reliever
             </div>
             <div className="mt-1 flex items-center gap-2">
@@ -207,7 +207,7 @@ export function RelieverCoverageApprovalCard({
 
           {/* Target Location & Assignment */}
           <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="text-2xs font-semibold text-text-muted">
               Target Assignment Scope
             </div>
             <div className="mt-1 flex items-start gap-2">
@@ -346,7 +346,7 @@ export function RelieverCoverageApprovalCard({
             </div>
 
             <div>
-              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+              <label className="block text-2xs font-semibold text-text-muted mb-1">
                 Reviewer Notes (Optional)
               </label>
               <textarea
@@ -414,7 +414,7 @@ export function RelieverCoverageApprovalCard({
             </p>
 
             <div>
-              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+              <label className="block text-2xs font-semibold text-text-muted mb-1">
                 Rejection Reason <span className="text-text-danger">*</span>
               </label>
               <textarea

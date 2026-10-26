@@ -105,7 +105,7 @@ function ReopenVacancyModalContent({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             New Vacant Date *
           </label>
           <input
@@ -121,7 +121,7 @@ function ReopenVacancyModalContent({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+          <label className="block text-xs font-semibold text-text-secondary mb-1">
             Re-opening Justification / Remarks
           </label>
           <textarea

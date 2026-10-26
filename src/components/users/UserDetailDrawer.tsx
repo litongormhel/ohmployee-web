@@ -446,7 +446,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
             <div className="space-y-4">
               {/* Basic Information Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
                   <User className="h-4 w-4 text-brand-600" />
                   Basic Information
                 </div>
@@ -512,7 +512,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
               {/* Permission Summary Preview Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
                   <Shield className="h-4 w-4 text-brand-600" />
                   Live Permission Summary
                 </div>
@@ -544,7 +544,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {/* Temporary Overrides & Delegations Card */}
               <div className="rounded-lg border border-border-default bg-surface-subtle p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-primary">
+                  <div className="flex items-center gap-2 text-xs font-bold text-text-primary">
                     <Clock className="h-4 w-4 text-text-secondary" />
                     Temporary Permission Overrides
                   </div>
@@ -617,7 +617,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {/* Danger Zone Card */}
               <div className="rounded-lg border border-danger-border bg-danger-subtle/40 p-4 space-y-3">
 
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-danger-text">
+                <div className="flex items-center gap-2 text-xs font-bold text-danger-text">
                   <AlertTriangle className="h-4 w-4 text-danger-icon" />
                   Danger Zone
                 </div>
@@ -680,7 +680,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {/* Group Scope Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
                     <Layers className="h-4 w-4 text-brand-600" />
                     Group Scopes
                   </div>
@@ -717,7 +717,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {/* Account Scope Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
                     <Store className="h-4 w-4 text-brand-600" />
                     Account Scopes
                   </div>

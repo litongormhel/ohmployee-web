@@ -120,7 +120,7 @@ export function DiagnosticsTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-brand-primary" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+              <h3 className="text-xs font-bold text-text-secondary">
                 Supabase Connectivity
               </h3>
             </div>
@@ -166,7 +166,7 @@ export function DiagnosticsTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-brand-primary" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+              <h3 className="text-xs font-bold text-text-secondary">
                 Governance Controls
               </h3>
             </div>
@@ -208,7 +208,7 @@ export function DiagnosticsTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4 text-brand-primary" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+              <h3 className="text-xs font-bold text-text-secondary">
                 Operational Freezes
               </h3>
             </div>
@@ -257,7 +257,7 @@ export function DiagnosticsTab() {
         <div className="rounded-xl border border-border-default bg-surface-base p-6 shadow-2xs space-y-4">
           <div className="flex items-center gap-2 border-b border-border-default pb-3">
             <Flame className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               Emergency Freeze Status Breakdown
             </h3>
           </div>
@@ -305,7 +305,7 @@ export function DiagnosticsTab() {
         <div className="flex items-center justify-between border-b border-border-default pb-3">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-brand-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
               PostgREST Schema Cache Synchronization
             </h3>
           </div>

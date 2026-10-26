@@ -303,7 +303,7 @@ export function PlantillaDetailDrawer({
           <button
             type="button"
             onClick={() => setActiveTab("profile")}
-            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs uppercase tracking-wider ${
+            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs  ${
               activeTab === "profile"
                 ? "border-brand-primary text-brand-primary font-bold"
                 : "border-transparent text-text-secondary hover:text-text-primary"
@@ -314,7 +314,7 @@ export function PlantillaDetailDrawer({
           <button
             type="button"
             onClick={() => setActiveTab("benefits")}
-            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs uppercase tracking-wider ${
+            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs  ${
               activeTab === "benefits"
                 ? "border-brand-primary text-brand-primary font-bold"
                 : "border-transparent text-text-secondary hover:text-text-primary"
@@ -325,7 +325,7 @@ export function PlantillaDetailDrawer({
           <button
             type="button"
             onClick={() => setActiveTab("stores")}
-            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs uppercase tracking-wider ${
+            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs  ${
               activeTab === "stores"
                 ? "border-brand-primary text-brand-primary font-bold"
                 : "border-transparent text-text-secondary hover:text-text-primary"
@@ -336,7 +336,7 @@ export function PlantillaDetailDrawer({
           <button
             type="button"
             onClick={() => setActiveTab("activity")}
-            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs uppercase tracking-wider ${
+            className={`px-4 py-2.5 border-b-2 font-medium transition cursor-pointer text-xs  ${
               activeTab === "activity"
                 ? "border-brand-primary text-brand-primary font-bold"
                 : "border-transparent text-text-secondary hover:text-text-primary"
@@ -462,7 +462,7 @@ export function PlantillaDetailDrawer({
 
                   {/* Employment & Allocation Grid */}
                   <div className="bg-surface rounded-xl p-5 shadow-xs border border-border-default">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-3 flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-text-secondary mb-3 flex items-center gap-2">
                       <Briefcase className="w-3.5 h-3.5 text-brand-primary" /> Employment & Allocation
                     </h3>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs">
@@ -508,7 +508,7 @@ export function PlantillaDetailDrawer({
                   {/* Work Schedule & Rate Card */}
                   <div className="bg-surface rounded-xl p-5 shadow-xs border border-border-default">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-brand-primary flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-brand-primary flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5" /> Work Schedule & Rate
                       </h3>
                       {isAuthorized && (
@@ -560,7 +560,7 @@ export function PlantillaDetailDrawer({
                     <button
                       type="button"
                       onClick={() => setIsSystemInfoOpen(!isSystemInfoOpen)}
-                      className="w-full p-4 flex items-center justify-between text-left text-xs font-bold uppercase tracking-wider text-text-secondary bg-surface-muted hover:bg-surface-base transition cursor-pointer"
+                      className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-text-secondary bg-surface-muted hover:bg-surface-base transition cursor-pointer"
                     >
                       <span className="flex items-center gap-2 text-text-primary">
                         <Settings className="w-3.5 h-3.5 text-brand-primary" /> System Information
@@ -603,7 +603,7 @@ export function PlantillaDetailDrawer({
 
                   {/* Capability-Aware Personnel Actions */}
                   <div className="bg-surface rounded-xl p-4 shadow-xs border border-border-default">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-3">
+                    <h3 className="text-xs font-bold text-text-secondary mb-3">
                       Capability-Aware Personnel Actions
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -653,7 +653,7 @@ export function PlantillaDetailDrawer({
                         type="button"
                         onClick={() => setIsStatusModalOpen(true)}
                         disabled={!isAuthorized || isInactive}
-                        className="col-span-2 bg-brand-primary hover:bg-brand-secondary text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                        className="col-span-2 bg-brand-button hover:bg-brand-secondary text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
                       >
                         <UserCheck className="w-3.5 h-3.5" /> Update Employment Status
                       </button>
@@ -667,7 +667,7 @@ export function PlantillaDetailDrawer({
                 <div className="space-y-4">
                   <div className="bg-surface rounded-xl p-5 shadow-xs border border-border-default space-y-4">
                     <div className="flex justify-between items-center border-b border-border-subtle pb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                      <h3 className="text-xs font-bold text-text-secondary">
                         Benefit Numbers
                       </h3>
                       <button
@@ -759,14 +759,14 @@ export function PlantillaDetailDrawer({
                           ? data.coveredStores.length
                           : 1}
                       </p>
-                      <p className="text-xs text-text-secondary uppercase tracking-wider mt-0.5">
+                      <p className="text-xs text-text-secondary mt-0.5">
                         Current Stores
                       </p>
                     </div>
                     <div className="border-r border-border-default" />
                     <div>
                       <p className="text-xl font-bold text-text-secondary">0</p>
-                      <p className="text-xs text-text-secondary uppercase tracking-wider mt-0.5">
+                      <p className="text-xs text-text-secondary mt-0.5">
                         Past Stores
                       </p>
                     </div>

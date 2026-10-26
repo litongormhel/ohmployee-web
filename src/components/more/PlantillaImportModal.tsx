@@ -473,8 +473,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
         title={
           <span className="flex items-center gap-2">
             <span>Import Plantilla</span>
-            <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-bold px-2 py-0.5 border border-[var(--border-subtle)]">
-              BULK BASELINE
+            <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-semibold px-2 py-0.5 border border-[var(--border-subtle)]">
+              Bulk baseline
             </span>
           </span>
         }
@@ -572,7 +572,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
               {/* Scope selectors & Template Download */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                     1. Target Group
                   </label>
                   <select
@@ -590,7 +590,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1.5">
+                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                     2. Target Account
                   </label>
                   <select
@@ -659,7 +659,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
               {parsedRows.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">
+                    <h3 className="text-sm font-bold text-[var(--foreground)]">
                       File Preview ({parsedRows.length} total rows)
                     </h3>
                     <span className="text-sm text-[var(--foreground)] font-semibold flex items-center gap-1">
@@ -669,7 +669,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
 
                   <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden max-h-60 overflow-y-auto">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs uppercase text-[var(--text-muted)] font-bold">
+                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                         <tr>
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3">VCode</th>
@@ -807,7 +807,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-sm text-[var(--foreground)]">{batch.fileName}</span>
                               <span
-                                className={`rounded-md text-xs font-bold px-1.5 py-0.5 uppercase whitespace-nowrap leading-none ${
+                                className={`rounded-md text-xs font-bold px-1.5 py-0.5  whitespace-nowrap leading-none ${
                                   isValidationFailed
                                     ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                                     : "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
@@ -844,7 +844,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                               if (errorEntries.length === 0) return null;
                               return (
                                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                  <span className="text-xs text-[var(--danger)] font-bold uppercase">Errors:</span>
+                                  <span className="text-xs text-[var(--danger)] font-bold">Errors:</span>
                                   {errorEntries.map(([f, cnt]) => (
                                     <span
                                       key={f}
@@ -882,10 +882,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                       ? `Cannot approve batch: ${batch.blockedRows} row(s) failed validation.`
                                       : "Approve & Apply batch"
                                   }
-                                  className={`h-9 px-3 rounded-lg text-white text-sm font-semibold transition ${
+                                  className={`h-9 px-3 rounded-lg text-sm font-semibold transition ${
                                     isValidationFailed
                                       ? "bg-surface-muted text-text-muted cursor-not-allowed opacity-50"
-                                      : "bg-brand-button hover:bg-brand-button-hover disabled:opacity-50"
+                                      : "bg-brand-button text-white hover:bg-brand-button-hover disabled:opacity-50"
                                   }`}
                                 >
                                   Approve & Apply
@@ -985,13 +985,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 <table className="w-full text-left text-sm">
                                   <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0">
                                     <tr>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-10">#</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-24">Status</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-28">VCode</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)]">Store & Mother</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)]">Employee</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)]">Position / HC</th>
-                                      <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)]">Validation Issues & Guidance</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-10">#</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-24">Status</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-28">VCode</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)]">Store & Mother</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)]">Employee</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)]">Position / HC</th>
+                                      <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)]">Validation Issues & Guidance</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -1017,7 +1017,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                           <td className="px-2.5 py-1.5 align-middle font-mono text-sm text-[var(--text-muted)]">{r.rowNumber}</td>
                                           <td className="px-2.5 py-1.5 align-middle whitespace-nowrap">
                                             <span
-                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none ${
+                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium  whitespace-nowrap leading-none ${
                                                 isRowBlocked
                                                   ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                                                   : isRowFlagged
@@ -1053,7 +1053,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                                   )}
                                                   {r.needsHrco && !accountHasAssignedHrco && !r.resolvedHrcoUserId && (!r.hrcoEmail || !r.hrcoEmail.trim()) && (
                                                     <span className="rounded bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-medium px-1.5 py-0.5 whitespace-nowrap leading-none border border-[var(--border-subtle)]">
-                                                      NEEDS HRCO
+                                                      Needs HRCO
                                                     </span>
                                                   )}
                                                 </div>
@@ -1068,7 +1068,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                             <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.position || "—"}</div>
                                             <div className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
                                               {r.employmentType && (
-                                                <span className="rounded px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                                <span className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
                                                   {r.employmentType}
                                                 </span>
                                               )}
@@ -1195,15 +1195,15 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                   <table className="w-full min-w-[920px] table-fixed text-left text-sm">
                     <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)]">
                       <tr>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-20">Batch #</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-44">File Name</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-28">Status</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-20">Stores / HC</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-44">Rollback State & Window</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-36">Scope</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-32">Uploaded By</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-36">Approved / Rejected By</th>
-                        <th className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 text-[var(--text-muted)] w-24">Date</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-20">Batch #</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-44">File Name</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-28">Status</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-20">Stores / HC</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-44">Rollback State & Window</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-36">Scope</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-32">Uploaded By</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-36">Approved / Rejected By</th>
+                        <th className="text-xs font-semibold px-2.5 py-1.5 text-[var(--text-muted)] w-24">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -1237,7 +1237,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             </td>
                             <td className="px-2.5 py-1.5 align-middle whitespace-nowrap leading-tight">
                               <span
-                                className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none ${
+                                className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium  whitespace-nowrap leading-none ${
                                   b.status.includes("rolled_back") || b.status.includes("reject")
                                     ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                                     : isApproved
@@ -1253,15 +1253,15 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                             </td>
                             <td className="px-2.5 py-1.5 align-middle whitespace-nowrap leading-tight">
                               {b.rollbackStatus === "requested" ? (
-                                <span className="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] text-[var(--foreground)] px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none border border-[var(--border-subtle)]">
+                                <span className="inline-flex items-center gap-1 rounded bg-[var(--surface-sunken)] text-[var(--foreground)] px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none border border-[var(--border-subtle)]">
                                   <Clock className="h-3 w-3 shrink-0" /> Rollback Requested
                                 </span>
                               ) : b.rollbackStatus === "completed" || b.status === "rolled_back" ? (
-                                <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none border border-[var(--danger-border)]">
+                                <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none border border-[var(--danger-border)]">
                                   <RotateCcw className="h-3 w-3 shrink-0" /> Rolled Back
                                 </span>
                               ) : b.rollbackStatus === "failed" ? (
-                                <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-medium uppercase whitespace-nowrap leading-none border border-[var(--danger-border)]">
+                                <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none border border-[var(--danger-border)]">
                                   <AlertCircle className="h-3 w-3 shrink-0" /> Rollback Failed
                                 </span>
                               ) : isApproved ? (
@@ -1343,7 +1343,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                       <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
                         <span className="text-[var(--text-muted)] block">Batch Status</span>
-                        <span className="font-bold text-[var(--danger)] uppercase mt-0.5 block">
+                        <span className="font-bold text-[var(--danger)] mt-0.5 block">
                           {historySelectedBatch.status.replace("_", " ")}
                         </span>
                       </div>
@@ -1370,7 +1370,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                     {(historySelectedBatch.rejectionReasonNote ||
                       historySelectedBatch.rejectionReason) && (
                       <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] space-y-1">
-                        <div className="font-bold uppercase text-xs">Rejection Reason / Note:</div>
+                        <div className="font-bold text-xs">Rejection Reason / Note:</div>
                         <div>
                           {historySelectedBatch.rejectionReasonNote ||
                             historySelectedBatch.rejectionReason}
@@ -1383,7 +1383,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                       if (errorEntries.length === 0) return null;
                       return (
                         <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                          <span className="text-xs text-[var(--danger)] font-bold uppercase">
+                          <span className="text-xs text-[var(--danger)] font-bold">
                             Field error breakdown:
                           </span>
                           {errorEntries.map(([f, cnt]) => (
@@ -1466,7 +1466,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                       ) : (
                         <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-72">
                           <table className="w-full text-left text-sm">
-                            <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs uppercase text-[var(--text-muted)] font-bold">
+                            <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                               <tr>
                                 <th className="py-2 px-2.5 w-10">#</th>
                                 <th className="py-2 px-2.5 w-24">Status</th>
@@ -1497,7 +1497,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                     <td className="py-2 px-2.5 font-mono text-sm text-[var(--text-muted)]">{r.rowNumber}</td>
                                     <td className="py-2 px-2.5 whitespace-nowrap">
                                       <span
-                                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold uppercase whitespace-nowrap leading-none ${
+                                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold  whitespace-nowrap leading-none ${
                                           isRowBlocked
                                             ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
                                             : isRowFlagged
@@ -1536,7 +1536,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                       <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.position || "—"}</div>
                                       {r.employmentType && (
                                         <div className="mt-0.5 leading-tight">
-                                          <span className="rounded px-1.5 py-0.5 text-xs font-bold uppercase whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                          <span className="rounded px-1.5 py-0.5 text-xs font-bold whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
                                             {r.employmentType}
                                           </span>
                                         </div>
@@ -1644,13 +1644,13 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                       <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
                         <span className="text-[var(--text-muted)] block">Batch Status</span>
-                        <span className="font-bold text-[var(--foreground)] uppercase mt-0.5 block">
+                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
                           {historySelectedBatch.status}
                         </span>
                       </div>
                       <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
                         <span className="text-[var(--text-muted)] block">Rollback Status</span>
-                        <span className="font-bold text-[var(--foreground)] uppercase mt-0.5 block">
+                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
                           {historySelectedBatch.rollbackStatus || "None"}
                         </span>
                       </div>
@@ -1808,8 +1808,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           title={
             <span className="flex items-center gap-2">
               <span>Reject Plantilla Batch</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                REJECTION
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Rejection
               </span>
             </span>
           }
@@ -1887,8 +1887,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           title={
             <span className="flex items-center gap-2">
               <span>Request Import Rollback</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                DESTRUCTIVE
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Destructive
               </span>
             </span>
           }
@@ -1987,8 +1987,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           title={
             <span className="flex items-center gap-2">
               <span>Approve & Execute Rollback?</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-bold px-2 py-0.5 border border-[var(--danger-border)]">
-                DESTRUCTIVE
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+                Destructive
               </span>
             </span>
           }
@@ -2064,8 +2064,8 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
           title={
             <span className="flex items-center gap-2">
               <span>Emergency Rollback Override</span>
-              <span className="rounded-md bg-surface-muted text-text-primary text-xs font-bold px-2 py-0.5 border border-border-default">
-                EMERGENCY OVERRIDE
+              <span className="rounded-md bg-surface-muted text-text-primary text-xs font-semibold px-2 py-0.5 border border-border-default">
+                Emergency override
               </span>
             </span>
           }
@@ -2195,7 +2195,7 @@ function PlantillaRollbackHistoryModal({
             <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)]">
               <span className="font-semibold text-[var(--foreground)]">Current Status</span>
               <span
-                className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
+                className={`rounded-md px-2 py-0.5 text-xs font-bold  ${
                   history.rollbackStatus === "completed"
                     ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
                     : history.rollbackStatus === "requested"

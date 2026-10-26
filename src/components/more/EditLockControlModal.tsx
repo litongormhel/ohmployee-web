@@ -107,7 +107,7 @@ export function EditLockControlModal({
                   ? "Vacancy Editing is Currently Locked"
                   : "Vacancy Editing is Unlocked"}
               </span>
-              <span className="px-2 py-0.5 text-xs font-semibold rounded-full uppercase tracking-wider bg-surface-base text-text-secondary border border-border-default">
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-surface-base text-text-secondary border border-border-default">
                 {status?.lockType ?? "Default"}
               </span>
             </div>

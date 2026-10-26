@@ -313,7 +313,7 @@ function EditApplicantModalContent({
                 onChange={(e) => setLastName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, lastName: true }))}
                 placeholder="e.g. DELA CRUZ"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary  tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.lastName && !isLastNameValid
                     ? "border-border-strong bg-surface-muted/30"
                     : "border-border-default bg-surface-base"
@@ -337,7 +337,7 @@ function EditApplicantModalContent({
                 onChange={(e) => setFirstName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, firstName: true }))}
                 placeholder="e.g. JUAN"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary  tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.firstName && !isFirstNameValid
                     ? "border-border-strong bg-surface-muted/30"
                     : "border-border-default bg-surface-base"
@@ -362,7 +362,7 @@ function EditApplicantModalContent({
                 onChange={(e) => setMiddleName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, middleName: true }))}
                 placeholder="e.g. SANTOS or NA"
-                className={`w-full rounded-lg border px-3 py-2 text-text-primary uppercase tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
+                className={`w-full rounded-lg border px-3 py-2 text-text-primary  tracking-wide focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 ${
                   touched.middleName && !isMiddleNameValid
                     ? "border-border-strong bg-surface-muted/30"
                     : "border-border-default bg-surface-base"

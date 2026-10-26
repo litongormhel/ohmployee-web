@@ -82,7 +82,7 @@ export function ChangePasswordModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <label className="block text-xs font-semibold text-text-secondary">
               New Password
             </label>
             <div className="relative mt-1">
@@ -105,7 +105,7 @@ export function ChangePasswordModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <label className="block text-xs font-semibold text-text-secondary">
               Confirm New Password
             </label>
             <div className="relative mt-1">

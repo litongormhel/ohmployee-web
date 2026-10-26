@@ -94,7 +94,7 @@ export function RolePermissionsModal({
       <div className="flex flex-col h-[75vh]">
         {/* Role Selector Tabs (Quick Pill Switching) */}
         <div className="flex items-center gap-1.5 border-b border-border-subtle bg-surface-base px-2 py-2.5 overflow-x-auto">
-          <span className="text-xs font-bold uppercase tracking-wider text-text-muted mr-1">
+          <span className="text-xs font-bold text-text-muted mr-1">
             Role:
           </span>
           {roles.map((r) => {
@@ -143,7 +143,7 @@ export function RolePermissionsModal({
                   key={st}
                   type="button"
                   onClick={() => setStatusFilter(st)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase transition cursor-pointer ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-bold  transition cursor-pointer ${
                     statusFilter === st
                       ? "bg-brand-primary text-text-inverse"
                       : "bg-surface-base text-text-secondary hover:bg-surface-hover border border-border-subtle"
@@ -233,7 +233,7 @@ export function RolePermissionsModal({
                         }`}
                       />
                       <Layers className="h-4 w-4 text-brand-primary" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                      <span className="text-xs font-bold text-text-primary">
                         {moduleKey}
                       </span>
                       <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-mono font-semibold text-text-muted">
@@ -260,7 +260,7 @@ export function RolePermissionsModal({
                               <span className="font-mono text-sm font-bold text-text-primary">
                                 {row.resourceKey}
                               </span>
-                              <span className="rounded-md bg-surface-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-text-muted uppercase border border-border-subtle">
+                              <span className="rounded-md bg-surface-subtle px-1.5 py-0.5 font-mono text-xs font-bold text-text-muted border border-border-subtle">
                                 {row.actionKey}
                               </span>
 
