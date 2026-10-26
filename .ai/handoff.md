@@ -1,5 +1,117 @@
 # AI Handoff
 
+## HR Emploc Fixes & ADR-001 Verification Checkpoint (ohm#l5bf1x9p)
+
+**Status: COMPLETE — (1) ADR-001 RESOLVED & RECORDED AT `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`; SECTION HEADINGS LISTED AND FULLY MAPPED TO VACANCY, HR EMPLOC, DASHBOARD & CENCOM, AND PLANTILLA; LOOPS 2–5B RE-VERIFIED AGAINST ADR-001 WITH ZERO CONFLICTS; (2) IN `HrEmplocDetailDrawer.tsx`, CHANGED RECORD LOCKED PENDING DELETION STATE BANNER FROM `--danger` TO NEUTRAL/INFO TOKENS (`border-border-default`, `bg-surface-muted`, `text-text-primary`), PRESERVING `--danger` FOR ACTUAL OPERATION FAILURES AND DESTRUCTIVE ACTIONS; (3) IN `HrEmplocTable.tsx` AND `HrEmplocDetailDrawer.tsx`, RESTORED "ADD EMPLOC" AND "FOR CORRECTION" BUTTONS FOR PENDING QUEUE (RESOLVING ALONZO, FERNANDO CASTILLO AND ALL PENDING HR EMPLOC CANDIDATES WHO WERE PREVIOUSLY BLOCKED BY AN RPC-CAPABILITY MISMATCH); (4) READ ADR-002 AND ADR-001 PLANTILLA ACCOUNT GATE AUDIT; AUDITED PLANTILLA'S 1,031 COLOR LITERALS AND STRUCTURED 3-LOOP SPLIT (6A: 442 LITERALS, 6B: 391 LITERALS, 6C: 198 LITERALS); MECHANICAL GATE PASSING WITH DECISION ALLOW AND FULL BUILD GREEN ON MAIN**
+
+---
+
+### 1. ADR-001 Architecture Lock Basis & Module Mapping
+- **Resolved Path (Read-Only from mobile repository)**:
+  `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`
+- **Section Headings**:
+  1. `# ADR-001: Coverage Architecture v2`
+  2. `## Status` (Accepted. Mandatory architecture lock for AI-assisted work)
+  3. `## Scope`
+  4. `## Core Decisions` (1–16: HC means People only, Coverage Group is store structure only, store count never affects HC, HC Request is sole source of workforce demand, stationary uses Store vacancy, roving uses Coverage Group vacancy, Store Master authority, VCode vs CGCode disjoint namespaces)
+  5. `## Definitions` (`### HC`, `### Coverage Group`, `### HC Request`, `### Coverage Request`)
+  6. `## Workforce Rules` (`### Stationary Workforce`, `### Roving Workforce`, `### Store Master Authority`, `### Coverage Group Island Group Constraint`, `### VCode vs CGCode Namespace`)
+  7. `## Deprecated Concepts` (Coverage Weight & HC Share deprecated)
+  8. `## Forbidden Logic Examples` (No `store_count = HC`, no `SUM(hc_share)`, etc.)
+  9. `## AI Editing Rule`
+  10. `## Coverage Change Architecture` (6 actions: Add Store, Remove Store, Convert Stationary to Roving, Convert Roving to Stationary, Merge Coverage Groups, Dissolve Coverage Group)
+  11. `## Employee Integrity Architecture Lock` (Active employee must always retain $\ge 1$ active store assignment)
+  12. `## HR Emploc Import — Slot-First Lifecycle Architecture` (Core Lifecycle, Rules 1–8: Slot-first, Never creates capacity, VCode source of truth, Valid slot states, Approval behavior, Validation error messages, Single occupancy, Audit trail)
+  13. `## ADR-001 addition (ohm#4h8w1qz6 — 2026-07-06)` (Single slot for pure-structure groups, position_id resolution)
+  14. `## ADR-001 addition (ohm#k8d2x7qf — 2026-07-07) — HRCO Employee-Level Scope Isolation (Plantilla)`
+  15. `## ADR-001 addition (ohm#7gk2d9xq — 2026-07-07) — HRCO Global Visibility Override (Plantilla)`
+  16. `## ADR-001 addition (ohm#7f3a9c2d — 2026-07-08) — Vacancy Requirements Normalization`
+
+#### Module Mapping
+| Module | Relevant ADR-001 Sections & Core Invariants |
+|---|---|
+| **Vacancy** | Core Decisions 6, 7, 8, 12, 13, 15; Workforce Rules (Stationary vs Roving vacancy, VCode vs CGCode); Import Lifecycle (Auto-close on Emploc import approval); Addition `ohm#7f3a9c2d` (Vacancy Requirements Normalization) |
+| **HR Emploc (& Import)** | HR Emploc Import — Slot-First Lifecycle Architecture (Rules 1–8); Core Decisions 1, 15; Employee Integrity Lock ($\ge 1$ active store retained) |
+| **Dashboard & CENCOM** | Core Decisions 1, 2, 3, 4; Definitions (HC is People only); Deprecated Concepts & Forbidden Logic (No `store_count = HC`, no `SUM(hc_share)`) |
+| **Plantilla** | Core Decisions 1, 2, 3, 6, 7, 8, 12, 13; Employee Integrity Lock ($\ge 1$ active store); Slot-First Lifecycle Rules 1, 4, 7; Additions `ohm#k8d2x7qf` & `ohm#7gk2d9xq` (HRCO Employee-Level Scope Isolation & Global Override) |
+
+#### Re-Verification of Loops 2–5B Against ADR-001
+| Loop | Touched Module | ADR-001 Sections Checked | Invariants Verified | Status / Conflicts |
+|---|---|---|---|---|
+| **Loop 2** | Dashboard | Core Decisions 1–4, Deprecated Concepts | Metrics reflect people count only; 0 `store_count = HC` formulas touched; pure UI tokenization | **VERIFIED (0 conflicts)** |
+| **Loop 3** | CENCOM | Core Decisions 1–4, Workforce Rules | Target deployment and store coverage formulas untouched; percentage scales preserved; pure UI tokenization | **VERIFIED (0 conflicts)** |
+| **Loop 4** | Vacancy | Core Decisions 6, 7, 8, 12, 13; Vacancy Norm | All queries, RPCs, and vacancy creation rules untouched; forms and modal mutations 100% preserved | **VERIFIED (0 conflicts)** |
+| **Loop 5A** | HR Emploc (List/Drawer/Modals) | Slot-First Lifecycle, Employee Integrity | Scoping, RBAC, and mutation RPCs untouched; 9 modals preserved with enhanced backdrop/submission safety | **VERIFIED (0 conflicts)** |
+| **Loop 5B** | HR Emploc Import | Rules 1–8 (Slot-First, VCode truth, 72h rollback) | `exceljs` / `xlsx` binary parsing, slot validation, batch approval RPCs, and 72h rollback logic untouched | **VERIFIED (0 conflicts)** |
+
+---
+
+### 2. HrEmplocDetailDrawer: Deletion Lock State Notice Refactoring
+- **Context**: The "locked deletion banner" and "separation lock warning" in `HrEmplocDetailDrawer.tsx` were previously styled with `--danger` tokens (`border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)]`).
+- **Correction**: Because this banner is an informational state notice (indicating the record is pending administrative separation review, rather than an active validation error or destructive action), it was transitioned to neutral/info tokens.
+- **Before / After Diff**:
+  ```diff
+  - <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 space-y-2 text-[var(--danger-text)]">
+  + <div className="rounded-md border border-border-default bg-surface-muted p-4 space-y-2 text-text-primary">
+  -   <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+  +   <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-text-secondary" />
+  -   <div className="mt-3 border-t border-[var(--danger-border)] pt-2.5 text-xs space-y-1.5 bg-surface/40 p-2.5 rounded-sm">
+  +   <div className="mt-3 border-t border-border-default pt-2.5 text-xs space-y-1.5 bg-surface/60 p-2.5 rounded-sm text-text-secondary">
+  -   <div className="border-t border-[var(--danger-border)] pt-1.5">
+  +   <div className="border-t border-border-default pt-1.5">
+  ```
+- **Preserved `--danger`**: Actual operation failure alert (`withdrawError`) retains `--danger` styling.
+
+---
+
+### 3. Restoration of Pending Queue Actions (Alonzo, Fernando Castillo & All Pending Emploc)
+- **Root Cause Analysis**:
+  - In commit `a38e6795` ("RBAC Parity" by Ohm, Oct 20 2026), `HrEmplocTable.tsx` was modified to gate the pending queue buttons behind database capability flags:
+    `{row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc && ...}`
+    `{row.rowCapabilities.canTagDeficiency && onForCorrection && ...}`
+  - In the database RPC (`list_web_hr_emplocs`), `can_assign_employee_no` is strictly defined as:
+    `(v_role_name = 'Encoder' OR v_role_level = 30 OR v_role_level >= 100) AND h.hr_status = 'Complete' AND COALESCE(h.employee_no, '') = ''`
+  - Because records in the **Pending** queue have `h.hr_status = 'Pending'` (they have not reached `'Complete'`), `can_assign_employee_no` evaluates to `false` for 100% of rows in the Pending queue. Consequently, the "Add Emploc" button disappeared for every single employee in the Pending queue.
+  - Furthermore, `can_tag_deficiency` requires `(public.i_am_hr_dept() OR public.i_have_full_access())` and `NOT EXISTS (deletion_requests WHERE status = 'Pending')`. Non-HR/Admin roles or records with an active separation request had this set to `false`.
+- **Solution Applied**:
+  - In `HrEmplocTable.tsx`: Restored `handleAddEmploc` and `onForCorrection` in `queue === "pending"`, adding `disabled={isPendingDeletion}` so buttons remain visible and actionable for all pending candidates while properly disabling them if locked by a separation request.
+  - In `HrEmplocDetailDrawer.tsx`: Updated `canAssign` and `canTag` to allow pending queue records (`detail.hrStatus.toLowerCase() === "pending"`) as long as `!isPendingDeletion`.
+  - Both "Add Emploc" and "For Correction" are fully restored for Alonzo, Fernando Castillo and all candidates in pending HR Emploc.
+
+---
+
+### 4. Plantilla Module Literal Audit & 3-Loop Split Plan
+- **Total Color Literals in Plantilla**: **1,031** across 19 files.
+- **Split Structure (Max ~600 literals per loop)**:
+  - **Loop 6A — List, Filters, Account Gate, Main Table, and Drawers (442 literals)**:
+    - `src/app/(dashboard)/plantilla/page.tsx` (97)
+    - `src/components/plantilla/PlantillaDetailDrawer.tsx` (168)
+    - `src/components/plantilla/PoolEmployeeDetailDrawer.tsx` (75)
+    - `src/components/plantilla/PoolReviewQueueDrawer.tsx` (40)
+    - `src/components/plantilla/PoolOpenSlotsDrawer.tsx` (16)
+    - `src/components/plantilla/StoreStaffingDrawer.tsx` (14)
+    - `src/components/plantilla/PoolRequestHistoryDrawer.tsx` (14)
+    - `src/components/plantilla/SlotDetailDrawer.tsx` (12)
+    - `src/components/plantilla/StoreStaffingOverviewDrawer.tsx` (6)
+  - **Loop 6B — Modals and Forms (391 literals)**:
+    - `src/components/plantilla/TransferPersonnelModal.tsx` (98)
+    - `src/components/plantilla/UpdateEmploymentStatusModal.tsx` (69)
+    - `src/components/plantilla/RequestRelieverCoverageModal.tsx` (45)
+    - `src/components/plantilla/InitiateSeparationModal.tsx` (44)
+    - `src/components/plantilla/RequestPoolHeadcountModal.tsx` (44)
+    - `src/components/plantilla/RequestPoolConversionModal.tsx` (39)
+    - `src/components/plantilla/RequestDeactivationModal.tsx` (38)
+    - `src/components/plantilla/UpdateScheduleModal.tsx` (14)
+  - **Loop 6C — Specialized Pool Views & Analytics (198 literals)**:
+    - `src/components/plantilla/WorkforceAnalyticsView.tsx` (145)
+    - `src/components/plantilla/MosesHqPoolView.tsx` (53)
+- **Architectural Preservations (ADR-001 & ADR-002)**:
+  - Account Gate from `docs/audit/adr001_plantilla_account_gate_2026-07-11.md`: Single-account auto-fire preserved; `enabled: !!resolvedAccountId` preserved; URL query param continuity preserved.
+  - Zero-edit immutability lock and 72h rollback governance from ADR-002 preserved.
+  - Table typography $\ge 14\text{px}$ floor (`text-sm`), compact density padding, zero per-row animation.
+
+---
+
 ## Plantilla Import Role Check Regression Fix & Helper Function Parity (ohm#p9r2k5w8)
 
 **Status: COMPLETE — RESOLVED REGRESSION EXCEPTION `function public.get_current_role() does not exist` OCCURRING DURING PLANTILLA BULK BASELINE UPLOAD; CREATED IDEMPOTENT MIGRATION `20262606000067_fix_plantilla_import_role_check_parity.sql` PROVIDING `public.get_current_role()` AND `public.fn_is_admin()` PARITY WRAPPERS ALIASED TO `public.get_my_role()` AND `public.i_have_full_access()`; ADDED MISSING COMPANION BATCH TRACKING COLUMNS (`commit_error`, `stores_created`, `employees_created`, `allocations_created`) TO `public.plantilla_import_batches`; RESTORED CANONICAL ROLE INITIALIZATION (`v_role text := public.get_my_role();`) AND ROBUST RBAC + OPERATIONAL GOVERNANCE GUARDS (`fn_can_upload_plantilla_import()`, `fn_assert_governance_enabled('import_plantilla')`, `fn_assert_freeze_inactive('audit_freeze')`) IN `submit_plantilla_baseline_import`; PRESERVED 100% OF MIGRATION 65 SET-BASED CTE OPTIMIZATIONS (`statement_timeout = '60s'`) AND MIGRATION 66 MULTI-VCODE STORE NAME GOVERNANCE (`multiple_vcodes_per_store` AS `flagged`); APPLIED AND VERIFIED ON BOTH PRODUCTION (`rwxelulyapjgaarlwkus`, SCHEMA MIGRATION VERSION `20262606000073`) AND STAGING (`qqiiznmqxfoamqytjica`, SCHEMA MIGRATION VERSION `20262606000073`); VERIFIED EXISTING PENDING BATCH `#ff1c4074` IS PROPERLY CLASSIFIED (410 VALID, 914 FLAGGED, 2 BLOCKED); EXECUTED LIVE ROLLED-BACK VERIFICATION UNDER AUTHENTICATED USER CONTEXT ON PRODUCTION FOR BOTH `submit_plantilla_baseline_import` AND `approve_plantilla_import_batch` WITH 0 DATABASE POLLUTION; ESLINT 0 ERRORS; COMMITTED ON `main`**

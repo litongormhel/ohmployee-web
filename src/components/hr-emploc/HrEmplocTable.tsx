@@ -338,14 +338,15 @@ export function HrEmplocTable({
                         {/* ── Pending Queue Actions ──────────────── */}
                         {queue === "pending" && (
                           <>
-                            {row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc && (
+                            {handleAddEmploc && (
                               <button
                                 type="button"
+                                disabled={isPendingDeletion}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleAddEmploc(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-brand-600 hover:bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-500 hover:bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label={`Add Emploc for ${row.applicantName}`}
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
@@ -353,14 +354,15 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {row.rowCapabilities.canTagDeficiency && onForCorrection && (
+                            {onForCorrection && (
                               <button
                                 type="button"
+                                disabled={isPendingDeletion}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onForCorrection(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label={`Return for correction for ${row.applicantName}`}
                               >
                                 <AlertCircle className="h-3.5 w-3.5" />

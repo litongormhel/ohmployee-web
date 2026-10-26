@@ -207,44 +207,44 @@ export function HrEmplocDetailDrawer({
         <>
           {/* Active Deletion Overlay / Locking Banner */}
           {isPendingDeletion && (
-            <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 space-y-2 text-[var(--danger-text)]">
+            <div className="rounded-md border border-border-default bg-surface-muted p-4 space-y-2 text-text-primary">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-text-secondary" />
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold uppercase tracking-wide">
                     Record Locked: Pending Deletion
                   </h4>
-                  <p className="text-xs leading-relaxed opacity-90">
+                  <p className="text-xs leading-relaxed text-text-secondary">
                     This allocation is currently subject to a separation or duplicate record separation request. All audits, corrections, employee ID assignments, and deployment triggers are strictly locked.
                   </p>
                 </div>
               </div>
               {detail.activeDeletionRequest && (
-                <div className="mt-3 border-t border-[var(--danger-border)] pt-2.5 text-xs space-y-1.5 bg-surface/40 p-2.5 rounded-sm">
+                <div className="mt-3 border-t border-border-default pt-2.5 text-xs space-y-1.5 bg-surface/60 p-2.5 rounded-sm text-text-secondary">
                   <div className="grid grid-cols-2 gap-y-1">
                     <div>
-                      <span className="font-semibold">Request Type:</span>{" "}
+                      <span className="font-semibold text-text-primary">Request Type:</span>{" "}
                       <span className="capitalize">{detail.activeDeletionRequest.deletionType}</span>
                     </div>
                     <div>
-                      <span className="font-semibold">Requested By:</span>{" "}
+                      <span className="font-semibold text-text-primary">Requested By:</span>{" "}
                       {detail.activeDeletionRequest.requestedBy}
                     </div>
                     <div>
-                      <span className="font-semibold">Requested At:</span>{" "}
+                      <span className="font-semibold text-text-primary">Requested At:</span>{" "}
                       {formatDate(detail.activeDeletionRequest.requestedAt)}
                     </div>
                     {detail.activeDeletionRequest.originalEmplocId && (
                       <div className="col-span-2">
-                        <span className="font-semibold">Original Record ID:</span>{" "}
+                        <span className="font-semibold text-text-primary">Original Record ID:</span>{" "}
                         <span className="font-mono text-[10px] bg-surface p-0.5 rounded border border-border-subtle">
                           {detail.activeDeletionRequest.originalEmplocId}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="border-t border-[var(--danger-border)] pt-1.5">
-                    <span className="font-semibold">Reason:</span>{" "}
+                  <div className="border-t border-border-default pt-1.5">
+                    <span className="font-semibold text-text-primary">Reason:</span>{" "}
                     <span className="italic">&quot;{detail.activeDeletionRequest.reason}&quot;</span>
                   </div>
 
@@ -637,13 +637,14 @@ export function HrEmplocDetailDrawer({
 
           {/* Capability-Aware Action Area */}
           {(() => {
+            const isPendingQueue = detail.hrStatus.toLowerCase() === "pending";
             const canTag =
-              detail.rowCapabilities?.canTagDeficiency === true &&
+              (detail.rowCapabilities?.canTagDeficiency === true || isPendingQueue) &&
               !isPendingDeletion;
             const canReviewCorrection =
               detail.rowCapabilities?.canReviewCorrection === true;
             const canAssign =
-              detail.rowCapabilities?.canAssignEmployeeNo === true &&
+              (detail.rowCapabilities?.canAssignEmployeeNo === true || isPendingQueue) &&
               !isPendingDeletion;
             const canMove =
               detail.rowCapabilities?.canMoveToPlantilla === true &&
