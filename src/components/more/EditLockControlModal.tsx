@@ -88,20 +88,12 @@ export function EditLockControlModal({
     >
       <div className="space-y-5">
         {/* Status Banner */}
-        <div
-          className={`p-4 rounded-xl border flex items-start gap-3.5 ${
-            isLocked
-              ? "bg-danger-subtle border-danger-border text-danger"
-              : isOverrideActive
-              ? "bg-surface-subtle border-border-default text-text-primary"
-              : "bg-surface-subtle border-border-default text-text-primary"
-          }`}
-        >
+        <div className="p-4 rounded-xl border border-border-default bg-surface-subtle flex items-start gap-3.5 text-text-primary">
           <div className="p-1 rounded-md bg-surface-base shrink-0 border border-border-default">
             {isLocked ? (
-              <ShieldAlert className="w-5 h-5 text-danger" />
+              <ShieldAlert className="w-5 h-5 text-text-secondary" />
             ) : isOverrideActive ? (
-              <AlertTriangle className="w-5 h-5 text-brand-primary" />
+              <AlertTriangle className="w-5 h-5 text-text-secondary" />
             ) : (
               <LockOpen className="w-5 h-5 text-text-secondary" />
             )}
@@ -115,13 +107,7 @@ export function EditLockControlModal({
                   ? "Vacancy Editing is Currently Locked"
                   : "Vacancy Editing is Unlocked"}
               </span>
-              <span
-                className={`px-2 py-0.5 text-xs font-semibold rounded-full uppercase tracking-wider ${
-                  isLocked
-                    ? "bg-danger-subtle text-danger border border-danger-border"
-                    : "bg-surface-subtle text-text-secondary border border-border-default"
-                }`}
-              >
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full uppercase tracking-wider bg-surface-base text-text-secondary border border-border-default">
                 {status?.lockType ?? "Default"}
               </span>
             </div>
