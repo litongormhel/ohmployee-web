@@ -198,7 +198,7 @@ export function DataIntegrityDetailModal({
                           {r.issueType}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-text-secondary">
+                      <td className="py-2.5 px-3 font-mono text-sm text-text-secondary">
                         {r.effectiveDate ? r.effectiveDate.substring(0, 10) : r.detectedDate ? r.detectedDate.substring(0, 10) : "—"}
                       </td>
                       <td className="py-2.5 px-3 text-right">

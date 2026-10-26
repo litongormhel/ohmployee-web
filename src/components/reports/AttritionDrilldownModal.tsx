@@ -236,7 +236,7 @@ export function AttritionDrilldownModal({
                         </td>
                         <td className="py-2.5 px-3 text-text-secondary">{emp.position}</td>
                         <td className="py-2.5 px-3 text-text-secondary">{emp.storeName}</td>
-                        <td className="py-2.5 px-3 text-text-secondary font-mono text-[11px]">
+                        <td className="py-2.5 px-3 text-text-secondary font-mono text-sm">
                           {emp.separationDate ? emp.separationDate.substring(0, 10) : "—"}
                         </td>
                         <td className="py-2.5 px-3 text-text-secondary max-w-xs truncate" title={emp.reason}>
