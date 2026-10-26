@@ -16,9 +16,9 @@ import {
   ShieldAlert,
   User,
   Users,
-  X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import {
   useApproveApplicantMovement,
   useRejectApplicantMovement,
@@ -128,41 +128,41 @@ export function ApplicantMovementApprovalCard({
   const relativeAge = formatRelativeAge(request.requestedAt);
 
   return (
-    <div className="rounded-lg border border-border-default bg-surface-base p-5 shadow-xs transition hover:border-slate-300">
+    <div className="rounded-lg border border-border-default bg-surface p-5 shadow-xs transition hover:border-border-brand/40">
       {/* Top Header: Movement Type badge + Request Number + Stage & Status */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {isSwap ? (
-              <span className="inline-flex items-center gap-1 rounded border border-purple-200 bg-purple-50 px-2 py-0.5 font-mono text-xs font-semibold text-purple-700">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
                 <ArrowLeftRight className="h-3 w-3" aria-hidden="true" />
                 SWAP MOVEMENT
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-700">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
                 <ArrowRight className="h-3 w-3" aria-hidden="true" />
                 TRANSFER MOVEMENT
               </span>
             )}
 
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700">
+            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-secondary">
               {request.requestNumber}
             </span>
 
             {request.approvalStage && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
-                <Layers className="h-2.5 w-2.5" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1 rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-secondary">
+                <Layers className="h-3 w-3" aria-hidden="true" />
                 Stage: {request.approvalStage.toUpperCase()}
               </span>
             )}
 
             {request.hasActiveReservation && (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+              <span className="inline-flex items-center rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-brand-bold">
                 Slot Reserved
               </span>
             )}
 
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+            <span className="inline-flex items-center rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-secondary">
               Pending Review
             </span>
           </div>
@@ -171,7 +171,7 @@ export function ApplicantMovementApprovalCard({
             <User className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
             <span>{request.sourceApplicantName}</span>
             {request.sourceApplicantStatus && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-text-secondary">
+              <span className="rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-normal text-text-secondary">
                 {request.sourceApplicantStatus}
               </span>
             )}
@@ -184,7 +184,7 @@ export function ApplicantMovementApprovalCard({
             type="button"
             onClick={handleOpenReject}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
           >
             <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Reject</span>
@@ -193,7 +193,7 @@ export function ApplicantMovementApprovalCard({
             type="button"
             onClick={handleOpenApprove}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Approve Movement</span>
@@ -203,8 +203,8 @@ export function ApplicantMovementApprovalCard({
 
       {/* Execution Error Banner (if any) */}
       {request.executionError && (
-        <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-text-danger" aria-hidden="true" />
           <div>
             <span className="font-semibold">Prior Execution Error:</span>{" "}
             {request.executionError}
@@ -213,15 +213,15 @@ export function ApplicantMovementApprovalCard({
       )}
 
       {/* Movement Details Grid: Source Slot -> Target Slot */}
-      <div className="mt-4 rounded-md border border-border-default bg-slate-50/70 p-3.5 text-xs">
+      <div className="mt-4 rounded-md border border-border-default bg-surface-subtle p-3.5 text-xs">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Source Slot */}
-          <div className="rounded-md border border-border-default bg-white p-3 space-y-1.5">
+          <div className="rounded-md border border-border-default bg-surface p-3 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
+              <span className="font-semibold text-text-secondary uppercase tracking-wider text-2xs">
                 {isSwap ? "Candidate A (Source Slot)" : "Origin Slot"}
               </span>
-              <span className="font-mono text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+              <span className="font-mono text-xs font-semibold text-text-brand-bold bg-surface-subtle border border-border-default px-1.5 py-0.5 rounded-md">
                 {request.sourceVacancyVcode}
               </span>
             </div>
@@ -245,12 +245,12 @@ export function ApplicantMovementApprovalCard({
           </div>
 
           {/* Target Slot */}
-          <div className="rounded-md border border-border-default bg-white p-3 space-y-1.5">
+          <div className="rounded-md border border-border-default bg-surface p-3 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
+              <span className="font-semibold text-text-secondary uppercase tracking-wider text-2xs">
                 {isSwap ? "Candidate B (Counterpart Slot)" : "Destination Slot"}
               </span>
-              <span className="font-mono text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+              <span className="font-mono text-xs font-semibold text-text-brand-bold bg-surface-subtle border border-border-default px-1.5 py-0.5 rounded-md">
                 {request.targetVacancyVcode}
               </span>
             </div>
@@ -280,17 +280,17 @@ export function ApplicantMovementApprovalCard({
 
         {/* Counterpart Swap Explanation Banner */}
         {isSwap && (
-          <div className="mt-2.5 flex items-center gap-2 rounded bg-purple-50/80 px-2.5 py-1.5 text-[11px] text-purple-800 border border-purple-100">
-            <Users className="h-3.5 w-3.5 shrink-0 text-purple-600" aria-hidden="true" />
+          <div className="mt-2.5 flex items-center gap-2 rounded-md bg-surface border border-border-default px-2.5 py-1.5 text-xs text-text-secondary">
+            <Users className="h-3.5 w-3.5 shrink-0 text-text-secondary" aria-hidden="true" />
             <span>
-              <strong>Reciprocal Swap:</strong> {request.sourceApplicantName} will transition to slot {request.targetVacancyVcode}, while {request.targetApplicantName || "counterpart"} will be assigned to slot {request.sourceVacancyVcode}.
+              <strong className="text-text-primary">Reciprocal Swap:</strong> {request.sourceApplicantName} will transition to slot {request.targetVacancyVcode}, while {request.targetApplicantName || "counterpart"} will be assigned to slot {request.sourceVacancyVcode}.
             </span>
           </div>
         )}
       </div>
 
       {/* Rationale & Stated Remarks */}
-      <div className="mt-3.5 rounded-md border border-border-default bg-surface-base p-3 text-xs space-y-1.5">
+      <div className="mt-3.5 rounded-md border border-border-default bg-surface p-3 text-xs space-y-1.5">
         <div className="flex items-start gap-2">
           <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
           <div>
@@ -317,14 +317,14 @@ export function ApplicantMovementApprovalCard({
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1 text-text-muted">
-            <Clock className="h-3 w-3" aria-hidden="true" />
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Requested: {formatDate(request.requestedAt)}</span>
-            {relativeAge && <span className="font-mono text-[10px]">({relativeAge})</span>}
+            {relativeAge && <span className="font-mono text-2xs">({relativeAge})</span>}
           </div>
 
           {request.effectiveDate && (
             <div className="flex items-center gap-1 text-text-secondary">
-              <Calendar className="h-3 w-3 text-brand-600" aria-hidden="true" />
+              <Calendar className="h-3.5 w-3.5 text-text-brand-bold" aria-hidden="true" />
               <span>Effective: {formatDate(request.effectiveDate)}</span>
             </div>
           )}
@@ -333,83 +333,62 @@ export function ApplicantMovementApprovalCard({
 
       {/* ── Approve Modal ── */}
       {isApproveOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="approve-amr-title"
+        <Modal
+          isOpen={isApproveOpen}
+          onClose={() => setIsApproveOpen(false)}
+          title="Approve Movement Request"
+          subtitle={request.requestNumber}
+          icon={CheckCircle2}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
         >
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <h4 id="approve-amr-title" className="text-base font-semibold text-text-primary">
-                    Approve Movement Request
-                  </h4>
-                  <p className="text-xs text-text-secondary font-mono">{request.requestNumber}</p>
-                </div>
-              </div>
+          <div className="space-y-3 text-xs">
+            <p className="text-text-secondary leading-relaxed">
+              Confirm approval for candidate movement of{" "}
+              <strong className="text-text-primary">{request.sourceApplicantName}</strong> from slot{" "}
+              <span className="font-mono font-semibold text-text-primary">{request.sourceVacancyVcode}</span>{" "}
+              to slot <span className="font-mono font-semibold text-text-primary">{request.targetVacancyVcode}</span>.
+            </p>
 
-              <button
-                type="button"
-                onClick={() => setIsApproveOpen(false)}
-                disabled={isBusy}
-                className="rounded-md p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary"
+            {isSwap && (
+              <div className="rounded-md border border-border-default bg-surface-subtle p-2.5 text-text-secondary">
+                <strong className="font-semibold text-text-primary">Counterpart Impact:</strong>{" "}
+                {request.targetApplicantName || "Counterpart candidate"} will simultaneously move to{" "}
+                <span className="font-mono font-semibold text-text-primary">{request.sourceVacancyVcode}</span>.
+              </div>
+            )}
+
+            <div>
+              <label
+                htmlFor="amr-approval-note"
+                className="block font-medium text-text-primary mb-1"
               >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
+                Approval Note / Remarks (Optional)
+              </label>
+              <textarea
+                id="amr-approval-note"
+                rows={2}
+                value={approveNote}
+                onChange={(e) => setApproveNote(e.target.value)}
+                placeholder="Optional instruction or transition endorsement..."
+                className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-border-brand focus:outline-hidden"
+              />
             </div>
 
-            <div className="mt-4 space-y-3 text-xs">
-              <p className="text-text-secondary leading-relaxed">
-                Confirm approval for candidate movement of{" "}
-                <strong className="text-text-primary">{request.sourceApplicantName}</strong> from slot{" "}
-                <span className="font-mono font-semibold text-slate-800">{request.sourceVacancyVcode}</span>{" "}
-                to slot <span className="font-mono font-semibold text-slate-800">{request.targetVacancyVcode}</span>.
-              </p>
-
-              {isSwap && (
-                <div className="rounded-md border border-purple-200 bg-purple-50 p-2.5 text-purple-900">
-                  <strong className="font-semibold">Counterpart Impact:</strong>{" "}
-                  {request.targetApplicantName || "Counterpart candidate"} will simultaneously move to{" "}
-                  <span className="font-mono font-semibold">{request.sourceVacancyVcode}</span>.
-                </div>
-              )}
-
-              <div>
-                <label
-                  htmlFor="amr-approval-note"
-                  className="block font-medium text-text-primary mb-1"
-                >
-                  Approval Note / Remarks (Optional)
-                </label>
-                <textarea
-                  id="amr-approval-note"
-                  rows={2}
-                  value={approveNote}
-                  onChange={(e) => setApproveNote(e.target.value)}
-                  placeholder="Optional instruction or transition endorsement..."
-                  className="w-full rounded-md border border-border-default bg-white p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-                />
+            {actionError && (
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{actionError}</span>
               </div>
+            )}
 
-              {actionError && (
-                <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{actionError}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-border-default pt-4">
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-4">
               <button
                 type="button"
                 onClick={() => setIsApproveOpen(false)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -417,99 +396,78 @@ export function ApplicantMovementApprovalCard({
                 type="button"
                 onClick={handleConfirmApprove}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
-                {isBusy && <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />}
+                {isBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
                 <span>Confirm & Advance Approval</span>
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Reject Modal ── */}
       {isRejectOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="reject-amr-title"
+        <Modal
+          isOpen={isRejectOpen}
+          onClose={() => setIsRejectOpen(false)}
+          title="Reject Movement Request"
+          subtitle={request.requestNumber}
+          icon={XCircle}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
         >
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <h4 id="reject-amr-title" className="text-base font-semibold text-text-primary">
-                    Reject Movement Request
-                  </h4>
-                  <p className="text-xs text-text-secondary font-mono">{request.requestNumber}</p>
-                </div>
-              </div>
+          <div className="space-y-3 text-xs">
+            <p className="text-text-secondary leading-relaxed">
+              Rejecting this request will release any active slot reservations and retain{" "}
+              <strong className="text-text-primary">{request.sourceApplicantName}</strong> at their current assignment.
+            </p>
 
-              <button
-                type="button"
-                onClick={() => setIsRejectOpen(false)}
-                disabled={isBusy}
-                className="rounded-md p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary"
+            <div>
+              <label
+                htmlFor="amr-rejection-reason"
+                className="block font-medium text-text-primary mb-1"
               >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3 text-xs">
-              <p className="text-text-secondary leading-relaxed">
-                Rejecting this request will release any active slot reservations and retain{" "}
-                <strong className="text-text-primary">{request.sourceApplicantName}</strong> at their current assignment.
-              </p>
-
-              <div>
-                <label
-                  htmlFor="amr-rejection-reason"
-                  className="block font-medium text-text-primary mb-1"
-                >
-                  Rejection Reason <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  id="amr-rejection-reason"
-                  rows={3}
-                  value={rejectionReason}
-                  onChange={(e) => {
-                    setRejectionReason(e.target.value);
-                    if (rejectReasonError && e.target.value.trim()) {
-                      setRejectReasonError(false);
-                    }
-                  }}
-                  placeholder="State the justification or compliance reason for rejecting this movement request..."
-                  className={`w-full rounded-md border p-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden ${
-                    rejectReasonError
-                      ? "border-rose-300 bg-rose-50/50 focus:border-rose-500"
-                      : "border-border-default bg-white focus:border-brand-500"
-                  }`}
-                />
-                {rejectReasonError && (
-                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
-                    A rejection reason is required before proceeding.
-                  </p>
-                )}
-              </div>
-
-              {actionError && (
-                <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
-                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{actionError}</span>
-                </div>
+                Rejection Reason <span className="text-text-danger">*</span>
+              </label>
+              <textarea
+                id="amr-rejection-reason"
+                rows={3}
+                value={rejectionReason}
+                onChange={(e) => {
+                  setRejectionReason(e.target.value);
+                  if (rejectReasonError && e.target.value.trim()) {
+                    setRejectReasonError(false);
+                  }
+                }}
+                placeholder="State the justification or compliance reason for rejecting this movement request..."
+                className={`w-full rounded-md border p-2 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
+                  rejectReasonError
+                    ? "border-border-danger focus:border-border-danger"
+                    : "border-border-default focus:border-border-brand"
+                }`}
+              />
+              {rejectReasonError && (
+                <p className="mt-1 text-2xs text-text-danger font-medium">
+                  A rejection reason is required before proceeding.
+                </p>
               )}
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-border-default pt-4">
+            {actionError && (
+              <div className="flex items-center gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 border-t border-border-default pt-4">
               <button
                 type="button"
                 onClick={() => setIsRejectOpen(false)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default bg-surface-base px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -517,14 +475,14 @@ export function ApplicantMovementApprovalCard({
                 type="button"
                 onClick={handleConfirmReject}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs hover:bg-rose-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger-button hover:bg-danger-button-hover px-4 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
-                {isBusy && <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />}
+                {isBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
                 <span>Confirm Rejection</span>
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

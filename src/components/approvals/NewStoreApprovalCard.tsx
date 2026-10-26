@@ -15,6 +15,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import {
   useApproveNewStoreRequest,
   useRejectNewStoreRequest,
@@ -104,19 +105,19 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
   })();
 
   return (
-    <div className="rounded-lg border border-border-default bg-surface-base p-5 shadow-xs transition hover:border-slate-300">
+    <div className="rounded-lg border border-border-default bg-surface p-5 shadow-xs transition hover:border-border-brand/40">
       {/* Top Header: Category badge + Target Account + Proposed Store Name */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-800">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
               <Store className="h-3 w-3" aria-hidden="true" />
               NEW STORE
             </span>
-            <span className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
               {request.accountName || "Unassigned Account"}
             </span>
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+            <span className="inline-flex items-center rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-secondary">
               Pending Verification
             </span>
           </div>
@@ -133,7 +134,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
             type="button"
             onClick={handleOpenReject}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
           >
             <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Reject</span>
@@ -142,7 +143,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
             type="button"
             onClick={handleOpenApprove}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Approve Store</span>
@@ -152,13 +153,13 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
 
       {/* Action Error Banner */}
       {actionError && (
-        <div className="mt-3 flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-text-danger mt-0.5" />
           <div className="flex-1">{actionError}</div>
           <button
             type="button"
             onClick={() => setActionError(null)}
-            className="text-rose-500 hover:text-rose-700"
+            className="text-text-muted hover:text-text-primary"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -166,7 +167,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
       )}
 
       {/* Structured Metadata Grid */}
-      <div className="mt-4 grid grid-cols-1 gap-3 rounded-md border border-border-default bg-slate-50/60 p-3.5 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 rounded-md border border-border-default bg-surface-subtle p-3.5 text-xs sm:grid-cols-2 lg:grid-cols-4">
         {/* Account */}
         <div>
           <span className="block font-medium text-text-muted">Target Account</span>
@@ -200,7 +201,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
             <User className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
             <span className="truncate">{displayRequester}</span>
           </div>
-          <span className="flex items-center gap-1 text-[11px] text-text-secondary mt-0.5">
+          <span className="flex items-center gap-1 text-2xs text-text-secondary mt-0.5">
             <Clock className="h-3 w-3" aria-hidden="true" />
             {formatDate(request.requestedAt)}
           </span>
@@ -208,7 +209,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
       </div>
 
       {/* Requester Remarks / Justification */}
-      <div className="mt-3 rounded-md border border-slate-200/80 bg-white p-3 text-xs">
+      <div className="mt-3 rounded-md border border-border-default bg-surface p-3 text-xs">
         <div className="flex items-center gap-1.5 font-medium text-text-secondary">
           <MessageSquare className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
           <span>Operational Justification & Remarks</span>
@@ -220,33 +221,18 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
 
       {/* ── Approve Confirmation Modal ────────────────────────────────────────── */}
       {isApproveOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Approve Store Addition
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Confirm adding this branch to the active store registry
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsApproveOpen(false)}
-                disabled={approveMutation.isPending}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
+        <Modal
+          isOpen={isApproveOpen}
+          onClose={() => setIsApproveOpen(false)}
+          title="Approve Store Addition"
+          subtitle="Confirm adding this branch to the active store registry"
+          icon={CheckCircle2}
+          isSubmitting={approveMutation.isPending}
+          disableBackdropClick={approveMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-text-muted">Store Name:</span>
                 <span className="font-semibold text-text-primary">{request.storeName}</span>
@@ -265,16 +251,16 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
               </div>
             </div>
 
-            <p className="mt-3 text-xs text-text-secondary leading-relaxed">
+            <p className="text-xs text-text-secondary leading-relaxed">
               Upon approval, this store will be instantly created with active status in the database store registry and unlocked for headcount planning and allocations.
             </p>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsApproveOpen(false)}
                 disabled={approveMutation.isPending}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -282,7 +268,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                 type="button"
                 onClick={handleConfirmApprove}
                 disabled={approveMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {approveMutation.isPending ? (
                   <>
@@ -298,43 +284,28 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Reject Reason Dialog ──────────────────────────────────────────────── */}
       {isRejectOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Reject New Store Request
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Decline branch onboarding for {request.storeName}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRejectOpen(false)}
-                disabled={rejectMutation.isPending}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4">
+        <Modal
+          isOpen={isRejectOpen}
+          onClose={() => setIsRejectOpen(false)}
+          title="Reject New Store Request"
+          subtitle={`Decline branch onboarding for ${request.storeName}`}
+          icon={XCircle}
+          isSubmitting={rejectMutation.isPending}
+          disableBackdropClick={rejectMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div>
               <label
                 htmlFor={`rejection-reason-${request.id}`}
                 className="block text-xs font-medium text-text-primary"
               >
-                Rejection Reason <span className="text-rose-500">*</span>
+                Rejection Reason <span className="text-text-danger">*</span>
               </label>
               <textarea
                 id={`rejection-reason-${request.id}`}
@@ -347,25 +318,25 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                     setRejectReasonError(false);
                   }
                 }}
-                className={`mt-1.5 w-full rounded-md border p-2.5 text-xs text-text-primary focus:outline-hidden ${
+                className={`mt-1.5 w-full rounded-md border p-2.5 text-xs text-text-primary bg-surface placeholder:text-text-muted focus:outline-hidden ${
                   rejectReasonError
-                    ? "border-rose-400 focus:border-rose-500 bg-rose-50/20"
-                    : "border-border-default focus:border-brand-500 bg-white"
+                    ? "border-border-danger focus:border-border-danger"
+                    : "border-border-default focus:border-border-brand"
                 }`}
               />
               {rejectReasonError && (
-                <p className="mt-1 text-[11px] font-medium text-rose-600">
+                <p className="mt-1 text-2xs font-medium text-text-danger">
                   Please provide a reason for rejecting this request.
                 </p>
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsRejectOpen(false)}
                 disabled={rejectMutation.isPending}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -373,7 +344,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                 type="button"
                 onClick={handleConfirmReject}
                 disabled={rejectMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger-button hover:bg-danger-button-hover px-4 py-1.5 text-xs font-medium text-danger-button-text shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 {rejectMutation.isPending ? (
                   <>
@@ -389,7 +360,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

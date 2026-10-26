@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Loop 7B: Approvals Cards & Action Modals Alignment (ohm#l7b2m8c4)
+
+**Status: COMPLETE — ALL 10 APPROVAL REVIEW CARDS TOKENIZED TO ZERO COLOR LITERALS; CANONICAL MODAL INTEGRATION ON 20 ACTION MODALS (APPROVE & REJECT) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS AND ACTION ERRORS); COLOR-USE AUDIT PASSED (NEUTRAL METRIC BADGES, STATUS PILLS, AND VCODE MONO CHIPS); ZERO QUERY, RPC, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions (10 Approval Cards)
+- `ApplicantMovementApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Replaced raw indigo, green, and rose literals with design tokens. (0 literals)
+- `CoverageGroupApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Aligned shift metadata badges and review remark inputs. (0 literals)
+- `DeactivationApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Tokenized separation reason badges and error banners. (0 literals)
+- `HeadcountAmendmentApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Tokenized headcount delta chips and justification boxes. (0 literals)
+- `HeadcountStandardApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Tokenized standard headcount requisition cards. (0 literals)
+- `HrEmplocDeletionReviewCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Locator deletion justification and warning dialogs tokenized. (0 literals)
+- `NewStoreApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Store details grid and deployment approval dialog tokenized. (0 literals)
+- `RelieverCoverageApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Reliever roster chips and schedule details tokenized. (0 literals)
+- `StoreTransferApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Store transfer destination and reason fields tokenized. (0 literals)
+- `VacancyClosureApprovalCard.tsx`: Wrapped Approve and Reject modals with canonical `Modal`. Vacancy closure rationale and permanent archive dialogs tokenized. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: Every approval card replaces legacy hand-rolled `fixed inset-0` div overlays with canonical `@/components/shared/Modal`. Passing `isSubmitting={isBusy}`, `disableBackdropClick={isBusy}`, and `maxWidthClass="max-w-md"`.
+- **Danger Audit**: `--danger` is strictly isolated to destructive confirmation buttons (`bg-danger-button hover:bg-danger-button-hover text-danger-button-text`) and form error alert banners (`border border-danger-border bg-danger-subtle text-danger-text`).
+- **Color-Use Audit**: Status chips, category badges, and VCode chips use neutral tokens (`border border-border-default bg-surface-subtle text-text-primary` or `text-text-secondary`). Brand actions use `bg-brand-500 hover:bg-brand-600 text-white`.
+- **Typography & Layout**: Uniform card padding, metadata grid tokens, and accessibility labels preserved.
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for 7B Module**: Exactly 0 raw color literals across all 10 cards. Entire `src/components/approvals/` and `src/app/(dashboard)/approvals/` are now 0 color literals.
+- **ESLint**: 0 errors.
+- **TypeScript**: `npx tsc --noEmit` passed with 0 errors.
+- **ADR-001 / ADR-002 Invariants**: Completely preserved; zero non-styling logic changed.
+
+---
+
 ## Loop 7A: Approvals Navigation & Data Tables Alignment (ohm#l7a01n2v)
 
 **Status: COMPLETE — APPROVALS NAVIGATION & ALL 11 APPROVAL DATA TABLES TOKENIZED TO ZERO COLOR LITERALS; CANONICAL MODAL INTEGRATION ON 44 MODAL DIALOGS (SINGLE APPROVE, SINGLE REJECT, BULK APPROVE, BULK REJECT) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; TABLE TYPOGRAPHY FLOOR ENFORCED TO >= 14px (`text-sm`); STRICT SEMANTIC TOKENS ON ALL BUTTONS, CHIPS, AND BANNERS; ZERO QUERY, RPC, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**

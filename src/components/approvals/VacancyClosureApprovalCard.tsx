@@ -14,6 +14,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import { useCurrentUser } from "@/lib/auth";
 import {
   useReviewVacancyClosureRequest,
@@ -107,15 +108,15 @@ export function VacancyClosureApprovalCard({
   const isBusy = reviewMutation.isPending;
 
   return (
-    <div className="rounded-lg border border-border-default bg-surface-base p-5 shadow-xs transition hover:border-slate-300">
+    <div className="rounded-lg border border-border-default bg-surface-base p-5 shadow-xs transition hover:border-border-strong">
       {/* Top Header: VCode mono pill + Category badge + Position */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-mono text-xs font-semibold text-indigo-700">
+            <span className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold text-text-primary">
               {request.vacancyVcode}
             </span>
-            <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
               <Archive className="h-3 w-3" aria-hidden="true" />
               Closure Request
             </span>
@@ -124,7 +125,7 @@ export function VacancyClosureApprovalCard({
                 • {request.account}
               </span>
             )}
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+            <span className="inline-flex items-center rounded-full border border-border-default bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary">
               Pending
             </span>
           </div>
@@ -147,7 +148,7 @@ export function VacancyClosureApprovalCard({
             type="button"
             onClick={handleOpenReject}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 text-xs font-medium text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-default bg-surface px-3 text-xs font-medium text-danger-text shadow-2xs hover:bg-surface-hover disabled:opacity-50 transition"
           >
             <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Reject</span>
@@ -156,7 +157,7 @@ export function VacancyClosureApprovalCard({
             type="button"
             onClick={handleOpenApprove}
             disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-600 px-3 text-xs font-medium text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50 transition"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-brand-500 px-3 text-xs font-medium text-white shadow-2xs hover:bg-brand-600 disabled:opacity-50 transition"
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Approve Closure</span>
@@ -166,13 +167,13 @@ export function VacancyClosureApprovalCard({
 
       {/* Action Error Banner */}
       {actionError && (
-        <div className="mt-3 flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-danger-border bg-danger-subtle p-2.5 text-xs text-danger-text">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-danger-icon mt-0.5" />
           <div className="flex-1">{actionError}</div>
           <button
             type="button"
             onClick={() => setActionError(null)}
-            className="text-rose-500 hover:text-rose-700"
+            className="text-danger-text hover:opacity-80"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -180,7 +181,7 @@ export function VacancyClosureApprovalCard({
       )}
 
       {/* Structured Metadata Grid */}
-      <div className="mt-4 grid grid-cols-1 gap-3 rounded-md border border-border-default bg-slate-50/60 p-3.5 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 rounded-md border border-border-default bg-surface-subtle p-3.5 text-xs sm:grid-cols-2 lg:grid-cols-4">
         {/* Target VCode */}
         <div>
           <span className="block font-medium text-text-muted">Target VCode</span>
@@ -221,7 +222,7 @@ export function VacancyClosureApprovalCard({
       </div>
 
       {/* Closure Justification */}
-      <div className="mt-3 rounded-md border border-slate-200/80 bg-white p-3 text-xs">
+      <div className="mt-3 rounded-md border border-border-default bg-surface p-3 text-xs">
         <div className="flex items-center gap-1.5 font-medium text-text-secondary">
           <FileText className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
           <span>Closure Justification</span>
@@ -230,188 +231,154 @@ export function VacancyClosureApprovalCard({
           {request.reason || <span className="italic text-text-muted">No primary reason stated.</span>}
         </p>
         {request.details && (
-          <p className="mt-1 text-text-secondary leading-relaxed whitespace-pre-wrap border-t border-slate-100 pt-1.5">
+          <p className="mt-1 text-text-secondary leading-relaxed whitespace-pre-wrap border-t border-border-default pt-1.5">
             {request.details}
           </p>
         )}
       </div>
 
       {/* ── Approve Modal ─────────────────────────────────────────────────────── */}
-      {isApproveOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Approve Vacancy Closure
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Archive requisition {request.vacancyVcode}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsApproveOpen(false)}
-                disabled={reviewMutation.isPending}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
+      <Modal
+        isOpen={isApproveOpen}
+        onClose={() => setIsApproveOpen(false)}
+        title="Approve Vacancy Closure"
+        subtitle={`Archive requisition ${request.vacancyVcode}`}
+        isSubmitting={isBusy}
+        disableBackdropClick={isBusy}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsApproveOpen(false)}
+              disabled={isBusy}
+              className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmApprove}
+              disabled={isBusy}
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition"
+            >
+              {isBusy ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Archiving Vacancy...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Confirm &amp; Close</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-text-muted">VCode:</span>
+              <span className="font-mono font-semibold text-text-primary">{request.vacancyVcode}</span>
             </div>
-
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-text-muted">VCode:</span>
-                <span className="font-mono font-semibold text-text-primary">{request.vacancyVcode}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Position:</span>
-                <span className="font-medium text-text-primary">{request.position || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Outlet:</span>
-                <span className="font-medium text-text-primary">{request.storeName || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Justification:</span>
-                <span className="font-medium text-text-primary">{request.reason}</span>
-              </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Position:</span>
+              <span className="font-medium text-text-primary">{request.position || "—"}</span>
             </div>
-
-            <div className="mt-4">
-              <label
-                htmlFor={`approve-remarks-${request.id}`}
-                className="block text-xs font-medium text-text-primary"
-              >
-                Reviewer Remarks (Optional)
-              </label>
-              <input
-                id={`approve-remarks-${request.id}`}
-                type="text"
-                placeholder="Optional notes for closure approval..."
-                value={approveRemarks}
-                onChange={(e) => setApproveRemarks(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-border-default bg-white p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
+            <div className="flex justify-between">
+              <span className="text-text-muted">Outlet:</span>
+              <span className="font-medium text-text-primary">{request.storeName || "—"}</span>
             </div>
-
-            <p className="mt-3 text-xs text-text-secondary leading-relaxed">
-              Upon approval, the vacancy will be permanently closed and archived, and any linked open plantilla slots will be reconciled.
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsApproveOpen(false)}
-                disabled={reviewMutation.isPending}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmApprove}
-                disabled={reviewMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition"
-              >
-                {reviewMutation.isPending ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Archiving Vacancy...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Confirm & Close</span>
-                  </>
-                )}
-              </button>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Justification:</span>
+              <span className="font-medium text-text-primary">{request.reason}</span>
             </div>
           </div>
+
+          <div>
+            <label
+              htmlFor={`approve-remarks-${request.id}`}
+              className="block text-xs font-medium text-text-primary"
+            >
+              Reviewer Remarks (Optional)
+            </label>
+            <input
+              id={`approve-remarks-${request.id}`}
+              type="text"
+              placeholder="Optional notes for closure approval..."
+              value={approveRemarks}
+              onChange={(e) => setApproveRemarks(e.target.value)}
+              className="mt-1.5 w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+            />
+          </div>
+
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Upon approval, the vacancy will be permanently closed and archived, and any linked open plantilla slots will be reconciled.
+          </p>
         </div>
-      )}
+      </Modal>
 
       {/* ── Reject Modal ──────────────────────────────────────────────────────── */}
-      {isRejectOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-surface-base p-6 shadow-xl animate-drawer-in">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Reject Vacancy Closure
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Decline closure request for {request.vacancyVcode}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRejectOpen(false)}
-                disabled={reviewMutation.isPending}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4">
-              <label
-                htmlFor={`rejection-remarks-${request.id}`}
-                className="block text-xs font-medium text-text-primary"
-              >
-                Rejection Remarks
-              </label>
-              <textarea
-                id={`rejection-remarks-${request.id}`}
-                rows={3}
-                placeholder="Reason for declining this closure request..."
-                value={rejectionRemarks}
-                onChange={(e) => setRejectionRemarks(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-border-default bg-white p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsRejectOpen(false)}
-                disabled={reviewMutation.isPending}
-                className="rounded-md border border-border-default bg-white px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmReject}
-                disabled={reviewMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50 transition"
-              >
-                {reviewMutation.isPending ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Rejecting...</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-3.5 w-3.5" />
-                    <span>Reject Request</span>
-                  </>
-                )}
-              </button>
-            </div>
+      <Modal
+        isOpen={isRejectOpen}
+        onClose={() => setIsRejectOpen(false)}
+        title="Reject Vacancy Closure"
+        subtitle={`Decline closure request for ${request.vacancyVcode}`}
+        isSubmitting={isBusy}
+        disableBackdropClick={isBusy}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsRejectOpen(false)}
+              disabled={isBusy}
+              className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmReject}
+              disabled={isBusy}
+              className="inline-flex items-center gap-1.5 rounded-md bg-danger-button px-4 py-1.5 text-xs font-medium text-danger-button-text hover:bg-danger-button-hover disabled:opacity-50 transition"
+            >
+              {isBusy ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Rejecting...</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>Reject Request</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor={`rejection-remarks-${request.id}`}
+              className="block text-xs font-medium text-text-primary"
+            >
+              Rejection Remarks
+            </label>
+            <textarea
+              id={`rejection-remarks-${request.id}`}
+              rows={3}
+              placeholder="Reason for declining this closure request..."
+              value={rejectionRemarks}
+              onChange={(e) => setRejectionRemarks(e.target.value)}
+              className="mt-1.5 w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+            />
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

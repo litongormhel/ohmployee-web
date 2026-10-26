@@ -8,9 +8,9 @@ import {
   Layers,
   RefreshCw,
   User,
-  X,
   XCircle,
 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
 import {
   useApproveCoverageRequest,
   useRejectCoverageRequest,
@@ -165,20 +165,20 @@ export function CoverageGroupApprovalCard({
 
   return (
     <>
-      <div className="rounded-xl border border-border-default bg-white p-5 shadow-xs transition hover:border-slate-300">
+      <div className="rounded-xl border border-border-default bg-surface p-5 shadow-xs transition hover:border-border-brand/40">
         {/* Top Meta Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default pb-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-primary">
               <Layers className="h-3 w-3" />
               {humanizeRequestType(request.requestType)}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-amber-700">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-text-secondary">
               {request.status}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-text-tertiary">
+          <div className="flex items-center gap-2 text-xs text-text-muted">
             <Clock className="h-3.5 w-3.5" />
             <span>{formatDate(request.createdAt)}</span>
             {ageDisplay && (
@@ -190,12 +190,12 @@ export function CoverageGroupApprovalCard({
         {/* Target Scope & Coverage Details */}
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Target Group */}
-          <div className="rounded-lg border border-border-subtle bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
+          <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               Target Coverage Group
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border-default bg-surface text-text-primary font-bold text-xs">
                 CG
               </div>
               <div className="min-w-0">
@@ -210,12 +210,12 @@ export function CoverageGroupApprovalCard({
           </div>
 
           {/* Account / Store Allocation */}
-          <div className="rounded-lg border border-border-subtle bg-surface-subtle p-3.5">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-text-tertiary">
+          <div className="rounded-lg border border-border-default bg-surface-subtle p-3.5">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
               Scope & Allocation
             </div>
             <div className="mt-1 flex items-start gap-2">
-              <Building2 className="h-4 w-4 text-brand-600 mt-0.5 shrink-0" />
+              <Building2 className="h-4 w-4 text-text-brand-bold mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-text-primary truncate">
                   {request.accountName || "Account-Wide"}
@@ -223,7 +223,7 @@ export function CoverageGroupApprovalCard({
                 <div className="text-2xs text-text-secondary">
                   {storeIds.length > 0 ? (
                     <span>
-                      <strong className="font-mono text-brand-700">{storeIds.length}</strong> store
+                      <strong className="font-mono text-text-primary">{storeIds.length}</strong> store
                       {storeIds.length !== 1 ? "s" : ""} impacted
                     </span>
                   ) : (
@@ -236,9 +236,9 @@ export function CoverageGroupApprovalCard({
         </div>
 
         {/* Requester & Metadata */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-subtle bg-white px-3 py-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-default bg-surface px-3 py-2 text-xs">
           <div className="flex items-center gap-2 text-text-secondary">
-            <User className="h-3.5 w-3.5 text-text-tertiary" />
+            <User className="h-3.5 w-3.5 text-text-muted" />
             <span>
               Requested by <strong className="text-text-primary">{request.requestedByName}</strong>
               {request.requestedByRole && ` (${request.requestedByRole})`}
@@ -246,7 +246,7 @@ export function CoverageGroupApprovalCard({
           </div>
 
           {request.employmentType && (
-            <div className="text-2xs text-text-tertiary">
+            <div className="text-2xs text-text-muted">
               Employment: <span className="font-medium text-text-secondary">{request.employmentType}</span>
             </div>
           )}
@@ -254,15 +254,15 @@ export function CoverageGroupApprovalCard({
 
         {/* Stated Purpose & Justification */}
         {request.reason && (
-          <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/70 p-3 text-xs leading-relaxed text-slate-700">
-            <span className="font-semibold text-slate-900">Justification / Reason: </span>
+          <div className="mt-3 rounded-lg border border-border-default bg-surface-subtle p-3 text-xs leading-relaxed text-text-secondary">
+            <span className="font-semibold text-text-primary">Justification / Reason: </span>
             {request.reason}
           </div>
         )}
 
         {/* Card Actions Footer */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3.5">
-          <div className="text-2xs text-text-tertiary">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-3.5">
+          <div className="text-2xs text-text-muted">
             Coverage Request ID: <span className="font-mono">{request.id.slice(0, 8)}</span>
           </div>
 
@@ -271,7 +271,7 @@ export function CoverageGroupApprovalCard({
               type="button"
               onClick={handleOpenReject}
               disabled={isBusy || !canReview}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-semibold text-text-danger shadow-2xs hover:bg-danger-subtle disabled:cursor-not-allowed disabled:opacity-50 transition cursor-pointer"
             >
               <XCircle className="h-3.5 w-3.5" />
               <span>Reject</span>
@@ -281,7 +281,7 @@ export function CoverageGroupApprovalCard({
               type="button"
               onClick={handleOpenApprove}
               disabled={isBusy || !canReview}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-600 bg-brand-600 px-3.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3.5 text-xs font-semibold text-white shadow-2xs disabled:cursor-not-allowed disabled:opacity-50 transition cursor-pointer"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>Approve Structure</span>
@@ -292,78 +292,53 @@ export function CoverageGroupApprovalCard({
 
       {/* Approve Confirmation Modal */}
       {isApproveOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <Modal
+          isOpen={isApproveOpen}
+          onClose={() => setIsApproveOpen(false)}
+          title="Approve Coverage Group Request"
+          subtitle="Confirm cluster structural configuration"
+          icon={CheckCircle2}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
         >
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={() => !isBusy && setIsApproveOpen(false)}
-          />
-          <div className="relative w-full max-w-md rounded-xl border border-border-default bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Approve Coverage Group Request
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Confirm cluster structural configuration
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => !isBusy && setIsApproveOpen(false)}
+          <div className="space-y-3 text-xs leading-relaxed text-text-secondary">
+            <p>
+              You are approving the roving structural operation:{" "}
+              <strong className="text-text-primary">{humanizeRequestType(request.requestType)}</strong> for{" "}
+              <strong className="text-text-primary">{groupName}</strong>.
+            </p>
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-2.5 text-xs text-text-secondary">
+              <span className="font-semibold text-text-primary">Note: </span>
+              Approving this request records operational intent and updates status to approved.
+            </div>
+
+            <div>
+              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+                Reviewer Remarks (Optional)
+              </label>
+              <textarea
+                value={reviewerRemarks}
+                onChange={(e) => setReviewerRemarks(e.target.value)}
+                placeholder="Add approval remarks or instructions..."
+                rows={2}
                 disabled={isBusy}
-                className="rounded-lg p-1 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-border-brand focus:outline-hidden"
+              />
             </div>
 
-            <div className="mt-4 space-y-3 text-xs leading-relaxed text-text-secondary">
-              <p>
-                You are approving the roving structural operation:{" "}
-                <strong className="text-text-primary">{humanizeRequestType(request.requestType)}</strong> for{" "}
-                <strong className="text-text-primary">{groupName}</strong>.
-              </p>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-2xs text-amber-800">
-                <span className="font-semibold">Note: </span>
-                Approving this request records operational intent and updates status to approved.
+            {actionError && (
+              <div className="rounded-lg border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                {actionError}
               </div>
+            )}
 
-              <div>
-                <label className="block text-2xs font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                  Reviewer Remarks (Optional)
-                </label>
-                <textarea
-                  value={reviewerRemarks}
-                  onChange={(e) => setReviewerRemarks(e.target.value)}
-                  placeholder="Add approval remarks or instructions..."
-                  rows={2}
-                  disabled={isBusy}
-                  className="w-full rounded-md border border-border-default p-2 text-xs text-text-primary focus:border-brand-500 focus:outline-none"
-                />
-              </div>
-
-              {actionError && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-2xs text-rose-700">
-                  {actionError}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2.5">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsApproveOpen(false)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover cursor-pointer"
               >
                 Cancel
               </button>
@@ -371,7 +346,7 @@ export function CoverageGroupApprovalCard({
                 type="button"
                 onClick={handleConfirmApprove}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {isBusy ? (
                   <>
@@ -384,78 +359,53 @@ export function CoverageGroupApprovalCard({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Reject Reason Dialog */}
       {isRejectOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <Modal
+          isOpen={isRejectOpen}
+          onClose={() => setIsRejectOpen(false)}
+          title="Reject Coverage Group Request"
+          subtitle="Decline this roving cluster request"
+          icon={XCircle}
+          isSubmitting={isBusy}
+          disableBackdropClick={isBusy}
+          maxWidthClass="max-w-md"
         >
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={() => !isBusy && setIsRejectOpen(false)}
-          />
-          <div className="relative w-full max-w-md rounded-xl border border-border-default bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700">
-                  <XCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">
-                    Reject Coverage Group Request
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Decline this roving cluster request
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => !isBusy && setIsRejectOpen(false)}
+          <div className="space-y-3 text-xs leading-relaxed text-text-secondary">
+            <p>
+              Please provide an explanatory reason for declining the coverage request for{" "}
+              <strong className="text-text-primary">{groupName}</strong>.
+            </p>
+
+            <div>
+              <label className="block text-2xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+                Rejection Reason <span className="text-text-danger">*</span>
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g. Incompatible store clustering, overlapping coverage group, or invalid position..."
+                rows={3}
                 disabled={isBusy}
-                className="rounded-lg p-1 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                className="w-full rounded-md border border-border-default bg-surface p-2 text-xs text-text-primary placeholder:text-text-muted focus:border-border-brand focus:outline-hidden"
+              />
             </div>
 
-            <div className="mt-4 space-y-3 text-xs leading-relaxed text-text-secondary">
-              <p>
-                Please provide an explanatory reason for declining the coverage request for{" "}
-                <strong className="text-text-primary">{groupName}</strong>.
-              </p>
-
-              <div>
-                <label className="block text-2xs font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                  Rejection Reason <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="e.g. Incompatible store clustering, overlapping coverage group, or invalid position..."
-                  rows={3}
-                  disabled={isBusy}
-                  className="w-full rounded-md border border-border-default p-2 text-xs text-text-primary focus:border-rose-500 focus:outline-none"
-                />
+            {actionError && (
+              <div className="rounded-lg border border-border-danger bg-danger-subtle p-2.5 text-xs text-text-danger">
+                {actionError}
               </div>
+            )}
 
-              {actionError && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-2xs text-rose-700">
-                  {actionError}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2.5">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-default">
               <button
                 type="button"
                 onClick={() => setIsRejectOpen(false)}
                 disabled={isBusy}
-                className="rounded-md border border-border-default px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover"
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover cursor-pointer"
               >
                 Cancel
               </button>
@@ -463,7 +413,7 @@ export function CoverageGroupApprovalCard({
                 type="button"
                 onClick={handleConfirmReject}
                 disabled={isBusy}
-                className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-rose-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger-button hover:bg-danger-button-hover px-4 py-1.5 text-xs font-semibold text-danger-button-text shadow-2xs disabled:opacity-50 cursor-pointer"
               >
                 {isBusy ? (
                   <>
@@ -476,7 +426,7 @@ export function CoverageGroupApprovalCard({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );
