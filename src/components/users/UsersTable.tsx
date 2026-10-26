@@ -69,12 +69,12 @@ export function UsersTable({
                   onClick={() => manageable && onSelectUser(user)}
                   className={`group transition-colors ${
                     manageable ? "cursor-pointer hover:bg-surface-hover/70" : "cursor-default opacity-90"
-                  } ${isSelected ? "bg-blue-50/60 font-medium" : ""}`}
+                  } ${isSelected ? "bg-brand-50/60 font-medium" : ""}`}
                 >
                   {/* User Column */}
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 shadow-xs">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs">
                         {user.normalizedName ? user.normalizedName[0].toUpperCase() : "?"}
                       </div>
                       <div className="min-w-0">
@@ -85,7 +85,7 @@ export function UsersTable({
                           {!user.isLinked && (
                             <span
                               title="No active login linked"
-                              className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200"
+                              className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[10px] font-semibold text-text-secondary border border-border-default"
                             >
                               No login linked
                             </span>
@@ -99,15 +99,15 @@ export function UsersTable({
                   {/* Role Column */}
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
+                      <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-primary border border-border-default">
                         {user.roleName || "No Role"}
                       </span>
                       {user.roleName === "HRCO" && (
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             user.hrcoGlobalVisibility
-                              ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : "bg-slate-100 text-slate-600 border border-slate-200"
+                              ? "bg-brand-50 text-brand-700 border border-brand-200"
+                              : "bg-surface-subtle text-text-secondary border border-border-default"
                           }`}
                         >
                           {user.hrcoGlobalVisibility ? "Global" : "Scoped"}

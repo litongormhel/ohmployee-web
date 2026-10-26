@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Loop 7C: Users & Team Directory Alignment (ohm#lutd3n8k)
+
+**Status: COMPLETE — ALL 9 FILES IN USERS AND TEAM DIRECTORY TOKENIZED TO ZERO COLOR LITERALS (390 BASELINE LITERALS ELIMINATED DOWN TO EXACTLY 0); CANONICAL MODAL INTEGRATION ACROSS `CreateUserModal`, `TempPermissionModal`, AND `UserDetailDrawer` ACTION CONFIRMATIONS (SAVE, TOGGLE STATUS, RESET PASSWORD, ARCHIVE, REVOKE) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; DETAIL DRAWER ALIGNMENT FOR `TeamDirectoryDetailDrawer` AND `UserDetailDrawer`; TABLE TYPOGRAPHY FLOOR >= 14px (`text-sm`); STRICT DESIGN TOKENS ACROSS ALL BUTTONS, CHIPS, AND BANNERS; ZERO QUERY, RPC, OR BUSINESS LOGIC DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**
+
+---
+
+### 1. Scope & Component Conversions (9 Files)
+- `src/app/(dashboard)/team-directory/page.tsx`: Cleaned baseline (0 literals).
+- `src/app/(dashboard)/users/page.tsx`: Admin page header, access restricted banner, filter controls, and tab pills tokenized to design tokens. (0 literals)
+- `src/components/team-directory/TeamDirectoryTable.tsx`: Directory roster table, availability dots (`bg-pct-high`), copy feedback buttons, and jurisdiction badges tokenized. Floor >= 14px enforced. (0 literals)
+- `src/components/team-directory/TeamDirectoryDetailDrawer.tsx`: Directory profile drawer, avatar indicators, contact links, and reporting hierarchy blocks tokenized. (0 literals)
+- `src/components/users/UsersTable.tsx`: User list table, avatar pills, role badges, HRCO visibility tags, and status badges aligned. (0 literals)
+- `src/components/users/CreateUserModal.tsx`: Wrapped legacy modal overlay with canonical `@/components/shared/Modal`. Tokenized group/account assignment checkboxes and error alerts. (0 literals)
+- `src/components/users/UserMetricsCards.tsx`: Cleaned baseline (0 literals).
+- `src/components/users/UserDetailDrawer.tsx`: Wrapped 4 nested action dialogs (Save Changes, Suspend/Activate, Reset Password, Archive) in canonical `Modal`. Tokenized live permission summary, danger zone, and scope editor. (0 literals)
+- `src/components/users/TempPermissionModal.tsx`: Wrapped root dialog and nested Revoke confirmation dialog in canonical `Modal`. Tokenized duration selector, module delegates, active overrides, and audit history. (0 literals)
+
+---
+
+### 2. Guard, Danger & Color-Use Audits
+- **Modal Guards**: Form modals pass `isSubmitting={isBusy}`, `disableBackdropClick={isBusy}`, and dirty-Esc tracking.
+- **Danger Audit**: `--danger` strictly applied to destructive buttons (`bg-danger-button hover:bg-danger-button-hover text-danger-button-text`), error banners (`border-danger-border bg-danger-subtle text-danger-text`), and danger zone containers.
+- **Color-Use Audit**: Status chips, priority badges, and scope tags use neutral tokens (`border border-border-default bg-surface-subtle text-text-primary` or `text-text-secondary`). Presence indicators use `bg-pct-high`.
+- **Typography Floor**: Table text floor strictly enforced to $\ge 14\text{px}$ (`text-sm`).
+
+---
+
+### 3. Verification & Compliance
+- **Color Literals for Users & Team Directory**: Exactly 0 raw color literals remain across all 9 files.
+- **ESLint**: 0 errors.
+- **TypeScript**: `npx tsc --noEmit` passed with 0 errors.
+- **ADR-001 / ADR-002 Invariants**: Completely preserved; zero non-styling logic changed.
+
+---
+
 ## Loop 7B: Approvals Cards & Action Modals Alignment (ohm#l7b2m8c4)
 
 **Status: COMPLETE — ALL 10 APPROVAL REVIEW CARDS TOKENIZED TO ZERO COLOR LITERALS; CANONICAL MODAL INTEGRATION ON 20 ACTION MODALS (APPROVE & REJECT) WITH `disableBackdropClick={isBusy}`, `isSubmitting={isBusy}`, AND ESC HANDLING; DANGER AUDIT PASSED (--danger STRICTLY FOR REJECTIONS AND ACTION ERRORS); COLOR-USE AUDIT PASSED (NEUTRAL METRIC BADGES, STATUS PILLS, AND VCODE MONO CHIPS); ZERO QUERY, RPC, OR MUTATION PAYLOAD DIFFS; ESLINT CLEAN (0 ERRORS); TYPESCRIPT GREEN (0 ERRORS)**

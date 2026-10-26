@@ -8,7 +8,6 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  X,
   Plus,
   RefreshCw,
   Search,
@@ -36,6 +35,7 @@ import {
 } from "@/lib/queries/users";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { Modal } from "@/components/shared/Modal";
 
 export interface TempPermissionModalProps {
   isOpen: boolean;
@@ -384,68 +384,39 @@ export function TempPermissionModal({
     }
   };
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="temp-permission-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-xs animate-in fade-in duration-200"
-    >
-      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/90">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
-              <Key className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2
-                  id="temp-permission-modal-title"
-                  className="text-base font-bold text-slate-900 leading-tight"
-                >
-                  Temporary Permission Overrides
-                </h2>
-                {presetUser && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
-                    <User className="w-3 h-3" />
-                    {presetUser.normalizedName || presetUser.fullName}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                Manage, audit, and revoke time-bound group, account, and module delegations
-              </p>
-            </div>
-          </div>
+  const isDirty = Boolean(reason || selectedGroupNames.length || selectedAccountIds.length || selectedModuleIds.length);
+  const isBusy = grantMutation.isPending || isRevoking;
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
-              title="Refresh overrides"
-            >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin text-brand-600" : ""}`} />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
-              aria-label="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-2">
+          <span>Temporary Permission Overrides</span>
+          {presetUser && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold text-text-primary">
+              <User className="w-3 h-3" />
+              {presetUser.normalizedName || presetUser.fullName}
+            </span>
+          )}
         </div>
+      }
+      subtitle="Manage, audit, and revoke time-bound group, account, and module delegations"
+      icon={Key}
+      maxWidthClass="max-w-3xl"
+      isDirty={isDirty}
+      isSubmitting={isBusy}
+      disableBackdropClick={isBusy}
+    >
+      <div className="-mx-6 -my-4 flex flex-col">
 
         {/* Preset User Scope Banner & Tab Header */}
-        <div className="px-6 pt-3 border-b border-slate-200 bg-white">
+        <div className="px-6 pt-3 border-b border-border-default bg-white">
           {presetUser && (
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50/70 p-2.5 text-xs text-blue-900">
+            <div className="mb-3 flex items-center justify-between rounded-lg border border-border-default bg-surface-subtle p-2.5 text-xs text-text-primary">
               <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 shrink-0 text-blue-600" />
+                <Info className="h-4 w-4 shrink-0 text-text-secondary" />
                 <span>
                   Viewing context for <strong>{presetUser.fullName}</strong> ({presetUser.roleName})
                 </span>
@@ -453,7 +424,7 @@ export function TempPermissionModal({
               <button
                 type="button"
                 onClick={() => setFilterUserOnly(!filterUserOnly)}
-                className="font-semibold text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                className="font-semibold text-text-primary underline hover:text-text-primary cursor-pointer"
               >
                 {filterUserOnly ? "Show All Users" : "Filter to This User"}
               </button>
@@ -468,7 +439,7 @@ export function TempPermissionModal({
                 className={`relative px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
                   activeTab === "active"
                     ? "text-brand-600"
-                    : "text-slate-500 hover:text-slate-900"
+                    : "text-text-secondary hover:text-text-primary"
                 }`}
               >
                 <div className="flex items-center gap-1.5">
@@ -478,7 +449,7 @@ export function TempPermissionModal({
                     className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                       activeTab === "active"
                         ? "bg-brand-100 text-brand-700"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-surface-muted text-text-secondary"
                     }`}
                   >
                     {activeOverrides.length}
@@ -495,7 +466,7 @@ export function TempPermissionModal({
                 className={`relative px-3.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
                   activeTab === "history"
                     ? "text-brand-600"
-                    : "text-slate-500 hover:text-slate-900"
+                    : "text-text-secondary hover:text-text-primary"
                 }`}
               >
                 <div className="flex items-center gap-1.5">
@@ -505,7 +476,7 @@ export function TempPermissionModal({
                     className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
                       activeTab === "history"
                         ? "bg-brand-100 text-brand-700"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-surface-muted text-text-secondary"
                     }`}
                   >
                     {historyOverrides.length}
@@ -535,19 +506,19 @@ export function TempPermissionModal({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-6 bg-surface-subtle/50">
           {/* TAB 1: ACTIVE OVERRIDES */}
           {activeTab === "active" && (
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
                   type="text"
                   placeholder="Filter active overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
@@ -555,15 +526,15 @@ export function TempPermissionModal({
               {isPermissionsLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <RefreshCw className="w-6 h-6 text-brand-600 animate-spin mb-2" />
-                  <p className="text-xs text-slate-500">Loading active permission overrides...</p>
+                  <p className="text-xs text-text-secondary">Loading active permission overrides...</p>
                 </div>
               ) : filteredActive.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-slate-300 bg-white p-6">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-white p-6">
+                  <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center text-text-muted mb-3">
                     <Key className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-semibold text-slate-800">No active overrides</h3>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  <h3 className="text-sm font-semibold text-text-primary">No active overrides</h3>
+                  <p className="text-xs text-text-secondary mt-1 max-w-sm">
                     {searchQuery
                       ? "No active overrides match your filter criteria."
                       : "There are currently no active temporary scope delegations in effect."}
@@ -584,7 +555,7 @@ export function TempPermissionModal({
                   {filteredActive.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-slate-300 transition-all space-y-3"
+                      className="rounded-xl border border-border-default bg-white p-4 shadow-2xs hover:border-border-default transition-all space-y-3"
                     >
                       {/* Top Row: User Avatar, Name, Expiry Badge */}
                       <div className="flex items-start justify-between gap-3">
@@ -594,19 +565,19 @@ export function TempPermissionModal({
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-slate-900">
+                              <h4 className="text-sm font-bold text-text-primary">
                                 {item.userFullName}
                               </h4>
-                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              <span className="inline-flex items-center rounded-md bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-text-secondary">
                                 {item.userRole}
                               </span>
                               <span
                                 className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                                   item.scopeType === "account"
-                                    ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                    ? "bg-surface-subtle text-text-primary border border-border-default"
                                     : item.scopeType === "module"
-                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                                    ? "bg-surface-subtle text-text-primary border border-border-default"
+                                    : "bg-surface-subtle text-text-primary border border-border-default"
                                 }`}
                               >
                                 {item.scopeType === "account" ? (
@@ -619,7 +590,7 @@ export function TempPermissionModal({
                                 <span className="capitalize">{item.scopeType} Scope</span>
                               </span>
                             </div>
-                            <div className="text-xs text-slate-500 mt-0.5">
+                            <div className="text-xs text-text-secondary mt-0.5">
                               {item.userEmail || "No email linked"}
                             </div>
                           </div>
@@ -627,14 +598,14 @@ export function TempPermissionModal({
 
                         {/* Status & Expiry Badge */}
                         <div className="text-right shrink-0">
-                          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                          <div className="inline-flex items-center gap-1.5 rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-semibold text-text-primary border border-border-default">
                             <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pct-high opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-pct-high"></span>
                             </span>
                             <span>{item.expiresLabel}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400 mt-1">
+                          <div className="text-[10px] text-text-muted mt-1">
                             Expires {new Date(item.expiresAt).toLocaleDateString()} at{" "}
                             {new Date(item.expiresAt).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -645,17 +616,17 @@ export function TempPermissionModal({
                       </div>
 
                       {/* Delegated Scopes Tags */}
-                      <div className="flex items-start gap-2 pt-1 border-t border-slate-100">
-                        <span className="text-[11px] font-semibold text-slate-500 shrink-0 mt-0.5">
+                      <div className="flex items-start gap-2 pt-1 border-t border-border-subtle">
+                        <span className="text-[11px] font-semibold text-text-secondary shrink-0 mt-0.5">
                           Delegated Access:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {item.additionalGroups.map((group) => (
                             <span
                               key={group}
-                              className="inline-flex items-center gap-1 rounded-md bg-blue-50/80 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200/80"
+                              className="inline-flex items-center gap-1 rounded-md bg-surface-subtle/80 px-2 py-0.5 text-xs font-semibold text-text-primary border border-border-default/80"
                             >
-                              <Layers className="w-3 h-3 text-blue-500" />
+                              <Layers className="w-3 h-3 text-text-muted" />
                               {group}
                             </span>
                           ))}
@@ -663,17 +634,17 @@ export function TempPermissionModal({
                       </div>
 
                       {/* Audit Details & Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs border-t border-slate-100">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs border-t border-border-subtle">
                         <div className="space-y-1">
-                          <div className="text-slate-600">
-                            <strong className="text-slate-700 font-semibold">Granted by:</strong>{" "}
+                          <div className="text-text-secondary">
+                            <strong className="text-text-primary font-semibold">Granted by:</strong>{" "}
                             {item.grantedBy} •{" "}
-                            <span className="text-slate-400">
+                            <span className="text-text-muted">
                               {new Date(item.createdAt).toLocaleDateString()}
                             </span>
                           </div>
                           {item.displayReason && (
-                            <div className="text-slate-600 italic text-[11px] bg-slate-50 rounded-md px-2.5 py-1 border border-slate-200/60 max-w-lg">
+                            <div className="text-text-secondary italic text-[11px] bg-surface-subtle rounded-md px-2.5 py-1 border border-border-default/60 max-w-lg">
                               &ldquo;{item.displayReason}&rdquo;
                             </div>
                           )}
@@ -683,7 +654,7 @@ export function TempPermissionModal({
                           <button
                             type="button"
                             onClick={() => setRevokingItem(item)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 hover:border-red-300 transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-danger-border bg-danger-subtle/70 px-3 py-1.5 text-xs font-semibold text-danger-text hover:bg-danger-subtle hover:border-danger-border transition cursor-pointer"
                           >
                             <AlertTriangle className="w-3.5 h-3.5" />
                             <span>Revoke Access</span>
@@ -702,26 +673,26 @@ export function TempPermissionModal({
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
                   type="text"
                   placeholder="Search past overrides by user, role, group, or reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-2xs"
                 />
               </div>
 
               {isPermissionsLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <RefreshCw className="w-6 h-6 text-brand-600 animate-spin mb-2" />
-                  <p className="text-xs text-slate-500">Loading override history...</p>
+                  <p className="text-xs text-text-secondary">Loading override history...</p>
                 </div>
               ) : filteredHistory.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-slate-300 bg-white p-6">
-                  <RotateCcw className="w-8 h-8 text-slate-300 mb-2" />
-                  <h3 className="text-sm font-semibold text-slate-800">No historical overrides</h3>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border-default bg-white p-6">
+                  <RotateCcw className="w-8 h-8 text-text-muted mb-2" />
+                  <h3 className="text-sm font-semibold text-text-primary">No historical overrides</h3>
+                  <p className="text-xs text-text-secondary mt-1 max-w-sm">
                     {searchQuery
                       ? "No records match your filter criteria."
                       : "Expired and revoked permissions will be archived here for audit trail compliance."}
@@ -732,23 +703,23 @@ export function TempPermissionModal({
                   {filteredHistory.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-xl border border-slate-200 bg-white/80 p-4 shadow-2xs opacity-85 hover:opacity-100 transition-all space-y-2.5"
+                      className="rounded-xl border border-border-default bg-white/80 p-4 shadow-2xs opacity-85 hover:opacity-100 transition-all space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center text-xs font-bold">
+                          <div className="w-9 h-9 rounded-full bg-surface-muted text-text-primary flex items-center justify-center text-xs font-bold">
                             {item.userFullName[0]?.toUpperCase() ?? "U"}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="text-xs font-bold text-slate-900">
+                              <h4 className="text-xs font-bold text-text-primary">
                                 {item.userFullName}
                               </h4>
-                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.2 text-[10px] font-semibold text-slate-600">
+                              <span className="inline-flex items-center rounded-md bg-surface-muted px-2 py-0.2 text-[10px] font-semibold text-text-secondary">
                                 {item.userRole}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-400">
+                            <div className="text-[11px] text-text-muted">
                               Granted: {new Date(item.createdAt).toLocaleDateString()} by {item.grantedBy}
                             </div>
                           </div>
@@ -759,13 +730,13 @@ export function TempPermissionModal({
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                               item.revokedAt
-                                ? "bg-red-50 text-red-700 border border-red-200"
-                                : "bg-slate-100 text-slate-600 border border-slate-200"
+                                ? "bg-danger-subtle text-danger-text border border-danger-border"
+                                : "bg-surface-muted text-text-secondary border border-border-default"
                             }`}
                           >
                             {item.revokedAt ? "Revoked" : "Expired"}
                           </span>
-                          <div className="text-[10px] text-slate-400 mt-0.5">
+                          <div className="text-[10px] text-text-muted mt-0.5">
                             {item.revokedAt
                               ? `Revoked on ${new Date(item.revokedAt).toLocaleDateString()}`
                               : `Expired on ${new Date(item.expiresAt).toLocaleDateString()}`}
@@ -775,12 +746,12 @@ export function TempPermissionModal({
 
                       {/* Delegated Groups */}
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-[11px] font-medium text-slate-500">Groups:</span>
+                        <span className="text-[11px] font-medium text-text-secondary">Groups:</span>
                         <div className="flex flex-wrap gap-1">
                           {item.additionalGroups.map((group) => (
                             <span
                               key={group}
-                              className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700"
+                              className="inline-flex items-center rounded bg-surface-muted px-1.5 py-0.5 text-[11px] text-text-primary"
                             >
                               {group}
                             </span>
@@ -790,12 +761,12 @@ export function TempPermissionModal({
 
                       {/* Reason & Revoked By Info */}
                       {(item.displayReason || item.revokedBy) && (
-                        <div className="pt-1 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
+                        <div className="pt-1 border-t border-border-subtle flex flex-wrap items-center justify-between text-[11px] text-text-secondary">
                           {item.displayReason && (
                             <span className="italic">&ldquo;{item.displayReason}&rdquo;</span>
                           )}
                           {item.revokedBy && (
-                            <span className="text-red-600 font-medium ml-auto">
+                            <span className="text-danger-icon font-medium ml-auto">
                               Revoked by: {item.revokedBy}
                             </span>
                           )}
@@ -812,11 +783,11 @@ export function TempPermissionModal({
           {activeTab === "grant" && (
             <form onSubmit={handleGrantSubmit} className="space-y-5">
               {/* Security Warning Notice */}
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 flex items-start gap-3">
-                <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-border-default bg-surface-subtle/80 p-3.5 text-xs text-text-primary flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <strong className="font-bold">Security & Auditing Warning</strong>
-                  <p className="text-amber-800 leading-relaxed">
+                  <p className="text-text-primary leading-relaxed">
                     Temporary permission overrides elevate an employee&apos;s access scope beyond
                     their permanent role profile. All temporary grants are logged to the security
                     audit trail and will automatically expire at the designated timestamp.
@@ -826,28 +797,28 @@ export function TempPermissionModal({
 
               {/* Feedback Alert */}
               {formError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                <div className="rounded-lg border border-danger-border bg-danger-subtle p-3 text-xs font-semibold text-danger-text flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-danger-icon" />
                   <span>{formError}</span>
                 </div>
               )}
 
               {formSuccess && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs font-semibold text-text-primary flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-pct-high" />
                   <span>{formSuccess}</span>
                 </div>
               )}
 
               {/* Step 1: Target User Selection */}
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+              <div className="space-y-2 rounded-xl border border-border-default bg-white p-4">
+                <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                   1. Select Target User
                 </label>
                 <select
                   value={selectedTargetUserId}
                   onChange={(e) => setSelectedTargetUserId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-brand-500"
+                  className="w-full h-10 rounded-lg border border-border-default bg-white px-3 text-xs font-semibold text-text-primary outline-none focus:border-brand-500"
                 >
                   <option value="">-- Choose an active user --</option>
                   {allUsers
@@ -860,13 +831,13 @@ export function TempPermissionModal({
                 </select>
 
                 {selectedUserObj && (
-                  <div className="mt-2 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 border border-slate-200/80 flex items-center justify-between">
+                  <div className="mt-2 rounded-lg bg-surface-subtle p-2.5 text-xs text-text-secondary border border-border-default/80 flex items-center justify-between">
                     <div>
-                      <span className="font-semibold text-slate-800">Current Role:</span>{" "}
+                      <span className="font-semibold text-text-primary">Current Role:</span>{" "}
                       {selectedUserObj.roleName}
                     </div>
                     <div>
-                      <span className="font-semibold text-slate-800">Permanent Scopes:</span>{" "}
+                      <span className="font-semibold text-text-primary">Permanent Scopes:</span>{" "}
                       {selectedUserObj.scopeLabel || "None"}
                     </div>
                   </div>
@@ -874,12 +845,12 @@ export function TempPermissionModal({
               </div>
 
               {/* Step 2: Delegation Scope Type Selector */}
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="space-y-3 rounded-xl border border-border-default bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                     2. Scope Delegation Type
                   </label>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-text-muted">
                     Choose what level of access to delegate
                   </span>
                 </div>
@@ -891,7 +862,7 @@ export function TempPermissionModal({
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "group"
                         ? "border-brand-500 bg-brand-50 text-brand-900 shadow-2xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
                     <Layers className="w-4 h-4 text-brand-600" />
@@ -903,11 +874,11 @@ export function TempPermissionModal({
                     onClick={() => setScopeType("account")}
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "account"
-                        ? "border-purple-500 bg-purple-50 text-purple-900 shadow-2xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-brand-500 bg-surface-subtle text-text-primary shadow-2xs"
+                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
-                    <Store className="w-4 h-4 text-purple-600" />
+                    <Store className="w-4 h-4 text-text-secondary" />
                     <span>Account Scope</span>
                   </button>
 
@@ -916,11 +887,11 @@ export function TempPermissionModal({
                     onClick={() => setScopeType("module")}
                     className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all cursor-pointer ${
                       scopeType === "module"
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-900 shadow-2xs"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-brand-500 bg-surface-subtle text-text-primary shadow-2xs"
+                        : "border-border-default bg-white text-text-secondary hover:bg-surface-subtle"
                     }`}
                   >
-                    <AppWindow className="w-4 h-4 text-indigo-600" />
+                    <AppWindow className="w-4 h-4 text-text-secondary" />
                     <span>Module Scope</span>
                   </button>
                 </div>
@@ -930,7 +901,7 @@ export function TempPermissionModal({
                   {/* GROUP SCOPE PICKER */}
                   {scopeType === "group" && (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center justify-between text-xs text-text-secondary">
                         <span>Select Operational Groups to temporarily add:</span>
                         <div className="flex gap-2">
                           <button
@@ -944,14 +915,14 @@ export function TempPermissionModal({
                           <button
                             type="button"
                             onClick={() => setSelectedGroupNames([])}
-                            className="font-semibold text-red-600 hover:underline cursor-pointer"
+                            className="font-semibold text-danger-icon hover:underline cursor-pointer"
                           >
                             Clear
                           </button>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50/50">
+                      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-border-default rounded-xl bg-surface-subtle/50">
                         {allGroups.map((group) => {
                           const isSelected = selectedGroupNames.includes(group.name);
                           return (
@@ -962,7 +933,7 @@ export function TempPermissionModal({
                               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                                 isSelected
                                   ? "bg-brand-600 text-white shadow-2xs"
-                                  : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                                  : "bg-white text-text-primary border border-border-default hover:bg-surface-muted"
                               }`}
                             >
                               <Layers className="w-3 h-3" />
@@ -978,17 +949,17 @@ export function TempPermissionModal({
                   {scopeType === "account" && (
                     <div className="space-y-2">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
                         <input
                           type="text"
                           placeholder="Search accounts / stores..."
                           value={scopeSearch}
                           onChange={(e) => setScopeSearch(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-border-default rounded-lg text-xs"
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border border-border-default rounded-xl bg-surface-subtle/50">
                         {allAccounts
                           .filter((a) =>
                             scopeSearch
@@ -1004,8 +975,8 @@ export function TempPermissionModal({
                                 onClick={() => handleToggleAccount(acc.id)}
                                 className={`text-left p-2 rounded-lg text-xs font-semibold border transition truncate cursor-pointer ${
                                   isSelected
-                                    ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
-                                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                                    ? "bg-brand-500 text-white border-brand-500 shadow-2xs"
+                                    : "bg-white text-text-primary border-border-default hover:bg-surface-muted"
                                 }`}
                               >
                                 <div className="truncate">{acc.account_name}</div>
@@ -1013,7 +984,7 @@ export function TempPermissionModal({
                             );
                           })}
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-[11px] text-text-muted">
                         {selectedAccountIds.length} account(s) selected. Associated group scopes will be automatically delegated.
                       </div>
                     </div>
@@ -1031,8 +1002,8 @@ export function TempPermissionModal({
                             onClick={() => handleToggleModule(mod.id)}
                             className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                               isSelected
-                                ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                ? "bg-brand-500 text-white border-brand-500 shadow-2xs"
+                                : "bg-white text-text-primary border-border-default hover:bg-surface-subtle"
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -1048,12 +1019,12 @@ export function TempPermissionModal({
               </div>
 
               {/* Step 3: Expiration Duration & Picker */}
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="space-y-3 rounded-xl border border-border-default bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
                     3. Expiration Time Limit
                   </label>
-                  <span className="text-[11px] text-slate-400">Max limit: 30 days</span>
+                  <span className="text-[11px] text-text-muted">Max limit: 30 days</span>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -1070,8 +1041,8 @@ export function TempPermissionModal({
                       onClick={() => handleSelectPresetDuration(preset.days)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                         presetDurationDays === preset.days
-                          ? "bg-slate-900 text-white border-slate-900"
-                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                          ? "bg-brand-500 text-white border-brand-500"
+                          : "bg-white text-text-secondary border-border-default hover:bg-surface-subtle"
                       }`}
                     >
                       {preset.label}
@@ -1080,11 +1051,11 @@ export function TempPermissionModal({
                 </div>
 
                 <div className="pt-2">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">
                     Exact Expiration Date & Time:
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input
                       type="datetime-local"
                       value={customExpiryDate}
@@ -1092,26 +1063,26 @@ export function TempPermissionModal({
                         setCustomExpiryDate(e.target.value);
                         setPresetDurationDays(0);
                       }}
-                      className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-500"
+                      className="w-full pl-9 pr-3 py-2 border border-border-default rounded-lg text-xs font-semibold text-text-primary focus:outline-none focus:border-brand-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Step 4: Mandatory Audit Justification */}
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="space-y-2 rounded-xl border border-border-default bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    4. Mandatory Audit Justification Reason <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    4. Mandatory Audit Justification Reason <span className="text-danger-text">*</span>
                   </label>
-                  <span className="text-[11px] text-slate-400">Recorded in compliance logs</span>
+                  <span className="text-[11px] text-text-muted">Recorded in compliance logs</span>
                 </div>
                 <textarea
                   rows={3}
                   placeholder="e.g. Temporary coverage for CENCOM Area 1 during regional system training and audit review..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full p-3 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-500"
+                  className="w-full p-3 border border-border-default rounded-xl text-xs text-text-primary placeholder-slate-400 focus:outline-none focus:border-brand-500"
                 />
 
                 <div className="flex items-center gap-2 pt-1">
@@ -1120,11 +1091,11 @@ export function TempPermissionModal({
                     id="notify-user-check"
                     checked={notifyUser}
                     onChange={(e) => setNotifyUser(e.target.checked)}
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    className="rounded border-border-default text-brand-600 focus:ring-brand-500 cursor-pointer"
                   />
                   <label
                     htmlFor="notify-user-check"
-                    className="text-xs text-slate-600 cursor-pointer select-none"
+                    className="text-xs text-text-secondary cursor-pointer select-none"
                   >
                     Send in-app notification to employee regarding granted access
                   </label>
@@ -1136,7 +1107,7 @@ export function TempPermissionModal({
                 <button
                   type="button"
                   onClick={() => setActiveTab("active")}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1162,76 +1133,78 @@ export function TempPermissionModal({
           )}
         </div>
 
-        {/* Revoke Confirmation Dialog */}
+      </div>
+
+      {/* Revoke Confirmation Dialog */}
+      <Modal
+        isOpen={Boolean(revokingItem)}
+        onClose={() => {
+          setRevokingItem(null);
+          setRevokeReason("");
+        }}
+        title="Revoke Temporary Access"
+        subtitle="Immediately terminates delegated access for this employee"
+        icon={AlertTriangle}
+        maxWidthClass="max-w-md"
+        isSubmitting={isRevoking}
+        disableBackdropClick={isRevoking}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={isRevoking}
+              onClick={() => {
+                setRevokingItem(null);
+                setRevokeReason("");
+              }}
+              className="px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isRevoking}
+              onClick={handleExecuteRevoke}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-danger-button text-danger-button-text text-xs font-bold hover:bg-danger-button-hover transition cursor-pointer disabled:opacity-50"
+            >
+              {isRevoking ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Revoking...</span>
+                </>
+              ) : (
+                <span>Confirm Revocation</span>
+              )}
+            </button>
+          </div>
+        }
+      >
         {revokingItem && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-red-200 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Revoke Temporary Access</h3>
-                  <p className="text-xs text-slate-500">
-                    Immediately terminates delegated access for this employee
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-red-50 p-3 text-xs text-red-900 space-y-1">
-                <div>
-                  <strong>User:</strong> {revokingItem.userFullName}
-                </div>
-                <div>
-                  <strong>Groups to remove:</strong> {revokingItem.additionalGroups.join(", ")}
-                </div>
-              </div>
-
+          <div className="space-y-4">
+            <div className="rounded-xl border border-danger-border bg-danger-subtle p-3 text-xs text-danger-text space-y-1">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Revocation Reason (Optional):
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Coverage completed ahead of schedule"
-                  value={revokeReason}
-                  onChange={(e) => setRevokeReason(e.target.value)}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-xs"
-                />
+                <strong>User:</strong> {revokingItem.userFullName}
               </div>
+              <div>
+                <strong>Groups to remove:</strong> {revokingItem.additionalGroups.join(", ")}
+              </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={isRevoking}
-                  onClick={() => {
-                    setRevokingItem(null);
-                    setRevokeReason("");
-                  }}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={isRevoking}
-                  onClick={handleExecuteRevoke}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition cursor-pointer disabled:opacity-50"
-                >
-                  {isRevoking ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Revoking...</span>
-                    </>
-                  ) : (
-                    <span>Confirm Revocation</span>
-                  )}
-                </button>
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Revocation Reason (Optional):
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Coverage completed ahead of schedule"
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                className="w-full p-2.5 border border-border-default rounded-lg text-xs bg-surface text-text-primary"
+              />
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </Modal>
+    </Modal>
   );
 }

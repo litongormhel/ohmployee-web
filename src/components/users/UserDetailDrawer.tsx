@@ -17,6 +17,7 @@ import {
   Clock,
 } from "lucide-react";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import type {
   UserProfileItem,
 } from "@/lib/queries/users";
@@ -334,7 +335,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
         widthClass="w-[var(--drawer-width-lg)] max-w-full"
         title={
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-black text-blue-700 shadow-xs">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base font-black text-brand-700 border border-brand-200 shadow-xs">
               {user.normalizedName ? user.normalizedName[0].toUpperCase() : "?"}
             </div>
             <div className="min-w-0">
@@ -349,33 +350,25 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
         }
         subtitle={
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
+            <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-primary border border-border-default">
               {targetRole.name}
             </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                user.status === "Active"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : user.status === "Suspended"
-                  ? "bg-amber-50 text-amber-700 border border-amber-200"
-                  : "bg-slate-100 text-slate-700 border border-slate-200"
-              }`}
-            >
+            <span className="inline-flex items-center rounded-full border border-border-default bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-secondary">
               {user.status}
             </span>
             {activeTempOverride && (
               <button
                 type="button"
                 onClick={() => setTempPermissionModalOpen(true)}
-                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-300 hover:bg-amber-100 transition cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-full border border-border-default bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition cursor-pointer"
                 title="Active temporary permission override in effect"
               >
-                <Clock className="h-3 w-3 text-amber-600" />
+                <Clock className="h-3 w-3 text-text-secondary" />
                 <span>{activeTempOverride.expiresLabel}</span>
               </button>
             )}
             {isTargetLocked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary">
                 <Lock className="h-3 w-3" /> Protected
               </span>
             )}
@@ -389,14 +382,14 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
             <div
               className={`flex items-center gap-2 rounded-lg p-3 text-xs font-medium border ${
                 feedbackNotice.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-red-50 text-red-800 border-red-200"
+                  ? "bg-surface-subtle text-text-primary border-border-default"
+                  : "bg-danger-subtle text-danger-text border-danger-border"
               }`}
             >
               {feedbackNotice.type === "success" ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-pct-high" />
               ) : (
-                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+                <AlertTriangle className="h-4 w-4 shrink-0 text-danger-icon" />
               )}
               <span>{feedbackNotice.text}</span>
             </div>
@@ -450,7 +443,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 </div>
 
                 {isTargetLocked && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                  <div className="rounded-md border border-border-default bg-surface-subtle p-2.5 text-xs text-text-secondary">
                     Head Admin cannot change roles or scopes of Super Admin or Head Admin accounts.
                   </div>
                 )}
@@ -511,26 +504,26 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {/* Permission Summary Preview Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-2.5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
-                  <Shield className="h-4 w-4 text-emerald-600" />
+                  <Shield className="h-4 w-4 text-brand-600" />
                   Live Permission Summary
                 </div>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
                     <div>
                       <strong className="text-text-primary">Role:</strong>{" "}
                       <span className="text-text-secondary">{targetRole.name}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
                     <div>
                       <strong className="text-text-primary">Groups:</strong>{" "}
                       <span className="text-text-secondary">{summaryGroupNames}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
                     <div>
                       <strong className="text-text-primary">Accounts:</strong>{" "}
                       <span className="text-text-secondary">{summaryAccountNames}</span>
@@ -540,17 +533,17 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               </div>
 
               {/* Temporary Overrides & Delegations Card */}
-              <div className="rounded-lg border border-amber-200/90 bg-amber-50/40 p-4 space-y-3">
+              <div className="rounded-lg border border-border-default bg-surface-subtle p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-900">
-                    <Clock className="h-4 w-4 text-amber-600" />
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-primary">
+                    <Clock className="h-4 w-4 text-text-secondary" />
                     Temporary Permission Overrides
                   </div>
                   {activeTempOverride && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-surface px-2 py-0.5 text-[10px] font-semibold text-text-primary">
                       <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pct-high opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-pct-high"></span>
                       </span>
                       Active Override
                     </span>
@@ -558,12 +551,12 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 </div>
 
                 {activeTempOverride ? (
-                  <div className="space-y-2 rounded-md bg-white p-3 border border-amber-200/80 text-xs text-text-secondary">
+                  <div className="space-y-2 rounded-md bg-surface p-3 border border-border-default text-xs text-text-secondary">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-text-primary">
                         Delegated Scope ({activeTempOverride.scopeType}):
                       </span>
-                      <span className="font-mono text-amber-800 font-bold text-[11px]">
+                      <span className="font-mono text-text-primary font-bold text-[11px]">
                         {activeTempOverride.expiresLabel}
                       </span>
                     </div>
@@ -571,39 +564,39 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                       {activeTempOverride.additionalGroups.map((g) => (
                         <span
                           key={g}
-                          className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200"
+                          className="inline-flex items-center gap-1 rounded bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold text-text-primary border border-border-default"
                         >
-                          <Layers className="h-2.5 w-2.5 text-blue-500" />
+                          <Layers className="h-2.5 w-2.5 text-text-muted" />
                           {g}
                         </span>
                       ))}
                     </div>
-                    <div className="text-[11px] text-text-muted pt-1 border-t border-slate-100 flex items-center justify-between">
+                    <div className="text-[11px] text-text-muted pt-1 border-t border-border-subtle flex items-center justify-between">
                       <span>Granted by: {activeTempOverride.grantedBy}</span>
                       <span>Expires: {new Date(activeTempOverride.expiresAt).toLocaleDateString()}</span>
                     </div>
                     {activeTempOverride.displayReason && (
-                      <p className="italic text-[11px] text-text-muted bg-slate-50 p-2 rounded border border-slate-100">
+                      <p className="italic text-[11px] text-text-muted bg-surface-muted p-2 rounded border border-border-subtle">
                         &ldquo;{activeTempOverride.displayReason}&rdquo;
                       </p>
                     )}
                     <button
                       type="button"
                       onClick={() => setTempPermissionModalOpen(true)}
-                      className="w-full mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition cursor-pointer"
+                      className="w-full mt-2 rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-bold text-text-primary hover:bg-surface-hover transition cursor-pointer"
                     >
                       Manage / Revoke Temporary Override
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between rounded-md bg-white p-3 border border-border-default text-xs gap-3">
+                  <div className="flex items-center justify-between rounded-md bg-surface p-3 border border-border-default text-xs gap-3">
                     <div className="text-text-secondary">
                       No active time-bound overrides. User operates strictly under assigned role scopes.
                     </div>
                     <button
                       type="button"
                       onClick={() => setTempPermissionModalOpen(true)}
-                      className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition cursor-pointer"
+                      className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600 transition cursor-pointer"
                     >
                       <KeyRound className="h-3.5 w-3.5" />
                       <span>Grant Override</span>
@@ -613,15 +606,15 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               </div>
 
               {/* Danger Zone Card */}
-              <div className="rounded-lg border border-red-200 bg-red-50/40 p-4 space-y-3">
+              <div className="rounded-lg border border-danger-border bg-danger-subtle/40 p-4 space-y-3">
 
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-700">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-danger-text">
+                  <AlertTriangle className="h-4 w-4 text-danger-icon" />
                   Danger Zone
                 </div>
 
                 {isSelf && (
-                  <p className="text-xs text-red-600 italic">
+                  <p className="text-xs text-danger-text italic">
                     Self-service destructive actions are disabled on your own account.
                   </p>
                 )}
@@ -631,10 +624,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     type="button"
                     disabled={isSelf || isTargetLocked || toggleStatusMutation.isPending}
                     onClick={() => setStatusConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
-                      <Power className="h-3.5 w-3.5 text-amber-600" />
+                      <Power className="h-3.5 w-3.5 text-text-secondary" />
                       {user.isActive ? "Deactivate User" : "Activate User"}
                     </span>
                     <span className="text-[11px] text-text-muted">
@@ -646,10 +639,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     type="button"
                     disabled={isSelf || isTargetLocked || resetPasswordMutation.isPending}
                     onClick={() => setResetPwConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface-base px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
-                      <KeyRound className="h-3.5 w-3.5 text-blue-600" />
+                      <KeyRound className="h-3.5 w-3.5 text-text-secondary" />
                       Reset Password
                     </span>
                     <span className="text-[11px] text-text-muted">Dispatch reset link</span>
@@ -659,13 +652,13 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     type="button"
                     disabled={isSelf || isTargetLocked || archiveMutation.isPending}
                     onClick={() => setArchiveConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 shadow-xs hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-between rounded-md border border-danger-border bg-surface px-3 py-2 text-xs font-semibold text-danger-text shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
-                      <Archive className="h-3.5 w-3.5 text-red-600" />
+                      <Archive className="h-3.5 w-3.5 text-danger-icon" />
                       Archive Account
                     </span>
-                    <span className="text-[11px] text-red-500">Soft-archive profile</span>
+                    <span className="text-[11px] text-danger-text">Soft-archive profile</span>
                   </button>
                 </div>
               </div>
@@ -700,8 +693,8 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                         onClick={() => toggleGroup(group.id)}
                         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                           isSelected
-                            ? "bg-blue-100 text-blue-700 border border-blue-300"
-                            : "bg-surface-muted text-text-secondary border border-border-default hover:bg-surface-hover"
+                            ? "bg-brand-50 text-brand-700 border border-brand-200"
+                            : "bg-surface-subtle text-text-secondary border border-border-default hover:bg-surface-hover"
                         } ${isTargetLocked ? "opacity-60 cursor-not-allowed" : ""}`}
                       >
                         {isSelected && <Check className="h-3 w-3" />}
@@ -732,7 +725,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                       <button
                         type="button"
                         onClick={clearAllAccounts}
-                        className="text-xs font-semibold text-red-600 hover:underline"
+                        className="text-xs font-semibold text-danger-text hover:underline"
                       >
                         Clear All
                       </button>
@@ -745,8 +738,8 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     Select one or more group scopes above to configure specific account access.
                   </div>
                 ) : isGlobalHQSelected ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
+                  <div className="flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle p-3 text-xs text-text-primary">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-text-secondary" />
                     <span>
                       <strong>Global HQ Active:</strong> User automatically has access to all current and future accounts.
                     </span>
@@ -760,10 +753,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                         placeholder="Search accounts in selected groups..."
                         value={accountSearch}
                         onChange={(e) => setAccountSearch(e.target.value)}
-                        className="w-full rounded-md border border-border-default bg-surface-muted pl-8 pr-3 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500"
+                        className="w-full rounded-md border border-border-default bg-surface pl-8 pr-3 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500"
                       />
                     </div>
-                    <div className="max-h-48 overflow-y-auto rounded-lg border border-border-default bg-surface-muted/30 divide-y divide-border-subtle">
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-border-default bg-surface-subtle divide-y divide-border-subtle">
                       {accountsLoading ? (
                         <div className="p-3 text-center text-xs text-text-muted">Loading accounts...</div>
                       ) : filteredAccounts.length === 0 ? (
@@ -818,7 +811,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                         onChange={(e) => setHrcoGlobalVisibilityState(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-9 h-5 bg-surface-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-default after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
                     </label>
                   </div>
                 </div>
@@ -853,7 +846,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                         className="rounded-xl border border-border-default bg-surface-base p-4 space-y-2.5 shadow-xs"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
+                          <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2.5 py-1 text-[11px] font-bold text-text-secondary">
                             {log.action}
                           </span>
                           <span className="text-xs font-semibold text-text-muted">
@@ -879,7 +872,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
         {/* Sticky Action Footer */}
         {hasEditableChanges && !isTargetLocked && (
           <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-border-default bg-surface-base px-5 py-3 shadow-lg flex items-center justify-between">
-            <span className="text-xs font-medium text-amber-700">
+            <span className="text-xs font-medium text-text-secondary">
               Unsaved changes pending.
             </span>
             <div className="flex items-center gap-2">
@@ -893,7 +886,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                   );
                   setHrcoGlobalVisibilityState(user.hrcoGlobalVisibility);
                 }}
-                className="rounded-md border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+                className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
               >
                 Reset
               </button>
@@ -901,7 +894,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 type="button"
                 onClick={() => setSaveDiffConfirmOpen(true)}
                 disabled={upsertMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-600"
               >
                 Save Changes
               </button>
@@ -911,151 +904,163 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
       </DetailDrawer>
 
       {/* MODAL 1: Save Diff Confirmation */}
-      {saveDiffConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setSaveDiffConfirmOpen(false)} />
-          <div className="relative z-50 w-full max-w-md rounded-xl border border-border-default bg-surface-base p-5 shadow-2xl space-y-4">
-            <h3 className="text-sm font-bold text-text-primary">Confirm Profile Updates</h3>
-            <p className="text-xs text-text-secondary">
-              Review modifications before applying changes to <strong>{user.fullName}</strong>.
-            </p>
-            <div className="rounded-lg border border-border-subtle bg-surface-muted/50 p-3 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Target Role:</span>
-                <span className="font-semibold text-text-primary">{targetRole.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Groups:</span>
-                <span className="font-semibold text-text-primary">{summaryGroupNames}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Accounts:</span>
-                <span className="font-semibold text-text-primary">{summaryAccountNames}</span>
-              </div>
+      <Modal
+        isOpen={saveDiffConfirmOpen}
+        onClose={() => setSaveDiffConfirmOpen(false)}
+        title="Confirm Profile Updates"
+        isSubmitting={upsertMutation.isPending}
+        disableBackdropClick={upsertMutation.isPending}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setSaveDiffConfirmOpen(false)}
+              className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={upsertMutation.isPending}
+              className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+            >
+              {upsertMutation.isPending ? "Saving..." : "Confirm & Save"}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-secondary">
+            Review modifications before applying changes to <strong>{user.fullName}</strong>.
+          </p>
+          <div className="rounded-lg border border-border-subtle bg-surface-muted/50 p-3 space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-text-muted">Target Role:</span>
+              <span className="font-semibold text-text-primary">{targetRole.name}</span>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setSaveDiffConfirmOpen(false)}
-                className="rounded-md border border-border-default px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={upsertMutation.isPending}
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {upsertMutation.isPending ? "Saving..." : "Confirm & Save"}
-              </button>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Groups:</span>
+              <span className="font-semibold text-text-primary">{summaryGroupNames}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Accounts:</span>
+              <span className="font-semibold text-text-primary">{summaryAccountNames}</span>
             </div>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* MODAL 2: Status Toggle Confirmation */}
-      {statusConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setStatusConfirmOpen(false)} />
-          <div className="relative z-50 w-full max-w-md rounded-xl border border-border-default bg-surface-base p-5 shadow-2xl space-y-4">
-            <h3 className="text-sm font-bold text-text-primary">
-              {user.isActive ? "Suspend User Account?" : "Activate User Account?"}
-            </h3>
-            <p className="text-xs text-text-secondary">
-              {user.isActive
-                ? `Suspending ${user.fullName} will revoke access to OHMployee immediately.`
-                : `Activating ${user.fullName} will grant authorized access according to assigned scopes.`}
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setStatusConfirmOpen(false)}
-                className="rounded-md border border-border-default px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleStatus}
-                disabled={toggleStatusMutation.isPending}
-                className={`rounded-md px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50 ${
-                  user.isActive ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
-                }`}
-              >
-                {toggleStatusMutation.isPending
-                  ? "Processing..."
-                  : user.isActive
-                  ? "Suspend User"
-                  : "Activate User"}
-              </button>
-            </div>
+      <Modal
+        isOpen={statusConfirmOpen}
+        onClose={() => setStatusConfirmOpen(false)}
+        title={user.isActive ? "Suspend User Account?" : "Activate User Account?"}
+        isSubmitting={toggleStatusMutation.isPending}
+        disableBackdropClick={toggleStatusMutation.isPending}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusConfirmOpen(false)}
+              className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleStatus}
+              disabled={toggleStatusMutation.isPending}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold disabled:opacity-50 ${
+                user.isActive
+                  ? "bg-danger-button hover:bg-danger-button-hover text-danger-button-text"
+                  : "bg-brand-500 hover:bg-brand-600 text-white"
+              }`}
+            >
+              {toggleStatusMutation.isPending
+                ? "Processing..."
+                : user.isActive
+                ? "Suspend User"
+                : "Activate User"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-xs text-text-secondary">
+          {user.isActive
+            ? `Suspending ${user.fullName} will revoke access to OHMployee immediately.`
+            : `Activating ${user.fullName} will grant authorized access according to assigned scopes.`}
+        </p>
+      </Modal>
 
       {/* MODAL 3: Reset Password Confirmation */}
-      {resetPwConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setResetPwConfirmOpen(false)} />
-          <div className="relative z-50 w-full max-w-md rounded-xl border border-border-default bg-surface-base p-5 shadow-2xl space-y-4">
-            <h3 className="text-sm font-bold text-text-primary">Reset Password?</h3>
-            <p className="text-xs text-text-secondary">
-              A secure password reset email will be dispatched to <strong>{user.email}</strong>.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setResetPwConfirmOpen(false)}
-                className="rounded-md border border-border-default px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={resetPasswordMutation.isPending}
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {resetPasswordMutation.isPending ? "Sending..." : "Send Reset Email"}
-              </button>
-            </div>
+      <Modal
+        isOpen={resetPwConfirmOpen}
+        onClose={() => setResetPwConfirmOpen(false)}
+        title="Reset Password?"
+        isSubmitting={resetPasswordMutation.isPending}
+        disableBackdropClick={resetPasswordMutation.isPending}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setResetPwConfirmOpen(false)}
+              className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={resetPasswordMutation.isPending}
+              className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50"
+            >
+              {resetPasswordMutation.isPending ? "Sending..." : "Send Reset Email"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-xs text-text-secondary">
+          A secure password reset email will be dispatched to <strong>{user.email}</strong>.
+        </p>
+      </Modal>
 
       {/* MODAL 4: Archive Confirmation */}
-      {archiveConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setArchiveConfirmOpen(false)} />
-          <div className="relative z-50 w-full max-w-md rounded-xl border border-red-200 bg-surface-base p-5 shadow-2xl space-y-4">
-            <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              Confirm Account Archival
-            </div>
-            <p className="text-xs text-text-secondary">
-              Soft-archiving <strong>{user.fullName}</strong> will disable access and mark the profile as archived. This action will be audited.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setArchiveConfirmOpen(false)}
-                className="rounded-md border border-border-default px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleArchive}
-                disabled={archiveMutation.isPending}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {archiveMutation.isPending ? "Archiving..." : "Archive Account"}
-              </button>
-            </div>
+      <Modal
+        isOpen={archiveConfirmOpen}
+        onClose={() => setArchiveConfirmOpen(false)}
+        title="Confirm Account Archival"
+        icon={AlertTriangle}
+        isSubmitting={archiveMutation.isPending}
+        disableBackdropClick={archiveMutation.isPending}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setArchiveConfirmOpen(false)}
+              className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleArchive}
+              disabled={archiveMutation.isPending}
+              className="rounded-md bg-danger-button px-3 py-1.5 text-xs font-bold text-danger-button-text hover:bg-danger-button-hover disabled:opacity-50"
+            >
+              {archiveMutation.isPending ? "Archiving..." : "Archive Account"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p className="text-xs text-text-secondary">
+          Soft-archiving <strong>{user.fullName}</strong> will disable access and mark the profile as archived. This action will be audited.
+        </p>
+      </Modal>
       {/* MODAL 5: Temporary Permission Overrides */}
       <TempPermissionModal
         isOpen={tempPermissionModalOpen}

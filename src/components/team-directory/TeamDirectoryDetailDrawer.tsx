@@ -117,7 +117,7 @@ export function TeamDirectoryDetailDrawer({
             {user.directoryStatus}
           </StatusBadge>
           {broadAccess && (
-            <Badge className="border-blue-200 bg-blue-50 text-blue-700 text-[10px]">
+            <Badge className="border-border-default bg-surface-subtle text-text-primary text-[10px]">
               {broadAccess}
             </Badge>
           )}
@@ -150,7 +150,7 @@ export function TeamDirectoryDetailDrawer({
               )}
               {isAvailable && (
                 <span
-                  className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-2xs"
+                  className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-pct-high shadow-2xs"
                   title="Online / Available"
                 />
               )}
@@ -189,7 +189,7 @@ export function TeamDirectoryDetailDrawer({
                       title="Copy phone"
                     >
                       {copiedKey === "drawer-phone" ? (
-                        <Check className="h-3 w-3 text-emerald-600" />
+                        <Check className="h-3 w-3 text-pct-high" />
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
@@ -210,7 +210,7 @@ export function TeamDirectoryDetailDrawer({
                       title="Copy email"
                     >
                       {copiedKey === "drawer-email" ? (
-                        <Check className="h-3 w-3 text-emerald-600" />
+                        <Check className="h-3 w-3 text-pct-high" />
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
@@ -258,9 +258,9 @@ export function TeamDirectoryDetailDrawer({
                   {displayGroups.map((group) => (
                     <span
                       key={group}
-                      className="inline-flex items-center gap-1 rounded-md bg-blue-50/80 border border-blue-200/60 px-2 py-1 font-medium text-blue-900"
+                      className="inline-flex items-center gap-1 rounded-md bg-surface-subtle border border-border-default px-2 py-1 font-medium text-text-primary"
                     >
-                      <MapPin className="h-3 w-3 text-blue-600" />
+                      <MapPin className="h-3 w-3 text-text-secondary" />
                       {group}
                     </span>
                   ))}
@@ -281,7 +281,7 @@ export function TeamDirectoryDetailDrawer({
                     <Link
                       key={account}
                       href={`/plantilla?account=${encodeURIComponent(account)}`}
-                      className="group inline-flex items-center gap-1 rounded-md bg-amber-50/70 border border-amber-200/60 px-2 py-1 font-medium text-amber-900 hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                      className="group inline-flex items-center gap-1 rounded-md bg-surface-subtle border border-border-default px-2 py-1 font-medium text-text-secondary hover:bg-surface-hover hover:border-border-strong transition-colors"
                       title={`Jump to Plantilla for ${account}`}
                     >
                       <span>{account}</span>

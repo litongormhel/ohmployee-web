@@ -184,7 +184,7 @@ export function TeamDirectoryTable({
                     aria-label={`View details for ${formattedName}`}
                     className={`group cursor-pointer border-b border-table-rule transition-colors outline-none focus-visible:bg-surface-hover ${
                       isSelected
-                        ? "bg-blue-50/70 hover:bg-blue-50"
+                        ? "bg-brand-50/70 hover:bg-brand-50"
                         : "hover:bg-table-row-hover"
                     }`}
                   >
@@ -211,7 +211,7 @@ export function TeamDirectoryTable({
                           )}
                           {isAvailable && (
                             <span
-                              className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500"
+                              className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-pct-high"
                               title="Online / Available"
                             />
                           )}
@@ -277,7 +277,7 @@ export function TeamDirectoryTable({
                               title="Copy phone"
                             >
                               {copiedKey === `phone-${user.authUserId}` ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
+                                <Check className="h-3 w-3 text-pct-high" />
                               ) : (
                                 <Copy className="h-3 w-3" />
                               )}
@@ -313,7 +313,7 @@ export function TeamDirectoryTable({
                               title="Copy email"
                             >
                               {copiedKey === `email-${user.authUserId}` ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
+                                <Check className="h-3 w-3 text-pct-high" />
                               ) : (
                                 <Copy className="h-3 w-3" />
                               )}
@@ -326,7 +326,7 @@ export function TeamDirectoryTable({
                     {/* ASSIGNED JURISDICTION */}
                     <td className="border-b border-table-rule px-4 py-3">
                       {broadAccess ? (
-                        <Badge className="border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium">
+                        <Badge className="border-border-default bg-surface-subtle text-text-primary text-xs font-medium">
                           {broadAccess}
                         </Badge>
                       ) : user.groupNames.length === 0 &&
@@ -360,7 +360,7 @@ export function TeamDirectoryTable({
                               {user.accountNames.slice(0, 2).map((acc) => (
                                 <span
                                   key={acc}
-                                  className="inline-block rounded bg-amber-50/70 border border-amber-200/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 truncate max-w-[120px]"
+                                  className="inline-block rounded bg-surface-subtle border border-border-default px-1.5 py-0.5 text-[10px] font-medium text-text-secondary truncate max-w-[120px]"
                                   title={acc}
                                 >
                                   {acc}

@@ -136,7 +136,7 @@ export default function UsersPage() {
   if (!hasAccess && !isLoading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center p-8 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600 mb-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger-subtle text-danger-text mb-4">
           <ShieldAlert className="h-7 w-7" />
         </div>
         <h2 className="text-lg font-bold text-text-primary">Access Restricted</h2>
@@ -161,12 +161,12 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setTempPermissionOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer"
             >
-              <Clock className="h-3.5 w-3.5 text-amber-600" />
+              <Clock className="h-3.5 w-3.5 text-text-secondary" />
               <span>Temporary Overrides</span>
               {activeTempOverrides.length > 0 && (
-                <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-amber-800">
+                <span className="ml-1 rounded-full border border-border-default bg-surface-subtle px-1.5 py-0.2 text-[10px] font-mono font-bold text-text-secondary">
                   {activeTempOverrides.length}
                 </span>
               )}
@@ -174,16 +174,16 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setAccountRequestsOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3.5 py-2 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer"
             >
-              <UserCheck className="h-3.5 w-3.5 text-blue-600" />
+              <UserCheck className="h-3.5 w-3.5 text-text-secondary" />
               <span>Account Requests</span>
             </button>
             {isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => setCreateUserOpen(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition cursor-pointer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-brand-600 transition cursor-pointer"
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 <span>Create User</span>
@@ -215,7 +215,7 @@ export default function UsersPage() {
               className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "active"
                   ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <UserCheck
@@ -229,8 +229,8 @@ export default function UsersPage() {
               <span
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "active"
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                    ? "bg-brand-500 text-white"
+                    : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >
                 {activeCount}
@@ -245,7 +245,7 @@ export default function UsersPage() {
               className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 activeTab === "inactive"
                   ? "border-brand-200 bg-brand-50 text-brand-900 shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-slate-200 hover:bg-surface-hover hover:text-text-primary"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
               }`}
             >
               <UserX
@@ -259,8 +259,8 @@ export default function UsersPage() {
               <span
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "inactive"
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-600 border border-slate-200/80"
+                    ? "bg-brand-500 text-white"
+                    : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >
                 {inactiveCount}
