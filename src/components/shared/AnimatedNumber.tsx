@@ -36,18 +36,24 @@ export function AnimatedNumber({
   const shouldAnimate = motionLevel === "full";
   const spanRef = useRef<HTMLSpanElement>(null);
   const prevValueRef = useRef<number>(value);
+  const currentValueRef = useRef<number>(value);
 
   useEffect(() => {
     const el = spanRef.current;
     if (!el) return;
 
-    if (!shouldAnimate) {
-      el.textContent = formatNumber(value, decimals, prefix, suffix);
-      prevValueRef.current = value;
+    if (value === undefined || value === null || Number.isNaN(value)) {
       return;
     }
 
-    const startValue = prevValueRef.current;
+    if (!shouldAnimate) {
+      el.textContent = formatNumber(value, decimals, prefix, suffix);
+      prevValueRef.current = value;
+      currentValueRef.current = value;
+      return;
+    }
+
+    const startValue = currentValueRef.current;
     const endValue = value;
 
     if (startValue === endValue) {
@@ -65,12 +71,14 @@ export function AnimatedNumber({
       const easedProgress = easeOutQuart(progress);
 
       const current = startValue + (endValue - startValue) * easedProgress;
+      currentValueRef.current = current;
       el.textContent = formatNumber(current, decimals, prefix, suffix);
 
       if (progress < 1) {
         frameId = requestAnimationFrame(step);
       } else {
         el.textContent = formatNumber(endValue, decimals, prefix, suffix);
+        currentValueRef.current = endValue;
         prevValueRef.current = endValue;
       }
     };
@@ -79,6 +87,7 @@ export function AnimatedNumber({
 
     return () => {
       cancelAnimationFrame(frameId);
+      prevValueRef.current = currentValueRef.current;
     };
   }, [value, durationMs, decimals, prefix, suffix, shouldAnimate]);
 

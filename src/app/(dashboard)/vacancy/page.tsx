@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Archive,
   Briefcase,
@@ -243,6 +243,7 @@ export default function VacancyPage() {
     ],
     queryFn: () => getVacancySummary(summaryParams),
     retry: false,
+    placeholderData: keepPreviousData,
   });
 
   const listQuery = useQuery({
@@ -840,7 +841,7 @@ export default function VacancyPage() {
                       : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >
-                  {summaryQuery.isLoading ? "–" : <AnimatedNumber value={count} />}
+                  <AnimatedNumber value={count} />
                 </span>
               </button>
             );

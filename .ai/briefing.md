@@ -19,6 +19,9 @@ Never merge, push, or delete a branch on your own initiative. If the session env
 created a branch (e.g. remote/cloud task isolation), report it in the handoff entry; Ohm
 verifies, merges to `main`, and deletes it.
 
+### Database Access & Modification Rule
+No DDL, function execution, or writes against any Supabase project without Ohm's explicit instruction in that prompt, and NEVER from a UI loop. All database access for UI work is strictly prohibited.
+
 ### After Every Completed Prompt (mandatory, in this order)
 1. `.ai/briefing.md` — prepend PROMPT ID + title to "Last Completed Tasks" (keep only 5)
 2. `.ai/handoff.md` — prepend full handoff entry

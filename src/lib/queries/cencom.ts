@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
@@ -437,6 +437,7 @@ export function useCencomDeploymentSummary() {
     queryKey: ["cencom", "deployment-summary"],
     queryFn: fetchCencomDeploymentSummary,
     staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -445,6 +446,7 @@ export function useCencomStoreStats() {
     queryKey: ["cencom", "store-stats"],
     queryFn: fetchCencomStoreStats,
     staleTime: 60000,
+    placeholderData: keepPreviousData,
   });
 }
 

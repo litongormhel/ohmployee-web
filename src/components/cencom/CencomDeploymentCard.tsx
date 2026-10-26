@@ -16,7 +16,6 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
   deployment,
   storeStats,
   isScopedGroup = false,
-  isLoading = false,
 }: CencomDeploymentCardProps) {
   return (
     <div className="rounded-xl border border-border-default bg-surface-base p-5 shadow-xs">
@@ -52,9 +51,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
             </span>
           </div>
           <div className="mt-2 text-2xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {isLoading ? (
-              "--"
-            ) : isScopedGroup ? (
+            {isScopedGroup ? (
               "—"
             ) : (
               <CencomAnimatedNumber value={deployment.deployment} />
@@ -77,9 +74,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
             </span>
           </div>
           <div className="mt-2 text-2xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {isLoading ? (
-              "--"
-            ) : isScopedGroup ? (
+            {isScopedGroup ? (
               "—"
             ) : (
               <CencomAnimatedNumber value={deployment.additionalHc} />
@@ -102,9 +97,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
             </span>
           </div>
           <div className="mt-2 text-2xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {isLoading ? (
-              "--"
-            ) : isScopedGroup ? (
+            {isScopedGroup ? (
               "—"
             ) : (
               <CencomAnimatedNumber value={deployment.totalDepartures} />
@@ -127,9 +120,7 @@ export const CencomDeploymentCard = memo(function CencomDeploymentCard({
             </span>
           </div>
           <div className="mt-2 text-2xl font-semibold leading-none tracking-tight text-text-primary tabular-nums">
-            {isLoading ? (
-              "--"
-            ) : isScopedGroup ? (
+            {isScopedGroup ? (
               "—"
             ) : (
               <CencomAnimatedNumber value={deployment.deletedVcode} />

@@ -30,8 +30,8 @@
 - **Role Representation Parity**:
   - `src/lib/queries/team_directory.ts`: Set `getRoleTint` to return `"var(--brand-primary)"`.
   - `src/components/team-directory/TeamDirectoryTable.tsx` & `TeamDirectoryDetailDrawer.tsx`: Implemented non-color role differentiator using `RoleIconBadge` with level tag (`L100`, `L90`, `L70`, etc.) and icons (`Shield`, `Briefcase`, `Users`, `FileText`).
-- **Flutter ADR Basis**:
-  - Locked to Flutter mobile repo architecture. ADR updates needed: None.
+- **Architecture Basis**:
+  - Basis for UI standard, motion, tokens, typography floor, and modal guards is `docs/architecture/ui-standard.md`. ADR-001 (in mobile repo) covers coverage architecture; ADR-002 covers plantilla import and store identity. Zero mobile ADR updates needed.
 
 ---
 

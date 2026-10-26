@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Briefcase,
   Users,
@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const metricsQuery = useQuery({
     queryKey: ["dashboard", "metrics", selectedGroupScope === "all" ? null : selectedGroupScope],
     queryFn: () => getDashboardMetrics(scopeParams),
+    placeholderData: keepPreviousData,
   });
 
   const analyticsQuery = useQuery({
@@ -103,6 +104,7 @@ export default function DashboardPage() {
       selectedGroupScope === "all" ? null : selectedGroupScope,
     ],
     queryFn: () => getDashboardOperationalAnalytics(scopeParams),
+    placeholderData: keepPreviousData,
   });
 
   // Live Group KPI from CENCOM view
