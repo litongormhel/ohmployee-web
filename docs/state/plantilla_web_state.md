@@ -58,8 +58,8 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
      - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
 
 3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)
-   - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Open`) and onboarding candidates (`Status: HR Pipeline / For Emploc`) until Day-1 store deployment.
-   - **Sub-Filters**: `All Vacancies` | `Open / Unassigned` | `HR Pipeline (For Emploc)`. Top KPI cards `Open Vacancies` and `HR Pipeline` auto-filter this tab.
+   - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Open`) and onboarding candidates (`Status: HR Pipeline / For Emploc`) until Day-1 store deployment. Loaded via `listVacancies` without `status: "open"` restriction so `list_web_vacancies` returns all active slots regardless of applicant occupancy.
+   - **Sub-Filters**: `All Vacancies (count)` | `Open / Unassigned (count)` | `HR Pipeline (For Emploc) (count)`. Top KPI cards `Open Vacancies` and `HR Pipeline` display synchronized live counts and auto-filter this tab.
    - **Columns (Strict 9-Column Sequence, Actions column deleted)**:
      1. `VCode / CGCode`: Dedicated primary column displaying `VCode` or `CGCode`.
      2. `Store Branch / Anchor Branch`: Clean branch name with subtle `Roving` badge if roving.

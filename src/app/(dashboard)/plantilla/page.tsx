@@ -570,7 +570,6 @@ function PlantillaPageContent() {
     queryFn: () =>
       listVacancies({
         accountId: accountId || undefined,
-        status: "open",
         page: 1,
         pageSize: 200,
       }),
@@ -731,6 +730,22 @@ function PlantillaPageContent() {
   const filteredFloatingEmployees = useMemo(() => floatingEmployees.filter(filterEmployee), [floatingEmployees, filterEmployee]);
   const filteredDeactivationEmployees = useMemo(() => deactivationEmployees.filter(filterEmployee), [deactivationEmployees, filterEmployee]);
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
+
+  const openVacanciesCount = useMemo(() => {
+    return allVacancies.filter((v) => {
+      const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
+      const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
+      return !hasApplicant && !isPipeline;
+    }).length;
+  }, [allVacancies]);
+
+  const pipelineVacanciesCount = useMemo(() => {
+    return allVacancies.filter((v) => {
+      const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
+      const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
+      return hasApplicant || isPipeline;
+    }).length;
+  }, [allVacancies]);
 
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
@@ -1486,7 +1501,7 @@ function PlantillaPageContent() {
                   Open Vacancies
                 </div>
                 <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {vacancyCount}
+                  {allVacancies.length > 0 ? openVacanciesCount : (summaryData?.vacant ?? 0)}
                 </div>
                 <div className="text-[11px] text-text-muted leading-tight">
                   Approved open vacancy slots
@@ -1508,7 +1523,7 @@ function PlantillaPageContent() {
                   HR Pipeline
                 </div>
                 <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {summaryData?.hrProcess ?? 0}
+                  {allVacancies.length > 0 ? pipelineVacanciesCount : (summaryData?.hrProcess ?? 0)}
                 </div>
                 <div className="text-[11px] text-text-muted leading-tight">
                   Candidate onboarding pipeline
@@ -1989,7 +2004,7 @@ function PlantillaPageContent() {
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    Open / Unassigned
+                    Open / Unassigned ({openVacanciesCount})
                   </button>
                   <button
                     type="button"
@@ -2003,7 +2018,7 @@ function PlantillaPageContent() {
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    HR Pipeline (For Emploc)
+                    HR Pipeline (For Emploc) ({pipelineVacanciesCount})
                   </button>
                 </div>
 
@@ -2105,7 +2120,11 @@ function PlantillaPageContent() {
 
           <VacancyDetailDrawer
             vacancyId={selectedVacancyId}
-            onClose={() => setSelectedVacancyId(null)}
+            onClose={() => {
+              setSelectedVacancyId(null);
+              vacancyListQuery.refetch();
+              summaryQuery.refetch();
+            }}
           />
 
           {isRequestHeadcountOpen && (

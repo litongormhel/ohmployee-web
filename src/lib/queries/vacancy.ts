@@ -2271,7 +2271,8 @@ export async function listVacancies(params: VacancyListParams) {
       if (applicantsData && applicantsData.length > 0) {
         // Group active applicants by vcode
         for (const app of applicantsData) {
-          const vcode = app.vacancy_vcode;
+          const vcode = (asString(app.vacancy_vcode) || "").trim().toUpperCase();
+          if (!vcode) continue;
           const status = (app.status || "").toLowerCase().trim();
           const isNonPipeline =
             status === "backout" ||
@@ -2297,7 +2298,8 @@ export async function listVacancies(params: VacancyListParams) {
             row.stageBadge = null;
           } else {
             // Default for other tabs: attach first active candidate if present
-            const actives = activeByVcode.get(row.vcode);
+            const vcodeKey = (row.vcode || "").trim().toUpperCase();
+            const actives = activeByVcode.get(vcodeKey);
             const active = actives && actives[0];
             if (active) {
               row.applicantId = asString(active.id);
@@ -3437,6 +3439,7 @@ export function useEndorseApplicant() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-detail", variables.vcode] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
     },
   });
 }
@@ -3520,6 +3523,7 @@ export function useUpdateApplicantPipeline() {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       if (variables.vcode) {
         queryClient.invalidateQueries({
           queryKey: ["vacancy-detail", variables.vcode],
@@ -3601,6 +3605,7 @@ export function useConfirmApplicantOnboard() {
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["hired-applicants"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       if (variables.vcode) {
         queryClient.invalidateQueries({
           queryKey: ["vacancy-detail", variables.vcode],
@@ -3790,6 +3795,7 @@ export function useFailBackoutApplicant() {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({
         queryKey: ["vacancy-detail", variables.vcode],
       });

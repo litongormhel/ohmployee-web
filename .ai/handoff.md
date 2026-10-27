@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Fix Vacancy Slot Disappearance After Candidate Assignment/Import (ohm#plan06)
+
+**Status: COMPLETE — RESOLVED BUG WHERE VACANCY SLOT VCBPIG1_0183 AND ASSIGNED SLOTS DISAPPEARED WITH "NO VACANT SLOTS" WHILE TAB COUNTER SHOWED 1 BY REMOVING RESTRICTIVE STATUS: "OPEN" FROM VACANCYLISTQUERY IN PLANTILLA/PAGE.TSX, ALLOWING LIST_WEB_VACANCIES TO RETURN ALL ACTIVE SLOTS (BOTH OPEN AND IN-PIPELINE); ADDED OPENVACANCIESCOUNT AND PIPELINEVACANCIESCOUNT LIVE COUNTERS ON PLANTILLA SUB-FILTER BUTTONS AND KPI CARDS; UPDATED VACANCYDETAILDRAWER.ONCLOSE TO TRIGGER REACTIVE REFETCHES OF VACANCYLISTQUERY AND SUMMARYQUERY; HARDENED APPLICANT CANDIDATE VCODE LOOKUP IN LISTVACANCIES WITH CASE-INSENSITIVE WHITESPACE-TRIMMED KEYING; EXTENDED CANDIDATE MUTATION HOOKS USEENDORSEAPPLICANT, USEUPDATEAPPLICANTPIPELINE, USECONFIRMAPPLLICANTONBOARD, AND USEFAILBACKOUTAPPLICANT IN VACANCY.TS TO INVALIDATE ["PLANTILLA"] CACHE; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Plantilla Vacancy Query Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed hardcoded `status: "open"` from `vacancyListQuery`.
+   - Previously, passing `status: "open"` forced `list_web_vacancies` to apply `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`. Once an applicant was attached to slot `VCBPIG1_0183`, `s.hc_filled` reached `1` and `pipeline_status` became `'Pipeline'`, causing PostgreSQL to drop the vacancy entirely from query results while `get_web_plantilla_summary` still counted it as `1` open slot.
+   - Without `status: "open"`, `list_web_vacancies(p_status := NULL)` returns all active slots for the account, and `listVacancies` performs applicant candidate enrichment.
+
+2. **Sub-Filter Dynamic Counters & KPI Card Synchronization (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `openVacanciesCount` and `pipelineVacanciesCount` derived `useMemo` states.
+   - Updated the sub-filters to display dynamic slot quantities: `All Vacancies ({allVacancies.length})`, `Open / Unassigned ({openVacanciesCount})`, and `HR Pipeline (For Emploc) ({pipelineVacanciesCount})`.
+   - Updated Card 3 (`Open Vacancies`) and Card 4 (`HR Pipeline`) to reflect accurate counts partitioned by applicant/pipeline presence.
+
+3. **Reactive Drawer Lifecycle & Mutation Cache Synchronization (`src/app/(dashboard)/plantilla/page.tsx`, `src/lib/queries/vacancy.ts`)**:
+   - Updated `VacancyDetailDrawer.onClose` in `plantilla/page.tsx` to refetch `vacancyListQuery` and `summaryQuery` on drawer dismiss.
+   - Extended `useEndorseApplicant`, `useUpdateApplicantPipeline`, `useConfirmApplicantOnboard`, and `useFailBackoutApplicant` in `src/lib/queries/vacancy.ts` to invalidate `queryKey: ["plantilla"]`, guaranteeing seamless cross-module reactivity.
+   - Hardened candidate VCODE map in `listVacancies` (`src/lib/queries/vacancy.ts`) with `.trim().toUpperCase()` matching to prevent case-sensitivity drops.
+
+4. **Verification**:
+   - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+   - `npm run build`: 19/19 routes compiled successfully.
+
+---
+
 ## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
 
 **Status: COMPLETE — INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
