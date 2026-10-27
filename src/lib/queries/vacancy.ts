@@ -5338,4 +5338,50 @@ export function downloadCsv(csv: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Updates the effective vacancy date (vacant_date) of a vacancy slot.
+ * Triggers reactive aging recalculation across Plantilla, Vacancy, and Dashboard.
+ */
+export async function updateEffectiveVacancyDate(params: {
+  vacancyId?: string | null;
+  vcode?: string | null;
+  vacantDate: string;
+}): Promise<void> {
+  const supabase = createClient();
+  let query = supabase.from("vacancies").update({
+    vacant_date: params.vacantDate,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (params.vacancyId) {
+    query = query.eq("id", params.vacancyId);
+  } else if (params.vcode) {
+    query = query.eq("vcode", params.vcode);
+  } else {
+    throw new Error("Vacancy ID or VCode is required to update effective vacancy date.");
+  }
+
+  const { error } = await query;
+  if (error) {
+    throw new Error(error.message || "Failed to update effective vacancy date.");
+  }
+}
+
+/**
+ * React hook mutation to update effective vacancy date and invalidate query caches.
+ */
+export function useUpdateEffectiveVacancyDate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateEffectiveVacancyDate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy_detail"] });
+    },
+  });
+}
+
+
 

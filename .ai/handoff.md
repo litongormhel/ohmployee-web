@@ -1,5 +1,71 @@
 # AI Handoff
 
+## Plantilla SSOT Architecture, Vacancy Tab 9-Column Refactor, HR Emploc Pipeline & Inactive Tab (ohm#plan04)
+
+**Status: COMPLETE — IMPLEMENTED SINGLE SOURCE OF TRUTH (SSOT) ARCHITECTURE ACROSS PLANTILLA, VACANCY, AND HR EMPLOC; ADDED 6TH MAIN TAB [ INACTIVE ] FOR HISTORICAL ATTRITION ARCHIVE (RESIGNED, AWOL, TERMINATED) WITH RECOMMENDED 8-COLUMN LAYOUT AND AUTOMATED SLOT REOPENING UPON SEPARATION; REFACTORED VACANCY TAB TO STRICT 1-TO-1 SLOT MAPPING WITH 9 COLUMNS ([VCODE/CGCODE] | [STORE BRANCH / ANCHOR BRANCH] | [AREA & CITY] | [APPLICANT] | [STATUS] | [AGING] | [POSITION] | [SLOT 1 VACANT] | [REMARKS]) AND COMPLETELY REMOVED ACTIONS/DETAILS BUTTONS; WIRED FULL-ROW CLICK OPENING VACANCY SLIDE-OVER DRAWER WITH INLINE EDITABLE EFFECTIVE VACANCY DATE (VACANT_DATE) AND REACTIVE CROSS-MODULE AGING RECALCULATION; ADDED VACANCY SUB-FILTERS (ALL, OPEN, HR PIPELINE) WIRED DIRECTLY TO TOP KPI CARDS; EXPOSED IMPORT PLANTILLA IN PLANTILLA HEADER FOR OPERATIONAL SLOT INITIALIZATION; VERIFIED ZERO DATABASE DDL; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Plantilla Main Tab Bar & State Machine (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Expanded `StatusSubTab` union type: `"active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive"`.
+   - Added Tab 6 `[ Inactive ]` beside `[ Deactivation ]` with live count badge and `UserX` icon.
+   - Refined record partition filters:
+     - `isInactiveRecord`: accurately isolates separated employees (`resigned`, `awol`, `terminated`, `separated`, `inactive`, or deactivated banner).
+     - `isDeactivationRecord`: strictly limits to pending deactivation requests (`pending for deactivation`, `for deactivation`, `pending separation`) without capturing separated staff.
+     - `activeEmployees`: strictly deployed active personnel (`status == Active`, excluding on-leave, floating, deactivation, and inactive).
+
+2. **Inactive Tab Table Component (`EmployeeInactiveTable`)**:
+   - Built the recommended 8-column layout:
+     1. `Member / Employee`: Full name, avatar initials, employee number.
+     2. `Last Store Branch`: Clean store branch name, `VCode`/`CGCode`, and roving badge if applicable.
+     3. `Area & City`: Store location badge pill.
+     4. `Position`: Formatted position title.
+     5. `Separation Type`: StatusBadge (`Resigned` warning, `AWOL` danger, `Terminated` danger).
+     6. `Separation Date`: Formatted date (`MMM DD, YYYY`) with relative time representation.
+     7. `Clearance Status`: StatusBadge (`Cleared` success, `Pending Clearance` warning, `With Liability` danger).
+     8. `Remarks`: Notes / remarks, empty state `—`.
+   - Wired full-row click to `PlantillaDetailDrawer`.
+
+3. **Vacancy Tab Refactor (`StoreVacancyTable`)**:
+   - Enforced strict 1-to-1 slot mapping (`1 Row = 1 Slot`).
+   - Completely deleted the `Actions` column and the `Details` button.
+   - Entire row has `cursor: pointer` with keyboard accessibility (Enter/Space) and opens `VacancyDetailDrawer`.
+   - Implemented exact 9-column sequence:
+     1. `VCode / CGCode`: Dedicated primary monospace column.
+     2. `Store Branch / Anchor Branch`: Clean branch name with subtle `Roving` badge if roving.
+     3. `Area & City`: Store location pill.
+     4. `Applicant`: Candidate name synced live from Vacancy/HR Emploc (empty state: muted `—`).
+     5. `Status`: Stage pill badge (`Open`, `For Interview`, `Shortlisted`, `HR Pipeline / For Emploc`).
+     6. `Aging`: Monospace `Xd` format directly from `row.agingDays`.
+     7. `Position`: Position title.
+     8. `Slot`: Fixed `1 Vacant` red pill badge per row.
+     9. `Remarks`: Free-text notes stripped of status/aging noise (empty state: `—`).
+   - Integrated Vacancy Sub-Filters (`All Vacancies`, `Open / Unassigned`, `HR Pipeline`).
+   - Connected Top KPI Cards:
+     - Clicking `HR PIPELINE` switches to `Vacancy` tab and activates `HR Pipeline (For Emploc)` filter.
+     - Clicking `OPEN VACANCIES` switches to `Vacancy` tab and activates `Open / Unassigned` filter.
+     - Clicking `ACTIVE DEPLOYED` switches directly to `Active` tab.
+
+4. **Editable Effective Vacancy Date & Reactive Aging (`VacancyDetailDrawer.tsx` & `src/lib/queries/vacancy.ts`)**:
+   - Created `updateEffectiveVacancyDate` mutation query in `vacancy.ts` targeting `vacancies.vacant_date` with `updated_at`.
+   - Created `useUpdateEffectiveVacancyDate` hook invalidating `["plantilla"]`, `["vacancies"]`, and `["vacancy_detail"]` caches.
+   - In `VacancyDetailDrawer`, surfaced inline edit control on `Vacant Since` allowing authorized ops/recruitment users to override the effective vacancy date.
+   - Saving reactively triggers aging recalculation across Plantilla, Vacancy, and Dashboard metrics.
+
+5. **Import Architecture & Roster Initializer Entry Points**:
+   - Verified `Import Plantilla` inside `plantilla/page.tsx` header action slot alongside `Request Headcount` for ops roles.
+   - Verified that no "Direct Import to Vacancy Module" action exists inside `Plantilla > Vacancy Tab`.
+   - Kept standalone `Import Vacancy` inside `Vacancy Module` (`more/page.tsx` and `VacancyImportModal.tsx`) intact.
+
+6. **Codebase Health & Verification**:
+   - `npm run lint`: Clean (0 errors, 9 pre-existing warnings in `VacancyTable.tsx` and `plantilla/page.tsx`).
+   - `npm run build`: Clean production build (19/19 routes compiled green in Turbopack).
+   - Local commit executed on `main` only.
+
+---
+
 ## Fix SQLSTATE 42P13 in HR Emploc Correction RPC Migration (ohm#hremploc02)
 
 **Status: COMPLETE — RESOLVED POSTGRESQL SQLSTATE 42P13 ("CANNOT CHANGE RETURN TYPE OF EXISTING FUNCTION") IN MIGRATION 20261027120000_FIX_HRCO_ALL_SCOPE_HR_EMPLOC_CORRECTION_RPC.SQL FOR PUBLIC.GET_WEB_HR_EMPLOC_DETAIL(UUID); SYNCHRONIZED GET_WEB_HR_EMPLOC_DETAIL WITH THE CANONICAL 48-COLUMN RETURNS TABLE SIGNATURE AND BODY FROM 20262606000043 (PRESERVING DEPLOYED_BY_USER_ID, EMPLOYEE_LOOKUP_*, TIMELINE, ETC.) WHILE MAINTAINING ALL HRCO ALL-SCOPE AND GLOBAL VISIBILITY BYPASSES; ADDED EXPLICIT DROP FUNCTION IF EXISTS STATEMENTS PRECEDING ALL 4 FUNCTIONS IN THE MIGRATION TO PREVENT FUTURE SIGNATURE OR PARAMETER COLLISIONS; VERIFIED RENAMED MIGRATION 20261013000001 (RESOLVING DUPLICATE TIMESTAMP COLLISION WITH 20261013000000); ESLINT CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS IN VACANCYTABLE); COMMITTED LOCALLY ON MAIN ONLY**

@@ -20,9 +20,11 @@ import {
   List,
   AlertCircle,
   UserMinus,
+  UserX,
   BarChart3,
   UserCheck,
   RotateCw,
+  UploadCloud,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole } from "@/lib/auth";
@@ -62,6 +64,7 @@ import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalytic
 import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
+import { PlantillaImportModal } from "@/components/more/PlantillaImportModal";
 
 // ---------------------------------------------------------------------------
 // Types & Constants
@@ -69,7 +72,7 @@ import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
 
 export type PlantillaViewMode = "store" | "moses_pool" | "analytics";
 export type MainViewToggle = "employee" | "store";
-export type StatusSubTab = "active" | "on_leave" | "vacancy" | "floating" | "deactivation";
+export type StatusSubTab = "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive";
 type DisplayView = "table" | "cards";
 
 function plantillaStatusVariant(status: string | null | undefined): BadgeVariant {
@@ -111,6 +114,27 @@ function getInitials(firstName: string | null, lastName: string | null, fullName
     return (parts[0][0] ?? "E").toUpperCase();
   }
   return "EM";
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) {
+      const parts = value.split("-");
+      if (parts.length === 3) {
+        return `${parts[1]}/${parts[2]}/${parts[0]}`;
+      }
+      return value;
+    }
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return value;
+  }
 }
 
 function formatLeadershipName(user: TeamDirectoryUser): string {
@@ -231,8 +255,9 @@ function PlantillaPageContent() {
   // Main view toggle: "employee" vs "store"
   const [mainView, setMainView] = useState<MainViewToggle>("employee");
 
-  // 5 Status Sub-Tabs
+  // 6 Status Sub-Tabs
   const [statusTab, setStatusTab] = useState<StatusSubTab>("active");
+  const [vacancySubFilter, setVacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
   const [displayView, setDisplayView] = useState<DisplayView>("table");
 
   // Table pagination state
@@ -243,6 +268,7 @@ function PlantillaPageContent() {
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
+  const [isPlantillaImportOpen, setIsPlantillaImportOpen] = useState(false);
 
   // Workflow modals
   const [relieverTargetEmployee, setRelieverTargetEmployee] = useState<{
@@ -608,31 +634,48 @@ function PlantillaPageContent() {
     return true;
   }, [search, areaCityFilter, assignmentType, storeLookupMap]);
 
-  // Helper check for deactivation statuses
+  // Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
+  const isInactiveRecord = (emp: PlantillaEmployeeListItem) => {
+    const s = (emp.plantillaStatus || "").toLowerCase();
+    const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
+    return (
+      s === "resigned" ||
+      s === "awol" ||
+      s === "terminated" ||
+      s === "inactive" ||
+      s === "separated" ||
+      overlay.showDeactivatedBanner ||
+      emp.isActive === false
+    );
+  };
+
+  // Helper check for deactivation statuses (pending offboarding approval)
   const isDeactivationRecord = (emp: PlantillaEmployeeListItem) => {
+    if (isInactiveRecord(emp)) return false;
     const s = (emp.plantillaStatus || "").toLowerCase();
     const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
     return (
       overlay.isPendingSeparation ||
-      overlay.showDeactivatedBanner ||
       s === "pending for deactivation" ||
       s === "pending_for_deactivation" ||
       s === "pending deactivation" ||
       s === "for deactivation" ||
-      s === "deactivated" ||
-      s === "inactive" ||
-      s === "terminated"
+      s === "pending separation" ||
+      s === "pending_separation" ||
+      s === "deactivated"
     );
   };
 
   // Helper check for floating status
   const isFloatingRecord = (emp: PlantillaEmployeeListItem) => {
+    if (isInactiveRecord(emp)) return false;
     const s = (emp.plantillaStatus || "").toLowerCase();
     return s === "floating";
   };
 
   // Helper check for on-leave status
   const isOnLeaveRecord = (emp: PlantillaEmployeeListItem) => {
+    if (isInactiveRecord(emp)) return false;
     const s = (emp.plantillaStatus || "").toLowerCase();
     return s === "on leave" || s === "on_leave";
   };
@@ -643,6 +686,7 @@ function PlantillaPageContent() {
       const s = (emp.plantillaStatus || "").toLowerCase();
       return (
         s === "active" &&
+        !isInactiveRecord(emp) &&
         !isDeactivationRecord(emp) &&
         !isFloatingRecord(emp) &&
         !isOnLeaveRecord(emp)
@@ -665,6 +709,11 @@ function PlantillaPageContent() {
     return allEmployees.filter(isDeactivationRecord);
   }, [allEmployees]);
 
+  // Tab 6: Inactive (Resigned / AWOL / Terminated)
+  const inactiveEmployees = useMemo(() => {
+    return allEmployees.filter(isInactiveRecord);
+  }, [allEmployees]);
+
   // Tab 3: Vacancy Rows
   const allVacancies = useMemo(() => vacancyListQuery.data?.data ?? [], [vacancyListQuery.data?.data]);
 
@@ -681,15 +730,27 @@ function PlantillaPageContent() {
   const filteredOnLeaveEmployees = useMemo(() => onLeaveEmployees.filter(filterEmployee), [onLeaveEmployees, filterEmployee]);
   const filteredFloatingEmployees = useMemo(() => floatingEmployees.filter(filterEmployee), [floatingEmployees, filterEmployee]);
   const filteredDeactivationEmployees = useMemo(() => deactivationEmployees.filter(filterEmployee), [deactivationEmployees, filterEmployee]);
+  const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
 
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
+      if (vacancySubFilter === "open") {
+        const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
+        const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
+        if (hasApplicant || isPipeline) return false;
+      } else if (vacancySubFilter === "pipeline") {
+        const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
+        const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
+        if (!hasApplicant && !isPipeline) return false;
+      }
+
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const store = (v.storeName || "").toLowerCase();
         const pos = (v.position_title || "").toLowerCase();
         const vcode = (v.vcode || v.cgCode || "").toLowerCase();
-        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q)) return false;
+        const applicant = (v.applicantName || "").toLowerCase();
+        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q) && !applicant.includes(q)) return false;
       }
 
       if (areaCityFilter) {
@@ -711,7 +772,7 @@ function PlantillaPageContent() {
 
       return true;
     });
-  }, [allVacancies, search, areaCityFilter, storeLookupMap]);
+  }, [allVacancies, vacancySubFilter, search, areaCityFilter, storeLookupMap]);
 
   // Store Capacity Table Data (for mainView === "store")
   const storeCapacityRows = useMemo(() => {
@@ -805,6 +866,7 @@ function PlantillaPageContent() {
   const onLeaveCount = onLeaveEmployees.length;
   const floatingCount = floatingEmployees.length;
   const deactivationCount = deactivationEmployees.length;
+  const inactiveCount = inactiveEmployees.length;
   const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
   const requiredCount = summaryData?.required && summaryData.required > 0 ? summaryData.required : activeCount + vacancyCount;
   const fulfillmentRate =
@@ -820,7 +882,9 @@ function PlantillaPageContent() {
       ? filteredVacancies
       : statusTab === "floating"
       ? filteredFloatingEmployees
-      : filteredDeactivationEmployees;
+      : statusTab === "deactivation"
+      ? filteredDeactivationEmployees
+      : filteredInactiveEmployees;
 
   const currentTotalCount =
     mainView === "store" ? filteredStoreCapacityRows.length : currentTabRows.length;
@@ -1354,6 +1418,19 @@ function PlantillaPageContent() {
                       <span>Request Headcount</span>
                     </button>
                   )}
+
+                  {/* Primary button: Import Plantilla */}
+                  {canRequestAdjustment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlantillaImportOpen(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                      title="Bulk import plantilla roster and initialize slots"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5 shrink-0 text-brand-600" />
+                      <span>Import Plantilla</span>
+                    </button>
+                  )}
                 </div>
               }
             />
@@ -1374,7 +1451,15 @@ function PlantillaPageContent() {
               </div>
 
               {/* Card 2: Active Deployed */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setStatusTab("active");
+                  setPage(1);
+                }}
+                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
+              >
                 <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Active Deployed
                 </div>
@@ -1387,7 +1472,16 @@ function PlantillaPageContent() {
               </div>
 
               {/* Card 3: Open Vacancies */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setStatusTab("vacancy");
+                  setVacancySubFilter("open");
+                  setPage(1);
+                }}
+                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
+              >
                 <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Open Vacancies
                 </div>
@@ -1400,7 +1494,16 @@ function PlantillaPageContent() {
               </div>
 
               {/* Card 4: HR Pipeline */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setStatusTab("vacancy");
+                  setVacancySubFilter("pipeline");
+                  setPage(1);
+                }}
+                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
+              >
                 <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   HR Pipeline
                 </div>
@@ -1599,6 +1702,34 @@ function PlantillaPageContent() {
                       }`}
                     >
                       {deactivationCount}
+                    </span>
+                  </button>
+
+                  {/* Tab 6: Inactive */}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={statusTab === "inactive"}
+                    onClick={() => {
+                      setStatusTab("inactive");
+                      setPage(1);
+                    }}
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                      statusTab === "inactive"
+                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
+                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
+                    }`}
+                  >
+                    <UserX className="w-3.5 h-3.5 shrink-0" />
+                    <span>Inactive</span>
+                    <span
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
+                        statusTab === "inactive"
+                          ? "bg-brand-button text-white"
+                          : "bg-surface-muted text-text-secondary border border-border-default"
+                      }`}
+                    >
+                      {inactiveCount}
                     </span>
                   </button>
                 </div>
@@ -1828,18 +1959,70 @@ function PlantillaPageContent() {
               )
             ) : statusTab === "vacancy" ? (
               /* Tab 3: Vacancy */
-              filteredVacancies.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="vacant stores"
-                />
-              ) : (
-                <StoreVacancyTable
-                  rows={paginatedRows as VacancyListItem[]}
-                  onSelectVacancy={(v) => setSelectedVacancyId(v.id)}
-                />
-              )
+              <div className="flex flex-col flex-1 min-h-0">
+                {/* Vacancy Sub-Filters */}
+                <div className="flex items-center gap-1.5 pb-2 shrink-0">
+                  <span className="text-xs font-semibold text-text-secondary mr-1">Vacancy Status:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVacancySubFilter("all");
+                      setPage(1);
+                    }}
+                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                      vacancySubFilter === "all"
+                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                    }`}
+                  >
+                    All Vacancies ({allVacancies.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVacancySubFilter("open");
+                      setPage(1);
+                    }}
+                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                      vacancySubFilter === "open"
+                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                    }`}
+                  >
+                    Open / Unassigned
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVacancySubFilter("pipeline");
+                      setPage(1);
+                    }}
+                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                      vacancySubFilter === "pipeline"
+                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
+                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                    }`}
+                  >
+                    HR Pipeline (For Emploc)
+                  </button>
+                </div>
+
+                {filteredVacancies.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters || vacancySubFilter !== "all"}
+                    onResetFilters={() => {
+                      handleResetFilters();
+                      setVacancySubFilter("all");
+                    }}
+                    tabLabel="vacant slots"
+                  />
+                ) : (
+                  <StoreVacancyTable
+                    rows={paginatedRows as VacancyListItem[]}
+                    onSelectVacancy={(v) => setSelectedVacancyId(v.id)}
+                  />
+                )}
+              </div>
             ) : statusTab === "floating" ? (
               /* Tab 4: Floating */
               filteredFloatingEmployees.length === 0 ? (
@@ -1863,16 +2046,31 @@ function PlantillaPageContent() {
                   }}
                 />
               )
-            ) : (
+            ) : statusTab === "deactivation" ? (
               /* Tab 5: Deactivation */
               filteredDeactivationEmployees.length === 0 ? (
                 <EmptyTabState
                   hasActiveFilters={hasActiveFilters}
                   onResetFilters={handleResetFilters}
-                  tabLabel="pending or deactivated personnel"
+                  tabLabel="pending deactivation personnel"
                 />
               ) : (
                 <EmployeeDeactivationTable
+                  rows={paginatedRows as PlantillaEmployeeListItem[]}
+                  onRowClick={setSelectedPlantillaId}
+                  storeLookupMap={storeLookupMap}
+                />
+              )
+            ) : (
+              /* Tab 6: Inactive (Resigned / AWOL / Terminated) */
+              filteredInactiveEmployees.length === 0 ? (
+                <EmptyTabState
+                  hasActiveFilters={hasActiveFilters}
+                  onResetFilters={handleResetFilters}
+                  tabLabel="inactive or separated personnel"
+                />
+              ) : (
+                <EmployeeInactiveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
                   onRowClick={setSelectedPlantillaId}
                   storeLookupMap={storeLookupMap}
@@ -1963,6 +2161,19 @@ function PlantillaPageContent() {
               stores={storesUnderAccountQuery.data ?? []}
               vacantStoreIds={vacantStoreIds}
               onSuccess={() => {
+                employeeQuery.refetch();
+                summaryQuery.refetch();
+                vacancyListQuery.refetch();
+              }}
+            />
+          )}
+
+          {/* Plantilla Bulk Import Modal */}
+          {isPlantillaImportOpen && (
+            <PlantillaImportModal
+              isOpen={isPlantillaImportOpen}
+              onClose={() => {
+                setIsPlantillaImportOpen(false);
                 employeeQuery.refetch();
                 summaryQuery.refetch();
                 vacancyListQuery.refetch();
@@ -2325,86 +2536,146 @@ function StoreVacancyTable({
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
+        <table className="w-full min-w-[1050px] text-left text-xs">
           <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
             <tr className="border-b border-table-rule">
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store Branch
+                VCode / CGCode
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Store Branch / Anchor Branch
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Area & City
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Required Position
+                Applicant
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Open Slots
+                Status
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Aging
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Position
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Slot
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Remarks
               </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Actions
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                onClick={() => onSelectVacancy(row)}
-                tabIndex={0}
-                role="button"
-                aria-label={`Inspect vacancy for ${row.storeName || "store"}`}
-              >
-                <td className="px-3.5 py-2 font-medium text-table-text">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs">{formatStoreName(row.storeName || "Unnamed Store")}</span>
-                    {(row.vcode || row.cgCode) && (
-                      <span className="font-mono text-[11px] text-text-muted">
-                        ({row.vcode || row.cgCode})
+            {rows.map((row) => {
+              const codeDisplay = row.vcode || row.cgCode || "—";
+              const rawName = row.storeName || "Unnamed Store";
+              const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
+              const isRoving = Boolean(
+                row.employmentType?.toLowerCase() === "roving" ||
+                row.cgCode ||
+                row.vcode?.startsWith("CG-")
+              );
+              const hasApplicant = Boolean(row.applicantName && row.applicantName.trim() !== "" && row.applicantName.trim() !== "—");
+              const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : "—";
+
+              const statusRaw = (row.stageBadge || row.pipelineStatus || row.vacancyStatus || "Open").trim();
+              const isHrPipeline = Boolean(
+                hasApplicant ||
+                statusRaw.toLowerCase().includes("pipeline") ||
+                statusRaw.toLowerCase().includes("emploc") ||
+                statusRaw.toLowerCase().includes("hired")
+              );
+              const isRecruiting = Boolean(
+                statusRaw.toLowerCase().includes("interview") ||
+                statusRaw.toLowerCase().includes("shortlist") ||
+                statusRaw.toLowerCase().includes("evaluation") ||
+                statusRaw.toLowerCase().includes("sourcing")
+              );
+
+              const agingDaysDisplay = row.agingDays != null ? `${row.agingDays}d` : "—";
+
+              const remarksText = row.closureReason?.trim() || "—";
+
+              return (
+                <tr
+                  key={row.id}
+                  className="transition-colors hover:bg-table-row-hover cursor-pointer"
+                  onClick={() => onSelectVacancy(row)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectVacancy(row);
+                    }
+                  }}
+                  aria-label={`Open vacancy details for slot ${codeDisplay}`}
+                >
+                  <td className="px-3.5 py-2 font-mono text-xs font-bold text-text-primary whitespace-nowrap">
+                    {codeDisplay}
+                  </td>
+                  <td className="px-3.5 py-2 font-medium text-table-text">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-xs">{cleanStoreName}</span>
+                      {isRoving && (
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
+                          Roving
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-2 text-table-text whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-text-secondary border border-border-subtle">
+                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
+                      <span>{row.storeLocation || "Unassigned Area"}</span>
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    {hasApplicant ? (
+                      <span className="font-medium text-text-primary text-xs">
+                        {applicantDisplay}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">
+                        —
                       </span>
                     )}
-                  </div>
-                </td>
-
-                <td className="px-3.5 py-2 text-table-text">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
-                    <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                    <span>{row.storeLocation || "Unassigned Area"}</span>
-                  </span>
-                </td>
-
-                <td className="px-3.5 py-2 font-medium text-table-text text-xs">
-                  {row.position_title || "General Staff"}
-                </td>
-
-                <td className="px-3.5 py-2">
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                    {row.activeApplicantCount > 0 ? row.activeApplicantCount : 1} Vacant
-                  </span>
-                </td>
-
-                <td className="px-3.5 py-2 text-[11px] text-text-muted">
-                  {row.agingDays != null ? `${row.agingDays}d aging • ${row.pipelineStatus || "Open"}` : row.pipelineStatus || "Approved open vacancy"}
-                </td>
-
-                <td className="px-3.5 py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectVacancy(row);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <Eye className="h-3 w-3" />
-                    <span>Details</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    {isHrPipeline ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                        {statusRaw.toLowerCase().includes("emploc") ? "For Emploc" : "HR Pipeline"}
+                      </span>
+                    ) : isRecruiting ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                        {statusRaw}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
+                        Open
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3.5 py-2 font-mono text-xs font-semibold text-text-secondary tabular-nums whitespace-nowrap">
+                    {agingDaysDisplay}
+                  </td>
+                  <td className="px-3.5 py-2 font-medium text-table-text text-xs whitespace-nowrap">
+                    {row.position_title || "General Staff"}
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0">
+                      1 Vacant
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>
+                    {remarksText}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -2717,7 +2988,197 @@ function EmployeeDeactivationTable({
 }
 
 // ---------------------------------------------------------------------------
-// 5. Store View: Store Capacity Table
+// Tab 6: Inactive Employees Table (Historical & Attrition Archive)
+// ---------------------------------------------------------------------------
+
+function EmployeeInactiveTable({
+  rows,
+  onRowClick,
+  storeLookupMap,
+}: {
+  rows: PlantillaEmployeeListItem[];
+  onRowClick: (id: string) => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[1050px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Member / Employee
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Last Store Branch
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Area & City
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Position
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Separation Type
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Separation Date
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Clearance Status
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Remarks
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-table-rule">
+            {rows.map((row) => {
+              const displayName =
+                formatPersonName(row.firstName, row.lastName, null, row.fullName) ||
+                row.employeeNo ||
+                "Unknown Employee";
+              const initials = getInitials(row.firstName, row.lastName, row.fullName);
+
+              const storeInfo = row.primaryStoreName
+                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+                : null;
+              const locationDisplay =
+                storeInfo?.city && storeInfo?.province
+                  ? `${storeInfo.city} • ${storeInfo.province}`
+                  : storeInfo?.province || storeInfo?.city || "Unassigned Area";
+
+              const isRoving = row.assignmentType?.toLowerCase() === "roving";
+              const cleanStoreName = row.primaryStoreName
+                ? formatStoreName(row.primaryStoreName).replace(/\s*\([^)]*\)/g, "").trim()
+                : "Unassigned Store";
+
+              // 5. Separation Type Badge
+              const rawType = (row.separationType || row.plantillaStatus || "Resigned").toLowerCase();
+              let sepBadgeVariant: "warning" | "danger" | "neutral" = "neutral";
+              let sepLabel = "Separated";
+              if (rawType.includes("resigned") || rawType.includes("resignation")) {
+                sepBadgeVariant = "warning";
+                sepLabel = "Resigned";
+              } else if (rawType.includes("awol")) {
+                sepBadgeVariant = "danger";
+                sepLabel = "AWOL";
+              } else if (rawType.includes("terminat")) {
+                sepBadgeVariant = "danger";
+                sepLabel = "Terminated";
+              }
+
+              // 6. Separation Date
+              const sepDateRaw = row.separationDate || row.dateDeployed;
+              const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
+
+              // 7. Clearance Status
+              const rawClearance = (row.clearanceStatus || "Cleared").toLowerCase();
+              let clearanceVariant: "success" | "warning" | "danger" = "success";
+              let clearanceLabel = "Cleared";
+              if (rawClearance.includes("pending") || rawClearance.includes("progress")) {
+                clearanceVariant = "warning";
+                clearanceLabel = "Pending Clearance";
+              } else if (rawClearance.includes("block") || rawClearance.includes("liab") || rawClearance.includes("hold")) {
+                clearanceVariant = "danger";
+                clearanceLabel = "With Liability";
+              }
+
+              // 8. Remarks
+              const remarks = row.separationRemarks?.trim() || "—";
+
+              return (
+                <tr
+                  key={row.id}
+                  className="transition-colors hover:bg-table-row-hover cursor-pointer opacity-90"
+                  onClick={() => onRowClick(row.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onRowClick(row.id);
+                    }
+                  }}
+                  aria-label={`View separation record for ${displayName}`}
+                >
+                  {/* 1. Member / Employee */}
+                  <td className="px-3.5 py-2 font-medium text-table-text">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-bold text-text-secondary border border-border-default">
+                        {initials}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-text-primary text-xs truncate max-w-[170px]" title={displayName}>
+                          {displayName}
+                        </span>
+                        <span className="font-mono text-[10px] text-text-muted">
+                          {row.employeeNo}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* 2. Last Store Branch */}
+                  <td className="px-3.5 py-2 font-medium text-table-text">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium text-xs">{cleanStoreName}</span>
+                        {isRoving && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
+                            Roving
+                          </span>
+                        )}
+                      </div>
+                      {(row.vcode || row.cgCode) && (
+                        <span className="font-mono text-[10px] text-text-muted">
+                          {row.vcode || row.cgCode}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* 3. Area & City */}
+                  <td className="px-3.5 py-2 text-table-text whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-text-secondary border border-border-subtle">
+                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
+                      <span>{locationDisplay}</span>
+                    </span>
+                  </td>
+
+                  {/* 4. Position */}
+                  <td className="px-3.5 py-2 font-medium text-table-text text-xs whitespace-nowrap">
+                    {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                  </td>
+
+                  {/* 5. Separation Type */}
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
+                  </td>
+
+                  {/* 6. Separation Date */}
+                  <td className="px-3.5 py-2 font-mono text-xs text-text-secondary tabular-nums whitespace-nowrap">
+                    {formattedDate}
+                  </td>
+
+                  {/* 7. Clearance Status */}
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <StatusBadge variant={clearanceVariant} text={clearanceLabel} />
+                  </td>
+
+                  {/* 8. Remarks */}
+                  <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[180px] truncate" title={remarks !== "—" ? remarks : undefined}>
+                    {remarks}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 // ---------------------------------------------------------------------------
 
 function StoreCapacityTable({

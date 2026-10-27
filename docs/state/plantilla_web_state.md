@@ -30,25 +30,25 @@ Like other modules in OHMployee Web, this is designed as a thin admin presentati
 Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ 👥 Employee View | 🏬 Store View ]`) beside the `+ Request Headcount` button:
 
 ```
-[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]
+[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]  [ Import Plantilla ]
 ================================================================================================================================
 [ Card 1: Overall MFR ] [ Card 2: Active Deployed ] [ Card 3: Open Vacancies ] [ Card 4: HR Pipeline ] [ Card 5: Leadership ]
   (CENCOM Donut SVG)       (Active count)             (Approved slots)           (Candidate pipeline)     (OM, TL, ATL, HRCO)
 --------------------------------------------------------------------------------------------------------------------------------
 Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [ All Types (Stationary / Roving) ]
 ================================================================================================================================
-[ 5 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) ]
+[ 6 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) | Inactive (count) ]
 ```
 
 ### A. Employee View (Default)
-When `Employee View` is active, the interface renders the **5 Status Sub-Tabs** with live count badges, filtering the employee directory:
+When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** with live count badges, filtering the employee directory:
 
 1. **Tab 1: Active** (All Active Employees Only)
-   - **Filter**: Employees with status `Active`.
+   - **Filter**: Employees with status `Active` (`employee != null` and `status == Active`).
    - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role + Tier) | `Assignment` (Stationary/Roving) | `Status` (`Active` green badge) | `Actions` (`Details` button).
 
 2. **Tab 2: On-Leave** (All On-Leave Employees Only)
-   - **Filter**: Employees with status `On-Leave` or `On Leave`.
+   - **Filter**: Employees on official approved leave (`On-Leave` or `On Leave`).
    - **Columns**:
      - `Member` (Avatar, Name, Emp No)
      - `Store` (Store Name + Area/City pill)
@@ -57,17 +57,40 @@ When `Employee View` is active, the interface renders the **5 Status Sub-Tabs** 
      - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays muted italic `Unassigned` with a `+ Assign Reliever` action button opening `AssignRelieverModal`.
      - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
 
-3. **Tab 3: Vacancy** (All Vacant Stores Only)
-   - **Filter**: Stores with open vacancies (`active_deployed < required` or approved vacancy slots > 0).
-   - **Columns**: `Store Branch` | `Area & City` | `Required Position` | `Open Slots` (`[X] Vacant` red badge) | `Remarks` | `Actions` (`Details` button).
+3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)
+   - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Open`) and onboarding candidates (`Status: HR Pipeline / For Emploc`) until Day-1 store deployment.
+   - **Sub-Filters**: `All Vacancies` | `Open / Unassigned` | `HR Pipeline (For Emploc)`. Top KPI cards `Open Vacancies` and `HR Pipeline` auto-filter this tab.
+   - **Columns (Strict 9-Column Sequence, Actions column deleted)**:
+     1. `VCode / CGCode`: Dedicated primary column displaying `VCode` or `CGCode`.
+     2. `Store Branch / Anchor Branch`: Clean branch name with subtle `Roving` badge if roving.
+     3. `Area & City`: Store location pill.
+     4. `Applicant`: Candidate name synced live from Vacancy/HR Emploc (empty state: muted `—`).
+     5. `Status`: Stage badge (`Open`, `For Interview`, `HR Pipeline / For Emploc`).
+     6. `Aging`: Aging days (`Xd`) calculated from Effective Vacancy Date (`vacantDate`).
+     7. `Position`: Position title.
+     8. `Slot`: Strict 1-to-1 slot mapping displaying a fixed `1 Vacant` red badge.
+     9. `Remarks`: Free-text notes (empty state: `—`).
+   - **Row Interaction**: Entire row has `cursor: pointer` and opens the interactive `VacancyDetailDrawer` with inline editable Effective Vacancy Date (`vacantDate`) for instant reactive aging recalculation.
 
 4. **Tab 4: Floating** (All Floating Employees Only)
-   - **Filter**: Employees with status `Floating`.
+   - **Filter**: Employees with status `Floating` (active employees temporarily awaiting store redeployment).
    - **Columns**: `Member` | `Store` (`Unassigned` + Area/City) | `Position` | `Assignment` | `Status` (`Floating` blue badge) | `Actions`: `Assign Store` button (opens `AssignStoreModal` prioritizing vacant stores) + `Details` button.
 
-5. **Tab 5: Deactivation** (Combined Pending & Deactivated Employees)
-   - **Filter**: Employees with status `Pending for Deactivation` or `Deactivated`.
-   - **Columns**: `Member` | `Store` | `Position` | `Assignment` | `Status` (`Pending for Deactivation` amber badge, `Deactivated` red badge) | `Actions` (`Details` button).
+5. **Tab 5: Deactivation** (Pending Offboarding & Deactivation Requests)
+   - **Filter**: Employees with pending/for-approval offboarding or deactivation requests (`pending for deactivation`, `for deactivation`).
+   - **Columns**: `Member` | `Store` | `Position` | `Assignment` | `Status` (`Pending for Deactivation` amber badge) | `Actions` (`Details` button).
+
+6. **Tab 6: Inactive** (Historical & Attrition Archive)
+   - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`. When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`.
+   - **Columns (8 Recommended Schema Columns)**:
+     1. `Member / Employee`: Avatar initials, employee name, monospace employee ID.
+     2. `Last Store Branch`: Store branch name + `VCode`/`CGCode`, with `Roving` badge if roving.
+     3. `Area & City`: Store location badge.
+     4. `Position`: Last held position title.
+     5. `Separation Type`: Semantic status badge (`Resigned` warning, `AWOL` danger, `Terminated` danger).
+     6. `Separation Date`: Formatted separation date with relative time.
+     7. `Clearance Status`: Clearance status badge (`Cleared` success, `Pending Clearance` warning, `With Liability` danger).
+     8. `Remarks`: Separation notes / remarks (empty state `—`).
 
 ---
 

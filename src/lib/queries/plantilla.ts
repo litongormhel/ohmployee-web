@@ -243,6 +243,11 @@ export type PlantillaEmployeeListItem = {
   tenureDays: number;
   baseRateMasked: string | null;
   slaBreached: boolean;
+  separationType?: string | null;
+  separationDate?: string | null;
+  clearanceStatus?: string | null;
+  separationRemarks?: string | null;
+  isActive?: boolean;
   rowCapabilities: PlantillaRowCapabilities;
   totalCount: number;
 };
@@ -676,6 +681,11 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     tenureDays: asCount(row.tenure_days),
     baseRateMasked: asString(row.base_rate_masked),
     slaBreached: asBoolean(row.sla_breached),
+    separationType: asString(row.separation_type ?? row.separationType ?? row.attrition_type),
+    separationDate: asString(row.separation_date ?? row.separationDate ?? row.date_separated ?? row.resignation_date),
+    clearanceStatus: asString(row.clearance_status ?? row.clearanceStatus),
+    separationRemarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
+    isActive: row.is_active !== undefined ? asBoolean(row.is_active) : undefined,
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
   };

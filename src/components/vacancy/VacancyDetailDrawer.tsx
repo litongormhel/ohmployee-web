@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatGroupName,
   getVacancyDetail,
+  useUpdateEffectiveVacancyDate,
   useWithdrawVacancyClosureRequest,
   VacancyDataError,
 } from "@/lib/queries/vacancy";
@@ -269,6 +270,13 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   );
 
   const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
+  const updateEffectiveVacancyDateMutation = useUpdateEffectiveVacancyDate();
+  const [isEditingVacantDate, setIsEditingVacantDate] = useState(false);
+  const [editedVacantDate, setEditedVacantDate] = useState("");
+  const [editDateError, setEditDateError] = useState<string | null>(null);
+  const canEditEffectiveVacancyDate = Boolean(
+    isUserFullAccess || userIsOps || canReviseQuota || userCanManagePipeline
+  );
 
   const {
     data: detail,
@@ -729,26 +737,97 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
 
                     {/* 3. Compact Timeline & SLA Block */}
                     <CompactSection icon={Calendar} title="Timeline & SLA Status">
-                      <div className="grid grid-cols-3 gap-2 text-xs py-0.5">
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
-                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                            {formatDate(detail.vacantDate)}
-                          </span>
+                      {isEditingVacantDate ? (
+                        <div className="rounded-lg border border-brand-200 bg-brand-50/50 dark:bg-brand-950/40 p-2 my-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-[10px] font-semibold text-text-secondary block mb-1">
+                                Effective Vacancy Date (Aging Override)
+                              </label>
+                              <input
+                                type="date"
+                                value={editedVacantDate}
+                                onChange={(e) => setEditedVacantDate(e.target.value)}
+                                className="h-7 w-full rounded border border-border-default bg-surface-base px-2 text-xs text-text-primary focus:border-brand-500 focus:outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5 self-end">
+                              <button
+                                type="button"
+                                disabled={updateEffectiveVacancyDateMutation.isPending}
+                                onClick={async () => {
+                                  if (!editedVacantDate) return;
+                                  try {
+                                    setEditDateError(null);
+                                    await updateEffectiveVacancyDateMutation.mutateAsync({
+                                      vacancyId: vacancyId || undefined,
+                                      vcode: detail.vcode,
+                                      vacantDate: editedVacantDate,
+                                    });
+                                    setIsEditingVacantDate(false);
+                                    refetch();
+                                  } catch (err: unknown) {
+                                    setEditDateError(err instanceof Error ? err.message : "Failed to update date");
+                                  }
+                                }}
+                                className="h-7 px-2.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
+                              >
+                                {updateEffectiveVacancyDateMutation.isPending ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingVacantDate(false);
+                                  setEditDateError(null);
+                                }}
+                                className="h-7 px-2 rounded border border-border-default bg-surface-base text-text-secondary text-xs hover:bg-surface-hover transition cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                          {editDateError && (
+                            <p className="mt-1 text-[11px] text-danger-text">{editDateError}</p>
+                          )}
                         </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Target Fill Date</span>
-                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                            {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
-                          </span>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2 text-xs py-0.5">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
+                              {canEditEffectiveVacancyDate && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditedVacantDate(detail.vacantDate ? detail.vacantDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+                                    setIsEditingVacantDate(true);
+                                  }}
+                                  className="text-[10px] text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-0.5 cursor-pointer ml-1"
+                                  title="Edit Effective Vacancy Date (Override Aging)"
+                                >
+                                  <Edit3 className="w-2.5 h-2.5" />
+                                  <span>Edit</span>
+                                </button>
+                              )}
+                            </div>
+                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                              {formatDate(detail.vacantDate)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-medium text-text-muted block">Target Fill Date</span>
+                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                              {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-medium text-text-muted block">Date Created</span>
+                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                              {formatDate(detail.createdAt || detail.vacantDate)}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Date Created</span>
-                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                            {formatDate(detail.createdAt || detail.vacantDate)}
-                          </span>
-                        </div>
-                      </div>
+                      )}
 
                       {(detail.agingDays !== null || hasPenalty) && (
                         <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-md bg-surface-muted/70 px-2.5 py-1.5 text-xs border border-border-subtle">
