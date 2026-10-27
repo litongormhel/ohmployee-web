@@ -1,5 +1,43 @@
 # AI Handoff
 
+## ACTISERVE Plantilla — Why Required = 17? Slot-Based Count Investigation (READ-ONLY, Phase 1) (ohm#4x7n2k9w)
+
+**Status: PHASE 1 INVESTIGATION COMPLETE (READ-ONLY) — RECONCILED EVERY TERM OF `REQUIRED = 17` ON STAGING (`qqiiznmqxfoamqytjica`), PROVED DOUBLE-COUNTING AND POOL VACANCY LEAK IN `get_web_plantilla_summary`, IDENTIFIED UNAPPLIED STAGING MIGRATIONS (`20261027170000`, `20261027180000`), PROVED ADR-001 RULE 1/2/3/4/6 VIOLATIONS ACROSS `get_web_plantilla_summary`, `list_web_plantilla_store_staffing`, AND `vw_vacancy_list`, UNCOVERED RESURRECTED `QA_RESET` SLOTS ON `VCAG5_0056` (8 SLOTS VS 7 QUOTA), AND UNCOVERED GOLDEN RULE SOFT-DELETED DATA LEAK IN `get_web_hr_emploc_summary` / `list_web_hr_emploc` (`v_role_level >= 90` BYPASSING `deleted_at IS NULL`); AWAITING OHM'S EXPLICIT APPROVAL BEFORE PHASE 2 IMPLEMENTATION**
+
+- **ADR basis:** `ADR-001-ohmployee-system-architecture.md` — § Core Cross-Module Invariants (Rules 1–6), § HC Request & Coverage Semantics, § Vacancy, § Plantilla, § Dashboard & CENCOM (KPI formula), § Known Gaps.
+- **Branch status:** On `main` only (no branch created).
+
+### 1. Summary of Findings (ACTISERVE `4fba7c47-f19e-47fb-9074-6acab754721f`)
+- **Where `17` comes from (`get_web_plantilla_summary` + `plantilla.ts:normalizeSummary`):**
+  - `actual = 1` (`1016cb3c-4815-490f-a237-d002f5710033` — `DELA CRUZ, JUAN SANTOS`, `VAC-MNL-099`, `Super 8 Dau`, `store_id = NULL`).
+  - `hrProcess = 4` (`onboarding_pipeline_count` from `hr_emploc` where `deleted_at IS NULL AND hr_status IN ('Pending','Complete') AND employee_no IS NULL`):
+    1. `9cef14a4-1eb8-4be9-9748-78389d8de749` (`SANTOS, JAYSON MENDEZ` on `ACT-G5-002`, slot `e14693e3...` in `hr_processing`)
+    2. `12c44858-aaaa-4428-8076-fe91dab005f1` (`DELA CRUZ, JAN YAP` on `ACT-G5-006`, slot `422f87d8...` in `hr_processing`)
+    3. `33da0ac2-8ad8-4d41-b806-41d0ec1c24ae` (`DELA CRUZ, JOHN PAUL DELOS REYES` on `ACT-G5-010`, slot `8eb14b17...` in `pipeline`; vacancy prematurely marked `'Filled'` + `is_archived = true`)
+    4. `dac23e41-e6d3-452d-8aa9-7d9193954520` (`UY, ANNA ROLDAN` on `BUN-GHQ-00015` — Moses HQ pool vacancy with `is_pool_vacancy = true, affects_required_hc = false`)
+  - `vacant = 12` (`open_headcount_count = SUM(vacancies.required_headcount)` where `status = 'Open' AND is_archived = false AND deleted_at IS NULL`):
+    - `ACT-G5-002` (`1`) + `ACT-G5-006` (`1`) + `ACT-G5-008` (`2`) + `BUN-GHQ-00015` (`1`, pool leak) + `VCAG5_0056` (`7`) = `12`.
+  - **Double-Count Proof:** `ACT-G5-002` (`1` slot) and `ACT-G5-006` (`1` slot) are each counted **twice** (`+1` in `vacant` because `vacancies.status = 'Open'`, and `+1` in `hrProcess` because candidate is in `hr_emploc`). `BUN-GHQ-00015` (`is_pool_vacancy = true`, `affects_required_hc = false`) is also counted **twice** (`+1` in `vacant` + `+1` in `hrProcess` = `+2` phantom quota).
+- **Why `v_account_allocation_kpi` reports `Required = 14` (`1` actual + `3` pipeline + `10` vacant):**
+  - Properly excludes `BUN-GHQ-00015` (`is_pool_vacancy = false`) and does not double-count `ACT-G5-002`/`ACT-G5-006` because their `plantilla_slots.slot_status = 'hr_processing'` (excluded from `slot_vacant_non_roving`).
+  - However, `VCAG5_0056` (`required_headcount = 7`) has **8 rows** in `plantilla_slots` with `slot_status IN ('open','pipeline')` because Ordinals 1 (`bee89108...`) and 2 (`79e510b4...`) have `closed_at = '2026-06-08'` (`closure_reason_code = 'QA_RESET'`) yet were mutated back to `slot_status = 'pipeline'` on Oct 20–21 (`+1` extra slot).
+  - Additionally, `ACT-G5-010` (`Festival Mall`) is counted in `pipeline_count` (`+1`), bringing `v_account_allocation_kpi.required_hc` to `1 + 3 + (2 + 8) = 14`.
+  - Note: For any `hr_emploc` row whose `plantilla_slots.slot_status` is still `'open'` or `'pipeline'` (and whose vacancy is not archived), `v_account_allocation_kpi.required_hc` double-counts that slot in both `p.pipeline_count` and `svn.vacant_slots`.
+- **Why `vw_vacancy_list` / Plantilla Vacancy Tab shows `2/7` on `VCAG5_0056` and `2/2 (0 Vacant)` on `ACT-G5-008`:**
+  1. **Staging Migration Drift:** Migrations `20261027170000` and `20261027180000` have **not** been applied to staging (`qqiiznmqxfoamqytjica`). Live `vw_vacancy_list` on staging still computes `hc_filled = confirmed_onboard_count + active_applicant_count`, counting 2 `'New'` applicants on `ACT-G5-008` (`2/2`) and 2 `'New'` applicants on `VCAG5_0056` (`2/7`) as "filled"!
+  2. **ADR-001 Rule 2 Violation even in `20261027180000`:** Even the unapplied migration `20261027180000` sets `hc_filled = confirmed_onboard_count` (from `public.applicants.status = 'Confirmed Onboard'`) instead of active `plantilla.status = 'Active'` rows. That marks `ACT-G5-002` (`1/1`) and `ACT-G5-006` (`1/1`) as `hc_filled = 1` / `derived_status = 'Hired'` while their candidates are still in `hr_emploc` (`hr_processing`), violating ADR-001 Rule 2.
+- **Why HR Emploc module shows `15` records (`Pending 10, Correction 1, Review 3, Ready 1`) for ACTISERVE:**
+  - **Golden Rule Violation (`20260607000001_web_hr_emploc_list_summary_rpcs.sql`):** Both `get_web_hr_emploc_summary` and `list_web_hr_emploc` have `WHERE (COALESCE(v_role_level, 0) >= 90 OR (h.deleted_at IS NULL AND ...))`. For Super Admin (`v_role_level >= 90`), `h.deleted_at IS NULL` is bypassed, leaking **11 soft-deleted (`deleted_at IS NOT NULL`) test rows** from May/June 2026 (`141–158` days old) alongside the 4 non-deleted rows (`3` ACTISERVE + `1` Moses HQ pool `BUN-GHQ-00015`).
+
+### 2. Open Decisions / Awaiting Approval from Ohm
+1. **Target Slot-Based Numbers for ACTISERVE:**
+   - **With `ACT-G5-010` (`Festival Mall`, candidate `DELA CRUZ, JOHN PAUL DELOS REYES` in `hr_emploc` Pending) included:**
+     - **Required = `12` slots** (`1` Active [`VAC-MNL-099`] + `3` HR Processing [`ACT-G5-002`, `ACT-G5-006`, `ACT-G5-010`] + `9` Vacant [or `8` Vacant if `VCAG5_0056` is `6` slots instead of `7`? Wait: `ACT-G5-008` has `2` slots + `VCAG5_0056` has `7` slots = `9` vacant slots, so `1 + 3 + 9 = 13` slots; or if `ACT-G5-010` is excluded/archived, `1 + 2 + 9 = 12` slots]).
+   - See full reconciliation table and proposed 3-part fix plan (`(a)` SQL/RPC/view fixes, `(b)` Frontend slot-source fixes, `(c)` Staging data cleanup proposals) in the conversation response.
+   - **STOPPED and waiting for Ohm's explicit approval before writing any code, migration, or data cleanup.**
+
+---
+
 ## Plantilla Headcount Slot Capacity & MFR Reconciliation Parity (ohm#plan10)
 
 **Status: COMPLETE — RESOLVED COUNT AND MFR DISCREPANCY WHERE ACCOUNT (E.G. ACTISERVE) DISPLAYED REQUIRED = 17 AND 6.0% MFR WHILE RAW VISIBLE TABLE ROWS TOTALED 6 (1 ACTIVE + 5 VACANCIES); INTRODUCED GETVACANCYREMAININGCAPACITY HELPER IN PLANTILLA/PAGE.TSX (HC_TOTAL - HC_FILLED); INTRODUCED OPENVACANCIESSLOTS, PIPELINEVACANCIESSLOTS, AND TOTALVACANCIESSLOTS CALCULATIONS TO AGGREGATE TOTAL HEADCOUNT SLOT CAPACITY; SYNCHRONIZED CARD 1 OVERALL MFR DENOMINATOR WITH ACTIVECOUNT + EFFECTIVEVACANCYSLOTS (EVALUATING TO 17 REQUIRED SLOTS); UPDATED CARD 3 (OPEN VACANCIES) AND CARD 4 (HR PIPELINE) TO DISPLAY TOTAL HEADCOUNT SLOT CAPACITY AS PRIMARY METRIC WITH REQUISITION COUNT SUBTITLES; ENHANCED STATUS TAB 3 (VACANCY) BADGE AND SUB-FILTER BUTTONS TO COMMUNICATE BOTH REQUISITION COUNTS AND TOTAL SLOT CAPACITIES; REPLACED HARDCODED "1 VACANT" BADGE IN STOREVACANCYTABLE WITH DYNAMIC SLOT CAPACITY BADGE; UPDATED STOREVIEW VACANCY COUNTER TO SUM UNFILLED SLOT CAPACITIES; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
