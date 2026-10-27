@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Fix HRCO "All Scope" Visibility Bug in HR Emploc Correction, Review, and Ready RPCs (ohm#hremploc01)
+
+**Status: COMPLETE — MIGRATION 20261027120000_FIX_HRCO_ALL_SCOPE_HR_EMPLOC_CORRECTION_RPC.SQL CREATED; RESOLVED ROLE/SCOPE FILTERING BUG IN PUBLIC.GET_CORRECTION_REQUESTS_SCOPED WHERE USERS WITH THE HRCO ROLE AND "ALL SCOPE" (SCOPE_TYPE = 'GLOBAL' OR HRCO_GLOBAL_VISIBILITY = TRUE) RECEIVED EMPTY RECORDS ACROSS CORRECTION, REVIEW, AND READY TABS DUE TO HARDCODED V_MY_ROLE NOT IN ('HRCO') OR HE.HRCO_USER_ID_SNAPSHOT = V_MY_ID; UPDATED RPC TO HONOR GLOBAL SCOPE, HRCO_GLOBAL_VISIBILITY, AND FULL ACCESS BEFORE FALLING BACK TO ASSIGNED ACCOUNTS (HE.ACCOUNT = ANY(GET_MY_ALLOWED_ACCOUNTS())) OR DIRECT ASSIGNMENT SNAPSHOT; HARDENED LIST_WEB_HR_EMPLOCS, GET_WEB_HR_EMPLOC_SUMMARY, AND GET_WEB_HR_EMPLOC_DETAIL SCOPED CTES AND DETAIL STORAGE PATH CHECKS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Root Cause Identification**:
+   - In `public.get_correction_requests_scoped`, the scoping WHERE clause was:
+     ```sql
+     WHERE (v_my_role NOT IN ('hrco') OR he.hrco_user_id_snapshot = v_my_id)
+       AND (p_hr_emploc_id IS NULL OR he.id = p_hr_emploc_id)
+       AND (p_status IS NULL OR he.mapped_status = p_status)
+     ```
+   - For all non-HRCO roles, `v_my_role NOT IN ('hrco')` evaluated to `TRUE`.
+   - For any user with role `hrco`, it strictly demanded `he.hrco_user_id_snapshot = v_my_id`, completely omitting checks for `public.get_my_scope_type() = 'global'`, `public.i_have_hrco_global_visibility()`, or `public.i_have_full_access()`.
+   - Records with `hrco_user_id_snapshot IS NULL` or assigned to other users were completely hidden from global HRCOs under **Correction**, **Review**, and **Ready**.
+   - Restricted HRCOs (scoped accounts) were also blocked from viewing unassigned records in their allowed accounts.
+
+2. **Database Migration (`supabase/migrations/20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql`)**:
+   - Recreated `public.get_correction_requests_scoped` with comprehensive scope bypass:
+     ```sql
+     WHERE (
+       v_my_role NOT IN ('hrco')
+       OR public.i_have_full_access()
+       OR public.get_my_scope_type() = 'global'
+       OR public.i_have_hrco_global_visibility()
+       OR he.hrco_user_id_snapshot = v_my_id
+       OR he.account = ANY (public.get_my_allowed_accounts())
+       OR (he.account_id IS NOT NULL AND he.account_id IN (
+         SELECT acc.id FROM public.accounts acc WHERE acc.account_name = ANY (public.get_my_allowed_accounts())
+       ))
+     )
+     AND (p_hr_emploc_id IS NULL OR he.id = p_hr_emploc_id)
+     AND (p_status IS NULL OR he.mapped_status = p_status)
+     ```
+   - Recreated `public.list_web_hr_emplocs`, `public.get_web_hr_emploc_summary`, and `public.get_web_hr_emploc_detail` to explicitly check `public.get_my_scope_type() = 'global'` and `public.i_have_hrco_global_visibility()` alongside `role_level >= 90`.
+   - In `public.get_web_hr_emploc_detail`, expanded `storage_path` visibility in `correction_attachments` to users with global scope / global visibility so they can inspect uploaded evidence files.
+   - Maintained all existing execution permissions and grants (`REVOKE FROM PUBLIC, anon; GRANT TO authenticated`).
+
+3. **Codebase Health & Verification**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build (19/19 routes compiled green).
+   - No DB writes or DDL applied directly (migration committed locally per rules).
+
+---
+
 ## Auto-Fit Plantilla Layout at 100% Browser Zoom (ohm#uifix05)
 
 **Status: COMPLETE — PLANTILLA VIEW COMPACTED AND CONFIGURED FOR VIEWPORT AUTO-FITTING AT 100% BROWSER ZOOM; TOP 5 KPI CARDS REDUCED BY ~35% VERTICAL HEIGHT WITH 68PX MFR DONUT RING, TEXT-2XL METRIC VALUES, AND TIGHTENED ROW GAPS; SECTION VERTICAL SPACING COMPACTED ACROSS SUB-TABS (H-8) AND FILTER BAR (H-8.5); DESKTOP ACCOUNT VIEW WRAPPED IN RESPONSIVE FLEX-VIEWPORT CONSTRAINTS (LG:H-[CALC(100VH-5.5REM)] LG:OVERFLOW-HIDDEN); ALL 6 TABLES RECONFIGURED WITH INTERNAL SCROLLING (FLEX-1 MIN-H-0 OVERFLOW-AUTO) AND STICKY TABLE HEADERS (STICKY TOP-0 Z-10 BG-TABLE-HEADER SHADOW-2XS); PAGINATION FOOTER PINNED AT BOTTOM (SHRINK-0 MT-2 PT-2) GUARANTEEING ZERO WINDOW-LEVEL OVERFLOW OR CLIPPING AT 100% ZOOM WHILE FULLY PRESERVING MOBILE/SMALL-SCREEN RESPONSIVE SCROLLING; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**

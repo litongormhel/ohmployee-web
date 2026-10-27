@@ -237,8 +237,9 @@ Encoder          | Scoped           | Assign Employee Number, Move to Plantilla,
 hrPersonnel      | Global           | Deficiency tagging, correction approvals,
                  |                  | complete documentation review
 -----------------------------------------------------------------------------
-om / hrco        | Scoped           | Upload corrections, submit compliance files,
-                 | (Allowed Accts)  | request Deletions (Backout/Duplicate)
+om / hrco        | Scoped / Global  | Upload corrections, submit compliance files,
+                 | (Allowed Accts / | request Deletions (Backout/Duplicate)
+                 |  All Scope)      |
 -----------------------------------------------------------------------------
 atl / tl         | Scoped           | Read-only scoped queue view, details inspector
 -----------------------------------------------------------------------------
@@ -246,6 +247,7 @@ viewer           | Scoped           | Read-only (Read RPCs only, mutations block
 =============================================================================
 ```
 
+* **HRCO All Scope / Global Visibility**: HRCO users with `scope_type = 'global'` or `hrco_global_visibility = true` bypass per-coordinator snapshot and account restrictions across `get_correction_requests_scoped`, `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail`, loading all records across Pending, Correction, Review, and Ready queues. Restricted HRCOs remain strictly bound to their allowed accounts or assigned records.
 * **Caller Validation**: All queries and RPCs fetch caller metadata directly from `auth.uid()`. The frontend never passes `profile_id` or `role_key` as arguments.
 * **PII Guard Rails**: To ensure privacy, the dense table and detail drawer candidate checklists will **never expose contact phone numbers or email addresses** to non-authorized roles.
 
