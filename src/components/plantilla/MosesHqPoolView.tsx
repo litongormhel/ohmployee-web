@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import {
+  BarChart3,
   CheckCircle2,
   ChevronRight,
   Download,
@@ -21,6 +22,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
+import { Modal } from "@/components/shared/Modal";
+import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalyticsView";
 import { exportToXlsx } from "@/lib/utils/reports_export";
 import {
   useWorkforcePoolTypes,
@@ -89,6 +92,7 @@ export function MosesHqPoolView() {
   const [isReviewQueueOpen, setIsReviewQueueOpen] = useState<boolean>(false);
   const [isRequestHistoryOpen, setIsRequestHistoryOpen] = useState<boolean>(false);
   const [isHeadcountModalOpen, setIsHeadcountModalOpen] = useState<boolean>(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState<boolean>(false);
 
   const currentUser = useCurrentUser();
   const canMutatePool = Boolean(
@@ -213,6 +217,14 @@ export function MosesHqPoolView() {
               <Download className="h-3.5 w-3.5" /> Export
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setIsAnalyticsOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-text-primary bg-surface-muted hover:bg-surface-hover border border-border-default rounded-lg transition-colors cursor-pointer"
+            title="Open Workforce Analytics"
+          >
+            <BarChart3 className="h-3.5 w-3.5 text-brand-primary" /> Workforce Analytics
+          </button>
         </div>
       </div>
 
@@ -521,6 +533,21 @@ export function MosesHqPoolView() {
             employeesQuery.refetch();
           }}
         />
+      )}
+
+      {isAnalyticsOpen && (
+        <Modal
+          isOpen={isAnalyticsOpen}
+          onClose={() => setIsAnalyticsOpen(false)}
+          title="Workforce Analytics Dashboard"
+          subtitle="7-Tab executive workforce analytics: Overview, Deployment, Coverage, Conversion, Slots, Health, Executive."
+          icon={BarChart3}
+          maxWidthClass="max-w-7xl"
+        >
+          <div className="pt-2 text-text-primary">
+            <WorkforceAnalyticsView />
+          </div>
+        </Modal>
       )}
     </div>
   );

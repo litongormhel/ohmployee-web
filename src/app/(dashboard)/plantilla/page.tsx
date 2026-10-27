@@ -636,63 +636,6 @@ function PlantillaPageContent() {
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  function renderViewSwitcher() {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default pb-3">
-        <div className="flex items-center gap-1.5 p-1 bg-surface-subtle border border-border-default rounded-xl w-fit">
-          <button
-            type="button"
-            onClick={() => handleSwitchView("store")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              viewMode === "store"
-                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Store Plantilla</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchView("moses_pool")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              viewMode === "moses_pool"
-                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Moses HQ Pool</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchView("analytics")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              viewMode === "analytics"
-                ? "bg-surface text-brand-primary shadow-xs border border-border-default"
-                : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Workforce Analytics</span>
-          </button>
-        </div>
-
-        {viewMode !== "store" && (
-          <button
-            type="button"
-            onClick={() => handleSwitchView("store")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-brand-600 transition cursor-pointer"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Return to Store Plantilla</span>
-          </button>
-        )}
-      </div>
-    );
-  }
-
-
   function handleResetFilters() {
     setSearch("");
     setStoreId("");
@@ -999,11 +942,25 @@ function PlantillaPageContent() {
         <AdminPageHeader
           categoryTag="Admin panel"
           moduleName="Plantilla"
-          title="Moses HQ Pool Management"
+          title={
+            <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                onClick={() => handleSwitchView("store")}
+                className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>Plantilla Directory</span>
+              </button>
+              <span className="text-text-muted/60">/</span>
+              <span className="text-sm font-semibold text-text-primary leading-tight">
+                Moses HQ Pool Management
+              </span>
+            </nav>
+          }
           subtitle="Tracking, filtering, and managing non-plantilla pooled personnel (Relievers, Commandos, Seasonals)."
           icon={Users}
         />
-        {renderViewSwitcher()}
         <MosesHqPoolView />
       </div>
     );
@@ -1015,11 +972,25 @@ function PlantillaPageContent() {
         <AdminPageHeader
           categoryTag="Admin panel"
           moduleName="Plantilla"
-          title="Workforce Analytics Dashboard"
+          title={
+            <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                onClick={() => handleSwitchView("store")}
+                className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                <span>Plantilla Directory</span>
+              </button>
+              <span className="text-text-muted/60">/</span>
+              <span className="text-sm font-semibold text-text-primary leading-tight">
+                Workforce Analytics Dashboard
+              </span>
+            </nav>
+          }
           subtitle="7-Tab executive workforce analytics: Overview, Deployment, Coverage, Conversion, Slots, Health, Executive."
           icon={BarChart3}
         />
-        {renderViewSwitcher()}
         <WorkforceAnalyticsView />
       </div>
     );
@@ -1036,7 +1007,6 @@ function PlantillaPageContent() {
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
             icon={Building2}
           />
-          {renderViewSwitcher()}
           {renderAccountSelectionContent()}
         </>
       ) : (
@@ -1100,8 +1070,6 @@ function PlantillaPageContent() {
               </div>
             }
           />
-          {renderViewSwitcher()}
-
 
           {/* 2. Executive KPI & Leadership Team Bar */}
           <section aria-label="Plantilla summary metrics" className="space-y-3">

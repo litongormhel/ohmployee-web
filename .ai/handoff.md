@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Plantilla Navigation Streamlining & Moses HQ Workforce Analytics Integration (ohm#plan01)
+
+**Status: COMPLETE — TOP TAB SWITCHER REMOVED FROM MAIN PLANTILLA VIEW; STORE PLANTILLA DIRECTORY NOW RENDERS DIRECTLY AS DEFAULT VIEW; PINNED MOSES HQ CARD SEAMLESSLY ROUTES TO MOSES HQ WORKFORCE POOL WITH INTEGRATED HEADER BREADCRUMB; WORKFORCE ANALYTICS INTEGRATED INTO MOSES HQ POOL TOOLBAR VIA FULL-SCREEN ENTERPRISE MODAL (MAX-W-7XL); PRESERVED POOL TABLE STATE, QUERY CACHING, FILTER ISOLATION, AND DEEP ROUTING COMPATIBILITY; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Top Tab Switcher Removal & Default Store View (`plantilla/page.tsx`)**:
+   - Removed `renderViewSwitcher()` and its invocations across all sub-views.
+   - The default Plantilla screen now directly displays Store Plantilla (Plantilla Directory account selection grid or selected store roster).
+   - Selecting the pinned "Moses HQ" account card seamlessly routes to Moses HQ Pool management (`/plantilla?view=moses_pool`).
+   - Added clean breadcrumb navigation in `AdminPageHeader` (`Plantilla Directory / Moses HQ Pool Management` and `Plantilla Directory / Workforce Analytics Dashboard`) allowing users to navigate directly back to Store Plantilla with one click.
+
+2. **Moses HQ Toolbar Workforce Analytics Integration (`MosesHqPoolView.tsx`)**:
+   - Added a **"Workforce Analytics"** button in the action button group immediately adjacent to the **Export** button.
+   - Wired the button to open a high-resolution, scrollable `Modal` (`maxWidthClass="max-w-7xl"`) embedding `<WorkforceAnalyticsView />`.
+   - All 7 analytics tabs (Overview, Deployment, Coverage, Conversion, Slots, Health, Executive) render smoothly.
+   - Table state (active page, page size, search string, pool type filter, availability filter), drawer states, and TanStack query caches remain completely isolated and intact upon opening/closing the analytics modal.
+
+3. **Codebase Health**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build, 19/19 routes compiled successfully.
+   - Zero database mutations performed.
+
+---
+
 ## MFR Progress Bar Color Logic & Styling Across Plantilla & CENCOM (ohm#uifix04)
 
 **Status: COMPLETE — MFR PROGRESS BAR COLOR LOGIC & STYLING FULLY UPDATED ACROSS PLANTILLA & CENCOM; TOKENS `--pct-good-bar`, `--pct-warn-bar`, `--pct-bad-bar` DEFINED IN LIGHT & DARK THEMES WITH FULL TAILWIND `@theme inline` REGISTRATION; AUTHORITATIVE THRESHOLDS ENFORCED (100% GREEN, 95% TO 99.99% YELLOW, <95% RED) ACROSS `thresholds.ts`, `cencom.ts`, `plantilla/page.tsx`, AND `StoreStaffingOverviewDrawer.tsx`; PROGRESS BAR TRACKS RECESSED WITH `bg-surface-muted border border-border-subtle/50` PREVENTING WASHED-OUT CONTRAST OR BACKGROUND BLENDING ACROSS THEMES; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
