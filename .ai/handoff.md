@@ -1,5 +1,53 @@
 # AI Handoff
 
+## `v_account_allocation_kpi` Closed-Slot Filter (Step 2a) & Vacancy Views/RPCs Recon (Step 3) (Phase 3 — ohm#4x7n2k9w)
+
+**Status: PART 0 BOOKKEEPING CHECK COMPLETE; PART 1 (STEP 2a) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) VIA MIGRATION `20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql` (`ACTISERVE` `required_hc: 14.0000 -> 12.0000`, `slot_vacant_hc: 10.0000 -> 8.0000`, MATCHING `get_web_plantilla_summary` 1:1; ALL OTHER SMOKE ACCOUNTS UNCHANGED; GRANTS PRESERVED); PART 2 (STEP 3 RECON) COMPLETE (READ-ONLY) — STOPPED AND WAITING FOR OHM'S EXPLICIT APPROVAL BEFORE STEP 3 IMPLEMENTATION, STEP 4 FRONTEND, OR STEP 5 DATA CLEANUP**
+
+- **ADR basis:** `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (consolidated as `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md`) — § Core Cross-Module Invariants (Rules 1, 2, 4), § Vacancy, § Dashboard & CENCOM.
+- **Branch status:** On `main` only (no branch created).
+
+### 1. Part 0 — Migration Bookkeeping Check (Read-Only)
+- **How Step 1 was applied:** Via MCP `apply_migration(project_id: 'qqiiznmqxfoamqytjica', name: 'fix_plantilla_summary_slot_counts_and_emploc_deleted_filter', ...)`, which auto-generated a UTC timestamp version rather than using the local filename prefix.
+- **Recorded in `supabase_migrations.schema_migrations` on staging:**
+  - `version = '20261027091040'`, `name = 'fix_plantilla_summary_slot_counts_and_emploc_deleted_filter'`
+- **Local file on disk:**
+  - `supabase/migrations/20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`
+- **Mismatch / Orphan Status:** Yes — `20261027091040` on remote vs `20261027190000` locally (no `migration repair` executed per instruction; reported only).
+- **Note on Step 2a migration:** Applied via MCP `apply_migration` (`version = '20261027092200'`, `name = 'fix_account_allocation_kpi_closed_slot_filter'`) and local file saved with matching prefix `supabase/migrations/20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql` so zero new drift was introduced in Phase 3.
+
+### 2. Part 1 — Step 2a Delivered (`supabase/migrations/20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql`)
+- Updated `public.v_account_allocation_kpi` (`WITH (security_invoker = true)`):
+  - Added `ps.closed_at IS NULL` to `slot_vacant_non_roving` (`FILTER` + `WHERE`) and `slot_vacant_roving` (`CASE`, `grp` subquery, and outer `WHERE`).
+  - `coverage_slots` has no `closed_at` column (confirmed via `information_schema.columns`); `coverage_slot_kpi` already filters `cs.slot_status = 'open' AND cg.archived_at IS NULL`.
+  - No `hr_emploc` de-dup, no formula change, no column name/type change; preserved `ALTER VIEW ... OWNER TO postgres` and `GRANT SELECT ON public.v_account_allocation_kpi TO authenticated, service_role`.
+- **Smoke Test Results (Before vs After on Staging `qqiiznmqxfoamqytjica`):**
+  - **`ACTISERVE` (`4fba7c47-f19e-47fb-9074-6acab754721f`):** `filled_hc: 1.0000 -> 1.0000`, `actual_hc: 1 -> 1`, `pipeline_count: 3 -> 3`, `open_hc: 4 -> 4`, **`required_hc: 14.0000 -> 12.0000`**, **`mfr: 0.0714 -> 0.0833`**, **`projected_mfr: 0.2857 -> 0.3333`**, **`vacancy_rate: 0.7143 -> 0.6667`**, **`pipeline_coverage: 0.2143 -> 0.2500`**, `health_status: critical -> critical`, **`slot_vacant_hc: 10.0000 -> 8.0000`**.
+  - **`ALTURAS` (`3126b9a8-29a6-4917-8b49-82e937d7cf88`):** 100% unchanged (`filled_hc=754.0000, actual_hc=754, pipeline_count=0, open_hc=1, required_hc=755.0000, mfr=0.9987, slot_vacant_hc=1.0000`).
+  - **`BANKO` (`f26cc270-bac3-4a5b-b656-1bad68619a73`):** 100% unchanged (`filled_hc=8.0000, actual_hc=8, pipeline_count=1, open_hc=2, required_hc=11.0000, mfr=0.7273, slot_vacant_hc=2.0000`).
+  - **`FOREVER OFFICE` (`d0533fbc-3cce-4d0a-a619-ad0539dbc66d`):** 100% unchanged (`filled_hc=5.0000, actual_hc=5, pipeline_count=1, open_hc=5, required_hc=10.0000, mfr=0.5000, slot_vacant_hc=4.0000`).
+  - **`THREE` (`bb02474a-3928-4383-9eee-7a3393bdef4d`):** 100% unchanged (`filled_hc=0.0000, actual_hc=0, pipeline_count=1, open_hc=1, required_hc=4.0000, mfr=0.0000, slot_vacant_hc=3.0000`).
+  - **`Moses HQ` (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`):** 0 rows before and after (`is_pool_account = true` excluded by design).
+- **Agreement Confirmation (`ACTISERVE`):** `get_web_plantilla_summary` (`active_employees=1, onboarding_pipeline_count=3, open_headcount_count=8, required=12`) and `v_account_allocation_kpi` (`actual_hc=1, pipeline_count=3, slot_vacant_hc=8.0000, required_hc=12.0000`) now agree 1:1.
+
+### 3. Part 2 — Step 3 Recon Summary & Pending Steps (Awaiting Ohm's Approval)
+- **Unapplied Migrations:**
+  - `20261027170000_increase_plantilla_list_limit.sql` (`ohm#plan08`): raises `v_limit` from `200 -> 5000` in `list_web_plantilla_employees`. Safe & wanted, zero ADR-001 Rule 2 conflict.
+  - `20261027180000_fix_vacancy_open_pipeline_status_precedence.sql` (`ohm#plan09`): sets `hc_filled = confirmed_onboard_count`. **CONFLICTS WITH ADR-001 RULE 2** (`hired_count` must derive strictly from `plantilla.status = 'Active'`) and lacks `is_pool_vacancy = false` filtering. Should be superseded by the Step 3 migration rather than applied as-is.
+- **Why `hc_filled` counts `'New'` applicants on staging (and prod):** Migration `20262606000050_fix_vacancy_detail_recruiter_and_occupied_hc.sql` (`ohm#q7w1k9b3`, applied to both staging and prod) defined `hc_filled = confirmed_onboard_count + active_applicant_count`.
+- **Why `VCAG5_0056` Ord 1 & 2 had `closed_at IS NOT NULL` + `slot_status = 'pipeline'`:**
+  1. `fn_set_slot_status` does NOT clear `closed_at`, `closed_by`, or `closure_reason_code` when transitioning `closed/hc_reduced -> open` (`reopened`).
+  2. Migration `20262606000049` (§2.2) called `fn_set_slot_status(id, 'open', 'HC_READD')` on `VCAG5_0056`, flipping `slot_status` from `'closed'` to `'open'` while leaving `closed_at = '2026-06-08'` (`QA_RESET`) intact.
+  3. `fn_sync_vacancy_slot_open_pipeline` (triggered by `trg_applicant_insert_slot_sync` and `failBackoutApplicant`) selected `WHERE slot_status = 'open'` without checking `closed_at IS NULL`, advancing Ord 1 & 2 from `'open'` to `'pipeline'`.
+- **Pending Steps & Decisions:**
+  - **Step 3 Implementation (Pending Approval):** Apply `20261027170000` (or fold into Step 3) and create new Step 3 migration superseding `20261027180000` to align `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, and `get_web_vacancy_summary` with ADR-001 Rule 2 (`hc_filled` from active `plantilla.status = 'Active'`, separate `hr_processing_count`, pool exclusion, Rule 4 Open/Pipeline capacity predicates) + fix `fn_set_slot_status` (clear `closed_at`/`closed_by`/`closure_reason_code` on `reopened`) and `fn_sync_vacancy_slot_open_pipeline` (`AND closed_at IS NULL`).
+  - **Step 4 Frontend (Pending Approval):** Align `src/app/(dashboard)/plantilla/page.tsx`, `src/lib/queries/plantilla.ts`, and `src/lib/queries/vacancy.ts` with authoritative RPC slot counts and pool exclusion, and restore mobile `models.dart` / `vacancy_screen.dart` / `dashboard_screen.dart` `remainingOpenCount` if needed.
+  - **Step 5 Data Cleanup + Ohm's 2 Open Decisions:**
+    1. **`VCAG5_0056` (`SM AURORA`):** Decide target quota/slot state (`7` open slots vs `6` open slots vs `1` open slot vs closed, and re-closing Ord 1 & 2 `bee89108...` / `79e510b4...`).
+    2. **`ACT-G5-010` (`Festival Mall`):** Decide whether to unarchive `ACT-G5-010` and sync slot `8eb14b17...` to `'hr_processing'` for candidate `DELA CRUZ, JOHN PAUL DELOS REYES`, or close/delete the test record.
+
+---
+
 ## ACTISERVE Plantilla — Slot-Based Summary RPC & HR Emploc Golden Rule Fix (Phase 2 — Step 1, Scoped) (ohm#4x7n2k9w)
 
 **Status: STEP 1 (1A + 1B) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) — CREATED AND APPLIED MIGRATION `20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`; ENFORCED `h.deleted_at IS NULL` ACROSS ALL CALLER ROLES IN `get_web_hr_emploc_summary` AND `list_web_hr_emplocs` (ELIMINATING 11 SOFT-DELETED TEST ROWS FOR SUPER ADMIN ON ACTISERVE); CONVERTED `get_web_plantilla_summary` AND `list_web_plantilla_store_staffing` TO SLOT-BASED VACANT COUNTS (`plantilla_slots` + `coverage_slots` WITH `closed_at IS NULL` AND `hr_emploc` SLOT DE-DUPLICATION) AND EXCLUDED POOL VACANCIES (`is_pool_vacancy = false AND affects_required_hc = true`) IN BOTH `onboarding_pipeline_count` AND `open_headcount_count`; VERIFIED BEFORE/AFTER SMOKE TESTS ON STAGING ACROSS `ACTISERVE` (`Required: 17 -> 12`), `ALTURAS` (`753 -> 753` UNCHANGED), `THREE` (`7 -> 4`, MATCHING `v_account_allocation_kpi`), `FOREVER OFFICE` (`10 -> 9`, MATCHING `v_account_allocation_kpi.slot_vacant_hc = 4`), `BANKO` (`12 -> 11`), AND `Moses HQ` (`3` ACTIVE UNCHANGED); STEPS 2–5 PENDING OHM'S EXPLICIT APPROVAL**

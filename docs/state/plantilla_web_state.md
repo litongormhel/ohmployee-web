@@ -803,11 +803,12 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Added `row.separation_status` and `row.date_of_separation` normalization fallbacks in `normalizeEmployeeListRow`.
   - Created migration `20261027150000_allow_terminated_separation_status.sql` updating `plantilla_separation_status_check` to include `'Terminated'` and `'End of Contract'`.
 
-- **Slot-Based Plantilla Summary & Store Staffing Count Parity (`ohm#4x7n2k9w` — Phase 2 Step 1B, Migration `20261027190000`)**:
+- **Slot-Based Plantilla Summary, Store Staffing & Allocation KPI Closed-Slot Parity (`ohm#4x7n2k9w` — Phase 2 Step 1B `20261027190000` & Phase 3 Step 2a `20261027092200`)**:
   - Updated `public.get_web_plantilla_summary` and `public.list_web_plantilla_store_staffing` on staging (`qqiiznmqxfoamqytjica`) with identical parameter and return signatures:
     - Excluded pool and non-quota vacancies (`COALESCE(v.is_pool_vacancy, false) = false AND COALESCE(v.affects_required_hc, true) = true`) in both `onboarding_pipeline_count` (`hrProcess`) and `open_headcount_count` (`vacant`).
     - Replaced requisition-level `SUM(vacancies.required_headcount) WHERE status = 'Open'` with slot-based vacant capacity across `public.plantilla_slots` (`slot_status IN ('open', 'pipeline') AND closed_at IS NULL`, stationary `1.0` + roving `1/N` share via `public.vacancy_stores`, suppressing stores inside active Coverage Groups) + `public.coverage_slots` (`slot_status = 'open'` on active Coverage Groups).
     - Excluded any slot (`ps.id` or `cs.id`) already counted in `hr_emploc` (`hr_status IN ('Pending', 'Complete') AND employee_no IS NULL AND deleted_at IS NULL`) so each slot is counted at most once across `actual`, `hrProcess`, and `vacant`.
+  - Updated `public.v_account_allocation_kpi` (`20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql`, `security_invoker = true`) to enforce `ps.closed_at IS NULL` in both `slot_vacant_non_roving` and `slot_vacant_roving`, aligning `ACTISERVE` `required_hc` (`14.0000 -> 12.0000`) and `slot_vacant_hc` (`10.0000 -> 8.0000`) 1:1 with `get_web_plantilla_summary`.
 
 
 
