@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Multi-Headcount Vacancy & Plantilla Slot Retention Parity (ohm#plan09)
+
+**Status: COMPLETE — RESOLVED BUG WHERE REQUISITIONS WITH MULTI-HEADCOUNT ALLOCATIONS (E.G. HC = 2) PREMATURELY DISAPPEARED FROM THE OPEN TAB WHEN CANDIDATES ENTERED PIPELINE SCREENING; IN FLUTTER MOBILE MODELS.DART, VACANCY_SCREEN.DART, AND DASHBOARD_SCREEN.DART, UPDATED REMAININGOPENCOUNT AND _ISOPENVACANCY TO PREVENT SUBTRACTING DISPLAYPIPELINECOUNT FROM AVAILABLE OPEN CAPACITY SO UNFILLED QUOTA (HC_NEEDED - HIRED_COUNT > 0) GOVERNS OPEN MEMBERSHIP; IN POSTGRESQL MIGRATION 20261027180000_FIX_VACANCY_OPEN_PIPELINE_STATUS_PRECEDENCE.SQL, RECREATED VW_VACANCY_LIST, VW_VACANCY_DETAIL, LIST_WEB_VACANCIES, AND GET_WEB_VACANCY_SUMMARY TO RESTORE HC_FILLED TO STRICTLY COUNT CONFIRMED_ONBOARD_COUNT AND PRIORITIZE DERIVED_STATUS = 'PIPELINE' WHEN ACTIVE_APPLICANT_COUNT > 0 BEFORE FALLING BACK TO 'OPEN'; RAISED V_LIMIT AND MAX_PAGE_SIZE TO 5000 AND REQUESTED PAGESIZE: 2000 IN PLANTILLA/PAGE.TSX WITH CAPACITY PROTECTION V.HCFILLED < V.HCTOTAL; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Mobile Client-Side Filtering Alignment (`OHMployee` Flutter Repo)**:
+   - In `lib/data/models/models.dart`:
+     - Updated `VacancyItem.remainingOpenCount`: removed `displayPipelineCount` subtraction so remaining open capacity is strictly `(derivedOpenCount - (hrProcessingCount ?? 0)).clamp(0, derivedOpenCount)`. Active pipeline candidates do not consume available open capacity.
+   - In `lib/features/vacancy/vacancy_screen.dart`:
+     - Updated `_remainingOpenCount` and `_isOpenVacancy(vacancy)` so multi-headcount requisitions (such as $HC = 2$) remain visible and actionable in the Open tab even when candidates are active in screening/interview pipeline.
+   - In `lib/features/dashboard/dashboard_screen.dart`:
+     - Updated `_remainingOpenCount` to match `(openCount - hrProcessingCount).clamp(0, openCount)`.
+
+2. **Database View & RPC Migration (`20261027180000_fix_vacancy_open_pipeline_status_precedence.sql`)**:
+   - Recreated `public.vw_vacancy_list` and `public.vw_vacancy_detail`:
+     - Fixed `derived_status` precedence: checks `active_applicant_count > 0` for `'Pipeline'` before falling back to `'Open'`.
+     - Restored `hc_filled` to strictly count `confirmed_onboard_count` instead of erroneously adding unvetted screening applicants to filled headcount.
+   - Recreated `public.list_web_vacancies`:
+     - Raised `v_limit` ceiling from 200 to 5000 for scalable roster fetching.
+     - Kept capacity predicate: `p_status = 'open'` evaluates `s.hc_filled < s.hc_total`, keeping multi-headcount requisitions in the Open tab until all required slots are confirmed onboard.
+   - Recreated `public.get_web_vacancy_summary`:
+     - Aligned `total_open` to count vacancies with `s.hc_filled < s.hc_total`.
+
+3. **Web Query Layer & Plantilla Slot Retention (`ohmployee-web`)**:
+   - In `src/lib/queries/vacancy.ts`:
+     - Increased `MAX_PAGE_SIZE` from 100 to 5000.
+   - In `src/app/(dashboard)/plantilla/page.tsx`:
+     - Bumped `vacancyListQuery` to request `pageSize: 2000`.
+     - Hardened `allVacancies` filter so requisitions with remaining quota (`v.hcFilled < v.hcTotal`) are protected from premature deduplication drops.
+
+4. **Loop Verification Gate Passed**:
+   - Mechanical Gate 1: `npm run lint` -> **0 errors**, 9 warnings (preexisting).
+   - Mechanical Gate 2: `npm run build` -> **0 errors**, all 19/19 routes compiled successfully.
+
+---
+
 ## Plantilla Roster Retention, Stage Renaming & Vacancy Sourcing Pipeline Parity (ohm#plan08)
 
 **Status: COMPLETE — RESOLVED ACTIVE EMPLOYEE TRUNCATION WHERE 752 RECORDS WERE CAPPED AT 100 BY INCREASING MAX_PAGE_SIZE TO 5000 IN PLANTILLA.TS, REQUESTING PAGESIZE: 2000 IN PLANTILLA/PAGE.TSX, AND ADDING CONCURRENT CHUNKED FETCHING IN LISTWEBPLANTILLAEMPLOYEES TO LOAD ALL 752 ACTIVE PERSONNEL; CREATED MIGRATION 20261027170000_INCREASE_PLANTILLA_LIST_LIMIT.SQL RAISING V_LIMIT CEILING TO 5000; ALIGNED ISHRPIPELINEWORKFLOWSTAGE TO STRICTLY TARGET HR EMPLOC ONBOARDING STAGES SO ATS CANDIDATE SOURCING VACANCY - PIPELINE [E.G. TEJADA, ELIZABETH ON VCBPIG1_0183] CORRECTLY REFLECTS UNDER OPEN / UNASSIGNED [1] AND NOT HR PIPELINE (FOR EMPLOC) [0]; SYNCHRONIZED KPI CARDS TO OPEN VACANCIES = 1 AND HR PIPELINE = 0; RENAMED TABLE HEADER FROM STATUS TO STAGE; VERIFIED WITH MECHANICAL LOOP GATE: ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**

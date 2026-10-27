@@ -674,7 +674,7 @@ function PlantillaPageContent() {
       listVacancies({
         accountId: accountId || undefined,
         page: 1,
-        pageSize: 200,
+        pageSize: 2000,
       }),
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
@@ -839,7 +839,12 @@ function PlantillaPageContent() {
         v.derivedStatus?.toLowerCase() === "hired";
       if (isFilled) return false;
 
-      // Filter out slots that are already occupied by an active employee in Plantilla
+      // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
+      if (v.hcTotal != null && v.hcFilled != null && v.hcFilled < v.hcTotal) {
+        return true;
+      }
+
+      // Filter out slots that are already fully occupied by active employees in Plantilla
       if (vk && activeOccupiedVcodes.has(vk)) {
         const activeCount = activeOccupiedVcodes.get(vk) ?? 0;
         const required = v.hcTotal ?? v.headcount ?? 1;

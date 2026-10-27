@@ -8,6 +8,21 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Multi-Headcount Open Retention & Pipeline Precedence Parity (`ohm#plan09`)**:
+  - **Mobile Client-Side Alignment (`OHMployee`)**:
+    - Updated `VacancyItem.remainingOpenCount` in `models.dart` to prevent subtracting `displayPipelineCount` from available open capacity (`(derivedOpenCount - (hrProcessingCount ?? 0)).clamp(0, derivedOpenCount)`).
+    - Aligned `_isOpenVacancy(vacancy)` and `_remainingOpenCount` in `vacancy_screen.dart` so multi-headcount requisitions (such as $HC = 2$) remain visible and actionable in the Open tab even when candidates enter pipeline screening.
+    - Synchronized `_remainingOpenCount` in `dashboard_screen.dart` to maintain org-wide capacity calculation parity.
+  - **Database View & RPC Migration (`20261027180000_fix_vacancy_open_pipeline_status_precedence.sql`)**:
+    - Recreated `public.vw_vacancy_list` and `public.vw_vacancy_detail` to correct `derived_status` precedence: checks `active_applicant_count > 0` for `'Pipeline'` before falling back to `'Open'`, eliminating dead-code conditions.
+    - Restored `hc_filled` to strictly count `confirmed_onboard_count` instead of erroneously adding unvetted screening applicants to filled headcount.
+    - Updated `public.list_web_vacancies` raising `v_limit` ceiling from 200 to 5000 and asserting capacity-aware Open tab qualification (`hc_filled < hc_total`).
+    - Aligned `public.get_web_vacancy_summary` to match capacity-aware counts across Open and Pipeline queues.
+  - **Web Query & Plantilla Vacancy Tab Scalability (`ohmployee-web`)**:
+    - Increased `MAX_PAGE_SIZE` in `src/lib/queries/vacancy.ts` from 100 to 5000.
+    - Bumped `vacancyListQuery` in `src/app/(dashboard)/plantilla/page.tsx` to `pageSize: 2000` to prevent truncation of vacant slots.
+    - Hardened `allVacancies` filter in `plantilla/page.tsx` so requisitions with remaining capacity (`v.hcFilled < v.hcTotal`) are never dropped by active employee deduplication.
+
 - **Landing Page Integration**: Vacancy (`/vacancy`) serves as the primary operational landing workspace for authenticated OHMployee Web sessions; the application root (`/`), successful authentication redirects, and fallback redirects route to `/vacancy` instead of `/dashboard`.
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
 - The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.

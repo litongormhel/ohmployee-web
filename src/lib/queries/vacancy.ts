@@ -266,7 +266,7 @@ export class VacancyDataError extends Error {
 
 type VacancyRpcRow = Record<string, unknown>;
 
-const MAX_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 5000;
 const supportedAgingBuckets = new Set<VacancyAgingBucket>([
   "advance",
   "1_15",
