@@ -384,6 +384,7 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 
 ### Phase 2: Supabase Backend Migration & RPCs [COMPLETED]
 - Established backend functions: `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail`.
+- Synchronized `get_web_hr_emploc_detail` with canonical 48-column `RETURNS TABLE` signature and body (including `deployed_by_user_id`, `employee_lookup_*`, and correction timeline) and prepended `DROP FUNCTION IF EXISTS` statements in `20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql` to prevent SQLSTATE 42P13 return type collisions.
 - Verified security policies: checked RLS, restricted anonymous callers, and enforced role constraints (`Head Admin` block on employee number assignment).
 
 ### Phase 3: Read-Only Client Integration [COMPLETED]

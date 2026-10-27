@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Fix SQLSTATE 42P13 in HR Emploc Correction RPC Migration (ohm#hremploc02)
+
+**Status: COMPLETE — RESOLVED POSTGRESQL SQLSTATE 42P13 ("CANNOT CHANGE RETURN TYPE OF EXISTING FUNCTION") IN MIGRATION 20261027120000_FIX_HRCO_ALL_SCOPE_HR_EMPLOC_CORRECTION_RPC.SQL FOR PUBLIC.GET_WEB_HR_EMPLOC_DETAIL(UUID); SYNCHRONIZED GET_WEB_HR_EMPLOC_DETAIL WITH THE CANONICAL 48-COLUMN RETURNS TABLE SIGNATURE AND BODY FROM 20262606000043 (PRESERVING DEPLOYED_BY_USER_ID, EMPLOYEE_LOOKUP_*, TIMELINE, ETC.) WHILE MAINTAINING ALL HRCO ALL-SCOPE AND GLOBAL VISIBILITY BYPASSES; ADDED EXPLICIT DROP FUNCTION IF EXISTS STATEMENTS PRECEDING ALL 4 FUNCTIONS IN THE MIGRATION TO PREVENT FUTURE SIGNATURE OR PARAMETER COLLISIONS; VERIFIED RENAMED MIGRATION 20261013000001 (RESOLVING DUPLICATE TIMESTAMP COLLISION WITH 20261013000000); ESLINT CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS IN VACANCYTABLE); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Root Cause Identification**:
+   - Running `npx supabase db push --include-all` failed at statement 4 of `supabase/migrations/20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql`:
+     ```
+     ERROR: cannot change return type of existing function (SQLSTATE 42P13) - Row type defined by OUT parameters is different.
+     ```
+   - In PostgreSQL, `CREATE OR REPLACE FUNCTION` cannot modify the row type or output columns of an existing function that returns a table or row set.
+   - The earlier draft of `20261027120000` contained a 49-column version of `get_web_hr_emploc_detail` derived from older schema prototypes (with `address_snapshot`, `contact_number_snapshot`, `sss_snapshot`, `philhealth_snapshot`, `pagibig_snapshot`), whereas the production/staging schema in later-numbered migrations (specifically `20262606000043_fix_hr_emploc_mobile_web_parity_prod.sql`) defines a canonical 48-column signature including `deployed_by_user_id`, `employee_lookup_found`, `employee_lookup_synced_at`, `employee_lookup_remarks`, and uses `public.get_correction_timeline(h.id)`.
+
+2. **Migration Alignment & Drop Function Guards (`supabase/migrations/20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql`)**:
+   - Replaced `public.get_web_hr_emploc_detail` with the canonical 48-column signature and body from `20262606000043`, preserving all fields and joined tables (`vacancies`, `groups`, `stores`, `positions`).
+   - Integrated the HRCO "All Scope" / global visibility bypasses:
+     - Preliminary security check: `COALESCE(v_role_level, 0) >= 90 OR public.i_have_full_access() OR public.get_my_scope_type() = 'global' OR public.i_have_hrco_global_visibility()`
+     - Attachment `storage_path` visibility: unlocked for callers with global scope or global visibility.
+     - Final record query WHERE clause: enforces global bypass alongside allowed accounts and scope records.
+   - Added `DROP FUNCTION IF EXISTS` statements before all 4 functions in the migration:
+     - `DROP FUNCTION IF EXISTS public.get_correction_requests_scoped(uuid, text, integer, integer);`
+     - `DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);`
+     - `DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);`
+     - `DROP FUNCTION IF EXISTS public.get_web_hr_emploc_detail(uuid);`
+   - Added explicit parameter signatures in comments and grant/revoke directives.
+
+3. **Duplicate Migration Timestamp Rename**:
+   - Migration `20261013000000_fix_vacancy_tab_counts_and_canonical_archive_filter.sql` was renamed to `20261013000001_fix_vacancy_tab_counts_and_canonical_archive_filter.sql` to eliminate a version collision with `20261013000000_block_inactive_plantilla_on_import.sql`.
+
+4. **Codebase Health & Verification**:
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+   - Work conducted directly on `main` branch with zero branch creation.
+
+---
+
 ## Fix HRCO Scope Bypass Bug in Plantilla Module (ohm#plan03)
 
 **Status: COMPLETE — FIXED SCOPE BYPASS IN PLANTILLA MODULE WHERE HRCO AND SCOPED ROLES COULD VIEW ALL PLANTILLA GROUPS AND ACCOUNTS; CENTRALIZED SCOPE-ENFORCED ACCOUNT RETRIEVAL VIA FETCHPLANTILLASCOPEDACCOUNTS IN PLANTILLA.TS WITH STRICT FILTERING ON GROUP_ID AND ACCOUNT_ID; REFINED AUTH CONTEXT TO ELEVATE GLOBAL SCOPE ONLY ON EXPLICIT ALL-SCOPE/GLOBAL-HQ PERMISSIONS; HARDENED PLANTILLA/PAGE.TS SO UNIQUEGROUPS AND THE GROUP DROPDOWN FILTER ONLY TO ASSIGNED GROUPS FOR SCOPED USERS; ADDED RUNTIME VALIDATION REJECTING DIRECT URL MANIPULATION (?ACCOUNTID=...) WITH ACCESS_DENIED DATASTATE; HARDENED WORKFORCE ANALYTICS AND PLANTILLA MODALS (REQUESTPOOLCONVERSIONMODAL, REQUESTPOOLHEADCOUNTMODAL, REQUESTRELIEVERCOVERAGEMODAL); ESLINT CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**

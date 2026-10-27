@@ -8,6 +8,8 @@
 --      from viewing any records where hrco_user_id_snapshot was null or assigned to another user.
 --   2. list_web_hr_emplocs, get_web_hr_emploc_summary, and get_web_hr_emploc_detail relied solely on role_level >= 90
 --      for global scoping bypass, which excluded HRCOs (level 45) unless their account name strictly matched get_my_allowed_accounts().
+--   3. get_web_hr_emploc_detail had an outdated return signature compared to later migrations (e.g. 20262606000043),
+--      causing SQLSTATE 42P13 ("cannot change return type of existing function") when reapplied without DROP FUNCTION IF EXISTS.
 --
 -- Solution:
 --   1. Update public.get_correction_requests_scoped to check public.get_my_scope_type() = 'global',
@@ -15,10 +17,13 @@
 --      or he.hrco_user_id_snapshot = v_my_id.
 --   2. Update public.list_web_hr_emplocs, public.get_web_hr_emploc_summary, and public.get_web_hr_emploc_detail
 --      to explicitly allow callers with global scope (get_my_scope_type() = 'global' or hrco_global_visibility = true).
+--   3. Synchronize get_web_hr_emploc_detail with the true canonical 48-column signature and body from 20262606000043.
+--   4. Prepend DROP FUNCTION IF EXISTS before each function to prevent SQLSTATE 42P13 when updating return row types.
 
 BEGIN;
 
 -- ── 1. Recreate get_correction_requests_scoped ────────────────────────────────
+DROP FUNCTION IF EXISTS public.get_correction_requests_scoped(uuid, text, integer, integer);
 CREATE OR REPLACE FUNCTION public.get_correction_requests_scoped(
   p_hr_emploc_id uuid DEFAULT NULL::uuid,
   p_status text DEFAULT NULL::text,
@@ -164,6 +169,7 @@ END;
 $$;
 
 -- ── 2. Recreate list_web_hr_emplocs ───────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
   p_queue         text DEFAULT NULL,
   p_status        text DEFAULT NULL,
@@ -602,6 +608,7 @@ END;
 $$;
 
 -- ── 3. Recreate get_web_hr_emploc_summary ─────────────────────────────────────
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);
 CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(
   p_queue         text DEFAULT NULL,
   p_status        text DEFAULT NULL,
@@ -783,6 +790,7 @@ END;
 $$;
 
 -- ── 4. Recreate get_web_hr_emploc_detail ──────────────────────────────────────
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_detail(uuid);
 CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_detail(p_hr_emploc_id uuid)
 RETURNS TABLE (
   hr_emploc_id               uuid,
@@ -808,30 +816,29 @@ RETURNS TABLE (
   date_requested             timestamp with time zone,
   created_at                 timestamp with time zone,
   hired_date                 date,
-  sla_breached               boolean,
-  sla_status                 text,
-  sla_deadline               timestamp with time zone,
-  aging_days                 integer,
+  deployed_by_user_id        uuid,
+  hrco_user_id_snapshot      uuid,
+  hrco_name                  text,
+  employee_lookup_found      boolean,
+  employee_lookup_synced_at  timestamp with time zone,
+  employee_lookup_remarks    text,
   employee_name_snapshot     text,
   birthdate_snapshot         date,
   civil_status_snapshot      text,
-  address_snapshot           text,
-  contact_number_snapshot    text,
-  sss_snapshot               text,
-  philhealth_snapshot        text,
-  pagibig_snapshot           text,
   requirement_overall_status text,
-  hrco_user_id_snapshot      uuid,
-  hrco_name                  text,
+  ops_remarks                text,
+  hr_remarks                 text,
+  hr_rejection_reason        text,
   hr_reviewed_by             text,
   hr_reviewed_at             timestamp with time zone,
-  hr_remarks                 text,
-  ops_remarks                text,
-  hr_rejection_reason        text,
   deficiency_summary         jsonb,
   correction_reason          jsonb,
   correction_attachments     jsonb,
   deletion_request           jsonb,
+  sla_breached               boolean,
+  sla_status                 text,
+  sla_deadline               timestamp with time zone,
+  aging_days                 integer,
   timeline                   jsonb,
   row_capabilities           jsonb
 )
@@ -902,38 +909,21 @@ BEGIN
   RETURN QUERY
   SELECT
     h.id AS hr_emploc_id,
-    h.applicant_name,
-    h.vcode,
-    h.vacancy_id,
-    h.vacancy_code_snapshot,
-    h.position_id_snapshot,
-    h.position AS position_title,
+    COALESCE(h.applicant_name, h.applicant_name_snapshot, 'Anonymous') AS applicant_name,
+    COALESCE(h.vcode, v.vcode, 'Uncoded') AS vcode,
+    COALESCE(h.vacancy_id, v.id) AS vacancy_id,
+    COALESCE(h.vacancy_code_snapshot, v.vcode) AS vacancy_code_snapshot,
+    COALESCE(h.position_id_snapshot, v.position_id) AS position_id_snapshot,
+    COALESCE(h.position, p.position_name) AS position_title,
     h.assignment_type::text AS assignment_type,
     h.roving_assignment_id,
-    
-    -- Covered Stores normalized array
-    CASE
-      WHEN h.assignment_type = 'Roving'::public.hr_emploc_assignment_type THEN (
-        SELECT COALESCE(jsonb_agg(
-          jsonb_build_object(
-            'store_id', s.id,
-            'store_name', s.store_name,
-            'address', s.address
-          )
-        ), '[]'::jsonb)
-        FROM public.hr_emploc_store_links hsl
-        JOIN public.stores s ON s.id = hsl.store_id
-        WHERE hsl.hr_emploc_id = h.id
-      )
-      ELSE '[]'::jsonb
-    END AS covered_stores,
-
-    h.account_id,
-    a.account_name,
-    a.group_id,
-    g.group_name,
-    h.store_id,
-    h.store_name,
+    COALESCE(h.covered_stores, '[]'::jsonb) AS covered_stores,
+    COALESCE(h.account_id, a.id, v.account_id) AS account_id,
+    COALESCE(a.account_name, h.account) AS account_name,
+    COALESCE(a.group_id, g.id, v.group_id) AS group_id,
+    COALESCE(g.group_name, g2.group_name) AS group_name,
+    COALESCE(h.store_id, st.id, v.store_id) AS store_id,
+    COALESCE(h.store_name, st.store_name) AS store_name,
     h.hr_status,
     h.status,
     h.emploc_no,
@@ -941,38 +931,21 @@ BEGIN
     h.date_requested,
     h.created_at,
     h.hired_date,
-
-    -- SLA computations
-    ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
-    
-    CASE
-      WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))
-        THEN 'breached'
-      WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) >= (now() - '3 days'::interval) AND COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval))
-        THEN 'warning'
-      ELSE 'normal'
-    END AS sla_status,
-    
-    (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
-    GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
-
-    -- Snapshots
+    h.deployed_by_user_id,
+    h.hrco_user_id_snapshot,
+    COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)) AS hrco_name,
+    h.employee_lookup_found,
+    h.employee_lookup_synced_at,
+    h.employee_lookup_remarks,
     h.employee_name_snapshot,
     h.birthdate_snapshot,
     h.civil_status_snapshot,
-    h.address_snapshot,
-    h.contact_number_snapshot,
-    h.sss_snapshot,
-    h.philhealth_snapshot,
-    h.pagibig_snapshot,
     h.requirement_overall_status,
-    h.hrco_user_id_snapshot,
-    COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)) AS hrco_name,
+    h.ops_remarks,
+    h.hr_remarks,
+    h.hr_rejection_reason,
     h.hr_reviewed_by,
     h.hr_reviewed_at,
-    h.hr_remarks,
-    h.ops_remarks,
-    h.hr_rejection_reason,
 
     -- Deficiency Summary
     CASE
@@ -1038,57 +1011,71 @@ BEGIN
         'reason', dr.reason,
         'requested_by', dr.requested_by,
         'requested_by_role', dr.requested_by_role,
-        'requested_at', dr.created_at,
+        'requested_by_user_id', dr.requested_by_user_id,
+        'created_at', dr.created_at,
+        'deletion_type', dr.deletion_type,
+        'original_emploc_id', dr.original_emploc_id,
+        'original_hr_status', dr.original_hr_status,
         'reviewed_by', dr.reviewed_by,
         'reviewed_at', dr.reviewed_at,
-        'review_remarks', dr.review_remarks,
-        'deletion_type', dr.deletion_type,
-        'original_emploc_id', dr.original_emploc_id
+        'reviewer_remarks', dr.reviewer_remarks,
+        'activities', (
+          SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+              'id', act.id,
+              'activity_type', act.activity_type,
+              'performed_by', act.performed_by,
+              'performed_by_user_id', act.performed_by_user_id,
+              'performed_at', act.performed_at,
+              'remarks', act.remarks
+            ) ORDER BY act.performed_at DESC
+          ), '[]'::jsonb)
+          FROM public.hr_emploc_deletion_activities act
+          WHERE act.request_id = dr.id
+        )
       )
       FROM public.hr_emploc_deletion_requests dr
-      WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+      WHERE dr.hr_emploc_id = h.id
       ORDER BY dr.created_at DESC
       LIMIT 1
     ) AS deletion_request,
 
-    -- Unified Audit / History Timeline
+    -- SLA & Aging Computations
+    ((h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
+
+    CASE
+      WHEN ((h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))
+        THEN 'breached'
+      WHEN ((h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) >= (now() - '3 days'::interval) AND COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval))
+        THEN 'warning'
+      ELSE 'normal'
+    END AS sla_status,
+
+    (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
+    GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
+
+    -- Chronological Correction / Action Timeline History
     (
       SELECT COALESCE(jsonb_agg(
         jsonb_build_object(
-          'event_id', t.id,
+          'event_id', t.event_id,
+          'event_type', t.event_type,
           'event_label', t.event_label,
+          'status_from', t.status_from,
+          'status_to', t.status_to,
           'remarks', t.remarks,
-          'created_at', t.created_at,
+          'actor_id', t.actor_id,
           'actor_name', t.actor_name,
-          'actor_role', t.actor_role
-        ) ORDER BY t.created_at DESC
+          'has_attachment', t.has_attachment,
+          'attachment_filename', t.attachment_filename,
+          'attachment_size_bytes', t.attachment_size_bytes,
+          'created_at', t.created_at
+        ) ORDER BY t.created_at ASC
       ), '[]'::jsonb)
-      FROM (
-        SELECT
-          al.id,
-          al.action AS event_label,
-          COALESCE(al.new_data->>'remarks', al.new_data->>'notes', al.action) AS remarks,
-          al.timestamp AS created_at,
-          up_act.full_name AS actor_name,
-          r_act.role_name AS actor_role
-        FROM public.audit_logs al
-        LEFT JOIN public.users_profile up_act ON up_act.id = al.actor_id
-        LEFT JOIN public.roles r_act ON r_act.id = up_act.role_id
-        WHERE al.module = 'hr_emploc' AND al.record_id = h.id::text
-        UNION ALL
-        SELECT
-          dr.id,
-          'Deletion Request: ' || dr.status AS event_label,
-          dr.reason AS remarks,
-          dr.created_at,
-          dr.requested_by AS actor_name,
-          dr.requested_by_role AS actor_role
-        FROM public.hr_emploc_deletion_requests dr
-        WHERE dr.hr_emploc_id = h.id
-      ) t
+      FROM public.get_correction_timeline(h.id) t
     ) AS timeline,
 
-    -- UI Row / Detail Capabilities
+    -- Row action capability presentation UI hints
     jsonb_build_object(
       'can_view_detail', true,
       'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
@@ -1190,7 +1177,37 @@ BEGIN
   FROM public.hr_emploc h
   LEFT JOIN public.accounts a ON a.id = h.account_id
   LEFT JOIN public.groups g ON g.id = a.group_id
-  WHERE h.id = p_hr_emploc_id;
+  LEFT JOIN public.stores st ON st.id = h.store_id
+  LEFT JOIN public.vacancies v ON v.id = h.vacancy_id
+  LEFT JOIN public.groups g2 ON g2.id = v.group_id
+  LEFT JOIN public.positions p ON p.id = COALESCE(h.position_id_snapshot, v.position_id)
+  WHERE h.id = p_hr_emploc_id
+    -- Strict Soft-Delete Enforcement (always mandatory, never bypassed by role level)
+    AND h.deleted_at IS NULL
+    -- Scoped Visibility Enforcements (role_level >= 90 or global scope bypasses account scoping)
+    AND (
+      COALESCE(v_role_level, 0) >= 90
+      OR public.i_have_full_access()
+      OR public.get_my_scope_type() = 'global'
+      OR public.i_have_hrco_global_visibility()
+      OR (
+        h.account = ANY (public.get_my_allowed_accounts())
+        OR EXISTS (
+          SELECT 1 FROM public.user_scopes us
+          WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
+        )
+        OR EXISTS (
+          SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
+          WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
+        )
+        OR EXISTS (
+          SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
+          WHERE up_fallback.id = v_profile_id
+            AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
+            AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
+        )
+      )
+    );
 END;
 $$;
 
@@ -1198,10 +1215,10 @@ $$;
 COMMENT ON FUNCTION public.get_correction_requests_scoped(uuid, text, integer, integer) IS
   'Scoped correction requests fetcher for HR Emploc module. Supports HRCO users with All Scope, global visibility, or allowed accounts.';
 
-COMMENT ON FUNCTION public.list_web_hr_emplocs IS
+COMMENT ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) IS
   'Web presentation list query for HR Emploc module. Strictly enforces deleted_at IS NULL, aligns queue filtering with Mobile, and honors global scope / hrco_global_visibility.';
 
-COMMENT ON FUNCTION public.get_web_hr_emploc_summary IS
+COMMENT ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) IS
   'Web presentation summary counters for HR Emploc module. Strictly enforces deleted_at IS NULL, aligns queue counting with Mobile, and honors global scope / hrco_global_visibility.';
 
 COMMENT ON FUNCTION public.get_web_hr_emploc_detail(uuid) IS
@@ -1211,13 +1228,13 @@ REVOKE ALL ON FUNCTION public.get_correction_requests_scoped(uuid, text, integer
 REVOKE ALL ON FUNCTION public.get_correction_requests_scoped(uuid, text, integer, integer) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_correction_requests_scoped(uuid, text, integer, integer) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.list_web_hr_emplocs FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.list_web_hr_emplocs FROM anon;
-GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs TO authenticated;
+REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary FROM anon;
-GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_summary TO authenticated;
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.get_web_hr_emploc_detail(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_web_hr_emploc_detail(uuid) FROM anon;
