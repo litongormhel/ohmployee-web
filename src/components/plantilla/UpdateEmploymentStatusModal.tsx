@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Calendar, CheckCircle2, Clock, Loader2, PauseCircle, UserCheck } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  DoorOpen,
+  Loader2,
+  PauseCircle,
+  UserCheck,
+  UserMinus,
+  UserX,
+} from "lucide-react";
 import {
   useUpdateEmploymentStatus,
   type EmploymentStatusTarget,
@@ -18,19 +29,23 @@ export interface UpdateEmploymentStatusModalProps {
   onSuccess?: () => void;
 }
 
-const STATUS_OPTIONS: {
+interface StatusOptionItem {
   value: EmploymentStatusTarget;
   label: string;
   description: string;
   icon: typeof UserCheck;
   colorClass: string;
-}[] = [
+  category: "operational" | "separation";
+}
+
+const STATUS_OPTIONS: StatusOptionItem[] = [
   {
     value: "Active",
     label: "Active",
     description: "Employee is fully active and performing duties in assigned slot",
     icon: CheckCircle2,
     colorClass: "text-pct-good-text border-pct-good-border bg-pct-good-bg",
+    category: "operational",
   },
   {
     value: "On Leave",
@@ -38,6 +53,7 @@ const STATUS_OPTIONS: {
     description: "Approved medical, maternity, or authorized leave; slot flagged for reliever coverage",
     icon: Clock,
     colorClass: "text-pct-warn-text border-pct-warn-border bg-pct-warn-bg",
+    category: "operational",
   },
   {
     value: "Floating",
@@ -45,6 +61,31 @@ const STATUS_OPTIONS: {
     description: "Temporarily unassigned/floating inactive; triggers deactivation request readiness",
     icon: PauseCircle,
     colorClass: "text-text-primary border-border-default bg-surface-muted",
+    category: "operational",
+  },
+  {
+    value: "Resigned",
+    label: "Resigned",
+    description: "Voluntary resignation; vacates slot back to Vacancy Open tab and moves record to Inactive tab",
+    icon: DoorOpen,
+    colorClass: "text-pct-warn-text border-pct-warn-border bg-pct-warn-bg",
+    category: "separation",
+  },
+  {
+    value: "AWOL",
+    label: "AWOL (Absence Without Official Leave)",
+    description: "Unexcused abandonment of post; vacates slot immediately and routes record to Inactive tab",
+    icon: UserX,
+    colorClass: "text-danger-text border-danger-border bg-danger-bg",
+    category: "separation",
+  },
+  {
+    value: "Terminated",
+    label: "Terminated",
+    description: "Involuntary administrative / disciplinary termination; vacates slot and routes record to Inactive tab",
+    icon: UserMinus,
+    colorClass: "text-danger-text border-danger-border bg-danger-bg",
+    category: "separation",
   },
 ];
 
@@ -68,20 +109,35 @@ export function UpdateEmploymentStatusModal({
   const [targetStatus, setTargetStatus] = useState<EmploymentStatusTarget>(defaultTarget);
   const [leaveReason, setLeaveReason] = useState<string>("");
   const [expectedReturnDate, setExpectedReturnDate] = useState<string>("");
+  const [effectiveDate, setEffectiveDate] = useState<string>(
+    () => new Date().toISOString().substring(0, 10),
+  );
   const [remarks, setRemarks] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const mutation = useUpdateEmploymentStatus();
 
+  const isSeparation =
+    targetStatus === "Resigned" ||
+    targetStatus === "AWOL" ||
+    targetStatus === "Terminated";
+
+  const todayIso = new Date().toISOString().substring(0, 10);
   const isDirty =
     targetStatus !== defaultTarget ||
     leaveReason !== "" ||
     expectedReturnDate !== "" ||
-    remarks.trim() !== "";
+    remarks.trim() !== "" ||
+    (isSeparation && effectiveDate !== todayIso);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (isSeparation && !effectiveDate) {
+      setErrorMessage("Please select an effective separation date.");
+      return;
+    }
 
     mutation.mutate(
       {
@@ -90,6 +146,7 @@ export function UpdateEmploymentStatusModal({
         reason: leaveReason.trim() || undefined,
         remarks: remarks.trim() || undefined,
         expectedReturnDate: expectedReturnDate || undefined,
+        effectiveDate: isSeparation ? effectiveDate : undefined,
       },
       {
         onSuccess: () => {
@@ -100,6 +157,44 @@ export function UpdateEmploymentStatusModal({
           setErrorMessage(err.message || "Failed to update employment status.");
         },
       },
+    );
+  };
+
+  const renderStatusOption = (opt: StatusOptionItem) => {
+    const IconComponent = opt.icon;
+    const isSelected = targetStatus === opt.value;
+    return (
+      <label
+        key={opt.value}
+        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+          isSelected
+            ? "border-brand-primary bg-surface-selected ring-1 ring-brand-primary"
+            : "border-border-default hover:border-border-strong hover:bg-surface-hover"
+        }`}
+      >
+        <input
+          type="radio"
+          name="targetStatus"
+          value={opt.value}
+          checked={isSelected}
+          onChange={() => setTargetStatus(opt.value)}
+          className="mt-0.5 text-brand-primary focus:ring-brand-primary"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-text-primary">{opt.label}</span>
+            {isSelected && (
+              <span className="text-[10px] font-medium text-brand-primary bg-surface px-1.5 py-0.2 rounded border border-border-default">
+                Selected
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] text-text-secondary leading-normal">
+            {opt.description}
+          </p>
+        </div>
+        <IconComponent className={`h-4 w-4 shrink-0 mt-0.5 ${opt.colorClass.split(" ")[0]}`} />
+      </label>
     );
   };
 
@@ -120,48 +215,29 @@ export function UpdateEmploymentStatusModal({
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Target Status Radios */}
-        <div className="space-y-2">
+        <div className="space-y-4">
           <label className="block text-xs font-semibold text-text-secondary">
             Select New Employment Status <span className="text-danger-text">*</span>
           </label>
-          <div className="grid gap-2">
-            {STATUS_OPTIONS.map((opt) => {
-              const IconComponent = opt.icon;
-              const isSelected = targetStatus === opt.value;
-              return (
-                <label
-                  key={opt.value}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    isSelected
-                      ? "border-brand-primary bg-surface-selected ring-1 ring-brand-primary"
-                      : "border-border-default hover:border-border-strong hover:bg-surface-hover"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="targetStatus"
-                    value={opt.value}
-                    checked={isSelected}
-                    onChange={() => setTargetStatus(opt.value)}
-                    className="mt-0.5 text-brand-primary focus:ring-brand-primary"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-text-primary">{opt.label}</span>
-                      {isSelected && (
-                        <span className="text-[10px] font-medium text-brand-primary bg-surface px-1.5 py-0.2 rounded border border-border-default">
-                          Selected
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-text-secondary leading-normal">
-                      {opt.description}
-                    </p>
-                  </div>
-                  <IconComponent className={`h-4 w-4 shrink-0 mt-0.5 ${opt.colorClass.split(" ")[0]}`} />
-                </label>
-              );
-            })}
+
+          {/* Operational Duty Group */}
+          <div className="space-y-1.5">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Operational Duty Status
+            </span>
+            <div className="grid gap-2">
+              {STATUS_OPTIONS.filter((opt) => opt.category === "operational").map(renderStatusOption)}
+            </div>
+          </div>
+
+          {/* Personnel Separation Group */}
+          <div className="space-y-1.5">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Personnel Separation (Releases Slot & Moves to Inactive)
+            </span>
+            <div className="grid gap-2">
+              {STATUS_OPTIONS.filter((opt) => opt.category === "separation").map(renderStatusOption)}
+            </div>
           </div>
         </div>
 
@@ -218,8 +294,40 @@ export function UpdateEmploymentStatusModal({
             <div className="flex items-start gap-2">
               <PauseCircle className="h-4 w-4 text-text-secondary mt-0.5 shrink-0" />
               <p className="text-xs text-text-primary leading-relaxed font-medium">
-                Setting this employee to Floating moves their record to the Inactive tab with a Floating designation. You will be able to file a formal Deactivation Request subsequently.
+                Setting this employee to Floating vacates their current slot and moves their record to the Inactive tab with a Floating designation. You will be able to file a formal Deactivation Request subsequently.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Conditional Fields: Personnel Separation (Resigned, AWOL, Terminated) */}
+        {isSeparation && (
+          <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3.5 animate-in fade-in duration-150">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-text-secondary mt-0.5 shrink-0" />
+              <div className="text-xs text-text-primary leading-relaxed">
+                <span className="font-semibold text-text-primary">ADR-001 Slot Vacation Notice:</span>
+                <p className="mt-0.5 text-text-secondary">
+                  Marking this employee as <strong className="text-text-primary">{targetStatus}</strong> will set their status to <strong>Inactive</strong> and automatically vacate their assigned workforce slot. Under ADR-001 Slot-First Architecture, the slot returns immediately to the <strong>Vacancy Open</strong> recruitment queue, and this employee is archived under the <strong>Inactive</strong> tab.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="separation-effective-date" className="block text-xs font-semibold text-text-secondary">
+                Effective Separation Date <span className="text-danger-text">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  id="separation-effective-date"
+                  type="date"
+                  value={effectiveDate}
+                  onChange={(e) => setEffectiveDate(e.target.value)}
+                  className="w-full rounded-md border border-border-default bg-surface px-3 py-1.5 pl-8 text-xs text-text-primary shadow-xs focus:border-brand-primary focus:outline-hidden"
+                  required
+                />
+                <Calendar className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-text-muted" />
+              </div>
             </div>
           </div>
         )}

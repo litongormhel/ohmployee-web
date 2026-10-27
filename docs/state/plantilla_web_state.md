@@ -773,6 +773,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Drawer & Table Standardization (Loop 6A)**: Standardized `PlantillaDetailDrawer` (`drawer-width-lg`) and all 8 pool/store drawers with canonical `DetailDrawer`; strictly preserved table text floor $\ge 14\text{px}$ (`text-sm`) across members, vacancies, and store tables; preserved single-account auto-fire and ADR-001 account gate query rules.
   - **Modal Hardening & Canonical Stacking (Loop 6B)**: Aligned all 8 Plantilla lifecycle modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`) with canonical `Modal` at `z-[60]` over `DetailDrawer` at `z-50`; hardened against backdrop clicks during dirty states; disabled Esc/close buttons during `isSubmitting`.
   - **Specialized Views & Analytics Parity (Loop 6C)**: Standardized `MosesHqPoolView.tsx` and `WorkforceAnalyticsView.tsx` across all 7 analytics tabs (Overview, Deployment, Coverage, Conversion, Slots, Health, Executive); converted SVG progress donuts and horizontal bar indicators to standard tokens (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); preserved 100% RPC integration contracts and XLSX export capabilities.
+- **Employment Status & Separation Workflow Integration (`ohm#plan05`)**:
+  - Integrated separation statuses (`Resigned`, `AWOL`, `Terminated`) into `UpdateEmploymentStatusModal.tsx` grouped into Operational Duty Status (`Active`, `On Leave`, `Floating`) vs Personnel Separation (`Resigned`, `AWOL`, `Terminated`).
+  - Added conditional effective separation date picker and ADR-001 slot vacation notice.
+  - Extended `EmploymentStatusTarget` type and wired `updatePlantillaEmploymentStatus()` to route separation targets to `updatePlantillaSeparation` (`plantilla_update_separation` RPC), triggering reactive slot reopening (`fn_sync_slot_to_open()`) and archiving to Tab 6 `[ Inactive ]`.
+  - Added `row.separation_status` and `row.date_of_separation` normalization fallbacks in `normalizeEmployeeListRow`.
+  - Created migration `20261027150000_allow_terminated_separation_status.sql` updating `plantilla_separation_status_check` to include `'Terminated'` and `'End of Contract'`.
+
 
 
 

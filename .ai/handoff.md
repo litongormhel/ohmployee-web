@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
+
+**Status: COMPLETE — INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Update Employment Status Modal (`src/components/plantilla/UpdateEmploymentStatusModal.tsx`)**:
+   - Expanded status choices from 3 items (`Active`, `On Leave`, `Floating`) to 6 items grouped into two clear sections:
+     - **Operational Duty Status**:
+       - `Active`: Active duty in assigned slot.
+       - `On Leave`: Authorized leave (with leave reason and expected return date).
+       - `Floating`: Temporary unassigned / inactive (vacates slot for future deactivation).
+     - **Personnel Separation (Moves to Inactive Tab)**:
+       - `Resigned`: Voluntary resignation.
+       - `AWOL`: Absence without official leave.
+       - `Terminated`: Involuntary administrative/disciplinary termination.
+   - Added conditional **Effective Separation Date** picker (`<input type="date">` defaulted to current date) required when submitting a separation status.
+   - Added **ADR-001 Slot Vacation Notice** alerting the user that the slot will immediately transition from `occupied` to `open` and return to the Vacancy Open queue.
+   - Forwarded `effectiveDate` through the mutation payload and dynamically updated submit button text (`Set Status to ${targetStatus}`).
+
+2. **Backend Query & Mutation Layer (`src/lib/queries/plantilla.ts`)**:
+   - Expanded `EmploymentStatusTarget` type to: `"Active" | "On Leave" | "Floating" | "Resigned" | "AWOL" | "Terminated"`.
+   - Updated `UpdateEmploymentStatusParams` to include optional `effectiveDate?: string | null`.
+   - Updated `updatePlantillaEmploymentStatus()`: when target status is `"Resigned" | "AWOL" | "Terminated"`, routes directly to `updatePlantillaSeparation()`, which invokes `plantilla_update_separation` with `p_open_vacancy: true`.
+   - Hardened `normalizeEmployeeListRow`: added `row.separation_status` and `row.date_of_separation` to `separationType` and `separationDate` fallback chain, ensuring separation reason and date render in the Inactive tab table without relying on obsolete field names.
+
+3. **Database Migration (`supabase/migrations/20261027150000_allow_terminated_separation_status.sql`)**:
+   - Replaced `plantilla_separation_status_check` constraint on `public.plantilla` to allow:
+     `'AWOL'`, `'Resigned'`, `'Endo'`, `'End of Contract'`, `'Terminated'`, `'Others'`, `'Floating'`.
+   - Applied `NOT VALID` followed immediately by `VALIDATE CONSTRAINT` for zero-downtime, non-locking deployment.
+
+4. **Verification**:
+   - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+   - `npm run build`: 19/19 routes compiled successfully.
+
+---
+
 ## Plantilla SSOT Architecture, Vacancy Tab 9-Column Refactor, HR Emploc Pipeline & Inactive Tab (ohm#plan04)
 
 **Status: COMPLETE — IMPLEMENTED SINGLE SOURCE OF TRUTH (SSOT) ARCHITECTURE ACROSS PLANTILLA, VACANCY, AND HR EMPLOC; ADDED 6TH MAIN TAB [ INACTIVE ] FOR HISTORICAL ATTRITION ARCHIVE (RESIGNED, AWOL, TERMINATED) WITH RECOMMENDED 8-COLUMN LAYOUT AND AUTOMATED SLOT REOPENING UPON SEPARATION; REFACTORED VACANCY TAB TO STRICT 1-TO-1 SLOT MAPPING WITH 9 COLUMNS ([VCODE/CGCODE] | [STORE BRANCH / ANCHOR BRANCH] | [AREA & CITY] | [APPLICANT] | [STATUS] | [AGING] | [POSITION] | [SLOT 1 VACANT] | [REMARKS]) AND COMPLETELY REMOVED ACTIONS/DETAILS BUTTONS; WIRED FULL-ROW CLICK OPENING VACANCY SLIDE-OVER DRAWER WITH INLINE EDITABLE EFFECTIVE VACANCY DATE (VACANT_DATE) AND REACTIVE CROSS-MODULE AGING RECALCULATION; ADDED VACANCY SUB-FILTERS (ALL, OPEN, HR PIPELINE) WIRED DIRECTLY TO TOP KPI CARDS; EXPOSED IMPORT PLANTILLA IN PLANTILLA HEADER FOR OPERATIONAL SLOT INITIALIZATION; VERIFIED ZERO DATABASE DDL; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
@@ -757,6 +796,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
+
+**Status: COMPLETE — INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Update Employment Status Modal (`src/components/plantilla/UpdateEmploymentStatusModal.tsx`)**:
+   - Expanded status choices from 3 items (`Active`, `On Leave`, `Floating`) to 6 items grouped into two clear sections:
+     - **Operational Duty Status**:
+       - `Active`: Active duty in assigned slot.
+       - `On Leave`: Authorized leave (with leave reason and expected return date).
+       - `Floating`: Temporary unassigned / inactive (vacates slot for future deactivation).
+     - **Personnel Separation (Moves to Inactive Tab)**:
+       - `Resigned`: Voluntary resignation.
+       - `AWOL`: Absence without official leave.
+       - `Terminated`: Involuntary administrative/disciplinary termination.
+   - Added conditional **Effective Separation Date** picker (`<input type="date">` defaulted to current date) required when submitting a separation status.
+   - Added **ADR-001 Slot Vacation Notice** alerting the user that the slot will immediately transition from `occupied` to `open` and return to the Vacancy Open queue.
+   - Forwarded `effectiveDate` through the mutation payload and dynamically updated submit button text (`Set Status to ${targetStatus}`).
+
+2. **Backend Query & Mutation Layer (`src/lib/queries/plantilla.ts`)**:
+   - Expanded `EmploymentStatusTarget` type to: `"Active" | "On Leave" | "Floating" | "Resigned" | "AWOL" | "Terminated"`.
+   - Updated `UpdateEmploymentStatusParams` to include optional `effectiveDate?: string | null`.
+   - Updated `updatePlantillaEmploymentStatus()`: when target status is `"Resigned" | "AWOL" | "Terminated"`, routes directly to `updatePlantillaSeparation()`, which invokes `plantilla_update_separation` with `p_open_vacancy: true`.
+   - Hardened `normalizeEmployeeListRow`: added `row.separation_status` and `row.date_of_separation` to `separationType` and `separationDate` fallback chain, ensuring separation reason and date render in the Inactive tab table without relying on obsolete field names.
+
+3. **Database Migration (`supabase/migrations/20261027150000_allow_terminated_separation_status.sql`)**:
+   - Replaced `plantilla_separation_status_check` constraint on `public.plantilla` to allow:
+     `'AWOL'`, `'Resigned'`, `'Endo'`, `'End of Contract'`, `'Terminated'`, `'Others'`, `'Floating'`.
+   - Applied `NOT VALID` followed immediately by `VALIDATE CONSTRAINT` for zero-downtime, non-locking deployment.
+
+4. **Verification**:
+   - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+   - `npm run build`: 19/19 routes compiled successfully.
+
+---
+
 ## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
 
 **Status: COMPLETE — ALL 9 UI STAGING ITEMS IMPLEMENTED; TABLE HEADERS UNIFIED TO 14PX SENTENCE CASE; ZERO-HC DISPLAY GATED ACROSS PLANTILLA, DASHBOARD, AND CENCOM; DISPLAY TEXT TITLE-CASER CREATED AND TESTED; SCRIM TOKENS AND @THEME INLINE REGISTRATION FIXED; ENUMS HUMANIZED; PERCENTAGE SCALE COLOR ALIGNED; HIGH-CONTRAST DISABLED PRIMARY BUTTONS DEPLOYED; FOCUS-VISIBLE APPLIED TO SIDEBAR; ESLINT CLEAN (0 ERRORS, 0 NEW WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES GENERATED), CONTRAST AUDIT 100% WCAG AA (34/34 PAIRS PASS, 100/100 @THEME TOKENS REGISTERED), GATE.PY REPORTED; ZERO DATABASE ACCESS PERFORMED; LOCAL COMMIT ONLY ON MAIN**
@@ -862,6 +940,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
+
+**Status: COMPLETE — INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Update Employment Status Modal (`src/components/plantilla/UpdateEmploymentStatusModal.tsx`)**:
+   - Expanded status choices from 3 items (`Active`, `On Leave`, `Floating`) to 6 items grouped into two clear sections:
+     - **Operational Duty Status**:
+       - `Active`: Active duty in assigned slot.
+       - `On Leave`: Authorized leave (with leave reason and expected return date).
+       - `Floating`: Temporary unassigned / inactive (vacates slot for future deactivation).
+     - **Personnel Separation (Moves to Inactive Tab)**:
+       - `Resigned`: Voluntary resignation.
+       - `AWOL`: Absence without official leave.
+       - `Terminated`: Involuntary administrative/disciplinary termination.
+   - Added conditional **Effective Separation Date** picker (`<input type="date">` defaulted to current date) required when submitting a separation status.
+   - Added **ADR-001 Slot Vacation Notice** alerting the user that the slot will immediately transition from `occupied` to `open` and return to the Vacancy Open queue.
+   - Forwarded `effectiveDate` through the mutation payload and dynamically updated submit button text (`Set Status to ${targetStatus}`).
+
+2. **Backend Query & Mutation Layer (`src/lib/queries/plantilla.ts`)**:
+   - Expanded `EmploymentStatusTarget` type to: `"Active" | "On Leave" | "Floating" | "Resigned" | "AWOL" | "Terminated"`.
+   - Updated `UpdateEmploymentStatusParams` to include optional `effectiveDate?: string | null`.
+   - Updated `updatePlantillaEmploymentStatus()`: when target status is `"Resigned" | "AWOL" | "Terminated"`, routes directly to `updatePlantillaSeparation()`, which invokes `plantilla_update_separation` with `p_open_vacancy: true`.
+   - Hardened `normalizeEmployeeListRow`: added `row.separation_status` and `row.date_of_separation` to `separationType` and `separationDate` fallback chain, ensuring separation reason and date render in the Inactive tab table without relying on obsolete field names.
+
+3. **Database Migration (`supabase/migrations/20261027150000_allow_terminated_separation_status.sql`)**:
+   - Replaced `plantilla_separation_status_check` constraint on `public.plantilla` to allow:
+     `'AWOL'`, `'Resigned'`, `'Endo'`, `'End of Contract'`, `'Terminated'`, `'Others'`, `'Floating'`.
+   - Applied `NOT VALID` followed immediately by `VALIDATE CONSTRAINT` for zero-downtime, non-locking deployment.
+
+4. **Verification**:
+   - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+   - `npm run build`: 19/19 routes compiled successfully.
+
+---
 
 ## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
 
@@ -992,6 +1109,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
+
+**Status: COMPLETE — INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Update Employment Status Modal (`src/components/plantilla/UpdateEmploymentStatusModal.tsx`)**:
+   - Expanded status choices from 3 items (`Active`, `On Leave`, `Floating`) to 6 items grouped into two clear sections:
+     - **Operational Duty Status**:
+       - `Active`: Active duty in assigned slot.
+       - `On Leave`: Authorized leave (with leave reason and expected return date).
+       - `Floating`: Temporary unassigned / inactive (vacates slot for future deactivation).
+     - **Personnel Separation (Moves to Inactive Tab)**:
+       - `Resigned`: Voluntary resignation.
+       - `AWOL`: Absence without official leave.
+       - `Terminated`: Involuntary administrative/disciplinary termination.
+   - Added conditional **Effective Separation Date** picker (`<input type="date">` defaulted to current date) required when submitting a separation status.
+   - Added **ADR-001 Slot Vacation Notice** alerting the user that the slot will immediately transition from `occupied` to `open` and return to the Vacancy Open queue.
+   - Forwarded `effectiveDate` through the mutation payload and dynamically updated submit button text (`Set Status to ${targetStatus}`).
+
+2. **Backend Query & Mutation Layer (`src/lib/queries/plantilla.ts`)**:
+   - Expanded `EmploymentStatusTarget` type to: `"Active" | "On Leave" | "Floating" | "Resigned" | "AWOL" | "Terminated"`.
+   - Updated `UpdateEmploymentStatusParams` to include optional `effectiveDate?: string | null`.
+   - Updated `updatePlantillaEmploymentStatus()`: when target status is `"Resigned" | "AWOL" | "Terminated"`, routes directly to `updatePlantillaSeparation()`, which invokes `plantilla_update_separation` with `p_open_vacancy: true`.
+   - Hardened `normalizeEmployeeListRow`: added `row.separation_status` and `row.date_of_separation` to `separationType` and `separationDate` fallback chain, ensuring separation reason and date render in the Inactive tab table without relying on obsolete field names.
+
+3. **Database Migration (`supabase/migrations/20261027150000_allow_terminated_separation_status.sql`)**:
+   - Replaced `plantilla_separation_status_check` constraint on `public.plantilla` to allow:
+     `'AWOL'`, `'Resigned'`, `'Endo'`, `'End of Contract'`, `'Terminated'`, `'Others'`, `'Floating'`.
+   - Applied `NOT VALID` followed immediately by `VALIDATE CONSTRAINT` for zero-downtime, non-locking deployment.
+
+4. **Verification**:
+   - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+   - `npm run build`: 19/19 routes compiled successfully.
+
+---
 
 ## UI Staging Pass — Table Headers, Zero-HC Display, Title-Casing, Scrim & Button Contrast (ohm#uifix03)
 

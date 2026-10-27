@@ -681,8 +681,8 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     tenureDays: asCount(row.tenure_days),
     baseRateMasked: asString(row.base_rate_masked),
     slaBreached: asBoolean(row.sla_breached),
-    separationType: asString(row.separation_type ?? row.separationType ?? row.attrition_type),
-    separationDate: asString(row.separation_date ?? row.separationDate ?? row.date_separated ?? row.resignation_date),
+    separationType: asString(row.separation_type ?? row.separationType ?? row.attrition_type ?? row.separation_status),
+    separationDate: asString(row.separation_date ?? row.separationDate ?? row.date_separated ?? row.resignation_date ?? row.date_of_separation),
     clearanceStatus: asString(row.clearance_status ?? row.clearanceStatus),
     separationRemarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
     isActive: row.is_active !== undefined ? asBoolean(row.is_active) : undefined,
@@ -1382,7 +1382,13 @@ export interface UpdateSeparationParams {
   openVacancy?: boolean;
 }
 
-export type EmploymentStatusTarget = "Active" | "On Leave" | "Floating";
+export type EmploymentStatusTarget =
+  | "Active"
+  | "On Leave"
+  | "Floating"
+  | "Resigned"
+  | "AWOL"
+  | "Terminated";
 
 export interface UpdateEmploymentStatusParams {
   plantillaId: string;
@@ -1390,6 +1396,7 @@ export interface UpdateEmploymentStatusParams {
   reason?: string | null;
   remarks?: string | null;
   expectedReturnDate?: string | null;
+  effectiveDate?: string | null; // Required for Resigned, AWOL, Terminated
 }
 
 export interface CreateDeactivationRequestParams {
@@ -1490,6 +1497,20 @@ export async function updatePlantillaEmploymentStatus(params: UpdateEmploymentSt
       throwPlantillaError(error);
     }
     return data;
+  }
+
+  if (
+    params.targetStatus === "Resigned" ||
+    params.targetStatus === "AWOL" ||
+    params.targetStatus === "Terminated"
+  ) {
+    return updatePlantillaSeparation({
+      plantillaId: params.plantillaId,
+      separationStatus: params.targetStatus,
+      effectiveDate: params.effectiveDate || new Date().toISOString().substring(0, 10),
+      remarks: params.remarks?.trim() || null,
+      openVacancy: true,
+    });
   }
 
   throw new PlantillaDataError("retryable", `Unsupported employment status target: ${params.targetStatus}`);
