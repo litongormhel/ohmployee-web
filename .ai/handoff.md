@@ -1,5 +1,67 @@
 # AI Handoff
 
+## Migration Rename (Part 0), Step 3 Classification Coupling Stop Report (Part 1), Rule 4 Drift Audit (Part 2) & Step 6 Plan (Part 3) (Phase 4 — ohm#4x7n2k9w)
+
+**Status: PART 0 LOCAL RENAME COMPLETE (`20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`); PART 1 STEP 3 STOPPED BEFORE DB MUTATION PER EXPLICIT STOP CONDITIONS (CHANGING `hc_filled` TO `active_plantilla_count` WHILE KEEPING OPEN-TAB PREDICATE `(s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open')` AND `derived_status` UNCHANGED CAUSES 5 `Hired`/`Pipeline` VACANCIES TO FLIP INTO OPEN TAB, INFLATES `total_open` ON 4 ACCOUNTS, AND CAUSES `CPRVJV13` TO SHOW `1/1` WHILE `Open`); PART 2 RULE 4 DRIFT CHECK COMPLETE (READ-ONLY); PART 3 STEP 6 PLAN COMPLETE (PLAN ONLY) — AWAITING OHM'S DECISION ON STEP 3 OPEN/PIPELINE PREDICATE, STEP 4 FRONTEND, STEP 5 CLEANUP, STEP 6 IMPL, AND `20261027170000` LIMIT MIGRATION**
+
+- **ADR basis:** `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (consolidated as `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md`) — § Core Cross-Module Invariants (Rules 1, 2, 4), § Vacancy, § Dashboard & CENCOM.
+- **Branch status:** On `main` only (no branch created).
+
+### 1. Part 0 — Filename Fix (Local Only)
+- Executed `git mv supabase/migrations/20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql supabase/migrations/20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql` with file contents 100% unchanged so the local prefix matches `supabase_migrations.schema_migrations.version = '20261027091040'` on staging (`qqiiznmqxfoamqytjica`).
+- Updated all doc/handoff references in `.ai/briefing.md`, `.ai/handoff.md`, `docs/state/hr_emploc_web_state.md`, and `docs/state/plantilla_web_state.md`.
+
+### 2. Part 1 — Step 3 Narrowed Simulation & Explicit STOP Report (Zero DDL Applied)
+- **Why keeping Open/Pipeline classification unchanged is mathematically impossible once `hc_filled` changes without updating the Open-tab predicate & `derived_status`:**
+  1. In `list_web_vacancies` (`p_status = 'open'`) and `get_web_vacancy_summary` (`p_status = 'open'` filter and `total_open` count) on staging, the Open-tab predicate is:
+     `(s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open') AND s.vacancy_status <> 'Filled' AND s.has_pending_closure = false AND lower(coalesce(s.closure_request_status, '')) <> 'pending' AND lower(coalesce(s.vacancy_status, '')) NOT IN ('closure', 'for_closure', 'closed', 'archived')`.
+  2. When `hc_filled` was `confirmed_onboard_count + active_applicant_count`, `s.hc_filled < s.hc_total` and `lower(s.pipeline_status) = 'open'` tested the same quantity (`confirmed_onboard_count + active_applicant_count < hc_total`).
+  3. Once `hc_filled` is changed to `active_plantilla_count` (`plantilla.status = 'Active' AND COALESCE(is_deleted, false) = false AND COALESCE(is_archived, false) = false`) while keeping `(s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open')` and `derived_status` unchanged:
+     - `s.hc_filled < s.hc_total` evaluates `active_plantilla_count < hc_total`.
+     - Because it is joined with `OR`, **every non-archived, non-closed, non-`'Filled'` vacancy with `active_plantilla_count < hc_total` becomes `TRUE` for the Open tab (`p_status = 'open'`) and `get_web_vacancy_summary.total_open`**, even when `derived_status` (`pipeline_status`) is `'Hired'` (candidate in `hr_processing`) or `'Pipeline'` (all slots covered by active pipeline applicants).
+     - Conversely, `CPRVJV13` (`FOREVER OFFICE`, `hc_total=1`, `confirmed_onboard=0`, `active_app=0`, `active_plantilla=1`) gets `hc_filled = 1` (`hc_display = '1/1'`), yet because `derived_status` still checks `confirmed_onboard_count >= required_headcount` instead of `hc_filled >= required_headcount`, `derived_status` stays `'Open'` and `lower(s.pipeline_status) = 'open'` keeps a `1/1` filled vacancy in the Open tab!
+- **Simulated Before/After Smoke Test Across All 6 Accounts (`qqiiznmqxfoamqytjica`):**
+  - **Unexpected Tab / Status / `hc_display` Changes That Triggered STOP:**
+    1. `ACTISERVE` — `ACT-G5-002` (`derived_status='Hired'`, `confirmed_onboard=1`, `hr_proc=1`, `active_plantilla=0`): `hc_display` `1/1 -> 0/1`; **Tab flips `Open=false -> Open=true`** (pulls `'Hired'`/`hr_processing` row into Open tab).
+    2. `ACTISERVE` — `ACT-G5-006` (`derived_status='Hired'`, `confirmed_onboard=1`, `hr_proc=1`, `active_plantilla=0`): `hc_display` `1/1 -> 0/1`; **Tab flips `Open=false -> Open=true`**.
+    3. `ACTISERVE` — `ACT-G5-008` (`derived_status='Pipeline'`, `hc_total=2`, `active_app=2`, `active_plantilla=0`): `hc_display` `2/2 -> 0/2` (expected); **Tab flips `Open=false, Pipeline=true -> Open=true, Pipeline=true`**.
+    4. `ALTURAS` — `VCBPIG1_0183` (`derived_status='Pipeline'`, `hc_total=1`, `active_app=1`, `active_plantilla=0`): `hc_display` `1/1 -> 0/1`; **Tab flips `Open=false, Pipeline=true -> Open=true, Pipeline=true`**.
+    5. `BANKO` — `TEST005` (`derived_status='Hired'`, `confirmed_onboard=1`, `hr_proc=1`, `active_plantilla=0`): `hc_display` `1/1 -> 0/1`; **Tab flips `Open=false -> Open=true`**.
+    6. `FOREVER OFFICE` — `CPRVJV13` (`derived_status='Open'`, `hc_total=1`, `confirmed_onboard=0`, `active_plantilla=1`): **`hc_display` `0/1 -> 1/1` while remaining `derived_status='Open'` and `Open=true`**.
+    7. `FOREVER OFFICE` — `CPSAJV27` (`derived_status='Pipeline'`, `hc_total=1`, `active_app=1`, `active_plantilla=0`): `hc_display` `1/1 -> 0/1`; **Tab flips `Open=false, Pipeline=true -> Open=true, Pipeline=true`**.
+    *(Expected changes verified in simulation: `VCAG5_0056` `2/7 -> 0/7`, `TEST011` `1/2 -> 0/2`, `SEA-00006` `1/1 -> 0/1`, and pool rows `BUN-GHQ-00015` and `COM-00004` leave `ACTISERVE` and `THREE` account lists while `Moses HQ` retains `SEA-00006`.)*
+  - **Summary Counts (`get_web_vacancy_summary`) Before vs After:**
+    - `ACTISERVE`: `total_rows: 5 -> 4`, **`total_open: 1 -> 4`** (`+3` from `ACT-G5-002`, `ACT-G5-006`, `ACT-G5-008`), `with_applicant: 4 -> 4`.
+    - `ALTURAS`: `total_rows: 1 -> 1`, **`total_open: 0 -> 1`** (`+1` from `VCBPIG1_0183`), `with_applicant: 1 -> 1`.
+    - `BANKO`: `total_rows: 2 -> 2`, **`total_open: 0 -> 1`** (`+1` from `TEST005`), `with_applicant: 1 -> 1`.
+    - `FOREVER OFFICE`: `total_rows: 5 -> 5`, **`total_open: 4 -> 5`** (`+1` from `CPSAJV27`), `with_applicant: 1 -> 1`.
+    - `THREE`: `total_rows: 2 -> 1`, `total_open: 1 -> 1`, `with_applicant: 0 -> 0`.
+    - `Moses HQ`: `total_rows: 1 -> 1`, `total_open: 0 -> 0`, `with_applicant: 1 -> 1`.
+- **Web & Mobile Consumers Assuming Old `hc_filled` Meaning:**
+  - Web: `src/lib/queries/vacancy.ts:558-564, 584, 613-615` (`normalizeListItem`), `src/lib/queries/vacancy.ts:827-833, 860, 889-891` (`normalizeDetailItem`), `src/lib/queries/vacancy.ts:2474-2492` (`listVacancies` client Open-tab filter `hcFilled < hcTotal`), `src/lib/queries/vacancy.ts:3023` (`getVacancyDetail`), `src/components/vacancy/VacancyTable.tsx:619`, `src/app/(dashboard)/plantilla/page.tsx:291-295, 849-851, 2800-2806`. (`vacancy_requirements.hc_filled` in `src/lib/queries/vacancy.ts:3071, 3105` and `src/components/vacancy/VacancyDetailDrawer.tsx:712, 720` is separate.)
+  - Mobile: Reads `vw_slot_derived_vacancy_shadow` (not `vw_vacancy_list.hc_filled`); only `vacancy_requirements.hc_filled` is referenced in `lib/data/models/vacancy_requirement.dart:12, 21, 29, 54`, `lib/data/services/vacancy_service.dart:1747, 2108`, `lib/features/vacancy/vacancy_screen.dart:6364, 7393-7397, 13107`.
+
+### 3. Part 2 — Rule 4 Drift Check (Read-Only Report)
+- **ADR-001 Rule 4 (`ADR-001-ohmployee-system-architecture.md` lines 263–275):** Open tab visible iff `(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`; Pipeline tab visible iff `pipeline_count > 0`, independent of Open.
+- **Drifted (do NOT subtract `pipeline_count`):** `D:\Projects\OHMployee\lib\data\models\models.dart:209-211` (`VacancyItem.remainingOpenCount`), `lib/features/vacancy/vacancy_screen.dart:110, 625` (`_remainingOpenCount` / `_isOpenVacancy`), `lib/features/dashboard/dashboard_screen.dart:40-44` (`_remainingOpenCount`).
+- **Compliant (STILL subtract `pipeline_count`):** `v_dashboard_account_mfr_breakdown`, `v_dashboard_aging_vacancies`, `v_dashboard_hrco_breakdown`, `v_dashboard_store_aging` (`(open_count - pipeline_count - hr_processing_count) > 0`).
+- **What changed in `ohm#plan09`:** Mobile commit `405f1c396ab37e146311fa67e231cc43a36e99e1` (`2026-10-27 16:00:34 +0800`) and Web commit `b1e02bf9c38ac96c07ec9744cfd91d615baddc83` (`2026-10-27 16:00:09 +0800`). Executed under the UI Standard Loop in `d:\Projects\ohmployee-web\.ai\handoff.md` (lines 170–206; not logged in `D:\Projects\OHMployee\.ai\handoff.md`) with **no explicit ADR-001 Rule 4 override approval from Ohm**.
+
+### 4. Part 3 — Step 6 Plan Only & Pending Work
+- **Proposed Step 6 Fixes (Plan Only):**
+  - (a) `fn_set_slot_status`: clear `closed_at`, `closed_by`, `closure_reason_code`, and `qa_archive_batch_id` to `NULL` when `p_new_status = 'open'`.
+  - (b) `fn_sync_vacancy_slot_open_pipeline`: add `AND closed_at IS NULL` to both `SELECT` loops (and `ORDER BY slot_ordinal ASC, created_at ASC, id ASC` on the `'open'` claim loop).
+  - Audited 15 other slot-picking functions lacking `closed_at IS NULL` (`create_applicant_and_link_to_vacancy`, `move_to_plantilla`, `fn_sync_slot_to_hr_processing`, `fn_sync_slot_hr_processing_to_open`, `fn_sync_slot_to_occupied`, `fn_sync_slot_to_open`, `tag_backout`, `submit_hr_emploc_import`, `approve_hr_emploc_import`, `reject_hr_emploc_import`, `rollback_hr_emploc_import`, `approve_plantilla_import_batch`, `revise_vcode_headcount_quota`, `execute_hc_reduction`, `fn_amr_execute_transfer`).
+  - Dirty slots `VCAG5_0056` Ord 1 (`bee89108-b8e3-4d99-a12f-f23544a502b7`) and Ord 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) can be returned from `'pipeline'` to `'closed'` strictly via `fn_set_slot_status(id, 'closed', 'QA_RESET', ...)` (supported transition, no direct `UPDATE`).
+- **Pending Items Awaiting Ohm's Approval:**
+  1. **Step 3 Predicate / Classification Decision:** Decide how `derived_status` and the Open-tab predicate in `list_web_vacancies` / `get_web_vacancy_summary` should be updated alongside `hc_filled = active_plantilla_count` so `'Hired'` (`hr_processing`), `'Pipeline'`, and `1/1` active-plantilla (`CPRVJV13`) rows behave cleanly.
+  2. **Step 4 Frontend:** Web (`plantilla/page.tsx`, `src/lib/queries/plantilla.ts`, `src/lib/queries/vacancy.ts`) + Mobile Rule 4 alignment (`models.dart`, `vacancy_screen.dart`, `dashboard_screen.dart`).
+  3. **Step 5 Data Cleanup & Ohm's Open Decisions:** `VCAG5_0056` (`SM AURORA` target quota + re-closing Ord 1–2 via `fn_set_slot_status`) and `ACT-G5-010` (`Festival Mall` archived vacancy vs pending `hr_emploc`).
+  4. **Step 6 Implementation:** Apply approved fixes for `fn_set_slot_status`, `fn_sync_vacancy_slot_open_pipeline`, and selected slot-picking functions.
+  5. **`20261027170000_increase_plantilla_list_limit.sql`:** Apply `v_limit = 5000` migration to staging.
+
+---
+
 ## `v_account_allocation_kpi` Closed-Slot Filter (Step 2a) & Vacancy Views/RPCs Recon (Step 3) (Phase 3 — ohm#4x7n2k9w)
 
 **Status: PART 0 BOOKKEEPING CHECK COMPLETE; PART 1 (STEP 2a) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) VIA MIGRATION `20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql` (`ACTISERVE` `required_hc: 14.0000 -> 12.0000`, `slot_vacant_hc: 10.0000 -> 8.0000`, MATCHING `get_web_plantilla_summary` 1:1; ALL OTHER SMOKE ACCOUNTS UNCHANGED; GRANTS PRESERVED); PART 2 (STEP 3 RECON) COMPLETE (READ-ONLY) — STOPPED AND WAITING FOR OHM'S EXPLICIT APPROVAL BEFORE STEP 3 IMPLEMENTATION, STEP 4 FRONTEND, OR STEP 5 DATA CLEANUP**
@@ -11,9 +73,9 @@
 - **How Step 1 was applied:** Via MCP `apply_migration(project_id: 'qqiiznmqxfoamqytjica', name: 'fix_plantilla_summary_slot_counts_and_emploc_deleted_filter', ...)`, which auto-generated a UTC timestamp version rather than using the local filename prefix.
 - **Recorded in `supabase_migrations.schema_migrations` on staging:**
   - `version = '20261027091040'`, `name = 'fix_plantilla_summary_slot_counts_and_emploc_deleted_filter'`
-- **Local file on disk:**
-  - `supabase/migrations/20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`
-- **Mismatch / Orphan Status:** Yes — `20261027091040` on remote vs `20261027190000` locally (no `migration repair` executed per instruction; reported only).
+- **Local file on disk (renamed in Phase 4 Part 0):**
+  - `supabase/migrations/20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`
+- **Mismatch / Orphan Status:** Resolved in Phase 4 Part 0 via `git mv` to `20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`.
 - **Note on Step 2a migration:** Applied via MCP `apply_migration` (`version = '20261027092200'`, `name = 'fix_account_allocation_kpi_closed_slot_filter'`) and local file saved with matching prefix `supabase/migrations/20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql` so zero new drift was introduced in Phase 3.
 
 ### 2. Part 1 — Step 2a Delivered (`supabase/migrations/20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql`)
@@ -50,12 +112,12 @@
 
 ## ACTISERVE Plantilla — Slot-Based Summary RPC & HR Emploc Golden Rule Fix (Phase 2 — Step 1, Scoped) (ohm#4x7n2k9w)
 
-**Status: STEP 1 (1A + 1B) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) — CREATED AND APPLIED MIGRATION `20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`; ENFORCED `h.deleted_at IS NULL` ACROSS ALL CALLER ROLES IN `get_web_hr_emploc_summary` AND `list_web_hr_emplocs` (ELIMINATING 11 SOFT-DELETED TEST ROWS FOR SUPER ADMIN ON ACTISERVE); CONVERTED `get_web_plantilla_summary` AND `list_web_plantilla_store_staffing` TO SLOT-BASED VACANT COUNTS (`plantilla_slots` + `coverage_slots` WITH `closed_at IS NULL` AND `hr_emploc` SLOT DE-DUPLICATION) AND EXCLUDED POOL VACANCIES (`is_pool_vacancy = false AND affects_required_hc = true`) IN BOTH `onboarding_pipeline_count` AND `open_headcount_count`; VERIFIED BEFORE/AFTER SMOKE TESTS ON STAGING ACROSS `ACTISERVE` (`Required: 17 -> 12`), `ALTURAS` (`753 -> 753` UNCHANGED), `THREE` (`7 -> 4`, MATCHING `v_account_allocation_kpi`), `FOREVER OFFICE` (`10 -> 9`, MATCHING `v_account_allocation_kpi.slot_vacant_hc = 4`), `BANKO` (`12 -> 11`), AND `Moses HQ` (`3` ACTIVE UNCHANGED); STEPS 2–5 PENDING OHM'S EXPLICIT APPROVAL**
+**Status: STEP 1 (1A + 1B) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) — CREATED AND APPLIED MIGRATION `20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`; ENFORCED `h.deleted_at IS NULL` ACROSS ALL CALLER ROLES IN `get_web_hr_emploc_summary` AND `list_web_hr_emplocs` (ELIMINATING 11 SOFT-DELETED TEST ROWS FOR SUPER ADMIN ON ACTISERVE); CONVERTED `get_web_plantilla_summary` AND `list_web_plantilla_store_staffing` TO SLOT-BASED VACANT COUNTS (`plantilla_slots` + `coverage_slots` WITH `closed_at IS NULL` AND `hr_emploc` SLOT DE-DUPLICATION) AND EXCLUDED POOL VACANCIES (`is_pool_vacancy = false AND affects_required_hc = true`) IN BOTH `onboarding_pipeline_count` AND `open_headcount_count`; VERIFIED BEFORE/AFTER SMOKE TESTS ON STAGING ACROSS `ACTISERVE` (`Required: 17 -> 12`), `ALTURAS` (`753 -> 753` UNCHANGED), `THREE` (`7 -> 4`, MATCHING `v_account_allocation_kpi`), `FOREVER OFFICE` (`10 -> 9`, MATCHING `v_account_allocation_kpi.slot_vacant_hc = 4`), `BANKO` (`12 -> 11`), AND `Moses HQ` (`3` ACTIVE UNCHANGED); STEPS 2–5 PENDING OHM'S EXPLICIT APPROVAL**
 
 - **ADR basis:** `ADR-001-ohmployee-system-architecture.md` — § Core Cross-Module Invariants (Rules 1, 2, 4), § Plantilla, § HR Emploc Import (soft-delete / Golden Rule).
 - **Branch status:** On `main` only (no branch created).
 
-### 1. Delivered Changes in Step 1 (`supabase/migrations/20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`)
+### 1. Delivered Changes in Step 1 (`supabase/migrations/20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`)
 - **Step 1A — HR Emploc Golden Rule Soft-Delete Fix (RC-5):**
   - Pre-verification confirmed via `docs/state/hr_emploc_web_state.md`, `src/lib/queries/hr_emploc.ts`, `20262606000043_fix_hr_emploc_mobile_web_parity_prod.sql`, and `20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql` that no Super Admin audit / "show deleted" feature intentionally relies on soft-deleted rows in `get_web_hr_emploc_summary` or `list_web_hr_emplocs`.
   - Moved `h.deleted_at IS NULL` outside the `COALESCE(v_role_level, 0) >= 90 OR (...)` bypass in both `public.get_web_hr_emploc_summary` and `public.list_web_hr_emplocs`.
