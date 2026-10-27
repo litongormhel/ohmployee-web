@@ -368,7 +368,7 @@ export function CencomGroupTable({
                         />
                       ) : (
                         <div
-                          className="w-full h-2 rounded-full bg-surface-muted overflow-hidden"
+                          className="w-full h-2 rounded-full bg-surface-muted border border-border-subtle/50 overflow-hidden"
                           role="progressbar"
                           aria-valuenow={0}
                           aria-valuemin={0}

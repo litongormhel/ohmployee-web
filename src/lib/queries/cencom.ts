@@ -123,7 +123,7 @@ export function normalizeSlotAuthorityMetrics(
   let healthStatus: "healthy" | "at_risk" | "critical" = "critical";
   if ((vacant === 0 && actual >= required && required > 0) || mfr >= 1.0) {
     healthStatus = "healthy";
-  } else if (mfr >= 0.9) {
+  } else if (mfr >= 0.95) {
     healthStatus = "at_risk";
   } else {
     healthStatus = "critical";

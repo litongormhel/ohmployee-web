@@ -1,5 +1,40 @@
 # AI Handoff
 
+## MFR Progress Bar Color Logic & Styling Across Plantilla & CENCOM (ohm#uifix04)
+
+**Status: COMPLETE — MFR PROGRESS BAR COLOR LOGIC & STYLING FULLY UPDATED ACROSS PLANTILLA & CENCOM; TOKENS `--pct-good-bar`, `--pct-warn-bar`, `--pct-bad-bar` DEFINED IN LIGHT & DARK THEMES WITH FULL TAILWIND `@theme inline` REGISTRATION; AUTHORITATIVE THRESHOLDS ENFORCED (100% GREEN, 95% TO 99.99% YELLOW, <95% RED) ACROSS `thresholds.ts`, `cencom.ts`, `plantilla/page.tsx`, AND `StoreStaffingOverviewDrawer.tsx`; PROGRESS BAR TRACKS RECESSED WITH `bg-surface-muted border border-border-subtle/50` PREVENTING WASHED-OUT CONTRAST OR BACKGROUND BLENDING ACROSS THEMES; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **CSS Design Tokens & Theme Variables (`src/app/globals.css`)**:
+   - Defined `--pct-good-bar`, `--pct-warn-bar`, and `--pct-bad-bar` across `:root` (light), `.dark`, and `@media (prefers-color-scheme: dark)`:
+     - **Light**: Green (`#059669` / emerald-600), Yellow (`#ca8a04` / yellow-600 with high light-surface contrast), Red (`#dc2626` / red-600).
+     - **Dark**: Green (`#34d399` / emerald-400), Yellow (`#facc15` / yellow-400 vibrant), Red (`#f87171` / red-400).
+   - Registered `--color-pct-good-bar`, `--color-pct-warn-bar`, and `--color-pct-bad-bar` in `@theme inline` for seamless Tailwind class consumption (`bg-pct-good-bar`, `bg-pct-warn-bar`, `bg-pct-bad-bar`).
+
+2. **Authoritative Threshold Updates (`src/lib/utils/thresholds.ts` & `src/lib/queries/cencom.ts`)**:
+   - Updated MFR scale in `thresholds.ts`:
+     - **100%**: `good` / "Healthy" (Green)
+     - **95% to 99.99%**: `warn` / "At risk" (Yellow)
+     - **Below 95%**: `bad` / "Critical" (Red)
+   - Added `bar` mapping to `PercentageEvaluation.classes` pointing to semantic bar tokens.
+   - Updated `src/lib/queries/cencom.ts` line 126 to enforce `mfr >= 0.95` for `healthStatus = "at_risk"` (previously 0.9), ensuring group cards, gauges, and health indicators strictly align.
+
+3. **High-Contrast Tracks & Bar Rendering Across Components**:
+   - `StoreStaffingOverviewDrawer.tsx`: Replaced missing CSS variable literals with `bg-pct-good-bar`, `bg-pct-warn-bar`, `bg-pct-bad-bar`, and added `border border-border-subtle/50` to `bg-surface-muted` track, fixing invisible bars.
+   - `PercentageBar.tsx`: Wired `barColor` to `bg-pct-*-bar` tokens and grounded track in `bg-surface-muted border border-border-subtle/50`, preventing bars and tracks from washing out on light/dark card surfaces.
+   - `PercentageRing.tsx`: Wired circular stroke to `var(--pct-*-bar)` and track to `var(--hero-track, var(--surface-muted))`.
+   - `plantilla/page.tsx`: Updated `getProgressColors` in Account cards to thresholds `>= 100` (Green), `>= 95` (Yellow), `< 95` (Red) with recessed tracks (`bg-surface-muted border border-border-subtle/50`).
+   - `CencomGroupTable.tsx`: Added `border border-border-subtle/50` to the standby group progressbar track for visual parity.
+
+4. **Codebase Health**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build, 19/19 routes compiled successfully.
+
+---
+
 ## Migration File Production Hardening & Dry-Run Sanity Verification (ohm#arch03)
 
 **Status: COMPLETE — MIGRATION FILE PRODUCTION HARDENED; TARGET OPERATIONAL TABLES CORRECTED TO LIVE SCHEMA (`workforce_pool_slots`, `workforce_pool_requests`, `workforce_pool_request_items`); AUDIT ACTOR RESOLVER BULLETPROOFED WITH INNER JOIN ON `auth.users` AND GRACEFUL NULL FALLBACK PREVENTING ORPHANED PROFILE FK VIOLATIONS; AUDIT LOGS INSERTS SYNCHRONIZED TO LIVE SCHEMA COLUMNS AND ENUM ACTIONS; DRY-RUN TRANSACTIONAL VERIFICATION SUCCEEDED END-TO-END ON STAGING `qqiiznmqxfoamqytjica` WITH 0 ERRORS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**

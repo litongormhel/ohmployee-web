@@ -94,6 +94,14 @@ This project leverages **Tailwind CSS v4** where the `@theme` directive inside t
   --color-tab-active-text: var(--tab-active-text);
   --color-tab-active-border: var(--tab-active-border);
 
+  /* Percentage Scale & Dynamic Progress Bar Tokens */
+  --color-pct-good-bar: var(--pct-good-bar);       /* Green: #059669 light / #34d399 dark */
+  --color-pct-warn-bar: var(--pct-warn-bar);       /* Yellow: #ca8a04 light / #facc15 dark */
+  --color-pct-bad-bar: var(--pct-bad-bar);         /* Red: #dc2626 light / #f87171 dark */
+  --color-pct-good-text: var(--pct-good-text);
+  --color-pct-warn-text: var(--pct-warn-text);
+  --color-pct-bad-text: var(--pct-bad-text);
+
   /* 3. Border Radii Tiers */
   --radius-xs: 2px;
   --radius-sm: 6px;

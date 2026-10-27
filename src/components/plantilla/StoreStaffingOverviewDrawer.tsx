@@ -215,14 +215,14 @@ export function StoreStaffingOverviewDrawer({
                     <span className="text-[10px] font-semibold text-text-muted shrink-0">
                       MFR
                     </span>
-                    <div className="relative flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                    <div className="relative flex-1 h-1.5 rounded-full bg-surface-muted border border-border-subtle/50 overflow-hidden">
                       <div
                         className={`absolute left-0 top-0 h-full rounded-full transition-all ${
                           (row.fillRate ?? 0) >= 1
-                            ? "bg-[var(--pct-good-bar)]"
+                            ? "bg-pct-good-bar"
                             : (row.fillRate ?? 0) >= 0.95
-                            ? "bg-[var(--pct-warn-bar)]"
-                            : "bg-[var(--pct-bad-bar)]"
+                            ? "bg-pct-warn-bar"
+                            : "bg-pct-bad-bar"
                         }`}
                         style={{ width: `${Math.min(100, Math.round((row.fillRate ?? 0) * 100))}%` }}
                       />

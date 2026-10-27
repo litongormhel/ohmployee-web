@@ -101,12 +101,15 @@
   --pct-good-text: #047857;
   --pct-good-bg: #ecfdf5;
   --pct-good-border: #a7f3d0;
+  --pct-good-bar: #059669;
   --pct-warn-text: #b45309;
   --pct-warn-bg: #fffbeb;
   --pct-warn-border: #fde68a;
+  --pct-warn-bar: #ca8a04;
   --pct-bad-text: #b91c1c;
   --pct-bad-bg: #fef2f2;
   --pct-bad-border: #fecaca;
+  --pct-bad-bar: #dc2626;
 
   /* Danger tokens — light (strictly for validation errors, destructive actions, and failed states) */
   --danger-text: #b91c1c;
@@ -221,12 +224,15 @@
   --pct-good-text: #34d399;
   --pct-good-bg: rgba(52, 211, 153, 0.15);
   --pct-good-border: rgba(52, 211, 153, 0.35);
+  --pct-good-bar: #34d399;
   --pct-warn-text: #fbbf24;
   --pct-warn-bg: rgba(251, 191, 36, 0.15);
   --pct-warn-border: rgba(251, 191, 36, 0.35);
+  --pct-warn-bar: #facc15;
   --pct-bad-text: #f87171;
   --pct-bad-bg: rgba(248, 113, 113, 0.15);
   --pct-bad-border: rgba(248, 113, 113, 0.35);
+  --pct-bad-bar: #f87171;
 
   /* Danger tokens — dark (strictly for validation errors, destructive actions, and failed states) */
   --danger-text: #f87171;
@@ -337,12 +343,15 @@
     --pct-good-text: #34d399;
     --pct-good-bg: rgba(52, 211, 153, 0.15);
     --pct-good-border: rgba(52, 211, 153, 0.35);
+    --pct-good-bar: #34d399;
     --pct-warn-text: #fbbf24;
     --pct-warn-bg: rgba(251, 191, 36, 0.15);
     --pct-warn-border: rgba(251, 191, 36, 0.35);
+    --pct-warn-bar: #facc15;
     --pct-bad-text: #f87171;
     --pct-bad-bg: rgba(248, 113, 113, 0.15);
     --pct-bad-border: rgba(248, 113, 113, 0.35);
+    --pct-bad-bar: #f87171;
 
     /* Danger tokens — dark (strictly for validation errors, destructive actions, and failed states) */
     --danger-text: #f87171;
@@ -461,12 +470,15 @@
   --color-pct-good-text: var(--pct-good-text);
   --color-pct-good-bg: var(--pct-good-bg);
   --color-pct-good-border: var(--pct-good-border);
+  --color-pct-good-bar: var(--pct-good-bar);
   --color-pct-warn-text: var(--pct-warn-text);
   --color-pct-warn-bg: var(--pct-warn-bg);
   --color-pct-warn-border: var(--pct-warn-border);
+  --color-pct-warn-bar: var(--pct-warn-bar);
   --color-pct-bad-text: var(--pct-bad-text);
   --color-pct-bad-bg: var(--pct-bad-bg);
   --color-pct-bad-border: var(--pct-bad-border);
+  --color-pct-bad-bar: var(--pct-bad-bar);
 
   /* Danger action & validation utilities */
   --color-danger-text: var(--danger-text);

@@ -63,7 +63,8 @@ When `"All groups"` is selected, metrics match global baseline views 1:1. When a
 - **KPI Cards**: `CencomKpiCard.tsx` wraps shared `KpiCard` (`@/components/shared/KpiCard`) with `NeutralChip` and `PercentageBar`.
 - **Navigation**: Tab bar consumes shared `SegmentedTabs` (`@/components/shared/SegmentedTabs`) with sliding pill indicator.
 - **Scope Dropdown**: `CencomGroupScopeDropdown.tsx` wraps shared `ScopeDropdown` (`@/components/shared/ScopeDropdown`).
-- **Group Performance**: `CencomGroupTable.tsx` consumes shared `PercentageBar` for MFR ratios with zero color literals.
+- **Group Performance**: `CencomGroupTable.tsx` consumes shared `PercentageBar` for MFR ratios with zero color literals. Tracks use recessed `bg-surface-muted border border-border-subtle/50` to eliminate blending into card backgrounds across themes.
+- **MFR Thresholds**: Aligned to authoritative scale (100% Green `good`, 95% to 99.99% Yellow `warn`, <95% Red `bad`). CENCOM health status mapping (`healthStatus`) enforces `mfr >= 1.0` -> `healthy`, `mfr >= 0.95` -> `at_risk`, and `< 0.95` -> `critical`.
 - **Aging & Reports**: `CencomTargetDeploymentTab.tsx` and `CencomQuickReportsTab.tsx` fully tokenized with zero raw color literals.
 
 ### Color Literal Audit

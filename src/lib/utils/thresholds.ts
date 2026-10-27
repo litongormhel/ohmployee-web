@@ -5,8 +5,8 @@
  * SCALES:
  * 1. "mfr" (Manpower Fulfillment Rate / CENCOM):
  *    - Good (Healthy): >= 100%
- *    - Warn (At risk): 90.0% to 99.9%
- *    - Bad (Critical): < 90.0%
+ *    - Warn (At risk): 95.0% to 99.99%
+ *    - Bad (Critical): < 95.0%
  *
  * 2. "fill_rate" (Store / Position Fill Rate / Dashboard & Plantilla):
  *    - Good: > 70%
@@ -31,6 +31,7 @@ export interface PercentageEvaluation {
     bg: string;
     border: string;
     track: string;
+    bar: string;
     dot: string;
   };
 }
@@ -46,7 +47,7 @@ export function evaluatePercentage(
     if (percent >= 100) {
       status = "good";
       label = "Healthy";
-    } else if (percent >= 90) {
+    } else if (percent >= 95) {
       status = "warn";
       label = "At risk";
     } else {
@@ -66,28 +67,31 @@ export function evaluatePercentage(
     }
   }
 
-  // Pure token-based semantic color mapping
+  // Pure token-based semantic color mapping with high contrast bars and recessed tracks
   const classes = {
     good: {
       text: "text-pct-good-text",
       bg: "bg-pct-good-bg",
       border: "border-pct-good-border",
-      track: "bg-pct-good-bg",
-      dot: "bg-pct-good-text",
+      track: "bg-surface-muted",
+      bar: "bg-pct-good-bar",
+      dot: "bg-pct-good-bar",
     },
     warn: {
       text: "text-pct-warn-text",
       bg: "bg-pct-warn-bg",
       border: "border-pct-warn-border",
-      track: "bg-pct-warn-bg",
-      dot: "bg-pct-warn-text",
+      track: "bg-surface-muted",
+      bar: "bg-pct-warn-bar",
+      dot: "bg-pct-warn-bar",
     },
     bad: {
       text: "text-pct-bad-text",
       bg: "bg-pct-bad-bg",
       border: "border-pct-bad-border",
-      track: "bg-pct-bad-bg",
-      dot: "bg-pct-bad-text",
+      track: "bg-surface-muted",
+      bar: "bg-pct-bad-bar",
+      dot: "bg-pct-bad-bar",
     },
   }[status];
 

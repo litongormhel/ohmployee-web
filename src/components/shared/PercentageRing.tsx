@@ -74,17 +74,12 @@ export const PercentageRing = memo(function PercentageRing({
 
   const strokeColor =
     evaluation.status === "good"
-      ? "var(--pct-good-text)"
+      ? "var(--pct-good-bar)"
       : evaluation.status === "warn"
-      ? "var(--pct-warn-text)"
-      : "var(--pct-bad-text)";
+      ? "var(--pct-warn-bar)"
+      : "var(--pct-bad-bar)";
 
-  const trackColor =
-    evaluation.status === "good"
-      ? "var(--pct-good-bg)"
-      : evaluation.status === "warn"
-      ? "var(--pct-warn-bg)"
-      : "var(--pct-bad-bg)";
+  const trackColor = "var(--hero-track, var(--surface-muted))";
 
   return (
     <div

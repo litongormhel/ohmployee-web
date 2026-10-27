@@ -25,17 +25,12 @@ export const PercentageBar = memo(function PercentageBar({
 
   const barColor =
     evaluation.status === "good"
-      ? "bg-pct-good-text"
+      ? "bg-pct-good-bar"
       : evaluation.status === "warn"
-      ? "bg-pct-warn-text"
-      : "bg-pct-bad-text";
+      ? "bg-pct-warn-bar"
+      : "bg-pct-bad-bar";
 
-  const trackColor =
-    evaluation.status === "good"
-      ? "bg-pct-good-bg"
-      : evaluation.status === "warn"
-      ? "bg-pct-warn-bg"
-      : "bg-pct-bad-bg";
+  const trackColor = "bg-surface-muted border border-border-subtle/50";
 
   return (
     <div className={`w-full ${className}`}>

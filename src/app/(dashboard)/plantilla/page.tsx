@@ -853,22 +853,22 @@ function PlantillaPageContent() {
                 const getProgressColors = (rate: number) => {
                   if (rate >= 100) {
                     return {
-                      bar: "bg-pct-good-text",
+                      bar: "bg-pct-good-bar",
                       text: "text-pct-good-text",
-                      track: "bg-pct-good-bg",
+                      track: "bg-surface-muted border border-border-subtle/50",
                     };
                   }
-                  if (rate >= 90) {
+                  if (rate >= 95) {
                     return {
-                      bar: "bg-pct-warn-text",
+                      bar: "bg-pct-warn-bar",
                       text: "text-pct-warn-text",
-                      track: "bg-pct-warn-bg",
+                      track: "bg-surface-muted border border-border-subtle/50",
                     };
                   }
                   return {
-                    bar: "bg-pct-bad-text",
+                    bar: "bg-pct-bad-bar",
                     text: "text-pct-bad-text",
-                    track: "bg-pct-bad-bg",
+                    track: "bg-surface-muted border border-border-subtle/50",
                   };
                 };
 
@@ -958,7 +958,7 @@ function PlantillaPageContent() {
                           </span>
                           <div
                             className={`relative flex-1 h-2 rounded-full overflow-hidden ${
-                              account.required > 0 ? colors.track : "bg-surface-muted"
+                              account.required > 0 ? colors.track : "bg-surface-muted border border-border-subtle/50"
                             }`}
                           >
                             {account.required > 0 && (
