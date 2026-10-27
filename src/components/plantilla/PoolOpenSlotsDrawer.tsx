@@ -87,7 +87,7 @@ export function PoolOpenSlotsDrawer({ isOpen, onClose }: PoolOpenSlotsDrawerProp
           <DataState
             state="empty"
             title="No open slots found"
-            message="All pool quotas are currently fully occupied, or no approved vacancies match your filter."
+            message="All pool requirements are currently fully occupied, or no approved vacancies match your filter."
           />
         ) : (
           <div className="divide-y divide-border-subtle border border-border-subtle rounded-xl overflow-hidden bg-surface shadow-xs">

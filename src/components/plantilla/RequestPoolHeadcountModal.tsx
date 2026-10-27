@@ -239,7 +239,7 @@ export function RequestPoolHeadcountModal({
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Operational reasons for expanding pool quota..."
+              placeholder="Operational reasons for expanding pool required slots..."
               className="w-full text-sm rounded-lg border border-border-default bg-surface p-2.5 text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden"
             />
           </div>

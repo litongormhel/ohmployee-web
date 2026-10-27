@@ -348,7 +348,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
               <div className="rounded-lg border border-dashed border-border-default bg-surface-muted p-4 text-center">
                 <UsersRound className="mx-auto h-6 w-6 text-text-muted" />
                 <div className="mt-1 text-xs font-medium text-text-primary">
-                  Unoccupied / Open Quota Slot
+                  Unoccupied / Open Required Slot
                 </div>
                 <div className="mt-0.5 text-[11px] text-text-muted">
                   This position slot is currently open for applicant endorsement and recruitment.
@@ -361,14 +361,14 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
           <div className="space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
               <Layers className="h-4 w-4 text-text-muted" />
-              <span>Capacity Context & Quota Rules</span>
+              <span>Capacity Context & Required Rules</span>
             </div>
 
             <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">
-                    Headcount Quota (Target)
+                    Headcount Required (Target)
                   </div>
                   <div className="font-mono text-sm font-bold text-text-primary">
                     {slot.requiredHeadcountQuota != null ? `${slot.requiredHeadcountQuota} slot(s)` : "1 slot"}

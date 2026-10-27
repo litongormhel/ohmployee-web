@@ -2196,6 +2196,151 @@ export function useStorePlantillaSlots(storeId: string | null) {
 }
 
 // ---------------------------------------------------------------------------
+// On-Leave Reliever Coverage & Floating Store Assignment Helpers
+// ---------------------------------------------------------------------------
+
+export interface ActiveCoverageItem {
+  assignmentId: string;
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  coveredPlantillaId: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+}
+
+export async function fetchActiveCoverageForAccount(accountId: string): Promise<ActiveCoverageItem[]> {
+  if (!accountId) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("v_workforce_store_temporary_coverage")
+    .select("assignment_id, employee_id, employee_name, employee_number, covered_plantilla_id, start_date, end_date, status")
+    .eq("account_id", accountId)
+    .in("status", ["Active", "Approved"]);
+
+  if (error) {
+    console.warn("[Plantilla] Could not fetch active temporary coverage:", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    assignmentId: String(row.assignment_id),
+    employeeId: String(row.employee_id),
+    employeeName: String(row.employee_name ?? ""),
+    employeeNumber: String(row.employee_number ?? ""),
+    coveredPlantillaId: String(row.covered_plantilla_id),
+    startDate: row.start_date ? String(row.start_date) : null,
+    endDate: row.end_date ? String(row.end_date) : null,
+    status: String(row.status ?? "Active"),
+  }));
+}
+
+export async function assignRelieverCoverage({
+  employeeId,
+  poolTypeId,
+  coveredPlantillaId,
+  assignedAccountId,
+  assignedStoreId,
+  startDate,
+  endDate,
+  notes,
+}: {
+  employeeId: string;
+  poolTypeId?: string | null;
+  coveredPlantillaId: string;
+  assignedAccountId: string;
+  assignedStoreId: string;
+  startDate: string;
+  endDate: string;
+  notes?: string | null;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("workforce_assignments")
+    .insert({
+      employee_id: employeeId,
+      pool_type_id: poolTypeId || null,
+      covered_plantilla_id: coveredPlantillaId,
+      assigned_account_id: assignedAccountId,
+      assigned_store_id: assignedStoreId,
+      deployment_type: "Reliever",
+      priority: "Normal",
+      status: "Active",
+      is_primary: true,
+      start_date: startDate,
+      end_date: endDate,
+      notes: notes || "Temporary reliever coverage",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+  return data;
+}
+
+export async function assignFloatingEmployeeToStore({
+  plantillaId,
+  storeId,
+  storeName,
+  area,
+  assignmentType,
+}: {
+  plantillaId: string;
+  storeId: string;
+  storeName: string;
+  area?: string | null;
+  assignmentType: "Stationary" | "Roving";
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("plantilla")
+    .update({
+      store_id: storeId,
+      store_name: storeName,
+      area: area || null,
+      deployment_type: assignmentType,
+      status: "Active",
+      separation_status: null,
+      inactive_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", plantillaId)
+    .select()
+    .single();
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  // If there's an open vacancy at this store, decrement/fill it
+  try {
+    const { data: openVacancies } = await supabase
+      .from("vacancies")
+      .select("id")
+      .eq("store_id", storeId)
+      .eq("status", "open")
+      .limit(1);
+
+    if (openVacancies && openVacancies.length > 0) {
+      await supabase
+        .from("vacancies")
+        .update({
+          status: "hired",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", openVacancies[0].id);
+    }
+  } catch (vacErr) {
+    console.warn("Could not decrement vacancy:", vacErr);
+  }
+
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Workforce Pool & Workforce Analytics Re-exports
 // ---------------------------------------------------------------------------
 export * from "./workforcePool";

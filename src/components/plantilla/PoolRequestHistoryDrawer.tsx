@@ -20,7 +20,7 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
       isOpen={isOpen}
       onClose={onClose}
       title="Pool Headcount Request History"
-      subtitle="Audit trail of workforce pool quota requests, endorsements, and slot approvals"
+      subtitle="Audit trail of workforce pool requirement requests, endorsements, and slot approvals"
     >
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between text-xs text-text-secondary border-b border-border-subtle pb-2">

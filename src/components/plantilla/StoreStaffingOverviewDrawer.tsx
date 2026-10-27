@@ -88,14 +88,14 @@ export function StoreStaffingOverviewDrawer({
       widthClass="w-[var(--drawer-width-xl)] max-w-full"
       badge={
         <Badge className="font-mono text-xs font-semibold bg-brand-600 text-white border-none py-1 px-2.5">
-          {summaryRequiredQuota !== undefined ? `${summaryRequiredQuota} Quota` : "Store Staffing"}
+          {summaryRequiredQuota !== undefined ? `${summaryRequiredQuota} Required` : "Store Staffing"}
         </Badge>
       }
       title={accountName ? `${accountName} — Store Staffing` : "Store Staffing Overview"}
       subtitle={
         <div className="flex items-center gap-1.5 text-xs text-text-muted">
           <Building2 className="h-3.5 w-3.5 shrink-0" />
-          <span>Manage store-level quotas, discrete workforce slots, and staffing gaps.</span>
+          <span>Manage store-level requirements, discrete workforce slots, and staffing gaps.</span>
         </div>
       }
     >
@@ -127,7 +127,7 @@ export function StoreStaffingOverviewDrawer({
           <DataState
             kind="loading"
             title="Loading Store Staffing"
-            description="Fetching store allocation quotas and actual counts..."
+            description="Fetching store allocation requirements and actual counts..."
           />
         ) : storesQuery.isError ? (
           <DataState
@@ -185,7 +185,7 @@ export function StoreStaffingOverviewDrawer({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-brand-600 hover:border-brand-300 transition-colors shadow-xs"
                       >
                         <Sliders className="h-3.5 w-3.5" />
-                        <span>Manage Quota</span>
+                        <span>Manage Required</span>
                       </button>
                     </div>
                   </div>

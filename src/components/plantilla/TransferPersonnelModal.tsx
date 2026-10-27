@@ -450,7 +450,7 @@ export function TransferPersonnelModal({
           <div className="leading-relaxed">
             <span className="font-semibold text-text-primary">ADR-001 Slot Vacancy Effect:</span> Executing this transfer vacates the
             slot at <strong className="text-text-primary">{currentStoreName ?? "the source store"}</strong>. In accordance with slot authority,
-            the source slot will remain open for recruitment / backfill unless quota is formally amended.
+            the source slot will remain open for recruitment / backfill unless requirement is formally amended.
           </div>
         </div>
 

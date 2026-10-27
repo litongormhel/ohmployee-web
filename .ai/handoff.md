@@ -1,5 +1,57 @@
 # AI Handoff
 
+## Account Plantilla View Refactor (ohm#plan02)
+
+**Status: COMPLETE — FULL ACCOUNT PLANTILLA VIEW REFACTORED PER ARCHITECTURAL BLUEPRINT; SEGMENTED TOP-RIGHT TOGGLE [ 👥 Employee View | 🏬 Store View ] ADDED BESIDE REQUEST HEADCOUNT; REMOVED LEGACY QUOTA BADGES AND HORIZONTAL LEADERSHIP BAR; TOP 5 KPI & LEADERSHIP CARDS IMPLEMENTED IN GRID-COLS-5 WITH CENTERED CONTENT (CENCOM-STYLE SVG PROGRESS RING WITH DYNAMIC STATUS COLORING, ACTIVE DEPLOYED, OPEN VACANCIES, HR PIPELINE, LEADERSHIP TEAM WITH CONDITIONAL OMISSION OF UNASSIGNED TL/ATL ROWS); HIERARCHICAL AREA → CITY STORE DROPDOWN FILTER; EMPLOYEE VIEW STRUCTURED ACROSS 5 STATUS SUB-TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION) WITH LIVE BADGES; STORE VIEW WITH CAPACITY TABLE (BRANCH, AREA/CITY, REQUIRED, ACTIVE DEPLOYED, ON-LEAVE, OPEN VACANCY, FULFILLMENT STATUS); RELIEVER WORKFLOW WITH MOSES HQ POOL COVERAGE AND AUTO-RELEASE ON RETURN TO ACTIVE; FLOATING STORE ASSIGNMENT WORKFLOW; SYSTEM-WIDE QUOTA TO REQUIRED TERMINOLOGY REPLACEMENT ACROSS MODULE DRAWERS AND MODALS; VERIFIED SUPABASE RPC BINDINGS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Top Header & View Switcher (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed legacy `Store Staffing | [X] Quota` badge button and secondary navigation pill bar.
+   - Added segmented pill toggle right beside `+ Request Headcount`: `[ 👥 Employee View | 🏬 Store View ]`.
+   - Defaults to `Employee View`. When `Employee View` is active, displays the 5 Status Sub-Tabs; when `Store View` is active, switches to the Store Capacity Table.
+
+2. **Top 5 KPI & Leadership Cards (`grid-cols-5`, Centered Content)**:
+   - **Card 1: Overall MFR**: CENCOM-style SVG progress ring with rounded caps (`stroke-linecap="round"`), dynamic stroke color (`< 75%` red `#dc2626`, `75%–89.9%` amber `#d97706`, `>= 90%` emerald `#16a34a`), vertically/horizontally centered percentage (e.g. `73.0%`), and footer subtext `[activeCount] active / [requiredCount] required`.
+   - **Card 2: Active Deployed**: Metric count + subtext `Active deployed personnel`.
+   - **Card 3: Open Vacancies**: Metric count + subtext `Approved open vacancy slots`.
+   - **Card 4: HR Pipeline**: Metric count + subtext `Candidate onboarding pipeline`.
+   - **Card 5: Leadership Team**: Clean typography rows for `OM`, `TL`, `ATL`, `HRCO`. Conditional rendering strictly hides `TL` and `ATL` rows if no leader is assigned (`null`, `""`, or `"—"`), keeping `OM` and `HRCO` always visible.
+
+3. **Hierarchical Area → City Filter Bar**:
+   - Search input filters by employee name, employee number, or store branch.
+   - Hierarchical `All Stores` dropdown grouping options by Area (e.g. `area:Pampanga`, `area:Cavite`, `area:Cebu`) and Cities underneath (e.g. `city:Angeles, Pampanga`, `city:San Fernando, Pampanga`).
+   - Selecting Area filters records matching that Area; selecting City filters records matching that specific City.
+   - Removed redundant "All Statuses" dropdown from filter toolbar; kept "All Types" filter (`Stationary`, `Roving`).
+
+4. **Employee View: 5 Status Sub-Tabs**:
+   - **Tab 1: Active**: Employees with status `Active`. Table columns: `Member`, `Store` (with Area/City pill), `Position`, `Assignment`, `Status` (green `Active` badge), `Actions` (`Details` button).
+   - **Tab 2: On-Leave**: Employees with status `On-Leave` or `On Leave`. Table columns: `Member`, `Store`, `Position`, `Leave Details` (type + date range), `Reliever (Moses HQ)` (reliever name + emp ID if assigned, or `Unassigned` with `+ Assign Reliever` button), `Actions` (`Return to Active` button + `Details`).
+   - **Tab 3: Vacancy**: Stores where `active_deployed < required` (or open approved slots > 0). Table columns: `Store Branch`, `Area & City`, `Required Position`, `Open Slots` (`[X] Vacant` red badge), `Remarks`, `Actions` (`Details`).
+   - **Tab 4: Floating**: Employees with status `Floating`. Table columns: `Member`, `Store` (`Unassigned` + Area/City), `Position`, `Assignment`, `Status` (`Floating` blue badge), `Actions` (`Assign Store` button + `Details`).
+   - **Tab 5: Deactivation**: Combined pending and deactivated personnel. Table columns: `Member`, `Store`, `Position`, `Assignment`, `Status` (`Pending for Deactivation` amber badge, `Deactivated` red badge), `Actions` (`Details`).
+
+5. **Store View: Store Capacity Table**:
+   - Rendered when `Store View` is active, filtered by search and hierarchical Area/City dropdown.
+   - Table columns: `Store Branch`, `Area & City`, `Plantilla Required` (centered), `Active Deployed` (centered emerald text), `On-Leave` (centered amber text), `Open Vacancy` (centered red text if > 0), `Fulfillment Status` (`100% Fulfilled` green badge or `Understaffed` amber/red badge).
+
+6. **Reliever & Store Assignment Flows (`src/components/plantilla/`)**:
+   - `AssignRelieverModal.tsx`: Searchable picker selecting available relievers from Moses HQ pool (`v_workforce_pool_employees`), coverage date range, notes, and insertion into `workforce_assignments` with `covered_plantilla_id`.
+   - `ReturnToActiveModal.tsx`: Return to Active confirmation modal featuring actual return date picker, Reliever Auto-Release Notice, and remarks, invoking `updatePlantillaEmploymentStatus` / `set_plantilla_active(p_plantilla_id)` which automatically closes active coverage assignments and marks the pool employee available.
+   - `AssignStoreModal.tsx`: Deployment modal for floating employees, prioritizing stores with open vacancies and selecting assignment type (`Stationary` / `Roving`).
+
+7. **Quota to Required Standardization**:
+   - Standardized all occurrences of "Quota" to "Required" across `StoreStaffingOverviewDrawer.tsx`, `StoreStaffingDrawer.tsx`, `SlotDetailDrawer.tsx`, `PoolOpenSlotsDrawer.tsx`, `PoolRequestHistoryDrawer.tsx`, `RequestPoolHeadcountModal.tsx`, and `TransferPersonnelModal.tsx`.
+
+8. **Codebase Health**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build, 19/19 routes compiled successfully.
+   - Zero database mutations performed during UI refactor.
+
+---
+
 ## Plantilla Navigation Streamlining & Moses HQ Workforce Analytics Integration (ohm#plan01)
 
 **Status: COMPLETE — TOP TAB SWITCHER REMOVED FROM MAIN PLANTILLA VIEW; STORE PLANTILLA DIRECTORY NOW RENDERS DIRECTLY AS DEFAULT VIEW; PINNED MOSES HQ CARD SEAMLESSLY ROUTES TO MOSES HQ WORKFORCE POOL WITH INTEGRATED HEADER BREADCRUMB; WORKFORCE ANALYTICS INTEGRATED INTO MOSES HQ POOL TOOLBAR VIA FULL-SCREEN ENTERPRISE MODAL (MAX-W-7XL); PRESERVED POOL TABLE STATE, QUERY CACHING, FILTER ISOLATION, AND DEEP ROUTING COMPATIBILITY; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**

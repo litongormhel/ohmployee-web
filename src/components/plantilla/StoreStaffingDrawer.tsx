@@ -199,7 +199,7 @@ export function StoreStaffingDrawer({
               }`}
             >
               <Sliders className="h-3.5 w-3.5" />
-              <span>Position Quotas ({vacancies?.length ?? 0})</span>
+              <span>Position Requirements ({vacancies?.length ?? 0})</span>
             </button>
           </div>
 
@@ -317,7 +317,7 @@ export function StoreStaffingDrawer({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
                   <Sliders className="h-4 w-4 text-text-muted" />
-                  <span>Position Quotas & VCodes</span>
+                  <span>Position Requirements & VCodes</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {canRequestAdjustment && (
@@ -334,7 +334,7 @@ export function StoreStaffingDrawer({
                     type="button"
                     onClick={() => refetchVacancies()}
                     className="text-[11px] text-text-muted hover:text-text-primary inline-flex items-center gap-1 transition-colors"
-                    title="Refresh position quotas"
+                    title="Refresh position requirements"
                   >
                     <RefreshCw className="h-3 w-3" />
                     Refresh
@@ -350,7 +350,7 @@ export function StoreStaffingDrawer({
               ) : isVacanciesError ? (
                 <div className="flex items-center gap-2 rounded-md border border-danger-border bg-danger-bg p-3 text-xs text-danger-text">
                   <AlertCircle className="h-4 w-4 shrink-0 text-danger-text" />
-                  <span>Error loading position quotas: {vacanciesError?.message}</span>
+                  <span>Error loading position requirements: {vacanciesError?.message}</span>
                 </div>
               ) : (vacancies ?? []).length === 0 ? (
                 <div className="rounded-md border border-border-default bg-surface-muted p-6 text-center">
@@ -393,7 +393,7 @@ export function StoreStaffingDrawer({
                         </div>
 
                         <div className="text-right">
-                          <div className="text-[10px] font-semibold text-text-muted">Quota</div>
+                          <div className="text-[10px] font-semibold text-text-muted">Required</div>
                           <div className="font-mono text-base font-bold text-text-primary">
                             {vac.requiredHeadcount} slot{vac.requiredHeadcount !== 1 ? "s" : ""}
                           </div>
@@ -408,7 +408,7 @@ export function StoreStaffingDrawer({
                             onClick={() => setSelectedVacancyForRevise(vac)}
                             className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-base px-2.5 py-1 text-xs font-medium text-text-primary hover:bg-surface-hover transition-colors shadow-xs"
                           >
-                            Adjust Quota
+                            Adjust Required
                           </button>
                         )}
 
@@ -424,7 +424,7 @@ export function StoreStaffingDrawer({
 
                         {!canReviseQuota && !canRequestAdjustment && (
                           <span className="text-[11px] text-text-muted italic">
-                            Read-only quota view
+                            Read-only requirement view
                           </span>
                         )}
                       </div>

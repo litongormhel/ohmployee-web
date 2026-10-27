@@ -27,84 +27,85 @@ Like other modules in OHMployee Web, this is designed as a thin admin presentati
 
 ## 2. Dual Views Architecture (Employee vs. Store)
 
-Admin users need to switch between reviewing individual active personnel and auditing store capacity compliance. The Plantilla module solves this by implementing **Dual Views** driven by a segmented tab controller (`src/components/plantilla/ViewToggle.tsx`) situated in the primary filter toolbar:
+Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ 👥 Employee View | 🏬 Store View ]`) beside the `+ Request Headcount` button:
 
 ```
-[ Plantilla Directory ]
-=======================================================================================
-[ Metric Card: Active Roster ] [ Metric Card: Budget Slots ] [ Metric Card: AH Slots ] [ Metric Card: Under-Staffed ]
----------------------------------------------------------------------------------------
-Search: "Search by employee, store, or VCode..."      [ View: Employee Centric ] [ View: Store Centric ]
-=======================================================================================
+[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]
+================================================================================================================================
+[ Card 1: Overall MFR ] [ Card 2: Active Deployed ] [ Card 3: Open Vacancies ] [ Card 4: HR Pipeline ] [ Card 5: Leadership ]
+  (CENCOM Donut SVG)       (Active count)             (Approved slots)           (Candidate pipeline)     (OM, TL, ATL, HRCO)
+--------------------------------------------------------------------------------------------------------------------------------
+Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [ All Types (Stationary / Roving) ]
+================================================================================================================================
+[ 5 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) ]
 ```
 
-### A. Employee-Centric View
-This is the default view. Each row represents an active employee currently deployed to a store plantilla slot.
+### A. Employee View (Default)
+When `Employee View` is active, the interface renders the **5 Status Sub-Tabs** with live count badges, filtering the employee directory:
 
-```
-[Employee Roster Grid Viewport (Scrollable horizontally, min-width: 1120px)]
------------------------------------------------------------------------------------------------------------------------------
-Emp ID     | Name              | Account / Location         | Position     | Assignment | Type     | Status     | Actions
------------------------------------------------------------------------------------------------------------------------------
-EMP-001042 | Santos, Maria     | Cebu Regional / Cebu Mall  | Merchandiser | Stationary | Budgeted | Active     | [Eye]
-EMP-001099 | Cruz, Juan        | Manila Region / Hub 1      | Promodiser   | Roving (3) | Budgeted | Transfer   | [Eye] [SLA Warn]
-EMP-001101 | Del Rosario, A.   | Davao South / Davao Hub    | Coordinator  | Stationary | AH (Temp)| Sep Pending| [Eye] [Lock]
-```
+1. **Tab 1: Active** (All Active Employees Only)
+   - **Filter**: Employees with status `Active`.
+   - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role + Tier) | `Assignment` (Stationary/Roving) | `Status` (`Active` green badge) | `Actions` (`Details` button).
 
-#### Column Structure (Employee View):
-1. **Employee ID**: `employee_no` (Rendered in monospaced style: `font-mono text-xs text-gray-700 bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5`).
-2. **Employee Name**: Combined `last_name, first_name` from profile metadata.
-3. **Account & Store (Primary)**: The primary deployment location (`account` / `store_name`).
-4. **Position Title**: Deployed role designation (e.g., 'Merchandiser', 'Promodiser').
-5. **Assignment Type**: 
-   - `assignment_type` ('Stationary' or 'Roving').
-   - If 'Roving', a hoverable badge showing covered store counts (e.g. `Roving (3)`) with a tooltip listing the other covered stores.
-6. **Plantilla Type**:
-   - `Budgeted`: Deployed against standard store capacity contracts.
-   - `AH (Temp)`: Deployed to a temporary, seasonal Additional Headcount slot.
-7. **Status Badge**: Maps `plantilla_status` via `StatusBadge`:
-   - `Active` → `success` (green)
-   - `Pending Transfer` → `info` (blue)
-   - `Pending Separation` → `danger` (rose)
-   - `Suspended` → `warning` (amber)
-   - `Inactive` → `neutral` (gray)
-8. **Actions**: Desktop "Eye" icon to open the selected record in the Plantilla Detail Drawer. Row clicking is also fully supported with an active overlay highlight (`bg-blue-50`).
+2. **Tab 2: On-Leave** (All On-Leave Employees Only)
+   - **Filter**: Employees with status `On-Leave` or `On Leave`.
+   - **Columns**:
+     - `Member` (Avatar, Name, Emp No)
+     - `Store` (Store Name + Area/City pill)
+     - `Position` (Role + Tier)
+     - `Leave Details` (Leave Type e.g., Maternity/Medical Leave + Date Range)
+     - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays muted italic `Unassigned` with a `+ Assign Reliever` action button opening `AssignRelieverModal`.
+     - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
+
+3. **Tab 3: Vacancy** (All Vacant Stores Only)
+   - **Filter**: Stores with open vacancies (`active_deployed < required` or approved vacancy slots > 0).
+   - **Columns**: `Store Branch` | `Area & City` | `Required Position` | `Open Slots` (`[X] Vacant` red badge) | `Remarks` | `Actions` (`Details` button).
+
+4. **Tab 4: Floating** (All Floating Employees Only)
+   - **Filter**: Employees with status `Floating`.
+   - **Columns**: `Member` | `Store` (`Unassigned` + Area/City) | `Position` | `Assignment` | `Status` (`Floating` blue badge) | `Actions`: `Assign Store` button (opens `AssignStoreModal` prioritizing vacant stores) + `Details` button.
+
+5. **Tab 5: Deactivation** (Combined Pending & Deactivated Employees)
+   - **Filter**: Employees with status `Pending for Deactivation` or `Deactivated`.
+   - **Columns**: `Member` | `Store` | `Position` | `Assignment` | `Status` (`Pending for Deactivation` amber badge, `Deactivated` red badge) | `Actions` (`Details` button).
 
 ---
 
-### B. Store-Centric View
-This view switches focus to store capacity metrics. Each row represents a specific store's staffing capacity and MFR breakdown (OHM2026_1132 contract).
+### B. Store View (Store Capacity Table)
+When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and replaced with the **Store Capacity Table** grouped per store branch:
 
-```
-[Store Plantilla Grid Viewport (Scrollable horizontally, min-width: 1400px)]
------------------------------------------------------------------------------------------------------------------------------------
-Store Code | Store Name        | Account / Region           | Actual | HR Pipeline | Vacancy | Required | MFR %  | Risk      | SLA
------------------------------------------------------------------------------------------------------------------------------------
-STR-C042   | Cebu Mall         | Cebu Regional / Visayas    | 4      | 1           | 1       | 5        | 66.7%  | Medium    | Fully-Staffed
-STR-M099   | Manila Hub 1      | Manila Region / NCR        | 1      | 1           | 2       | 3        | 25.0%  | High      | Under-Staffed
-STR-D101   | Davao Hub         | Davao South / Mindanao     | 4      | 0           | 0       | 4        | 100.0% | Low       | Fully-Staffed
-```
+- **Columns**:
+  1. `Store Branch`: Store name with store code badge.
+  2. `Area & City`: City and province pill tags.
+  3. `Plantilla Required`: Contracted store headcount requirement (formerly Quota, centered).
+  4. `Active Deployed`: Actual deployed headcount (centered, emerald bold text).
+  5. `On-Leave`: Count of employees on leave for that store (centered, amber text).
+  6. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0).
+  7. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`) or `Understaffed` amber/red badge.
 
-#### MFR Breakdown Column Structure (Store View — OHM2026_1132):
+---
 
-The store staffing table renders the MFR breakdown sourced from `list_web_plantilla_store_staffing()`. The formula is displayed as a column tooltip:
+### C. Top 5 KPI & Leadership Cards
+Responsive 5-column grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4`) with centered content:
+1. **Overall MFR**: Circular SVG progress ring with rounded caps (`stroke-linecap="round"`), dynamic stroke color (`< 75%` red `#dc2626`, `75%–89.9%` amber `#d97706`, `>= 90%` emerald `#16a34a`), centered percentage (e.g., `73.0%`), and footer `[activeCount] active / [requiredCount] required`.
+2. **Active Deployed**: Metric count + subtext `Active deployed personnel`.
+3. **Open Vacancies**: Metric count + subtext `Approved open vacancy slots`.
+4. **HR Pipeline**: Metric count + subtext `Candidate onboarding pipeline`.
+5. **Leadership Team**: Clean typography rows for `OM`, `TL`, `ATL`, and `HRCO`. Conditional rendering hides `TL` and `ATL` rows if no leader is assigned (`null`, `""`, or `"—"`).
 
-**MFR % = Actual / (Actual + HR Pipeline + Vacancy)**
+---
 
-| Column | Backend Field | Description |
-|--------|--------------|-------------|
-| Store Code | `store_code` | Monospaced store identifier |
-| Store Name | `store_name` | Display name |
-| Account / Region | `account_name`, `region` | Billing account and region |
-| **Actual** | `onboard_count` | Confirmed onboarded headcount |
-| **HR Pipeline** | `hr_pipeline_count` | In-progress hires/deployments |
-| **Vacancy** | `open_headcount` | Open unfilled slots (SLA warning if ≥ 7 days) |
-| **Required** | `required_headcount` | Contracted staffing target |
-| **MFR %** | `fill_rate` | Backend-computed; formula: Actual / (Actual + HR Pipeline + Vacancy) |
-| Staffing Risk | `staffing_risk` | Backend-returned risk level badge |
-| SLA Badge | `sla_badge` | Under/Fully/Over-staffed badge |
+### D. Hierarchical Area → City Filter Bar
+- Dropdown options group stores by **Area** (`area:<province>`) with **Cities** (`city:<area_city>`) listed underneath.
+- Selecting an Area filters all stores matching that province; selecting a City filters specifically for that city.
+- Redundant "All Statuses" dropdown removed in favor of the 5 Sub-Tabs. "All Types" filter (`Stationary`, `Roving`) retained.
 
-**Guardrail**: The `fill_rate` is sourced from the backend only. The web layer does NOT compute MFR. Any future web-side MFR derivation must include HR Pipeline in the denominator — computing `Actual / Required` is incorrect and excluded by design.
+---
+
+### E. Reliever & Store Assignment Flows
+- **`AssignRelieverModal`**: Queries available pool employees from `v_workforce_pool_employees` (`availability_status = 'Available'`), allows date range selection and notes, and inserts a coverage assignment into `workforce_assignments` linking `covered_plantilla_id`.
+- **`ReturnToActiveModal`**: Confirms employee return from leave, provides an Actual Return Date picker, highlights the Reliever Auto-Release Notice (which unassigns relievers via DB trigger/`set_plantilla_active`), and invalidates plantilla caches.
+- **`AssignStoreModal`**: Allows assignment of floating employees to stores, prioritizing open vacancies, setting assignment type (`Stationary`/`Roving`), and updating employee status to `Active`.
 
 ---
 
