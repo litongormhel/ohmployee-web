@@ -281,7 +281,6 @@ export function resolveVacancyWorkflowStage(v: VacancyListItem): VacancyWorkflow
 
 export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean {
   return (
-    stage === "Vacancy - Pipeline" ||
     stage === "HR Emploc - Pending" ||
     stage === "HR Emploc - Correction" ||
     stage === "HR Emploc - Ready" ||
@@ -646,7 +645,7 @@ function PlantillaPageContent() {
         accountId,
         activeState: "all",
         page: 1,
-        pageSize: 500,
+        pageSize: 2000,
       }),
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
@@ -866,7 +865,10 @@ function PlantillaPageContent() {
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
 
   const openVacanciesCount = useMemo(() => {
-    return allVacancies.filter((v) => resolveVacancyWorkflowStage(v) === "Vacancy - Open").length;
+    return allVacancies.filter((v) => {
+      const stage = resolveVacancyWorkflowStage(v);
+      return stage === "Vacancy - Open" || stage === "Vacancy - Pipeline";
+    }).length;
   }, [allVacancies]);
 
   const pipelineVacanciesCount = useMemo(() => {
@@ -877,7 +879,7 @@ function PlantillaPageContent() {
     return allVacancies.filter((v) => {
       const stage = resolveVacancyWorkflowStage(v);
       if (vacancySubFilter === "open") {
-        if (stage !== "Vacancy - Open") return false;
+        if (stage !== "Vacancy - Open" && stage !== "Vacancy - Pipeline") return false;
       } else if (vacancySubFilter === "pipeline") {
         if (!isHrPipelineWorkflowStage(stage)) return false;
       }
@@ -1001,7 +1003,7 @@ function PlantillaPageContent() {
 
   // Derived counts for KPI cards and badges
   const summaryData = summaryQuery.data;
-  const activeCount = activeEmployees.length;
+  const activeCount = activeEmployees.length > 0 ? activeEmployees.length : (summaryData?.actual ?? 0);
   const onLeaveCount = onLeaveEmployees.length;
   const floatingCount = floatingEmployees.length;
   const deactivationCount = deactivationEmployees.length;
@@ -2695,7 +2697,7 @@ function StoreVacancyTable({
                 Applicant
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
+                Stage
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Aging

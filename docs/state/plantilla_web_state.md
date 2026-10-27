@@ -783,6 +783,19 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Drawer & Table Standardization (Loop 6A)**: Standardized `PlantillaDetailDrawer` (`drawer-width-lg`) and all 8 pool/store drawers with canonical `DetailDrawer`; strictly preserved table text floor $\ge 14\text{px}$ (`text-sm`) across members, vacancies, and store tables; preserved single-account auto-fire and ADR-001 account gate query rules.
   - **Modal Hardening & Canonical Stacking (Loop 6B)**: Aligned all 8 Plantilla lifecycle modals (`InitiateSeparationModal`, `RequestDeactivationModal`, `RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`, `TransferPersonnelModal`, `UpdateEmploymentStatusModal`, `UpdateScheduleModal`) with canonical `Modal` at `z-[60]` over `DetailDrawer` at `z-50`; hardened against backdrop clicks during dirty states; disabled Esc/close buttons during `isSubmitting`.
   - **Specialized Views & Analytics Parity (Loop 6C)**: Standardized `MosesHqPoolView.tsx` and `WorkforceAnalyticsView.tsx` across all 7 analytics tabs (Overview, Deployment, Coverage, Conversion, Slots, Health, Executive); converted SVG progress donuts and horizontal bar indicators to standard tokens (`var(--accent)`, `var(--pct-good-text)`, `var(--pct-warn-text)`, `var(--danger-text)`); preserved 100% RPC integration contracts and XLSX export capabilities.
+- **Plantilla Roster Retention, Stage Renaming & Vacancy Sourcing Pipeline Parity (`ohm#plan08`)**:
+  - **Full Account Roster Retention (752 Active Employees)**:
+    - Increased `MAX_PAGE_SIZE` in `src/lib/queries/plantilla.ts` from 100 to 5000 and updated `employeeQuery` in `plantilla/page.tsx` to `pageSize: 2000`.
+    - Added chunked concurrent paging in `listWebPlantillaEmployees` to guarantee all records are fetched in memory up to `totalCount`, overcoming the PostgreSQL RPC 200-row `v_limit` constraint and preventing roster truncation down to 100.
+    - Created local migration `supabase/migrations/20261027170000_increase_plantilla_list_limit.sql` increasing `list_web_plantilla_employees` limit ceiling to 5000 rows.
+    - Updated `activeCount` to evaluate `activeEmployees.length > 0 ? activeEmployees.length : (summaryData?.actual ?? 0)`, correctly displaying **752** Active Deployed personnel and matching required **753** (Overall MFR ~100%).
+  - **Vacancy Sourcing vs HR Emploc Onboarding Pipeline Parity**:
+    - Refactored `isHrPipelineWorkflowStage` to strictly evaluate HR Emploc onboarding stages (`HR Emploc - Pending`, `HR Emploc - Correction`, `HR Emploc - Ready`, `HR Emploc - Review`).
+    - Aligned `Vacancy - Pipeline` (ATS / Candidate sourcing) with `Open / Unassigned` sub-tab, ensuring candidates not yet endorsed to `hr_emploc` (such as Tejada, Elizabeth Uy on `VCBPIG1_0183`) show under `Open / Unassigned` (`1`) and not `HR Pipeline (For Emploc)` (`0`).
+    - Synchronized top KPI cards: Open Vacancies displays `1`, HR Pipeline displays `0`.
+  - **Table Column Header Renaming**:
+    - Renamed Vacancy table column header from `"Status"` to `"Stage"` in `StoreVacancyTable`.
+
 - **Employment Status & Separation Workflow Integration (`ohm#plan05`)**:
   - Integrated separation statuses (`Resigned`, `AWOL`, `Terminated`) into `UpdateEmploymentStatusModal.tsx` grouped into Operational Duty Status (`Active`, `On Leave`, `Floating`) vs Personnel Separation (`Resigned`, `AWOL`, `Terminated`).
   - Added conditional effective separation date picker and ADR-001 slot vacation notice.

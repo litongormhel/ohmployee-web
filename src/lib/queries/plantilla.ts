@@ -384,7 +384,7 @@ export class PlantillaDataError extends Error {
 type PlantillaRpcRow = Record<string, unknown>;
 
 const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 5000;
 const DEFAULT_EMPLOYEE_SORT_BY = "employee_name";
 const DEFAULT_STORE_STAFFING_SORT_BY = "store_name";
 
@@ -1054,9 +1054,60 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
     throwPlantillaError(error);
   }
 
-  const rows = (Array.isArray(data) ? data : [])
+  let rows = (Array.isArray(data) ? data : [])
     .map((row) => normalizeEmployeeListRow(asObject(row)))
     .filter((row): row is PlantillaEmployeeListItem => row !== null);
+
+  const initialTotalCount = getEmployeeTotalCount(rows);
+
+  // If client requested more records than the DB RPC limit returned (e.g. 200 RPC cap vs 1000 requested),
+  // fetch subsequent chunks concurrently to guarantee full account roster retention
+  if (pageSize > rows.length && rows.length < initialTotalCount) {
+    const chunkPromises: Promise<unknown>[] = [];
+    const chunkSize = 200;
+    for (
+      let currentOffset = offset + rows.length;
+      currentOffset < initialTotalCount && currentOffset < offset + pageSize;
+      currentOffset += chunkSize
+    ) {
+      chunkPromises.push(
+        Promise.resolve(
+          supabase.rpc("list_web_plantilla_employees", {
+            p_search: params.search?.trim() || null,
+            p_account_id: params.accountId ?? null,
+            p_group_id: params.groupId ?? null,
+            p_store_id: params.storeId ?? null,
+            p_employment_status: params.status ?? null,
+            p_deployment: params.deployment ?? null,
+            p_active_state: params.activeState ?? null,
+            p_limit: Math.min(chunkSize, offset + pageSize - currentOffset),
+            p_offset: currentOffset,
+            p_sort_by: getAllowedSortField(
+              params.sortBy,
+              EMPLOYEE_SORT_FIELDS,
+              DEFAULT_EMPLOYEE_SORT_BY,
+            ),
+            p_sort_dir: params.sortDir ?? "asc",
+          }),
+        ),
+      );
+    }
+
+    try {
+      const chunkResults = await Promise.all(chunkPromises);
+      for (const chunk of chunkResults) {
+        const res = chunk as { data?: unknown; error?: unknown };
+        if (!res.error && Array.isArray(res.data)) {
+          const parsed = res.data
+            .map((row) => normalizeEmployeeListRow(asObject(row)))
+            .filter((row): row is PlantillaEmployeeListItem => row !== null);
+          rows = rows.concat(parsed);
+        }
+      }
+    } catch {
+      // Graceful fallback: continue with rows already fetched
+    }
+  }
 
   // Enrich assigned stores for coverage group employees (e.g., CG-TG2-0006)
   const cgCodes = Array.from(

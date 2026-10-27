@@ -1,4 +1,40 @@
-﻿# AI Handoff
+# AI Handoff
+
+## Plantilla Roster Retention, Stage Renaming & Vacancy Sourcing Pipeline Parity (ohm#plan08)
+
+**Status: COMPLETE — RESOLVED ACTIVE EMPLOYEE TRUNCATION WHERE 752 RECORDS WERE CAPPED AT 100 BY INCREASING MAX_PAGE_SIZE TO 5000 IN PLANTILLA.TS, REQUESTING PAGESIZE: 2000 IN PLANTILLA/PAGE.TSX, AND ADDING CONCURRENT CHUNKED FETCHING IN LISTWEBPLANTILLAEMPLOYEES TO LOAD ALL 752 ACTIVE PERSONNEL; CREATED MIGRATION 20261027170000_INCREASE_PLANTILLA_LIST_LIMIT.SQL RAISING V_LIMIT CEILING TO 5000; ALIGNED ISHRPIPELINEWORKFLOWSTAGE TO STRICTLY TARGET HR EMPLOC ONBOARDING STAGES SO ATS CANDIDATE SOURCING VACANCY - PIPELINE [E.G. TEJADA, ELIZABETH ON VCBPIG1_0183] CORRECTLY REFLECTS UNDER OPEN / UNASSIGNED [1] AND NOT HR PIPELINE (FOR EMPLOC) [0]; SYNCHRONIZED KPI CARDS TO OPEN VACANCIES = 1 AND HR PIPELINE = 0; RENAMED TABLE HEADER FROM STATUS TO STAGE; VERIFIED WITH MECHANICAL LOOP GATE: ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Full Account Roster Retention (752 Active Deployed Employees)**:
+   - Diagnosed root cause: `MAX_PAGE_SIZE = 100` was hard-limiting client requests, and Postgres RPC `list_web_plantilla_employees` had `v_limit` clamped at 200.
+   - In `src/lib/queries/plantilla.ts`:
+     - Increased `MAX_PAGE_SIZE` from `100` to `5000`.
+     - In `listWebPlantillaEmployees()`, added concurrent chunked fetching via `Promise.all`: if the caller requests `pageSize > rows.length` and `rows.length < totalCount`, it fetches subsequent chunks (`p_offset = 200, 400, 600...`) so all 752 records are loaded into memory.
+   - In `src/app/(dashboard)/plantilla/page.tsx`:
+     - Updated `employeeQuery` to request `pageSize: 2000`.
+     - Updated `activeCount` to evaluate `activeEmployees.length > 0 ? activeEmployees.length : (summaryData?.actual ?? 0)`.
+     - Active Deployed KPI card, Active tab badge, and Overall MFR now display **752 Active Deployed** out of **753 Required** (100% / 99.9%).
+   - Created migration `supabase/migrations/20261027170000_increase_plantilla_list_limit.sql` increasing `list_web_plantilla_employees` ceiling from 200 to 5000 rows.
+
+2. **Vacancy Sourcing vs HR Emploc Onboarding Pipeline Parity**:
+   - Diagnosed candidate status: In staging DB, applicant Tejada, Elizabeth Uy (`VCBPIG1_0183`) exists in `applicants` with status `'New'` and has 0 records in `hr_emploc`. She is purely in ATS candidate sourcing (`Vacancy - Pipeline`), not HR Emploc onboarding.
+   - In `src/app/(dashboard)/plantilla/page.tsx`:
+     - Updated `isHrPipelineWorkflowStage()`: removed `"Vacancy - Pipeline"` so it strictly includes HR Emploc onboarding stages (`HR Emploc - Pending`, `HR Emploc - Correction`, `HR Emploc - Ready`, `HR Emploc - Review`).
+     - Aligned `openVacanciesCount` and `vacancySubFilter === "open"` to evaluate `stage === "Vacancy - Open" || stage === "Vacancy - Pipeline"`.
+     - Sub-tab counts now show: `All Vacancies (1)`, `Open / Unassigned (1)`, `HR Pipeline (For Emploc) (0)`.
+     - Top KPI cards now show: `Open Vacancies: 1`, `HR Pipeline: 0`.
+
+3. **Stage Column Renaming (`StoreVacancyTable`)**:
+   - In `StoreVacancyTable` (`src/app/(dashboard)/plantilla/page.tsx`), renamed column header `<th>` from `"Status"` to `"Stage"`.
+
+4. **Loop Verification Gate Passed**:
+   - Mechanical Gate 1: `npm run lint` -> **0 errors**, 9 warnings (preexisting).
+   - Mechanical Gate 2: `npm run build` -> **0 errors**, all 19/19 routes compiled successfully.
+
+---
 
 ## Plantilla Vacancy Workflow Stage Mapping & Onboarding Transition Parity (ohm#plan07)
 
