@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Plantilla Headcount Slot Capacity & MFR Reconciliation Parity (ohm#plan10)
+
+**Status: COMPLETE — RESOLVED COUNT AND MFR DISCREPANCY WHERE ACCOUNT (E.G. ACTISERVE) DISPLAYED REQUIRED = 17 AND 6.0% MFR WHILE RAW VISIBLE TABLE ROWS TOTALED 6 (1 ACTIVE + 5 VACANCIES); INTRODUCED GETVACANCYREMAININGCAPACITY HELPER IN PLANTILLA/PAGE.TSX (HC_TOTAL - HC_FILLED); INTRODUCED OPENVACANCIESSLOTS, PIPELINEVACANCIESSLOTS, AND TOTALVACANCIESSLOTS CALCULATIONS TO AGGREGATE TOTAL HEADCOUNT SLOT CAPACITY; SYNCHRONIZED CARD 1 OVERALL MFR DENOMINATOR WITH ACTIVECOUNT + EFFECTIVEVACANCYSLOTS (EVALUATING TO 17 REQUIRED SLOTS); UPDATED CARD 3 (OPEN VACANCIES) AND CARD 4 (HR PIPELINE) TO DISPLAY TOTAL HEADCOUNT SLOT CAPACITY AS PRIMARY METRIC WITH REQUISITION COUNT SUBTITLES; ENHANCED STATUS TAB 3 (VACANCY) BADGE AND SUB-FILTER BUTTONS TO COMMUNICATE BOTH REQUISITION COUNTS AND TOTAL SLOT CAPACITIES; REPLACED HARDCODED "1 VACANT" BADGE IN STOREVACANCYTABLE WITH DYNAMIC SLOT CAPACITY BADGE; UPDATED STOREVIEW VACANCY COUNTER TO SUM UNFILLED SLOT CAPACITIES; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Headcount Slot Capacity Helpers & Metrics (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `getVacancyRemainingCapacity(v: VacancyListItem)` helper evaluating `Math.max(0, (v.hcTotal ?? v.headcount ?? 1) - (v.hcFilled ?? 0))`.
+   - Introduced `openVacanciesSlots`, `pipelineVacanciesSlots`, and `totalVacanciesSlots` memoized aggregations summing authorized unfilled slot capacity across active vacancies.
+   - Fixed `storeVacancyCountMap` in `storeCapacityRows` (Store View) to accumulate `getVacancyRemainingCapacity(v)` per store branch rather than raw `+ 1` row increments.
+
+2. **KPI Card & MFR Reconciliation**:
+   - Card 1 (Overall MFR): Aligned `requiredCount` to evaluate `activeCount + effectiveVacancySlots` (evaluating to 17 required slots, perfectly matching `summaryData?.required` and 6.0% fulfillment rate).
+   - Card 2 (Active Deployed): 1 active personnel.
+   - Card 3 (Open Vacancies): Displays total open slot capacity (`openVacanciesSlots > 0 ? openVacanciesSlots : openVacanciesCount`) with subtitle indicating requisition count (`X approved requisitions`).
+   - Card 4 (HR Pipeline): Displays candidate onboarding pipeline slot capacity (`pipelineVacanciesSlots > 0 ? pipelineVacanciesSlots : pipelineVacanciesCount`) with subtitle indicating requisition count (`X pipeline requisitions`).
+   - Mathematical Parity: $1 \text{ (Active)} + 13 \text{ (Open Slots)} + 3 \text{ (Pipeline Slots)} = 17 \text{ Required Slots}$.
+
+3. **Status Tabs & Sub-Filter Count Transparency**:
+   - Tab 3 (Vacancy) Badge: Displays both requisition count and slot capacity (e.g. `5 (16 slots)`).
+   - Sub-Filters (`All Vacancies`, `Open / Unassigned`, `HR Pipeline`): Displays both requisition counts and slot counts (e.g. `All Vacancies (5 · 16 slots)`).
+   - `StoreVacancyTable` (Vacancy Tab): Replaced hardcoded `1 Vacant` badge with dynamic capacity indicator `${remainingCapacity} Vacant (${hcFilled}/${hcTotal})` for multi-headcount requisitions or `${remainingCapacity || 1} Vacant` for single-slot requisitions.
+
+4. **Mechanical Verification**:
+   - `npm run lint`: 0 errors, 9 existing warnings.
+   - `npm run build`: Compiled successfully in 24.3s; 19/19 routes compiled green.
+
+---
+
 ## Multi-Headcount Vacancy & Plantilla Slot Retention Parity (ohm#plan09)
 
 **Status: COMPLETE — RESOLVED BUG WHERE REQUISITIONS WITH MULTI-HEADCOUNT ALLOCATIONS (E.G. HC = 2) PREMATURELY DISAPPEARED FROM THE OPEN TAB WHEN CANDIDATES ENTERED PIPELINE SCREENING; IN FLUTTER MOBILE MODELS.DART, VACANCY_SCREEN.DART, AND DASHBOARD_SCREEN.DART, UPDATED REMAININGOPENCOUNT AND _ISOPENVACANCY TO PREVENT SUBTRACTING DISPLAYPIPELINECOUNT FROM AVAILABLE OPEN CAPACITY SO UNFILLED QUOTA (HC_NEEDED - HIRED_COUNT > 0) GOVERNS OPEN MEMBERSHIP; IN POSTGRESQL MIGRATION 20261027180000_FIX_VACANCY_OPEN_PIPELINE_STATUS_PRECEDENCE.SQL, RECREATED VW_VACANCY_LIST, VW_VACANCY_DETAIL, LIST_WEB_VACANCIES, AND GET_WEB_VACANCY_SUMMARY TO RESTORE HC_FILLED TO STRICTLY COUNT CONFIRMED_ONBOARD_COUNT AND PRIORITIZE DERIVED_STATUS = 'PIPELINE' WHEN ACTIVE_APPLICANT_COUNT > 0 BEFORE FALLING BACK TO 'OPEN'; RAISED V_LIMIT AND MAX_PAGE_SIZE TO 5000 AND REQUESTED PAGESIZE: 2000 IN PLANTILLA/PAGE.TSX WITH CAPACITY PROTECTION V.HCFILLED < V.HCTOTAL; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**

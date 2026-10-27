@@ -288,6 +288,12 @@ export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean 
   );
 }
 
+export function getVacancyRemainingCapacity(v: VacancyListItem): number {
+  const total = v.hcTotal ?? v.headcount ?? 1;
+  const filled = v.hcFilled ?? 0;
+  return Math.max(0, total - filled);
+}
+
 export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
   switch (stage) {
     case "Vacancy - Open":
@@ -880,6 +886,25 @@ function PlantillaPageContent() {
     return allVacancies.filter((v) => isHrPipelineWorkflowStage(resolveVacancyWorkflowStage(v))).length;
   }, [allVacancies]);
 
+  const openVacanciesSlots = useMemo(() => {
+    return allVacancies
+      .filter((v) => {
+        const stage = resolveVacancyWorkflowStage(v);
+        return stage === "Vacancy - Open" || stage === "Vacancy - Pipeline";
+      })
+      .reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
+  }, [allVacancies]);
+
+  const pipelineVacanciesSlots = useMemo(() => {
+    return allVacancies
+      .filter((v) => isHrPipelineWorkflowStage(resolveVacancyWorkflowStage(v)))
+      .reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
+  }, [allVacancies]);
+
+  const totalVacanciesSlots = useMemo(() => {
+    return allVacancies.reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
+  }, [allVacancies]);
+
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
       const stage = resolveVacancyWorkflowStage(v);
@@ -945,12 +970,13 @@ function PlantillaPageContent() {
       }
     });
 
-    // Count open vacancies per store
+    // Count open vacancy slots per store (accounting for multi-headcount allocations)
     const storeVacancyCountMap = new Map<string, number>();
     allVacancies.forEach((v) => {
       const key = (v.storeName || "").toLowerCase().trim();
       if (key) {
-        storeVacancyCountMap.set(key, (storeVacancyCountMap.get(key) ?? 0) + 1);
+        const remainingCapacity = getVacancyRemainingCapacity(v);
+        storeVacancyCountMap.set(key, (storeVacancyCountMap.get(key) ?? 0) + remainingCapacity);
       }
     });
 
@@ -1014,7 +1040,14 @@ function PlantillaPageContent() {
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
   const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
-  const requiredCount = summaryData?.required && summaryData.required > 0 ? summaryData.required : activeCount + vacancyCount;
+  const effectiveVacancySlots =
+    totalVacanciesSlots > 0
+      ? totalVacanciesSlots
+      : (summaryData?.vacant ?? 0) + (summaryData?.hrProcess ?? 0);
+  const requiredCount =
+    summaryData?.required && summaryData.required > 0
+      ? summaryData.required
+      : activeCount + effectiveVacancySlots;
   const fulfillmentRate =
     requiredCount > 0 ? Math.round((activeCount / requiredCount) * 100) : 0;
 
@@ -1632,10 +1665,16 @@ function PlantillaPageContent() {
                   Open Vacancies
                 </div>
                 <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {allVacancies.length > 0 ? openVacanciesCount : (summaryData?.vacant ?? 0)}
+                  {allVacancies.length > 0
+                    ? openVacanciesSlots > 0
+                      ? openVacanciesSlots
+                      : openVacanciesCount
+                    : (summaryData?.vacant ?? 0)}
                 </div>
                 <div className="text-[11px] text-text-muted leading-tight">
-                  Approved open vacancy slots
+                  {allVacancies.length > 0 && openVacanciesSlots !== openVacanciesCount
+                    ? `${openVacanciesCount} approved ${openVacanciesCount === 1 ? "requisition" : "requisitions"}`
+                    : "Approved open vacancy slots"}
                 </div>
               </div>
 
@@ -1654,10 +1693,16 @@ function PlantillaPageContent() {
                   HR Pipeline
                 </div>
                 <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {allVacancies.length > 0 ? pipelineVacanciesCount : (summaryData?.hrProcess ?? 0)}
+                  {allVacancies.length > 0
+                    ? pipelineVacanciesSlots > 0
+                      ? pipelineVacanciesSlots
+                      : pipelineVacanciesCount
+                    : (summaryData?.hrProcess ?? 0)}
                 </div>
                 <div className="text-[11px] text-text-muted leading-tight">
-                  Candidate onboarding pipeline
+                  {allVacancies.length > 0 && pipelineVacanciesSlots !== pipelineVacanciesCount
+                    ? `${pipelineVacanciesCount} pipeline ${pipelineVacanciesCount === 1 ? "requisition" : "requisitions"}`
+                    : "Candidate onboarding pipeline"}
                 </div>
               </div>
 
@@ -1790,8 +1835,15 @@ function PlantillaPageContent() {
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
                       }`}
+                      title={
+                        totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
+                          ? `${totalVacanciesSlots} slots across ${vacancyCount} requisitions`
+                          : undefined
+                      }
                     >
-                      {vacancyCount}
+                      {totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
+                        ? `${vacancyCount} (${totalVacanciesSlots} slots)`
+                        : vacancyCount}
                     </span>
                   </button>
 
@@ -2121,7 +2173,11 @@ function PlantillaPageContent() {
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    All Vacancies ({allVacancies.length})
+                    All Vacancies ({allVacancies.length}
+                    {totalVacanciesSlots > 0 && totalVacanciesSlots !== allVacancies.length
+                      ? ` · ${totalVacanciesSlots} slots`
+                      : ""}
+                    )
                   </button>
                   <button
                     type="button"
@@ -2135,7 +2191,11 @@ function PlantillaPageContent() {
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    Open / Unassigned ({openVacanciesCount})
+                    Open / Unassigned ({openVacanciesCount}
+                    {openVacanciesSlots > 0 && openVacanciesSlots !== openVacanciesCount
+                      ? ` · ${openVacanciesSlots} slots`
+                      : ""}
+                    )
                   </button>
                   <button
                     type="button"
@@ -2149,7 +2209,11 @@ function PlantillaPageContent() {
                         : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    HR Pipeline (For Emploc) ({pipelineVacanciesCount})
+                    HR Pipeline (For Emploc) ({pipelineVacanciesCount}
+                    {pipelineVacanciesSlots > 0 && pipelineVacanciesSlots !== pipelineVacanciesCount
+                      ? ` · ${pipelineVacanciesSlots} slots`
+                      : ""}
+                    )
                   </button>
                 </div>
 
@@ -2733,6 +2797,13 @@ function StoreVacancyTable({
               const stage = resolveVacancyWorkflowStage(row);
               const agingDaysDisplay = row.agingDays != null ? `${row.agingDays}d` : "—";
               const remarksText = row.closureReason?.trim() || "—";
+              const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
+              const rowHcFilled = row.hcFilled ?? 0;
+              const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
+              const capacityBadgeText =
+                rowHcTotal > 1
+                  ? `${remainingCapacity} Vacant (${rowHcFilled}/${rowHcTotal})`
+                  : `${remainingCapacity || 1} Vacant`;
 
               return (
                 <tr
@@ -2790,7 +2861,7 @@ function StoreVacancyTable({
                   </td>
                   <td className="px-3.5 py-2 whitespace-nowrap">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0">
-                      1 Vacant
+                      {capacityBadgeText}
                     </span>
                   </td>
                   <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>
