@@ -803,6 +803,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Added `row.separation_status` and `row.date_of_separation` normalization fallbacks in `normalizeEmployeeListRow`.
   - Created migration `20261027150000_allow_terminated_separation_status.sql` updating `plantilla_separation_status_check` to include `'Terminated'` and `'End of Contract'`.
 
+- **Slot-Based Plantilla Summary & Store Staffing Count Parity (`ohm#4x7n2k9w` — Phase 2 Step 1B, Migration `20261027190000`)**:
+  - Updated `public.get_web_plantilla_summary` and `public.list_web_plantilla_store_staffing` on staging (`qqiiznmqxfoamqytjica`) with identical parameter and return signatures:
+    - Excluded pool and non-quota vacancies (`COALESCE(v.is_pool_vacancy, false) = false AND COALESCE(v.affects_required_hc, true) = true`) in both `onboarding_pipeline_count` (`hrProcess`) and `open_headcount_count` (`vacant`).
+    - Replaced requisition-level `SUM(vacancies.required_headcount) WHERE status = 'Open'` with slot-based vacant capacity across `public.plantilla_slots` (`slot_status IN ('open', 'pipeline') AND closed_at IS NULL`, stationary `1.0` + roving `1/N` share via `public.vacancy_stores`, suppressing stores inside active Coverage Groups) + `public.coverage_slots` (`slot_status = 'open'` on active Coverage Groups).
+    - Excluded any slot (`ps.id` or `cs.id`) already counted in `hr_emploc` (`hr_status IN ('Pending', 'Complete') AND employee_no IS NULL AND deleted_at IS NULL`) so each slot is counted at most once across `actual`, `hrProcess`, and `vacant`.
+
+
 
 
 

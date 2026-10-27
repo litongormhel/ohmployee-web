@@ -1,5 +1,55 @@
 # AI Handoff
 
+## ACTISERVE Plantilla — Slot-Based Summary RPC & HR Emploc Golden Rule Fix (Phase 2 — Step 1, Scoped) (ohm#4x7n2k9w)
+
+**Status: STEP 1 (1A + 1B) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) — CREATED AND APPLIED MIGRATION `20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`; ENFORCED `h.deleted_at IS NULL` ACROSS ALL CALLER ROLES IN `get_web_hr_emploc_summary` AND `list_web_hr_emplocs` (ELIMINATING 11 SOFT-DELETED TEST ROWS FOR SUPER ADMIN ON ACTISERVE); CONVERTED `get_web_plantilla_summary` AND `list_web_plantilla_store_staffing` TO SLOT-BASED VACANT COUNTS (`plantilla_slots` + `coverage_slots` WITH `closed_at IS NULL` AND `hr_emploc` SLOT DE-DUPLICATION) AND EXCLUDED POOL VACANCIES (`is_pool_vacancy = false AND affects_required_hc = true`) IN BOTH `onboarding_pipeline_count` AND `open_headcount_count`; VERIFIED BEFORE/AFTER SMOKE TESTS ON STAGING ACROSS `ACTISERVE` (`Required: 17 -> 12`), `ALTURAS` (`753 -> 753` UNCHANGED), `THREE` (`7 -> 4`, MATCHING `v_account_allocation_kpi`), `FOREVER OFFICE` (`10 -> 9`, MATCHING `v_account_allocation_kpi.slot_vacant_hc = 4`), `BANKO` (`12 -> 11`), AND `Moses HQ` (`3` ACTIVE UNCHANGED); STEPS 2–5 PENDING OHM'S EXPLICIT APPROVAL**
+
+- **ADR basis:** `ADR-001-ohmployee-system-architecture.md` — § Core Cross-Module Invariants (Rules 1, 2, 4), § Plantilla, § HR Emploc Import (soft-delete / Golden Rule).
+- **Branch status:** On `main` only (no branch created).
+
+### 1. Delivered Changes in Step 1 (`supabase/migrations/20261027190000_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`)
+- **Step 1A — HR Emploc Golden Rule Soft-Delete Fix (RC-5):**
+  - Pre-verification confirmed via `docs/state/hr_emploc_web_state.md`, `src/lib/queries/hr_emploc.ts`, `20262606000043_fix_hr_emploc_mobile_web_parity_prod.sql`, and `20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql` that no Super Admin audit / "show deleted" feature intentionally relies on soft-deleted rows in `get_web_hr_emploc_summary` or `list_web_hr_emplocs`.
+  - Moved `h.deleted_at IS NULL` outside the `COALESCE(v_role_level, 0) >= 90 OR (...)` bypass in both `public.get_web_hr_emploc_summary` and `public.list_web_hr_emplocs`.
+- **Step 1B — Plantilla Summary & Store Staffing Slot-Based Count (RC-1 + RC-3):**
+  - Updated `public.get_web_plantilla_summary` and `public.list_web_plantilla_store_staffing` (preserving 100% identical parameter and `RETURNS TABLE` column names/types):
+    1. Excluded pool / non-quota vacancies (`COALESCE(v.is_pool_vacancy, false) = false AND COALESCE(v.affects_required_hc, true) = true`) in **both** `onboarding_pipeline_count` (`hrProcess`) and `open_headcount_count` (`vacant`).
+    2. Replaced `SUM(vacancies.required_headcount) WHERE status = 'Open'` with slot-based vacant capacity:
+       - `public.plantilla_slots`: `ps.slot_status IN ('open', 'pipeline') AND ps.closed_at IS NULL` (stationary `1.0` + roving `1/N` share via `public.vacancy_stores`, suppressing stores inside active Coverage Groups via `public.coverage_group_stores` / `public.coverage_groups`).
+       - `public.coverage_slots`: `cs.slot_status = 'open'` on active Coverage Groups (`cg.status = 'active'`).
+       - De-duplicated any slot (`ps.id` or `cs.id`) already counted in `hr_emploc` (`hr_status IN ('Pending', 'Complete') AND employee_no IS NULL AND deleted_at IS NULL`) so every slot is counted at most once across `actual`, `hrProcess`, and `vacant`.
+
+### 2. Before vs After Smoke Test Results on Staging (`qqiiznmqxfoamqytjica`, Super Admin `71d245b9-10b1-42b9-ad9e-253f999daf6d`)
+
+#### A. `get_web_plantilla_summary` (`required = active_employees + onboarding_pipeline_count + open_headcount_count`)
+| Account (`account_id`) | Account Type | BEFORE (`actual` / `hrProcess` / `vacant` → **`required`**, `risk_stores`) | AFTER (`actual` / `hrProcess` / `vacant` → **`required`**, `risk_stores`) | Verification Notes |
+| :--- | :--- | :---: | :---: | :--- |
+| **`ACTISERVE`** (`4fba7c47-f19e-47fb-9074-6acab754721f`) | Target Account | `1` / `4` / `12` → **`17`** (`risk: 4`) | `1` / `3` / `8` → **`12`** (`risk: 2`) | `hrProcess`: `4 -> 3` (removed Moses HQ pool leak `BUN-GHQ-00015`). `vacant`: `12 -> 8` (removed double-counted `hr_processing` slots `ACT-G5-002` [-1] and `ACT-G5-006` [-1], removed pool leak `BUN-GHQ-00015` [-1], and excluded 2 `closed_at IS NOT NULL` `QA_RESET` slots on `VCAG5_0056`, leaving 6 non-closed slots on `VCAG5_0056` + 2 slots on `ACT-G5-008`). |
+| **`ALTURAS`** (`3126b9a8-29a6-4917-8b49-82e937d7cf88`) | Plain Stationary | `752` / `0` / `1` → **`753`** (`risk: 1`) | `752` / `0` / `1` → **`753`** (`risk: 1`) | **100% UNCHANGED.** |
+| **`THREE`** (`bb02474a-3928-4383-9eee-7a3393bdef4d`) | Coverage Group + Stationary | `0` / `1` / `6` → **`7`** (`risk: 1`) | `0` / `1` / `3` → **`4`** (`risk: 1`) | Now matches `v_account_allocation_kpi` (`required_hc = 4`, `pipeline_count = 1`, `slot_vacant_hc = 3`)! Removed `+3` pool vacancy leak (`COM-00004`) and prevented double-counting `VCTG2_0005` (`slot_id = ca650c1f...` in `hr_emploc`). |
+| **`FOREVER OFFICE`** (`d0533fbc-3cce-4d0a-a619-ad0539dbc66d`) | Roving + Stationary | `4` / `1` / `5` → **`10`** (`risk: 5`) | `4` / `1` / `4` → **`9`** (`risk: 4`) | Now matches `v_account_allocation_kpi.slot_vacant_hc = 4`! Removed `+1` phantom open headcount from `CPRVJV13`, whose sole slot (`078e8737...`) is already `slot_status = 'occupied'` by an active employee. |
+| **`BANKO`** (`f26cc270-bac3-4a5b-b656-1bad68619a73`) | Plain Stationary | `8` / `1` / `3` → **`12`** (`risk: 2`) | `8` / `1` / `2` → **`11`** (`risk: 1`) | Removed `+1` double-count on `TEST005` (`slot_id = 227ee072...` in `hr_processing` / `hr_emploc`). |
+| **`Moses HQ`** (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`) | Workforce Pool | `3` / `0` / `1` → **`4`** (`risk: 0`) | `3` / `0` / `0` → **`3`** (`risk: 0`) | `active_employees = 3` (`stationary_count = 3`) untouched; pool requisition `SEA-00006` (`is_pool_vacancy = true, affects_required_hc = false`) excluded from quota. |
+
+#### B. Expected (`14`) vs Actual (`12`) Pre-Cleanup Explanation for `ACTISERVE`
+- Ohm's pre-cleanup estimate of `14` (`1 actual + 3 hrProcess + 10 vacant`) came from `v_account_allocation_kpi`, which counts **8** slots on `VCAG5_0056` + **2** slots on `ACT-G5-008` = `10` vacant slots because `v_account_allocation_kpi` only checks `ps.slot_status IN ('open', 'pipeline')` **without** filtering `ps.closed_at IS NULL`.
+- On `VCAG5_0056`, Ordinals 1 (`bee89108-b8e3-4d99-a12f-f23544a502b7`) and 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) **already have `closed_at = '2026-06-08 07:11:32.650209+00'`** (`closure_reason_code = 'QA_RESET'`) even though their `slot_status` was later mutated to `'pipeline'`.
+- Because Step 1B enforces `ps.closed_at IS NULL` on `plantilla_slots`, those 2 closed `QA_RESET` slots are automatically excluded by the SQL filter, leaving **6** non-closed slots on `VCAG5_0056` (Ordinals 3–8) + **2** slots on `ACT-G5-008` = **8** `open_headcount_count` (`vacant`), and `required = 1 + 3 + 8 = 12`.
+
+#### C. `get_web_hr_emploc_summary` & `list_web_hr_emplocs` for `ACTISERVE` (Super Admin)
+- **BEFORE:** `pending_count = 10, correction_count = 1, review_count = 3, ready_count = 1, sla_breached_count = 2, with_deficiency_count = 3` (total `15` across the 4 queues; `list_web_hr_emplocs` returned `25` rows including `20` soft-deleted).
+- **AFTER:** `pending_count = 4, correction_count = 0, review_count = 0, ready_count = 0, sla_breached_count = 2, with_deficiency_count = 0` (`list_web_hr_emplocs` returns `5` non-deleted rows: `ACT-G5-002`, `ACT-G5-006`, `ACT-G5-010`, `BUN-GHQ-00015` [Pending Emploc], and `VAC-MNL-099` [Moved to Plantilla]). Zero soft-deleted rows returned.
+
+### 3. Pending Steps 2–5 & Open Decisions (Awaiting Ohm's Approval)
+- **Step 2 (Pending Approval):** `v_account_allocation_kpi` alignment (`ps.closed_at IS NULL` + `hr_emploc` slot de-duplication — touches Rule 4's locked KPI view).
+- **Step 3 (Pending Approval):** `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, `get_web_vacancy_summary` (ADR-001 Rule 2 `hc_filled` from active `plantilla` instead of `confirmed_onboard_count + active_applicant_count`; pool vacancy filter; reconciliation with unapplied local migrations `20261027170000` and `20261027180000`).
+- **Step 4 (Pending Approval):** Frontend count-source fixes in `src/app/(dashboard)/plantilla/page.tsx`, `src/lib/queries/plantilla.ts`, and `src/lib/queries/vacancy.ts` (use authoritative RPC slot counts for KPI cards and exclude pool vacancies from store Plantilla Vacancy tab).
+- **Step 5 (Pending Ohm's Data Decisions):** Staging data cleanup for `ACTISERVE`:
+  - **`VCAG5_0056` (`SM AURORA`):** Currently has 6 non-closed `'open'` slots (Ordinals 3–8) and 2 closed-but-`'pipeline'` `QA_RESET` slots (Ordinals 1–2) vs `vacancies.required_headcount = 7`. Decide whether `VCAG5_0056` should have `7` open slots, `6` open slots, `1` open slot, or be closed.
+  - **`ACT-G5-010` (`Festival Mall`):** Candidate `DELA CRUZ, JOHN PAUL DELOS REYES` (`33da0ac2...`) is in `hr_emploc` (`Pending`), while `ACT-G5-010` is prematurely marked `status = 'Filled', is_archived = true` and slot `8eb14b17...` is `'pipeline'`. Decide whether to unarchive `ACT-G5-010` and sync slot `8eb14b17...` to `'hr_processing'` or close/delete the test record.
+
+---
+
 ## ACTISERVE Plantilla — Why Required = 17? Slot-Based Count Investigation (READ-ONLY, Phase 1) (ohm#4x7n2k9w)
 
 **Status: PHASE 1 INVESTIGATION COMPLETE (READ-ONLY) — RECONCILED EVERY TERM OF `REQUIRED = 17` ON STAGING (`qqiiznmqxfoamqytjica`), PROVED DOUBLE-COUNTING AND POOL VACANCY LEAK IN `get_web_plantilla_summary`, IDENTIFIED UNAPPLIED STAGING MIGRATIONS (`20261027170000`, `20261027180000`), PROVED ADR-001 RULE 1/2/3/4/6 VIOLATIONS ACROSS `get_web_plantilla_summary`, `list_web_plantilla_store_staffing`, AND `vw_vacancy_list`, UNCOVERED RESURRECTED `QA_RESET` SLOTS ON `VCAG5_0056` (8 SLOTS VS 7 QUOTA), AND UNCOVERED GOLDEN RULE SOFT-DELETED DATA LEAK IN `get_web_hr_emploc_summary` / `list_web_hr_emploc` (`v_role_level >= 90` BYPASSING `deleted_at IS NULL`); AWAITING OHM'S EXPLICIT APPROVAL BEFORE PHASE 2 IMPLEMENTATION**
