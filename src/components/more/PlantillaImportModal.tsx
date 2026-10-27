@@ -392,6 +392,10 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
       await approvePlantillaImportBatch(batchId);
       refetchBatches();
       setSelectedBatchId(null);
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to approve plantilla batch.");
     } finally {
@@ -407,6 +411,9 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
     queryClient.invalidateQueries({ queryKey: ["plantilla-import-rollback-history"] });
     queryClient.invalidateQueries({ queryKey: ["plantilla"] });
     queryClient.invalidateQueries({ queryKey: ["plantilla-scope-menu"] });
+    queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+    queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+    queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
   };
 
   const handleDoRequestRollback = async () => {

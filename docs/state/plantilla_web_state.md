@@ -58,14 +58,24 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
      - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
 
 3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)
-   - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Open`) and onboarding candidates (`Status: HR Pipeline / For Emploc`) until Day-1 store deployment. Loaded via `listVacancies` without `status: "open"` restriction so `list_web_vacancies` returns all active slots regardless of applicant occupancy.
+   - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Vacancy - Open`) and onboarding candidates (`Status: Vacancy - Pipeline` or `HR Emploc - *`) until Day-1 store deployment. Loaded via `listVacancies` with applicant and HR Emploc status enrichment.
+   - **Automatic Active Transition Rule**: The moment a candidate completes onboarding and moves to Plantilla (via `move_to_plantilla` or approved import batch), their slot is marked occupied: the record immediately **disappears** from **Tab 3: Vacancy** and appears under **Tab 1: Active**. Multi-headcount requisitions stay visible only if remaining unfilled slots exist.
    - **Sub-Filters**: `All Vacancies (count)` | `Open / Unassigned (count)` | `HR Pipeline (For Emploc) (count)`. Top KPI cards `Open Vacancies` and `HR Pipeline` display synchronized live counts and auto-filter this tab.
+   - **Detailed Stage Status Labels**:
+     - *Open / Unassigned Group*:
+       - `Vacancy - Open`: For vacant slots with no applicant assigned or attached (neutral gray badge).
+     - *HR Pipeline Group*:
+       - `Vacancy - Pipeline`: Initial candidate recruitment pipeline state (blue badge).
+       - `HR Emploc - Pending`: When candidate is in pending employee-location/onboarding stage (`hr_status = 'Pending'` or `'Pending Emploc'`, amber badge).
+       - `HR Emploc - Correction`: When details require correction (`hr_status = 'For Correction'`, red badge).
+       - `HR Emploc - Ready`: When ready for final processing/onboarding (`hr_status = 'Complete'` or `'Ready for Plantilla'`, emerald badge).
+       - `HR Emploc - Review`: Under review by HR/Ops (`hr_status = 'For Review'`, purple badge).
    - **Columns (Strict 9-Column Sequence, Actions column deleted)**:
      1. `VCode / CGCode`: Dedicated primary column displaying `VCode` or `CGCode`.
      2. `Store Branch / Anchor Branch`: Clean branch name with subtle `Roving` badge if roving.
      3. `Area & City`: Store location pill.
      4. `Applicant`: Candidate name synced live from Vacancy/HR Emploc (empty state: muted `—`).
-     5. `Status`: Stage badge (`Open`, `For Interview`, `HR Pipeline / For Emploc`).
+     5. `Status`: Stage badge (`Vacancy - Open`, `Vacancy - Pipeline`, `HR Emploc - Pending`, `HR Emploc - Correction`, `HR Emploc - Ready`, `HR Emploc - Review`).
      6. `Aging`: Aging days (`Xd`) calculated from Effective Vacancy Date (`vacantDate`).
      7. `Position`: Position title.
      8. `Slot`: Strict 1-to-1 slot mapping displaying a fixed `1 Vacant` red badge.

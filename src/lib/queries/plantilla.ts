@@ -1741,6 +1741,8 @@ function invalidatePlantillaCaches(
   queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
   queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
   queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
 }
 
 // ---------------------------------------------------------------------------

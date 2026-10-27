@@ -233,6 +233,110 @@ function OverallMfrDonut({
 }
 
 // ---------------------------------------------------------------------------
+// Vacancy Workflow Stage Mapping & Badges
+// ---------------------------------------------------------------------------
+
+export type VacancyWorkflowStage =
+  | "Vacancy - Open"
+  | "Vacancy - Pipeline"
+  | "HR Emploc - Pending"
+  | "HR Emploc - Correction"
+  | "HR Emploc - Ready"
+  | "HR Emploc - Review";
+
+export function resolveVacancyWorkflowStage(v: VacancyListItem): VacancyWorkflowStage {
+  const badgeRaw = (v.stageBadge || "").trim();
+  const pipeRaw = (v.pipelineStatus || "").trim();
+  const target = (badgeRaw || pipeRaw).toLowerCase();
+
+  if (target.includes("correction")) {
+    return "HR Emploc - Correction";
+  }
+  if (target.includes("review")) {
+    return "HR Emploc - Review";
+  }
+  if (target.includes("ready") || target.includes("complete")) {
+    return "HR Emploc - Ready";
+  }
+  if (target.includes("emploc") || target.includes("onboard")) {
+    return "HR Emploc - Pending";
+  }
+  if (target.includes("pipeline")) {
+    return "Vacancy - Pipeline";
+  }
+
+  const hasApplicant = Boolean(
+    v.applicantName &&
+    v.applicantName.trim() !== "" &&
+    v.applicantName.trim() !== "—" &&
+    v.applicantName.trim() !== "-"
+  );
+
+  if (hasApplicant) {
+    return "Vacancy - Pipeline";
+  }
+
+  return "Vacancy - Open";
+}
+
+export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean {
+  return (
+    stage === "Vacancy - Pipeline" ||
+    stage === "HR Emploc - Pending" ||
+    stage === "HR Emploc - Correction" ||
+    stage === "HR Emploc - Ready" ||
+    stage === "HR Emploc - Review"
+  );
+}
+
+export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
+  switch (stage) {
+    case "Vacancy - Open":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
+          Vacancy - Open
+        </span>
+      );
+    case "Vacancy - Pipeline":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+          Vacancy - Pipeline
+        </span>
+      );
+    case "HR Emploc - Pending":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+          HR Emploc - Pending
+        </span>
+      );
+    case "HR Emploc - Correction":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
+          HR Emploc - Correction
+        </span>
+      );
+    case "HR Emploc - Ready":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+          HR Emploc - Ready
+        </span>
+      );
+    case "HR Emploc - Review":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
+          HR Emploc - Review
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
+          {stage}
+        </span>
+      );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
 
@@ -713,8 +817,38 @@ function PlantillaPageContent() {
     return allEmployees.filter(isInactiveRecord);
   }, [allEmployees]);
 
-  // Tab 3: Vacancy Rows
-  const allVacancies = useMemo(() => vacancyListQuery.data?.data ?? [], [vacancyListQuery.data?.data]);
+  // Active employees' occupied VCodes
+  const activeOccupiedVcodes = useMemo(() => {
+    const map = new Map<string, number>();
+    activeEmployees.forEach((emp) => {
+      const vk = emp.vcode?.trim().toUpperCase();
+      if (vk) {
+        map.set(vk, (map.get(vk) ?? 0) + 1);
+      }
+    });
+    return map;
+  }, [activeEmployees]);
+
+  // Tab 3: Vacancy Rows (exclude any slot already active/occupied in Plantilla)
+  const allVacancies = useMemo(() => {
+    const raw = vacancyListQuery.data?.data ?? [];
+    return raw.filter((v) => {
+      const vk = (v.vcode || v.cgCode || "").trim().toUpperCase();
+      const isFilled =
+        v.vacancyStatus?.toLowerCase() === "filled" ||
+        v.pipelineStatus?.toLowerCase() === "hired" ||
+        v.derivedStatus?.toLowerCase() === "hired";
+      if (isFilled) return false;
+
+      // Filter out slots that are already occupied by an active employee in Plantilla
+      if (vk && activeOccupiedVcodes.has(vk)) {
+        const activeCount = activeOccupiedVcodes.get(vk) ?? 0;
+        const required = v.hcTotal ?? v.headcount ?? 1;
+        if (activeCount >= required && required > 0) return false;
+      }
+      return true;
+    });
+  }, [vacancyListQuery.data?.data, activeOccupiedVcodes]);
 
   const vacantStoreIds = useMemo(() => {
     const set = new Set<string>();
@@ -732,31 +866,20 @@ function PlantillaPageContent() {
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
 
   const openVacanciesCount = useMemo(() => {
-    return allVacancies.filter((v) => {
-      const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
-      const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
-      return !hasApplicant && !isPipeline;
-    }).length;
+    return allVacancies.filter((v) => resolveVacancyWorkflowStage(v) === "Vacancy - Open").length;
   }, [allVacancies]);
 
   const pipelineVacanciesCount = useMemo(() => {
-    return allVacancies.filter((v) => {
-      const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
-      const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
-      return hasApplicant || isPipeline;
-    }).length;
+    return allVacancies.filter((v) => isHrPipelineWorkflowStage(resolveVacancyWorkflowStage(v))).length;
   }, [allVacancies]);
 
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
+      const stage = resolveVacancyWorkflowStage(v);
       if (vacancySubFilter === "open") {
-        const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
-        const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
-        if (hasApplicant || isPipeline) return false;
+        if (stage !== "Vacancy - Open") return false;
       } else if (vacancySubFilter === "pipeline") {
-        const hasApplicant = Boolean(v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—");
-        const isPipeline = (v.pipelineStatus || "").toLowerCase().includes("pipeline") || (v.pipelineStatus || "").toLowerCase().includes("emploc") || (v.stageBadge || "").toLowerCase().includes("pipeline") || (v.stageBadge || "").toLowerCase().includes("emploc");
-        if (!hasApplicant && !isPipeline) return false;
+        if (!isHrPipelineWorkflowStage(stage)) return false;
       }
 
       if (search.trim()) {
@@ -765,7 +888,8 @@ function PlantillaPageContent() {
         const pos = (v.position_title || "").toLowerCase();
         const vcode = (v.vcode || v.cgCode || "").toLowerCase();
         const applicant = (v.applicantName || "").toLowerCase();
-        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q) && !applicant.includes(q)) return false;
+        const stageStr = stage.toLowerCase();
+        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q) && !applicant.includes(q) && !stageStr.includes(q)) return false;
       }
 
       if (areaCityFilter) {
@@ -2599,23 +2723,8 @@ function StoreVacancyTable({
               );
               const hasApplicant = Boolean(row.applicantName && row.applicantName.trim() !== "" && row.applicantName.trim() !== "—");
               const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : "—";
-
-              const statusRaw = (row.stageBadge || row.pipelineStatus || row.vacancyStatus || "Open").trim();
-              const isHrPipeline = Boolean(
-                hasApplicant ||
-                statusRaw.toLowerCase().includes("pipeline") ||
-                statusRaw.toLowerCase().includes("emploc") ||
-                statusRaw.toLowerCase().includes("hired")
-              );
-              const isRecruiting = Boolean(
-                statusRaw.toLowerCase().includes("interview") ||
-                statusRaw.toLowerCase().includes("shortlist") ||
-                statusRaw.toLowerCase().includes("evaluation") ||
-                statusRaw.toLowerCase().includes("sourcing")
-              );
-
+              const stage = resolveVacancyWorkflowStage(row);
               const agingDaysDisplay = row.agingDays != null ? `${row.agingDays}d` : "—";
-
               const remarksText = row.closureReason?.trim() || "—";
 
               return (
@@ -2664,19 +2773,7 @@ function StoreVacancyTable({
                     )}
                   </td>
                   <td className="px-3.5 py-2 whitespace-nowrap">
-                    {isHrPipeline ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-                        {statusRaw.toLowerCase().includes("emploc") ? "For Emploc" : "HR Pipeline"}
-                      </span>
-                    ) : isRecruiting ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                        {statusRaw}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
-                        Open
-                      </span>
-                    )}
+                    {renderVacancyStatusBadge(stage)}
                   </td>
                   <td className="px-3.5 py-2 font-mono text-xs font-semibold text-text-secondary tabular-nums whitespace-nowrap">
                     {agingDaysDisplay}

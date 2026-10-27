@@ -781,6 +781,8 @@ function TagDeficiencyModal({
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       onSubmitted();
     },
     onError: (err) => {
@@ -978,6 +980,8 @@ function ReviewCorrectionModal({
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       onSubmitted();
     },
     onError: (err) => {

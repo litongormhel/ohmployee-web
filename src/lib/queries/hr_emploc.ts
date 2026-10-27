@@ -1169,6 +1169,9 @@ export function useMoveToPlantilla() {
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
     },
   });
 }
@@ -1186,6 +1189,9 @@ export function useBulkMoveToPlantilla() {
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
     },
   });
 }
@@ -1466,6 +1472,10 @@ export function useApproveEmplocDeletion() {
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
     },
   });
 }
