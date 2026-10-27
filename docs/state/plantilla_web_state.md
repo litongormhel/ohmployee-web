@@ -109,6 +109,14 @@ Responsive 5-column grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4`) wit
 
 ---
 
+### F. Responsive Viewport Flex Layout & Compact Vertical Density
+To ensure the interface auto-fits cleanly at 100% browser zoom on 1080p and 900p displays without vertical window scrolling clipping the pagination footer:
+- **Compact KPI Cards**: Cards use `px-3 py-2` padding, metric counts are `text-2xl`, and the MFR Donut SVG is sized at `68px` with an inner `text-sm` percentage.
+- **Section Spacing**: Tightened vertical margins (`gap-2` between sections; `h-8` sub-tab buttons; `h-8.5` filter inputs and dropdowns).
+- **Flex-Viewport Auto-Fitting (`lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden`)**: The desktop container uses responsive flex column constraints where the table container flexes (`flex-1 min-h-0 overflow-auto`) with a sticky table header (`sticky top-0 z-10 bg-table-header shadow-2xs`), ensuring the **Pagination Footer (`Showing X–Y of Z records`)** remains permanently visible on-screen at 100% zoom. Mobile viewports flow naturally with standard document scrolling.
+
+---
+
 ## 3. Scoped RBAC Visibility & RLS Boundaries
 
 Web presentations are governed strictly by the capabilities returned from `get_web_current_user_context()`. The Supabase backend enforces access boundaries at the table level using PostgreSQL Row-Level Security (RLS) policies.

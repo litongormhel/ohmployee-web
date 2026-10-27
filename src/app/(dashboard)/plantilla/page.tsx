@@ -142,8 +142,8 @@ function formatLeadershipName(user: TeamDirectoryUser): string {
 
 function OverallMfrDonut({
   percent,
-  size = 110,
-  strokeWidth = 10,
+  size = 72,
+  strokeWidth = 7.5,
 }: {
   percent: number;
   size?: number;
@@ -163,7 +163,7 @@ function OverallMfrDonut({
 
   return (
     <div
-      className="relative inline-flex items-center justify-center my-1"
+      className="relative inline-flex items-center justify-center my-0.5"
       style={{ width: size, height: size }}
       role="progressbar"
       aria-valuenow={Math.round(percent)}
@@ -199,7 +199,7 @@ function OverallMfrDonut({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xl font-bold tracking-tight text-text-primary tabular-nums">
+        <span className="text-sm font-bold tracking-tight text-text-primary tabular-nums">
           {percent.toFixed(1)}%
         </span>
       </div>
@@ -1248,9 +1248,9 @@ function PlantillaPageContent() {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col gap-5 text-text-primary">
+    <div className="flex min-h-0 flex-col gap-2 text-text-primary lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
       {!accountId ? (
-        <>
+        <div className="flex flex-col gap-5 overflow-y-auto">
           <AdminPageHeader
             categoryTag="Admin panel"
             moduleName="Plantilla"
@@ -1259,149 +1259,151 @@ function PlantillaPageContent() {
             icon={Building2}
           />
           {renderAccountSelectionContent()}
-        </>
+        </div>
       ) : (
         <>
           {/* 1. Header & Context Action Bar (Enterprise Web Header) */}
-          <AdminPageHeader
-            categoryTag="Admin panel"
-            moduleName="Plantilla"
-            title={
-              <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
-                {showBackToSelection ? (
-                  <button
-                    type="button"
-                    onClick={handleBackToSelection}
-                    className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="h-3 w-3" />
-                    <span>Accounts</span>
-                  </button>
-                ) : (
-                  <span className="text-text-muted">Accounts</span>
-                )}
-                <span className="text-text-muted/60">/</span>
-                <span className="text-sm font-semibold text-text-primary leading-tight truncate">
-                  {selectedAccountName}
-                </span>
-                {userRole && (
-                  <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2 py-0.2 text-[10px] font-semibold text-brand-700 capitalize">
-                    {userRole.replace(/_/g, " ")}
+          <div className="shrink-0">
+            <AdminPageHeader
+              categoryTag="Admin panel"
+              moduleName="Plantilla"
+              title={
+                <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
+                  {showBackToSelection ? (
+                    <button
+                      type="button"
+                      onClick={handleBackToSelection}
+                      className="inline-flex items-center gap-1 font-medium text-text-secondary hover:text-brand-600 transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="h-3 w-3" />
+                      <span>Accounts</span>
+                    </button>
+                  ) : (
+                    <span className="text-text-muted">Accounts</span>
+                  )}
+                  <span className="text-text-muted/60">/</span>
+                  <span className="text-sm font-semibold text-text-primary leading-tight truncate">
+                    {selectedAccountName}
                   </span>
-                )}
-              </nav>
-            }
-            subtitle="Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance."
-            actionSlot={
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Main View Segmented Toggle: [ 👥 Employee View | 🏬 Store View ] */}
-                <div className="flex h-9 items-center rounded-lg border border-border-default bg-surface-muted p-0.5 shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMainView("employee");
-                      setPage(1);
-                    }}
-                    className={`inline-flex h-full items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors cursor-pointer ${
-                      mainView === "employee"
-                        ? "bg-surface-base text-text-primary shadow-xs"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <Users className="h-3.5 w-3.5" />
-                    <span>👥 Employee View</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMainView("store");
-                      setPage(1);
-                    }}
-                    className={`inline-flex h-full items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors cursor-pointer ${
-                      mainView === "store"
-                        ? "bg-surface-base text-text-primary shadow-xs"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <Building2 className="h-3.5 w-3.5" />
-                    <span>🏬 Store View</span>
-                  </button>
-                </div>
+                  {userRole && (
+                    <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2 py-0.2 text-[10px] font-semibold text-brand-700 capitalize">
+                      {userRole.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </nav>
+              }
+              subtitle="Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance."
+              actionSlot={
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Main View Segmented Toggle: [ 👥 Employee View | 🏬 Store View ] */}
+                  <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMainView("employee");
+                        setPage(1);
+                      }}
+                      className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                        mainView === "employee"
+                          ? "bg-surface-base text-text-primary shadow-xs"
+                          : "text-text-muted hover:text-text-primary"
+                      }`}
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      <span>👥 Employee View</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMainView("store");
+                        setPage(1);
+                      }}
+                      className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                        mainView === "store"
+                          ? "bg-surface-base text-text-primary shadow-xs"
+                          : "text-text-muted hover:text-text-primary"
+                      }`}
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      <span>🏬 Store View</span>
+                    </button>
+                  </div>
 
-                {/* Primary button: + Request Headcount */}
-                {canRequestAdjustment && (
-                  <button
-                    type="button"
-                    onClick={() => setIsRequestHeadcountOpen(true)}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-                  >
-                    <Plus className="w-4 h-4 shrink-0" />
-                    <span>Request Headcount</span>
-                  </button>
-                )}
-              </div>
-            }
-          />
+                  {/* Primary button: + Request Headcount */}
+                  {canRequestAdjustment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestHeadcountOpen(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                    >
+                      <Plus className="w-3.5 h-3.5 shrink-0" />
+                      <span>Request Headcount</span>
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          </div>
 
           {/* 2. Top 5 KPI & Leadership Cards (grid-cols-5, Centered Content) */}
-          <section aria-label="Plantilla summary metrics" className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <section aria-label="Plantilla summary metrics" className="shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {/* Card 1: Overall MFR (CENCOM Donut Style) */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base p-4 flex flex-col items-center justify-center text-center shadow-xs min-h-[170px]">
-                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-center text-center shadow-xs">
+                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Overall MFR
                 </div>
-                <OverallMfrDonut percent={fulfillmentRate} />
-                <div className="text-xs font-medium text-text-secondary mt-1">
+                <OverallMfrDonut percent={fulfillmentRate} size={68} strokeWidth={7} />
+                <div className="text-[11px] font-medium text-text-secondary mt-0.5">
                   {activeCount} active / {requiredCount} required
                 </div>
               </div>
 
               {/* Card 2: Active Deployed */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base p-4 flex flex-col items-center justify-between text-center shadow-xs min-h-[170px]">
-                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Active Deployed
                 </div>
-                <div className="text-3xl font-bold font-mono text-text-primary my-auto">
+                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
                   {activeCount}
                 </div>
-                <div className="text-xs text-text-muted">
+                <div className="text-[11px] text-text-muted leading-tight">
                   Active deployed personnel
                 </div>
               </div>
 
               {/* Card 3: Open Vacancies */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base p-4 flex flex-col items-center justify-between text-center shadow-xs min-h-[170px]">
-                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Open Vacancies
                 </div>
-                <div className="text-3xl font-bold font-mono text-text-primary my-auto">
+                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
                   {vacancyCount}
                 </div>
-                <div className="text-xs text-text-muted">
+                <div className="text-[11px] text-text-muted leading-tight">
                   Approved open vacancy slots
                 </div>
               </div>
 
               {/* Card 4: HR Pipeline */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base p-4 flex flex-col items-center justify-between text-center shadow-xs min-h-[170px]">
-                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs">
+                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   HR Pipeline
                 </div>
-                <div className="text-3xl font-bold font-mono text-text-primary my-auto">
+                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
                   {summaryData?.hrProcess ?? 0}
                 </div>
-                <div className="text-xs text-text-muted">
+                <div className="text-[11px] text-text-muted leading-tight">
                   Candidate onboarding pipeline
                 </div>
               </div>
 
               {/* Card 5: Leadership Team (Simple Card, Conditional Row Rendering) */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base p-4 flex flex-col items-center justify-between text-center min-h-[170px] shadow-xs w-full">
-                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs w-full">
+                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Leadership Team
                 </div>
-                <div className="w-full space-y-1.5 text-xs text-left my-auto px-1">
+                <div className="w-full space-y-0.5 text-xs text-left my-auto px-1">
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-text-muted font-medium shrink-0">OM:</span>
                     <span className="font-semibold text-text-primary truncate" title={leadershipTeam.om}>
@@ -1431,16 +1433,16 @@ function PlantillaPageContent() {
                     </span>
                   </div>
                 </div>
-                <div className="text-[11px] text-text-muted">Assigned Account Leadership</div>
+                <div className="text-[10px] text-text-muted leading-tight">Assigned Account Leadership</div>
               </div>
             </div>
           </section>
 
           {/* 3. Search & Hierarchical Area -> City Filter Bar */}
-          <div className="space-y-3">
+          <div className="flex flex-1 min-h-0 flex-col gap-2">
             {/* Employee View Sub-Tabs (Hidden when mainView === "store") */}
             {mainView === "employee" && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2 shrink-0">
                 <div
                   role="tablist"
                   aria-label="Plantilla Directory Tabs"
@@ -1455,16 +1457,16 @@ function PlantillaPageContent() {
                       setStatusTab("active");
                       setPage(1);
                     }}
-                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "active"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    <Users className="w-4 h-4 shrink-0" />
+                    <Users className="w-3.5 h-3.5 shrink-0" />
                     <span>Active</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
                         statusTab === "active"
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
@@ -1483,16 +1485,16 @@ function PlantillaPageContent() {
                       setStatusTab("on_leave");
                       setPage(1);
                     }}
-                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "on_leave"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    <UserMinus className="w-4 h-4 shrink-0" />
+                    <UserMinus className="w-3.5 h-3.5 shrink-0" />
                     <span>On-Leave</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
                         statusTab === "on_leave"
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
@@ -1511,16 +1513,16 @@ function PlantillaPageContent() {
                       setStatusTab("vacancy");
                       setPage(1);
                     }}
-                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "vacancy"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    <Briefcase className="w-4 h-4 shrink-0" />
+                    <Briefcase className="w-3.5 h-3.5 shrink-0" />
                     <span>Vacancy</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
                         statusTab === "vacancy"
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
@@ -1539,16 +1541,16 @@ function PlantillaPageContent() {
                       setStatusTab("floating");
                       setPage(1);
                     }}
-                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "floating"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    <Share2 className="w-4 h-4 shrink-0" />
+                    <Share2 className="w-3.5 h-3.5 shrink-0" />
                     <span>Floating</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
                         statusTab === "floating"
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
@@ -1567,16 +1569,16 @@ function PlantillaPageContent() {
                       setStatusTab("deactivation");
                       setPage(1);
                     }}
-                    className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "deactivation"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
                         : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
                     }`}
                   >
-                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>Deactivation</span>
                     <span
-                      className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
                         statusTab === "deactivation"
                           ? "bg-brand-button text-white"
                           : "bg-surface-muted text-text-secondary border border-border-default"
@@ -1588,7 +1590,7 @@ function PlantillaPageContent() {
                 </div>
 
                 {/* View switch: Table vs Cards (Employee view) */}
-                <div className="flex h-9 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
+                <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
                   <button
                     type="button"
                     onClick={() => setDisplayView("table")}
@@ -1622,9 +1624,9 @@ function PlantillaPageContent() {
             )}
 
             {/* Unified Web Search & Filter Toolbar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 rounded-xl border border-border-default bg-surface-base p-3 shadow-xs">
-              <div className="relative flex-1 min-w-[240px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 rounded-xl border border-border-default bg-surface-base px-3 py-2 shadow-xs shrink-0">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
                   placeholder="Search employee, emploc no, name, store..."
@@ -1633,7 +1635,7 @@ function PlantillaPageContent() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="h-10 w-full rounded-lg border border-border-default bg-surface-muted pl-9 pr-9 text-sm text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
+                  className="h-8.5 w-full rounded-lg border border-border-default bg-surface-muted pl-8 pr-8 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
                   aria-label="Search plantilla roster"
                 />
                 {search && (
@@ -1646,21 +1648,21 @@ function PlantillaPageContent() {
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
                     aria-label="Clear search"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
 
               {/* Hierarchical Area -> City Dropdown */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-[210px] flex-1 sm:flex-initial">
+                <div className="min-w-[190px] flex-1 sm:flex-initial">
                   <select
                     value={areaCityFilter}
                     onChange={(e) => {
                       setAreaCityFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
                     aria-label="Filter by store area or city"
                   >
                     <option value="">All Stores (All Areas & Cities)</option>
@@ -1678,14 +1680,14 @@ function PlantillaPageContent() {
                 </div>
 
                 {/* Assignment Type Dropdown (Stationary / Roving) */}
-                <div className="min-w-[130px] flex-1 sm:flex-initial">
+                <div className="min-w-[115px] flex-1 sm:flex-initial">
                   <select
                     value={assignmentType}
                     onChange={(e) => {
                       setAssignmentType(e.target.value);
                       setPage(1);
                     }}
-                    className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-xs sm:text-sm text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                    className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
                     aria-label="Filter by assignment type"
                   >
                     <option value="">All Types</option>
@@ -1698,18 +1700,17 @@ function PlantillaPageContent() {
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted px-3 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex h-8.5 items-center gap-1 rounded-lg border border-border-default bg-surface-muted px-2.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>Reset Filters</span>
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Reset</span>
                   </button>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* 4. Main Data Area: Employee 5 Tabs View OR Store Capacity Table */}
-          <div className="min-h-[500px]">
+            {/* 4. Main Data Area: Employee 5 Tabs View OR Store Capacity Table */}
+            <div className="flex-1 min-h-0 flex flex-col">
             {employeeQuery.isLoading ? (
               <div className="rounded-xl border border-border-default bg-surface-base p-8">
                 <DataState
@@ -1755,15 +1756,17 @@ function PlantillaPageContent() {
                   storeLookupMap={storeLookupMap}
                 />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                  {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                    <EmployeeCard
-                      key={row.id}
-                      row={row}
-                      onSelect={() => setSelectedPlantillaId(row.id)}
-                      storeLookupMap={storeLookupMap}
-                    />
-                  ))}
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                      <EmployeeCard
+                        key={row.id}
+                        row={row}
+                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        storeLookupMap={storeLookupMap}
+                      />
+                    ))}
+                  </div>
                 </div>
               )
             ) : statusTab === "on_leave" ? (
@@ -1862,6 +1865,7 @@ function PlantillaPageContent() {
                 />
               )
             )}
+            </div>
 
             {/* Pagination Controls */}
             {currentTotalCount > 0 && (
@@ -1876,7 +1880,7 @@ function PlantillaPageContent() {
                   setPage(1);
                 }}
                 isLoading={employeeQuery.isLoading}
-                className="mt-4 pt-4 border-t border-border-default px-0"
+                className="mt-2 pt-2 border-t border-border-default px-0 shrink-0"
               />
             )}
           </div>
@@ -1971,27 +1975,27 @@ function EmployeeActiveTable({
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Status
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -2021,70 +2025,70 @@ function EmployeeActiveTable({
                   role="button"
                   aria-label={`View details for ${displayName}`}
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                  <td className="px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7.5 w-7.5 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-sm hover:text-brand-primary transition-colors">
+                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
                           {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
                         </div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-table-text">
+                  <td className="px-3.5 py-2 text-table-text">
                     <div className="min-w-0">
-                      <div className="font-medium text-table-text">
+                      <div className="font-medium text-table-text text-xs">
                         {formatStoreName(row.primaryStoreName || row.vcode || "—")}
                       </div>
                       {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
+                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                           <span className="truncate max-w-[150px]">{locationLabel}</span>
                         </span>
                       )}
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-sm">
+                      <span className="font-medium text-table-text text-xs">
                         {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
                       </span>
-                      <span className="text-xs text-table-text-muted mt-0.5">
+                      <span className="text-[11px] text-table-text-muted mt-0.5">
                         {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                  <td className="px-3.5 py-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
                       {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
+                  <td className="px-3.5 py-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
                       Active
                     </span>
                   </td>
 
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3.5 py-2 text-right">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onRowClick(row.id);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                       aria-label={`View details for ${displayName}`}
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3 w-3" />
                       <span>Details</span>
                     </button>
                   </td>
@@ -2118,27 +2122,27 @@ function EmployeeOnLeaveTable({
   onReturnToActive: (emp: PlantillaEmployeeListItem, reliever: ActiveCoverageItem | null) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1020px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[1020px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Leave Details
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Reliever (Moses HQ)
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -2170,16 +2174,16 @@ function EmployeeOnLeaveTable({
                   aria-label={`View on-leave record for ${displayName}`}
                 >
                   {/* 1. Member */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+                  <td className="px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7.5 w-7.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-sm hover:text-brand-primary transition-colors">
+                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
                           {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
                         </div>
                       </div>
@@ -2187,14 +2191,14 @@ function EmployeeOnLeaveTable({
                   </td>
 
                   {/* 2. Store */}
-                  <td className="px-4 py-3 text-table-text">
+                  <td className="px-3.5 py-2 text-table-text">
                     <div className="min-w-0">
-                      <div className="font-medium text-table-text">
+                      <div className="font-medium text-table-text text-xs">
                         {formatStoreName(row.primaryStoreName || row.vcode || "—")}
                       </div>
                       {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
+                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                           <span className="truncate max-w-[150px]">{locationLabel}</span>
                         </span>
                       )}
@@ -2202,43 +2206,43 @@ function EmployeeOnLeaveTable({
                   </td>
 
                   {/* 3. Position */}
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-sm">
+                      <span className="font-medium text-table-text text-xs">
                         {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
                       </span>
-                      <span className="text-xs text-table-text-muted mt-0.5">
+                      <span className="text-[11px] text-table-text-muted mt-0.5">
                         {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
                       </span>
                     </div>
                   </td>
 
                   {/* 4. Leave Details */}
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit">
                         On-Leave
                       </span>
-                      <span className="text-xs text-table-text-muted mt-1">
+                      <span className="text-[10px] text-table-text-muted mt-0.5">
                         Active Leave Coverage
                       </span>
                     </div>
                   </td>
 
                   {/* 5. Reliever (Moses HQ) */}
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     {assignedReliever ? (
                       <div className="flex flex-col">
                         <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-1">
-                          <UserCheck className="h-3.5 w-3.5" />
+                          <UserCheck className="h-3 w-3" />
                           {assignedReliever.employeeName}
                         </span>
-                        <span className="font-mono text-[11px] text-text-muted">
+                        <span className="font-mono text-[10px] text-text-muted">
                           {assignedReliever.employeeNumber}
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="italic text-text-muted text-xs">Unassigned</span>
                         <button
                           type="button"
@@ -2246,9 +2250,9 @@ function EmployeeOnLeaveTable({
                             e.stopPropagation();
                             onAssignReliever(row);
                           }}
-                          className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition shadow-2xs cursor-pointer dark:bg-brand-950 dark:border-brand-800 dark:text-brand-300"
+                          className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition shadow-2xs cursor-pointer dark:bg-brand-950 dark:border-brand-800 dark:text-brand-300"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-2.5 w-2.5" />
                           <span>+ Assign Reliever</span>
                         </button>
                       </div>
@@ -2256,17 +2260,17 @@ function EmployeeOnLeaveTable({
                   </td>
 
                   {/* 6. Actions */}
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3.5 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onReturnToActive(row, assignedReliever);
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 transition cursor-pointer"
                       >
-                        <RotateCw className="h-3.5 w-3.5" />
+                        <RotateCw className="h-3 w-3" />
                         <span>Return to Active</span>
                       </button>
                       <button
@@ -2275,10 +2279,10 @@ function EmployeeOnLeaveTable({
                           e.stopPropagation();
                           onRowClick(row.id);
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                         aria-label={`View details for ${displayName}`}
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="h-3 w-3" />
                         <span>Details</span>
                       </button>
                     </div>
@@ -2305,27 +2309,27 @@ function StoreVacancyTable({
   onSelectVacancy: (v: VacancyListItem) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store Branch
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Area & City
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Required Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Open Slots
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Remarks
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -2340,48 +2344,48 @@ function StoreVacancyTable({
                 role="button"
                 aria-label={`Inspect vacancy for ${row.storeName || "store"}`}
               >
-                <td className="px-4 py-3 font-medium text-table-text">
+                <td className="px-3.5 py-2 font-medium text-table-text">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold">{formatStoreName(row.storeName || "Unnamed Store")}</span>
+                    <span className="font-bold text-xs">{formatStoreName(row.storeName || "Unnamed Store")}</span>
                     {(row.vcode || row.cgCode) && (
-                      <span className="font-mono text-xs text-text-muted">
+                      <span className="font-mono text-[11px] text-text-muted">
                         ({row.vcode || row.cgCode})
                       </span>
                     )}
                   </div>
                 </td>
 
-                <td className="px-4 py-3 text-table-text">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-subtle">
-                    <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                <td className="px-3.5 py-2 text-table-text">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
+                    <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                     <span>{row.storeLocation || "Unassigned Area"}</span>
                   </span>
                 </td>
 
-                <td className="px-4 py-3 font-medium text-table-text">
+                <td className="px-3.5 py-2 font-medium text-table-text text-xs">
                   {row.position_title || "General Staff"}
                 </td>
 
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                <td className="px-3.5 py-2">
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
                     {row.activeApplicantCount > 0 ? row.activeApplicantCount : 1} Vacant
                   </span>
                 </td>
 
-                <td className="px-4 py-3 text-xs text-text-muted">
+                <td className="px-3.5 py-2 text-[11px] text-text-muted">
                   {row.agingDays != null ? `${row.agingDays}d aging • ${row.pipelineStatus || "Open"}` : row.pipelineStatus || "Approved open vacancy"}
                 </td>
 
-                <td className="px-4 py-3 text-right">
+                <td className="px-3.5 py-2 text-right">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectVacancy(row);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                   >
-                    <Eye className="h-3.5 w-3.5" />
+                    <Eye className="h-3 w-3" />
                     <span>Details</span>
                   </button>
                 </td>
@@ -2410,27 +2414,27 @@ function EmployeeFloatingTable({
   onAssignStore: (emp: PlantillaEmployeeListItem) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Status
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -2460,68 +2464,68 @@ function EmployeeFloatingTable({
                   role="button"
                   aria-label={`View floating personnel ${displayName}`}
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0 shadow-xs dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
+                  <td className="px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7.5 w-7.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-sm hover:text-brand-primary transition-colors">
+                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
                           {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
                         </div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-table-text">
+                  <td className="px-3.5 py-2 text-table-text">
                     <div className="min-w-0">
-                      <div className="font-medium text-text-muted italic">Unassigned</div>
+                      <div className="font-medium text-text-muted italic text-xs">Unassigned</div>
                       {locationLabel ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
+                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                           <span className="truncate max-w-[150px]">{locationLabel}</span>
                         </span>
                       ) : null}
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-sm">
+                      <span className="font-medium text-table-text text-xs">
                         {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
                       </span>
-                      <span className="text-xs text-table-text-muted mt-0.5">
+                      <span className="text-[11px] text-table-text-muted mt-0.5">
                         {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                  <td className="px-3.5 py-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
                       {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                  <td className="px-3.5 py-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                       Floating
                     </span>
                   </td>
 
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3.5 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAssignStore(row);
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
                       >
-                        <Building2 className="h-3.5 w-3.5" />
+                        <Building2 className="h-3 w-3" />
                         <span>Assign Store</span>
                       </button>
                       <button
@@ -2530,10 +2534,10 @@ function EmployeeFloatingTable({
                           e.stopPropagation();
                           onRowClick(row.id);
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                         aria-label={`View details for ${displayName}`}
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="h-3 w-3" />
                         <span>Details</span>
                       </button>
                     </div>
@@ -2562,27 +2566,27 @@ function EmployeeDeactivationTable({
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Member
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Position
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Status
               </th>
-              <th className="px-4 py-3 text-right text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
             </tr>
@@ -2615,76 +2619,76 @@ function EmployeeDeactivationTable({
                   role="button"
                   aria-label={`View deactivation details for ${displayName}`}
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-surface-muted border border-border-default text-text-muted font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                  <td className="px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7.5 w-7.5 rounded-full bg-surface-muted border border-border-default text-text-muted font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-sm hover:text-brand-primary transition-colors">
+                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-xs text-table-text-muted mt-0.5">
+                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
                           {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
                         </div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-table-text">
+                  <td className="px-3.5 py-2 text-table-text">
                     <div className="min-w-0">
-                      <div className="font-medium text-table-text">
+                      <div className="font-medium text-table-text text-xs">
                         {formatStoreName(row.primaryStoreName || row.vcode || "—")}
                       </div>
                       {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle mt-1">
-                          <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
+                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                           <span className="truncate max-w-[150px]">{locationLabel}</span>
                         </span>
                       )}
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-sm">
+                      <span className="font-medium text-table-text text-xs">
                         {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
                       </span>
-                      <span className="text-xs text-table-text-muted mt-0.5">
+                      <span className="text-[11px] text-table-text-muted mt-0.5">
                         {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
                       </span>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
+                  <td className="px-3.5 py-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
                       {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2">
                     {isDeactivated ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
                         Deactivated
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
                         Pending for Deactivation
                       </span>
                     )}
                   </td>
 
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3.5 py-2 text-right">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onRowClick(row.id);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
                       aria-label={`View details for ${displayName}`}
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3 w-3" />
                       <span>Details</span>
                     </button>
                   </td>
@@ -2719,30 +2723,30 @@ function StoreCapacityTable({
   }[];
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-table-rule bg-table-header">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store Branch
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Area & City
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Plantilla Required
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Active Deployed
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 On-Leave
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Open Vacancy
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-text-secondary whitespace-nowrap">
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Fulfillment Status
               </th>
             </tr>
@@ -2753,11 +2757,11 @@ function StoreCapacityTable({
               return (
                 <tr key={store.id} className="transition-colors hover:bg-table-row-hover">
                   {/* 1. Store Branch */}
-                  <td className="px-4 py-3 font-medium text-table-text">
+                  <td className="px-3.5 py-2 font-medium text-table-text">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-bold">{formatStoreName(store.storeBranch)}</span>
+                      <span className="font-bold text-xs">{formatStoreName(store.storeBranch)}</span>
                       {store.code && (
-                        <span className="font-mono text-xs text-text-muted">
+                        <span className="font-mono text-[11px] text-text-muted">
                           ({store.code})
                         </span>
                       )}
@@ -2765,30 +2769,30 @@ function StoreCapacityTable({
                   </td>
 
                   {/* 2. Area & City */}
-                  <td className="px-4 py-3 text-table-text">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-subtle">
-                      <MapPin className="h-3 w-3 text-text-muted shrink-0" />
+                  <td className="px-3.5 py-2 text-table-text">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
+                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
                       <span>{locationLabel || "Unassigned Area"}</span>
                     </span>
                   </td>
 
                   {/* 3. Plantilla Required (centered) */}
-                  <td className="px-4 py-3 text-center font-mono font-bold text-text-primary text-sm">
+                  <td className="px-3.5 py-2 text-center font-mono font-bold text-text-primary text-xs">
                     {store.plantillaRequired}
                   </td>
 
                   {/* 4. Active Deployed (centered, emerald) */}
-                  <td className="px-4 py-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                  <td className="px-3.5 py-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
                     {store.activeDeployed}
                   </td>
 
                   {/* 5. On-Leave (centered, amber) */}
-                  <td className="px-4 py-3 text-center font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">
+                  <td className="px-3.5 py-2 text-center font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
                     {store.onLeave}
                   </td>
 
                   {/* 6. Open Vacancy (centered, red if > 0) */}
-                  <td className="px-4 py-3 text-center font-mono font-bold text-sm">
+                  <td className="px-3.5 py-2 text-center font-mono font-bold text-xs">
                     {store.openVacancy > 0 ? (
                       <span className="text-red-600 dark:text-red-400">{store.openVacancy}</span>
                     ) : (
@@ -2797,13 +2801,13 @@ function StoreCapacityTable({
                   </td>
 
                   {/* 7. Fulfillment Status */}
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3.5 py-2 text-center">
                     {store.isFulfilled ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
                         100% Fulfilled
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
                         Understaffed
                       </span>
                     )}

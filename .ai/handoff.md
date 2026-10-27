@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Auto-Fit Plantilla Layout at 100% Browser Zoom (ohm#uifix05)
+
+**Status: COMPLETE — PLANTILLA VIEW COMPACTED AND CONFIGURED FOR VIEWPORT AUTO-FITTING AT 100% BROWSER ZOOM; TOP 5 KPI CARDS REDUCED BY ~35% VERTICAL HEIGHT WITH 68PX MFR DONUT RING, TEXT-2XL METRIC VALUES, AND TIGHTENED ROW GAPS; SECTION VERTICAL SPACING COMPACTED ACROSS SUB-TABS (H-8) AND FILTER BAR (H-8.5); DESKTOP ACCOUNT VIEW WRAPPED IN RESPONSIVE FLEX-VIEWPORT CONSTRAINTS (LG:H-[CALC(100VH-5.5REM)] LG:OVERFLOW-HIDDEN); ALL 6 TABLES RECONFIGURED WITH INTERNAL SCROLLING (FLEX-1 MIN-H-0 OVERFLOW-AUTO) AND STICKY TABLE HEADERS (STICKY TOP-0 Z-10 BG-TABLE-HEADER SHADOW-2XS); PAGINATION FOOTER PINNED AT BOTTOM (SHRINK-0 MT-2 PT-2) GUARANTEEING ZERO WINDOW-LEVEL OVERFLOW OR CLIPPING AT 100% ZOOM WHILE FULLY PRESERVING MOBILE/SMALL-SCREEN RESPONSIVE SCROLLING; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Top 5 KPI & Leadership Cards Vertical Compaction (`plantilla/page.tsx`)**:
+   - Card padding reduced from `p-4` to `px-3 py-2` and removed fixed `min-h-[170px]` across all 5 cards.
+   - Overall MFR donut SVG size set to `size={68}` with `strokeWidth={7}` and centered `text-sm font-bold` percentage.
+   - Active Deployed, Open Vacancies, and HR Pipeline numbers compacted from `text-3xl my-auto` to `text-2xl font-bold font-mono my-0.5`.
+   - Leadership Team card row spacing tightened (`space-y-0.5 text-xs`) with `text-[10px]` subtext.
+
+2. **Section Spacing & Control Densities**:
+   - Sub-tabs bar: Compacted to `h-8` tab buttons with `px-3 py-1 text-xs`, `w-3.5 h-3.5` icons, and `text-[11px]` badge pills.
+   - Search & Filter bar: Reduced container padding to `px-3 py-2`, input height to `h-8.5`, and dropdown heights to `h-8.5 text-xs`.
+   - Top Header actions: Compacted segmented toggle to `h-8 px-2.5 text-xs` and Request Headcount button to `h-8 px-3 py-1.5 text-xs`.
+
+3. **Flex-Viewport Auto-Fitting & Sticky Headers**:
+   - Outer container constrained to `lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden flex min-h-0 flex-col gap-2` on desktop viewports while maintaining fluid natural scrolling on mobile/tablet viewports (`< lg`).
+   - All 6 tables (`EmployeeActiveTable`, `EmployeeOnLeaveTable`, `StoreVacancyTable`, `EmployeeFloatingTable`, `EmployeeDeactivationTable`, and `StoreCapacityTable`) updated with `flex-1 min-h-0 overflow-auto` scroll containers, `sticky top-0 z-10 bg-table-header shadow-2xs` headers, and compact `px-3.5 py-2` cell density.
+   - Cards display view wrapped in `flex-1 min-h-0 overflow-y-auto pr-1`.
+   - Pagination footer pinned cleanly below the table area (`shrink-0 mt-2 pt-2 border-t border-border-default px-0`), completely eliminating window-level scroll cutoff at 100% browser zoom on 1080p and 900p displays.
+
+4. **Codebase Health**:
+   - `npm run lint`: Clean (0 errors, 4 existing warnings in VacancyTable).
+   - `npm run build`: Clean production build, 19/19 routes compiled successfully.
+   - Zero database mutations performed.
+
+---
+
 ## Account Plantilla View Refactor (ohm#plan02)
 
 **Status: COMPLETE — FULL ACCOUNT PLANTILLA VIEW REFACTORED PER ARCHITECTURAL BLUEPRINT; SEGMENTED TOP-RIGHT TOGGLE [ 👥 Employee View | 🏬 Store View ] ADDED BESIDE REQUEST HEADCOUNT; REMOVED LEGACY QUOTA BADGES AND HORIZONTAL LEADERSHIP BAR; TOP 5 KPI & LEADERSHIP CARDS IMPLEMENTED IN GRID-COLS-5 WITH CENTERED CONTENT (CENCOM-STYLE SVG PROGRESS RING WITH DYNAMIC STATUS COLORING, ACTIVE DEPLOYED, OPEN VACANCIES, HR PIPELINE, LEADERSHIP TEAM WITH CONDITIONAL OMISSION OF UNASSIGNED TL/ATL ROWS); HIERARCHICAL AREA → CITY STORE DROPDOWN FILTER; EMPLOYEE VIEW STRUCTURED ACROSS 5 STATUS SUB-TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION) WITH LIVE BADGES; STORE VIEW WITH CAPACITY TABLE (BRANCH, AREA/CITY, REQUIRED, ACTIVE DEPLOYED, ON-LEAVE, OPEN VACANCY, FULFILLMENT STATUS); RELIEVER WORKFLOW WITH MOSES HQ POOL COVERAGE AND AUTO-RELEASE ON RETURN TO ACTIVE; FLOATING STORE ASSIGNMENT WORKFLOW; SYSTEM-WIDE QUOTA TO REQUIRED TERMINOLOGY REPLACEMENT ACROSS MODULE DRAWERS AND MODALS; VERIFIED SUPABASE RPC BINDINGS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
