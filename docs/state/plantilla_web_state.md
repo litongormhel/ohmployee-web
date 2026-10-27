@@ -149,6 +149,12 @@ viewer           | Scoped           | Masked               | Read-only. (Mutatio
 
 * **Caller Validation**: All queries and RPCs fetch caller metadata directly from `auth.uid()`. The frontend never passes `profile_id` or `role_key` as arguments.
 * **Scope Isolation**: In scoped roles (e.g. `om`, `hrco`), the backend filters all records to match the caller's authorized account and group list. If a scoped caller requests details for a personnel outside their hierarchy, the RPC raises an access-denied error.
+* **Strict Plantilla Group & Account Scoping (Front-End & Presentation Layer)**:
+  - Users with scoped permissions (including `HRCO`) only see the groups and accounts explicitly assigned to them in User Management.
+  - Only users holding company-wide "All Scope" permissions (`groupScope.mode === 'all' && accountScope.mode === 'all'`, e.g. Super Admin, Head Admin, or users assigned to "Global HQ") are permitted to view all Plantilla groups.
+  - The Plantilla group filter selector renders "All Assigned Groups" (or individual assigned group names) and strictly excludes unassigned groups for scoped users.
+  - Direct URL access to unauthorized accounts (`?accountId=<unauthorized-id>`) is intercepted on the client and displays an `access_denied` state, preventing unauthorized account data queries.
+  - All Plantilla sub-surfaces (Workforce Analytics, Pool Headcount Request, Reliever Coverage Request, Pool Conversion) use centralized `fetchPlantillaScopedAccounts` to strictly enforce this perimeter.
 
 ---
 

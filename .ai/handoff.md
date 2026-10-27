@@ -1,5 +1,61 @@
 # AI Handoff
 
+## Fix HRCO Scope Bypass Bug in Plantilla Module (ohm#plan03)
+
+**Status: COMPLETE — FIXED SCOPE BYPASS IN PLANTILLA MODULE WHERE HRCO AND SCOPED ROLES COULD VIEW ALL PLANTILLA GROUPS AND ACCOUNTS; CENTRALIZED SCOPE-ENFORCED ACCOUNT RETRIEVAL VIA FETCHPLANTILLASCOPEDACCOUNTS IN PLANTILLA.TS WITH STRICT FILTERING ON GROUP_ID AND ACCOUNT_ID; REFINED AUTH CONTEXT TO ELEVATE GLOBAL SCOPE ONLY ON EXPLICIT ALL-SCOPE/GLOBAL-HQ PERMISSIONS; HARDENED PLANTILLA/PAGE.TS SO UNIQUEGROUPS AND THE GROUP DROPDOWN FILTER ONLY TO ASSIGNED GROUPS FOR SCOPED USERS; ADDED RUNTIME VALIDATION REJECTING DIRECT URL MANIPULATION (?ACCOUNTID=...) WITH ACCESS_DENIED DATASTATE; HARDENED WORKFORCE ANALYTICS AND PLANTILLA MODALS (REQUESTPOOLCONVERSIONMODAL, REQUESTPOOLHEADCOUNTMODAL, REQUESTRELIEVERCOVERAGEMODAL); ESLINT CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS), NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**
+
+---
+
+### Delivered Updates & Verification Results
+
+1. **Root Cause Analysis**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, `allowedAccountsQuery` queried the Supabase `accounts` table directly without filtering by `group_id` or considering `currentUser.groupScope`.
+   - When an HRCO user was assigned group-level access in User Management (without specific account IDs), `get_web_current_user_context()` returned `account_scope.mode = 'group_all_accounts'` with empty `accounts: []`. `currentUser.accountScope.ids` was empty (`ids.length === 0`), causing `query.in("id", ids)` to be bypassed entirely.
+   - Because `accounts` has an open `is_active = true` SELECT policy, `allowedAccountsQuery` retrieved all accounts company-wide. `uniqueGroups` then derived all distinct groups from those accounts, resulting in all Plantilla groups being visible in the group selector dropdown.
+   - Direct navigation to unauthorized accounts via `?accountId=...` was not validated against the user's permitted accounts, and modal selectors (`RequestPoolConversionModal`, `RequestPoolHeadcountModal`, `RequestRelieverCoverageModal`) and `WorkforceAnalyticsView` fetched all accounts globally.
+
+2. **Auth Context Scope Elevation (`src/lib/auth.ts`)**:
+   - Updated `loadCurrentUserContext` to detect explicit "Global HQ" assignment (`rawGroupScope.groups` containing "Global HQ").
+   - Users with "Global HQ" or `mode: "global"` hold explicit company-wide "All Scope" permissions (`groupScope.mode = "all"`, `accountScope.mode = "all"`).
+   - Scoped roles (like `HRCO` with assigned field groups) retain strict `mode: "scoped"` with their exact assigned group IDs.
+
+3. **Centralized Scoped Account Query (`src/lib/queries/plantilla.ts`)**:
+   - Created `fetchPlantillaScopedAccounts(currentUser: WebCurrentUserContext | null): Promise<PlantillaScopedAccountItem[]>`.
+   - Enforces:
+     - Immediate rejection (`[]`) if `accountMode === 'none'` or `groupMode === 'none'`.
+     - Full company access only when `hasAllScope` (`accountMode === 'all' && groupMode === 'all'`).
+     - Strict `.in("group_id", groupIds)` filtering for `groupMode === 'scoped'`.
+     - Strict `.in("id", accountIds)` filtering when specific accounts are assigned.
+     - Preserves pool account flags, HRCO assignment IDs, and group metadata.
+
+4. **Plantilla Presentation Hardening (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Rewrote `allowedAccountsQuery` to call `fetchPlantillaScopedAccounts(currentUser)`.
+   - Constrained `uniqueGroups` so that scoped users only receive groups present in their `currentUser.groupScope.ids`.
+   - Group selector dropdown:
+     - Shows `All Groups` only when `hasAllScope` is true.
+     - Shows `All Assigned Groups` when the user is scoped, displaying only assigned groups.
+     - Derived `effectiveSelectorGroupId` to automatically invalidate stale/unauthorized group selections without triggering cascading render warnings.
+   - Direct URL Access Gate:
+     - Gated `isAccountAuthorized` against `allowedAccountsQuery.data`.
+     - Direct URL queries to unauthorized account IDs render `DataState kind="access_denied"` with a "Return to Accounts" action button.
+     - Disabled all account queries (`employeeQuery`, `storeStaffingQuery`, `summaryQuery`, `vacancyListQuery`, `teamDirectoryQuery`, `coverageQuery`) if `!isAccountAuthorized`.
+   - Dynamic `singleScopedId`: automatically defaults to the sole authorized account if a scoped user has only 1 account available.
+   - Dynamic `showBackToSelection`: displays the back button whenever `hasAllScope || accounts.length > 1`.
+
+5. **Sub-surfaces & Modals Scope Hardening**:
+   - `WorkforceAnalyticsView.tsx`: Integrated `useCurrentUser` and `fetchPlantillaScopedAccounts`, restricting the account dropdown and analytics filter strictly to the user's assigned scope.
+   - `RequestPoolConversionModal.tsx`: Uses `fetchPlantillaScopedAccounts` to prevent targeting unauthorized accounts.
+   - `RequestPoolHeadcountModal.tsx`: Uses `fetchPlantillaScopedAccounts` to restrict pool and account headcount requests to assigned scopes.
+   - `RequestRelieverCoverageModal.tsx`: Uses `fetchPlantillaScopedAccounts` to prevent assigning reliever coverage outside authorized accounts.
+
+6. **Codebase Health & Verification**:
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in VacancyTable).
+   - `npm run build`: Clean production build (19/19 routes compiled green).
+   - `docs/state/plantilla_web_state.md`: Updated Section 3 with strict group and account scoping rules.
+   - Local commit only on `main`.
+
+---
+
 ## Fix HRCO "All Scope" Visibility Bug in HR Emploc Correction, Review, and Ready RPCs (ohm#hremploc01)
 
 **Status: COMPLETE — MIGRATION 20261027120000_FIX_HRCO_ALL_SCOPE_HR_EMPLOC_CORRECTION_RPC.SQL CREATED; RESOLVED ROLE/SCOPE FILTERING BUG IN PUBLIC.GET_CORRECTION_REQUESTS_SCOPED WHERE USERS WITH THE HRCO ROLE AND "ALL SCOPE" (SCOPE_TYPE = 'GLOBAL' OR HRCO_GLOBAL_VISIBILITY = TRUE) RECEIVED EMPTY RECORDS ACROSS CORRECTION, REVIEW, AND READY TABS DUE TO HARDCODED V_MY_ROLE NOT IN ('HRCO') OR HE.HRCO_USER_ID_SNAPSHOT = V_MY_ID; UPDATED RPC TO HONOR GLOBAL SCOPE, HRCO_GLOBAL_VISIBILITY, AND FULL ACCESS BEFORE FALLING BACK TO ASSIGNED ACCOUNTS (HE.ACCOUNT = ANY(GET_MY_ALLOWED_ACCOUNTS())) OR DIRECT ASSIGNMENT SNAPSHOT; HARDENED LIST_WEB_HR_EMPLOCS, GET_WEB_HR_EMPLOC_SUMMARY, AND GET_WEB_HR_EMPLOC_DETAIL SCOPED CTES AND DETAIL STORAGE PATH CHECKS; ESLINT CLEAN, NEXT.JS BUILD GREEN (19/19 ROUTES); LOCAL COMMIT ONLY ON MAIN**

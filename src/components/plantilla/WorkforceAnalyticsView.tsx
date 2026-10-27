@@ -22,7 +22,8 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/lib/auth";
+import { fetchPlantillaScopedAccounts } from "@/lib/queries/plantilla";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
 import { exportToXlsx } from "@/lib/utils/reports_export";
@@ -138,6 +139,24 @@ export function WorkforceAnalyticsView() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
+  const currentUser = useCurrentUser();
+  const hasAllScope =
+    currentUser?.groupScope.mode === "all" &&
+    currentUser?.accountScope.mode === "all";
+
+  // Accounts list strictly scoped to the user's assigned scope
+  const accountsQuery = useQuery({
+    queryKey: [
+      "plantilla",
+      "analytics-accounts",
+      currentUser?.accountScope,
+      currentUser?.groupScope,
+      hasAllScope,
+    ],
+    queryFn: () => fetchPlantillaScopedAccounts(currentUser),
+    enabled: !!currentUser,
+  });
+
   const filter: WfAnalyticsFilter = {
     accountId: accountId || null,
     dateFrom: dateFrom || null,
@@ -153,21 +172,6 @@ export function WorkforceAnalyticsView() {
   const healthQuery = useWorkforceHealthSummary(filter);
   const executiveQuery = useWorkforceExecutiveSummary(filter);
   const incidentsQuery = usePlantillaImportIncidents(7);
-
-  // Accounts list for filter
-  const accountsQuery = useQuery({
-    queryKey: ["plantilla", "analytics-accounts"],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, account_name")
-        .eq("is_active", true)
-        .order("account_name");
-      if (error) throw error;
-      return (data ?? []).map((a) => ({ id: String(a.id), name: String(a.account_name) }));
-    },
-  });
 
   const handleRefresh = () => {
     switch (activeTab) {
@@ -295,7 +299,7 @@ export function WorkforceAnalyticsView() {
               onChange={(e) => setAccountId(e.target.value)}
               className="w-full text-xs rounded-lg border border-border-default py-2 px-3 bg-surface text-text-primary focus:outline-none focus:border-accent"
             >
-              <option value="">All Scoped Accounts (Global)</option>
+              <option value="">{hasAllScope ? "All Scoped Accounts (Global)" : "All Assigned Accounts"}</option>
               {(accountsQuery.data ?? []).map((acc) => (
                 <option key={acc.id} value={acc.id}>
                   {acc.name}

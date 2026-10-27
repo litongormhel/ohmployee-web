@@ -1,5 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { WebCurrentUserContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
 
@@ -921,6 +922,76 @@ function getAllowedSortField(
   fallback: string,
 ): string {
   return sortBy && allowedFields.has(sortBy) ? sortBy : fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Scoped Account Query
+// ---------------------------------------------------------------------------
+
+export interface PlantillaScopedAccountItem {
+  id: string;
+  name: string;
+  groupId: string | null;
+  hrcoUserId: string | null;
+  groupName: string | null;
+  isPoolAccount: boolean;
+}
+
+export async function fetchPlantillaScopedAccounts(
+  currentUser: WebCurrentUserContext | null,
+): Promise<PlantillaScopedAccountItem[]> {
+  if (!currentUser) return [];
+
+  const { mode: accountMode, ids: accountIds } = currentUser.accountScope;
+  const { mode: groupMode, ids: groupIds } = currentUser.groupScope;
+
+  if (accountMode === "none" || groupMode === "none") return [];
+
+  const hasAllScope = accountMode === "all" && groupMode === "all";
+
+  const supabase = createClient();
+  let query = supabase
+    .from("accounts")
+    .select(`
+      id,
+      account_name,
+      group_id,
+      is_pool_account,
+      hrco_user_id,
+      groups (
+        group_name
+      )
+    `)
+    .eq("is_active", true);
+
+  if (!hasAllScope) {
+    if (groupMode === "scoped") {
+      if (groupIds.length === 0) return [];
+      query = query.in("group_id", groupIds);
+    }
+
+    if (accountMode === "scoped" && accountIds.length > 0) {
+      query = query.in("id", accountIds);
+    }
+  }
+
+  const { data, error } = await query.order("account_name");
+  if (error) {
+    throwPlantillaError(error);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    name: row.account_name as string,
+    groupId: row.group_id as string | null,
+    hrcoUserId: (row.hrco_user_id as string | null) ?? null,
+    groupName: Array.isArray(row.groups)
+      ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
+      : row.groups && typeof row.groups === "object"
+      ? ((row.groups as unknown as Record<string, unknown>).group_name as string | null)
+      : null,
+    isPoolAccount: !!row.is_pool_account,
+  }));
 }
 
 // ---------------------------------------------------------------------------

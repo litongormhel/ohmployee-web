@@ -289,8 +289,19 @@ export async function loadCurrentUserContext(): Promise<{
       ? rpcRow.group_scope
       : {}) as Record<string, unknown>;
     const groupMode = rawGroupScope.mode as string | undefined;
+    const isGlobalHQAssigned =
+      Array.isArray(rawGroupScope.groups) &&
+      rawGroupScope.groups.some((g) => {
+        if (g && typeof g === "object") {
+          const name = String((g as Record<string, unknown>).group_name || "").toLowerCase().trim();
+          const code = String((g as Record<string, unknown>).group_code || "").toLowerCase().trim();
+          return name === "global hq" || code === "global_hq" || code === "globalhq";
+        }
+        return false;
+      });
+
     const groupScopeMode: WebScopeMode =
-      groupMode === "global" || groupMode === "all"
+      isGlobalHQAssigned || groupMode === "global" || groupMode === "all"
         ? "all"
         : groupMode === "scoped"
         ? "scoped"
@@ -306,7 +317,7 @@ export async function loadCurrentUserContext(): Promise<{
       : {}) as Record<string, unknown>;
     const accountMode = rawAccountScope.mode as string | undefined;
     const accountScopeMode: WebScopeMode =
-      accountMode === "global" || accountMode === "all"
+      isGlobalHQAssigned || accountMode === "global" || accountMode === "all"
         ? "all"
         : accountMode === "scoped" ||
           accountMode === "account" ||

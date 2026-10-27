@@ -37,6 +37,7 @@ import {
   listWebPlantillaEmployees,
   listWebPlantillaStoreStaffing,
   fetchActiveCoverageForAccount,
+  fetchPlantillaScopedAccounts,
   deriveDeactivationOverlay,
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
@@ -304,57 +305,46 @@ function PlantillaPageContent() {
       ? "analytics"
       : "store";
 
-  // Derive accountId directly from URL or user single scoped account
-  const urlAccountId = searchParams.get("accountId") ?? "";
-  const singleScopedId =
-    currentUser?.accountScope.mode === "scoped" && currentUser.accountScope.ids.length === 1
-      ? currentUser.accountScope.ids[0]
-      : "";
-  const accountId = urlAccountId || singleScopedId;
+  // Check whether user explicitly holds company-wide "All Scope" permissions
+  const hasAllScope = useMemo(() => {
+    if (!currentUser) return false;
+    return (
+      currentUser.groupScope.mode === "all" &&
+      currentUser.accountScope.mode === "all"
+    );
+  }, [currentUser]);
 
   const allowedAccountsQuery = useQuery({
-    queryKey: ["plantilla", "allowed-accounts", currentUser?.accountScope],
-    queryFn: async () => {
-      if (!currentUser) return [];
-      const { mode, ids } = currentUser.accountScope;
-      if (mode === "none") return [];
-
-      const supabase = createClient();
-      let query = supabase
-        .from("accounts")
-        .select(`
-          id,
-          account_name,
-          group_id,
-          is_pool_account,
-          hrco_user_id,
-          groups (
-            group_name
-          )
-        `)
-        .eq("is_active", true);
-
-      if (mode === "scoped" && ids.length > 0) {
-        query = query.in("id", ids);
-      }
-
-      const { data, error } = await query.order("account_name");
-      if (error) throw error;
-      return (data ?? []).map((row) => ({
-        id: row.id as string,
-        name: row.account_name as string,
-        groupId: row.group_id as string | null,
-        hrcoUserId: (row.hrco_user_id as string | null) ?? null,
-        groupName: Array.isArray(row.groups)
-          ? ((row.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
-          : row.groups && typeof row.groups === "object"
-          ? ((row.groups as unknown as Record<string, unknown>).group_name as string | null)
-          : null,
-        isPoolAccount: !!row.is_pool_account,
-      }));
-    },
+    queryKey: [
+      "plantilla",
+      "allowed-accounts",
+      currentUser?.accountScope,
+      currentUser?.groupScope,
+      hasAllScope,
+    ],
+    queryFn: () => fetchPlantillaScopedAccounts(currentUser),
     enabled: !!currentUser,
   });
+
+  // Derive accountId directly from URL or user single scoped account
+  const urlAccountId = searchParams.get("accountId") ?? "";
+  const singleScopedId = useMemo(() => {
+    if (hasAllScope) return "";
+    const accounts = allowedAccountsQuery.data ?? [];
+    if (accounts.length === 1) {
+      return accounts[0].id;
+    }
+    return "";
+  }, [hasAllScope, allowedAccountsQuery.data]);
+  const accountId = urlAccountId || singleScopedId;
+
+  // Verify that accountId is authorized for the current user
+  const isAccountAuthorized = useMemo(() => {
+    if (!accountId) return true;
+    if (hasAllScope) return true;
+    if (!allowedAccountsQuery.isSuccess) return true;
+    return (allowedAccountsQuery.data ?? []).some((a) => a.id === accountId);
+  }, [accountId, hasAllScope, allowedAccountsQuery.isSuccess, allowedAccountsQuery.data]);
 
   const accountMetricsQuery = useQuery({
     queryKey: ["plantilla", "account-allocation-kpi"],
@@ -387,11 +377,18 @@ function PlantillaPageContent() {
     const map = new Map<string, string>();
     for (const a of accounts) {
       if (a.groupId && a.groupName) {
-        map.set(a.groupId, a.groupName);
+        if (hasAllScope || (currentUser?.groupScope.ids.includes(a.groupId))) {
+          map.set(a.groupId, a.groupName);
+        }
       }
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [allowedAccountsQuery.data]);
+  }, [allowedAccountsQuery.data, hasAllScope, currentUser?.groupScope]);
+
+  const effectiveSelectorGroupId =
+    selectorGroupId && uniqueGroups.some((g) => g.id === selectorGroupId)
+      ? selectorGroupId
+      : "";
 
   // Stores under current account for dropdown & city/province lookup
   const storesUnderAccountQuery = useQuery({
@@ -414,7 +411,7 @@ function PlantillaPageContent() {
         province: ((s.area_province ?? s.province) as string | null) ?? null,
       }));
     },
-    enabled: !!accountId,
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
   });
 
@@ -455,21 +452,21 @@ function PlantillaPageContent() {
   // -------------------------------------------------------------------------
 
   const summaryQuery = useQuery({
-    queryKey: ["plantilla", "summary", { search, accountId, selectorGroupId }],
+    queryKey: ["plantilla", "summary", { search, accountId, effectiveSelectorGroupId }],
     queryFn: () =>
       getPlantillaSummary({
         search: accountId ? (search || undefined) : undefined,
         accountId: accountId || undefined,
-        groupId: selectorGroupId || undefined,
+        groupId: effectiveSelectorGroupId || undefined,
       }),
-    enabled: !!currentUser && !!accountId,
+    enabled: !!currentUser && !!accountId && isAccountAuthorized,
   });
 
   // Query for leadership roles: OM, TL, ATL, HRCO
   const teamDirectoryQuery = useQuery({
     queryKey: ["team-directory", "plantilla-account", accountId],
     queryFn: () => fetchTeamDirectory({ accountId }),
-    enabled: !!accountId,
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 60000,
   });
 
@@ -521,7 +518,7 @@ function PlantillaPageContent() {
         page: 1,
         pageSize: 500,
       }),
-    enabled: !!accountId,
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
   });
 
@@ -529,7 +526,7 @@ function PlantillaPageContent() {
   const coverageQuery = useQuery({
     queryKey: ["plantilla", "active-temporary-coverage", accountId],
     queryFn: () => fetchActiveCoverageForAccount(accountId),
-    enabled: !!accountId,
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 15000,
   });
 
@@ -551,7 +548,7 @@ function PlantillaPageContent() {
         page: 1,
         pageSize: 200,
       }),
-    enabled: !!accountId,
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
   });
 
@@ -564,7 +561,7 @@ function PlantillaPageContent() {
         page: 1,
         pageSize: 200,
       }),
-    enabled: !!accountId && mainView === "store",
+    enabled: !!accountId && isAccountAuthorized && mainView === "store",
     staleTime: 30000,
   });
 
@@ -954,7 +951,7 @@ function PlantillaPageContent() {
 
     const filteredAccounts = accounts.filter((a) => {
       const matchesSearch = a.name.toLowerCase().includes(accountSearch.toLowerCase());
-      const matchesGroup = !selectorGroupId || a.groupId === selectorGroupId;
+      const matchesGroup = !effectiveSelectorGroupId || a.groupId === effectiveSelectorGroupId;
       return matchesSearch && matchesGroup;
     });
 
@@ -972,12 +969,12 @@ function PlantillaPageContent() {
           </div>
           {uniqueGroups.length > 0 && (
             <select
-              value={selectorGroupId}
+              value={effectiveSelectorGroupId}
               onChange={(e) => setSelectorGroupId(e.target.value)}
               className="h-10 rounded-lg border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
               aria-label="Filter accounts by group"
             >
-              <option value="">All Groups</option>
+              <option value="">{hasAllScope ? "All Groups" : "All Assigned Groups"}</option>
               {uniqueGroups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -985,7 +982,7 @@ function PlantillaPageContent() {
               ))}
             </select>
           )}
-          {(accountSearch || selectorGroupId) && (
+          {(accountSearch || effectiveSelectorGroupId) && (
             <button
               type="button"
               onClick={() => {
@@ -1184,8 +1181,7 @@ function PlantillaPageContent() {
 
   const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name ?? "Account";
   const showBackToSelection =
-    currentUser?.accountScope.mode === "all" ||
-    (currentUser?.accountScope.mode === "scoped" && currentUser?.accountScope.ids.length > 1);
+    hasAllScope || (allowedAccountsQuery.data && allowedAccountsQuery.data.length > 1);
 
   if (viewMode === "moses_pool") {
     return (
@@ -1259,6 +1255,24 @@ function PlantillaPageContent() {
             icon={Building2}
           />
           {renderAccountSelectionContent()}
+        </div>
+      ) : !isAccountAuthorized ? (
+        <div className="flex flex-col items-center justify-center gap-4 p-8">
+          <DataState
+            kind="access_denied"
+            title="Access Denied"
+            description="You do not have permission to access this account or its plantilla records."
+          />
+          {showBackToSelection && (
+            <button
+              type="button"
+              onClick={handleBackToSelection}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Return to Accounts</span>
+            </button>
+          )}
         </div>
       ) : (
         <>

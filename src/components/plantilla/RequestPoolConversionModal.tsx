@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowRightLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/lib/auth";
+import { fetchPlantillaScopedAccounts } from "@/lib/queries/plantilla";
 import {
   useRequestPoolConversion,
   type WorkforcePoolEmployee,
@@ -39,20 +41,16 @@ export function RequestPoolConversionModal({
     reason.trim() !== "" ||
     notes.trim() !== "";
 
-  // Load active accounts
+  const currentUser = useCurrentUser();
+
+  // Load active accounts strictly respecting user scope
   const accountsQuery = useQuery({
-    queryKey: ["plantilla", "request-accounts"],
+    queryKey: ["plantilla", "request-accounts", currentUser?.accountScope, currentUser?.groupScope],
     queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, account_name")
-        .eq("is_active", true)
-        .order("account_name");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({ id: String(r.id), name: String(r.account_name) }));
+      const accounts = await fetchPlantillaScopedAccounts(currentUser);
+      return accounts.map((r) => ({ id: r.id, name: r.name }));
     },
-    enabled: isOpen,
+    enabled: isOpen && !!currentUser,
   });
 
   // Load stores when account is selected
