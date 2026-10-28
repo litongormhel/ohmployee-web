@@ -62,17 +62,6 @@ type HrEmplocTableProps = {
   onEditEmploc?: (row: HrEmplocListItem) => void;
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
-
 function getTableColumns(queue: HrEmplocQueue): string[] {
   switch (queue) {
     case "correction":
@@ -84,8 +73,6 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "HRCO",
         "SLA",
         "Reason",
-        "Requested by",
-        "Hired Date",
         "Actions",
       ];
     case "review":
@@ -99,7 +86,6 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Reason",
         "Notes",
         "Attachment",
-        "Hired Date",
         "Actions",
       ];
     case "deployed":
@@ -111,7 +97,6 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Position",
         "HRCO",
         "SLA",
-        "Hired Date",
         "Actions",
       ];
     case "pending":
@@ -123,7 +108,6 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Position",
         "HRCO",
         "SLA",
-        "Hired Date",
         "Actions",
       ];
   }
@@ -369,14 +353,7 @@ export function HrEmplocTable({
                       </td>
                     )}
 
-                    {/* 8. Requested By (Correction Tab) */}
-                    {queue === "correction" && (
-                      <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px] text-sm">
-                        {row.requestedByName ?? "--"}
-                      </td>
-                    )}
-
-                    {/* 9. Notes (Review Tab) */}
+                    {/* 8. Notes (Review Tab) */}
                     {queue === "review" && (
                       <td className="border-b border-table-rule px-4 py-2.5 text-table-text max-w-[200px]">
                         {row.notes ? (
@@ -392,7 +369,7 @@ export function HrEmplocTable({
                       </td>
                     )}
 
-                    {/* 10. Attachment (Review Tab) */}
+                    {/* 9. Attachment (Review Tab) */}
                     {queue === "review" && (
                       <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                         {row.attachmentUrl ? (
@@ -415,11 +392,6 @@ export function HrEmplocTable({
                         )}
                       </td>
                     )}
-
-                    {/* Hired Date Column */}
-                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text whitespace-nowrap text-xs">
-                      {formatDate(row.hiredDate)}
-                    </td>
 
                     {/* Tab-Specific Actions */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-right whitespace-nowrap">

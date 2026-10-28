@@ -1,6 +1,29 @@
 # AI Handoff
 
-## Execution Report — HR Emploc Table Emploc ID / Applicant Layout & Deficiency Modal Multi-Select Fix (ohm#e8m3p0o4)
+## Execution Report — HR Emploc Table Column Cleanup & Auto-Review on Attachment Upload (ohm#e8m3p0o5)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
+
+- **Table Column Removals (`src/components/hr-emploc/HrEmplocTable.tsx`):**
+  1. Removed `"Requested by"` column header and cell from the `Correction` queue table layout.
+  2. Removed `"Hired Date"` column header and cell across all queues (`Pending`, `Correction`, `Review`, `Deployed`).
+  3. Cleaned up unused `formatDate` helper from `HrEmplocTable.tsx`.
+  4. Restored clean column distribution across all table states without horizontal scroll.
+
+- **Auto-Advance to Review on Attachment Upload (`src/components/hr-emploc/UploadAttachmentModal.tsx`):**
+  1. Previously, `UploadAttachmentModal` only executed `uploadCorrectionAttachment`, storing the file in Supabase storage but leaving `hr_status` in `'For Correction'` (requiring a separate manual submission).
+  2. Updated `handleSubmit` to call `submitHrcoCorrection` with `attachments: [selectedFile]` and `hrcoNotes: notes.trim() || 'Compliance document uploaded: <filename>'`.
+  3. This executes `submit_hrco_correction_update` RPC, atomically transitioning `hr_status` to `'For Review'`.
+  4. Added optional Compliance Notes textarea in the upload modal so users can provide additional details or rely on the automated upload reference.
+  5. Updated submit button to show `Upload & Submit to Review` (and `Submitting to Review...` while loading).
+  6. On success, `retryQueryReads()` refreshes queries: the record immediately disappears from `Correction` and appears in `Review`, with badges updated in real time.
+
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
 
 **Status: COMPLETE ON MAIN; VERIFIED LIVE UNICITY & CLEAN BUILD/LINT**
 

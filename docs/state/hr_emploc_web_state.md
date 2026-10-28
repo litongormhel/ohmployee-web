@@ -88,8 +88,7 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
    - `Transferred` / `Rejected` → `neutral` (gray)
 6. **Deficiency Summary**: High-level text listing deficient items extracted from `correction_reason` JSONB.
 7. **SLA Counter**: Calculated days active since `coalesce(date_requested, created_at)`. If exceeding 3 days, it prints a rose alert badge (`text-red-700 bg-red-50 border-red-200`).
-8. **Hired Date**: Positioned right before Actions column, displays formatted hired date (`formatDate`).
-9. **Actions Area**: Desktop actions per queue tab. In the Deployed tab, includes an icon-only `Edit Emploc` button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label. Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
+8. **Actions Area**: Desktop actions per queue tab. In the Deployed tab, includes an icon-only `Edit Emploc` button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label. In the Correction queue, uploading a compliance attachment via `UploadAttachmentModal` automatically calls `submit_hrco_correction_update` and advances the record to `For Review`. Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
 
 ### Onboarding Compliance Requirements
 Only canonical statutory and documentation requirements are tracked for deficiency:

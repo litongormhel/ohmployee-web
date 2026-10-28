@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import {
-  uploadCorrectionAttachment,
+  submitHrcoCorrection,
   type HrEmplocListItem,
 } from "@/lib/queries/hr_emploc";
 
@@ -29,6 +29,7 @@ export function UploadAttachmentModal({
   onSuccess,
 }: UploadAttachmentModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [notes, setNotes] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,15 +69,17 @@ export function UploadAttachmentModal({
     setError(null);
 
     try {
-      await uploadCorrectionAttachment({
+      const trimmedNotes = notes.trim() || `Compliance document uploaded: ${selectedFile.name}`;
+      await submitHrcoCorrection({
         hrEmplocId: row.id,
-        file: selectedFile,
+        hrcoNotes: trimmedNotes,
+        attachments: [selectedFile],
       });
 
-      onSuccess(`Attachment "${selectedFile.name}" uploaded successfully.`);
+      onSuccess(`Attachment "${selectedFile.name}" uploaded and submitted to Review.`);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload attachment.");
+      setError(err instanceof Error ? err.message : "Failed to upload attachment and submit correction.");
     } finally {
       setIsUploading(false);
     }
@@ -84,9 +87,12 @@ export function UploadAttachmentModal({
 
   const handleClose = () => {
     setSelectedFile(null);
+    setNotes("");
     setError(null);
     onClose();
   };
+
+  const isDirty = Boolean(selectedFile || notes.trim());
 
   return (
     <Modal
@@ -96,7 +102,7 @@ export function UploadAttachmentModal({
       maxWidthClass="max-w-md"
       disableBackdropClick={true}
       isSubmitting={isUploading}
-      isDirty={Boolean(selectedFile)}
+      isDirty={isDirty}
     >
       <div className="space-y-4">
         <p className="text-xs text-text-muted">
@@ -164,6 +170,22 @@ export function UploadAttachmentModal({
             )}
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-text-primary flex items-center justify-between">
+              <span>Compliance Notes</span>
+              <span className="text-[10px] text-text-muted font-normal">(Optional)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add notes for the compliance reviewer (optional)..."
+              disabled={isUploading}
+              rows={2}
+              maxLength={500}
+              className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-2.5 border-t border-border-subtle pt-3">
             <button
               type="button"
@@ -181,12 +203,12 @@ export function UploadAttachmentModal({
               {isUploading ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Uploading...</span>
+                  <span>Submitting to Review...</span>
                 </>
               ) : (
                 <>
                   <Upload className="h-3.5 w-3.5" />
-                  <span>Upload File</span>
+                  <span>Upload & Submit to Review</span>
                 </>
               )}
             </button>
