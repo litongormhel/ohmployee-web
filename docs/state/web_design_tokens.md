@@ -292,7 +292,8 @@ Backdrops for Modals and DetailDrawers require calibrated opacity tokens registe
 
 ### Display Formatting (`src/lib/utils/displayText.ts`)
 - **Render Layer Boundary**: Pure JSX presentation only. Never mutates raw stored values in search filters, sorting algorithms, URL params, or API payloads.
-- **Title Casing Rules**: Words are capitalized while preserving hyphens, apostrophes (e.g. `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+- **Title Casing Rules**: Person names, positions, and store names are formatted into Title Case per word while preserving hyphens, apostrophes (e.g. `O'Brien`, `Dela-Cruz`), and character `Ñ`.
+- **Account Names in CAPSLOCK**: Account names (`formatAccountName`) are strictly formatted in uppercase CAPSLOCK across cards, headers, drawers, tables, and dropdown selectors (e.g. `MOSES HQ`, `ACTISERVE`, `FOREVER OFFICE`, `ALTURAS`).
 - **Acronym Allowlist**: Tokens matching known acronyms (`HQ`, `SM`, `HRCO`, `HC`, `MFR`, `SLA`, `OM`, `TL`, `ATL`, `NSR`, `G1`-`G5`, `PSA`, `SSS`, `TIN`, `NBI`, `HR`, `VCODE`, `ID`, `CENCOM`, `ADR`, `RPC`, `RLS`) or tokens containing digits (e.g. `VCAG5_0056`, `HRG3`) are strictly preserved in their original casing.
 
 ### Disabled Action Button Pattern

@@ -1,5 +1,25 @@
 # AI Handoff
 
+## Execution Report — Format Account Names in CAPSLOCK (ohm#u9p2a1c0)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN LINT & TESTS; ZERO DATABASE MUTATIONS**
+
+- **Scope:** Presentational formatting standard update for account names to render strictly in CAPSLOCK (uppercase), e.g. `MOSES HQ`, `ACTISERVE`, `FOREVER OFFICE`, `ALTURAS`.
+- **Branch status:** On `main` only (no branch created).
+- **Database ref:** Untouched (zero DDL/DML, zero schema/migration modifications).
+- **Changes Summary:**
+  1. **`src/lib/utils/displayText.ts`**: Updated `formatAccountName(acc)` to return `acc.trim().toUpperCase()` instead of delegating to Title Case `formatDisplayText(acc)`.
+  2. **`src/app/(dashboard)/plantilla/page.tsx`**:
+     - Line 1448: Updated pool breadcrumb header to `MOSES HQ Pool Management`.
+     - Line 1544: Wrapped `selectedAccountName` with `formatAccountName(selectedAccountName)` in the Plantilla breadcrumb navigation.
+     - Line 1345: Account selector card grid consumes `formatAccountName(account.name)` directly and displays all account titles in uppercase while preserving Group prefixes (`Group 5 • ACTISERVE`).
+  3. **`src/components/vacancy/VacancyFilterToolbar.tsx`**: Wrapped account options in the quick filter selector with `formatAccountName(account.name)`.
+  4. **`scripts/test_display_text.mjs`**: Added 21 verification test assertions covering lowercase, Title Case, mixed-case, null, and undefined account inputs.
+  5. **`docs/state/web_design_tokens.md`**: Updated §12 Display Formatting documentation specifying the uppercase CAPSLOCK rule for account names across cards, headers, tables, and drawers.
+- **Verification:**
+  - `node scripts/test_display_text.mjs`: 15/15 display text tests passed; 21/21 account CAPSLOCK tests passed.
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+
 ## Phase 11 Execution Report — Prove Part C, D4 Reset via Option A, ESA Path Recon, PROD Promotion List, Step 4 Inventory, D6 Plan, D7 Plan (ohm#4x7n2k9w)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`); PARTS F & G ARE PLAN ONLY; ZERO TOUCH TO PRODUCTION (`rwxelulyapjgaarlwkus`)**

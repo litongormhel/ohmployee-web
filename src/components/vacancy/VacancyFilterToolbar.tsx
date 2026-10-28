@@ -13,6 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatAccountName } from "@/lib/utils/displayText";
 
 export interface VacancyFilterToolbarProps {
   searchDraft: string;
@@ -172,7 +173,7 @@ export function VacancyFilterToolbar({
           <option value="">All accounts</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name}
+              {formatAccountName(account.name)}
             </option>
           ))}
         </select>

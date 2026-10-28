@@ -1445,7 +1445,7 @@ function PlantillaPageContent() {
               </button>
               <span className="text-text-muted/60">/</span>
               <span className="text-sm font-semibold text-text-primary leading-tight">
-                Moses HQ Pool Management
+                MOSES HQ Pool Management
               </span>
             </nav>
           }
@@ -1541,7 +1541,7 @@ function PlantillaPageContent() {
                   )}
                   <span className="text-text-muted/60">/</span>
                   <span className="text-sm font-semibold text-text-primary leading-tight truncate">
-                    {selectedAccountName}
+                    {formatAccountName(selectedAccountName)}
                   </span>
                   {userRole && (
                     <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2 py-0.2 text-[10px] font-semibold text-brand-700 capitalize">

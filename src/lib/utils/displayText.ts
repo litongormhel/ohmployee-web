@@ -182,8 +182,10 @@ export function formatVacancySource(source: string | null | undefined): string {
 }
 
 /**
- * Specialized alias for account names
+ * Formats account name in CAPSLOCK (uppercase) per design specification
+ * e.g. "MOSES HQ", "ACTISERVE", "FOREVER OFFICE"
  */
 export function formatAccountName(acc: string | null | undefined): string {
-  return formatDisplayText(acc);
+  if (!acc) return "";
+  return acc.trim().toUpperCase();
 }
