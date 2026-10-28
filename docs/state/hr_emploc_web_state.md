@@ -102,7 +102,7 @@ Validation Rule:
 - Multiple selections are supported across all four requirements.
 - When only benefits (`SSS`, `PagIBIG`, `PhilHealth`) are selected, remarks are optional.
 - When `Incomplete Docs` is selected, overall HR Compliance Remarks is strictly required before submission.
-- In `HrEmplocTable`, the Deployed tab displays a dual stacked column under header `Emploc ID / Applicant` (monospace bold employee ID on top, applicant name underneath).
+- In `HrEmplocTable`, the Deployed tab displays a dual stacked column under header `Emploc ID | Applicant (separate columns)` (monospace bold employee ID on top, applicant name underneath).
 - In the Review queue, the column is named `Remarks` (displaying strictly user-entered correction remarks, left blank when empty without synthetic strings), and `Attachment` renders an icon-only download button (`Download` icon with tooltip/aria-label, excluding filename text) for uploaded compliance documents.
 
 ---

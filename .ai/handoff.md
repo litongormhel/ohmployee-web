@@ -1,5 +1,15 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Deployed Tab Separate Emploc ID & Applicant Columns (ohm#e8m3p0o9)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
+
+- `src/components/hr-emploc/HrEmplocTable.tsx`: Deployed/Ready columns changed from `Emploc ID / Applicant` to separate `Emploc ID` and `Applicant` columns (monospace bold ID cell with For Deletion badge; plain name cell). Pending/Correction/Review unchanged.
+- **Verification:** `npm run lint` 0 errors (9 preexisting warnings); `npm run build` clean.
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — Fix Revert-to-Pending plantilla_status_check Violation (ohm#e8m3p0o8)
 
 **Status: MIGRATION APPLIED TO STAGING (qqiiznmqxfoamqytjica) via execute_sql at Ohm's explicit request**

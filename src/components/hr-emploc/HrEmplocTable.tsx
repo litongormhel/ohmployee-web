@@ -93,7 +93,8 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
       return [
         "Group",
         "Account",
-        "Emploc ID / Applicant",
+        "Emploc ID",
+        "Applicant",
         "Position",
         "HRCO",
         "SLA",
@@ -274,29 +275,33 @@ export function HrEmplocTable({
                       {row.accountName ? formatAccountName(row.accountName) : "--"}
                     </td>
 
-                    {/* 3. Applicant / Emploc ID */}
+                    {/* 3. Emploc ID (Deployed / Ready only) */}
+                    {(queue === "deployed" || queue === "ready") && (
+                      <td className="border-b border-table-rule px-4 py-2.5">
+                        <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-text-primary">
+                          {isPendingDeletion && (
+                            <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] px-1.5 py-0.5 text-[10px] font-bold font-sans">
+                              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span>For Deletion</span>
+                            </span>
+                          )}
+                          <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
+                            {row.employeeNo || "—"}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+
+                    {/* 3b. Applicant */}
                     <td className="border-b border-table-rule px-4 py-2.5">
                       {queue === "deployed" || queue === "ready" ? (
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-text-primary">
-                            {isPendingDeletion && (
-                              <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] px-1.5 py-0.5 text-[10px] font-bold font-sans">
-                                <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                <span>For Deletion</span>
-                              </span>
-                            )}
-                            <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
-                              {row.employeeNo || "—"}
-                            </span>
-                          </div>
-                          <div
-                            className={`text-xs text-text-secondary truncate max-w-[200px] font-medium ${
-                              isPendingDeletion ? "line-through text-table-text-muted" : ""
-                            }`}
-                            title={row.applicantName || undefined}
-                          >
-                            {row.applicantName ? formatPersonName(row.applicantName) : "—"}
-                          </div>
+                        <div
+                          className={`text-table-text truncate max-w-[220px] font-medium ${
+                            isPendingDeletion ? "line-through text-table-text-muted" : ""
+                          }`}
+                          title={row.applicantName || undefined}
+                        >
+                          {row.applicantName ? formatPersonName(row.applicantName) : "—"}
                         </div>
                       ) : (
                         <div className="font-semibold text-table-text flex items-center gap-1.5 flex-wrap">
