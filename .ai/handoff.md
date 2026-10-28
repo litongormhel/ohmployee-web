@@ -1,5 +1,15 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Activity History Latest-First Sort (ohm#e8m3p0p1)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
+
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`: Activity History Trail now sorts `detail.auditLogsTimeline` (copied) by `createdAt` descending; undated rows last. No DB/RPC change.
+- **Verification:** `npm run lint` 0 errors (9 preexisting warnings); `npm run build` clean.
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Pending-Deletion Row Lock & Human-Readable Activity History (ohm#e8m3p0p0)
 
 **Status: COMPLETE ON MAIN; STAGING FUNCTION APPLIED; VERIFIED CLEAN BUILD/LINT**

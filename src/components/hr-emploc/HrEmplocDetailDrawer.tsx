@@ -685,7 +685,14 @@ export function HrEmplocDetailDrawer({
             </div>
             <div className="relative pl-4 space-y-4 border-l-2 border-border-subtle ml-1.5 mt-2">
               {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
-                detail.auditLogsTimeline.map((item, timelineIdx) => {
+                [...detail.auditLogsTimeline]
+                  .sort((a, b) => {
+                    // Latest event first; rows without a date go last.
+                    const at = a.createdAt ? new Date(a.createdAt).getTime() : -Infinity;
+                    const bt = b.createdAt ? new Date(b.createdAt).getTime() : -Infinity;
+                    return bt - at;
+                  })
+                  .map((item, timelineIdx) => {
                   const formatted = formatTimelineItem(item, detail);
                   return (
                     <div
