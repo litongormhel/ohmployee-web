@@ -8,6 +8,15 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **VCAG5_0056 Quota Reset 7 -> 1 via Option A (`ohm#4x7n2k9w` — Phase 11)**:
+  - Addressed the D4 live-slot gap root cause identified in Phase 10: target 1 reduced all 6 open slots because delta was computed against `required_headcount = 7` ($1 - 7 = -6$).
+  - Reopened slot Ord 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) via sanctioned `fn_set_slot_status('79e510b4...', 'open', 'HC_READD', 'b865eef6...')`, which brought live open slots to 7 (Ord 2–8).
+  - Executed `revise_vcode_headcount_quota('VCAG5_0056', 1, 'ohm#4x7n2k9w: reset SM AURORA quota 7->1 (UAT amendments reverted)')`. The delta of -6 reduced slots Ord 3–8 to `hc_reduced` (`HC_REDUCTION`), leaving Ord 2 as the single live slot in `open`. Slot Ord 1 (`bee89108...`) remained `closed` (`QA_RESET`).
+  - `VCAG5_0056` remains `status = 'Open'`, `required_headcount = 1`, `is_archived = false`. Appears in `/vacancy` Open tab with capacity 1 (`0/1`).
+  - Preserved multi-slot closed-slot trigger invariants: `fn_sync_closed_slot_to_vacancy` did not close the vacancy because Ord 2 remained open.
+  - ACTISERVE `total_open = 1`, summary & KPI both **7/7** (`1 active + 3 hrProcess + 3 vacant = 7`).
+  - Proved migration `20261028033431` was a functional no-op; the bug where applicant inserts clobbered `hr_processing` slots was resolved on Oct 20 in `20262606000047`.
+
 - **Closed-Slot -> Vacancy Trigger Fix & Slot-Sync Guard (`ohm#4x7n2k9w` — Phase 10)**:
   - **`fn_sync_closed_slot_to_vacancy` (`20261028033015_fix_sync_closed_slot_to_vacancy_multi_slot_guard.sql`)**:
     - Previously unversioned in database; unconditionally executed `UPDATE vacancies SET status = 'Closed'` when any slot transitioned to `closed`.

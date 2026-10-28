@@ -803,6 +803,15 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Added `row.separation_status` and `row.date_of_separation` normalization fallbacks in `normalizeEmployeeListRow`.
   - Created migration `20261027150000_allow_terminated_separation_status.sql` updating `plantilla_separation_status_check` to include `'Terminated'` and `'End of Contract'`.
 
+- **Phase 11 D4 Reset of `VCAG5_0056` Quota 7 -> 1 via Option A (`ohm#4x7n2k9w` — 2026-10-28)**:
+  - Addressed the D4 live-slot gap root cause identified in Phase 10: target 1 reduced all 6 open slots because delta was computed against `required_headcount = 7` ($1 - 7 = -6$).
+  - Reopened slot Ord 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) via sanctioned `fn_set_slot_status('79e510b4...', 'open', 'HC_READD', 'b865eef6-ebac-4bd3-84b5-482c00774565'::uuid)`, bringing live open slots to 7 (Ord 2–8).
+  - Executed `revise_vcode_headcount_quota('VCAG5_0056', 1, 'ohm#4x7n2k9w: reset SM AURORA quota 7->1 (UAT amendments reverted)')` under JWT sub `71d245b9-10b1-42b9-ad9e-253f999daf6d`.
+  - The delta of -6 systematically reduced slots Ord 3–8 to `hc_reduced` (`HC_REDUCTION`), leaving Ord 2 as the single live slot in `open`. Slot Ord 1 (`bee89108...`) remained `closed` (`QA_RESET`).
+  - `vacancies.required_headcount` is now 1, `vacancies.status` is `'Open'`, `is_archived = false`.
+  - ACTISERVE Summary (`get_web_plantilla_summary`) and KPI (`v_account_allocation_kpi`) both reconciled to **7/7** (`1 active + 3 hrProcess + 3 vacant = 7`).
+  - `qa_archive_batch_id` on Ord 2 remained set (`440e58da-10f5-4a1b-903b-fd171a8d23a3`), and neither `fn_qa_rollback_operational_data_reset` nor `fn_rollback_archive_batch` can touch it because both require `WHERE slot_status = 'closed' AND closure_reason_code = 'QA_RESET'`.
+
 - **Slot-Based Plantilla Summary, Store Staffing & Allocation KPI Closed-Slot Parity (`ohm#4x7n2k9w` — Phase 2 Step 1B `20261027091040` & Phase 3 Step 2a `20261027092200`)**:
   - Updated `public.get_web_plantilla_summary` and `public.list_web_plantilla_store_staffing` on staging (`qqiiznmqxfoamqytjica`) with identical parameter and return signatures:
     - Excluded pool and non-quota vacancies (`COALESCE(v.is_pool_vacancy, false) = false AND COALESCE(v.affects_required_hc, true) = true`) in both `onboarding_pipeline_count` (`hrProcess`) and `open_headcount_count` (`vacant`).
