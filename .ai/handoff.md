@@ -1,5 +1,16 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Withdrawn Deletion Request Still Shown as Active (ohm#e8m3p0p2)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
+
+- **Cause:** `get_web_hr_emploc_detail.deletion_request` returns the latest request for the record with any status; the drawer treated any non-null value as active.
+- **Fix:** `src/lib/queries/hr_emploc.ts` `normalizeDetailRow` keeps `activeDeletionRequest` only when `status` is `Pending`. Withdrawn/Approved/Rejected requests no longer lock the drawer. No DB change.
+- **Verification:** `npm run lint` 0 errors (9 preexisting warnings); `npm run build` clean.
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Activity History Latest-First Sort (ohm#e8m3p0p1)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**

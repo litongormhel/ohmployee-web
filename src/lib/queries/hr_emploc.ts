@@ -450,7 +450,12 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
   const rawTimeline = Array.isArray(row.timeline) ? row.timeline : [];
   const auditLogsTimeline = rawTimeline.map(normalizeAuditLog);
 
-  const activeDeletionRequest = normalizeDeletionRequest(row.deletion_request);
+  // The RPC returns the latest deletion request regardless of status; only a Pending one is active.
+  const latestDeletionRequest = normalizeDeletionRequest(row.deletion_request);
+  const activeDeletionRequest =
+    latestDeletionRequest && latestDeletionRequest.status.trim().toLowerCase() === "pending"
+      ? latestDeletionRequest
+      : null;
 
   return {
     id,
