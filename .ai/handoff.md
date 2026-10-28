@@ -1,5 +1,16 @@
 # AI Handoff
 
+## Execution Report — Fix Revert-to-Pending plantilla_status_check Violation (ohm#e8m3p0o8)
+
+**Status: MIGRATION WRITTEN, NOT APPLIED**
+
+- **Cause:** `revert_hr_emploc_to_pending` set `plantilla.status = 'Separated'`, not allowed by `plantilla_status_check` (Active, Inactive, Pending Deactivation, Rejected Deactivation, Deactivated, On Leave).
+- **Fix:** New migration `supabase/migrations/20262606000074_fix_revert_hr_emploc_plantilla_status.sql` re-creates the function with `status = 'Deactivated'`; all other logic and grants unchanged. `uq_plantilla_employee_no_active` only covers non-deleted Active/Pending Deactivation/On Leave rows, so no conflict.
+- **Action needed (Ohm):** apply the migration to staging `qqiiznmqxfoamqytjica` (no DB writes were made by the agent), then retry Revert to Pending.
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Attachment Download Icon-Only & Strict Blank Remarks (ohm#e8m3p0o7)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
