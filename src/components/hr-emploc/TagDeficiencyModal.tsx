@@ -6,6 +6,7 @@ import { AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import {
   tagWebHrEmplocDeficiency,
+  notifyAllHrcosForCorrection,
   HrEmplocDataError,
   type TagDeficiencyParams,
 } from "@/lib/queries/hr_emploc";
@@ -45,12 +46,21 @@ export function TagDeficiencyModal({
 
   const { mutate, isPending } = useMutation({
     mutationFn: (params: TagDeficiencyParams) => tagWebHrEmplocDeficiency(params),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+
+      // Trigger notification matrix to ALL assigned HRCOs for the group/account
+      await notifyAllHrcosForCorrection({
+        hrEmplocId,
+        applicantName: applicantName || "Applicant",
+        vcode: vcode || "",
+        remarks: remarks.trim() || null,
+      });
+
       onSuccess();
     },
     onError: (err) => {

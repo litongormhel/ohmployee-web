@@ -32,9 +32,10 @@ const QUEUE_LABELS: Record<HrEmplocQueue, string> = {
   pending: "Pending",
   correction: "Correction",
   review: "Review",
-  ready: "Ready",
+  deployed: "Deployed",
+  ready: "Deployed",
   deficiency: "Correction",
-  complete: "Ready",
+  complete: "Deployed",
   deletion_pending: "Pending Deletion",
   all: "All",
 };

@@ -1,5 +1,60 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Module Overhaul, Auto-Plantilla Deployment, Inherited HRCO Mapping & Audit Trail Refactor (ohm#e8m3p0o1)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD & LINT; READY FOR MIGRATION APPLICATION**
+
+- **Scope:** Complete overhaul of the HR Emploc module (`/hr-emploc`):
+  1. Rename 4th queue tab from `Ready` to `Deployed` (historical & audit queue for records assigned an Employee ID and automatically deployed to Plantilla; SLA timer frozen with `Completed in X days`).
+  2. Search input placeholder updated to `"Search applicant name, Employee ID, VCode, position, store, HRCO..."` and added search filter indexing and CSV/Excel export payload for `employee_id`.
+  3. Fixed blank `--` HRCO column in table and drawer by introducing inherited HRCO matrix from User Management based on `Group / Account` scopes (`InheritedHrcoBadge`, `useInheritedHrcoMap` with batch RPC fallback to client query):
+     - Single HRCO: full name.
+     - Multiple HRCOs: primary name + `+N` badge with hover tooltip listing all assigned HRCO names.
+     - No HRCO assigned: amber badge `No HRCO in Group`.
+     - Correction notification matrix: dispatches notifications to **ALL** assigned HRCOs for the Group/Account upon tagging for correction.
+  4. Actions column in `Pending` tab:
+     - `+ Add Emploc` (allowed for Super Admin, Data Team, and HR Personnel / OM / HRCO).
+     - `! For Correction` (allowed for Super Admin and HR Personnel / OM / HRCO; strictly hidden from Data Team).
+     - Auto-Lock Safeguard: if pending deletion request exists, both buttons are locked/disabled and `For Deletion` badge renders beside the applicant's name.
+  5. `+ Add Emploc` modal & auto-Plantilla sync:
+     - Context header: `Applicant Name (VCode • Account / Store)`.
+     - Single required input field: `Employee ID` (Emploc Number).
+     - Global ecosystem-wide uniqueness validation (case-insensitive, trimmed across `hr_emploc`, `plantilla`, `users_profile`) with hard block duplicate error: `"Employee ID [ID] is already assigned to [Existing Employee Name] ([Account/Module]). Duplicate Emploc numbers are not allowed."`.
+     - Auto-transition to `Deployed`, auto-sync into `Plantilla`, SLA frozen timer (`Completed in X days`), and detailed audit log.
+  6. Workarounds for encoding mistakes in `Deployed` tab:
+     - `Edit Emploc` button: updates `employee_id` in both `hr_emploc` and `plantilla` simultaneously with uniqueness check and audit logging.
+     - `Revert to Pending` button: unlinks/removes from active `Plantilla`, hard-clears `employee_id = NULL`, moves record back to `Pending`, resumes SLA, reconciles vacancy fulfillment state if filled, and logs audit trail.
+  7. Right Drawer Redesign & Cleanup:
+     - Exact 8-section top-to-bottom layout:
+       1. Header: VCode badge, Applicant Name, 📍 Account / Store.
+       2. Status Summary Cards (2-column: Deployment status & HR status).
+       3. Placement Parameters Card (VCode, Account, Store/Location, Assignment Type, Position, inherited HRCO Coordinator, Hired Date, Employee ID).
+       4. SLA & Aging Performance Card (Elapsed Compliance Time frozen when deployed, Baseline Request Date).
+       5. Completely DELETED Onboarding Requirements Compliance checklist.
+       6. Correction Submissions & Attachments Card (immediately below SLA).
+       7. Specific Activity History Trail Card (detailed event-specific logs: Endorsement, HRCO assignment, Flagged for Correction, Emploc & Deployment, Edit/Revert, Deletion/Withdrawal).
+       8. Available Actions Card: strictly scoped to Deletion Request / Withdraw workflow for Ops (`OM` - `HRCO`) and Super Admin; locked for Data Team and locked if Deployed.
+- **Branch status:** On `main` only (no branch created).
+- **Files Modified / Created:**
+  - `supabase/migrations/20261028150500_hr_emploc_overhaul_and_deployment_sync.sql` (created)
+  - `src/components/hr-emploc/useInheritedHrco.tsx` (created)
+  - `src/components/hr-emploc/EditEmplocModal.tsx` (created)
+  - `src/lib/queries/hr_emploc.ts` (modified)
+  - `src/components/hr-emploc/AssignEmployeeNoModal.tsx` (modified)
+  - `src/components/hr-emploc/HrEmplocTable.tsx` (modified)
+  - `src/components/hr-emploc/HrEmplocDetailDrawer.tsx` (modified)
+  - `src/components/hr-emploc/HrEmplocSavedViewsModal.tsx` (modified)
+  - `src/components/hr-emploc/TagDeficiencyModal.tsx` (modified)
+  - `src/app/(dashboard)/hr-emploc/page.tsx` (modified)
+  - `docs/state/hr_emploc_web_state.md` (modified)
+  - `.ai/briefing.md` (modified)
+  - `.ai/handoff.md` (modified)
+- **Verification:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+
+---
+
 ## Execution Report — Format Account Names in CAPSLOCK (ohm#u9p2a1c0)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN LINT & TESTS; ZERO DATABASE MUTATIONS**

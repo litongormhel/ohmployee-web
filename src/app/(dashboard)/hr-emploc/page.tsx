@@ -39,6 +39,7 @@ import {
 } from "@/lib/queries/hr_emploc";
 import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
 import { DeployToPlantillaModal } from "@/components/hr-emploc/DeployToPlantillaModal";
+import { EditEmplocModal } from "@/components/hr-emploc/EditEmplocModal";
 import { TagDeficiencyModal } from "@/components/hr-emploc/TagDeficiencyModal";
 import { UploadAttachmentModal } from "@/components/hr-emploc/UploadAttachmentModal";
 import { SubmitCorrectionModal } from "@/components/hr-emploc/SubmitCorrectionModal";
@@ -75,8 +76,8 @@ const queueTabs: Array<{
     icon: FileText,
   },
   {
-    value: "ready",
-    label: "Ready",
+    value: "deployed",
+    label: "Deployed",
     icon: CheckCircle2,
   },
 ];
@@ -97,6 +98,7 @@ export default function HrEmplocPage() {
 
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
+  const [editTarget, setEditTarget] = useState<HrEmplocListItem | null>(null);
   const [deployTarget, setDeployTarget] = useState<HrEmplocListItem | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
   const [uploadTarget, setUploadTarget] = useState<HrEmplocListItem | null>(null);
@@ -397,6 +399,7 @@ export default function HrEmplocPage() {
       pending: summary?.pending ?? 0,
       correction: summary?.correction ?? 0,
       review: summary?.review ?? 0,
+      deployed: summary?.deployed ?? summary?.ready ?? 0,
       ready: summary?.ready ?? 0,
       deficiency: summary?.correction ?? 0,
       complete: summary?.ready ?? 0,
@@ -415,7 +418,7 @@ export default function HrEmplocPage() {
   const totalMasterlistCount = useMemo(() => {
     const s = summaryQuery.data;
     if (!s) return 0;
-    return (s.pending ?? 0) + (s.correction ?? 0) + (s.review ?? 0) + (s.ready ?? 0);
+    return (s.pending ?? 0) + (s.correction ?? 0) + (s.review ?? 0) + (s.deployed ?? s.ready ?? 0);
   }, [summaryQuery.data]);
 
   const isAnyFilterActive = Boolean(searchDraft.trim() || search || accountId || groupId);
@@ -654,7 +657,7 @@ export default function HrEmplocPage() {
                   applySearch();
                 }
               }}
-              placeholder="Search applicant name, VCode, position, store, HRCO..."
+              placeholder="Search applicant name, Employee ID, VCode, position, store, HRCO..."
               type="text"
               value={searchDraft}
             />
@@ -766,6 +769,7 @@ export default function HrEmplocPage() {
         onRetry={retryQueryReads}
         onSelect={selectRow}
         onAddEmploc={(row) => setAssignTarget(row)}
+        onEditEmploc={(row) => setEditTarget(row)}
         onForCorrection={(row) => setCorrectionTarget(row)}
         onAssignEmployeeNo={(row) => setAssignTarget(row)}
         onMoveToPlantilla={(row) => setDeployTarget(row)}
@@ -795,6 +799,8 @@ export default function HrEmplocPage() {
           hrEmplocId={assignTarget.id}
           candidateName={assignTarget.applicantName}
           vcode={assignTarget.vcode}
+          accountName={assignTarget.accountName}
+          storeName={assignTarget.storeName}
           currentEmployeeNo={assignTarget.employeeNo}
           onClose={() => setAssignTarget(null)}
           onSuccess={() => {
@@ -802,6 +808,25 @@ export default function HrEmplocPage() {
             setSuccessToast({
               message: `Placement onboarding updated for ${assignTarget.applicantName}.`,
             });
+            retryQueryReads();
+          }}
+        />
+      )}
+
+      {/* Edit Emploc Modal (Typo or Revert in Deployed Tab) */}
+      {editTarget && (
+        <EditEmplocModal
+          isOpen={true}
+          hrEmplocId={editTarget.id}
+          applicantName={editTarget.applicantName}
+          vcode={editTarget.vcode}
+          accountName={editTarget.accountName}
+          storeName={editTarget.storeName}
+          currentEmployeeId={editTarget.employeeNo || ""}
+          onClose={() => setEditTarget(null)}
+          onSuccess={(msg) => {
+            setEditTarget(null);
+            setSuccessToast({ message: msg });
             retryQueryReads();
           }}
         />

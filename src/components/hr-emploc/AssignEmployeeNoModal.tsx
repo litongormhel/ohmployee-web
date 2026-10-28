@@ -5,21 +5,30 @@ import { useState } from "react";
 import { AlertCircle, Hash, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { useCurrentUser } from "@/lib/auth";
-import { useAssignEmployeeNo, HrEmplocDataError } from "@/lib/queries/hr_emploc";
+import {
+  useAssignEmployeeNo,
+  useMoveToPlantilla,
+  checkEcosystemEmployeeIdUnique,
+  HrEmplocDataError,
+} from "@/lib/queries/hr_emploc";
 
 type AssignEmployeeNoModalProps = {
   hrEmplocId: string;
   candidateName: string;
   vcode: string;
+  accountName?: string | null;
+  storeName?: string | null;
   currentEmployeeNo?: string | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
 };
 
 export function AssignEmployeeNoModal({
   hrEmplocId,
   candidateName,
   vcode,
+  accountName,
+  storeName,
   currentEmployeeNo,
   onClose,
   onSuccess,
@@ -27,126 +36,138 @@ export function AssignEmployeeNoModal({
   const currentUser = useCurrentUser();
   const [employeeNo, setEmployeeNo] = useState(currentEmployeeNo ?? "");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const assignMutation = useAssignEmployeeNo();
+  const deployMutation = useMoveToPlantilla();
 
-  // Role validation: Encoder & Super Admin allowed; Head Admin hard-blocked
+  // Allowed Roles per RBAC: Super Admin, Data Team (Encoder/Head Admin), and HR Personnel (including Ops OM / HRCO)
   const roleName = (currentUser?.roleName ?? currentUser?.roleKey ?? "").toLowerCase().trim();
-  const isHeadAdmin = roleName === "head_admin" || roleName === "head admin";
-  const isEncoderOrSuperAdmin =
-    roleName === "encoder" ||
-    roleName === "super_admin" ||
-    roleName === "super admin" ||
-    roleName === "developer" ||
-    roleName === "admin";
+  const isAllowedRole =
+    roleName.includes("super_admin") ||
+    roleName.includes("super admin") ||
+    roleName.includes("data") ||
+    roleName.includes("encoder") ||
+    roleName.includes("head_admin") ||
+    roleName.includes("head admin") ||
+    roleName.includes("hr") ||
+    roleName.includes("om") ||
+    roleName.includes("hrco") ||
+    roleName.includes("developer") ||
+    roleName.includes("admin");
 
-  const isBlockedRole = isHeadAdmin || (!isEncoderOrSuperAdmin && !!currentUser);
+  const isSubmitting = assignMutation.isPending || deployMutation.isPending || isValidating;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setValidationError(null);
 
-    if (isBlockedRole) {
-      setValidationError("Head Admin is blocked from assigning employee numbers. Only Data Encoder or Super Admin can assign employee numbers.");
+    if (!isAllowedRole && !!currentUser) {
+      setValidationError("You do not have permission to assign Emploc numbers.");
       return;
     }
 
     const trimmed = employeeNo.trim();
     if (!trimmed) {
-      setValidationError("Employee number is required.");
+      setValidationError("Employee ID is required.");
       return;
     }
 
     // Clean alphanumeric with optional hyphen or dot: e.g., 2024-0012, EMP1024, 102948
     const alphanumericPattern = /^[A-Za-z0-9._-]+$/;
     if (!alphanumericPattern.test(trimmed)) {
-      setValidationError("Employee number must contain only clean alphanumeric characters, hyphens, underscores, or periods.");
+      setValidationError(
+        "Employee ID must contain only clean alphanumeric characters, hyphens, underscores, or periods."
+      );
       return;
     }
 
-    assignMutation.mutate(
-      {
+    // 2.2 Global Uniqueness Validation across entire ecosystem (hr_emploc, plantilla, users)
+    setIsValidating(true);
+    try {
+      const check = await checkEcosystemEmployeeIdUnique(trimmed, hrEmplocId);
+      if (!check.isUnique) {
+        setValidationError(
+          check.message ||
+            `Employee ID ${trimmed} is already assigned to ${check.existingName || "Existing Employee"} (${check.existingModule || "System"}). Duplicate Emploc numbers are not allowed.`
+        );
+        setIsValidating(false);
+        return;
+      }
+    } catch {
+      // Continue if offline/dev fallback
+    }
+    setIsValidating(false);
+
+    // 2.3 Auto-Plantilla Sync: Assign number then automatically deploy to Plantilla
+    try {
+      await assignMutation.mutateAsync({
         hrEmplocId,
         employeeNo: trimmed,
-      },
-      {
-        onSuccess: () => {
-          onSuccess();
-        },
-        onError: (err) => {
-          if (err instanceof HrEmplocDataError) {
-            setValidationError(err.message);
-          } else if (err instanceof Error) {
-            setValidationError(err.message);
-          } else {
-            setValidationError("Failed to assign employee number. Please try again.");
-          }
-        },
+      });
+
+      // Automatically move to Plantilla directory
+      await deployMutation.mutateAsync({
+        hrEmplocId,
+        vcode,
+      });
+
+      onSuccess(
+        `Assigned Employee ID ${trimmed} and automatically deployed ${candidateName} to Plantilla.`
+      );
+    } catch (err) {
+      if (err instanceof HrEmplocDataError) {
+        setValidationError(err.message);
+      } else if (err instanceof Error) {
+        setValidationError(err.message);
+      } else {
+        setValidationError("Failed to assign Emploc number and deploy. Please try again.");
       }
-    );
+    }
   }
 
   const isDirty = employeeNo !== (currentEmployeeNo ?? "");
+  const locationContext = [accountName, storeName].filter(Boolean).join(" / ");
 
   return (
     <Modal
       isOpen={true}
       onClose={onClose}
-      title="Assign Employee Number"
+      title="+ Add Emploc (Auto-Deploy to Plantilla)"
       maxWidthClass="max-w-md"
       disableBackdropClick={true}
-      isSubmitting={assignMutation.isPending}
+      isSubmitting={isSubmitting}
       isDirty={isDirty}
     >
       <div className="space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-border-subtle">
-          <div className="p-1.5 bg-surface-muted text-brand-primary rounded border border-border-subtle">
-            <Hash className="h-4 w-4" />
+        {/* Context Header: Applicant Name (VCode • Account / Store) */}
+        <div className="rounded-lg border border-border-default bg-surface-muted p-3.5 space-y-1">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-text-primary">{candidateName}</h4>
+            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded border border-border-default bg-surface text-text-secondary">
+              {vcode}
+            </span>
           </div>
-          <div>
-            <h4 className="text-sm font-semibold text-text-primary">Plantilla Identifier</h4>
-            <p className="text-[11px] text-text-muted">
-              Official HR identifier for Plantilla deployment
-            </p>
-          </div>
+          {locationContext && (
+            <p className="text-xs text-text-secondary font-medium">📍 {locationContext}</p>
+          )}
         </div>
 
         {/* Content Body */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Candidate Snapshot */}
-          <div className="rounded-md border border-border-subtle bg-surface-muted p-3 text-xs space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-text-muted">Candidate:</span>
-              <span className="font-semibold text-text-primary">{candidateName}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-text-muted">Target VCode:</span>
-              <span className="font-mono text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border-default">
-                {vcode}
-              </span>
-            </div>
-          </div>
-
-          {/* Role Warning / Block notice */}
-          {isBlockedRole && (
-            <div className="rounded border border-border-default bg-surface-muted p-3 text-xs text-text-primary flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
-              <span>
-                <strong>RBAC Restriction:</strong> {isHeadAdmin ? "Head Admin is explicitly blocked from assigning employee IDs." : "You need Data Encoder or Super Admin privileges to assign employee IDs."}
-              </span>
-            </div>
-          )}
-
-          {/* Input field */}
+          {/* Single Required Input Field: Employee ID */}
           <div className="space-y-1.5">
-            <label htmlFor="employeeNoInput" className="block text-xs font-semibold text-text-primary">
-              Employee / Emploc Number <span className="text-[var(--danger-text)]">*</span>
-            </label>
+            <div className="flex items-center gap-1.5">
+              <Hash className="h-4 w-4 text-brand-primary" />
+              <label htmlFor="employeeNoInput" className="block text-xs font-semibold text-text-primary">
+                Employee ID <span className="text-[var(--danger-text)]">*</span>
+              </label>
+            </div>
             <input
               id="employeeNoInput"
               type="text"
               required
-              disabled={assignMutation.isPending || isBlockedRole}
+              disabled={isSubmitting || !isAllowedRole}
               value={employeeNo}
               onChange={(e) => {
                 setEmployeeNo(e.target.value);
@@ -156,15 +177,16 @@ export function AssignEmployeeNoModal({
               className="w-full rounded-md border border-border-default bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-50"
             />
             <p className="text-[11px] text-text-muted">
-              Alphanumeric format, hyphens, and underscores accepted. Once assigned, this record moves to Ready status.
+              Entering an Employee ID automatically moves the candidate to the{" "}
+              <strong>Deployed</strong> queue and syncs them into the active Plantilla directory.
             </p>
           </div>
 
           {/* Validation or Mutation Error */}
           {validationError && (
-            <div className="rounded border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
+            <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger-text)] flex items-start gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{validationError}</span>
+              <span className="leading-relaxed">{validationError}</span>
             </div>
           )}
 
@@ -172,7 +194,7 @@ export function AssignEmployeeNoModal({
           <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border-subtle">
             <button
               type="button"
-              disabled={assignMutation.isPending}
+              disabled={isSubmitting}
               onClick={onClose}
               className="rounded-md border border-border-default bg-surface px-4 py-2 text-xs font-medium text-text-primary hover:bg-surface-hover transition disabled:opacity-50 cursor-pointer"
             >
@@ -180,11 +202,11 @@ export function AssignEmployeeNoModal({
             </button>
             <button
               type="submit"
-              disabled={assignMutation.isPending || isBlockedRole || !employeeNo.trim()}
+              disabled={isSubmitting || !isAllowedRole || !employeeNo.trim()}
               className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-2 text-xs font-semibold text-white hover:bg-brand-button-hover transition disabled:bg-surface-muted disabled:text-text-secondary disabled:border disabled:border-border-default disabled:shadow-none disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
-              {assignMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {assignMutation.isPending ? "Assigning..." : "Assign & Mark Ready"}
+              {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {isSubmitting ? "Deploying..." : "Assign & Deploy to Plantilla"}
             </button>
           </div>
         </form>

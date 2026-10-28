@@ -26,15 +26,14 @@ The administrative dashboard organizes employee placement records into distinct 
 * `hr_status`: Tracks the HR compliance workflow state (`Pending`, `For Correction`, `For Review`, `Complete`, `Rejected`, `Transferred`).
 * `status`: Tracks the deployment lifecycle (`Pending Emploc`, `Moved to Plantilla`, `Backout`).
 
-To facilitate rapid filtering and administrative scanning, the UI will implement the following tab-controlled queues:
+To facilitate rapid filtering and administrative scanning, the UI implements 4 primary tab-controlled queues:
 
 | Queue Tab | Database Conditions | Primary Purpose / Administrative Action |
 | :--- | :--- | :--- |
-| **Pending Review** | `hr_status = 'Pending'` or `hr_status = 'For Review'` | Default operational queue. Lists newly confirmed onboard hires whose documentation needs initial audit or re-validation after correction. |
-| **For Correction** | `hr_status = 'For Correction'` | Lists records currently sent back to field coordinators with deficiency lists. Awaiting upload of correct files. |
-| **Compliance Complete** | `hr_status = 'Complete'` and `status = 'Pending Emploc'` | Actionable queue listing records that have met all compliance checks. Encoders/Super Admins focus here to assign employee numbers and trigger plantilla movement. |
-| **Pending Deletion** | `hr_status = 'Pending Deletion'` | Risk management queue tracking active separation/deletion requests (Backout or Duplicate Record requests) awaiting admin review. |
-| **All / History** | *Unfiltered on status* | Read-only archive and audit history. |
+| **Pending** | `status = 'Pending Emploc'` AND `hr_status = 'Pending'` | Operational onboarding queue. Actions: `+ Add Emploc` (allowed for Super Admin, Data Team, HR Personnel/OM/HRCO) and `! For Correction` (allowed for Super Admin, HR Personnel/OM/HRCO; hidden from Data Team). Auto-locked if pending deletion request exists. |
+| **Correction** | `hr_status = 'For Correction'` | Deficiency correction queue. Displays deficient documents returned to field coordinators. Actions: Upload attachments, submit correction to review. Dispatches notifications to all assigned HRCOs in Group/Account matrix. |
+| **Review** | `hr_status = 'For Review'` | Review queue for corrected submissions. Actions: Approve (moves to Complete/Ready) or Revert to Correction. |
+| **Deployed** | `status = 'Moved to Plantilla'` OR `hr_status = 'Transferred'` | Historical & audit queue for records assigned an Employee ID and deployed to Plantilla. Actions: `Edit Emploc` (correct typo in Employee ID across tables or `Revert to Pending` which removes from Plantilla, frees Employee ID, and reconciles vacancy fulfillment). SLA timer is frozen. |
 
 ---
 
@@ -93,68 +92,48 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
 
 ---
 
-## 5. Detail Drawer UX & Content Structure
+## 5. Detail Drawer UX & Content Structure (Exact 8-Section Order)
 
-When a row is selected, the desktop Detail Drawer slides overlaying the grid from the right. It consumes the `DetailDrawer` shared container, locked to the `drawer-width-lg` (`640px`) layout to fit side-by-side forms and checklists.
+When a row is selected, the desktop Detail Drawer slides overlaying the grid from the right (`DetailDrawer`, `w-[var(--drawer-width-lg)]`). It enforces the following exact top-to-bottom section order:
 
-### Drawer Sections:
-
-```
-+-----------------------------------------------------------------------+
-|  Account / Location Hierarchy Breadcrumbs                        [X]  |
-|                                                                       |
-|  [H1] CANDIDATE FULL NAME                                             |
-|  VCode: VAC-2026-0042 (Monospace Badge)                               |
-|  Status: [Ready for Deployment (Complete)]                            |
-+-----------------------------------------------------------------------+
-|  Placement Details (Grid)                                             |
-|  - Date Hired: 2026-05-20       - Assignment Type: Roving             |
-|  - Position: Field Merchandiser - Coordinator: HRCO Name              |
-+-----------------------------------------------------------------------+
-|  Onboarding Requirements & Deficiencies                               |
-|  [Requirement Checklist]                                              |
-|  [x] SSS Card                    [ ] NBI Clearance (Deficient)        |
-|  [x] PagIBIG ID                  [ ] Birth Certificate (Deficient)    |
-|                                                                       |
-|  HR remarks: "NBI Clearance is blurry. Birth Certificate is missing   |
-|  the seal."                                                           |
-+-----------------------------------------------------------------------+
-|  Corrections & Deficient File Uploads                                 |
-|  - NBI_clearance_corrected.jpg  (Uploaded 10h ago by HRCO_Name)       |
-|  - Birth_cert_official.pdf      (Uploaded 10h ago by HRCO_Name)       |
-+-----------------------------------------------------------------------+
-|  SLA & Processing Performance                                         |
-|  - Elapsed Processing Time: 4 Days                                    |
-|  - [!] SLA Breach Notice: Record has exceeded the 3-day SLA threshold.|
-+-----------------------------------------------------------------------+
-|  Activity Timeline & Audit Trail                                      |
-|  o [Correction Submitted] - 10 hours ago by Santos, Maria (HRCO)       |
-|  o [Correction Tagged]    - 2 days ago by Dela Cruz, Ana (HR Dept)      |
-|  o [Confirmed Onboard]    - 4 days ago by System Automatic Trigger    |
-+-----------------------------------------------------------------------+
-|  Capability-Aware Actions (Sticky Bottom)                             |
-|  [ Tag Deficiency ]  [ Assign Employee No ]  [ Move to Plantilla ]    |
-+-----------------------------------------------------------------------+
-```
-
-1. **Header Breadcrumbs & Identification**:
-   - Primary `H1` displaying `applicant_name_snapshot`.
-   - VCode as a prominent monospaced badge.
-   - Status badge and Location breadcrumbs (`Account / Store / Chain`).
-2. **Placement Details**:
-   - Key attributes: `hired_date`, `position`, `assignment_type`, `hrco_name`, and assigned deployer.
-3. **Deficiencies & Compliance Checklist**:
-   - Interactive representation of the `correction_reason` JSONB object showing tagged deficiency codes (from `hr_emploc_issue_types`) and comments.
-   - Standard checkboxes indicating missing requirements.
-4. **Correction Uploads Component**:
-   - Listing uploaded compliance files linked to `hr_emploc_correction_attachments` with file type icons, name links, size, and uploader identities.
-5. **SLA & Escalation Segment**:
-   - Precise processing duration readout.
-   - Escalation level tracker.
-6. **Immutable Audit Activity Timeline**:
-   - Tracks movements, re-submissions, and remarks dynamically from the audit log and deletion request log.
-7. **Capability-Controlled Action Bar**:
-   - Rendered using the shared `CapabilityActionBar`. Buttons are dynamically enabled/disabled and marked with "available" / "unexposed" visual indicators based on resolved backend `row_capabilities`.
+1. **Drawer Header**:
+   - `VCode` badge (e.g., `VAC-2026-0042`).
+   - `Applicant Full Name` (strikethrough when locked for deletion).
+   - `📍 Account / Store` breadcrumb.
+2. **Status Summary Cards (2-Column Grid)**:
+   - `Deployment status`: `Pending Emploc`, `Deployed to Plantilla`, or `Deletion Requested`.
+   - `HR status`: `Pending`, `For Correction`, `Deployed`.
+3. **Placement Parameters Card**:
+   - `Vacancy Code (VCode)`, `Account`, `Store / Location`, `Assignment Type`, `Position Title`, `HRCO Coordinator` (inherited from User Management Group/Account matrix via `<InheritedHrcoBadge />`), `Hired Date`, and `Employee ID` (rendered with prominent badge when assigned).
+   - Covered stores list if `Assignment Type = 'Roving'`.
+4. **SLA & Aging Performance Card**:
+   - `Elapsed Compliance Time`: Freezes once deployed and displays `Completed in X days`. Active records display `X Days`.
+   - `Baseline Request Date`: Formatted baseline date.
+   - SLA breach alert badge & Tier 1/2 escalation notifications (active only while in progress).
+5. *(Completely Removed: "Onboarding Requirements Compliance" checklist)*:
+   - The document checklist (SSS, Pag-IBIG, PhilHealth, NBI, PSA) has been completely removed from the drawer.
+6. **Correction Submissions & Attachments Card**:
+   - Placed directly below SLA & Aging Performance.
+   - Shows uploaded attachment files with one-click signed URL download links, uploader metadata, and file sizes.
+7. **Specific Activity History Trail Card**:
+   - Replaces generic "Status Updated" placeholders with human-readable, event-specific logs:
+     - Creation/Endorsement: `"Added to HR Emploc Queue ([Position] – [Store]) from Vacancy [VCode] by [Actor Name]"`
+     - HRCO Assignment: `"Assigned HRCO [HRCO Name(s)] via [Group] ([Account]) matrix"`
+     - Flagged for Correction: `"Flagged for Correction ([Deficiency/Remarks]) — Moved to Correction by [Actor Name]"`
+     - Emploc & Deployment: `"Assigned Employee ID [ID] and deployed to Plantilla ([Store]) by [Actor Name]"`
+     - Edit / Revert: `"Updated Employee ID from [Old ID] to [New ID] (Reason: [Reason]) by [Actor Name]"` / `"Reverted from Deployed to Pending and removed from Plantilla by [Actor Name]"`
+     - Deletion Request / Withdrawal: `"Requested Deletion (Reason: [Reason]) by [Actor Name]"` / `"Withdrew Deletion Request and restored to Pending Emploc by [Actor Name]"`
+8. **Available Actions Card (Scoped to Deletion Flow)**:
+   - Section header: `Available Actions` (removed all internal debug capability rows).
+   - Role restriction: Restricted to Ops (`OM` - `HRCO`) and `Super Admin`. Data Team and other roles view locked banner (`"Restricted to Ops (OM - HRCO) personnel"`).
+   - Guardrail: Locked if record is `Deployed` (`"Record is deployed. To request deletion, first revert the record to Pending using Edit Emploc > Revert to Pending"`).
+   - State A (No active request): `Request Deletion` button opening inline dropdown with:
+     - Reason: `Applicant Backed Out`, `Duplicate / Wrong Endorsement`, `Failed Store Deployment`
+     - Required specific remarks/justification textarea
+     - Submit button `Confirm & Submit Request`
+   - State B (Active deletion request exists):
+     - Amber summary banner: `"Active Deletion Request: [Reason] — Submitted by [Requester] on [Date]"`
+     - Action button: `Withdraw Request` (with confirmation dialog).
 
 ---
 

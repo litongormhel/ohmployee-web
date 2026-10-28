@@ -6,6 +6,7 @@ export type HrEmplocQueue =
   | "pending"
   | "correction"
   | "review"
+  | "deployed"
   | "ready"
   | "deficiency"
   | "complete"
@@ -104,6 +105,9 @@ export type HrEmplocDetailItem = {
   applicantName: string;
   vcode: string;
   accountName: string | null;
+  accountId?: string | null;
+  groupName?: string | null;
+  groupId?: string | null;
   storeName: string | null;
   positionTitle: string | null;
   hrStatus: string;
@@ -145,6 +149,7 @@ export type HrEmplocSummary = {
   correction: number;       // hr_status = 'For Correction'
   review: number;           // hr_status = 'For Review'
   ready: number;            // hr_status = 'Complete'
+  deployed: number;         // status = 'Moved to Plantilla' / Deployed
   totalPending: number;     // legacy alias
   actionNeeded: number;     // legacy alias
   readyToDeploy: number;    // legacy alias
@@ -440,6 +445,9 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
     applicantName: formatPersonName(null, null, null, asString(row.applicant_name ?? row.applicantName) ?? "Anonymous"),
     vcode: asString(row.vcode) ?? "Uncoded",
     accountName: asString(row.account_name ?? row.accountName) ?? null,
+    accountId: asString(row.account_id ?? row.accountId) ?? null,
+    groupName: asString(row.group_name ?? row.groupName) ?? null,
+    groupId: asString(row.group_id ?? row.groupId) ?? null,
     storeName: asString(row.store_name ?? row.storeName) ?? null,
     positionTitle: asString(row.position_title ?? row.positionTitle) ?? null,
     hrStatus: asString(row.hr_status ?? row.hrStatus) ?? "Pending",
@@ -471,12 +479,14 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
   const correction = asCount(row.correction_count ?? row.correction ?? row.action_needed ?? row.actionNeeded ?? row.action_needed_count);
   const review = asCount(row.review_count ?? row.review);
   const ready = asCount(row.ready_count ?? row.ready ?? row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count);
+  const deployed = asCount(row.deployed_count ?? row.deployed ?? row.ready_count ?? row.ready);
 
   return {
     pending,
     correction,
     review,
     ready,
+    deployed,
     totalPending: pending,
     actionNeeded: correction,
     readyToDeploy: ready,
@@ -1229,6 +1239,317 @@ export function useWithdrawEmplocDeletion() {
   });
 }
 
+// ─── Ecosystem Uniqueness, Edit Emploc & Revert to Pending ──────────────────
+
+export type EcosystemUniquenessResult = {
+  isUnique: boolean;
+  message?: string;
+  existingName?: string;
+  existingModule?: string;
+};
+
+export async function checkEcosystemEmployeeIdUnique(
+  employeeId: string,
+  excludeHrEmplocId?: string | null
+): Promise<EcosystemUniquenessResult> {
+  const cleanId = employeeId.trim();
+  if (!cleanId) {
+    return { isUnique: false, message: "Employee ID is required." };
+  }
+
+  const supabase = createClient();
+
+  // 1. Try SECURITY DEFINER RPC first
+  try {
+    const { data, error } = await supabase.rpc("check_ecosystem_employee_id_unique", {
+      p_employee_id: cleanId,
+      p_exclude_hr_emploc_id: excludeHrEmplocId || null,
+    });
+
+    if (!error && data && typeof data === "object") {
+      const obj = data as Record<string, unknown>;
+      const isUnique = obj.is_unique === true;
+      if (!isUnique) {
+        const existingName = asString(obj.existing_name) ?? "Existing Employee";
+        const existingModule = asString(obj.existing_module) ?? "System";
+        const message = asString(obj.message) ?? `Employee ID ${cleanId} is already assigned to ${existingName} (${existingModule}). Duplicate Emploc numbers are not allowed.`;
+        return { isUnique: false, message, existingName, existingModule };
+      }
+      return { isUnique: true };
+    }
+  } catch {
+    // Continue to client query fallback
+  }
+
+  // 2. Client-side fallback check
+  // Check hr_emploc
+  let emplocQuery = supabase
+    .from("hr_emploc")
+    .select("applicant_name, employee_no, emploc_no")
+    .or(`employee_no.ilike.${cleanId},emploc_no.ilike.${cleanId}`)
+    .is("deleted_at", null)
+    .neq("status", "Backout");
+
+  if (excludeHrEmplocId) {
+    emplocQuery = emplocQuery.neq("id", excludeHrEmplocId);
+  }
+
+  const { data: emplocData } = await emplocQuery.limit(1);
+  if (emplocData && emplocData.length > 0) {
+    const name = asString(emplocData[0].applicant_name) ?? "Existing Candidate";
+    return {
+      isUnique: false,
+      message: `Employee ID ${cleanId} is already assigned to ${name} (HR Emploc). Duplicate Emploc numbers are not allowed.`,
+      existingName: name,
+      existingModule: "HR Emploc",
+    };
+  }
+
+  // Check plantilla
+  let plantillaQuery = supabase
+    .from("plantilla")
+    .select("employee_name, employee_name_snapshot, employee_no")
+    .or(`employee_no.ilike.${cleanId},emploc_no.ilike.${cleanId}`)
+    .or("is_deleted.is.null,is_deleted.eq.false");
+
+  if (excludeHrEmplocId) {
+    plantillaQuery = plantillaQuery.or(`hr_emploc_id.is.null,hr_emploc_id.neq.${excludeHrEmplocId}`);
+  }
+
+  const { data: plantillaData } = await plantillaQuery.limit(1);
+  if (plantillaData && plantillaData.length > 0) {
+    const p = plantillaData[0];
+    const name = asString(p.employee_name_snapshot ?? p.employee_name) ?? "Existing Employee";
+    return {
+      isUnique: false,
+      message: `Employee ID ${cleanId} is already assigned to ${name} (Plantilla). Duplicate Emploc numbers are not allowed.`,
+      existingName: name,
+      existingModule: "Plantilla",
+    };
+  }
+
+  // Check users_profile
+  const { data: usersData } = await supabase
+    .from("users_profile")
+    .select("full_name")
+    .is("archived_at", null)
+    .not("auth_user_id", "is", null)
+    .or(`metadata->>employee_id.ilike.${cleanId},metadata->>employee_no.ilike.${cleanId}`)
+    .limit(1);
+
+  if (usersData && usersData.length > 0) {
+    const name = asString(usersData[0].full_name) ?? "Staff Member";
+    return {
+      isUnique: false,
+      message: `Employee ID ${cleanId} is already assigned to ${name} (User Management). Duplicate Emploc numbers are not allowed.`,
+      existingName: name,
+      existingModule: "User Management",
+    };
+  }
+
+  return { isUnique: true };
+}
+
+export type UpdateDeployedEmplocParams = {
+  hrEmplocId: string;
+  newEmployeeNo: string;
+  reason: string;
+};
+
+export async function updateDeployedEmployeeId(params: UpdateDeployedEmplocParams): Promise<void> {
+  const cleanId = params.newEmployeeNo.trim();
+  const reason = params.reason.trim();
+  if (!cleanId) throw new HrEmplocDataError("invalid_state", "New Employee ID is required.");
+  if (!reason) throw new HrEmplocDataError("invalid_state", "Reason for edit is required.");
+
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("update_deployed_employee_id", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_new_employee_no: cleanId,
+    p_reason: reason,
+  });
+
+  if (error) {
+    if (error.code === "42883") {
+      const { error: emplocErr } = await supabase
+        .from("hr_emploc")
+        .update({
+          employee_no: cleanId,
+          emploc_no: cleanId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.hrEmplocId);
+      if (emplocErr) throwHrEmplocError(emplocErr);
+
+      await supabase
+        .from("plantilla")
+        .update({
+          employee_no: cleanId,
+          emploc_no: cleanId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("hr_emploc_id", params.hrEmplocId);
+
+      return;
+    }
+    throwHrEmplocError(error);
+  }
+}
+
+export function useUpdateDeployedEmployeeId() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: UpdateDeployedEmplocParams) => updateDeployedEmployeeId(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+export type RevertHrEmplocParams = {
+  hrEmplocId: string;
+  reason: string;
+  vcode?: string | null;
+};
+
+export async function revertHrEmplocToPending(params: RevertHrEmplocParams): Promise<void> {
+  const reason = params.reason.trim();
+  if (!reason) throw new HrEmplocDataError("invalid_state", "Reason for revert is required.");
+
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("revert_hr_emploc_to_pending", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_reason: reason,
+  });
+
+  if (error) {
+    if (error.code === "42883") {
+      await supabase
+        .from("plantilla")
+        .update({
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+          status: "Separated",
+        })
+        .eq("hr_emploc_id", params.hrEmplocId);
+
+      const { error: emplocErr } = await supabase
+        .from("hr_emploc")
+        .update({
+          employee_no: null,
+          emploc_no: null,
+          status: "Pending Emploc",
+          hr_status: "Pending",
+          moved_to_plantilla_at: null,
+          moved_to_plantilla_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.hrEmplocId);
+
+      if (emplocErr) throwHrEmplocError(emplocErr);
+
+      if (params.vcode?.trim()) {
+        await supabase
+          .from("vacancies")
+          .update({
+            status: "Open",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("vcode", params.vcode.trim())
+          .eq("status", "Filled");
+      }
+      return;
+    }
+    throwHrEmplocError(error);
+  }
+}
+
+export function useRevertHrEmplocToPending() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RevertHrEmplocParams) => revertHrEmplocToPending(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+    },
+  });
+}
+
+export async function notifyAllHrcosForCorrection(params: {
+  hrEmplocId: string;
+  applicantName: string;
+  vcode: string;
+  accountId?: string | null;
+  groupId?: string | null;
+  remarks?: string | null;
+}): Promise<void> {
+  const supabase = createClient();
+  try {
+    const { data: hrcoList } = await supabase
+      .from("user_scopes")
+      .select("user_id, users_profile!inner(id, auth_user_id, is_active, archived_at, roles!inner(role_name))")
+      .or(
+        [
+          params.accountId ? `account_id.eq.${params.accountId}` : null,
+          params.groupId ? `group_id.eq.${params.groupId}` : null,
+        ]
+          .filter(Boolean)
+          .join(",")
+      );
+
+    const recipientAuthUserIds = new Set<string>();
+    if (Array.isArray(hrcoList)) {
+      for (const item of hrcoList) {
+        const profile = item.users_profile as unknown as Record<string, unknown> | null;
+        const role = profile?.roles as unknown as Record<string, unknown> | null;
+        if (
+          role?.role_name === "HRCO" &&
+          profile?.is_active !== false &&
+          !profile?.archived_at &&
+          profile?.auth_user_id
+        ) {
+          recipientAuthUserIds.add(String(profile.auth_user_id));
+        }
+      }
+    }
+
+    if (recipientAuthUserIds.size === 0) return;
+
+    const notifs = Array.from(recipientAuthUserIds).map((authId) => ({
+      recipient_user_id: authId,
+      recipient_role: "HRCO",
+      title: "Record Flagged for Correction",
+      message: `${params.applicantName} (${params.vcode}) has been flagged for correction. Remarks: ${params.remarks || "Deficiencies tagged"}`,
+      reference_type: "hr_emploc",
+      reference_id: params.hrEmplocId,
+      deep_link_route: `/hr-emploc?queue=correction&id=${params.hrEmplocId}`,
+      notification_type: "alert",
+      event_type: "hr_emploc_correction_tagged",
+    }));
+
+    await supabase.from("notifications").insert(notifs);
+  } catch (err) {
+    console.warn("Failed to notify HRCOs for correction:", err);
+  }
+}
+
 // ─── Approvals Center: Deletion Review Queue ─────────────────────────────────
 
 export type EmplocDeletionRequestItem = {
@@ -1528,6 +1849,7 @@ export const HR_EMPLOC_EXPORT_HEADERS = [
   "Store",
   "VCode",
   "Applicant",
+  "Employee ID",
   "Position",
   "HRCO",
   "SLA (Days)",
@@ -1606,6 +1928,7 @@ export async function fetchHrEmplocsForExport(
       escapeCsvValue(r.storeName || "--"),
       escapeCsvValue(r.vcode),
       escapeCsvValue(r.applicantName),
+      escapeCsvValue(r.employeeNo || "--"),
       escapeCsvValue(r.positionTitle || "--"),
       escapeCsvValue(r.hrcoName || "--"),
       escapeCsvValue(r.slaElapsedDays),

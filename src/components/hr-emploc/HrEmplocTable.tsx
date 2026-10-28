@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Download,
   ArrowRight,
+  Edit3,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import { TablePagination } from "@/components/shared/TablePagination";
@@ -27,6 +28,11 @@ import {
   type HrEmplocListItem,
   type HrEmplocQueue,
 } from "@/lib/queries/hr_emploc";
+import { useCurrentUser } from "@/lib/auth";
+import {
+  useInheritedHrcoMap,
+  InheritedHrcoBadge,
+} from "@/components/hr-emploc/useInheritedHrco";
 
 export type { HrEmplocQueue } from "@/lib/queries/hr_emploc";
 
@@ -53,6 +59,7 @@ type HrEmplocTableProps = {
   onApproveReview?: (row: HrEmplocListItem) => void;
   onRevertReview?: (row: HrEmplocListItem) => void;
   onDownloadAttachment?: (row: HrEmplocListItem) => void;
+  onEditEmploc?: (row: HrEmplocListItem) => void;
 };
 
 function getTableColumns(queue: HrEmplocQueue): string[] {
@@ -82,6 +89,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Attachment",
         "Actions",
       ];
+    case "deployed":
     case "ready":
       return [
         "Group",
@@ -131,9 +139,35 @@ export function HrEmplocTable({
   onApproveReview,
   onRevertReview,
   onDownloadAttachment,
+  onEditEmploc,
 }: HrEmplocTableProps) {
   const columns = getTableColumns(queue);
   const handleAddEmploc = onAddEmploc || onAssignEmployeeNo;
+  const currentUser = useCurrentUser();
+  const { getHrcosForRecord } = useInheritedHrcoMap();
+
+  const roleName = (currentUser?.roleName ?? currentUser?.roleKey ?? "").toLowerCase().trim();
+  const isSuperAdmin =
+    roleName.includes("super_admin") ||
+    roleName.includes("super admin") ||
+    roleName.includes("developer");
+  const isDataTeam =
+    roleName.includes("encoder") ||
+    roleName.includes("data") ||
+    roleName.includes("head_admin") ||
+    roleName.includes("head admin");
+  const isHrPersonnelOrOps =
+    roleName.includes("hr") ||
+    roleName.includes("om") ||
+    roleName.includes("hrco") ||
+    roleName.includes("atl") ||
+    roleName.includes("tl");
+
+  // Allowed Roles:
+  // + Add Emploc: Super Admin, Data Team, and HR Personnel (including OM / HRCO)
+  const canAddEmploc = isSuperAdmin || isDataTeam || isHrPersonnelOrOps;
+  // ! For Correction: Super Admin and HR Personnel (OM / HRCO only). Hidden from Data Team!
+  const canForCorrection = (isSuperAdmin || isHrPersonnelOrOps) && !isDataTeam;
 
   const getErrorTitle = () => {
     return errorKind === "access_denied"
@@ -243,12 +277,12 @@ export function HrEmplocTable({
 
                     {/* 3. Applicant */}
                     <td className="border-b border-table-rule px-4 py-2.5">
-                      <div className="font-semibold text-table-text flex items-center gap-1.5">
+                      <div className="font-semibold text-table-text flex items-center gap-1.5 flex-wrap">
                         {isPendingDeletion && (
-                          <AlertTriangle
-                            className="h-3.5 w-3.5 text-status-danger-text shrink-0"
-                            aria-hidden="true"
-                          />
+                          <span className="inline-flex items-center gap-1 rounded bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] px-1.5 py-0.5 text-[10px] font-bold">
+                            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span>For Deletion</span>
+                          </span>
                         )}
                         <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
                           {row.applicantName ? formatPersonName(row.applicantName) : "--"}
@@ -261,17 +295,22 @@ export function HrEmplocTable({
                       {row.positionTitle ? formatPosition(row.positionTitle) : "--"}
                     </td>
 
-                    {/* 5. HRCO */}
+                    {/* 5. HRCO (Inherited from User Management) */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub truncate max-w-[140px]">
-                      {row.hrcoName ? formatPersonName(row.hrcoName) : "--"}
+                      <InheritedHrcoBadge
+                        hrcos={getHrcosForRecord({ accountId: row.accountId, groupId: row.groupId })}
+                        fallbackName={row.hrcoName}
+                      />
                     </td>
 
-                    {/* 6. SLA (Aging) */}
+                    {/* 6. SLA (Aging - Frozen once Deployed) */}
                     <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs ${SLA_BADGE_CLASS}`}
                       >
-                        {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
+                        {queue === "deployed" || row.deploymentStatus === "Moved to Plantilla"
+                          ? `Completed in ${row.slaElapsedDays} ${row.slaElapsedDays === 1 ? "day" : "days"}`
+                          : `${row.slaElapsedDays} ${row.slaElapsedDays === 1 ? "day" : "days"}`}
                       </span>
                     </td>
 
@@ -344,7 +383,7 @@ export function HrEmplocTable({
                         {/* ── Pending Queue Actions ──────────────── */}
                         {queue === "pending" && (
                           <>
-                            {row.rowCapabilities.canAssignEmployeeNo && handleAddEmploc && (
+                            {canAddEmploc && handleAddEmploc && (
                               <button
                                 type="button"
                                 disabled={isPendingDeletion}
@@ -356,11 +395,11 @@ export function HrEmplocTable({
                                 aria-label={`Add Emploc for ${row.applicantName}`}
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
-                                <span>Add Emploc</span>
+                                <span>+ Add Emploc</span>
                               </button>
                             )}
 
-                            {row.rowCapabilities.canTagDeficiency && onForCorrection && (
+                            {canForCorrection && onForCorrection && (
                               <button
                                 type="button"
                                 disabled={isPendingDeletion}
@@ -372,7 +411,7 @@ export function HrEmplocTable({
                                 aria-label={`Return for correction for ${row.applicantName}`}
                               >
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                <span>For Correction</span>
+                                <span>! For Correction</span>
                               </button>
                             )}
                           </>
@@ -452,10 +491,26 @@ export function HrEmplocTable({
                           </>
                         )}
 
-                        {/* ── Ready Queue Actions ────────────────── */}
-                        {queue === "ready" && (
+                        {/* ── Deployed / Ready Queue Actions ────────────────── */}
+                        {(queue === "deployed" || queue === "ready") && (
                           <>
-                            {row.rowCapabilities.canMoveToPlantilla && onMoveToPlantilla && (
+                            {onEditEmploc && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditEmploc(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface hover:bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs transition-colors cursor-pointer"
+                                aria-label={`Edit Emploc for ${row.applicantName}`}
+                                title="Edit Emploc ID or Revert to Pending"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                <span>Edit Emploc</span>
+                              </button>
+                            )}
+
+                            {row.rowCapabilities.canMoveToPlantilla && onMoveToPlantilla && !row.employeeNo && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -468,22 +523,6 @@ export function HrEmplocTable({
                               >
                                 <ArrowRight className="h-3.5 w-3.5" />
                                 <span>Move to Plantilla</span>
-                              </button>
-                            )}
-
-                            {row.rowCapabilities.canAssignEmployeeNo && !row.employeeNo && onAssignEmployeeNo && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAssignEmployeeNo(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
-                                aria-label={`Assign Emploc number for ${row.applicantName}`}
-                                title="Assign Employee / Emploc number"
-                              >
-                                <UserCheck className="h-3.5 w-3.5" />
-                                <span>Assign Emploc</span>
                               </button>
                             )}
                           </>
