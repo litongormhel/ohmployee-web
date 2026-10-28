@@ -1,5 +1,112 @@
 # AI Handoff
 
+## Migration Hygiene Recon, ACT-G5-010 Early-Archive Root Cause, CPRVJV13 Minimal Fix Simulation, Actual-Count Divergence Analysis & VCAG5_0056 Sanctioned Flows Plan (Phase 6 — ohm#4x7n2k9w)
+
+**Status: PLAN ONLY — ALL FINDINGS REPORT-ONLY; ZERO DB MUTATIONS / DDL / DATA WRITES APPLIED; AWAITING EXPLICIT APPROVAL; LOCAL COMMIT ON `main`**
+
+- **ADR basis:** `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md` (and `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`) — § Core Cross-Module Invariants (Rule 1 Slot Authority, Rule 2 Hired HC Source, Rule 4 Classification Priority), § HR Emploc Import, § Plantilla, § Vacancy, § Dashboard & CENCOM.
+- **Branch status:** On `main` only (no branch created).
+- **Staging ref:** `qqiiznmqxfoamqytjica`. Production ref: `rwxelulyapjgaarlwkus` (untouched).
+
+### 1. Migration Hygiene Recon
+1. **Unapplied local migrations vs staging:**
+   - Out of 489 local migration files and 555 DB migration versions recorded in `supabase_migrations.schema_migrations`, exactly 9 local migration files are unapplied:
+     1. `20261013000001_fix_vacancy_tab_counts_and_canonical_archive_filter.sql`
+     2. `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql`
+     3. `20261026000001_update_drawer_actions_rbac.sql`
+     4. `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql`
+     5. `20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql`
+     6. `20261027150000_allow_terminated_separation_status.sql`
+     7. `20261027160000_fix_vacancy_transition_on_move_to_plantilla.sql`
+     8. `20261027170000_increase_plantilla_list_limit.sql` (Pending list limit 5000 for `list_web_plantilla_employees`)
+     9. `20261027180000_fix_vacancy_open_pipeline_status_precedence.sql` (SUPERSEDED by `20261028005821`)
+2. **Reversion Confirmation for `20261027180000`:**
+   - Lines 160 & 324 explicitly define `hc_filled` as `COALESCE(s.confirmed_onboard_count, 0::bigint)::integer AS hc_filled`, which directly violates ADR-001 Rule 2 (`plantilla.status = 'Active'`). If applied, it would overwrite `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, and `get_web_vacancy_summary`, reverting `hc_filled` to `confirmed_onboard_count`, wiping `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc`, dropping pool filtering, and reverting the Open tab predicate to `s.hc_filled < s.hc_total`.
+3. **Hygiene Proposal (no execution):**
+   - Move `supabase/migrations/20261027180000_fix_vacancy_open_pipeline_status_precedence.sql` to `docs/archive/20261027180000_fix_vacancy_open_pipeline_status_precedence.sql.superseded`.
+   - Re-stamp `supabase/migrations/20261027170000_increase_plantilla_list_limit.sql` with a timestamp strictly after Phase 5 migrations (e.g. `20261028100000_increase_plantilla_list_limit.sql`) when ready to apply.
+4. **`ai-finish.ps1` Audit & `--no-db-push` Guard:**
+   - `scripts/ai-finish.ps1` calls `node scripts/finish.js`. Neither currently executes `supabase db push`.
+   - Proposed guard diff ensures that `--no-db-push` is explicitly recognized or enforced, and blocks any execution of `supabase db push`.
+
+### 2. ACT-G5-010 Slot ID & Early Archive Root Cause
+1. **Correct Slot UUID:**
+   - **UUID:** `8eb14b17-b2e2-42c5-8aba-4b93782c08a3` (proven by query `SELECT id, slot_ordinal, slot_status, legacy_vcode FROM plantilla_slots WHERE legacy_vcode = 'ACT-G5-010';`).
+   - The string `8eb14b17-c2fd-41cb-b592-218995a933e0` noted in earlier handoff was a typo that does not exist in `plantilla_slots`.
+2. **Why the import left the slot in `pipeline` instead of `hr_processing`:**
+   - Proven by `slot_history` and `audit_logs`:
+     - `2026-10-20 07:20:31.085`: UAT Test 3 onboarded DELA CRUZ (`33da0ac2...`, `confirm_applicant_onboard`). The slot WAS transitioned to `hr_processing` (`action_type = 'hr_processing'`, `reason_code = 'REPLACEMENT'`).
+     - `2026-10-20 07:22:10.566` (1m39s later): A second applicant, `ROMERO, JANE SANTOS` (`68fe9ebd...`), was inserted into `ACT-G5-010` in status `'New'`.
+     - Trigger `trg_applicant_insert_slot_sync` fired, calculated `active_applicants = 1`, and unconditionally clobbered slot `8eb14b17...` from `hr_processing` back to `pipeline` (`action_type = 'import_rejected'` / `new_value = 'pipeline'`).
+     - When ROMERO backed out 15s later (`07:22:25`), no trigger restored the slot to `hr_processing`.
+3. **Which path archived the Filled vacancy 1m55s after import:**
+   - At `2026-10-20 07:22:26.614` (1m55.5s after import), UAT Test 3 invoked `mark_vacancy_filled('652dca16-d389-4074-a5ef-bae5abfa2d6a')`.
+   - `mark_vacancy_filled` set `vacancies.status = 'Filled'`, which fired `BEFORE UPDATE` trigger `on_vacancy_filled_archive` (`handle_vacancy_filled_archive()`), setting `is_archived = true`, `archived_at = '2026-10-20 07:22:26.614258'`, and `archived_by = 'UAT Test 3'`.
+
+### 3. CPRVJV13 Minimal Fix Simulation
+1. **Why `derived_status` stays 'Open' at 1/1:**
+   - `CPRVJV13` has an active employee in Plantilla (`pls.active_plantilla_count = 1`), so Rule 2 `hc_filled = 1` (`hc_display = '1/1'`).
+   - However, no applicant was onboarded via the ATS (`s.confirmed_onboard_count = 0`).
+   - Because `derived_status` tests `s.confirmed_onboard_count >= required_headcount` (`0 >= 1` = false) rather than `active_plantilla_count >= required_headcount`, it falls through to `'Open'`.
+   - In `list_web_vacancies`, `(hc_total - hc_filled - pipeline - hr_proc) > 0` is false (`1 - 1 - 0 - 0 = 0`), but `OR lower(s.pipeline_status) = 'open'` evaluates to true because `pipeline_status` is `derived_status` (`'Open'`).
+2. **Minimal Fix Proposal:**
+   - Update `derived_status` fully-hired check in `vw_vacancy_list` and `vw_vacancy_detail`:
+     `WHEN COALESCE(pls.active_plantilla_count, 0::bigint) >= GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric) OR COALESCE(s.confirmed_onboard_count, 0::bigint) >= GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric) OR v.status = 'Filled'::text THEN 'Hired'::text`
+3. **Simulation on all live vacancies:**
+   - Tested across all 20 non-archived vacancies on staging:
+     - Exactly **1** vacancy changes: `CPRVJV13` flips `derived_status: 'Open' -> 'Hired'`, and leaves the Open tab (`total_open` for FOREVER OFFICE drops from 4 to 3: `CPPGJV19`, `CPSAJV31`, `CPSMJV21`).
+     - All other 19 vacancies across all accounts remain 100% identical in `derived_status`, tab membership, and summary counts.
+
+### 4. Actual-Count Divergence
+1. **FOREVER OFFICE (4 vs 5):**
+   - `get_web_plantilla_summary.active_employees = 4` vs `v_account_allocation_kpi.actual_hc = 5`.
+   - **Row that differs:** `2017-22562` — `ANTONIO, CONDE OLIVEROS`.
+     - In `plantilla`: `status = 'On Leave'` (excluded from `active_employees` which strictly counts `status = 'Active'`).
+     - In `employee_store_allocations`: `is_active = true`, `filled_hc = 1.0000` (counted in `count(DISTINCT a.employee_no)`).
+   - **Is it by design?** YES. Under ADR-001, an employee On Leave retains their allocated store position (`esa.is_active = true`), so CENCOM counts them in store staffing footprint (`actual_hc`), whereas Plantilla roster summary counts only personnel actively on duty (`status = 'Active'`).
+2. **ALTURAS (752 vs 754):**
+   - `get_web_plantilla_summary.active_employees = 752` vs `v_account_allocation_kpi.actual_hc = 754`.
+   - **Rows that differ:** `2023-12046` (`VASQUEZ, JULIUS JULIUS`) and `2023-12049` (`OCAWI, ROMMEL ROMMEL`).
+     - In `plantilla`: Both belong to account `MARIZ` with `status = 'Inactive'` and `is_archived = true`. Neither exists under `ALTURAS` in `plantilla`.
+     - In `employee_store_allocations`: Both were created under `ALTURAS` with `is_active = true` on `2026-10-27 06:16:22` by batch `600ddff6-6ead-4044-aa31-3f783c7262cf` (`plantilla_import_template (6).xlsx`).
+   - **Is it by design?** NO. This is an import artifact from the 755-row batch import on 2026-10-27: two legacy inactive employees from `MARIZ` were matched and had active ESA allocation records created under `ALTURAS`, without their underlying `plantilla` records being transferred or activated under `ALTURAS`.
+
+### 5. VCAG5_0056 Sanctioned Flows Plan
+1. **Step 1 for ALL options: Re-closing Ord 1–2 via `fn_set_slot_status`:**
+   - Execute `fn_set_slot_status` on `bee89108-b8e3-4d99-a12f-f23544a502b7` and `79e510b4-0b6f-40ec-8e16-4f16d504ab82` with `p_new_status := 'closed'`, `p_reason_code := 'QA_RESET'`.
+   - Leaves `qa_archive_batch_id` intact per grep gate.
+2. **Option 1: Reset to 1**
+   - **Applicant Handling:** `revise_vcode_headcount_quota` checks `v_safety_floor = v_occupied + v_hr_proc + v_pipeline`. The 2 'New' applicants (`TOLENTINO`, `DELA FUENTE`) occupy 2 pipeline slots (Ord 3, 4). Calling `revise_vcode_headcount_quota(..., 1)` while 2 applicants are in pipeline will be BLOCKED by `QUOTA_REDUCTION_BLOCKED (Floor: 2, Target: 1)`. Therefore, at least 1 applicant (or both) must be backed out/rejected first.
+   - **Steps:**
+     1. Action the 2 applicants (e.g. backout/reject, releasing slots to `open`).
+     2. Re-close Ord 1 and 2 via `fn_set_slot_status`.
+     3. Call `revise_vcode_headcount_quota('VCAG5_0056', 1, 'Aligning SM AURORA store quota to approved headcount')`. Open slots 8, 7, 6, 5, 4 are marked `hc_reduced` via `fn_set_slot_status`.
+   - **Expected ACTISERVE numbers:** `active: 1`, `hrProcess: 3`, `vacant: 3` (`ACT-G5-008` [2] + `VCAG5_0056` [1]), `required: 7` (or `6` if applicant occupies the 1 slot).
+3. **Option 2: Keep 7**
+   - **Applicant Handling:** The 2 'New' applicants remain on Ord 3 and 4 in screening.
+   - **Steps:**
+     1. Re-close Ord 1 and 2 via `fn_set_slot_status`.
+     2. Clean active slots remaining: Ord 3, 4 (`pipeline`) + Ord 5, 6, 7, 8 (`open`) = 6 active slots.
+     3. Call `revise_vcode_headcount_quota('VCAG5_0056', 7, 'Adding 7th clean slot following closure of resurrected QA slots')`. Emits Ord 9 (`open`).
+   - **Expected ACTISERVE numbers:** `active: 1`, `hrProcess: 3`, `vacant: 9`, `required: 13`.
+4. **Option 3: Close**
+   - **Applicant Handling:** Active applicants block closure. Reject/back out both applicants first.
+   - **Steps:**
+     1. Back out/reject both applicants.
+     2. Re-close Ord 1 and 2 via `fn_set_slot_status`.
+     3. Transition remaining slots 3–8 to `closed` via `fn_set_slot_status(..., 'closed', 'STORE_CLOSURE')`.
+     4. Mark vacancy closed/archived.
+   - **Expected ACTISERVE numbers:** `active: 1`, `hrProcess: 3`, `vacant: 2` (`ACT-G5-008`), `required: 6`.
+5. **Rollback Plan:**
+   - Re-open slots via `fn_set_slot_status(slot_id, 'open', 'HC_READD', caller_id)`.
+   - Restore quota via `revise_vcode_headcount_quota('VCAG5_0056', 7, 'Rollback quota revision')`.
+
+### 6. ADR Note Draft (Proposal Only)
+- Drafted proposal for Ohm to incorporate into `ADR-001` (mobile repo):
+  - Clarifies that Plantilla slot-based vacant capacity (`hc_total - active - hr_processing`) measures physical seat deficit on the store floor, whereas Vacancy Open tab membership (Rule 4: `hc_total - active - hr_processing - pipeline`) measures recruiter sourcing demand.
+
+---
+
 ## Step 3 Backend + Plantilla-Scoped Web Fix (Parts 1 & 2), Step 6 Code Fix (Part 3) & `20261210000002` / `ACT-G5-010` Report (Part 4) (Phase 5 REVISED — ohm#4x7n2k9w)
 
 **Status: PART 1 (STEP 3 BACKEND) & PART 2 (PLANTILLA-SCOPED WEB FIX) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) VIA MIGRATION `20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`; PART 3 (STEP 6 CODE FIX) COMPLETE ON STAGING VIA MIGRATION `20261028005902_fix_slot_status_reopen_clear_closed_and_sync_closed_filter.sql`; PART 4 REPORT COMPLETE; GATE + `BEGIN ... ROLLBACK` SMOKE + `npm run lint` + `npm run build` PASSED — LOCAL COMMIT ON `main`**
