@@ -1,3 +1,5 @@
+-- Also fixes: plantilla_slots uses current_occupant_plantilla_id (no occupied_by_plantilla_id / hr_emploc_id);
+-- plantilla_store_links.status allows only Active/Backed Out/Resigned (was 'Deleted').
 -- Fix: revert_hr_emploc_to_pending wrote plantilla.status = 'Separated', which violates
 -- plantilla_status_check (allowed: Active, Inactive, Pending Deactivation,
 -- Rejected Deactivation, Deactivated, On Leave). Use 'Deactivated' instead.
@@ -59,7 +61,9 @@ BEGIN
 
     -- If roving store links exist, mark deleted
     UPDATE public.plantilla_store_links
-    SET status = 'Deleted',
+    SET status = 'Backed Out',
+        unlinked_at = now(),
+        unlinked_by = v_actor_profile_id,
         updated_at = now(),
         updated_by = v_actor_profile_id
     WHERE plantilla_id = v_pl.id;
@@ -67,10 +71,9 @@ BEGIN
     -- If slot was occupied by this plantilla row, reset slot to open/pipeline
     UPDATE public.plantilla_slots
     SET slot_status = 'open',
-        occupied_by_plantilla_id = NULL,
-        hr_emploc_id = NULL,
+        current_occupant_plantilla_id = NULL,
         updated_at = now()
-    WHERE occupied_by_plantilla_id = v_pl.id;
+    WHERE current_occupant_plantilla_id = v_pl.id;
   END IF;
 
   -- 2. Vacancy Status Reconciliation
