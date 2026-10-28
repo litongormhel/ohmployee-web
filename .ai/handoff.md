@@ -1,6 +1,38 @@
 # AI Handoff
 
-## Execution Report — Bug Fixes & UI Adjustments: HR Emploc Overhaul & Compliance Cleanup (ohm#e8m3p0o3)
+## Execution Report — HR Emploc Table Emploc ID / Applicant Layout & Deficiency Modal Multi-Select Fix (ohm#e8m3p0o4)
+
+**Status: COMPLETE ON MAIN; VERIFIED LIVE UNICITY & CLEAN BUILD/LINT**
+
+- **Table Column Presentation (`src/components/hr-emploc/HrEmplocTable.tsx`):**
+  1. Updated `getTableColumns` for the `Deployed` queue to replace header `"Applicant"` with **`"Emploc ID / Applicant"`**.
+  2. Redesigned table cell in `Deployed` queue to stack the identifiers cleanly:
+     - **Line 1 (Emploc ID):** Rendered `row.employeeNo` in `font-mono text-xs font-bold text-text-primary` (preserving inline `For Deletion` badge if marked for deletion).
+     - **Line 2 (Applicant Name):** Rendered `formatPersonName(row.applicantName)` in `text-xs text-text-secondary truncate max-w-[200px] font-medium` beneath the ID.
+  3. Preserved single-line `"Applicant"` column layout for `Pending`, `Correction`, and `Review` queues.
+
+- **Return for Correction Modal & Deficiency Multi-Select Fix (`src/components/hr-emploc/TagDeficiencyModal.tsx` & `src/lib/queries/hr_emploc.ts`):**
+  1. **Root Cause Resolved:** RPC `tag_web_hr_emploc_deficiency` requires `p_deficiencies` to be a JSONB array of `{ code, comment }` objects with valid codes from `hr_emploc_issue_types` (`INVALID_SSS`, `INVALID_PAGIBIG`, `INVALID_PHILHEALTH`, `INCOMPLETE_REQUIREMENT`). The previous implementation was passing an object `{ "sss_card": "" }`, triggering PostgreSQL error `22023`, which was masked by the error handler as a generic network error.
+  2. **Canonical Requirements:**
+     - `INVALID_SSS`: "SSS Card / ID Document" (Remarks Optional)
+     - `INVALID_PAGIBIG`: "PagIBIG Member ID" (Remarks Optional)
+     - `INVALID_PHILHEALTH`: "PhilHealth ID / MDF" (Remarks Optional)
+     - `INCOMPLETE_REQUIREMENT`: "Incomplete Docs" (Remarks Required)
+  3. **Multiple Selection:** Supported full multi-selection across all 4 options with independent checkbox toggling.
+  4. **Dynamic Remarks Validation Rule:**
+     - If only benefits are selected (`SSS`, `PagIBIG`, `PhilHealth`): Remarks and item notes are optional. Submit button enables immediately upon checkbox selection.
+     - If `Incomplete Docs` is selected: Overall remarks are strictly required (`"dito required ang Remarks"`). Shows amber requirement indicator and disables submit until remarks are provided.
+  5. **Payload Serialization & Error Handling:**
+     - Properly constructed array payload for `tag_web_hr_emploc_deficiency`.
+     - In `tagWebHrEmplocDeficiency`, defensively normalized `p_deficiencies` to ensure array serialization.
+     - Handled error code `22023` under `invalid_state` and exposed `err.message` in the modal for full error transparency.
+
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
 
 **Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED; VERIFIED LIVE UNICITY & CLEAN BUILD/LINT**
 

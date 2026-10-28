@@ -92,12 +92,18 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
 9. **Actions Area**: Desktop actions per queue tab. In the Deployed tab, includes an icon-only `Edit Emploc` button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label. Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
 
 ### Onboarding Compliance Requirements
-Only canonical statutory requirements are tracked for deficiency:
-1. `sss_card`: SSS Card / ID Document
-2. `pagibig_id`: PagIBIG Member ID
-3. `philhealth_id`: PhilHealth ID / MDF
+Only canonical statutory and documentation requirements are tracked for deficiency:
+1. `INVALID_SSS`: SSS Card / ID Document (Remarks Optional)
+2. `INVALID_PAGIBIG`: PagIBIG Member ID (Remarks Optional)
+3. `INVALID_PHILHEALTH`: PhilHealth ID / MDF (Remarks Optional)
+4. `INCOMPLETE_REQUIREMENT`: Incomplete Docs (Remarks Strictly Required)
 *(NBI Clearance Certificate and PSA Birth Certificate have been removed).*
-Validation Rule: When returning for correction, an individual item deficiency note or overall HR Compliance Remarks is strictly required before submission.
+
+Validation Rule:
+- Multiple selections are supported across all four requirements.
+- When only benefits (`SSS`, `PagIBIG`, `PhilHealth`) are selected, remarks are optional.
+- When `Incomplete Docs` is selected, overall HR Compliance Remarks is strictly required before submission.
+- In `HrEmplocTable`, the Deployed tab displays a dual stacked column under header `Emploc ID / Applicant` (monospace bold employee ID on top, applicant name underneath).
 
 ---
 

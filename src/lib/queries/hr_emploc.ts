@@ -251,7 +251,7 @@ function getErrorKind(error: PostgrestError): HrEmplocDataErrorKind {
     return "access_denied";
   }
 
-  if (error.code === "P0001") {
+  if (error.code === "P0001" || error.code === "22023") {
     return "invalid_state";
   }
 
@@ -561,7 +561,7 @@ export async function listWebHrEmplocs(params: HrEmplocListParams) {
 
 export type TagDeficiencyParams = {
   hrEmplocId: string;
-  deficiencies: Record<string, string>;
+  deficiencies: Array<{ code: string; comment?: string }> | Record<string, string>;
   remarks?: string | null;
 };
 
@@ -577,9 +577,19 @@ export async function tagWebHrEmplocDeficiency(
   params: TagDeficiencyParams,
 ): Promise<TagDeficiencyResult> {
   const supabase = createClient();
+  const deficienciesArray = Array.isArray(params.deficiencies)
+    ? params.deficiencies.map((d) => ({
+        code: String(d.code),
+        comment: d.comment ? String(d.comment).trim() : "",
+      }))
+    : Object.entries(params.deficiencies).map(([code, comment]) => ({
+        code,
+        comment: typeof comment === "string" ? comment.trim() : "",
+      }));
+
   const { data, error } = await supabase.rpc("tag_web_hr_emploc_deficiency", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_deficiencies: params.deficiencies,
+    p_deficiencies: deficienciesArray,
     p_remarks: params.remarks ?? null,
   });
 
@@ -589,9 +599,9 @@ export async function tagWebHrEmplocDeficiency(
 
   const row = asObject(data);
   return {
-    ok: asBoolean(row.ok),
+    ok: asBoolean(row.ok) || row.status === "ok",
     hrEmplocId: asString(row.hr_emploc_id) ?? params.hrEmplocId,
-    newHrStatus: asString(row.new_hr_status) ?? "For Correction",
+    newHrStatus: asString(row.new_hr_status ?? row.hr_status) ?? "For Correction",
     correctionReason: asObject(row.correction_reason),
     taggedAt: asString(row.tagged_at) ?? new Date().toISOString(),
   };

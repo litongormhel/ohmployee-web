@@ -21,9 +21,10 @@ export interface TagDeficiencyModalProps {
 }
 
 const canonicalRequirements = [
-  { key: "sss_card", label: "SSS Card / ID Document" },
-  { key: "pagibig_id", label: "PagIBIG Member ID" },
-  { key: "philhealth_id", label: "PhilHealth ID / MDF" },
+  { key: "INVALID_SSS", label: "SSS Card / ID Document", requiresRemarks: false },
+  { key: "INVALID_PAGIBIG", label: "PagIBIG Member ID", requiresRemarks: false },
+  { key: "INVALID_PHILHEALTH", label: "PhilHealth ID / MDF", requiresRemarks: false },
+  { key: "INCOMPLETE_REQUIREMENT", label: "Incomplete Docs", requiresRemarks: true },
 ];
 
 export function TagDeficiencyModal({
@@ -41,11 +42,13 @@ export function TagDeficiencyModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const hasSelected = canonicalRequirements.some((r) => selectedIssues[r.key]);
-  const hasIndividualNote = canonicalRequirements.some(
-    (r) => selectedIssues[r.key] && Boolean(issueNotes[r.key]?.trim())
-  );
+  const isIncompleteDocsSelected = Boolean(selectedIssues["INCOMPLETE_REQUIREMENT"]);
   const hasRemarks = Boolean(remarks.trim());
-  const hasReasonProvided = hasIndividualNote || hasRemarks;
+  const hasIncompleteDocNote = Boolean(issueNotes["INCOMPLETE_REQUIREMENT"]?.trim());
+
+  // If Incomplete Docs is selected, remarks (or item note) is strictly required ("dito required ang Remarks")
+  // If only SSS, PagIBIG, and/or PhilHealth are selected, remarks are optional
+  const isRemarksSatisfied = !isIncompleteDocsSelected || hasRemarks || hasIncompleteDocNote;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (params: TagDeficiencyParams) => tagWebHrEmplocDeficiency(params),
@@ -75,15 +78,17 @@ export function TagDeficiencyModal({
         } else if (err.kind === "invalid_state") {
           setSubmitError(err.message);
         } else {
-          setSubmitError("A network error occurred. Please check your connection and try again.");
+          setSubmitError(err.message || "A network error occurred. Please check your connection and try again.");
         }
+      } else if (err instanceof Error) {
+        setSubmitError(err.message);
       } else {
         setSubmitError("An unexpected error occurred. Please try again.");
       }
     },
   });
 
-  const canSubmit = hasSelected && hasReasonProvided && !isPending;
+  const canSubmit = hasSelected && isRemarksSatisfied && !isPending;
 
   if (!isOpen) return null;
 
@@ -93,18 +98,23 @@ export function TagDeficiencyModal({
       setSubmitError("Please select at least one deficient requirement.");
       return;
     }
-    if (!hasReasonProvided) {
+    if (isIncompleteDocsSelected && !isRemarksSatisfied) {
       setSubmitError(
-        "Please provide an individual deficiency note or overall HR Compliance Remarks explaining the correction needed."
+        "Remarks are required when 'Incomplete Docs' is selected."
       );
       return;
     }
-    const deficiencies: Record<string, string> = {};
-    for (const req of canonicalRequirements) {
-      if (selectedIssues[req.key]) {
-        deficiencies[req.key] = issueNotes[req.key]?.trim() ?? "";
-      }
-    }
+
+    const deficiencies = canonicalRequirements
+      .filter((req) => selectedIssues[req.key])
+      .map((req) => ({
+        code: req.key,
+        comment:
+          issueNotes[req.key]?.trim() ||
+          (req.key === "INCOMPLETE_REQUIREMENT" ? remarks.trim() : "") ||
+          "",
+      }));
+
     mutate({
       hrEmplocId,
       deficiencies,
@@ -189,7 +199,11 @@ export function TagDeficiencyModal({
                           [req.key]: e.target.value,
                         }))
                       }
-                      placeholder="Brief deficiency note (optional)"
+                      placeholder={
+                        req.requiresRemarks
+                          ? "Specify missing document details (or provide in Remarks below)"
+                          : "Brief deficiency note (optional)"
+                      }
                       type="text"
                       value={issueNotes[req.key] ?? ""}
                     />
@@ -203,20 +217,32 @@ export function TagDeficiencyModal({
           <div className="pt-1 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-text-muted">
-                HR Compliance Remarks {hasIndividualNote ? "(Optional)" : "(Required if no item note provided)"}
+                HR Compliance Remarks {isIncompleteDocsSelected ? (
+                  <span className="text-text-primary font-bold">* (Required for Incomplete Docs)</span>
+                ) : (
+                  "(Optional)"
+                )}
               </span>
-              {!hasReasonProvided && hasSelected && (
+              {isIncompleteDocsSelected && !isRemarksSatisfied && (
                 <span className="text-[10px] text-amber-600 font-medium">
-                  Item note or remarks required
+                  Remarks required for Incomplete Docs
                 </span>
               )}
             </div>
             <textarea
-              className="w-full rounded border border-border-default bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
+              className={`w-full rounded border bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 resize-none ${
+                isIncompleteDocsSelected && !isRemarksSatisfied
+                  ? "border-amber-500 focus:ring-amber-500"
+                  : "border-border-default focus:ring-border-strong"
+              }`}
               disabled={isPending}
               maxLength={1000}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Add overall remarks for the field coordinator…"
+              placeholder={
+                isIncompleteDocsSelected
+                  ? "Specify details of missing or incomplete documents (Required)..."
+                  : "Add overall remarks for the field coordinator (Optional)..."
+              }
               rows={3}
               value={remarks}
             />
