@@ -8,6 +8,21 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Closed-Slot -> Vacancy Trigger Fix & Slot-Sync Guard (`ohm#4x7n2k9w` — Phase 10)**:
+  - **`fn_sync_closed_slot_to_vacancy` (`20261028033015_fix_sync_closed_slot_to_vacancy_multi_slot_guard.sql`)**:
+    - Previously unversioned in database; unconditionally executed `UPDATE vacancies SET status = 'Closed'` when any slot transitioned to `closed`.
+    - Added multi-slot guard: closes the vacancy ONLY when no OTHER live slot remains (`NOT EXISTS (SELECT 1 FROM plantilla_slots WHERE legacy_vcode = NEW.legacy_vcode AND id <> NEW.id AND slot_status NOT IN ('closed', 'hc_reduced') AND closed_at IS NULL)`).
+    - Preserved `SECURITY DEFINER` and `SET search_path TO 'public', 'pg_temp'`.
+  - **`fn_sync_vacancy_slot_open_pipeline` (`20261028033431_fix_sync_vacancy_slot_open_pipeline_exclude_occupied_slots.sql`)**:
+    - Guarded both the release loop (`v_target = 'open'`) and claim loop (`v_target = 'pipeline'`) with `AND slot_status NOT IN ('hr_processing', 'occupied', 'filled')`.
+    - Preserved `AND closed_at IS NULL` and deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC`.
+  - **VCAG5_0056 Restoration**:
+    - Restored `VCAG5_0056` from unintended Phase 7 trigger closure back to `status = 'Open'` (with explicit audit log).
+    - Appears in `/vacancy` Open tab with capacity 7; ACTISERVE `total_open = 1`, summary & KPI both 12/12.
+  - **ACT-G5-010 Slot Repair**:
+    - Repaired slot `8eb14b17-b2e2-42c5-8aba-4b93782c08a3` back to `hr_processing` via `fn_set_slot_status` after confirming live Pending Emploc candidate `33da0ac2-8ad8-4d41-b806-41d0ec1c24ae` (`deleted_at IS NULL`). ACTISERVE summary & KPI maintained at 12/12.
+
+
 - **`derived_status` Active Plantilla Precedence Fix (`ohm#4x7n2k9w` — Phase 7, `20261028015509_fix_derived_status_active_plantilla_precedence.sql`, superseding `20261027180000` moved to `docs/archive/`)**:
   - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
     - Fixed `derived_status` calculation in both views: added `COALESCE(pls.active_plantilla_count, 0::bigint) >= GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric)` alongside `confirmed_onboard_count >= required_headcount` or `v.status = 'Filled'::text THEN 'Hired'::text`.

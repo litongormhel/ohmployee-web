@@ -8,6 +8,12 @@
 
 ## 1. Overview & Architecture
 
+- **`v_account_allocation_kpi` Actual Headcount Active Plantilla Guard (`ohm#4x7n2k9w` — Phase 10, `20261028033655_fix_account_allocation_kpi_actual_hc_active_plantilla_guard.sql`)**:
+  - Guarded the `filled` CTE by joining active plantilla records (`JOIN plantilla p ON p.id = a.plantilla_id WHERE a.is_active AND p.status IN ('Active', 'For Deactivation', 'On Leave') AND NOT p.is_deleted AND NOT p.is_archived`).
+  - Eliminates orphan/inactive plantilla parent allocations (e.g. historical MARIZ assignments) from leaking into `actual_hc` or `filled_hc`.
+  - 116-account gate verified: sole diff across the entire database is ALTURAS `754 -> 752` (`filled_hc`: `754.0000 -> 752.0000`). All other 115 accounts 100% unchanged (`ACTISERVE` 1, `FOREVER OFFICE` 5). Dependent view `v_cencom_account_allocation_kpi` resolves cleanly.
+
+
 The **CENCOM (Central Command)** module provides operational manpower fulfillment rate (MFR) monitoring, slot-authority allocation, vacancy aging analytics, and deployment velocity tracking.
 
 ### Tab Navigation (5 Tabs via Shared `SegmentedTabs`)
