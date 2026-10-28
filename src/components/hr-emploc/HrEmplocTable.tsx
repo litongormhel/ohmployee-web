@@ -84,7 +84,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "HRCO",
         "SLA",
         "Reason",
-        "Notes",
+        "Remarks",
         "Attachment",
         "Actions",
       ];
@@ -353,15 +353,15 @@ export function HrEmplocTable({
                       </td>
                     )}
 
-                    {/* 8. Notes (Review Tab) */}
+                    {/* 8. Remarks (Review Tab) */}
                     {queue === "review" && (
                       <td className="border-b border-table-rule px-4 py-2.5 text-table-text max-w-[200px]">
-                        {row.notes ? (
+                        {row.remarks || row.notes ? (
                           <span
                             className="inline-block truncate max-w-[190px] text-xs text-text-secondary italic"
-                            title={row.notes}
+                            title={row.remarks || row.notes || undefined}
                           >
-                            &ldquo;{row.notes}&rdquo;
+                            &ldquo;{row.remarks || row.notes}&rdquo;
                           </span>
                         ) : (
                           <span className="text-table-text-muted text-xs">--</span>
@@ -379,11 +379,11 @@ export function HrEmplocTable({
                               e.stopPropagation();
                               onDownloadAttachment?.(row);
                             }}
-                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-colors cursor-pointer"
                             title={`Download ${row.attachmentFileName || "attachment"}`}
                           >
                             <Download className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[100px]">
+                            <span className="truncate max-w-[120px]">
                               {row.attachmentFileName || "Download"}
                             </span>
                           </button>

@@ -760,6 +760,23 @@ BEGIN
       jsonb_build_object(
         'can_view_detail', true,
         'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
+        'remarks', COALESCE(h.ops_remarks, h.hr_remarks),
+        'ops_remarks', h.ops_remarks,
+        'hr_remarks', h.hr_remarks,
+        'attachment_url', (
+          SELECT ca.storage_path
+          FROM public.hr_emploc_correction_attachments ca
+          WHERE ca.hr_emploc_id = h.id AND ca.is_deleted = false
+          ORDER BY ca.uploaded_at DESC
+          LIMIT 1
+        ),
+        'attachment_file_name', (
+          SELECT ca.original_filename
+          FROM public.hr_emploc_correction_attachments ca
+          WHERE ca.hr_emploc_id = h.id AND ca.is_deleted = false
+          ORDER BY ca.uploaded_at DESC
+          LIMIT 1
+        ),
         'can_edit_emploc', (
           (v_role_level >= 30 OR v_role_name IN ('OM', 'HRCO', 'Encoder') OR public.i_am_hr_dept() OR public.i_have_full_access())
           AND (h.status = 'Moved to Plantilla' OR h.hr_status IN ('Transferred', 'Deployed', 'Complete') OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))

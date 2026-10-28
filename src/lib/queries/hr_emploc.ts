@@ -58,6 +58,7 @@ export type HrEmplocListItem = {
   requestedByName: string | null;
   hrcoRemarks: string | null;
   notes: string | null;
+  remarks: string | null;
   attachmentUrl: string | null;
   attachmentFileName: string | null;
   attachmentMetadata: Record<string, unknown> | null;
@@ -311,6 +312,8 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
   );
 
   const hrcoRemarks = asString(
+    caps.remarks ??
+    row.remarks ??
     row.hrco_remarks ??
     row.hrcoRemarks ??
     row.ops_remarks ??
@@ -318,7 +321,8 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     row.notes ??
     caps.hrco_remarks ??
     caps.notes ??
-    caps.ops_remarks
+    caps.ops_remarks ??
+    caps.hr_remarks
   );
 
   const attachmentUrl = asString(
@@ -365,6 +369,7 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     requestedByName,
     hrcoRemarks,
     notes: hrcoRemarks,
+    remarks: hrcoRemarks,
     attachmentUrl,
     attachmentFileName,
     attachmentMetadata,
@@ -791,7 +796,9 @@ export async function getCorrectionAttachmentSignedUrl(
 
   const { data, error } = await supabase.storage
     .from("hr-corrections")
-    .createSignedUrl(objectPath, 3600);
+    .createSignedUrl(objectPath, 3600, {
+      download: true,
+    });
 
   if (error || !data?.signedUrl) {
     throw new HrEmplocDataError(

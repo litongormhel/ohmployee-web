@@ -337,10 +337,17 @@ export default function HrEmplocPage() {
     if (!row.attachmentUrl) return;
     try {
       const url = await getCorrectionAttachmentSignedUrl(row.attachmentUrl);
-      window.open(url, "_blank", "noopener,noreferrer");
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = row.attachmentFileName || "compliance-attachment";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("[hr-emploc attachment download error]", err);
-      const message = err instanceof Error ? err.message : "Failed to open attachment.";
+      const message = err instanceof Error ? err.message : "Failed to download attachment.";
       setErrorToast({ message: `Attachment error: ${message}` });
     }
   }

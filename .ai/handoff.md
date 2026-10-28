@@ -1,6 +1,31 @@
 # AI Handoff
 
-## Execution Report — HR Emploc Table Column Cleanup & Auto-Review on Attachment Upload (ohm#e8m3p0o5)
+## Execution Report — HR Emploc Review Queue Remarks Column & Direct Attachment Download (ohm#e8m3p0o6)
+
+**Status: COMPLETE ON MAIN; STAGING RPC APPLIED; VERIFIED CLEAN BUILD/LINT**
+
+- **Database RPC Update (`supabase/migrations/20261028150500_hr_emploc_overhaul_and_deployment_sync.sql`):**
+  1. Updated `public.list_web_hr_emplocs` to return `remarks` (coalescing `ops_remarks` and `hr_remarks`), `attachment_url` (`storage_path` of latest active document from `hr_emploc_correction_attachments`), and `attachment_file_name` inside `row_capabilities` JSONB.
+  2. Applied updated function to staging database `qqiiznmqxfoamqytjica`.
+  3. Verified via SQL transaction test that `list_web_hr_emplocs(p_queue => 'review')` correctly returns `remarks` and non-null `attachment_url` / `attachment_file_name` for uploaded attachments (e.g. `camp-netanya.jpg`).
+
+- **Frontend Queries (`src/lib/queries/hr_emploc.ts`):**
+  1. Added `remarks: string | null` to `HrEmplocListItem`.
+  2. In `normalizeListRow`, extracted `remarks` from `caps.remarks ?? row.remarks ?? caps.ops_remarks ?? caps.hr_remarks ?? hrcoRemarks`.
+  3. Updated `getCorrectionAttachmentSignedUrl` to pass `{ download: true }` to Supabase storage `createSignedUrl`, instructing the browser to treat the signed URL as a file download.
+
+- **Table UI & Direct Download (`HrEmplocTable.tsx` & `src/app/(dashboard)/hr-emploc/page.tsx`):**
+  1. In the `Review` queue table columns, renamed `"Notes"` to **`"Remarks"`**.
+  2. Cell displays the correction remarks (`row.remarks || row.notes || "--"`).
+  3. In the `Attachment` column, when `row.attachmentUrl` exists, rendered download button showing file name (e.g. `[Download] camp-netanya.jpg`).
+  4. In `page.tsx`, `handleDownloadAttachment` creates an anchor with `link.download` and triggers browser download.
+
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
 
