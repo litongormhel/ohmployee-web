@@ -88,7 +88,16 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
    - `Transferred` / `Rejected` → `neutral` (gray)
 6. **Deficiency Summary**: High-level text listing deficient items extracted from `correction_reason` JSONB.
 7. **SLA Counter**: Calculated days active since `coalesce(date_requested, created_at)`. If exceeding 3 days, it prints a rose alert badge (`text-red-700 bg-red-50 border-red-200`).
-8. **Actions Area**: Desktop "Eye" icon to open the selected record in the Detail Drawer. Row clicking is also fully supported with an active overlay highlight (`bg-blue-50`).
+8. **Hired Date**: Positioned right before Actions column, displays formatted hired date (`formatDate`).
+9. **Actions Area**: Desktop actions per queue tab. In the Deployed tab, includes an icon-only `Edit Emploc` button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label. Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
+
+### Onboarding Compliance Requirements
+Only canonical statutory requirements are tracked for deficiency:
+1. `sss_card`: SSS Card / ID Document
+2. `pagibig_id`: PagIBIG Member ID
+3. `philhealth_id`: PhilHealth ID / MDF
+*(NBI Clearance Certificate and PSA Birth Certificate have been removed).*
+Validation Rule: When returning for correction, an individual item deficiency note or overall HR Compliance Remarks is strictly required before submission.
 
 ---
 

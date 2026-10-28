@@ -24,8 +24,6 @@ const canonicalRequirements = [
   { key: "sss_card", label: "SSS Card / ID Document" },
   { key: "pagibig_id", label: "PagIBIG Member ID" },
   { key: "philhealth_id", label: "PhilHealth ID / MDF" },
-  { key: "nbi_clearance", label: "NBI Clearance Certificate" },
-  { key: "birth_certificate", label: "PSA Birth Certificate" },
 ];
 
 export function TagDeficiencyModal({
@@ -43,6 +41,11 @@ export function TagDeficiencyModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const hasSelected = canonicalRequirements.some((r) => selectedIssues[r.key]);
+  const hasIndividualNote = canonicalRequirements.some(
+    (r) => selectedIssues[r.key] && Boolean(issueNotes[r.key]?.trim())
+  );
+  const hasRemarks = Boolean(remarks.trim());
+  const hasReasonProvided = hasIndividualNote || hasRemarks;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (params: TagDeficiencyParams) => tagWebHrEmplocDeficiency(params),
@@ -80,10 +83,22 @@ export function TagDeficiencyModal({
     },
   });
 
+  const canSubmit = hasSelected && hasReasonProvided && !isPending;
+
   if (!isOpen) return null;
 
   function handleSubmit() {
     setSubmitError(null);
+    if (!hasSelected) {
+      setSubmitError("Please select at least one deficient requirement.");
+      return;
+    }
+    if (!hasReasonProvided) {
+      setSubmitError(
+        "Please provide an individual deficiency note or overall HR Compliance Remarks explaining the correction needed."
+      );
+      return;
+    }
     const deficiencies: Record<string, string> = {};
     for (const req of canonicalRequirements) {
       if (selectedIssues[req.key]) {
@@ -186,8 +201,15 @@ export function TagDeficiencyModal({
 
           {/* Remarks */}
           <div className="pt-1 space-y-1.5">
-            <div className="text-[10px] font-semibold text-text-muted">
-              HR Compliance Remarks (Optional)
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-text-muted">
+                HR Compliance Remarks {hasIndividualNote ? "(Optional)" : "(Required if no item note provided)"}
+              </span>
+              {!hasReasonProvided && hasSelected && (
+                <span className="text-[10px] text-amber-600 font-medium">
+                  Item note or remarks required
+                </span>
+              )}
             </div>
             <textarea
               className="w-full rounded border border-border-default bg-surface px-2.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-strong resize-none"
@@ -221,7 +243,7 @@ export function TagDeficiencyModal({
           </button>
           <button
             className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
-            disabled={!hasSelected || isPending}
+            disabled={!canSubmit}
             onClick={handleSubmit}
             type="button"
           >

@@ -62,6 +62,17 @@ type HrEmplocTableProps = {
   onEditEmploc?: (row: HrEmplocListItem) => void;
 };
 
+function formatDate(value: string | null) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function getTableColumns(queue: HrEmplocQueue): string[] {
   switch (queue) {
     case "correction":
@@ -74,6 +85,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "SLA",
         "Reason",
         "Requested by",
+        "Hired Date",
         "Actions",
       ];
     case "review":
@@ -87,6 +99,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Reason",
         "Notes",
         "Attachment",
+        "Hired Date",
         "Actions",
       ];
     case "deployed":
@@ -98,6 +111,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Position",
         "HRCO",
         "SLA",
+        "Hired Date",
         "Actions",
       ];
     case "pending":
@@ -109,6 +123,7 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Position",
         "HRCO",
         "SLA",
+        "Hired Date",
         "Actions",
       ];
   }
@@ -287,6 +302,14 @@ export function HrEmplocTable({
                         <span className={isPendingDeletion ? "text-table-text-muted line-through" : ""}>
                           {row.applicantName ? formatPersonName(row.applicantName) : "--"}
                         </span>
+                        {row.employeeNo && (queue === "deployed" || queue === "ready" || row.deploymentStatus === "Moved to Plantilla") && (
+                          <span
+                            className="inline-flex items-center rounded border border-border-default bg-surface px-1.5 py-0.5 font-mono text-[11px] font-medium text-text-secondary"
+                            title={`Employee ID: ${row.employeeNo}`}
+                          >
+                            {row.employeeNo}
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -376,6 +399,11 @@ export function HrEmplocTable({
                         )}
                       </td>
                     )}
+
+                    {/* Hired Date Column */}
+                    <td className="border-b border-table-rule px-4 py-2.5 text-table-text whitespace-nowrap text-xs">
+                      {formatDate(row.hiredDate)}
+                    </td>
 
                     {/* Tab-Specific Actions */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-right whitespace-nowrap">
@@ -501,12 +529,11 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onEditEmploc(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface hover:bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center justify-center rounded-md border border-border-default bg-surface hover:bg-surface-hover p-1.5 text-text-primary shadow-2xs transition-colors cursor-pointer hover:border-border-strong"
                                 aria-label={`Edit Emploc for ${row.applicantName}`}
                                 title="Edit Emploc ID or Revert to Pending"
                               >
                                 <Edit3 className="h-3.5 w-3.5" />
-                                <span>Edit Emploc</span>
                               </button>
                             )}
 

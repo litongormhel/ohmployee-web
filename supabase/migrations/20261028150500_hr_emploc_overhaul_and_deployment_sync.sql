@@ -69,14 +69,13 @@ BEGIN
     );
   END IF;
 
-  -- 3. Check users_profile
-  SELECT full_name, 'User Management'
+  -- 3. Check auth.users / users_profile
+  SELECT up.full_name, 'User Management'
   INTO v_match_name, v_match_module
-  FROM public.users_profile
-  WHERE (
-    (auth_user_id IS NOT NULL AND lower(btrim(coalesce(metadata->>'employee_id', metadata->>'employee_no', ''))) = v_clean)
-  )
-    AND archived_at IS NULL
+  FROM public.users_profile up
+  JOIN auth.users au ON au.id = up.auth_user_id
+  WHERE lower(btrim(coalesce(au.raw_user_meta_data->>'employee_id', au.raw_user_meta_data->>'employee_no', ''))) = v_clean
+    AND up.archived_at IS NULL
   LIMIT 1;
 
   IF v_match_name IS NOT NULL THEN
@@ -342,7 +341,6 @@ BEGIN
     -- Soft-delete / unlink the plantilla row
     UPDATE public.plantilla
     SET is_deleted = true,
-        deleted_at = now(),
         status     = 'Separated',
         updated_at = now(),
         updated_by = v_actor_profile_id

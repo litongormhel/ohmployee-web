@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Bug Fixes & UI Adjustments: HR Emploc Overhaul & Compliance Cleanup (ohm#e8m3p0o3)
+
+**Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED; VERIFIED LIVE UNICITY & CLEAN BUILD/LINT**
+
+- **Database Schema Mapping Fixes:**
+  1. **Fixed `metadata` column error in `check_ecosystem_employee_id_unique`:** `users_profile` does not have a `metadata` column. Corrected the user check to join `auth.users` on `au.id = up.auth_user_id` and query `au.raw_user_meta_data->>'employee_id' / raw_user_meta_data->>'employee_no'`. Tested against duplicate and unique employee IDs on staging; verified zero schema errors.
+  2. **Fixed `deleted_at` column error in `revert_hr_emploc_to_pending`:** `plantilla` uses boolean `is_deleted`, not `deleted_at`. Removed `deleted_at = now()` from the unlinking query on `public.plantilla`.
+  3. Applied both updated functions to staging database `qqiiznmqxfoamqytjica`.
+- **Onboarding Compliance Requirements Cleanup (`src/components/hr-emploc/TagDeficiencyModal.tsx`):**
+  1. Removed `nbi_clearance` (NBI Clearance Certificate) and `birth_certificate` (PSA Birth Certificate) from `canonicalRequirements`, leaving strictly SSS Card, PagIBIG Member ID, and PhilHealth ID.
+  2. Enforced strict validation: when deficient requirements are selected, either an individual item deficiency note or overall HR Compliance Remarks is strictly required before submission. Button is disabled with inline warning indicator when empty.
+- **Deployed Tab & Table UI Updates (`src/components/hr-emploc/HrEmplocTable.tsx`):**
+  1. **Emploc ID beside Applicant Name:** In the `Applicant` column of the `Deployed` tab, rendered the Employee ID badge (`font-mono text-[11px] rounded border border-border-default bg-surface px-1.5 py-0.5 text-text-secondary`) right beside the applicant's name.
+  2. **Hired Date Column:** Added `Hired Date` column in `getTableColumns` and rendered `formatDate(row.hiredDate)` positioned right before the `Actions` column across all queues.
+  3. **Icon-Only `Edit Emploc` Button:** Converted the `Edit Emploc` button in the `Deployed` tab's Actions column to an icon-only button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label.
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — Bug Fix: HR Emploc Deployed Tab & Summary Counter Sync (ohm#e8m3p0o2)
 
 **Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED; VERIFIED LIVE RPC & CLEAN BUILD/LINT**
