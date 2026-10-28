@@ -236,6 +236,7 @@ export function HrEmplocTable({
             ) : (
               rows.map((row) => {
                 const isPendingDeletion =
+                  row.isPendingDeletion ||
                   row.hrStatus.toLowerCase().trim() === "pending deletion" ||
                   row.hrStatus.toLowerCase().trim() === "pending_deletion";
 
@@ -407,6 +408,7 @@ export function HrEmplocTable({
                                   handleAddEmploc(row);
                                 }}
                                 className="inline-flex items-center gap-1 rounded-md bg-brand-500 hover:bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={isPendingDeletion ? "Disabled: deletion request pending. Withdraw the request to continue." : undefined}
                                 aria-label={`Add Emploc for ${row.applicantName}`}
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
@@ -423,6 +425,7 @@ export function HrEmplocTable({
                                   onForCorrection(row);
                                 }}
                                 className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={isPendingDeletion ? "Disabled: deletion request pending. Withdraw the request to continue." : undefined}
                                 aria-label={`Return for correction for ${row.applicantName}`}
                               >
                                 <AlertCircle className="h-3.5 w-3.5" />

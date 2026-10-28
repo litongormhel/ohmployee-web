@@ -1,5 +1,18 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Pending-Deletion Row Lock & Human-Readable Activity History (ohm#e8m3p0p0)
+
+**Status: COMPLETE ON MAIN; STAGING FUNCTION APPLIED; VERIFIED CLEAN BUILD/LINT**
+
+- **Row lock (Pending tab only, per Ohm):** `src/lib/queries/hr_emploc.ts` adds `isPendingDeletion` from `is_pending_deletion` (already returned by `list_web_hr_emplocs`; no list RPC change). `HrEmplocTable.tsx` uses it so `+ Add Emploc` / `! For Correction` are disabled with tooltip until the request is withdrawn.
+- **Activity history:** migration `supabase/migrations/20262606000075_friendly_hr_emploc_activity_timeline.sql` replaces `get_correction_timeline` (same signature). Returns who/what/when sentences in `remarks`; hides duplicate and no-op audit rows; labels Employee ID assigned/updated, deployed, reverted, flagged/submitted/approved/rejected corrections; adds Deletion Request / Withdrawn / Approved / Rejected events from `hr_emploc_deletion_requests` (no audit rows exist for these). Applied to staging via execute_sql and verified for Santos, Jayson Mendez under his session claims (rolled back).
+- **Drawer:** `HrEmplocDetailDrawer.tsx` renders server sentences for the new labels (`SERVER_FORMATTED_EVENT_LABELS`).
+- **Production:** not applied; Ohm applies the 075 migration file there manually.
+- **Verification:** `npm run lint` 0 errors (9 preexisting warnings); `npm run build` clean.
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Deployed Tab Separate Emploc ID & Applicant Columns (ohm#e8m3p0o9)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**

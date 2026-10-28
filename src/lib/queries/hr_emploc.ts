@@ -67,6 +67,8 @@ export type HrEmplocListItem = {
   slaBreached: boolean;
   slaElapsedDays: number;
   rowCapabilities: HrEmplocRowCapabilities;
+  /** True when an active (Pending) deletion request exists for this record. */
+  isPendingDeletion: boolean;
   totalCount: number;
 };
 
@@ -378,6 +380,7 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
     slaElapsedDays: asCount(row.aging_days ?? row.sla_elapsed_days ?? row.slaElapsedDays),
     rowCapabilities: normalizeCapabilities(caps),
+    isPendingDeletion: asBoolean(row.is_pending_deletion ?? row.isPendingDeletion),
     totalCount: asCount(row.total_count ?? row.totalCount),
   };
 }

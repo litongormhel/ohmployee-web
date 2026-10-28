@@ -426,3 +426,7 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Move to Plantilla.
 - Request Deletion (Backout/Duplicate).
 - Review Deletion Request.
+
+## Pending Deletion Lock & Activity History
+- Pending tab: while an active deletion request exists (`is_pending_deletion`), `+ Add Emploc` and `! For Correction` are disabled until the request is withdrawn.
+- Activity History Trail (`get_correction_timeline`) returns human-readable sentences with the actor first (e.g. "Litong, Ohm requested deletion of Santos, Jayson Mendez due to <reason>."), and includes deletion request requested/withdrawn/approved/rejected events.

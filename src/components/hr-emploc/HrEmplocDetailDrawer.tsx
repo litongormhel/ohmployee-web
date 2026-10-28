@@ -76,6 +76,25 @@ function getErrorKind(error: unknown) {
   return error instanceof HrEmplocDataError ? error.kind : "retryable";
 }
 
+const SERVER_FORMATTED_EVENT_LABELS = new Set<string>([
+  "Employee ID Updated",
+  "Reverted to Pending",
+  "Employee ID Assigned",
+  "Deployed to Plantilla",
+  "Flagged for Correction",
+  "Correction Submitted",
+  "Correction Approved",
+  "Correction Rejected",
+  "HRCO Updated Remarks",
+  "Attachment Uploaded",
+  "Activity",
+  "Status Updated",
+  "Deletion Request",
+  "Deletion Request Withdrawn",
+  "Deletion Request Approved",
+  "Deletion Request Rejected",
+]);
+
 /**
  * Formats timeline log items into specific, human-readable events detailing
  * what happened, where, why, and by whom.
@@ -84,6 +103,11 @@ function formatTimelineItem(item: HrEmplocAuditLogItem, detail: HrEmplocDetailIt
   const label = (item.eventLabel || "").toLowerCase();
   const desc = item.eventDescription || "";
   const actor = item.profileName || "System Operator";
+
+  // Server-formatted events: the RPC already returns a full "who did what" sentence.
+  if (desc && SERVER_FORMATTED_EVENT_LABELS.has(item.eventLabel)) {
+    return { title: item.eventLabel, description: desc };
+  }
 
   // If already detailed from RPC or custom log, retain it
   if (
