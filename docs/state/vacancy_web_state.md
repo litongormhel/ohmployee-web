@@ -8,6 +8,13 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **`derived_status` Active Plantilla Precedence Fix (`ohm#4x7n2k9w` — Phase 7, `20261028015509_fix_derived_status_active_plantilla_precedence.sql`, superseding `20261027180000` moved to `docs/archive/`)**:
+  - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
+    - Fixed `derived_status` calculation in both views: added `COALESCE(pls.active_plantilla_count, 0::bigint) >= GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric)` alongside `confirmed_onboard_count >= required_headcount` or `v.status = 'Filled'::text THEN 'Hired'::text`.
+    - Aligns `derived_status` with ADR-001 Rule 2 (`hc_filled` = active Plantilla). When active Plantilla meets or exceeds required headcount, the vacancy is marked `'Hired'` regardless of whether onboards originated from the ATS pipeline.
+    - Pre-simulation confirmed that across all 20 live vacancies on staging, only `CPRVJV13` changed (`Open -> Hired`), properly removing it from FOREVER OFFICE's Open tab (dropping total open from 4 to 3: `CPPGJV19`, `CPSAJV31`, `CPSMJV21`).
+    - Preserved all 50 columns of `vw_vacancy_list`, all 53 columns of `vw_vacancy_detail`, `GRANT` permissions, and `WITH (security_invoker = on)`.
+
 - **ADR-001 Rule 2 & Rule 4 Vacancy View/RPC Alignment + Pool Exclusion (`ohm#4x7n2k9w` — Phase 5 REVISED, `20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`, superseding `20261027180000`)**:
   - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
     - `hc_filled` and `hc_display` evaluate active Plantilla per VCode (`plantilla.status = 'Active' AND COALESCE(is_deleted, false) = false AND COALESCE(is_archived, false) = false`) per ADR-001 Rule 2.

@@ -1,4 +1,4 @@
--- Migration: 20261027170000_increase_plantilla_list_limit.sql
+-- Migration: 20261028020000_increase_plantilla_list_limit.sql
 -- Description: Increase p_limit ceiling in public.list_web_plantilla_employees from 200 to 5000
 -- to support full-roster fetching for accounts with 750+ personnel without client-side row truncation.
 

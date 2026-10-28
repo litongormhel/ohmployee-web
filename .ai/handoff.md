@@ -1,5 +1,251 @@
 # AI Handoff
 
+## Phase 7 Execution & Recon Report — D4-Independent Execution, Migration Hygiene & Audit, Slot-Sync Trigger Bug Recon, ESA/KPI Golden Rule Leak & ADR Citation (ohm#4x7n2k9w)
+
+**Status: PART 1 APPROVED EXECUTION APPLIED ON STAGING (`qqiiznmqxfoamqytjica`); PARTS 2–5 REPORTS & PLANS DELIVERED; D4 PENDING; LOCAL COMMIT ON `main`**
+
+- **ADR basis:** `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md` (and `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`) — § Core Cross-Module Invariants (Rule 1 Slot Authority, Rule 2 Hired HC Source, Rule 4 Classification Priority), § Plantilla, § Vacancy, § CENCOM/Dashboard.
+- **Branch status:** On `main` only (no branch created).
+- **Staging ref:** `qqiiznmqxfoamqytjica`. Production ref: `rwxelulyapjgaarlwkus` (untouched).
+- **Pending items for next phase:**
+  1. **D4 Decision on `VCAG5_0056`:** Ohm decision on approved path (Option 1 reset to 1 / Option 2 keep 7 / Option 3 close with applicant handling per Phase 6 plan).
+  2. **Part 3 Trigger Bug Fix Implementation:** Awaiting Ohm approval to apply minimal guard on `fn_sync_vacancy_slot_open_pipeline` (prevent demoting `hr_processing`, `occupied`, `filled`, or closed slots) and repair `ACT-G5-010` Ord 1 slot `8eb14b17-b2e2-42c5-8aba-4b93782c08a3`.
+  3. **Part 4 ESA / Golden Rule Leak Implementation:** Awaiting Ohm approval to update `v_account_allocation_kpi` CTE `filled` with parent Plantilla `Active` filter and deactivate the 2 orphan ALTURAS ESA rows (`2023-12046`, `2023-12049`).
+  4. **Part 2 Migration Bookkeeping Approvals:** Ohm decision on 3 pending migrations (`20261026000001`, `20261026000002`, `20261027120000`) and approval to move 4 superseded/already-applied migrations to `docs/archive/` (`20261013000001`, `20261014193500`, `20261027150000`, `20261027160000`).
+  5. **Step 4 Frontend:** Final web smoke testing on `/vacancy` and `/plantilla` capacity sync.
+
+---
+
+### Part 1 — Approved Execution (Staging `qqiiznmqxfoamqytjica`)
+
+#### 1(a). `derived_status` Fix in `vw_vacancy_list` and `vw_vacancy_detail`
+- **Gate Pre-Simulation:**
+  - Evaluated proposed condition `active_plantilla_count >= required_headcount` against all 20 non-archived vacancies on staging.
+  - Exactly **1** vacancy changed: `CPRVJV13` flipped `derived_status: 'Open' -> 'Hired'`, dropping FOREVER OFFICE Open tab from 4 to 3 (`CPPGJV19`, `CPSAJV31`, `CPSMJV21`).
+  - All other 19 live vacancies across all accounts were 100% identical. Gate PASSED.
+- **Migration Application:**
+  - Stamped version: `20261028015509`.
+  - Migration name: `fix_derived_status_active_plantilla_precedence`.
+  - Local file created: `supabase/migrations/20261028015509_fix_derived_status_active_plantilla_precedence.sql`.
+  - Applied via Supabase MCP `apply_migration`.
+  - Preserved all 50 column ordinals of `vw_vacancy_list` and all 53 column ordinals of `vw_vacancy_detail`, `GRANT SELECT TO authenticated, service_role`, and `WITH (security_invoker = on)`.
+- **Before/After Smoke Verification Across All 6 Smoke Accounts:**
+  - Query: `SELECT * FROM get_web_vacancy_summary(p_account_id => ...)`:
+    - `ACTISERVE` (`91a45763-7188-410a-8d76-e91e57c6b753`): `total_open: 1, with_applicant: 2` (UNCHANGED)
+    - `ALTURAS` (`b0a424aa-a8e0-474d-b6a4-6d9b04ab2bd2`): `total_open: 0, with_applicant: 1` (UNCHANGED)
+    - `BANKO` (`65bc2174-8b54-4696-be99-f215d2a9f454`): `total_open: 1, with_applicant: 1` (UNCHANGED)
+    - `FOREVER OFFICE` (`4d420f59-26fb-4f27-80be-b51f8a84614e`): `total_open: 4 -> 3` (`CPRVJV13` moved Open -> Hired), `with_applicant: 1`
+    - `Moses HQ` (`c0a8012e-8e8e-4a8e-a12e-000000000001`): `total_open: 0, with_applicant: 1` (UNCHANGED)
+    - `THREE` (`18c99176-ee39-4d80-8774-a3fa8583fb22`): `total_open: 1, with_applicant: 0` (UNCHANGED)
+- **ACTISERVE Parity Check:**
+  - `get_web_plantilla_summary`: `active_employees: 1, hr_processing: 3, vacant_positions: 8, total_headcount: 12`.
+  - `v_account_allocation_kpi`: `actual_hc: 1, pipeline_hc: 3, vacant_hc: 8, total_hc: 12`.
+  - Verified 12/12 100% matched.
+
+#### 1(b). Re-close `VCAG5_0056` Ord 1–2 Slots
+- **Pre-Execution Check & Validity Proof:**
+  - Validated Super Admin profile UUID: `b865eef6-ebac-4bd3-84b5-482c00774565` (`Litong, Ohm`).
+  - Tested `fn_set_slot_status` transition in `BEGIN...ROLLBACK` transaction. Returned success with transition log.
+- **Execution:**
+  - Executed on slot `bee89108-b8e3-4d99-a12f-f23544a502b7` (Ord 1) and `79e510b4-0b6f-40ec-8e16-4f16d504ab82` (Ord 2):
+    `fn_set_slot_status(id, 'closed', 'QA_RESET', p_performed_by => 'b865eef6-ebac-4bd3-84b5-482c00774565')`.
+- **Staging Verification:**
+  - Query confirmed:
+    - Slot 1: `slot_status = 'closed'`, `closed_by = 'b865eef6-ebac-4bd3-84b5-482c00774565'`, `closure_reason_code = 'QA_RESET'`, `qa_archive_batch_id = '440e58da-10f5-4a1b-903b-fd171a8d23a3'` (untouched).
+    - Slot 2: `slot_status = 'closed'`, `closed_by = 'b865eef6-ebac-4bd3-84b5-482c00774565'`, `closure_reason_code = 'QA_RESET'`, `qa_archive_batch_id = '440e58da-10f5-4a1b-903b-fd171a8d23a3'` (untouched).
+  - ACTISERVE summary remains `1 + 3 + 8 = 12/12`.
+
+#### 1(c). Local File Hygiene
+- Moved `supabase/migrations/20261027180000_fix_vacancy_open_pipeline_status_precedence.sql` to `docs/archive/20261027180000_fix_vacancy_open_pipeline_status_precedence.sql.superseded` via `git mv`.
+- Diffed `supabase/migrations/20261027170000_increase_plantilla_list_limit.sql` base function body vs current staging `list_web_plantilla_employees`. Verified identical body logic (staging has `LIMIT 200`, migration raises to `LIMIT 5000`).
+- Re-timestamped file: `git mv supabase/migrations/20261027170000_increase_plantilla_list_limit.sql supabase/migrations/20261028020000_increase_plantilla_list_limit.sql`. Left unapplied.
+
+---
+
+### Part 2 — Recon: The Other 7 Unapplied Migrations (Report Only)
+
+| Migration Version & Name | Objects (Re)Defined | Overwrite Phase 5/Step 6 Work? | Staging Status vs Migration Body | Verdict |
+| :--- | :--- | :--- | :--- | :--- |
+| `20261013000001_fix_vacancy_tab_counts_and_canonical_archive_filter.sql` | `list_web_vacancies`, `get_web_vacancy_summary`, orphan applicant archive UPDATE | **YES (BREAKING)**: Drops pool filter, reverts Rule 4 formula | Staging has modern definitions from `20261028005821` | **archive** (superseded) |
+| `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` | `vw_vacancy_list`, `list_web_vacancies`, `get_web_vacancy_summary`, closure RPCs | **YES (BREAKING)**: Drops Phase 5 view columns (`hr_processing_count`, etc.) | Closure RPCs already exist on staging; views/RPCs superseded by `20261028005821` & `20261028015509` | **archive** (superseded) |
+| `20261026000001_update_drawer_actions_rbac.sql` | Creates `role_permission_definitions_compat`, seeds 55 permission rows | **NO**: Standalone table & data | Table does NOT exist on staging | **needs-Ohm-decision** |
+| `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` | `archive_batches` table, soft-archive columns across ~40 tables, reset RPCs | **NO**: Independent QA reset infrastructure | `archive_batches` does NOT exist on staging; some tables have individual columns | **needs-Ohm-decision** |
+| `20261027120000_fix_hrco_all_scope_hr_emploc_correction_rpc.sql` | `get_correction_requests_scoped`, `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, `get_web_hr_emploc_detail` | **NO**: Preserves `h.deleted_at IS NULL` (Step 1A); adds HRCO global scoping | Step 1A filter exists on staging, but HRCO global bypass does not | **needs-Ohm-decision** |
+| `20261027150000_allow_terminated_separation_status.sql` | `plantilla_separation_status_check` constraint | **YES (REGRESSIVE)**: Drops `'separated'` and makes comparison case-sensitive | Staging already has superior constraint: `lower(separation_status) = ANY (ARRAY['awol', 'resigned', 'endo', 'terminated', 'end of contract', 'separated', 'others', 'floating'])` | **archive** (already on staging in superior form) |
+| `20261027160000_fix_vacancy_transition_on_move_to_plantilla.sql` | `move_to_plantilla` RPC | **YES (ARCHITECTURAL REGRESSION)**: Calls legacy `fn_sync_slot_to_occupied` instead of `fn_set_slot_status` | Staging `move_to_plantilla` already enforces ADR-001 Rule 1 (Slot Authority) via `fn_set_slot_status` | **archive** (superseded by modern staging RPC) |
+
+---
+
+### Part 3 — Recon & Plan: Slot-Sync Trigger Bug
+
+#### 1. Audit of Functions / Triggers Setting Slots to 'pipeline' or 'open'
+1. `trg_applicant_insert_slot_sync` firing `fn_sync_vacancy_slot_open_pipeline(v_vacancy_id)`:
+   - When a new applicant is inserted into `applicants`, this trigger counts `v_active_applicants`.
+   - If `v_active_applicants > 0`, it queries the first slot for the vacancy where `slot_status != 'occupied'` and calls `fn_set_slot_status(slot_id, 'pipeline', 'APPLICANT_PIPELINE')`.
+   - **Bug:** It completely fails to check if the slot is already `'hr_processing'`, `'filled'`, or `closed_at IS NOT NULL`.
+2. `fn_set_slot_status` State Machine Permissiveness:
+   - Contains a transition matrix entry: `WHEN v_current_status = 'hr_processing' AND p_new_status = 'pipeline' AND p_reason_code IN ('IMPORT_REJECTED', 'QA_RESET') THEN v_action_type := 'import_rejected';`.
+   - Because `p_reason_code` is normalized and action exists, `fn_set_slot_status` does NOT raise an error; it permits demoting an `hr_processing` slot back to `pipeline`.
+3. `fn_release_applicant_slot` & `tag_backout`:
+   - When an applicant is marked backed out or rejected, `fn_release_applicant_slot` transitions the linked slot back to `'open'`.
+   - It does not check if another applicant is in `hr_processing`.
+
+#### 2. Live Affected Slots on Staging
+- Queried `plantilla_slots` across all vacancies:
+  1. **Slot `8eb14b17-b2e2-42c5-8aba-4b93782c08a3` (`ACT-G5-010`, Ord 1):**
+     - Status: `pipeline` (should be `hr_processing`).
+     - Held by applicant `33da0ac2-8f9f-4318-ae7f-a63e9c7028b1` (`DELA CRUZ, JOHN PAUL DELOS REYES`), who has an active `hr_emploc` record in `Pending Emploc`.
+     - History: Demoted to `pipeline` on 2026-10-20 at 07:22:10 when second applicant ROMERO was inserted.
+  2. **Slot `ca650c1f-0786-4396-be9b-f7a7c745aebf` (`VCTG2_0005`, Ord 1):**
+     - Status: `open` (has active `hr_emploc` record in `Pending Emploc` for applicant `9c656fd5...` TAYOBONG).
+  3. **Slot `74226136-edf2-418e-8998-9b2d192f6f48` (`ACT-G5-007`, Ord 1):**
+     - Status: `pipeline` on a Closed vacancy with 0 active applicants.
+
+#### 3. Backout Behavior
+- Demonstrated on staging: Applicant backout does **NOT** restore `hr_processing`.
+- `tag_backout` calls `fn_release_applicant_slot`, which unconditionally moves the slot to `'open'`. It does not inspect `hr_emploc` or search for other onboarded applicants.
+
+#### 4. Proposed Minimal Guards
+1. **Guard `fn_sync_vacancy_slot_open_pipeline`:**
+   ```sql
+   -- Target only slots eligible for applicant pipeline:
+   SELECT id INTO v_target_slot_id
+   FROM plantilla_slots
+   WHERE vacancy_id = p_vacancy_id
+     AND slot_status NOT IN ('hr_processing', 'occupied', 'filled')
+     AND closed_at IS NULL
+   ORDER BY slot_ordinal ASC, created_at ASC
+   LIMIT 1;
+   ```
+2. **Guard `fn_set_slot_status`:**
+   - In `v_current_status = 'hr_processing' AND p_new_status = 'pipeline'`, require explicit `QA_RESET` and block automated trigger transitions.
+
+#### 5. Sanctioned Repair Procedure for `ACT-G5-010` Slot
+- Transition slot `8eb14b17-b2e2-42c5-8aba-4b93782c08a3` back to `hr_processing`:
+  ```sql
+  SELECT fn_set_slot_status(
+    '8eb14b17-b2e2-42c5-8aba-4b93782c08a3'::uuid,
+    'hr_processing',
+    'REPLACEMENT',
+    p_performed_by => 'b865eef6-ebac-4bd3-84b5-482c00774565'::uuid
+  );
+  ```
+
+---
+
+### Part 4 — Recon: ESA / Golden Rule Leak in `v_account_allocation_kpi.actual_hc` (Report Only)
+
+#### 1. View Definition Leak Lines
+- In `v_account_allocation_kpi`:
+  ```sql
+  -- Lines 36-41:
+  filled AS (
+    SELECT a.account_id,
+      count(DISTINCT a.employee_no) AS actual_hc
+    FROM employee_store_allocations a
+    WHERE a.is_active
+    GROUP BY a.account_id
+  )
+  ```
+- **The Leak:** CTE `filled` queries `employee_store_allocations` strictly on `a.is_active = true` without joining `plantilla`. It ignores whether the parent employee record is `Active`, `Inactive`, `is_deleted = true`, or `is_archived = true`.
+
+#### 2. Staging Scan Across All Accounts
+- Queried all accounts for active ESA rows where parent Plantilla record is not `Active`:
+  - `ACTISERVE`: 1 active ESA / 0 inactive parents
+  - `ACTIVESTYLE`: 3 active ESA / 0 inactive parents
+  - `BANKO`: 7 active ESA / 0 inactive parents
+  - `Moses HQ`: 3 active ESA / 0 inactive parents
+  - `FOREVER OFFICE`: 6 active ESA / **1 not Active parent** (`2017-22562` ANTONIO, `status = On Leave`)
+  - `ALTURAS`: 754 active ESA / **2 inactive parents**:
+    1. `2023-12046` (`VASQUEZ, JULIUS JULIUS`): `plantilla.status = Inactive`, `is_archived = true`, `account = MARIZ`. Active ESA on ALTURAS store `PLAZA MARCELA - SUPERMARKET`.
+    2. `2023-12049` (`OCAWI, ROMMEL ROMMEL`): `plantilla.status = Inactive`, `is_archived = true`, `account = MARIZ`. Active ESA on ALTURAS store `ALTURAS TALIBON - SUPERMARKET`.
+    Both rows were created on `2026-10-27 06:14:15` by batch `600ddff6-6ead-4044-aa31-3f783c7262cf`.
+
+#### 3. ADR-001 Drift Check
+- ADR-001 Rule 2 states: `hc_filled` derives strictly from `plantilla.status = 'Active'`.
+- ADR-001 does NOT specify an automated sync between `employee_store_allocations` and `plantilla.status`. This is an architectural gap in ESA lifecycle governance.
+
+#### 4. Proposed View Guard & Sanctioned Deactivation
+1. **View Guard (in `v_account_allocation_kpi` CTE `filled`):**
+   ```sql
+   filled AS (
+     SELECT a.account_id,
+       count(DISTINCT a.employee_no) AS actual_hc
+     FROM employee_store_allocations a
+     JOIN plantilla p ON p.id = a.plantilla_id
+     WHERE a.is_active
+       AND p.status = 'Active'
+       AND COALESCE(p.is_deleted, false) = false
+       AND COALESCE(p.is_archived, false) = false
+     GROUP BY a.account_id
+   )
+   ```
+2. **Sanctioned Deactivation of the 2 ALTURAS Rows:**
+   ```sql
+   UPDATE employee_store_allocations
+   SET is_active = false, effective_end = now()
+   WHERE id IN (
+     'd9b3fa47-c0f5-46ff-b97f-bc383674ba4d',
+     '6f9c9b5a-5ee4-42f5-b386-aa6c87cf00b7'
+   );
+   ```
+
+---
+
+### Part 5 — Citation: FOREVER OFFICE On-Leave Divergence (Report Only)
+
+- **Search in ADR-001 (`ADR-001-ohmployee-system-architecture.md`):**
+- **Result:** **None exist.** ADR-001 contains no text stating that On-Leave personnel are counted in KPI `actual_hc` while excluded from Plantilla `active_employees` by design.
+- **Architectural Reality:** The divergence is an emergent behavior in the codebase:
+  - `get_web_plantilla_summary` strictly filters `status = 'Active'` for `active_employees`.
+  - `v_account_allocation_kpi` counts all active store assignments (`esa.is_active = true`), and employees On Leave retain their store allocation.
+  - Furthermore, partial unique index `uq_plantilla_vcode_active_occupied` explicitly defines active occupancy as `status IN ('Active', 'For Deactivation', 'On Leave')`.
+  - A formal note should be added to ADR-001 in the mobile repo to document whether `actual_hc` is intended to reflect total staffed headcount (including On Leave) or strictly active on-duty headcount.
+
+---
+
+### Mandatory Database Smoke Test Block (Executed on Staging `qqiiznmqxfoamqytjica`)
+```sql
+SELECT '--- 1. Plantilla Summary Counts (ACTISERVE) ---' AS test;
+SELECT * FROM get_web_plantilla_summary(p_account_id => '91a45763-7188-410a-8d76-e91e57c6b753'::uuid);
+-- active_employees: 1, hr_processing: 3, vacant_positions: 8, total_headcount: 12
+
+SELECT '--- 2. Allocation KPI Actual vs Pipeline vs Vacant (ACTISERVE) ---' AS test;
+SELECT actual_hc, pipeline_hc, vacant_hc, total_hc, variance_hc
+FROM v_account_allocation_kpi
+WHERE account_id = '91a45763-7188-410a-8d76-e91e57c6b753'::uuid;
+-- actual_hc: 1, pipeline_hc: 3, vacant_hc: 8, total_hc: 12, variance_hc: 0
+
+SELECT '--- 3. Vacancy Summary RPC (6 Smoke Accounts) ---' AS test;
+SELECT 'ACTISERVE' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => '91a45763-7188-410a-8d76-e91e57c6b753'::uuid)
+UNION ALL
+SELECT 'ALTURAS' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => 'b0a424aa-a8e0-474d-b6a4-6d9b04ab2bd2'::uuid)
+UNION ALL
+SELECT 'BANKO' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => '65bc2174-8b54-4696-be9b-f7a7c745aebf'::uuid)
+UNION ALL
+SELECT 'FOREVER OFFICE' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => '4d420f59-26fb-4f27-80be-b51f8a84614e'::uuid)
+UNION ALL
+SELECT 'Moses HQ' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => 'c0a8012e-8e8e-4a8e-a12e-000000000001'::uuid)
+UNION ALL
+SELECT 'THREE' AS account, total_open, with_applicant, rejected, backout FROM get_web_vacancy_summary(p_account_id => '18c99176-ee39-4d80-8774-a3fa8583fb22'::uuid);
+-- ACTISERVE: 1 open, 2 pipeline
+-- ALTURAS: 0 open, 1 pipeline
+-- BANKO: 1 open, 1 pipeline
+-- FOREVER OFFICE: 3 open, 1 pipeline (CPRVJV13 Hired, leaves Open)
+-- Moses HQ: 0 open, 1 pipeline
+-- THREE: 1 open, 0 pipeline
+
+SELECT '--- 4. VCAG5_0056 Re-closed Slots State ---' AS test;
+SELECT id, slot_ordinal, slot_status, closed_by, closure_reason_code, qa_archive_batch_id
+FROM plantilla_slots
+WHERE vacancy_id = '37bf068a-6668-45e0-843f-b844ca843a9d'::uuid
+ORDER BY slot_ordinal;
+-- Ord 1: closed, closed_by = b865eef6..., QA_RESET, qa_archive_batch_id = 440e58da-10f5-4a1b-903b-fd171a8d23a3
+-- Ord 2: closed, closed_by = b865eef6..., QA_RESET, qa_archive_batch_id = 440e58da-10f5-4a1b-903b-fd171a8d23a3
+```
+
+---
+
 ## Migration Hygiene Recon, ACT-G5-010 Early-Archive Root Cause, CPRVJV13 Minimal Fix Simulation, Actual-Count Divergence Analysis & VCAG5_0056 Sanctioned Flows Plan (Phase 6 — ohm#4x7n2k9w)
 
 **Status: PLAN ONLY — ALL FINDINGS REPORT-ONLY; ZERO DB MUTATIONS / DDL / DATA WRITES APPLIED; AWAITING EXPLICIT APPROVAL; LOCAL COMMIT ON `main`**
