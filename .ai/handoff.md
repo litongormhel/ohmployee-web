@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — Bug Fix: HR Emploc Deployed Tab & Summary Counter Sync (ohm#e8m3p0o2)
+
+**Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED; VERIFIED LIVE RPC & CLEAN BUILD/LINT**
+
+- **Root Cause Analysis:**
+  1. When candidate `SANTOS, JAYSON MENDEZ` was assigned Emploc ID `2026-32656`, mutations `assign_hr_emploc_number` and `move_to_plantilla` successfully wrote `employee_no = '2026-32656'`, `status = 'Moved to Plantilla'`, `hr_status = 'Transferred'`, and `moved_to_plantilla_at = '2026-10-28 07:32:25.57445+00'`. Plantilla row `2a3fdf15-85e8-442f-8dac-4f6eefeede41` was cleanly created.
+  2. The active `list_web_hr_emplocs` RPC on staging had an outdated filter condition that excluded `Moved to Plantilla` and did not recognize `p_queue = 'deployed'` (evaluating to false, resulting in 0 rows).
+  3. `get_web_hr_emploc_summary` RPC on staging filtered solely on `hr_status = 'Complete'` for `ready_count`, returning `0` and excluding `Moved to Plantilla` / `Transferred`.
+  4. In `page.tsx`, the tab counter override `counts[queue] = listQuery.data.totalCount` overrode the summary count with `0` because `list_web_hr_emplocs` returned 0 rows.
+- **Remediation & Fixes Implemented:**
+  1. **Migration Update & Staging Application (`supabase/migrations/20261028150500_hr_emploc_overhaul_and_deployment_sync.sql`):**
+     - Updated `get_web_hr_emploc_summary` and `list_web_hr_emplocs` with inclusive deployed queue matching:
+       `(s.status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla') OR s.hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete') OR s.moved_to_plantilla_at IS NOT NULL OR (s.employee_no IS NOT NULL AND btrim(s.employee_no) <> '')) AND s.status <> 'Backout' AND s.deleted_at IS NULL`.
+     - Enforced `s.deleted_at IS NULL` globally in `scoped` CTE so soft-deleted records never leak into `Deployed` or any queue.
+     - Exposed `can_edit_emploc` and `can_revert_to_pending` in `row_capabilities` for deployed records.
+     - Applied Section 1–5 cleanly to staging database `qqiiznmqxfoamqytjica`.
+  2. **Frontend Queries & Page Updates:**
+     - Updated `HrEmplocRowCapabilities` and `normalizeCapabilities` in `src/lib/queries/hr_emploc.ts` to include `canEditEmploc` and `canRevertToPending`.
+     - Updated `page.tsx` `AssignEmployeeNoModal` `onSuccess` callback to accept and display dynamic message: `"Assigned Employee ID [ID] and automatically deployed [Candidate Name] to Plantilla."`.
+- **Live Verification on Staging (`qqiiznmqxfoamqytjica`):**
+  - `get_web_hr_emploc_summary`: Verified returns `ready_count: 6` (Deployed queue), `pending_count: 8`.
+  - `list_web_hr_emplocs(p_queue => 'deployed')`: Verified returns `SANTOS, JAYSON MENDEZ` (`2026-32656`, `ACT-G5-002`, `Transferred`, `Moved to Plantilla`) with `total_count: 6`, `can_edit_emploc: true`, and `can_revert_to_pending: true`.
+  - `list_web_hr_emplocs(p_queue => 'deployed', p_search => '2026-32656')`: Verified returns exact match `total_count: 1`.
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Module Overhaul, Auto-Plantilla Deployment, Inherited HRCO Mapping & Audit Trail Refactor (ohm#e8m3p0o1)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD & LINT; READY FOR MIGRATION APPLICATION**

@@ -803,10 +803,10 @@ export default function HrEmplocPage() {
           storeName={assignTarget.storeName}
           currentEmployeeNo={assignTarget.employeeNo}
           onClose={() => setAssignTarget(null)}
-          onSuccess={() => {
+          onSuccess={(msg) => {
             setAssignTarget(null);
             setSuccessToast({
-              message: `Placement onboarding updated for ${assignTarget.applicantName}.`,
+              message: msg || `Placement onboarding updated for ${assignTarget.applicantName}.`,
             });
             retryQueryReads();
           }}

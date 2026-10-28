@@ -24,6 +24,8 @@ export type HrEmplocRowCapabilities = {
   canSubmitCorrection: boolean;   // For HRCO / Super Admin in Correction
   canApproveCorrection: boolean;  // For HR Personnel / Super Admin in Review
   canRevertCorrection: boolean;   // For HR Personnel / Super Admin in Review
+  canEditEmploc: boolean;         // For Super Admin, Data Team, and HR Personnel
+  canRevertToPending: boolean;    // For Super Admin, Data Team, and HR Personnel
   raw: Record<string, boolean>;
 };
 
@@ -223,6 +225,8 @@ function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
     canSubmitCorrection: raw.can_submit_correction === true,
     canApproveCorrection: raw.can_approve_correction === true || raw.can_review_correction === true,
     canRevertCorrection: raw.can_revert_correction === true,
+    canEditEmploc: raw.can_edit_emploc === true,
+    canRevertToPending: raw.can_revert_to_pending === true,
     raw,
   };
 }

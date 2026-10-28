@@ -433,6 +433,8 @@ GRANT EXECUTE ON FUNCTION public.revert_hr_emploc_to_pending(uuid, text) TO auth
 -- 5. Update list_web_hr_emplocs and get_web_hr_emploc_summary for Deployed Tab
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);
+
 -- A. Update get_web_hr_emploc_summary to count Deployed records
 CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(
   p_queue         text DEFAULT NULL,
@@ -501,6 +503,8 @@ BEGIN
       h.position AS position_title,
       COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)) AS hrco_name,
       h.correction_reason,
+      h.deleted_at,
+      h.moved_to_plantilla_at,
       
       ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
       
@@ -516,27 +520,25 @@ BEGIN
     FROM public.hr_emploc h
     LEFT JOIN public.accounts a ON a.id = h.account_id
     WHERE
-      (
+      h.deleted_at IS NULL
+      AND (
         COALESCE(v_role_level, 0) >= 90
         OR (
-          h.deleted_at IS NULL
-          AND (
-            h.account = ANY (public.get_my_allowed_accounts())
-            OR
-            EXISTS (
-              SELECT 1 FROM public.user_scopes us
-              WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
-            )
-            OR EXISTS (
-              SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
-              WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
-            )
-            OR EXISTS (
-              SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
-              WHERE up_fallback.id = v_profile_id
-                AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
-                AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
-            )
+          h.account = ANY (public.get_my_allowed_accounts())
+          OR
+          EXISTS (
+            SELECT 1 FROM public.user_scopes us
+            WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE up_fallback.id = v_profile_id
+              AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
+              AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
           )
         )
       )
@@ -579,18 +581,34 @@ BEGIN
       )
   )
   SELECT
-    count(*) FILTER (WHERE f.hr_status = 'Pending')::bigint AS pending_count,
-    count(*) FILTER (WHERE f.hr_status = 'For Correction')::bigint AS correction_count,
-    count(*) FILTER (WHERE f.hr_status = 'For Review')::bigint AS review_count,
-    count(*) FILTER (WHERE f.hr_status = 'Complete' OR f.status = 'Moved to Plantilla' OR f.hr_status = 'Transferred')::bigint AS ready_count,
-    count(*) FILTER (WHERE f.status = 'Moved to Plantilla' OR f.hr_status IN ('Transferred', 'Deployed', 'Complete'))::bigint AS deployed_count,
+    count(*) FILTER (WHERE f.hr_status = 'Pending' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS pending_count,
+    count(*) FILTER (WHERE f.hr_status = 'For Correction' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS correction_count,
+    count(*) FILTER (WHERE f.hr_status = 'For Review' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS review_count,
+    count(*) FILTER (WHERE (
+      f.status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla')
+      OR f.hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete')
+      OR f.moved_to_plantilla_at IS NOT NULL
+      OR (f.employee_no IS NOT NULL AND btrim(f.employee_no) <> '')
+    ) AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS ready_count,
+    count(*) FILTER (WHERE (
+      f.status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla')
+      OR f.hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete')
+      OR f.moved_to_plantilla_at IS NOT NULL
+      OR (f.employee_no IS NOT NULL AND btrim(f.employee_no) <> '')
+    ) AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS deployed_count,
     count(*) FILTER (WHERE f.sla_breached = true)::bigint AS sla_breached_count,
     count(*) FILTER (WHERE f.sla_warning = true)::bigint AS sla_warning_count,
     count(*) FILTER (WHERE f.correction_reason IS NOT NULL)::bigint AS with_deficiency_count,
-    count(*) FILTER (WHERE f.hr_status = 'Pending Deletion')::bigint AS pending_deletion_count
+    count(*) FILTER (WHERE f.hr_status = 'Pending Deletion' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS pending_deletion_count
   FROM filtered f;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) TO authenticated;
+
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
 
 -- B. Update list_web_hr_emplocs to support 'deployed' queue
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
@@ -693,6 +711,8 @@ BEGIN
       h.hired_date,
       h.assignment_type::text AS assignment_type,
       h.roving_assignment_id,
+      h.deleted_at,
+      h.moved_to_plantilla_at,
       
       GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
       
@@ -742,6 +762,14 @@ BEGIN
       jsonb_build_object(
         'can_view_detail', true,
         'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
+        'can_edit_emploc', (
+          (v_role_level >= 30 OR v_role_name IN ('OM', 'HRCO', 'Encoder') OR public.i_am_hr_dept() OR public.i_have_full_access())
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status IN ('Transferred', 'Deployed', 'Complete') OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
+        ),
+        'can_revert_to_pending', (
+          (v_role_level >= 30 OR v_role_name IN ('OM', 'HRCO', 'Encoder') OR public.i_am_hr_dept() OR public.i_have_full_access())
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status IN ('Transferred', 'Deployed', 'Complete') OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
+        ),
         'can_request_deletion', (
           h.status <> 'Moved to Plantilla'
           AND h.hr_status <> 'Pending Deletion'
@@ -811,7 +839,7 @@ BEGIN
           )
         ),
         'can_assign_employee_no', (
-          (v_role_name = 'Encoder' OR v_role_level = 30 OR v_role_level >= 100 OR public.i_am_hr_dept() OR v_role_name IN ('OM', 'HRCO'))
+          (v_role_name = 'Encoder' OR v_role_level >= 30 OR public.i_am_hr_dept() OR v_role_name IN ('OM', 'HRCO') OR public.i_have_full_access())
           AND COALESCE(h.employee_no, '') = ''
           AND h.status <> 'Moved to Plantilla'
           AND NOT EXISTS (
@@ -826,27 +854,25 @@ BEGIN
     LEFT JOIN public.accounts a ON a.id = h.account_id
     LEFT JOIN public.groups g ON g.id = a.group_id
     WHERE
-      (
+      h.deleted_at IS NULL
+      AND (
         COALESCE(v_role_level, 0) >= 90
         OR (
-          h.deleted_at IS NULL
-          AND (
-            h.account = ANY (public.get_my_allowed_accounts())
-            OR
-            EXISTS (
-              SELECT 1 FROM public.user_scopes us
-              WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
-            )
-            OR EXISTS (
-              SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
-              WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
-            )
-            OR EXISTS (
-              SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
-              WHERE up_fallback.id = v_profile_id
-                AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
-                AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
-            )
+          h.account = ANY (public.get_my_allowed_accounts())
+          OR
+          EXISTS (
+            SELECT 1 FROM public.user_scopes us
+            WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE up_fallback.id = v_profile_id
+              AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
+              AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
           )
         )
       )
@@ -857,12 +883,19 @@ BEGIN
     WHERE
       -- Queue Filter (including 'deployed' and 'ready')
       (p_queue IS NULL
-       OR (p_queue = 'pending' AND s.hr_status = 'Pending')
-       OR (p_queue = 'correction' AND s.hr_status = 'For Correction')
-       OR (p_queue = 'review' AND s.hr_status = 'For Review')
-       OR (p_queue IN ('deployed', 'transferred') AND (s.status = 'Moved to Plantilla' OR s.hr_status IN ('Transferred', 'Deployed')))
-       OR (p_queue = 'ready' AND (s.hr_status = 'Complete' OR s.status = 'Moved to Plantilla' OR s.hr_status = 'Transferred'))
-       OR (p_queue = 'rejected' AND s.hr_status = 'Rejected')
+       OR (p_queue = 'pending' AND s.hr_status = 'Pending' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
+       OR (p_queue = 'correction' AND s.hr_status = 'For Correction' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
+       OR (p_queue = 'review' AND s.hr_status = 'For Review' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
+       OR (p_queue IN ('deployed', 'ready', 'complete', 'transferred') AND (
+            s.status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla')
+            OR s.hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete')
+            OR s.moved_to_plantilla_at IS NOT NULL
+            OR (s.employee_no IS NOT NULL AND btrim(s.employee_no) <> '')
+          )
+          AND s.status <> 'Backout'
+          AND s.deleted_at IS NULL
+       )
+       OR (p_queue = 'rejected' AND s.hr_status = 'Rejected' AND s.deleted_at IS NULL)
       )
       AND (p_deficiency IS NULL
        OR (p_deficiency = 'any' AND s.deficiency_summary->'active_count' > '0'::jsonb)
@@ -956,5 +989,9 @@ BEGIN
   OFFSET v_offset;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) TO authenticated;
 
 COMMIT;
