@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Attachment Download Icon-Only & Strict Blank Remarks (ohm#e8m3p0o7)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
+
+- **Table Presentation Adjustments (`src/components/hr-emploc/HrEmplocTable.tsx`):**
+  1. In the `Review` queue table layout, changed the `Attachment` column to render an icon-only download button (`<Download className="h-4 w-4 shrink-0" />`) with tooltip and aria-label `Download ${row.attachmentFileName || "attachment"}`.
+  2. Completely excluded the filename text to conserve horizontal screen space and eliminate unwanted cell wrapping. Leaves cell empty when no attachment is present.
+  3. In the `Review` queue `Remarks` column, updated cell rendering to strictly display user-entered remarks (`{row.remarks ? <span>{row.remarks}</span> : null}`), leaving the cell completely blank if no remarks were entered.
+
+- **Frontend Queries & Modal Fixes (`src/lib/queries/hr_emploc.ts` & `src/components/hr-emploc/UploadAttachmentModal.tsx`):**
+  1. In `src/lib/queries/hr_emploc.ts`, updated `submitHrcoCorrection` parameters to make `hrcoNotes` optional (`hrcoNotes?: string | null`) and removed artificial client-side validation that previously required notes.
+  2. Passed `p_hrco_notes: params.hrcoNotes?.trim() || null` to the `submit_hrco_correction_update` RPC so PostgreSQL properly sets `ops_remarks = nullif(trim(p_hrco_notes), '')`.
+  3. In `UploadAttachmentModal.tsx`, eliminated synthetic note injection (`notes.trim() || Compliance document uploaded: ${selectedFile.name}` replaced by `notes.trim() || null`).
+
+- **Staging Database Verification & Cleanup (`qqiiznmqxfoamqytjica`):**
+  1. Cleared synthetic `ops_remarks = NULL` for staging record `DELA CRUZ, JAN YAP` (`12c44858-aaaa-4428-8076-fe91dab005f1`).
+  2. Verified via RPC query that the Review queue returns `attachment_file_name` and `remarks = NULL`, which renders cleanly with an icon-only download button and blank remarks cell.
+
+- **Verification Gate:**
+  - `npm run lint`: Clean (0 errors, 9 preexisting warnings).
+  - `npm run build`: Clean compilation and static generation (19/19 static pages built successfully).
+- **Branch status:** On `main` only. Local commit only, NEVER push.
+
+---
+
 ## Execution Report — HR Emploc Review Queue Remarks Column & Direct Attachment Download (ohm#e8m3p0o6)
 
 **Status: COMPLETE ON MAIN; STAGING RPC APPLIED; VERIFIED CLEAN BUILD/LINT**

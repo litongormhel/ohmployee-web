@@ -356,16 +356,14 @@ export function HrEmplocTable({
                     {/* 8. Remarks (Review Tab) */}
                     {queue === "review" && (
                       <td className="border-b border-table-rule px-4 py-2.5 text-table-text max-w-[200px]">
-                        {row.remarks || row.notes ? (
+                        {row.remarks ? (
                           <span
                             className="inline-block truncate max-w-[190px] text-xs text-text-secondary italic"
-                            title={row.remarks || row.notes || undefined}
+                            title={row.remarks}
                           >
-                            &ldquo;{row.remarks || row.notes}&rdquo;
+                            &ldquo;{row.remarks}&rdquo;
                           </span>
-                        ) : (
-                          <span className="text-table-text-muted text-xs">--</span>
-                        )}
+                        ) : null}
                       </td>
                     )}
 
@@ -379,17 +377,13 @@ export function HrEmplocTable({
                               e.stopPropagation();
                               onDownloadAttachment?.(row);
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-brand-600 bg-brand-50 hover:bg-brand-100 hover:text-brand-800 border border-brand-200 transition-colors cursor-pointer shadow-2xs"
                             title={`Download ${row.attachmentFileName || "attachment"}`}
+                            aria-label={`Download ${row.attachmentFileName || "attachment"}`}
                           >
-                            <Download className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[120px]">
-                              {row.attachmentFileName || "Download"}
-                            </span>
+                            <Download className="h-4 w-4 shrink-0" />
                           </button>
-                        ) : (
-                          <span className="text-xs text-text-muted font-medium">N/A</span>
-                        )}
+                        ) : null}
                       </td>
                     )}
 

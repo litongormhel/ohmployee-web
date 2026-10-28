@@ -69,7 +69,7 @@ export function UploadAttachmentModal({
     setError(null);
 
     try {
-      const trimmedNotes = notes.trim() || `Compliance document uploaded: ${selectedFile.name}`;
+      const trimmedNotes = notes.trim() || null;
       await submitHrcoCorrection({
         hrEmplocId: row.id,
         hrcoNotes: trimmedNotes,

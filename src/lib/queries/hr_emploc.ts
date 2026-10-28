@@ -816,16 +816,10 @@ export async function getCorrectionAttachmentSignedUrl(
  */
 export async function submitHrcoCorrection(params: {
   hrEmplocId: string;
-  hrcoNotes: string;
+  hrcoNotes?: string | null;
   attachments?: File[];
 }): Promise<void> {
-  const trimmedNotes = params.hrcoNotes.trim();
-  if (!trimmedNotes) {
-    throw new HrEmplocDataError(
-      "invalid_state",
-      "Correction update remarks/notes are required."
-    );
-  }
+  const trimmedNotes = params.hrcoNotes?.trim() || null;
 
   if (params.attachments && params.attachments.length > 0) {
     for (const file of params.attachments) {
