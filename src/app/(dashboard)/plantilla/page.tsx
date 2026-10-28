@@ -291,7 +291,8 @@ export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean 
 export function getVacancyRemainingCapacity(v: VacancyListItem): number {
   const total = v.hcTotal ?? v.headcount ?? 1;
   const filled = v.hcFilled ?? 0;
-  return Math.max(0, total - filled);
+  const hrProcessing = v.hrProcessingCount ?? 0;
+  return Math.max(0, total - filled - hrProcessing);
 }
 
 export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {

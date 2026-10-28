@@ -1,5 +1,65 @@
 # AI Handoff
 
+## Step 3 Backend + Plantilla-Scoped Web Fix (Parts 1 & 2), Step 6 Code Fix (Part 3) & `20261210000002` / `ACT-G5-010` Report (Part 4) (Phase 5 REVISED — ohm#4x7n2k9w)
+
+**Status: PART 1 (STEP 3 BACKEND) & PART 2 (PLANTILLA-SCOPED WEB FIX) COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) VIA MIGRATION `20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`; PART 3 (STEP 6 CODE FIX) COMPLETE ON STAGING VIA MIGRATION `20261028005902_fix_slot_status_reopen_clear_closed_and_sync_closed_filter.sql`; PART 4 REPORT COMPLETE; GATE + `BEGIN ... ROLLBACK` SMOKE + `npm run lint` + `npm run build` PASSED — LOCAL COMMIT ON `main`**
+
+- **ADR basis:** `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (consolidated as `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md`) — § Core Cross-Module Invariants (Rule 1 Golden Rule, Rule 2 Active Plantilla per VCode, Rule 4 Vacancy Open/Pipeline Qualification), § Vacancy, § Dashboard & CENCOM.
+- **Branch status:** On `main` only (no branch created).
+- **Superseded Migration Note:** Local unapplied migration `supabase/migrations/20261027180000_fix_vacancy_open_pipeline_status_precedence.sql` is **superseded** by `supabase/migrations/20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql` (not deleted per prompt instruction).
+
+### 1. Part 1 — Step 3 Backend (`20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`)
+- **`vw_vacancy_list` & `vw_vacancy_detail`:**
+  - Updated `hc_filled` and `hc_display` to count active Plantilla per VCode (`plantilla.status = 'Active' AND COALESCE(is_deleted, false) = false AND COALESCE(is_archived, false) = false`) per ADR-001 Rule 2.
+  - Preserved all existing column ordinals and names, `derived_status` computation, `vw_vacancy_detail` fallback joins, `OWNER TO postgres`, and `GRANT SELECT ... TO authenticated, service_role`.
+  - Appended at the very end of both views: `hr_processing_count` (`plantilla_slots.slot_status = 'hr_processing' AND closed_at IS NULL AND is_roving = false`), `is_pool_vacancy`, and `affects_required_hc`.
+- **`list_web_vacancies` & `get_web_vacancy_summary`:**
+  - Added regular-account pool exclusion (`COALESCE(a_acc.is_pool_account, false) = true OR (COALESCE(vl.is_pool_vacancy, false) = false AND COALESCE(vl.affects_required_hc, true) = true)`) so pool rows (`BUN-GHQ-00015`, `COM-00004`) leave regular account lists while Moses HQ (`is_pool_account = true`, `SEA-00006`) is unchanged.
+  - Replaced ONLY the `hc_filled < hc_total` disjunct of the Open predicate in both RPCs with explicit ADR-001 Rule 4: `(hc_total - active_plantilla_count - pipeline_count - hr_processing_count) > 0`, keeping `OR lower(pipeline_status) = 'open'` and all other guards and `RETURNS TABLE` shapes unchanged.
+  - **Term → Source Mapping:**
+    - `hc_total` → `s.hc_total` / `f.hc_total` (`vw_vacancy_list.hc_total` = `GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric)::integer`)
+    - `active_plantilla_count` → `s.hc_filled` / `f.hc_filled` (`vw_vacancy_list.hc_filled` = `COALESCE(pls.active_plantilla_count, 0::bigint)::integer`)
+    - `pipeline_count` → `s.active_applicant_count` / `f.active_applicant_count` (`vw_vacancy_list.active_applicant_count`)
+    - `hr_processing_count` → `s.hr_processing_count` / `f.hr_processing_count` (`vw_vacancy_list.hr_processing_count` = `COALESCE(ss.hr_processing_count, 0::bigint)::integer`, also exposed in `list_web_vacancies.row_capabilities->>'hr_processing_count'`).
+- **GATE Verification & `CPRVJV13` Behavior:**
+  - Verified across all 6 smoke accounts (`ACTISERVE`, `ALTURAS`, `THREE`, `FOREVER OFFICE`, `BANKO`, `Moses HQ`): every Open / Pipeline / For-Closure tab membership matched Phase 4 "Before" 100%, except (a) pool rows `BUN-GHQ-00015` (ACTISERVE) and `COM-00004` (THREE) left regular account lists (`SEA-00006` stayed in `Moses HQ`), and (b) `CPRVJV13` (`FOREVER OFFICE`, `hc_total = 1`, `active_plantilla = 1`, `confirmed_onboard = 0`, `active_app = 0`, `hr_proc = 0`) updated `hc_display` `0/1 -> 1/1` while remaining `Open = true` because its first disjunct `(1 - 1 - 0 - 0) > 0` is `false` but `derived_status` (`pipeline_status`) is kept unchanged (`confirmed_onboard_count + active_applicant_count < required_headcount` → `'Open'`), making `OR lower(s.pipeline_status) = 'open'` `true`.
+  - `get_web_vacancy_summary` before vs after across all 6 accounts: 100% identical (`ACTISERVE: 1 open, 4 with_applicant`; `ALTURAS: 0 open, 1 with_applicant`; `BANKO: 1 open, 1 with_applicant`; `FOREVER OFFICE: 4 open, 1 with_applicant`; `Moses HQ: 0 open, 1 with_applicant`; `THREE: 1 open, 0 with_applicant`).
+
+### 2. Part 2 — Minimal Web Changes (`src/lib/queries/vacancy.ts` & `src/app/(dashboard)/plantilla/page.tsx`)
+- **How `allVacancies` is fetched on `plantilla/page.tsx`:** `vacancyListQuery` (`plantilla/page.tsx:677-687`) calls `listVacancies({ accountId: accountId || undefined, page: 1, pageSize: 2000 })` with **`status: undefined`** (`p_status = NULL`), which returns all non-archived, non-`Filled`, non-`Closed`, non-pool rows (Open ∪ Pipeline in a single RPC call). Therefore, applying Rule 4 to `p_status = 'open'` does NOT cause `ACT-G5-008` (2 `'New'` applicants) to vanish from Plantilla.
+- **`src/lib/queries/vacancy.ts`:**
+  - Added `hrProcessingCount?: number` on `VacancyListItem` and populated it in `normalizeListRow` from `row.hr_processing_count ?? rowCaps.hr_processing_count`.
+  - In `listVacancies` (`currentTab === "open"`), removed the client-side `hcFilled < hcTotal` (`isUnfulfilled`) re-derivation so `/vacancy` trusts the server tab result while preserving `!isPendingClosure`.
+- **`src/app/(dashboard)/plantilla/page.tsx`:**
+  - Updated `getVacancyRemainingCapacity(v)` (D2, Plantilla web only) to `Math.max(0, total - filled - hrProcessing)` (does NOT subtract `pipeline_count`).
+  - Left `stageBadge` overwrite and the `|| 1 Vacant` badge untouched (deferred to Step 4 remainder).
+
+### 3. Part 3 — Step 6 Code Fix (`20261028005902_fix_slot_status_reopen_clear_closed_and_sync_closed_filter.sql`)
+- **`qa_archive_batch_id` Grep Gate (STOP on clearing `qa_archive_batch_id`):**
+  - Grepping `pg_proc` proved that `fn_qa_rollback_operational_data_reset` and `fn_rollback_archive_batch` read `plantilla_slots.qa_archive_batch_id` (`WHERE qa_archive_batch_id = p_batch_id AND slot_status = 'closed' AND closure_reason_code = 'QA_RESET'`). Per prompt gate, `fn_set_slot_status` does NOT clear `qa_archive_batch_id`.
+- **`fn_set_slot_status` & `fn_sync_vacancy_slot_open_pipeline`:**
+  - `fn_set_slot_status`: clears `closed_at = NULL`, `closed_by = NULL`, `closure_reason_code = NULL` whenever `p_new_status = 'open'`.
+  - `fn_sync_vacancy_slot_open_pipeline`: added `AND closed_at IS NULL` on both the `'open'` release loop and the `'pipeline'` claim loop, plus deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC` on the `'open' -> 'pipeline'` claim loop.
+  - Did not touch manual `closed_at = NULL` workarounds in `_execute_approved_coverage_request`, nor the other 13 slot-picking functions (none of the 13 selects `slot_status = 'closed'`, so none can pick a properly closed slot unless a slot is in a dirty `slot_status IN ('open','pipeline','hr_processing') AND closed_at IS NOT NULL` state).
+  - Verified via `BEGIN ... ROLLBACK` smoke tests (5/5 passed: `HC_READD`, `COVERAGE_GROUP_DISSOLVED`, `COVERAGE_STORE_REMOVED`, `hr_processing -> open`, and `fn_sync_vacancy_slot_open_pipeline` skipping `closed_at IS NOT NULL` on both loops and claiming lowest clean ordinal) and re-verified `get_web_plantilla_summary` / `v_account_allocation_kpi` across all 6 smoke accounts (`ACTISERVE` stays `12/12`: `1` actual + `3` hrProcess + `8` vacant).
+
+### 4. Part 4 — Originating Reasoning of `20261210000002` & `ACT-G5-010` Golden Rule Status (Report Only)
+- **Why `20261210000002_fix_pipeline_count_revert_to_hr_emploc_drop_archive_filter.sql` (`OHM2026_1136 §3`) dropped `v.is_archived = false`:**
+  - In `OHM2026_1136`, Dashboard/Plantilla showed `Required = 9` while CENCOM (`v_account_allocation_kpi`) showed `Required = 8` (`1` less) because a hired (`Confirmed Onboard`) candidate had moved into `hr_emploc` (`Pending Emploc`) while the originating `vacancies` row had already been marked `status = 'Filled', is_archived = true`.
+  - After `20261210000000` (joining `plantilla_slots` to non-archived `vacancies`) and `20261210000001` (counting `plantilla_slots.slot_status = 'hr_processing'` without `vacancies` join, which still returned `0` because `slot_status` remained `'pipeline'`), `20261210000002` reverted `pipeline_count` to `hr_emploc` (`status NOT IN ('Moved to Plantilla', 'Backout') AND deleted_at IS NULL AND coverage_slot_id IS NULL AND COALESCE(v.is_pool_vacancy, false) = false`) and deliberately dropped `COALESCE(v.is_archived, false) = false` because an active `hr_emploc` onboarding row is real pipeline demand even after its vacancy row is archived upon hire.
+- **What this means for `ACT-G5-010` under the Golden Rule:**
+  - On `ACT-G5-010`, candidate `DELA CRUZ, JOHN PAUL DELOS REYES` (`he.id = 33da0ac2-8ad8-4d41-b806-41d0ec1c24ae`) entered `hr_emploc` (`Pending Emploc` / `Pending`, `deleted_at IS NULL`, `qa_archive_batch_id IS NULL`) at `2026-10-20 07:20:31+00`, and `UAT Test 3` archived the `'Filled'` vacancy `ACT-G5-010` 1m55s later at `2026-10-20 07:22:26+00`.
+  - Under the Golden Rule + D3: `ACT-G5-010` is archived in `vacancies` and must never resurface in Vacancy, whereas `33da0ac2...` is a live (`deleted_at IS NULL`) `hr_emploc` onboarding row and is legitimately counted in `hrProcess` (`3`, giving `Required = 12`) until moved to Plantilla or backed out/soft-deleted.
+
+### 5. Pending Items for Subsequent Prompts
+1. **Mobile Rule 4 Revert:** Revert `ohm#plan09` drift in mobile (`D:\Projects\OHMployee\lib\data\models\models.dart`, `vacancy_screen.dart`, `dashboard_screen.dart`) back to ADR-001 Rule 4 (subtracting `pipeline_count`).
+2. **`VCAG5_0056` Reset via Quota Flow:** Re-close dirty slots Ord 1–2 (`bee89108-b8e3-4d99-a12f-f23544a502b7`, `79e510b4-0b6f-40ec-8e16-4f16d504ab82`) via `fn_set_slot_status` and align `VCAG5_0056` (`SM AURORA`) quota (`required_headcount` vs `plantilla_slots` open/pipeline count) via the quota revision flow.
+3. **`ACT-G5-010` Early-Archive Investigation:** Investigate why `ACT-G5-010` was archived while its candidate (`33da0ac2-8ad8-4d41-b806-41d0ec1c24ae`) was still in `hr_emploc` (`Pending`) and its slot (`8eb14b17-c2fd-41cb-b592-218995a933e0`) remained `slot_status = 'pipeline'` instead of `'hr_processing'`.
+4. **Step 4 Remainder:** Remaining web frontend cleanup (`stageBadge` overwrite in `listVacancies`, `|| 1 Vacant` badge in `StoreVacancyTable`, `openVacanciesSlots` card alignment).
+5. **`20261027170000_increase_plantilla_list_limit.sql`:** Apply `v_limit = 5000` migration for `list_web_plantilla_employees` on staging.
+
+---
+
 ## Migration Rename (Part 0), Step 3 Classification Coupling Stop Report (Part 1), Rule 4 Drift Audit (Part 2) & Step 6 Plan (Part 3) (Phase 4 — ohm#4x7n2k9w)
 
 **Status: PART 0 LOCAL RENAME COMPLETE (`20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`); PART 1 STEP 3 STOPPED BEFORE DB MUTATION PER EXPLICIT STOP CONDITIONS (CHANGING `hc_filled` TO `active_plantilla_count` WHILE KEEPING OPEN-TAB PREDICATE `(s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open')` AND `derived_status` UNCHANGED CAUSES 5 `Hired`/`Pipeline` VACANCIES TO FLIP INTO OPEN TAB, INFLATES `total_open` ON 4 ACCOUNTS, AND CAUSES `CPRVJV13` TO SHOW `1/1` WHILE `Open`); PART 2 RULE 4 DRIFT CHECK COMPLETE (READ-ONLY); PART 3 STEP 6 PLAN COMPLETE (PLAN ONLY) — AWAITING OHM'S DECISION ON STEP 3 OPEN/PIPELINE PREDICATE, STEP 4 FRONTEND, STEP 5 CLEANUP, STEP 6 IMPL, AND `20261027170000` LIMIT MIGRATION**

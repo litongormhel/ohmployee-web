@@ -97,6 +97,7 @@ export type VacancyListItem = {
   hcFilled?: number;
   hcTotal?: number;
   hcDisplay?: string;
+  hrProcessingCount?: number;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   profileEditCount?: number | null;
@@ -562,6 +563,8 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     asNumber(row.hc_total ?? rowCaps.hc_total ?? row.required_headcount ?? row.headcount ?? row.hc) ?? 1;
   const hcDisplay =
     asString(row.hc_display ?? rowCaps.hc_display) ?? `${hcFilled}/${hcTotal}`;
+  const hrProcessingCount =
+    asNumber(row.hr_processing_count ?? rowCaps.hr_processing_count) ?? 0;
 
   return {
     id,
@@ -613,6 +616,7 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hcFilled,
     hcTotal,
     hcDisplay,
+    hrProcessingCount,
     lastActivityAt: asString(row.last_activity_at),
     rowCapabilities: normalizeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -2471,14 +2475,10 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   // Final Tab Scoping Enforcement:
-  // For Open Tab: Stays visible until quota is completely fulfilled (hcFilled < hcTotal) and not closed/archived.
-  // Active pipeline candidates do not remove the requisition from Open tab.
+  // For Open Tab: Trust the server tab result (ADR-001 Rule 4) and only guard against pending closure/closed/archived.
   let finalRows = rows;
   if (currentTab === "open") {
     finalRows = rows.filter((r) => {
-      const hcFilled = r.hcFilled ?? 0;
-      const hcTotal = r.hcTotal ?? r.headcount ?? 1;
-      const isUnfulfilled = hcFilled < hcTotal;
       const isPendingClosure =
         r.hasPendingClosure === true ||
         (r.closureRequestStatus && r.closureRequestStatus.toLowerCase() === "pending") ||
@@ -2488,7 +2488,7 @@ export async function listVacancies(params: VacancyListParams) {
         r.vacancyStatus?.toLowerCase() === "closure" ||
         r.vacancyStatus?.toLowerCase() === "closed" ||
         r.vacancyStatus?.toLowerCase() === "archived";
-      return isUnfulfilled && !isPendingClosure;
+      return !isPendingClosure;
     });
     for (const r of finalRows) {
       r.applicantId = null;

@@ -8,6 +8,18 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **ADR-001 Rule 2 & Rule 4 Vacancy View/RPC Alignment + Pool Exclusion (`ohm#4x7n2k9w` — Phase 5 REVISED, `20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`, superseding `20261027180000`)**:
+  - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
+    - `hc_filled` and `hc_display` evaluate active Plantilla per VCode (`plantilla.status = 'Active' AND COALESCE(is_deleted, false) = false AND COALESCE(is_archived, false) = false`) per ADR-001 Rule 2.
+    - Appended `hr_processing_count` (`plantilla_slots.slot_status = 'hr_processing' AND closed_at IS NULL AND is_roving = false`), `is_pool_vacancy`, and `affects_required_hc` at the end of both views, preserving all existing column ordinals, `derived_status` computation, fallback joins, and `GRANT`s.
+  - **`list_web_vacancies` & `get_web_vacancy_summary`**:
+    - Enforced regular-account pool exclusion (`COALESCE(a_acc.is_pool_account, false) = true OR (COALESCE(vl.is_pool_vacancy, false) = false AND COALESCE(vl.affects_required_hc, true) = true)`), keeping Moses HQ (`is_pool_account = true`) unchanged.
+    - Replaced the `hc_filled < hc_total` Open-tab disjunct with explicit ADR-001 Rule 4 (`(hc_total - active_plantilla_count - pipeline_count - hr_processing_count) > 0`), mapped to `(s.hc_total - s.hc_filled - s.active_applicant_count - s.hr_processing_count) > 0`, while keeping `OR lower(pipeline_status) = 'open'` and all other guards unchanged.
+    - Exposed `hr_processing_count` inside `list_web_vacancies.row_capabilities` jsonb while preserving `RETURNS TABLE` signatures.
+  - **Web Query Alignment (`src/lib/queries/vacancy.ts`)**:
+    - Exposed `hrProcessingCount?: number` on `VacancyListItem` (normalized from `row.hr_processing_count ?? rowCaps.hr_processing_count`).
+    - In `listVacancies` (`currentTab === "open"`), removed the client-side `hcFilled < hcTotal` re-derivation so `/vacancy` trusts the server tab result while guarding against pending closure/closed/archived rows.
+
 - **Multi-Headcount Open Retention & Pipeline Precedence Parity (`ohm#plan09`)**:
   - **Mobile Client-Side Alignment (`OHMployee`)**:
     - Updated `VacancyItem.remainingOpenCount` in `models.dart` to prevent subtracting `displayPipelineCount` from available open capacity (`(derivedOpenCount - (hrProcessingCount ?? 0)).clamp(0, derivedOpenCount)`).

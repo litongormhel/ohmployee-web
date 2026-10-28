@@ -810,6 +810,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Excluded any slot (`ps.id` or `cs.id`) already counted in `hr_emploc` (`hr_status IN ('Pending', 'Complete') AND employee_no IS NULL AND deleted_at IS NULL`) so each slot is counted at most once across `actual`, `hrProcess`, and `vacant`.
   - Updated `public.v_account_allocation_kpi` (`20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql`, `security_invoker = true`) to enforce `ps.closed_at IS NULL` in both `slot_vacant_non_roving` and `slot_vacant_roving`, aligning `ACTISERVE` `required_hc` (`14.0000 -> 12.0000`) and `slot_vacant_hc` (`10.0000 -> 8.0000`) 1:1 with `get_web_plantilla_summary`.
 
+- **Plantilla Slot-Vacant Remaining Capacity & Slot Reopen/Sync Hardening (`ohm#4x7n2k9w` — Phase 5 REVISED, `20261028005821` & `20261028005902`)**:
+  - **Plantilla Web Slot-Based Vacant Capacity (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - Per locked Decision D2 (`ohm#plan09` approved for Plantilla web slot-vacant count only), updated `getVacancyRemainingCapacity(v)` to `Math.max(0, total - filled - hrProcessing)` using `v.hrProcessingCount ?? 0` from `vw_vacancy_list` / `list_web_vacancies` (does NOT subtract `pipeline_count`, since sourcing slots remain vacant on the Plantilla page).
+    - Confirmed `vacancyListQuery` fetches `listVacancies` with `status: undefined` (`p_status = NULL`, returning Open ∪ Pipeline in a single query), keeping slot-vacant pipeline requisitions such as `ACT-G5-008` visible on Plantilla while excluding pool vacancies (`BUN-GHQ-00015`).
+  - **Slot Reopen Metadata Clearing & Closed-Slot Sync Protection (`20261028005902_fix_slot_status_reopen_clear_closed_and_sync_closed_filter.sql`, Staging `qqiiznmqxfoamqytjica`)**:
+    - Updated `public.fn_set_slot_status` to clear `closed_at = NULL`, `closed_by = NULL`, and `closure_reason_code = NULL` whenever `p_new_status = 'open'` (leaving `qa_archive_batch_id` intact because `fn_qa_rollback_operational_data_reset` and `fn_rollback_archive_batch` read it).
+    - Updated `public.fn_sync_vacancy_slot_open_pipeline` to enforce `AND closed_at IS NULL` on both the `'open'` release loop and the `'pipeline'` claim loop, and added deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC` on the `'open' -> 'pipeline'` claim loop.
+
 
 
 
