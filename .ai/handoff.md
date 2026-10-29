@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Settings & More cleanup: Profile & Security fix, structure consolidation, sessions audit (ohm#7q3m9xwk)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT (0 ERRORS)**
+
+### Task Summary
+1. **TASK A: Fix Settings > Profile & Security stuck on "Loading profile information…"**:
+   - **Root Cause**: `fetchOwnProfile` in `src/lib/queries/settings.ts` queried non-existent relations `user_groups(groups(group_name))` and `user_accounts(accounts(account_name))`. PostgREST rejected the query with `PGRST200: Could not find a relationship between 'users_profile' and 'user_groups' in the schema cache`. With TanStack React Query's default retry behavior and missing timeouts, the query spun in an exponential backoff loop keeping `isLoading` true indefinitely.
+   - **Fix**: Updated `fetchOwnProfile` to query valid `user_scopes(groups(group_name), accounts(account_name))` and direct foreign keys `groups(group_name)` and `accounts!users_profile_account_id_fkey(account_name)`. Added a 15-second timeout wrapper (`Promise.race`) and configured `retry: 1` in `useOwnProfile`.
+   - **UI Polish**: In `ProfileTab.tsx`, updated error state copy to "Couldn't load profile information" with a dedicated Retry action button.
+   - **Local commit**: `2810474`.
+
+2. **TASK B: Structure cleanup (navigation/UI only, no DB changes)**:
+   - **B1. System Diagnostics Relocation**:
+     - Created `src/components/more/SystemDiagnosticsModal.tsx` wrapping the existing `DiagnosticsTab` component and data logic.
+     - Mounted new card "System Diagnostics" (Level 100 / Super Admin only) in More > Admin Tools (`more?tab=admin_tools`).
+     - Removed the System Diagnostics tab from Settings. Added page-level redirect for `settings?tab=diagnostics` to `/more?tab=admin_tools&tool=system_diagnostics` for Super Admin, and falling back to default Settings tab (`/settings`) for non-admin roles (zero dead route, zero 404).
+     - Updated Settings header subtitle to drop "platform diagnostics".
+   - **B2. Consolidate Data Archival (3 entries → 1)**:
+     - Verified all 3 entries (`adminTiles`, `auditTiles`, `operationsTiles`) opened the exact same `DataArchivalCenterModal`.
+     - Standardized canonical entry in More > Data Control > Operations & Governance as "Data Archival & Recovery" (Level 100).
+     - Removed duplicate entry points in Admin Tools ("Data Archival Center") and Audit & Integrity ("Data Archival & Recovery").
+   - **B3. Remove Payroll Review Center from Overview (with Role Reachability Check)**:
+     - Verified that Operations Managers (OM) do not have access to the Data Control tab (`data_control` requires `isHeadAdmin || isEncoder`).
+     - In strict accordance with the prompt condition ("FIRST verify no role sees Payroll Review Center in Overview but cannot reach it in Data Control. If one exists, keep the Overview entry for that role and report"), the Overview shortcut was kept for OM (`if (isOperationsManager)`), and removed for roles with direct canonical access to Data Control (Head Admin, Encoder, Super Admin).
+   - **Local commit**: `a941207`.
+
+3. **TASK C: Sessions Audit Findings (Report Only)**:
+   - **Why all "other sessions" are flagged "Suspicious"**: In `public.heartbeat_session()`, a session is flagged `is_suspicious = true` if `EXISTS (SELECT 1 FROM public.active_user_sessions WHERE user_id = v_profile_id AND revoked_at IS NULL AND (device_platform IS DISTINCT FROM p_device_platform OR ip_address IS DISTINCT FROM v_resolved_ip))`. Because stale sessions are never revoked or expired, old sessions from different devices/IPs linger permanently. Any subsequent login or heartbeat automatically matches an unrevoked past session with a distinct IP or platform, triggering `is_suspicious = true` on every session and generating 376 `SUSPICIOUS_LOGIN` audit logs.
+   - **Why stale sessions are not cleaned up**: `pg_cron` is installed but only runs `check_emploc_deletion_sla()`. There is NO scheduled pg_cron job or trigger in the database for session cleanup, and the 30-minute inactivity policy is purely a client-side setting (`user_settings.auto_logout_minutes = 30`).
+   - **Recommended Fix Scope**: Add a scheduled pg_cron job (running every 15 minutes) to mark sessions where `revoked_at IS NULL AND last_seen_at < now() - interval '30 minutes'` as revoked (`revoke_reason = 'inactivity_timeout'`), and update `heartbeat_session` to check for suspicious conflicts only against sessions active within the last 30 minutes.
+
+- **Verification**: `npm run lint` clean (0 errors, 9 baseline warnings); `npx tsc --noEmit` clean (0 errors); `npm run build` clean (all 19 routes generated).
+- **Branch status**: Working on `main` per user instruction. No pushes made.
+
+---
+
 ## Execution Report — HR Emploc Withdrawn Deletion Request Still Shown as Active (ohm#e8m3p0p2)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT**
