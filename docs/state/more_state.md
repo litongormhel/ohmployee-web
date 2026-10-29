@@ -33,7 +33,7 @@ This document captures the current stable architecture and navigation contract f
   4. `audit` (Super Admin Level 100 only):
      - `security_events`: Security alerts and threat indicators.
      - `allocation_health`: Workforce Integrity (`/cencom`).
-     - `audit_logs`: Detailed system audit activity trail.
+     - `audit_logs`: Detailed system audit activity trail rendered with human-readable operational summaries (`audit_formatter.ts`), entity badges (person name, VCode, outlet), actor context, and meaningful field diffs with optional raw JSON.
   5. `data_control` (Head Admin & Encoder):
      - Sub-tab `operations`:
        - `edit_lock_control`: Edit Lock Control (Security).

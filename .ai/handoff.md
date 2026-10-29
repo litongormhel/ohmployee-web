@@ -31,6 +31,13 @@
    - **Why stale sessions are not cleaned up**: `pg_cron` is installed but only runs `check_emploc_deletion_sla()`. There is NO scheduled pg_cron job or trigger in the database for session cleanup, and the 30-minute inactivity policy is purely a client-side setting (`user_settings.auto_logout_minutes = 30`).
    - **Recommended Fix Scope**: Add a scheduled pg_cron job (running every 15 minutes) to mark sessions where `revoked_at IS NULL AND last_seen_at < now() - interval '30 minutes'` as revoked (`revoke_reason = 'inactivity_timeout'`), and update `heartbeat_session` to check for suspicious conflicts only against sessions active within the last 30 minutes.
 
+4. **Human-Readable System Audit Logs & Change Trail**:
+   - Created `src/lib/utils/audit_formatter.ts` providing domain-specific event synthesis (`formatAuditSentence`), module normalization (`normalizeModuleName`), action badge styling (`formatActionBadge`), entity metadata extraction (`extractEntityDetails`), and field-level diff calculation (`computeMeaningfulDiff`).
+   - Refactored `src/components/more/AuditLogsModal.tsx`:
+     - Replaced raw action/module codes (`UPDATE_AVATAR`, `plantilla`, `Record: 2a3fdf15...`) with clean action badges, normalized modules, and entity pills (person name, VCode, outlet/position).
+     - Prominently displays actor-first operational sentences (e.g. *"Deactivated Santos, Jayson Mendez (Cashier at Robinsons Galleria • ACT-G5-002)"* or *"Reverted Santos, Jayson Mendez from Deployed back to Pending (Reason: Wrong applicant row encoded)"*).
+     - Added visual before/after scalar field diff cards (e.g. `Status: "Active" → "Deactivated"`) with an optional toggle for raw JSON.
+
 - **Verification**: `npm run lint` clean (0 errors, 9 baseline warnings); `npx tsc --noEmit` clean (0 errors); `npm run build` clean (all 19 routes generated).
 - **Branch status**: Working on `main` per user instruction. No pushes made.
 
