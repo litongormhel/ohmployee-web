@@ -118,7 +118,6 @@ export default function DashboardPage() {
   const understaffedStores = metrics?.understaffedStores ?? 0;
   const totalOpenVacancies = metrics?.totalOpenVacancies ?? 0;
   const unassignedVacancies = metrics?.unassignedVacancies ?? 0;
-  const assignedVacancies = metrics?.assignedVacancies ?? 0;
   const totalHrEmplocPending = metrics?.totalHrEmplocPending ?? 0;
   const totalActivePlantilla = metrics?.totalActivePlantilla ?? 0;
   const ghostEmployeeCount = metrics?.ghostEmployeeCount ?? 0;
@@ -397,7 +396,7 @@ export default function DashboardPage() {
           onClick={() => router.push("/plantilla")}
           footer={
             <div className="space-y-1.5 pt-2 border-t border-border-subtle">
-              <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-surface-muted border border-border-subtle p-0.5">
+              <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-muted border border-border-subtle">
                 <div
                   style={{ width: `${activePlantillaWidthPct}%` }}
                   className="rounded-l-full bg-brand-500 transition-all duration-300"
@@ -436,15 +435,11 @@ export default function DashboardPage() {
         <KpiCard
           title="Open Vacancies"
           value={totalOpenVacancies}
-          subtitle={`${assignedVacancies} assigned to HRCO`}
           badge={<NeutralChip label={`${unassignedVacancies} unassigned to HRCO`} />}
           icon={Briefcase}
           onClick={() => router.push("/vacancy")}
           footer={
-            <div className="flex items-center justify-between text-xs text-text-muted pt-2 border-t border-border-subtle">
-              <span>
-                Unassigned: <strong className="text-text-primary">{unassignedVacancies}</strong>
-              </span>
+            <div className="flex items-center justify-end text-xs text-text-muted pt-2 border-t border-border-subtle">
               <span className="text-brand-500 font-medium inline-flex items-center gap-0.5">
                 Vacancy Hub <ArrowRight className="h-3 w-3" />
               </span>
@@ -481,16 +476,6 @@ export default function DashboardPage() {
           badge={<NeutralChip label="Action required" />}
           icon={AlertTriangle}
           onClick={() => router.push("/cencom")}
-          footer={
-            <div className="flex items-center justify-between text-xs text-text-muted pt-2 border-t border-border-subtle">
-              <span>
-                Aging: <strong className="text-text-primary">{slaBreachesData?.[0]?.aging ?? "—"}</strong>
-              </span>
-              <span className="text-brand-500 font-medium inline-flex items-center gap-0.5">
-                CENCOM Triage <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-          }
         />
       </section>
 
@@ -808,7 +793,7 @@ export default function DashboardPage() {
                       {totalReconciledApprovals} Pending Approvals
                     </div>
                     <p className="text-xs text-text-muted truncate mt-0.5">
-                      Includes {coverageRelieverCount} coverage &amp; reliever count
+                      {`Includes ${coverageRelieverCount} coverage & reliever count`}
                     </p>
                   </div>
                 </div>
@@ -872,18 +857,20 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
-
-          {/* Recent Activity Feed (Phase 2B-1) */}
-          <RecentActivityFeed
-            groupId={activeActivityScope.groupId}
-            accountId={activeActivityScope.accountId}
-            isSuperAdmin={isSuperAdmin}
-          />
         </div>
       </div>
 
       {/* =================================================================== */}
-      {/* 4. FOOTER LINE: SECURITY & AUDIT TELEMETRY                           */}
+      {/* 4. FULL-WIDTH RECENT ACTIVITY FEED (Phase 2B-1)                     */}
+      {/* =================================================================== */}
+      <RecentActivityFeed
+        groupId={activeActivityScope.groupId}
+        accountId={activeActivityScope.accountId}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      {/* =================================================================== */}
+      {/* 5. FOOTER LINE: SECURITY & AUDIT TELEMETRY                           */}
       {/* =================================================================== */}
       <footer className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-2.5 text-xs text-text-muted">
         <div className="flex items-center gap-2">

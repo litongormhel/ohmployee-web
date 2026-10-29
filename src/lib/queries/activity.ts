@@ -31,6 +31,11 @@ export type ActivityEventType =
   | "emploc_deployed"
   | "emploc_reverted";
 
+export interface RecentActivitySample {
+  name: string;
+  employee_no?: string | null;
+}
+
 export interface RecentActivityDetails {
   subject?: string | null;
   employee_no?: string | null;
@@ -40,6 +45,8 @@ export interface RecentActivityDetails {
   vcode?: string | null;
   target_role?: string | null;
   is_pool?: boolean;
+  batch_count?: number;
+  samples?: RecentActivitySample[];
 }
 
 export interface RecentActivityItem {
@@ -51,6 +58,8 @@ export interface RecentActivityItem {
   recordId: string | null;
   actorName: string;
   actorRole: string;
+  batchCount: number;
+  samples: RecentActivitySample[];
   details: RecentActivityDetails;
 }
 
@@ -87,17 +96,24 @@ export async function fetchRecentActivity(
     details: RecentActivityDetails;
   }>;
 
-  return raw.map((r) => ({
-    id: r.id,
-    timestamp: r.timestamp,
-    module: r.module,
-    action: r.action,
-    eventType: r.event_type as ActivityEventType,
-    recordId: r.record_id,
-    actorName: r.actor_name,
-    actorRole: r.actor_role,
-    details: r.details || {},
-  }));
+  return raw.map((r) => {
+    const details = r.details || {};
+    const batchCount = details.batch_count ?? 1;
+    const samples = details.samples ?? [];
+    return {
+      id: r.id,
+      timestamp: r.timestamp,
+      module: r.module,
+      action: r.action,
+      eventType: r.event_type as ActivityEventType,
+      recordId: r.record_id,
+      actorName: r.actor_name,
+      actorRole: r.actor_role,
+      batchCount,
+      samples,
+      details,
+    };
+  });
 }
 
 export function useRecentActivity(params?: FetchRecentActivityParams) {

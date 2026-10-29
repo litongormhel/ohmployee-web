@@ -1,6 +1,7 @@
 -- Migration: 20262606000077_fn_get_recent_activity.sql
 -- Purpose: Scoped Recent Activity Feed RPC (Phase 2B-1)
--- Returns allow-listed operational activity events strictly scoped to caller's allowed modules and jurisdictions.
+-- Returns allow-listed operational activity events strictly scoped to caller's allowed modules and jurisdictions,
+-- with per-transaction entity deduplication and 5-minute window batching.
 
 -- Performance index for account-scoped audit log scans
 CREATE INDEX IF NOT EXISTS idx_audit_logs_account_ts ON public.audit_logs USING btree ((((new_data ->> 'account_id'::text))::uuid), "timestamp" DESC) WHERE ((new_data ->> 'account_id'::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text);
@@ -274,12 +275,14 @@ BEGIN
       pe.module,
       pe.action,
       pe.event_type,
+      pe.priority,
       pe.record_id,
       pe.actor_id,
       pe.new_data,
       pe.old_data,
       pe.parsed_account_id,
       pe.parsed_store_id,
+      pe.entity_key,
       ROW_NUMBER() OVER (
         PARTITION BY pe.timestamp, pe.entity_key
         ORDER BY
@@ -289,7 +292,7 @@ BEGIN
       ) AS rn
     FROM parsed_events pe
   ),
-  candidates AS (
+  bucketed AS (
     SELECT
       dd.id,
       dd.timestamp,
@@ -301,10 +304,63 @@ BEGIN
       dd.new_data,
       dd.old_data,
       dd.parsed_account_id,
-      dd.parsed_store_id
+      dd.parsed_store_id,
+      COALESCE(
+        NULLIF(TRIM(dd.new_data->>'full_name'), ''),
+        NULLIF(TRIM(dd.new_data->>'employee_name'), ''),
+        NULLIF(TRIM(dd.new_data->>'applicant_name'), ''),
+        NULLIF(TRIM(dd.old_data->>'full_name'), ''),
+        NULLIF(TRIM(dd.new_data->>'position'), ''),
+        NULLIF(TRIM(dd.old_data->>'position'), '')
+      ) AS subject_name,
+      COALESCE(
+        NULLIF(TRIM(dd.new_data->>'employee_no'), ''),
+        NULLIF(TRIM(dd.new_data->>'emploc_no'), ''),
+        NULLIF(TRIM(dd.old_data->>'employee_no'), '')
+      ) AS subject_employee_no,
+      date_bin(interval '5 minutes', dd.timestamp, timestamptz '2000-01-01 00:00:00Z') AS time_bucket,
+      ROW_NUMBER() OVER (
+        PARTITION BY
+          dd.actor_id,
+          dd.event_type,
+          dd.parsed_account_id,
+          date_bin(interval '5 minutes', dd.timestamp, timestamptz '2000-01-01 00:00:00Z')
+        ORDER BY dd.timestamp DESC, dd.id DESC
+      ) AS sample_rn
     FROM deduped dd
     WHERE dd.rn = 1
-    ORDER BY dd.timestamp DESC
+  ),
+  batched AS (
+    SELECT
+      (array_agg(b.id ORDER BY b.timestamp DESC, b.id DESC))[1] AS id,
+      MAX(b.timestamp) AS timestamp,
+      (array_agg(b.module ORDER BY b.timestamp DESC, b.id DESC))[1] AS module,
+      (array_agg(b.action ORDER BY b.timestamp DESC, b.id DESC))[1] AS action,
+      b.event_type,
+      (array_agg(b.record_id ORDER BY b.timestamp DESC, b.id DESC))[1] AS record_id,
+      b.actor_id,
+      b.parsed_account_id,
+      (array_agg(b.parsed_store_id ORDER BY b.timestamp DESC, b.id DESC))[1] AS parsed_store_id,
+      (array_agg(b.new_data ORDER BY b.timestamp DESC, b.id DESC))[1] AS rep_new_data,
+      (array_agg(b.old_data ORDER BY b.timestamp DESC, b.id DESC))[1] AS rep_old_data,
+      COUNT(*)::integer AS batch_count,
+      jsonb_agg(
+        jsonb_build_object(
+          'name', b.subject_name,
+          'employee_no', b.subject_employee_no
+        ) ORDER BY b.timestamp DESC, b.id DESC
+      ) FILTER (WHERE b.sample_rn <= 3 AND b.subject_name IS NOT NULL) AS samples
+    FROM bucketed b
+    GROUP BY
+      b.actor_id,
+      b.event_type,
+      b.parsed_account_id,
+      b.time_bucket
+  ),
+  candidates AS (
+    SELECT bt.*
+    FROM batched bt
+    ORDER BY bt.timestamp DESC
     LIMIT v_limit
   )
   SELECT
@@ -317,14 +373,16 @@ BEGIN
     COALESCE(up.full_name, 'System') AS actor_name,
     COALESCE(r.role_name, 'System') AS actor_role,
     jsonb_build_object(
-      'subject', COALESCE(c.new_data->>'full_name', c.new_data->>'employee_name', c.new_data->>'applicant_name', c.old_data->>'full_name'),
-      'employee_no', COALESCE(c.new_data->>'employee_no', c.new_data->>'emploc_no', c.old_data->>'employee_no'),
+      'subject', COALESCE(c.rep_new_data->>'full_name', c.rep_new_data->>'employee_name', c.rep_new_data->>'applicant_name', c.rep_old_data->>'full_name'),
+      'employee_no', COALESCE(c.rep_new_data->>'employee_no', c.rep_new_data->>'emploc_no', c.rep_old_data->>'employee_no'),
       'account_name', a.account_name,
       'store_name', s.store_name,
-      'position', COALESCE(c.new_data->>'position', c.old_data->>'position'),
-      'vcode', COALESCE(c.new_data->>'vcode', c.old_data->>'vcode'),
-      'target_role', COALESCE(c.new_data->>'role_name', c.old_data->>'role'),
-      'is_pool', COALESCE(a.is_pool_account, FALSE)
+      'position', COALESCE(c.rep_new_data->>'position', c.rep_old_data->>'position'),
+      'vcode', COALESCE(c.rep_new_data->>'vcode', c.rep_old_data->>'vcode'),
+      'target_role', COALESCE(c.rep_new_data->>'role_name', c.rep_old_data->>'role'),
+      'is_pool', COALESCE(a.is_pool_account, FALSE),
+      'batch_count', c.batch_count,
+      'samples', COALESCE(c.samples, '[]'::jsonb)
     ) AS details
   FROM candidates c
   LEFT JOIN public.users_profile up ON up.auth_user_id = c.actor_id

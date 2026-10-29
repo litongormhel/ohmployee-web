@@ -61,13 +61,15 @@ export function getActivityEventIcon(eventType: ActivityEventType): React.ReactE
 }
 
 export function formatRecentActivitySentence(item: RecentActivityItem): React.ReactNode {
-  const { actorName, eventType, details } = item;
+  const { actorName, eventType, details, batchCount } = item;
   const isSystem = !actorName || actorName.toLowerCase() === "system";
 
+  // Approved actor format: bold actor with colon
+  const actorLabel = isSystem ? "System:" : `${actorName}:`;
   const actorNode = (
-    <span className="font-semibold text-text-primary">
-      {isSystem ? "System:" : actorName}
-    </span>
+    <strong className="font-semibold text-text-primary mr-1">
+      {actorLabel}
+    </strong>
   );
 
   const subjectNode = details.subject ? (
@@ -100,7 +102,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "user_approved":
       return (
         <span>
-          {actorNode} approved new user {subjectNode} as{" "}
+          {actorNode}approved new user {subjectNode} as{" "}
           <span className="font-medium text-text-primary">
             {details.target_role || "User"}
           </span>
@@ -110,7 +112,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "user_created":
       return (
         <span>
-          {actorNode} created user {subjectNode} as{" "}
+          {actorNode}created user {subjectNode} as{" "}
           <span className="font-medium text-text-primary">
             {details.target_role || "User"}
           </span>
@@ -120,14 +122,14 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "user_rejected":
       return (
         <span>
-          {actorNode} rejected user registration for {subjectNode}
+          {actorNode}rejected user registration for {subjectNode}
         </span>
       );
 
     case "user_role_updated":
       return (
         <span>
-          {actorNode} updated role for {subjectNode} to{" "}
+          {actorNode}updated role for {subjectNode} to{" "}
           <span className="font-medium text-text-primary">
             {details.target_role || "User"}
           </span>
@@ -137,31 +139,28 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "user_archived":
       return (
         <span>
-          {actorNode} archived user {subjectNode}
+          {actorNode}archived user {subjectNode}
         </span>
       );
 
     case "plantilla_deployed":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}transferred {batchCount} employees to Plantilla{accountTag}
+          </span>
+        );
+      }
       return (
         <span>
-          {isSystem ? (
-            <>
-              {actorNode} {subjectNode}
-              {employeeBadge} transferred to Plantilla{accountTag}
-            </>
-          ) : (
-            <>
-              {actorNode} transferred {subjectNode}
-              {employeeBadge} to Plantilla{accountTag}
-            </>
-          )}
+          {actorNode}{subjectNode}{employeeBadge} transferred to Plantilla{accountTag}
         </span>
       );
 
     case "plantilla_separation":
       return (
         <span>
-          {actorNode} marked separation for {subjectNode}
+          {actorNode}marked separation for {subjectNode}
           {accountTag}
         </span>
       );
@@ -169,7 +168,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "plantilla_deactivated":
       return (
         <span>
-          {actorNode} deactivated plantilla slot for {subjectNode}
+          {actorNode}deactivated plantilla slot for {subjectNode}
           {accountTag}
         </span>
       );
@@ -177,14 +176,14 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "plantilla_on_leave":
       return (
         <span>
-          {actorNode} updated status for {subjectNode} to On Leave{accountTag}
+          {actorNode}updated status for {subjectNode} to On Leave{accountTag}
         </span>
       );
 
     case "plantilla_deactivation_requested":
       return (
         <span>
-          {actorNode} requested deactivation for {subjectNode}
+          {actorNode}requested deactivation for {subjectNode}
           {accountTag}
         </span>
       );
@@ -192,7 +191,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "vacancy_opened":
       return (
         <span>
-          {actorNode} opened vacancy for {positionNode}
+          {actorNode}opened vacancy for {positionNode}
           {storeText}
           {accountTag}
         </span>
@@ -201,7 +200,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "vacancy_filled":
       return (
         <span>
-          {actorNode} filled vacancy for {positionNode}
+          {actorNode}filled vacancy for {positionNode}
           {storeText}
           {accountTag}
         </span>
@@ -210,7 +209,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "vacancy_closed":
       return (
         <span>
-          {actorNode} closed vacancy for {positionNode}
+          {actorNode}closed vacancy for {positionNode}
           {storeText}
           {accountTag}
         </span>
@@ -219,7 +218,7 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "vacancy_reopened":
       return (
         <span>
-          {actorNode} reopened vacancy for {positionNode}
+          {actorNode}reopened vacancy for {positionNode}
           {storeText}
           {accountTag}
         </span>
@@ -228,52 +227,80 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "emploc_created":
       return (
         <span>
-          {actorNode} created HR Emploc for {subjectNode}
+          {actorNode}created HR Emploc for {subjectNode}
           {accountTag}
         </span>
       );
 
     case "emploc_for_correction":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}flagged {batchCount} employees for correction{accountTag}
+          </span>
+        );
+      }
       return (
         <span>
-          {actorNode} flagged {subjectNode} for correction{accountTag}
+          {actorNode}flagged {subjectNode} for correction{accountTag}
         </span>
       );
 
     case "emploc_for_review":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}submitted corrections for {batchCount} employees{accountTag}
+          </span>
+        );
+      }
       return (
         <span>
-          {actorNode} submitted correction for {subjectNode}
+          {actorNode}submitted correction for {subjectNode}
           {accountTag}
         </span>
       );
 
     case "emploc_approved":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}approved {batchCount} HR Emplocs{accountTag}
+          </span>
+        );
+      }
       return (
         <span>
-          {actorNode} approved HR Emploc for {subjectNode}
+          {actorNode}approved HR Emploc for {subjectNode}
           {accountTag}
         </span>
       );
 
     case "emploc_deployed":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}deployed {batchCount} employees to Plantilla{accountTag}
+          </span>
+        );
+      }
       return (
         <span>
-          {actorNode} deployed {subjectNode} to Plantilla{accountTag}
+          {actorNode}{subjectNode}{employeeBadge} transferred to Plantilla{accountTag}
         </span>
       );
 
     case "emploc_reverted":
       return (
         <span>
-          {actorNode} reverted {subjectNode} back to Pending{accountTag}
+          {actorNode}reverted {subjectNode} back to Pending{accountTag}
         </span>
       );
 
     default:
       return (
         <span>
-          {actorNode} recorded update on {subjectNode}
+          {actorNode}recorded update on {subjectNode}
         </span>
       );
   }

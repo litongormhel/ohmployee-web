@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Follow-up: Recent Activity Batching, Formatter Parity, and Dashboard Cleanups (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **A. Sliding Window Batching in RPC (`fn_get_recent_activity`)**:
+   - Implemented pre-limit sliding window batching using `date_bin(interval '5 minutes', dd.timestamp, timestamptz '2000-01-01 00:00:00Z')` partitioning across `(actor_id, event_type, parsed_account_id, time_bucket)`.
+   - Collapses bursts with the same actor, same event_type, and same account within 5 minutes into a single summary row returning `batch_count` and up to 3 `samples` (name + employee_no).
+   - Applied before the `v_limit` cut so that a single 10-item bulk action no longer consumes the entire feed. The 10 "UAT Test 3 -> PERFECT SM" transfers collapse from 10 rows into 1 row (`batch_count: 10`, 3 samples).
+   - Combined seamlessly with the per-transaction deduplication from Round 2.
+2. **B. Formatter & Subject-First Syntax**:
+   - Updated `src/lib/utils/activity_formatter.tsx` to follow approved subject-first format:
+     - Single row: `"<Actor>: <Subject> [<no>] transferred to Plantilla [<account>]"` with a bold actor and colon.
+     - Batched row: `"<Actor>: transferred N employees to Plantilla [<account>]"` with an expandable disclosure button revealing sample subjects.
+   - Preserved active grammar and colon formatting across all operational and administrative event types.
+3. **C. Full-Width Dashboard Layout**:
+   - Relocated `RecentActivityFeed` out of the right rail into a full-width card placed directly beneath the Group Matrix + "Needs your attention" grid and above the security telemetry footer.
+   - Enforced one compact line per entry with right-aligned relative timestamps (`timeAgo`).
+   - Capped view to max 8 rows with an SA-gated `"View all →"` link routing to `/more?tab=audit_logs`.
+4. **D. Dashboard Card Cleanups**:
+   - **SLA Breaches**: Removed `"CENCOM Triage →"` text link and `"Aging: —"` placeholder line from footer; card remains clickable to `/cencom`.
+   - **Open Vacancies**: Removed repeated `"1 assigned to HRCO"` subtitle and `"Unassigned: 19"` footer line; rendered `"19 unassigned to HRCO"` neutral pill badge only once.
+   - **Spacing Typo**: Resolved `"Includes 2coverage & reliever count"` by explicitly wrapping the sentence in a template literal with guaranteed whitespace.
+   - **Segmented Bar**: Thickened Workforce Coverage segmented bar to `h-2.5` (~8-10px) with removed inner padding, making the 3 colored segments prominent and clearly visible.
+5. **E. Vacancy Mismatch Clarification**:
+   - Confirmed both 16 and 19 originate from the exact same source: `public.fn_dashboard_metrics()`.
+   - 16 was a point-in-time snapshot from the Phase 2A report before subsequent test vacancies were created on staging.
+   - 19 is the live, accurate count of open unassigned vacancies currently residing in `public.vacancies` (`status = 'Open'` and `hrco_name IS NULL`). Zero formula change was made.
+6. **Round 2 Confirmation (Items 1 to 10)**:
+   - Item 1 (Return signature + event_type): Confirmed and verified.
+   - Item 2 (Per-transaction dedupe by priority): Confirmed and verified.
+   - Item 3 (User Management trace): Confirmed; approval mapped strictly to explicit approvals.
+   - Item 4 (Visibility gates): Confirmed; approvals = Data Team + Encoder, role updates/archives = SA/HA.
+   - Item 5 (Vacancy APPROVAL audit): Confirmed 5 real rows representing Open -> Filled transitions.
+   - Item 6 (Encoder testing): Confirmed 0 User Management rows returned; no Viewer/ATL test user on staging.
+   - Item 7 (Index parity): Confirmed `idx_audit_logs_account_ts` in migration file and matches staging.
+   - Item 8 (Actor display): Confirmed bold human names with colon; "System:" only when null.
+   - Item 9 (Production parity): Confirmed SELECT-only parity audit completed; zero production writes.
+   - Item 10 (Verification): Lint clean (0 errors, 9 baseline warnings), build clean (19 routes), local commit on main.
+
+### Verification Results
+- `npm run lint`: Clean (0 errors, 9 baseline warnings).
+- `npm run build`: Clean (0 errors, 19/19 routes compiled successfully).
+- **Staging Database Verification**: Tested `public.fn_get_recent_activity(p_limit => 8)` under Super Admin claims; confirmed 10 transfers collapsed to 1 row with 3 samples.
+- **Git State**: Clean working directory on `main`, zero branches created.
+
+---
+
+
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**

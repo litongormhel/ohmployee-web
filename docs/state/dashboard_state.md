@@ -12,7 +12,7 @@ The Dashboard (`/dashboard`) is the cross-module operational overview for authen
 |-----|---------|
 | `fn_dashboard_metrics()` | Operational KPIs (active plantilla, open vacancies, unassigned/assigned vacancies, understaffed stores, active SLA breaches, ghost employee anomalies, 11-queue operational pending approvals) + role-gated admin security approvals |
 | `fn_dashboard_operational_analytics()` | Hiring pipeline and analytics metrics (actual deployed plantilla, HR pipeline count, open vacancies, required headcount, average fill rate %, hires/separations) |
-| `fn_get_recent_activity(p_group_id, p_account_id, p_limit)` | Scoped, role-gated audit feed (Plantilla, Vacancies, HR Emploc, User Approvals) enforcing caller scope and canonical module access (`get_web_current_user_context`). Deduplicates same-transaction/same-entity events (priority: Plantilla deployment > Separation/Deactivation > Vacancy filled > HR Emploc Complete > Status change). Non-admin callers without `user_scopes` fail closed. Pre-limit 30-day index scan via `idx_audit_logs_timestamp_desc` and `idx_audit_logs_account_ts`. Approvals visible to Data Team + Encoder; role updates & archives visible to SA/HA only. |
+| `fn_get_recent_activity(p_group_id, p_account_id, p_limit)` | Scoped, role-gated audit feed (Plantilla, Vacancies, HR Emploc, User Approvals) enforcing caller scope and canonical module access (`get_web_current_user_context`). Deduplicates same-transaction/same-entity events (priority: Plantilla deployment > Separation/Deactivation > Vacancy filled > HR Emploc Complete > Status change). Batches events occurring within a 5-minute window (`date_bin`) with same actor, event_type, and account into ONE row with `batch_count` and up to 3 `samples` (name + employee_no). Non-admin callers without `user_scopes` fail closed. Pre-limit 30-day index scan via `idx_audit_logs_timestamp_desc` and `idx_audit_logs_account_ts`. Approvals visible to Data Team + Encoder; role updates & archives visible to SA/HA only. |
 
 Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` only. No caller-controlled role or scope parameters are accepted.
 
@@ -48,10 +48,10 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
 
 ### 4.2 Top Executive KPI Grid (4 Responsive Module Cards)
 Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components/shared/KpiCard`) with direct routing links to primary modules:
-1. **`Workforce Coverage`:** Fill rate % (`avgFillRatePct.toFixed(1)}%`), `"X of Y seats filled"` subtitle, segmented 3-color progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with legends, and `"Above 80% target"` / `"Below 80% target"` status pill. Clickable; routes to `/plantilla`.
-2. **`Open Vacancies`:** Total open vacancy count, `"N unassigned to HRCO"` neutral badge, assigned subtitle, and footer action. Clickable; routes to `/vacancy`.
+1. **`Workforce Coverage`:** Fill rate % (`avgFillRatePct.toFixed(1)}%`), `"X of Y seats filled"` subtitle, prominent 10px (~8px inner) segmented 3-color progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with legends, and `"Above 80% target"` / `"Below 80% target"` status pill. Clickable; routes to `/plantilla`.
+2. **`Open Vacancies`:** Total open vacancy count, `"N unassigned to HRCO"` neutral badge (shown once), and footer direct link to Vacancy Hub. Clickable; routes to `/vacancy`.
 3. **`Hiring Pipeline`:** Total pipeline count, `"Active Funnel"` badge, subtitle (`N HR Emploc · N applicants`), and monthly momentum footer (`This month: +hired · −separated`). Clickable; routes to `/hr-emploc`.
-4. **`SLA Breaches`:** Total active breach count, `"Action required"` badge, and aging footer. Clickable; routes to `/cencom`.
+4. **`SLA Breaches`:** Total active breach count, `"Action required"` badge, subtitle (`Pending movements or vacancy SLA breaches`). Footer links and aging lines removed. Clickable; routes to `/cencom`.
 
 ### 4.3 Main 2-Column Asymmetric Command Workspace (12-Column Desktop Grid)
 - **Left Column (8 Cols) — "Where is the gap?" Operational Card:**
@@ -62,18 +62,21 @@ Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components
 - **Right Column (4 Cols) — "Needs your attention" Alert List:**
   - Compact card replacing legacy Card C and Card D. Displays 4 compact operational rows with direct actions:
     1. Critical group(s) alert (view matrix).
-    2. Reconciled Pending approvals count (including coverage & reliever count), synced with the sidebar Approvals badge from `useRequestCategoryCounts()`.
+    2. Reconciled Pending approvals count with explicit spacing (`Includes N coverage & reliever count`), synced with the sidebar Approvals badge from `useRequestCategoryCounts()`.
     3. Under-staffed stores alert (inspect stores).
     4. Ghost employee records alert with `"Resolve Anomalies →"` linking to `/plantilla` (MIKA/Plantilla reconciliation; no sync trigger on Dashboard).
-  - **`RecentActivityFeed` (`src/components/dashboard/RecentActivityFeed.tsx`):**
-    - Compact, human-readable operational audit feed mounted directly beneath "Needs your attention".
-    - Role-gated to Super Admin and Head Admin (`currentUser?.roleKey` or `currentUser?.roleName` matching SA/HA).
-    - Reactively scoped to `selectedGroupScope` (`p_group_id` for retail groups, `p_account_id` for Moses HQ).
-    - Pre-filtered via `fn_get_recent_activity` within an indexed 30-day time window.
-    - Pure React formatting (`src/lib/utils/activity_formatter.tsx`) rendering bold `<span>` elements for actor, target, and position (zero `dangerouslySetInnerHTML`).
-    - Relative timestamps (`timeAgo`), empty state (`"No recent activity in this scope."`), and a `"View all →"` link to the Audit Logs modal gated strictly to Super Admin.
 
-### 4.4 Security & Audit Telemetry Footer
+### 4.4 Full-Width Recent Activity Feed (`src/components/dashboard/RecentActivityFeed.tsx`)
+- Full-width operational audit section mounted directly below the 12-column command workspace and above the telemetry footer.
+- Max 8 entries (`limit: 8`), one compact line per entry with right-aligned relative timestamps (`timeAgo`).
+- Collapse bulk multi-item events within a 5-minute window by the same actor, event_type, and account into a single row (`batchCount`).
+- Subject-first formatting (`src/lib/utils/activity_formatter.tsx`):
+  - Single: `"<Actor>: <Subject> [<no>] transferred to Plantilla [<account>]"`
+  - Batched: `"<Actor>: transferred N employees to Plantilla [<account>]"` with an expandable sample list disclosure button.
+- Reactively scoped to `selectedGroupScope` (`p_group_id` for retail groups, `p_account_id` for Moses HQ).
+- Footer `"View all →"` link to the Audit Logs modal gated strictly to Super Admin.
+
+### 4.5 Security & Audit Telemetry Footer
 - Replaced standalone Card E with a single high-contrast footer line:
   `"System healthy · N access events today · Audit logs →"` linking to `/more?tab=audit_logs` and consuming `metrics?.securityEventCount`.
 
