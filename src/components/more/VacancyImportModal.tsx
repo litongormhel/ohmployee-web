@@ -383,11 +383,11 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                   <select
                     value={selectedGroupId}
                     onChange={(e) => handleGroupSelect(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--foreground)] focus:outline-hidden"
+                    className="w-full h-10 rounded-lg border border-border-default bg-surface-card px-3 text-sm font-medium text-text-primary focus:outline-hidden focus:border-brand-500 transition-colors"
                   >
-                    <option value="">Select Operational Group...</option>
+                    <option value="" className="bg-surface-card text-text-primary">Select Operational Group...</option>
                     {groups.map((g) => (
-                      <option key={g.id} value={g.id}>
+                      <option key={g.id} value={g.id} className="bg-surface-card text-text-primary">
                         {g.label}
                       </option>
                     ))}
@@ -402,9 +402,9 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                     value={selectedAccountId}
                     onChange={(e) => setSelectedAccountId(e.target.value)}
                     disabled={!selectedGroupId || isLoadingAccounts}
-                    className="w-full h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-3 text-sm font-medium text-[var(--foreground)] focus:outline-hidden disabled:opacity-50"
+                    className="w-full h-10 rounded-lg border border-border-default bg-surface-card px-3 text-sm font-medium text-text-primary focus:outline-hidden focus:border-brand-500 transition-colors disabled:opacity-50"
                   >
-                    <option value="">
+                    <option value="" className="bg-surface-card text-text-primary">
                       {!selectedGroupId
                         ? "Select a group first..."
                         : isLoadingAccounts
@@ -412,7 +412,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                         : "Select Account Scope..."}
                     </option>
                     {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
+                      <option key={a.id} value={a.id} className="bg-surface-card text-text-primary">
                         {a.name}
                       </option>
                     ))}
@@ -506,7 +506,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                       type="button"
                       onClick={handleSubmit}
                       disabled={isSubmitting || !selectedGroupId || !selectedAccountId}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] hover:opacity-90 text-white font-semibold text-sm px-5 py-2.5 transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand-button hover:bg-brand-button-hover text-white font-semibold text-sm px-5 py-2.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
                     >
                       {isSubmitting ? (
                         <>
@@ -962,10 +962,10 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                 <select
                   value={selectedRollbackReason}
                   onChange={(e) => setSelectedRollbackReason(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] focus:outline-hidden"
+                  className="w-full h-10 rounded-lg border border-border-default bg-surface-card px-3 text-sm text-text-primary focus:outline-hidden focus:border-brand-500 transition-colors"
                 >
                   {IMPORT_ROLLBACK_REASONS.map((r) => (
-                    <option key={r.code} value={r.code}>
+                    <option key={r.code} value={r.code} className="bg-surface-card text-text-primary">
                       {r.label}
                     </option>
                   ))}

@@ -300,3 +300,22 @@ Backdrops for Modals and DetailDrawers require calibrated opacity tokens registe
 Primary buttons in disabled states must preserve readable text contrast rather than applying generic container opacity:
 - **Style Rule**: `disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none`
 - **Contrast Assurance**: Yields >= 7.23:1 contrast ratio against the muted button surface in both light and dark themes.
+
+---
+
+## 13. Form Select Dark Mode & Primary Button Tokens (OHM2026_1102)
+
+### Native Dropdown Selectors
+- **Dark Mode Popups**: Native `<select>` elements require `color-scheme: dark` in dark mode to prevent Chromium/WebKit user-agents from rendering white popup dropdown lists over light text.
+- **Global Rule**:
+  ```css
+  select { color-scheme: light; }
+  :root[data-theme="dark"] select, :root.dark select { color-scheme: dark; }
+  select option { background-color: var(--surface-card); color: var(--text-primary); }
+  ```
+- **Component Classes**: Select elements must consume `bg-surface-card border border-border-default text-text-primary focus:border-brand-500 transition-colors`.
+- **Option Defense-in-Depth**: `<option>` tags should explicitly specify `className="bg-surface-card text-text-primary"`.
+
+### Solid Action Buttons
+- **Standard Primary Action Button**: `bg-brand-button hover:bg-brand-button-hover text-white font-semibold text-sm px-5 py-2.5 transition shadow-xs disabled:opacity-50 cursor-pointer`
+- **Compatibility Aliases**: `--primary: var(--brand-button);` and `--card: var(--surface-card);` registered in `:root` and dark mode theme blocks to gracefully catch legacy `var(--primary)` or `var(--card)` usages.

@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Fix Import Plantilla Light/Dark Mode Contrast & Dropdown Glare (ohm#u8b2m5p1)
+
+**Status: COMPLETE ON MAIN; ZERO DATABASE MODIFICATIONS; VERIFIED CLEAN LINT & BUILD**
+
+### Summary of Completed Work
+1. **Light Mode Submit Button Invisibility Fixed**:
+   - Diagnosed that in `src/components/more/PlantillaImportModal.tsx` (and `src/components/more/VacancyImportModal.tsx`), the "Submit Batch for HA/SA Review" button used `bg-[var(--primary)] text-white`.
+   - The token `--primary` was never defined in `globals.css` (design token standard is `--brand-button: #2b4fd6`), causing `background-color` to resolve as transparent. White text on a white modal background made the button invisible.
+   - Refactored the button class list to canonical design token classes:
+     `inline-flex items-center gap-2 rounded-xl bg-brand-button hover:bg-brand-button-hover text-white font-semibold text-sm px-5 py-2.5 transition shadow-xs disabled:opacity-50 cursor-pointer`
+   - Added compatibility alias `--primary: var(--brand-button);` in `:root`, `:root[data-theme="dark"]`, `:root.dark`, and the system dark media query in `src/app/globals.css`.
+
+2. **Dark Mode Dropdown Glaring White Block Fixed**:
+   - Diagnosed that `<select>` inputs used `bg-[var(--card)] text-[var(--foreground)]`. The `--card` variable was undefined, and options lacked background/color definitions. In Chromium on Windows, native `<select>` dropdown popups default to a white OS surface while inheriting the white text color, rendering a glaring solid white block.
+   - Added compatibility alias `--card: var(--surface-card);` across all theme blocks in `src/app/globals.css`.
+   - In `src/app/globals.css`, configured global select and option styling:
+     - `select { color-scheme: light; }`
+     - `:root[data-theme="dark"] select, :root.dark select { color-scheme: dark; }`
+     - `select option { background-color: var(--surface-card); color: var(--text-primary); }`
+   - In `PlantillaImportModal.tsx` and `VacancyImportModal.tsx`, upgraded `<select>` controls to standard utility tokens:
+     `w-full h-10 rounded-lg border border-border-default bg-surface-card px-3 text-sm font-medium text-text-primary focus:outline-hidden focus:border-brand-500 transition-colors`
+   - Added explicit `className="bg-surface-card text-text-primary"` to all child `<option>` elements for complete cross-browser rendering defense-in-depth.
+
+3. **Verification**:
+   - `npm run lint`: 0 errors (clean, identical baseline warnings).
+   - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
+
 ## Execution Report — Phase 2B-1: Recent Activity Feed on Staging (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED**

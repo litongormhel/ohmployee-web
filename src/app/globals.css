@@ -123,6 +123,10 @@
   --danger-button: #b91c1c;
   --danger-button-hover: #991b1b;
 
+  /* Compatibility aliases */
+  --card: var(--surface-card);
+  --primary: var(--brand-button);
+
   /* Active tab / pill token pair */
   --tab-active-bg: #ffffff;
   --tab-active-text: #16161a;
@@ -246,6 +250,10 @@
   --danger-button: #b91c1c;
   --danger-button-hover: #991b1b;
 
+  /* Compatibility aliases */
+  --card: var(--surface-card);
+  --primary: var(--brand-button);
+
   /* Active tab / pill token pair (raised navy surface, 1px border) */
   --tab-active-bg: #152238;
   --tab-active-text: #ececf0;
@@ -364,6 +372,10 @@
     --brand-button-hover: #1d4ed8;
     --danger-button: #b91c1c;
     --danger-button-hover: #991b1b;
+
+    /* Compatibility aliases */
+    --card: var(--surface-card);
+    --primary: var(--brand-button);
 
     /* Active tab / pill token pair (raised navy surface, 1px border) */
     --tab-active-bg: #152238;
@@ -693,4 +705,26 @@ body {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Native form select dark mode & option styling */
+select {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] select,
+:root.dark select {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] select,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) select {
+    color-scheme: dark;
+  }
+}
+
+select option {
+  background-color: var(--surface-card);
+  color: var(--text-primary);
 }
