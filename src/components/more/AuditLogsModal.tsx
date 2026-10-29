@@ -11,7 +11,6 @@ import {
   Search,
   User,
   ArrowRight,
-  Code,
   Building2,
 } from "lucide-react";
 import { useSystemAuditLogs } from "@/lib/queries/governance";
@@ -21,6 +20,7 @@ import {
   formatActionBadge,
   extractEntityDetails,
   formatAuditSentence,
+  formatTargetLabel,
   computeMeaningfulDiff,
   type ActionBadgeVariant,
 } from "@/lib/utils/audit_formatter";
@@ -66,7 +66,6 @@ export function AuditLogsModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [showRawJsonMap, setShowRawJsonMap] = useState<Record<string, boolean>>({});
 
   const {
     data: logs = [],
@@ -83,10 +82,6 @@ export function AuditLogsModal({
 
   const toggleExpand = (id: string) => {
     setExpandedLogId((prev) => (prev === id ? null : id));
-  };
-
-  const toggleRawJson = (id: string) => {
-    setShowRawJsonMap((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleCopyRecord = (id: string, text: string) => {
@@ -226,7 +221,6 @@ export function AuditLogsModal({
                 const entity = extractEntityDetails(log);
                 const humanSentence = formatAuditSentence(log);
                 const diffList = isExpanded ? computeMeaningfulDiff(log.oldData, log.newData) : [];
-                const showRaw = Boolean(showRawJsonMap[log.id]);
 
                 return (
                   <div
@@ -311,19 +305,25 @@ export function AuditLogsModal({
                           )}
                         </div>
 
-                        {log.recordId && (
-                          <div className="flex items-center gap-1.5 font-mono text-2xs text-text-muted">
+                        <div className="flex items-center gap-2">
+                          <span className="text-text-muted">Target:</span>
+                          <span className="font-semibold text-text-primary">
+                            {formatTargetLabel(log)}
+                          </span>
+                          {log.recordId && (
                             <button
                               type="button"
                               onClick={() => handleCopyRecord(log.id, log.recordId!)}
-                              className="inline-flex items-center gap-1 hover:text-text-primary cursor-pointer transition"
-                              title="Click to copy full record UUID"
+                              className="inline-flex items-center gap-1 text-2xs text-text-muted hover:text-text-primary cursor-pointer p-0.5 rounded hover:bg-surface-hover transition"
+                              title={`Copy internal UUID (${log.recordId})`}
                             >
                               <Copy className="h-3 w-3" />
-                              <span>{copiedId === log.id ? "Copied Record ID!" : `Record: ${log.recordId}`}</span>
+                              {copiedId === log.id && (
+                                <span className="text-brand-primary font-sans font-medium">Copied!</span>
+                              )}
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -335,14 +335,6 @@ export function AuditLogsModal({
                             <FileCode className="h-3.5 w-3.5 text-brand-primary" />
                             Change Details
                           </h4>
-                          <button
-                            type="button"
-                            onClick={() => toggleRawJson(log.id)}
-                            className="inline-flex items-center gap-1 text-2xs font-semibold text-text-muted hover:text-text-primary cursor-pointer"
-                          >
-                            <Code className="h-3 w-3" />
-                            {showRaw ? "Hide Raw JSON" : "Show Raw JSON"}
-                          </button>
                         </div>
 
                         {/* Meaningful Field Diffs */}
@@ -372,29 +364,6 @@ export function AuditLogsModal({
                           <p className="text-2xs text-text-muted italic">
                             No field-level scalar mutations detected.
                           </p>
-                        )}
-
-                        {/* Raw JSON Snapshot (collapsible) */}
-                        {showRaw && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                            <div>
-                              <span className="text-2xs font-bold text-danger">
-                                Previous State (old_data):
-                              </span>
-                              <pre className="mt-1 rounded-lg border border-danger-border bg-danger-subtle/50 p-2.5 font-mono text-2xs text-danger-text overflow-x-auto max-h-48">
-                                {log.oldData ? JSON.stringify(log.oldData, null, 2) : "null (New Record)"}
-                              </pre>
-                            </div>
-
-                            <div>
-                              <span className="text-2xs font-bold text-text-primary">
-                                Mutated State (new_data):
-                              </span>
-                              <pre className="mt-1 rounded-lg border border-border-default bg-surface-subtle p-2.5 font-mono text-2xs text-text-primary overflow-x-auto max-h-48">
-                                {log.newData ? JSON.stringify(log.newData, null, 2) : "null (Deleted Record)"}
-                              </pre>
-                            </div>
-                          </div>
                         )}
                       </div>
                     )}

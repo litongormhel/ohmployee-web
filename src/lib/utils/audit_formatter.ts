@@ -249,6 +249,47 @@ export function formatAuditSentence(log: SystemAuditLogItem): string {
   return `${actionLabel} performed on ${normalizeModuleName(module)} record.`;
 }
 
+export function formatTargetLabel(log: SystemAuditLogItem): string {
+  const { module } = log;
+  const lowerModule = module.toLowerCase();
+  const entity = extractEntityDetails(log);
+
+  if (lowerModule.includes("profile")) {
+    return entity.subject ? entity.subject : "User Profile";
+  }
+
+  if (lowerModule.includes("plantilla")) {
+    if (entity.vcode && entity.storeName) {
+      return `${entity.vcode} • ${entity.storeName}`;
+    }
+    if (entity.subject && entity.vcode) {
+      return `${entity.subject} (${entity.vcode})`;
+    }
+    return entity.vcode || entity.subject || "Plantilla Slot";
+  }
+
+  if (lowerModule.includes("vacanc")) {
+    if (entity.vcode && entity.position) {
+      return `${entity.vcode} • ${entity.position}${entity.storeName ? ` (${entity.storeName})` : ""}`;
+    }
+    return entity.vcode || entity.position || "Vacancy Slot";
+  }
+
+  if (lowerModule.includes("emploc")) {
+    if (entity.subject && entity.vcode) {
+      return `${entity.subject} (${entity.vcode})`;
+    }
+    return entity.subject || entity.vcode || "HR Emploc Record";
+  }
+
+  return (
+    entity.subject ||
+    entity.vcode ||
+    entity.storeName ||
+    `${normalizeModuleName(module)} Record`
+  );
+}
+
 export interface FieldChange {
   key: string;
   label: string;
@@ -256,15 +297,12 @@ export interface FieldChange {
   newValue: string;
 }
 
-const NOISE_FIELDS = new Set([
-  "id",
-  "created_at",
-  "updated_at",
-  "updated_by",
-  "timestamp",
-  "qa_archive_batch_id",
-  "last_mika_synced_at",
-]);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuidOrStoragePath(val: unknown): boolean {
+  if (typeof val !== "string") return false;
+  return UUID_REGEX.test(val.trim()) || val.includes("/avatar.webp");
+}
 
 export function computeMeaningfulDiff(
   oldData: Record<string, unknown> | null,
@@ -278,22 +316,124 @@ export function computeMeaningfulDiff(
   const diffs: FieldChange[] = [];
 
   for (const key of allKeys) {
-    if (NOISE_FIELDS.has(key)) continue;
+    // 1. Filter technical noise and foreign keys
+    if (
+      key === "id" ||
+      key.endsWith("_id") ||
+      key.endsWith("_by") ||
+      key.endsWith("_at") ||
+      key.endsWith("_snapshot") ||
+      key.startsWith("qa_archive") ||
+      key.startsWith("source_") ||
+      key === "log_message" ||
+      key === "timestamp"
+    ) {
+      continue;
+    }
 
     const v1 = oldObj[key];
     const v2 = newObj[key];
 
-    if (JSON.stringify(v1) !== JSON.stringify(v2)) {
+    // If identical, skip
+    if (JSON.stringify(v1) === JSON.stringify(v2)) {
+      continue;
+    }
+
+    // Special translation for avatar photo path
+    if (key === "avatar_path") {
       diffs.push({
         key,
-        label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        oldValue: formatValueForDisplay(v1),
-        newValue: formatValueForDisplay(v2),
+        label: "Profile Photo",
+        oldValue: v1 ? "Existing Photo" : "No Photo",
+        newValue: v2 ? "New Photo Uploaded" : "Photo Removed",
       });
+      continue;
     }
+
+    // Skip raw UUIDs or technical storage paths
+    if (isUuidOrStoragePath(v1) || isUuidOrStoragePath(v2)) {
+      continue;
+    }
+
+    // Special translation for boolean flags
+    if (key === "is_deleted") {
+      diffs.push({
+        key,
+        label: "Plantilla Status",
+        oldValue: v1 ? "Separated / Inactive" : "Active",
+        newValue: v2 ? "Separated / Inactive" : "Active",
+      });
+      continue;
+    }
+
+    if (key === "is_archived") {
+      diffs.push({
+        key,
+        label: "Archive Status",
+        oldValue: v1 ? "Archived" : "Active",
+        newValue: v2 ? "Archived" : "Active",
+      });
+      continue;
+    }
+
+    if (key === "has_penalty") {
+      diffs.push({
+        key,
+        label: "Penalty Exposure",
+        oldValue: v1 ? "Yes" : "No",
+        newValue: v2 ? "Yes" : "No",
+      });
+      continue;
+    }
+
+    // Standard human label
+    const label = formatFieldLabel(key);
+    diffs.push({
+      key,
+      label,
+      oldValue: formatValueForDisplay(v1),
+      newValue: formatValueForDisplay(v2),
+    });
   }
 
   return diffs;
+}
+
+function formatFieldLabel(key: string): string {
+  switch (key) {
+    case "status":
+      return "Status";
+    case "hr_status":
+      return "HR Status";
+    case "employee_no":
+    case "emploc_no":
+      return "Employee ID";
+    case "position":
+      return "Position";
+    case "store_name":
+      return "Store Outlet";
+    case "vcode":
+      return "Vacancy Code";
+    case "account":
+      return "Account";
+    case "reason":
+    case "deletion_reason":
+      return "Reason";
+    case "remarks":
+      return "Remarks";
+    case "full_name":
+      return "Full Name";
+    case "mobile_number":
+      return "Mobile Number";
+    case "date_hired":
+      return "Date Hired";
+    case "resignation_date":
+      return "Resignation Date";
+    case "required_headcount":
+      return "Headcount Quota";
+    default:
+      return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
 }
 
 function formatValueForDisplay(val: unknown): string {

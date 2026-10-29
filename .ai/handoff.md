@@ -32,11 +32,12 @@
    - **Recommended Fix Scope**: Add a scheduled pg_cron job (running every 15 minutes) to mark sessions where `revoked_at IS NULL AND last_seen_at < now() - interval '30 minutes'` as revoked (`revoke_reason = 'inactivity_timeout'`), and update `heartbeat_session` to check for suspicious conflicts only against sessions active within the last 30 minutes.
 
 4. **Human-Readable System Audit Logs & Change Trail**:
-   - Created `src/lib/utils/audit_formatter.ts` providing domain-specific event synthesis (`formatAuditSentence`), module normalization (`normalizeModuleName`), action badge styling (`formatActionBadge`), entity metadata extraction (`extractEntityDetails`), and field-level diff calculation (`computeMeaningfulDiff`).
+   - Created `src/lib/utils/audit_formatter.ts` providing domain-specific event synthesis (`formatAuditSentence`), target labeling (`formatTargetLabel`), module normalization (`normalizeModuleName`), action badge styling (`formatActionBadge`), entity metadata extraction (`extractEntityDetails`), and field-level diff calculation (`computeMeaningfulDiff`).
    - Refactored `src/components/more/AuditLogsModal.tsx`:
      - Replaced raw action/module codes (`UPDATE_AVATAR`, `plantilla`, `Record: 2a3fdf15...`) with clean action badges, normalized modules, and entity pills (person name, VCode, outlet/position).
      - Prominently displays actor-first operational sentences (e.g. *"Deactivated Santos, Jayson Mendez (Cashier at Robinsons Galleria • ACT-G5-002)"* or *"Reverted Santos, Jayson Mendez from Deployed back to Pending (Reason: Wrong applicant row encoded)"*).
-     - Added visual before/after scalar field diff cards (e.g. `Status: "Active" → "Deactivated"`) with an optional toggle for raw JSON.
+     - Replaced raw `Record: <uuid>` text with `Target: <Human Target Name>` (person name, vacancy/outlet, or record type) and added a subtle copy icon for internal UUID copying when needed.
+     - Completely removed raw JSON dumps (`<> Show Raw JSON` button, `<pre>` payloads) and filtered out technical UUIDs/foreign keys/internal IDs (`*_id`, `*_by`, `*_at`, storage paths) from the Change Details grid in favor of clean, human-readable scalar before/after diff cards.
 
 - **Verification**: `npm run lint` clean (0 errors, 9 baseline warnings); `npx tsc --noEmit` clean (0 errors); `npm run build` clean (all 19 routes generated).
 - **Branch status**: Working on `main` per user instruction. No pushes made.
