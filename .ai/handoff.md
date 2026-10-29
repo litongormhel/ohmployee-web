@@ -1,5 +1,50 @@
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Round 3 Review: Parity, Regression & Vacancy Breakdown Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Vacancy Breakdown & Reconciliation (Item 1)**:
+   - Sourced directly from `public.vacancies` on staging (`qqiiznmqxfoamqytjica`). Confirmed exactly 20 open vacancies (`status = 'Open'`, `deleted_at IS NULL`, `is_archived = false`).
+   - Sourced timestamps for all 20 records: all 20 were created on or before `2026-10-27 06:30:47+00`. Exactly 0 vacancies were created on or after Oct 28.
+   - Breakdown:
+     - (a) Legacy ghost slots in Groups 1 and 2: **12** (Group 1: 9; Group 2: 3). All 12 are unassigned (`hrco_name IS NULL`). Under `normalizeSlotAuthorityMetrics`, Group 1 capacity is 12 (actual = 12 >= 12 -> vacant = 0) and Group 2 capacity is 4 (actual = 754 >= 4 -> vacant = 0).
+     - (b) Real open slots: **8**:
+       - Assigned: **1** (Group 5, ACTISERVE: `VCAG5_0056` assigned to Selena Gomez).
+       - Unassigned: **7** (Group 4 BOUNTY: 2 [`REL-00009`, `COM-00005`]; Group 5 ACTISERVE: 4 [`ACT-G5-002`, `ACT-G5-006`, `ACT-G5-008`, `BUN-GHQ-00015`]; Moses HQ: 1 [`SEA-00006`]).
+   - Total Reconciliation: 12 ghost + 7 real unassigned = **19 unassigned**; 1 real assigned = **1 assigned**. Total = **20 open vacancies**.
+   - Defect Root Cause: The earlier statement "16 of 16 unassigned are ghost, remaining 4 assigned" and the subsequent explanation "3 new vacancies were created after 16" were completely incorrect inferences. The database timestamps prove the count was already 19 unassigned and 1 assigned on Oct 28. No new vacancies were created. The earlier assistant misquoted the breakdown and later hallucinated a chronological explanation instead of checking row timestamps.
+2. **Approvals Source Investigation (Item 2)**:
+   - Inspected `public.account_requests` schema:
+     - Relevant approval columns: `approved_by` (uuid), `approved_at` (timestamptz), `assigned_role_id` (uuid -> `roles.role_name`), `full_name` (text), `assigned_scope_type` (text), `assigned_groups_snapshot` (jsonb), `assigned_accounts_snapshot` (jsonb).
+     - Rejection behavior: `reject_account_request` sets `status = 'rejected'`, `reviewed_by = auth.uid()`, `reviewed_at = NOW()`, `notes = COALESCE(p_notes, notes)`. It leaves approval and assignment snapshot columns NULL.
+     - Integration Architecture Proposal documented; STOPPED for user decision without code implementation.
+3. **Multi-Role Regression Test Suite (Item 3)**:
+   - Executed live queries against `public.fn_get_recent_activity` on staging impersonating:
+     - Super Admin (`Litong, Ohm`): Global visibility, batched transfers displayed.
+     - Head Admin (`UAT Test 3`): Global visibility identical to SA.
+     - Encoder (`GROUP ONE`): Scoped strictly to Group 1 accounts (`FOREVER OFFICE`, `BANKO`); 0 User Management rows.
+     - Operations Manager (`Amutan, Cherry Lou`): Scoped strictly to Group 1 accounts; 0 cross-group leaks.
+     - HRCO with account scope (`Angeles Symon`, `ACTISERVE`): Scoped strictly to ACTISERVE; received batched `emploc_for_correction` (count: 3).
+     - HRCO with no scopes (`UAT Test 6`): Returned `[]` (fail-closed).
+     - Recruitment Team (`GROUP5 RECRUITMENT`): Module gated to `vacancy` only; received 0 plantilla/emploc rows.
+     - HR Personnel (`Aya Acunin`, Group 5): Module gated to `hr_emploc` only; received 0 vacancies/plantilla rows.
+     - Back Office (`Selena Gomez`, Group 1): Module gated to `vacancy` only; received Group 1 vacancies only.
+     - Forged `p_group_id`/`p_account_id`: Calling outside jurisdiction returned `[]` immediately.
+     - Moses HQ Pool Account (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`): Calling as OM or HRCO returned `[]` immediately.
+   - Proof of Scope Isolation: Batching partitions by `(actor_id, event_type, parsed_account_id, time_bucket)` and runs after jurisdictional account/module filtering. Merging across scopes is mathematically impossible.
+4. **Date Bin Bucketing Semantics (Item 4)**:
+   - Documented in `docs/state/dashboard_state.md`: `date_bin` uses fixed calendar/clock-aligned 5-minute buckets (e.g. `[12:00, 12:05)`), not a sliding window. Events spanning across a 5-minute boundary land in separate buckets and form distinct batches.
+5. **Production Parity (Item 5)**:
+   - SELECT-only audit on `rwxelulyapjgaarlwkus` confirmed `public.get_web_current_user_context()` and `public.i_have_full_access()` definitions are 100% character-for-character identical between staging and production.
+   - Migrations 64 and 65 are already applied on production. Migrations 66-71 do not exist. Migrations 72-75 are not prerequisites for 76 or 77.
+   - Applying 76 alone: can be deployed directly, followed by `supabase migration repair --status applied 20262606000076`; subsequent deployment of 72-75 requires `supabase db push --include-all`.
+6. **Git Diff Stat Audit (Item 6)**:
+   - Audited commit `b4ab0a1`: `.ai/handoff.md` was additions only (`+49/-0`); `.ai/briefing.md` had `+5/-5` to adhere to the mandatory 5-task rolling ceiling rule.
+
+---
+
 ## Execution Report — Phase 2B-1 Follow-up: Recent Activity Batching, Formatter Parity, and Dashboard Cleanups (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED**
