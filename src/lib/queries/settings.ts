@@ -183,7 +183,9 @@ export async function compressImageToWebP(
 // Queries: Profile
 // ============================================================================
 
-export async function fetchOwnProfile(): Promise<OwnProfileData> {
+const PROFILE_TIMEOUT_MS = 15000;
+
+async function _fetchOwnProfileInternal(): Promise<OwnProfileData> {
   const supabase = createClient();
   const { data: authData, error: authErr } = await supabase.auth.getUser();
 
@@ -198,8 +200,12 @@ export async function fetchOwnProfile(): Promise<OwnProfileData> {
     .select(
       `id, full_name, email, mobile_number, avatar_path, auth_user_id,
        roles(role_name, role_level),
-       user_groups(groups(group_name)),
-       user_accounts(accounts(account_name))`
+       groups(group_name),
+       accounts!users_profile_account_id_fkey(account_name),
+       user_scopes(
+         groups(group_name),
+         accounts(account_name)
+       )`
     )
     .eq("auth_user_id", uid)
     .maybeSingle();
@@ -213,20 +219,34 @@ export async function fetchOwnProfile(): Promise<OwnProfileData> {
   }
 
   type RoleRel = { role_name?: string | null; role_level?: number | null } | null;
-  type GroupRel = { groups: { group_name?: string | null } | null };
-  type AccountRel = { accounts: { account_name?: string | null } | null };
+  type GroupRel = { group_name?: string | null } | null;
+  type AccountRel = { account_name?: string | null } | null;
+  type ScopeRel = {
+    groups?: { group_name?: string | null } | null;
+    accounts?: { account_name?: string | null } | null;
+  };
 
   const role = (data.roles ?? null) as RoleRel;
-  const groupsRaw = (data.user_groups ?? []) as unknown as GroupRel[];
-  const accountsRaw = (data.user_accounts ?? []) as unknown as AccountRel[];
+  const directGroup = ((data.groups ?? null) as GroupRel)?.group_name;
+  const directAccount = ((data.accounts ?? null) as AccountRel)?.account_name;
+  const scopesRaw = (data.user_scopes ?? []) as unknown as ScopeRel[];
 
-  const groups = groupsRaw
-    .map((g) => g.groups?.group_name)
-    .filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+  const groupsSet = new Set<string>();
+  if (directGroup && directGroup.trim()) groupsSet.add(directGroup.trim());
+  for (const s of scopesRaw) {
+    const gn = s.groups?.group_name;
+    if (gn && gn.trim()) groupsSet.add(gn.trim());
+  }
 
-  const accounts = accountsRaw
-    .map((a) => a.accounts?.account_name)
-    .filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+  const accountsSet = new Set<string>();
+  if (directAccount && directAccount.trim()) accountsSet.add(directAccount.trim());
+  for (const s of scopesRaw) {
+    const an = s.accounts?.account_name;
+    if (an && an.trim()) accountsSet.add(an.trim());
+  }
+
+  const groups = Array.from(groupsSet);
+  const accounts = Array.from(accountsSet);
 
   const avatarPath = (data.avatar_path as string | null) ?? null;
   let signedAvatarUrl: string | null = null;
@@ -263,11 +283,26 @@ export async function fetchOwnProfile(): Promise<OwnProfileData> {
   };
 }
 
+export async function fetchOwnProfile(): Promise<OwnProfileData> {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error("Request timed out. Couldn't load profile information.")
+        ),
+      PROFILE_TIMEOUT_MS
+    )
+  );
+
+  return Promise.race([_fetchOwnProfileInternal(), timeoutPromise]);
+}
+
 export function useOwnProfile() {
   return useQuery({
     queryKey: ["settings", "own-profile"],
     queryFn: fetchOwnProfile,
     staleTime: 60 * 1000,
+    retry: 1,
   });
 }
 

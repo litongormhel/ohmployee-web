@@ -150,16 +150,17 @@ export function ProfileTab() {
       <div className="rounded-xl border border-danger-border bg-danger-subtle p-6 text-center">
         <AlertCircle className="mx-auto h-8 w-8 text-danger" />
         <h3 className="mt-2 text-sm font-semibold text-danger">
-          Could not load profile
+          Couldn&apos;t load profile information
         </h3>
         <p className="mt-1 text-xs text-text-muted">
           {(error as Error)?.message || "Profile data is unavailable."}
         </p>
         <button
+          type="button"
           onClick={() => refetch()}
-          className="mt-4 rounded-lg bg-danger-button px-3.5 py-1.5 text-xs font-medium text-danger-button-text hover:bg-danger-button-hover cursor-pointer"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-danger-button px-3.5 py-1.5 text-xs font-medium text-danger-button-text hover:bg-danger-button-hover cursor-pointer"
         >
-          Try Again
+          Retry
         </button>
       </div>
     );
