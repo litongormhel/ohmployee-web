@@ -25,6 +25,7 @@ import type { RecentActivityItem, ActivityEventType } from "@/lib/queries/activi
 export function getActivityEventIcon(eventType: ActivityEventType): React.ReactElement {
   switch (eventType) {
     case "user_approved":
+    case "user_created":
     case "user_role_updated":
       return <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
     case "user_rejected":
@@ -106,6 +107,16 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
         </span>
       );
 
+    case "user_created":
+      return (
+        <span>
+          {actorNode} created user {subjectNode} as{" "}
+          <span className="font-medium text-text-primary">
+            {details.target_role || "User"}
+          </span>
+        </span>
+      );
+
     case "user_rejected":
       return (
         <span>
@@ -133,8 +144,17 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
     case "plantilla_deployed":
       return (
         <span>
-          {actorNode} {subjectNode}
-          {employeeBadge} transferred to Plantilla{accountTag}
+          {isSystem ? (
+            <>
+              {actorNode} {subjectNode}
+              {employeeBadge} transferred to Plantilla{accountTag}
+            </>
+          ) : (
+            <>
+              {actorNode} transferred {subjectNode}
+              {employeeBadge} to Plantilla{accountTag}
+            </>
+          )}
         </span>
       );
 

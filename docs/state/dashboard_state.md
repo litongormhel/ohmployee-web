@@ -12,7 +12,7 @@ The Dashboard (`/dashboard`) is the cross-module operational overview for authen
 |-----|---------|
 | `fn_dashboard_metrics()` | Operational KPIs (active plantilla, open vacancies, unassigned/assigned vacancies, understaffed stores, active SLA breaches, ghost employee anomalies, 11-queue operational pending approvals) + role-gated admin security approvals |
 | `fn_dashboard_operational_analytics()` | Hiring pipeline and analytics metrics (actual deployed plantilla, HR pipeline count, open vacancies, required headcount, average fill rate %, hires/separations) |
-| `fn_get_recent_activity(p_group_id, p_account_id, p_limit)` | Scoped, role-gated audit feed (Plantilla, Vacancies, HR Emploc, User Approvals) enforcing caller scope and canonical module access (`get_web_current_user_context`). Non-admin callers without `user_scopes` fail closed. Pre-limit 30-day index scan. |
+| `fn_get_recent_activity(p_group_id, p_account_id, p_limit)` | Scoped, role-gated audit feed (Plantilla, Vacancies, HR Emploc, User Approvals) enforcing caller scope and canonical module access (`get_web_current_user_context`). Deduplicates same-transaction/same-entity events (priority: Plantilla deployment > Separation/Deactivation > Vacancy filled > HR Emploc Complete > Status change). Non-admin callers without `user_scopes` fail closed. Pre-limit 30-day index scan via `idx_audit_logs_timestamp_desc` and `idx_audit_logs_account_ts`. Approvals visible to Data Team + Encoder; role updates & archives visible to SA/HA only. |
 
 Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` only. No caller-controlled role or scope parameters are accepted.
 

@@ -1,6 +1,9 @@
 -- Migration: 20262606000077_fn_get_recent_activity.sql
 -- Purpose: Scoped Recent Activity Feed RPC (Phase 2B-1)
--- Returns whitelisted operational activity events strictly scoped to caller's allowed modules and jurisdictions.
+-- Returns allow-listed operational activity events strictly scoped to caller's allowed modules and jurisdictions.
+
+-- Performance index for account-scoped audit log scans
+CREATE INDEX IF NOT EXISTS idx_audit_logs_account_ts ON public.audit_logs USING btree ((((new_data ->> 'account_id'::text))::uuid), "timestamp" DESC) WHERE ((new_data ->> 'account_id'::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text);
 
 CREATE OR REPLACE FUNCTION public.fn_get_recent_activity(
   p_group_id   uuid DEFAULT NULL::uuid,
@@ -35,7 +38,7 @@ DECLARE
   v_allowed_accounts    uuid[];
   v_target_account_ids  uuid[];
   v_allowed_modules     text[];
-  v_limit               int := LEAST(GREATEST(COALESCE(p_limit, 10), 1), 10);
+  v_limit               int := LEAST(GREATEST(COALESCE(p_limit, 10), 1), 50);
 BEGIN
   -- 1. Authenticate caller
   IF v_caller_uid IS NULL THEN
@@ -118,17 +121,27 @@ BEGIN
 
   -- 4. Execute query with early-stopping ordered index scan (30-day window)
   RETURN QUERY
-  WITH candidates AS (
+  WITH parsed_events AS (
     SELECT
       al.id,
       al.timestamp,
       al.module,
       al.action::text,
       d.event_type,
+      d.priority,
       al.record_id::text,
       al.actor_id,
       al.new_data,
       al.old_data,
+      COALESCE(
+        NULLIF(TRIM(al.new_data->>'vcode'), ''),
+        NULLIF(TRIM(al.old_data->>'vcode'), ''),
+        NULLIF(TRIM(al.new_data->>'employee_no'), ''),
+        NULLIF(TRIM(al.old_data->>'employee_no'), ''),
+        NULLIF(TRIM(al.new_data->>'full_name'), ''),
+        NULLIF(TRIM(al.old_data->>'full_name'), ''),
+        al.record_id::text
+      ) AS entity_key,
       CASE
         WHEN (al.new_data->>'account_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         THEN (al.new_data->>'account_id')::uuid
@@ -145,48 +158,72 @@ BEGIN
       END AS parsed_store_id
     FROM public.audit_logs al
     CROSS JOIN LATERAL (
-      SELECT CASE
-        -- Module: User Management
-        WHEN al.module = 'User Management' AND al.action::text IN ('CREATE_USER', 'approved new user') THEN 'user_approved'
-        WHEN al.module = 'User Management' AND al.action::text = 'UPDATE_USER_ROLE' THEN
-          CASE
-            WHEN al.old_data->>'role' IS NULL OR al.old_data->>'role_id' IS NULL THEN 'user_approved'
-            ELSE 'user_role_updated'
-          END
-        WHEN al.module = 'User Management' AND al.action::text IN ('rejected user', 'REJECT_USER', 'REJECT_REQUEST') THEN 'user_rejected'
-        WHEN al.module = 'User Management' AND al.action::text = 'ARCHIVE_USER' THEN 'user_archived'
+      SELECT
+        CASE
+          -- Module: User Management
+          WHEN al.module = 'User Management' AND al.action::text IN ('APPROVE_REQUEST', 'APPROVE_USER_REQUEST', 'approved new user') THEN 'user_approved'
+          WHEN al.module = 'User Management' AND al.action::text = 'CREATE_USER' THEN 'user_created'
+          WHEN al.module = 'User Management' AND al.action::text = 'UPDATE_USER_ROLE' THEN 'user_role_updated'
+          WHEN al.module = 'User Management' AND al.action::text IN ('REJECT_REQUEST', 'REJECT_USER', 'rejected user') THEN 'user_rejected'
+          WHEN al.module = 'User Management' AND al.action::text = 'ARCHIVE_USER' THEN 'user_archived'
 
-        -- Module: plantilla
-        WHEN al.module = 'plantilla' AND al.action::text = 'INSERT' THEN 'plantilla_deployed'
-        WHEN al.module = 'plantilla' AND al.action::text = 'SOFT_DELETE' THEN 'plantilla_deactivated'
-        WHEN al.module = 'plantilla' AND al.action::text = 'UPDATE' THEN
-          CASE
-            WHEN al.new_data->>'status' IN ('Inactive', 'Deactivated') AND COALESCE(al.old_data->>'status', '') NOT IN ('Inactive', 'Deactivated') THEN 'plantilla_separation'
-            WHEN al.new_data->>'status' = 'On Leave' AND COALESCE(al.old_data->>'status', '') <> 'On Leave' THEN 'plantilla_on_leave'
-            WHEN al.new_data->>'status' = 'Pending Deactivation' AND COALESCE(al.old_data->>'status', '') <> 'Pending Deactivation' THEN 'plantilla_deactivation_requested'
-            ELSE NULL
-          END
+          -- Module: plantilla
+          WHEN al.module = 'plantilla' AND al.action::text = 'INSERT' THEN 'plantilla_deployed'
+          WHEN al.module = 'plantilla' AND al.action::text = 'SOFT_DELETE' THEN 'plantilla_deactivated'
+          WHEN al.module = 'plantilla' AND al.action::text = 'UPDATE' THEN
+            CASE
+              WHEN al.new_data->>'status' IN ('Inactive', 'Deactivated') AND COALESCE(al.old_data->>'status', '') NOT IN ('Inactive', 'Deactivated') THEN 'plantilla_separation'
+              WHEN al.new_data->>'status' = 'On Leave' AND COALESCE(al.old_data->>'status', '') <> 'On Leave' THEN 'plantilla_on_leave'
+              WHEN al.new_data->>'status' = 'Pending Deactivation' AND COALESCE(al.old_data->>'status', '') <> 'Pending Deactivation' THEN 'plantilla_deactivation_requested'
+              ELSE NULL
+            END
 
-        -- Module: vacancies
-        WHEN al.module = 'vacancies' AND al.action::text = 'INSERT' THEN 'vacancy_opened'
-        WHEN al.module = 'vacancies' AND (al.action::text = 'APPROVAL' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Filled' AND COALESCE(al.old_data->>'status', '') <> 'Filled')) THEN 'vacancy_filled'
-        WHEN al.module = 'vacancies' AND al.action::text = 'UPDATE' AND al.new_data->>'status' IN ('Closed', 'Archived') AND COALESCE(al.old_data->>'status', '') NOT IN ('Closed', 'Archived') THEN 'vacancy_closed'
-        WHEN al.module = 'vacancies' AND al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Open' AND al.old_data->>'status' IN ('Filled', 'Closed', 'Archived') THEN 'vacancy_reopened'
+          -- Module: vacancies
+          WHEN al.module = 'vacancies' AND al.action::text = 'INSERT' THEN 'vacancy_opened'
+          WHEN al.module = 'vacancies' AND (al.action::text = 'APPROVAL' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Filled' AND COALESCE(al.old_data->>'status', '') <> 'Filled')) THEN 'vacancy_filled'
+          WHEN al.module = 'vacancies' AND al.action::text = 'UPDATE' AND al.new_data->>'status' IN ('Closed', 'Archived') AND COALESCE(al.old_data->>'status', '') NOT IN ('Closed', 'Archived') THEN 'vacancy_closed'
+          WHEN al.module = 'vacancies' AND al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Open' AND al.old_data->>'status' IN ('Filled', 'Closed', 'Archived') THEN 'vacancy_reopened'
 
-        -- Module: hr_emploc
-        WHEN al.module = 'hr_emploc' AND al.action::text = 'INSERT' THEN 'emploc_created'
-        WHEN al.module = 'hr_emploc' AND al.action::text = 'UPDATE' THEN
-          CASE
-            WHEN al.new_data->>'hr_status' = 'For Correction' AND COALESCE(al.old_data->>'hr_status', '') <> 'For Correction' THEN 'emploc_for_correction'
-            WHEN al.new_data->>'hr_status' = 'For Review' AND COALESCE(al.old_data->>'hr_status', '') <> 'For Review' THEN 'emploc_for_review'
-            WHEN al.new_data->>'hr_status' = 'Complete' AND COALESCE(al.old_data->>'hr_status', '') <> 'Complete' THEN 'emploc_approved'
-            WHEN (al.new_data->>'status' = 'Moved to Plantilla' OR al.new_data->>'hr_status' = 'Transferred') AND COALESCE(al.old_data->>'status', '') <> 'Moved to Plantilla' THEN 'emploc_deployed'
-            WHEN al.old_data->>'status' = 'Moved to Plantilla' AND al.new_data->>'status' = 'Pending Emploc' THEN 'emploc_reverted'
-            ELSE NULL
-          END
+          -- Module: hr_emploc
+          WHEN al.module = 'hr_emploc' AND al.action::text = 'INSERT' THEN 'emploc_created'
+          WHEN al.module = 'hr_emploc' AND al.action::text = 'UPDATE' THEN
+            CASE
+              WHEN al.new_data->>'hr_status' = 'For Correction' AND COALESCE(al.old_data->>'hr_status', '') <> 'For Correction' THEN 'emploc_for_correction'
+              WHEN al.new_data->>'hr_status' = 'For Review' AND COALESCE(al.old_data->>'hr_status', '') <> 'For Review' THEN 'emploc_for_review'
+              WHEN al.new_data->>'hr_status' = 'Complete' AND COALESCE(al.old_data->>'hr_status', '') <> 'Complete' THEN 'emploc_approved'
+              WHEN (al.new_data->>'status' = 'Moved to Plantilla' OR al.new_data->>'hr_status' = 'Transferred') AND COALESCE(al.old_data->>'status', '') <> 'Moved to Plantilla' THEN 'plantilla_deployed'
+              WHEN al.old_data->>'status' = 'Moved to Plantilla' AND al.new_data->>'status' = 'Pending Emploc' THEN 'emploc_reverted'
+              ELSE NULL
+            END
 
-        ELSE NULL
-      END AS event_type
+          ELSE NULL
+        END AS event_type,
+
+        CASE
+          -- Priority hierarchy for deduplication:
+          -- 1. Transferred to Plantilla (plantilla INSERT / hr_emploc Moved to Plantilla)
+          WHEN al.module = 'plantilla' AND al.action::text = 'INSERT' THEN 1
+          WHEN al.module = 'hr_emploc' AND (al.new_data->>'status' = 'Moved to Plantilla' OR al.new_data->>'hr_status' = 'Transferred') THEN 1
+          -- 2. Separation / Deactivation
+          WHEN al.module = 'plantilla' AND (al.action::text = 'SOFT_DELETE' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' IN ('Inactive', 'Deactivated'))) THEN 2
+          -- 3. Vacancy filled
+          WHEN al.module = 'vacancies' AND (al.action::text = 'APPROVAL' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Filled')) THEN 3
+          -- 4. HR Emploc approved (Complete / Ready for Plantilla)
+          WHEN al.module = 'hr_emploc' AND al.new_data->>'hr_status' = 'Complete' THEN 4
+          -- 5. HR Emploc status changes
+          WHEN al.module = 'hr_emploc' AND al.new_data->>'hr_status' IN ('For Review', 'For Correction') THEN 5
+          -- 6. HR Emploc reverted
+          WHEN al.module = 'hr_emploc' AND al.old_data->>'status' = 'Moved to Plantilla' AND al.new_data->>'status' = 'Pending Emploc' THEN 6
+          -- 7. Vacancy lifecycle
+          WHEN al.module = 'vacancies' THEN 7
+          -- 8. Plantilla status changes
+          WHEN al.module = 'plantilla' THEN 8
+          -- 9. HR Emploc created
+          WHEN al.module = 'hr_emploc' THEN 9
+          -- 10. User Management
+          WHEN al.module = 'User Management' THEN 10
+          ELSE 99
+        END AS priority
     ) d
     WHERE al.timestamp >= (now() - interval '30 days')
       AND al.module IN ('plantilla', 'vacancies', 'hr_emploc', 'User Management')
@@ -200,12 +237,16 @@ BEGIN
       )
       -- Jurisdictional filtering:
       AND (
-        -- User Management: Data team only, unscoped
+        -- User Management: Approvals visible to Data Team + Encoder; Role changes and archives visible to SA/HA only
         (
           al.module = 'User Management'
-          AND v_is_data_team
           AND p_group_id IS NULL
           AND p_account_id IS NULL
+          AND (
+            (d.event_type = 'user_approved' AND v_is_data_team)
+            OR
+            (d.event_type IN ('user_role_updated', 'user_archived', 'user_created', 'user_rejected') AND v_is_admin)
+          )
         )
         OR
         -- Operational / Scoped events:
@@ -225,7 +266,45 @@ BEGIN
           )
         )
       )
-    ORDER BY al.timestamp DESC
+  ),
+  deduped AS (
+    SELECT
+      pe.id,
+      pe.timestamp,
+      pe.module,
+      pe.action,
+      pe.event_type,
+      pe.record_id,
+      pe.actor_id,
+      pe.new_data,
+      pe.old_data,
+      pe.parsed_account_id,
+      pe.parsed_store_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY pe.timestamp, pe.entity_key
+        ORDER BY
+          pe.priority ASC,
+          (CASE WHEN pe.module = 'plantilla' THEN 0 ELSE 1 END) ASC,
+          pe.id ASC
+      ) AS rn
+    FROM parsed_events pe
+  ),
+  candidates AS (
+    SELECT
+      dd.id,
+      dd.timestamp,
+      dd.module,
+      dd.action,
+      dd.event_type,
+      dd.record_id,
+      dd.actor_id,
+      dd.new_data,
+      dd.old_data,
+      dd.parsed_account_id,
+      dd.parsed_store_id
+    FROM deduped dd
+    WHERE dd.rn = 1
+    ORDER BY dd.timestamp DESC
     LIMIT v_limit
   )
   SELECT
@@ -255,3 +334,6 @@ BEGIN
   ORDER BY c.timestamp DESC;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.fn_get_recent_activity(uuid, uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_get_recent_activity(uuid, uuid, integer) TO authenticated;

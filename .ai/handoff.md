@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
+
+### Summary of Completed Work
+1. **Return Signature & event_type**:
+   - Confirmed canonical `RETURNS TABLE` signature for `fn_get_recent_activity`:
+     `id uuid, "timestamp" timestamp with time zone, module text, action text, event_type text, record_id text, actor_name text, actor_role text, details jsonb`.
+   - Included `event_type` explicitly in all returned rows.
+2. **Transaction Deduplication per Entity**:
+   - Collapsed same-transaction (`timestamp`) + same-entity (`entity_key = COALESCE(vcode, employee_no, full_name, record_id)`) multi-table trigger collisions into ONE event using an explicit priority rank (`priority ASC, (CASE WHEN module = 'plantilla' THEN 0 ELSE 1 END) ASC, id ASC`).
+   - Documented Priority Hierarchy:
+     1. Transferred to Plantilla (`plantilla` INSERT / `hr_emploc` Moved to Plantilla) - prefers `plantilla` to retain full employee name.
+     2. Separation / Deactivation (`plantilla` SOFT_DELETE / Inactive).
+     3. Vacancy filled (`vacancies` APPROVAL / UPDATE to Filled).
+     4. HR Emploc approved (`hr_emploc` Complete / Ready for Plantilla).
+     5. HR Emploc status changes (`For Review`, `For Correction`).
+     6. HR Emploc reverted (`Pending Emploc`).
+     7. Vacancy lifecycle (`vacancy_opened`, `vacancy_closed`, `vacancy_reopened`).
+     8. Plantilla status changes (`plantilla_on_leave`, `plantilla_deactivation_requested`).
+     9. HR Emploc created (`emploc_created`).
+     10. User Management (`user_approved`, `user_created`, `user_role_updated`, `user_archived`).
+   - Generic UPDATEs with no status change evaluate to `NULL` event_type and are dropped fail-closed.
+3. **User Management Trace**:
+   - Traced `approve_account_request_v2`: does NOT insert into `audit_logs` (only writes to `users_profile`, `account_requests`, and `user_scopes`). Trigger `log_users_profile_changes` writes to `activity_log`, NOT `audit_logs`.
+   - In `audit_logs`, the only User Management actions originate from `upsert_user_profile_and_scopes` (`CREATE_USER`, `UPDATE_USER_ROLE`) and `archive_user_profile` (`ARCHIVE_USER`).
+   - Unambiguous Rule: `user_approved` is mapped strictly to explicit approval actions (`APPROVE_REQUEST`, `APPROVE_USER_REQUEST`, `approved new user`). `CREATE_USER` maps to `user_created` and `UPDATE_USER_ROLE` maps to `user_role_updated`. They are never mislabeled as approvals.
+4. **Visibility Rules**:
+   - Approvals (`user_approved`): Data Team + Encoder (`v_is_data_team`) when unscoped.
+   - Role updates & archives (`user_role_updated`, `user_archived`, `user_created`): SA/HA only (`v_is_admin`) when unscoped.
+5. **Real Vacancy APPROVAL Proof**:
+   - Inspected 5 real `vacancies` `APPROVAL` rows in `audit_logs`: all 5 show `old_data->>'status' = 'Open'` and `new_data->>'status' = 'Filled'`. Verified as vacancy fill events.
+6. **Encoder (GROUP ONE) Test**:
+   - Impersonated Encoder (`858f3f20-b106-4385-ba9d-817fd510f4ed`): returned 20 operational rows restricted to Group 1 (`FOREVER OFFICE`, `BANKO`). Exactly 0 User Management rows returned.
+   - Confirmed via database query that 0 Viewer (10) or ATL (40) test accounts exist on staging.
+7. **Performance Index & Staging Definition Parity**:
+   - Included `idx_audit_logs_account_ts` in migration file `20262606000077_fn_get_recent_activity.sql`.
+   - Verified that the migration file body equals `pg_get_functiondef('public.fn_get_recent_activity'::regproc)` on staging.
+8. **Actor Display Formatting**:
+   - Rendered sentences now use real actor names for users (e.g., `Litong, Ohm`, `UAT Test 3`) with proper active verbs; `System:` is used exclusively when actor is null/System.
+9. **Production Parity (SELECT-only on `rwxelulyapjgaarlwkus`)**:
+   - Confirmed existence of `is_pool_account` (boolean), `user_scopes.is_active` (boolean), `get_web_current_user_context()` (security definer), `i_have_full_access()` (security definer), and all required `audit_action` enum values.
+   - Listed unapplied migrations on production (`20262606000066` through `20262606000077`). Production strictly untouched.
+10. **Verification**:
+    - `npm run lint`: 0 errors (clean baseline).
+    - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
+
 ## Execution Report — Fix Import Plantilla Light/Dark Mode Contrast & Dropdown Glare (ohm#u8b2m5p1)
 
 **Status: COMPLETE ON MAIN; ZERO DATABASE MODIFICATIONS; VERIFIED CLEAN LINT & BUILD**
@@ -2911,6 +2960,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
+
+### Summary of Completed Work
+1. **Return Signature & event_type**:
+   - Confirmed canonical `RETURNS TABLE` signature for `fn_get_recent_activity`:
+     `id uuid, "timestamp" timestamp with time zone, module text, action text, event_type text, record_id text, actor_name text, actor_role text, details jsonb`.
+   - Included `event_type` explicitly in all returned rows.
+2. **Transaction Deduplication per Entity**:
+   - Collapsed same-transaction (`timestamp`) + same-entity (`entity_key = COALESCE(vcode, employee_no, full_name, record_id)`) multi-table trigger collisions into ONE event using an explicit priority rank (`priority ASC, (CASE WHEN module = 'plantilla' THEN 0 ELSE 1 END) ASC, id ASC`).
+   - Documented Priority Hierarchy:
+     1. Transferred to Plantilla (`plantilla` INSERT / `hr_emploc` Moved to Plantilla) - prefers `plantilla` to retain full employee name.
+     2. Separation / Deactivation (`plantilla` SOFT_DELETE / Inactive).
+     3. Vacancy filled (`vacancies` APPROVAL / UPDATE to Filled).
+     4. HR Emploc approved (`hr_emploc` Complete / Ready for Plantilla).
+     5. HR Emploc status changes (`For Review`, `For Correction`).
+     6. HR Emploc reverted (`Pending Emploc`).
+     7. Vacancy lifecycle (`vacancy_opened`, `vacancy_closed`, `vacancy_reopened`).
+     8. Plantilla status changes (`plantilla_on_leave`, `plantilla_deactivation_requested`).
+     9. HR Emploc created (`emploc_created`).
+     10. User Management (`user_approved`, `user_created`, `user_role_updated`, `user_archived`).
+   - Generic UPDATEs with no status change evaluate to `NULL` event_type and are dropped fail-closed.
+3. **User Management Trace**:
+   - Traced `approve_account_request_v2`: does NOT insert into `audit_logs` (only writes to `users_profile`, `account_requests`, and `user_scopes`). Trigger `log_users_profile_changes` writes to `activity_log`, NOT `audit_logs`.
+   - In `audit_logs`, the only User Management actions originate from `upsert_user_profile_and_scopes` (`CREATE_USER`, `UPDATE_USER_ROLE`) and `archive_user_profile` (`ARCHIVE_USER`).
+   - Unambiguous Rule: `user_approved` is mapped strictly to explicit approval actions (`APPROVE_REQUEST`, `APPROVE_USER_REQUEST`, `approved new user`). `CREATE_USER` maps to `user_created` and `UPDATE_USER_ROLE` maps to `user_role_updated`. They are never mislabeled as approvals.
+4. **Visibility Rules**:
+   - Approvals (`user_approved`): Data Team + Encoder (`v_is_data_team`) when unscoped.
+   - Role updates & archives (`user_role_updated`, `user_archived`, `user_created`): SA/HA only (`v_is_admin`) when unscoped.
+5. **Real Vacancy APPROVAL Proof**:
+   - Inspected 5 real `vacancies` `APPROVAL` rows in `audit_logs`: all 5 show `old_data->>'status' = 'Open'` and `new_data->>'status' = 'Filled'`. Verified as vacancy fill events.
+6. **Encoder (GROUP ONE) Test**:
+   - Impersonated Encoder (`858f3f20-b106-4385-ba9d-817fd510f4ed`): returned 20 operational rows restricted to Group 1 (`FOREVER OFFICE`, `BANKO`). Exactly 0 User Management rows returned.
+   - Confirmed via database query that 0 Viewer (10) or ATL (40) test accounts exist on staging.
+7. **Performance Index & Staging Definition Parity**:
+   - Included `idx_audit_logs_account_ts` in migration file `20262606000077_fn_get_recent_activity.sql`.
+   - Verified that the migration file body equals `pg_get_functiondef('public.fn_get_recent_activity'::regproc)` on staging.
+8. **Actor Display Formatting**:
+   - Rendered sentences now use real actor names for users (e.g., `Litong, Ohm`, `UAT Test 3`) with proper active verbs; `System:` is used exclusively when actor is null/System.
+9. **Production Parity (SELECT-only on `rwxelulyapjgaarlwkus`)**:
+   - Confirmed existence of `is_pool_account` (boolean), `user_scopes.is_active` (boolean), `get_web_current_user_context()` (security definer), `i_have_full_access()` (security definer), and all required `audit_action` enum values.
+   - Listed unapplied migrations on production (`20262606000066` through `20262606000077`). Production strictly untouched.
+10. **Verification**:
+    - `npm run lint`: 0 errors (clean baseline).
+    - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
+
 ## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
 
 **Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
@@ -3087,6 +3185,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
+
+### Summary of Completed Work
+1. **Return Signature & event_type**:
+   - Confirmed canonical `RETURNS TABLE` signature for `fn_get_recent_activity`:
+     `id uuid, "timestamp" timestamp with time zone, module text, action text, event_type text, record_id text, actor_name text, actor_role text, details jsonb`.
+   - Included `event_type` explicitly in all returned rows.
+2. **Transaction Deduplication per Entity**:
+   - Collapsed same-transaction (`timestamp`) + same-entity (`entity_key = COALESCE(vcode, employee_no, full_name, record_id)`) multi-table trigger collisions into ONE event using an explicit priority rank (`priority ASC, (CASE WHEN module = 'plantilla' THEN 0 ELSE 1 END) ASC, id ASC`).
+   - Documented Priority Hierarchy:
+     1. Transferred to Plantilla (`plantilla` INSERT / `hr_emploc` Moved to Plantilla) - prefers `plantilla` to retain full employee name.
+     2. Separation / Deactivation (`plantilla` SOFT_DELETE / Inactive).
+     3. Vacancy filled (`vacancies` APPROVAL / UPDATE to Filled).
+     4. HR Emploc approved (`hr_emploc` Complete / Ready for Plantilla).
+     5. HR Emploc status changes (`For Review`, `For Correction`).
+     6. HR Emploc reverted (`Pending Emploc`).
+     7. Vacancy lifecycle (`vacancy_opened`, `vacancy_closed`, `vacancy_reopened`).
+     8. Plantilla status changes (`plantilla_on_leave`, `plantilla_deactivation_requested`).
+     9. HR Emploc created (`emploc_created`).
+     10. User Management (`user_approved`, `user_created`, `user_role_updated`, `user_archived`).
+   - Generic UPDATEs with no status change evaluate to `NULL` event_type and are dropped fail-closed.
+3. **User Management Trace**:
+   - Traced `approve_account_request_v2`: does NOT insert into `audit_logs` (only writes to `users_profile`, `account_requests`, and `user_scopes`). Trigger `log_users_profile_changes` writes to `activity_log`, NOT `audit_logs`.
+   - In `audit_logs`, the only User Management actions originate from `upsert_user_profile_and_scopes` (`CREATE_USER`, `UPDATE_USER_ROLE`) and `archive_user_profile` (`ARCHIVE_USER`).
+   - Unambiguous Rule: `user_approved` is mapped strictly to explicit approval actions (`APPROVE_REQUEST`, `APPROVE_USER_REQUEST`, `approved new user`). `CREATE_USER` maps to `user_created` and `UPDATE_USER_ROLE` maps to `user_role_updated`. They are never mislabeled as approvals.
+4. **Visibility Rules**:
+   - Approvals (`user_approved`): Data Team + Encoder (`v_is_data_team`) when unscoped.
+   - Role updates & archives (`user_role_updated`, `user_archived`, `user_created`): SA/HA only (`v_is_admin`) when unscoped.
+5. **Real Vacancy APPROVAL Proof**:
+   - Inspected 5 real `vacancies` `APPROVAL` rows in `audit_logs`: all 5 show `old_data->>'status' = 'Open'` and `new_data->>'status' = 'Filled'`. Verified as vacancy fill events.
+6. **Encoder (GROUP ONE) Test**:
+   - Impersonated Encoder (`858f3f20-b106-4385-ba9d-817fd510f4ed`): returned 20 operational rows restricted to Group 1 (`FOREVER OFFICE`, `BANKO`). Exactly 0 User Management rows returned.
+   - Confirmed via database query that 0 Viewer (10) or ATL (40) test accounts exist on staging.
+7. **Performance Index & Staging Definition Parity**:
+   - Included `idx_audit_logs_account_ts` in migration file `20262606000077_fn_get_recent_activity.sql`.
+   - Verified that the migration file body equals `pg_get_functiondef('public.fn_get_recent_activity'::regproc)` on staging.
+8. **Actor Display Formatting**:
+   - Rendered sentences now use real actor names for users (e.g., `Litong, Ohm`, `UAT Test 3`) with proper active verbs; `System:` is used exclusively when actor is null/System.
+9. **Production Parity (SELECT-only on `rwxelulyapjgaarlwkus`)**:
+   - Confirmed existence of `is_pool_account` (boolean), `user_scopes.is_active` (boolean), `get_web_current_user_context()` (security definer), `i_have_full_access()` (security definer), and all required `audit_action` enum values.
+   - Listed unapplied migrations on production (`20262606000066` through `20262606000077`). Production strictly untouched.
+10. **Verification**:
+    - `npm run lint`: 0 errors (clean baseline).
+    - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
 
 ## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
 
@@ -3288,6 +3435,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
+
+### Summary of Completed Work
+1. **Return Signature & event_type**:
+   - Confirmed canonical `RETURNS TABLE` signature for `fn_get_recent_activity`:
+     `id uuid, "timestamp" timestamp with time zone, module text, action text, event_type text, record_id text, actor_name text, actor_role text, details jsonb`.
+   - Included `event_type` explicitly in all returned rows.
+2. **Transaction Deduplication per Entity**:
+   - Collapsed same-transaction (`timestamp`) + same-entity (`entity_key = COALESCE(vcode, employee_no, full_name, record_id)`) multi-table trigger collisions into ONE event using an explicit priority rank (`priority ASC, (CASE WHEN module = 'plantilla' THEN 0 ELSE 1 END) ASC, id ASC`).
+   - Documented Priority Hierarchy:
+     1. Transferred to Plantilla (`plantilla` INSERT / `hr_emploc` Moved to Plantilla) - prefers `plantilla` to retain full employee name.
+     2. Separation / Deactivation (`plantilla` SOFT_DELETE / Inactive).
+     3. Vacancy filled (`vacancies` APPROVAL / UPDATE to Filled).
+     4. HR Emploc approved (`hr_emploc` Complete / Ready for Plantilla).
+     5. HR Emploc status changes (`For Review`, `For Correction`).
+     6. HR Emploc reverted (`Pending Emploc`).
+     7. Vacancy lifecycle (`vacancy_opened`, `vacancy_closed`, `vacancy_reopened`).
+     8. Plantilla status changes (`plantilla_on_leave`, `plantilla_deactivation_requested`).
+     9. HR Emploc created (`emploc_created`).
+     10. User Management (`user_approved`, `user_created`, `user_role_updated`, `user_archived`).
+   - Generic UPDATEs with no status change evaluate to `NULL` event_type and are dropped fail-closed.
+3. **User Management Trace**:
+   - Traced `approve_account_request_v2`: does NOT insert into `audit_logs` (only writes to `users_profile`, `account_requests`, and `user_scopes`). Trigger `log_users_profile_changes` writes to `activity_log`, NOT `audit_logs`.
+   - In `audit_logs`, the only User Management actions originate from `upsert_user_profile_and_scopes` (`CREATE_USER`, `UPDATE_USER_ROLE`) and `archive_user_profile` (`ARCHIVE_USER`).
+   - Unambiguous Rule: `user_approved` is mapped strictly to explicit approval actions (`APPROVE_REQUEST`, `APPROVE_USER_REQUEST`, `approved new user`). `CREATE_USER` maps to `user_created` and `UPDATE_USER_ROLE` maps to `user_role_updated`. They are never mislabeled as approvals.
+4. **Visibility Rules**:
+   - Approvals (`user_approved`): Data Team + Encoder (`v_is_data_team`) when unscoped.
+   - Role updates & archives (`user_role_updated`, `user_archived`, `user_created`): SA/HA only (`v_is_admin`) when unscoped.
+5. **Real Vacancy APPROVAL Proof**:
+   - Inspected 5 real `vacancies` `APPROVAL` rows in `audit_logs`: all 5 show `old_data->>'status' = 'Open'` and `new_data->>'status' = 'Filled'`. Verified as vacancy fill events.
+6. **Encoder (GROUP ONE) Test**:
+   - Impersonated Encoder (`858f3f20-b106-4385-ba9d-817fd510f4ed`): returned 20 operational rows restricted to Group 1 (`FOREVER OFFICE`, `BANKO`). Exactly 0 User Management rows returned.
+   - Confirmed via database query that 0 Viewer (10) or ATL (40) test accounts exist on staging.
+7. **Performance Index & Staging Definition Parity**:
+   - Included `idx_audit_logs_account_ts` in migration file `20262606000077_fn_get_recent_activity.sql`.
+   - Verified that the migration file body equals `pg_get_functiondef('public.fn_get_recent_activity'::regproc)` on staging.
+8. **Actor Display Formatting**:
+   - Rendered sentences now use real actor names for users (e.g., `Litong, Ohm`, `UAT Test 3`) with proper active verbs; `System:` is used exclusively when actor is null/System.
+9. **Production Parity (SELECT-only on `rwxelulyapjgaarlwkus`)**:
+   - Confirmed existence of `is_pool_account` (boolean), `user_scopes.is_active` (boolean), `get_web_current_user_context()` (security definer), `i_have_full_access()` (security definer), and all required `audit_action` enum values.
+   - Listed unapplied migrations on production (`20262606000066` through `20262606000077`). Production strictly untouched.
+10. **Verification**:
+    - `npm run lint`: 0 errors (clean baseline).
+    - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
 
 ## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
 
