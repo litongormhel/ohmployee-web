@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
+
+**Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
+
+### Summary of Completed Work
+1. **Audit Logs RLS Policy Lockdown**:
+   - Dropped insecure `audit_logs_select` policy (`r.role_level >= 30` without row filters) and `pol_audit_admin_read`.
+   - Created replacement `audit_logs_select` policy requiring active, unarchived Super Admin / Head Admin (`r.role_level >= 90 OR public.i_have_full_access()`).
+   - Closed direct REST API exposure of sensitive employee PII (government IDs, compensation, addresses, phone numbers) to roles >= 30 (OM, HRCO, ATL, TL, Encoder).
+2. **v_audit_activity_feed Backdoor Closed**:
+   - Inspected `public.v_audit_activity_feed`: discovered it was owned by `postgres` with `security_invoker = false`, allowing any authenticated user to bypass RLS and read all audit rows with before/after changes.
+   - Enforced `ALTER VIEW public.v_audit_activity_feed SET (security_invoker = true);`.
+   - Revoked ALL privileges on `v_audit_activity_feed` from `PUBLIC`, `anon`, and `authenticated`.
+3. **Verification of Timeline RPC Scope Guards**:
+   - `public.get_correction_timeline`: Verified it explicitly checks `public.i_have_full_access() OR (v_account = ANY(public.get_my_allowed_accounts()))` before returning timeline audit records.
+   - `public.get_web_hr_emploc_detail`: Verified it validates record existence against user account/group scopes before returning details.
+   - `public.get_web_vacancy_detail`: Verified it checks caller scope against `vw_vacancy_detail` and raises `42501` if outside scope.
+4. **Roles Below Level 30 Verification**:
+   - Queried active users for HR Personnel (25), Recruitment Team (20), Back Office (15), and Viewer (10).
+   - Documented exact `user_scopes` and module access for each role to enforce fail-closed rule and module access gating in `fn_get_recent_activity`.
+5. **Database Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+   - `SET LOCAL ROLE authenticated` with OM (`1c2e...`), HRCO (`2c1d...`), and Encoder (`3b09...`): returned exactly **0 rows** from `audit_logs`.
+   - `SET LOCAL ROLE authenticated` with Head Admin (`3d3d...`) and Super Admin (`71d2...`): returned **5,791 rows** (full access).
+   - `SELECT count(*) FROM v_audit_activity_feed` under `authenticated`: threw `insufficient_privilege` error as expected.
+6. **Phase 2B-1 Plan Revision (Plan only, STOP and WAIT)**:
+   - Revised `fn_get_recent_activity` incorporating all 8 fixes (a-h) plus module access rules, safe UUID regex casting, pre-limit filtering, and pool account ID identification.
+   - Benchmarked query performance on staging with `EXPLAIN (ANALYZE, BUFFERS)`: index scan on `idx_audit_logs_timestamp_desc`, execution time **38.9 ms**.
+
+### Verification Results
+- **Migration Applied:** `supabase/migrations/20262606000076_hotfix_a_secure_audit_logs_rls.sql` applied to STAGING ONLY (`qqiiznmqxfoamqytjica`). NOT applied to production.
+- **Git status:** On `main`. No branch created.
+
 ## Execution Report — Super Admin Dashboard Simplification & Group Matrix Parity - Phase 2A (ohm#7k2m9q4x)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT (0 ERRORS)**
@@ -2816,6 +2848,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
+
+**Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
+
+### Summary of Completed Work
+1. **Audit Logs RLS Policy Lockdown**:
+   - Dropped insecure `audit_logs_select` policy (`r.role_level >= 30` without row filters) and `pol_audit_admin_read`.
+   - Created replacement `audit_logs_select` policy requiring active, unarchived Super Admin / Head Admin (`r.role_level >= 90 OR public.i_have_full_access()`).
+   - Closed direct REST API exposure of sensitive employee PII (government IDs, compensation, addresses, phone numbers) to roles >= 30 (OM, HRCO, ATL, TL, Encoder).
+2. **v_audit_activity_feed Backdoor Closed**:
+   - Inspected `public.v_audit_activity_feed`: discovered it was owned by `postgres` with `security_invoker = false`, allowing any authenticated user to bypass RLS and read all audit rows with before/after changes.
+   - Enforced `ALTER VIEW public.v_audit_activity_feed SET (security_invoker = true);`.
+   - Revoked ALL privileges on `v_audit_activity_feed` from `PUBLIC`, `anon`, and `authenticated`.
+3. **Verification of Timeline RPC Scope Guards**:
+   - `public.get_correction_timeline`: Verified it explicitly checks `public.i_have_full_access() OR (v_account = ANY(public.get_my_allowed_accounts()))` before returning timeline audit records.
+   - `public.get_web_hr_emploc_detail`: Verified it validates record existence against user account/group scopes before returning details.
+   - `public.get_web_vacancy_detail`: Verified it checks caller scope against `vw_vacancy_detail` and raises `42501` if outside scope.
+4. **Roles Below Level 30 Verification**:
+   - Queried active users for HR Personnel (25), Recruitment Team (20), Back Office (15), and Viewer (10).
+   - Documented exact `user_scopes` and module access for each role to enforce fail-closed rule and module access gating in `fn_get_recent_activity`.
+5. **Database Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+   - `SET LOCAL ROLE authenticated` with OM (`1c2e...`), HRCO (`2c1d...`), and Encoder (`3b09...`): returned exactly **0 rows** from `audit_logs`.
+   - `SET LOCAL ROLE authenticated` with Head Admin (`3d3d...`) and Super Admin (`71d2...`): returned **5,791 rows** (full access).
+   - `SELECT count(*) FROM v_audit_activity_feed` under `authenticated`: threw `insufficient_privilege` error as expected.
+6. **Phase 2B-1 Plan Revision (Plan only, STOP and WAIT)**:
+   - Revised `fn_get_recent_activity` incorporating all 8 fixes (a-h) plus module access rules, safe UUID regex casting, pre-limit filtering, and pool account ID identification.
+   - Benchmarked query performance on staging with `EXPLAIN (ANALYZE, BUFFERS)`: index scan on `idx_audit_logs_timestamp_desc`, execution time **38.9 ms**.
+
+### Verification Results
+- **Migration Applied:** `supabase/migrations/20262606000076_hotfix_a_secure_audit_logs_rls.sql` applied to STAGING ONLY (`qqiiznmqxfoamqytjica`). NOT applied to production.
+- **Git status:** On `main`. No branch created.
+
 ## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
 
 **Status: COMPLETE â€” INTEGRATED SEPARATION STATUSES (RESIGNED, AWOL, TERMINATED) INTO UPDATE EMPLOYMENT STATUS MODAL WITH CATEGORIZED OPERATIONAL VS ATTRITION GROUPS; ADDED MANDATORY EFFECTIVE SEPARATION DATE PICKER AND ADR-001 SLOT VACATION NOTIFICATION; EXTENDED TYPESCRIPT EMPLOYMENT STATUSTARGET CONTRACT AND ROUTED SEPARATION MUTATIONS TO PLANTILLA_UPDATE_SEPARATION RPC TO REACTIVELY REOPEN SLOTS (FN_SYNC_SLOT_TO_OPEN) AND ARCHIVE EMPLOYEES TO INACTIVE TAB; REPAIRED SEPARATION_STATUS AND DATE_OF_SEPARATION NORMALIZATION FALLBACKS IN PLANTILLA.TS; CREATED POSTGRESQL MIGRATION ADDING 'TERMINATED' AND 'END OF CONTRACT' TO PLANTILLA_SEPARATION_STATUS_CHECK CONSTRAINT; ESLINT CLEAN (0 ERRORS, 9 WARNINGS), NEXT.JS PRODUCTION BUILD GREEN (19/19 ROUTES COMPILED); COMMITTED LOCALLY ON MAIN ONLY**
@@ -2960,6 +3024,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
+
+**Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
+
+### Summary of Completed Work
+1. **Audit Logs RLS Policy Lockdown**:
+   - Dropped insecure `audit_logs_select` policy (`r.role_level >= 30` without row filters) and `pol_audit_admin_read`.
+   - Created replacement `audit_logs_select` policy requiring active, unarchived Super Admin / Head Admin (`r.role_level >= 90 OR public.i_have_full_access()`).
+   - Closed direct REST API exposure of sensitive employee PII (government IDs, compensation, addresses, phone numbers) to roles >= 30 (OM, HRCO, ATL, TL, Encoder).
+2. **v_audit_activity_feed Backdoor Closed**:
+   - Inspected `public.v_audit_activity_feed`: discovered it was owned by `postgres` with `security_invoker = false`, allowing any authenticated user to bypass RLS and read all audit rows with before/after changes.
+   - Enforced `ALTER VIEW public.v_audit_activity_feed SET (security_invoker = true);`.
+   - Revoked ALL privileges on `v_audit_activity_feed` from `PUBLIC`, `anon`, and `authenticated`.
+3. **Verification of Timeline RPC Scope Guards**:
+   - `public.get_correction_timeline`: Verified it explicitly checks `public.i_have_full_access() OR (v_account = ANY(public.get_my_allowed_accounts()))` before returning timeline audit records.
+   - `public.get_web_hr_emploc_detail`: Verified it validates record existence against user account/group scopes before returning details.
+   - `public.get_web_vacancy_detail`: Verified it checks caller scope against `vw_vacancy_detail` and raises `42501` if outside scope.
+4. **Roles Below Level 30 Verification**:
+   - Queried active users for HR Personnel (25), Recruitment Team (20), Back Office (15), and Viewer (10).
+   - Documented exact `user_scopes` and module access for each role to enforce fail-closed rule and module access gating in `fn_get_recent_activity`.
+5. **Database Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+   - `SET LOCAL ROLE authenticated` with OM (`1c2e...`), HRCO (`2c1d...`), and Encoder (`3b09...`): returned exactly **0 rows** from `audit_logs`.
+   - `SET LOCAL ROLE authenticated` with Head Admin (`3d3d...`) and Super Admin (`71d2...`): returned **5,791 rows** (full access).
+   - `SELECT count(*) FROM v_audit_activity_feed` under `authenticated`: threw `insufficient_privilege` error as expected.
+6. **Phase 2B-1 Plan Revision (Plan only, STOP and WAIT)**:
+   - Revised `fn_get_recent_activity` incorporating all 8 fixes (a-h) plus module access rules, safe UUID regex casting, pre-limit filtering, and pool account ID identification.
+   - Benchmarked query performance on staging with `EXPLAIN (ANALYZE, BUFFERS)`: index scan on `idx_audit_logs_timestamp_desc`, execution time **38.9 ms**.
+
+### Verification Results
+- **Migration Applied:** `supabase/migrations/20262606000076_hotfix_a_secure_audit_logs_rls.sql` applied to STAGING ONLY (`qqiiznmqxfoamqytjica`). NOT applied to production.
+- **Git status:** On `main`. No branch created.
 
 ## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
 
@@ -3129,6 +3225,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
+
+**Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
+
+### Summary of Completed Work
+1. **Audit Logs RLS Policy Lockdown**:
+   - Dropped insecure `audit_logs_select` policy (`r.role_level >= 30` without row filters) and `pol_audit_admin_read`.
+   - Created replacement `audit_logs_select` policy requiring active, unarchived Super Admin / Head Admin (`r.role_level >= 90 OR public.i_have_full_access()`).
+   - Closed direct REST API exposure of sensitive employee PII (government IDs, compensation, addresses, phone numbers) to roles >= 30 (OM, HRCO, ATL, TL, Encoder).
+2. **v_audit_activity_feed Backdoor Closed**:
+   - Inspected `public.v_audit_activity_feed`: discovered it was owned by `postgres` with `security_invoker = false`, allowing any authenticated user to bypass RLS and read all audit rows with before/after changes.
+   - Enforced `ALTER VIEW public.v_audit_activity_feed SET (security_invoker = true);`.
+   - Revoked ALL privileges on `v_audit_activity_feed` from `PUBLIC`, `anon`, and `authenticated`.
+3. **Verification of Timeline RPC Scope Guards**:
+   - `public.get_correction_timeline`: Verified it explicitly checks `public.i_have_full_access() OR (v_account = ANY(public.get_my_allowed_accounts()))` before returning timeline audit records.
+   - `public.get_web_hr_emploc_detail`: Verified it validates record existence against user account/group scopes before returning details.
+   - `public.get_web_vacancy_detail`: Verified it checks caller scope against `vw_vacancy_detail` and raises `42501` if outside scope.
+4. **Roles Below Level 30 Verification**:
+   - Queried active users for HR Personnel (25), Recruitment Team (20), Back Office (15), and Viewer (10).
+   - Documented exact `user_scopes` and module access for each role to enforce fail-closed rule and module access gating in `fn_get_recent_activity`.
+5. **Database Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+   - `SET LOCAL ROLE authenticated` with OM (`1c2e...`), HRCO (`2c1d...`), and Encoder (`3b09...`): returned exactly **0 rows** from `audit_logs`.
+   - `SET LOCAL ROLE authenticated` with Head Admin (`3d3d...`) and Super Admin (`71d2...`): returned **5,791 rows** (full access).
+   - `SELECT count(*) FROM v_audit_activity_feed` under `authenticated`: threw `insufficient_privilege` error as expected.
+6. **Phase 2B-1 Plan Revision (Plan only, STOP and WAIT)**:
+   - Revised `fn_get_recent_activity` incorporating all 8 fixes (a-h) plus module access rules, safe UUID regex casting, pre-limit filtering, and pool account ID identification.
+   - Benchmarked query performance on staging with `EXPLAIN (ANALYZE, BUFFERS)`: index scan on `idx_audit_logs_timestamp_desc`, execution time **38.9 ms**.
+
+### Verification Results
+- **Migration Applied:** `supabase/migrations/20262606000076_hotfix_a_secure_audit_logs_rls.sql` applied to STAGING ONLY (`qqiiznmqxfoamqytjica`). NOT applied to production.
+- **Git status:** On `main`. No branch created.
 
 ## Integration of Separation Statuses into Employment Status Modal & Attrition Pipeline (ohm#plan05)
 
