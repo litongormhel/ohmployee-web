@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export type ActivityEventType =
   | "user_approved"
+  | "user_rejected"
   | "user_role_updated"
   | "user_archived"
   | "plantilla_deployed"

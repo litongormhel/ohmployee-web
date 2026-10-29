@@ -27,6 +27,7 @@ export function getActivityEventIcon(eventType: ActivityEventType): React.ReactE
     case "user_approved":
     case "user_role_updated":
       return <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
+    case "user_rejected":
     case "user_archived":
       return <UserX className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />;
     case "plantilla_deployed":
@@ -102,6 +103,13 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
           <span className="font-medium text-text-primary">
             {details.target_role || "User"}
           </span>
+        </span>
+      );
+
+    case "user_rejected":
+      return (
+        <span>
+          {actorNode} rejected user registration for {subjectNode}
         </span>
       );
 
