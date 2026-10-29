@@ -1,22 +1,20 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   User,
   Sliders,
   Shield,
-  Activity,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { ProfileTab } from "@/components/settings/ProfileTab";
 import { PreferencesTab } from "@/components/settings/PreferencesTab";
 import { SecurityTab } from "@/components/settings/SecurityTab";
-import { DiagnosticsTab } from "@/components/settings/DiagnosticsTab";
 import { useCurrentUser } from "@/lib/auth";
 
-type SettingsTabKey = "profile" | "preferences" | "security" | "diagnostics";
+type SettingsTabKey = "profile" | "preferences" | "security";
 
 function SettingsPageContent() {
   const router = useRouter();
@@ -29,11 +27,21 @@ function SettingsPageContent() {
     currentUser?.roleName?.toLowerCase() === "super admin";
 
   const rawTab = searchParams.get("tab");
+
+  // Redirect legacy ?tab=diagnostics to More > Admin Tools for Super Admin, or default tab for others
+  useEffect(() => {
+    if (rawTab === "diagnostics") {
+      if (isSuperAdmin) {
+        router.replace("/more?tab=admin_tools&tool=system_diagnostics");
+      } else {
+        router.replace("/settings");
+      }
+    }
+  }, [rawTab, isSuperAdmin, router]);
+
   const activeTab: SettingsTabKey =
     rawTab === "security" || rawTab === "security_events" || rawTab === "audit_logs"
       ? "security"
-      : rawTab === "diagnostics"
-      ? "diagnostics"
       : rawTab === "preferences"
       ? "preferences"
       : "profile";
@@ -50,7 +58,7 @@ function SettingsPageContent() {
         categoryTag="Admin panel"
         moduleName="Settings"
         title="Settings & System Governance"
-        subtitle="Manage your profile security, application preferences, device sessions, and platform diagnostics."
+        subtitle="Manage your profile security, application preferences, and device sessions."
         icon={SettingsIcon}
       />
 
@@ -123,38 +131,6 @@ function SettingsPageContent() {
             />
             <span>Security Center & Sessions</span>
           </button>
-
-          {isSuperAdmin && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "diagnostics"}
-              onClick={() => handleTabChange("diagnostics")}
-              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                activeTab === "diagnostics"
-                  ? "border-brand-border bg-brand-subtle text-brand-primary shadow-2xs"
-                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-              }`}
-            >
-              <Activity
-                className={`w-4 h-4 shrink-0 transition-colors ${
-                  activeTab === "diagnostics"
-                    ? "text-brand-primary"
-                    : "text-text-muted group-hover:text-text-secondary"
-                }`}
-              />
-              <span>System Diagnostics</span>
-              <span
-                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold shadow-2xs transition-colors ${
-                  activeTab === "diagnostics"
-                    ? "bg-brand-primary text-text-inverse"
-                    : "bg-surface-subtle text-text-secondary border border-border-default"
-                }`}
-              >
-                Admin
-              </span>
-            </button>
-          )}
         </nav>
       </div>
 
@@ -163,7 +139,6 @@ function SettingsPageContent() {
         {activeTab === "profile" && <ProfileTab />}
         {activeTab === "preferences" && <PreferencesTab />}
         {activeTab === "security" && <SecurityTab />}
-        {activeTab === "diagnostics" && isSuperAdmin && <DiagnosticsTab />}
       </div>
     </div>
   );

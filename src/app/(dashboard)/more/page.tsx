@@ -4,6 +4,7 @@ import { Suspense, useCallback, useMemo, useState, type ComponentType } from "re
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Activity,
   Archive,
   ArrowRight,
   CheckCircle2,
@@ -62,6 +63,7 @@ import { RolePermissionsModal } from "@/components/more/RolePermissionsModal";
 import { PermissionDriftModal } from "@/components/more/PermissionDriftModal";
 import { SecurityEventsModal } from "@/components/more/SecurityEventsModal";
 import { AuditLogsModal } from "@/components/more/AuditLogsModal";
+import { SystemDiagnosticsModal } from "@/components/more/SystemDiagnosticsModal";
 
 
 // ============================================================================
@@ -186,6 +188,9 @@ function MorePageContent() {
   const [auditLogsOpen, setAuditLogsOpen] = useState(
     () => targetModal === "audit_logs"
   );
+  const [systemDiagnosticsOpen, setSystemDiagnosticsOpen] = useState(
+    () => targetModal === "system_diagnostics" || targetModal === "diagnostics"
+  );
 
 
   // Derive Normalized Role & Levels using unified rbac gatekeeper
@@ -303,8 +308,9 @@ function MorePageContent() {
     });
 
     // In Mobile, Payroll Review Center is accessible to Super Admin, Head Admin, Encoder, and OM.
-    // For OM, who does not have access to the Data Control tab, surface it in Overview.
-    if (isOperationsManager || isHeadAdmin || isEncoder) {
+    // Head Admin, Encoder, and Super Admin access it canonically under Data Control.
+    // For OM, who cannot access the Data Control tab, retain the entry point in Overview.
+    if (isOperationsManager) {
       tiles.push({
         id: "payroll_review_center_overview",
         title: "Payroll Review Center",
@@ -337,7 +343,7 @@ function MorePageContent() {
     });
 
     return tiles;
-  }, [isHeadAdmin, isOperationsManager, isEncoder, handleLogout]);
+  }, [isHeadAdmin, isOperationsManager, handleLogout]);
 
   // ── Tab 2: Admin Tools (Level 100) ────────────────────────────────────────
   const adminTiles: MoreFeatureTile[] = useMemo(
@@ -353,11 +359,11 @@ function MorePageContent() {
         minRoleLevel: 100,
       },
       {
-        id: "data_archival_center",
-        title: "Data Archival Center",
-        description: "Inspect soft-deleted records, restore Plantilla or Vacancies, and view archival audit trail",
-        icon: Archive,
-        onClick: () => setDataArchivalOpen(true),
+        id: "system_diagnostics",
+        title: "System Diagnostics",
+        description: "Real-time infrastructure health, PostgREST schema cache sync, and operational freeze flags",
+        icon: Activity,
+        onClick: () => setSystemDiagnosticsOpen(true),
         badgeLabel: "LEVEL 100",
         badgeVariant: "rose",
         minRoleLevel: 100,
@@ -447,16 +453,6 @@ function MorePageContent() {
   const auditTiles: MoreFeatureTile[] = useMemo(
     () => [
       {
-        id: "data_archival_recovery",
-        title: "Data Archival & Recovery",
-        description: "Archived Plantilla/Vacancy restoration and full archival audit observation logs",
-        icon: Archive,
-        onClick: () => setDataArchivalOpen(true),
-        badgeLabel: "SUPER ADMIN",
-        badgeVariant: "purple",
-        minRoleLevel: 100,
-      },
-      {
         id: "security_events",
         title: "Security Events",
         description: "Security activity, threat indicators, and auth alerts",
@@ -506,7 +502,7 @@ function MorePageContent() {
       },
       {
         id: "data_archival_control",
-        title: "Data Archival / Recovery",
+        title: "Data Archival & Recovery",
         description: "Recover soft-deleted plantilla and vacancy records with audited reason logging",
         icon: Archive,
         onClick: () => setDataArchivalOpen(true),
@@ -1101,6 +1097,12 @@ function MorePageContent() {
       <AuditLogsModal
         isOpen={auditLogsOpen}
         onClose={() => setAuditLogsOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+      />
+
+      <SystemDiagnosticsModal
+        isOpen={systemDiagnosticsOpen}
+        onClose={() => setSystemDiagnosticsOpen(false)}
         isSuperAdmin={isSuperAdmin}
       />
     </div>
