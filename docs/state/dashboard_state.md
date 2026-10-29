@@ -33,49 +33,37 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
 
 ## 4. Page Structure (`/dashboard`)
 
-`src/app/(dashboard)/dashboard/page.tsx` is an interactive `"use client"` executive command center with four unified components:
+`src/app/(dashboard)/dashboard/page.tsx` is an interactive `"use client"` executive command center with modern, streamlined components:
 
 ### 4.1 Top Command Header Bar
-- **Left:** Breadcrumb (`ADMIN PANEL` → `Dashboard Overview`), title (`Web Admin Command Center`), subtitle, and subtle `Live RPC Telemetry Connected` status badge.
+- **Left:** Breadcrumb (`ADMIN PANEL` → `Dashboard Overview`), title (`Command Center`), subtitle (`Cross-module operational overview for the OHMployee admin workspace`). Removed legacy `Live RPC Telemetry Connected` status badge.
 - **Right Actions:**
-  - Group Scope Selector dynamically populated across all organizational groups (`All Retail Groups`, `Group 1`, `Group 2`, `Group 3`, `Group 4`, `Group 5`, `Moses HQ`).
-  - Quick link button to `CENCOM Triage` when `activeSlaBreaches > 0`.
-  - **`"Sync MIKA"`** primary action button (role-gated: visible to `Super Admin` only; hidden for `Head Admin`).
+  - Group Scope Selector (`ScopeDropdown`) dynamically populated across all organizational groups (`All Retail Groups`, `Group 1`, `Group 2`, `Group 3`, `Group 4`, `Group 5`, `MOSES HQ`).
+  - Header triage and sync triggers removed: `CENCOM Triage` and `"Sync MIKA"` buttons removed from the header.
 
-### 4.2 Top 5 Executive KPI Ribbon (Interactive 5-Column Grid)
-Rendered in a responsive 5-column row consuming shared `KpiCard` (`@/components/shared/KpiCard`) with `AnimatedNumber` and `NeutralChip`. Counts are strictly neutral (`text-text-primary`); clicking any card activates the corresponding operational matrix drilldown tab below:
-1. **`ACTIVE SLA BREACHES`:** Neutral count (`text-text-primary`), `"Action Required"` neutral badge, sub-label (`Pending movements or vacancy SLA breaches`). Clicking activates the *Active SLA Breaches* tab.
-2. **`UNDER-STAFFED STORES`:** Neutral count, `"At Risk"` neutral badge, sub-label (`Stores below budgeted plantilla target`). Clicking activates the *Under-Staffed Stores* tab.
-3. **`OPEN VACANCIES`:** Neutral count with `Briefcase` icon, `"X Unassigned"` neutral badge, sub-label (`Active open vacancy slots`). Clicking focuses the workforce matrix.
-4. **`HR EMPLOC PENDING`:** Neutral count with `FileCheck2` icon, `"In Motion"` neutral badge, sub-label (`Onboarding compliance items pending`).
-5. **`ACTIVE PLANTILLA`:** Neutral count with `Users` icon, `"of X Target"` neutral badge, sub-label (`Total active deployed employees`).
+### 4.2 Top Executive KPI Grid (4 Responsive Module Cards)
+Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components/shared/KpiCard`) with direct routing links to primary modules:
+1. **`Workforce Coverage`:** Fill rate % (`avgFillRatePct.toFixed(1)}%`), `"X of Y seats filled"` subtitle, segmented 3-color progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with legends, and `"Above 80% target"` / `"Below 80% target"` status pill. Clickable; routes to `/plantilla`.
+2. **`Open Vacancies`:** Total open vacancy count, `"N unassigned to HRCO"` neutral badge, assigned subtitle, and footer action. Clickable; routes to `/vacancy`.
+3. **`Hiring Pipeline`:** Total pipeline count, `"Active Funnel"` badge, subtitle (`N HR Emploc · N applicants`), and monthly momentum footer (`This month: +hired · −separated`). Clickable; routes to `/hr-emploc`.
+4. **`SLA Breaches`:** Total active breach count, `"Action required"` badge, and aging footer. Clickable; routes to `/cencom`.
 
 ### 4.3 Main 2-Column Asymmetric Command Workspace (12-Column Desktop Grid)
-- **Left Column (8 Cols):**
-  - **Card A: Operational Analytics & Fill Rate Breakdown (`fn_dashboard_operational_analytics`):**
-    - Formula breakdown badge evaluated via `evaluatePercentage("fill_rate", avgFillRatePct)` with `--pct-good-*`, `--pct-warn-*`, or `--pct-bad-*` semantic tokens.
-    - Proportional 3-segment progress bar with brand-aligned tokens: `Active Plantilla` (`bg-brand-500`), `HR Emploc Pending` (`bg-brand-600`), `Open Vacancies` (`bg-border-strong`).
-    - 4-column metric strip: `Pipeline Total` (`AnimatedNumber`), `Hires This Month` (`NeutralChip`), `Separations This Month` (`NeutralChip`), and `Avg Fill Rate` carrying semantic percentage color.
-  - **Card B: Cross-Module Operational Matrix (Tabbed Bottom Viewport):**
-    - Navigated via shared `SegmentedTabs` (`@/components/shared/SegmentedTabs`) with sliding pill indicator.
-    - **Tab 1: `Group Workforce Matrix`** — Sourced live from `v_cencom_group_allocation_kpi` via `useCencomGroupKpi()`, displaying actual plantilla, open vacancies, pipeline, and fill rate % using shared `PercentageBar` (`scale="fill_rate"`). Strict $\ge 14\text{px}$ text floor (`text-sm`) with compact density padding (`py-2.5 px-3` / `px-4`). SLA status rendered via `NeutralChip`.
-    - **Tab 2: `Active SLA Breaches`** — Sourced live via `useDashboardSlaBreaches()`, showing Store/Unit, Category (`NeutralChip`), Aging, Assigned Owner, and Inspect action. Renders loading skeletons and clean empty state when zero breaches exist.
-    - **Tab 3: `Under-Staffed Stores`** — Sourced live via `useDashboardUnderstaffedStores()`, aggregating store vacancies with assigned HRCO and neutral vacancy counts. Renders loading skeletons and clean empty states.
-- **Right Column (4 Cols):**
-  - **Card C: Reconciled Pending Approvals Queue:**
-    - Binds dynamically to `useRequestCategoryCounts()`, showing live non-zero pending categories with direct links to `/approvals?tab=<category>`. Standardized to semantic tokens with neutral counts.
-  - **Card D: Super Admin Governance & MIKA Sync Card (Strictly `Super Admin` Only):**
-    - Hidden completely for `Head Admin`.
-    - Displays MIKA sync health, dynamic anomaly alerts derived from live `metrics.ghostEmployeeCount`, and an inline **`"Sync MIKA"`** button and anomaly resolution link.
-  - **Card E: Compact Security & Audit Telemetry (`fn_dashboard_metrics`):**
-    - High-density compact card showing `Admin Security Approvals` (`AnimatedNumber`), `Security Events Today` (`AnimatedNumber`), caller role scope badge, and audit log link.
+- **Left Column (8 Cols) — "Where is the gap?" Operational Card:**
+  - Navigated via shared `SegmentedTabs` (`@/components/shared/SegmentedTabs`) with 3 tabs:
+    - **Tab 1: `Group matrix` (Group Workforce Matrix):** Always displays **Group 1 to Group 5 by default, with MOSES HQ pinned below Group 5**. Groups with no active data display `—` (never hidden). MOSES HQ displays real values (2 active plantilla, 2 HR Emploc pending) derived from the global-to-CENCOM delta without modifying views or `cencom_scope`. Fill rate is `—` and SLA status is `Standby` (never "Critical"). Rows in `Critical` status receive a red row highlight (`bg-red-500/10 border-l-4 border-l-red-500`).
+    - **Tab 2: `SLA breaches` (Active SLA Breaches):** Sourced live via `useDashboardSlaBreaches()`, showing Store/Unit, Category (`NeutralChip`), Scope owner, Aging, and Action link.
+    - **Tab 3: `Under-staffed stores` (Under-Staffed Stores):** Sourced live via `useDashboardUnderstaffedStores()`, aggregating store vacancies with assigned HRCO and neutral vacancy counts.
+- **Right Column (4 Cols) — "Needs your attention" Alert List:**
+  - Compact card replacing legacy Card C and Card D. Displays 4 compact operational rows with direct actions:
+    1. Critical group(s) alert (view matrix).
+    2. Reconciled Pending approvals count (including coverage & reliever count), synced with the sidebar Approvals badge from `useRequestCategoryCounts()`.
+    3. Under-staffed stores alert (inspect stores).
+    4. Ghost employee records alert with `"Resolve Anomalies →"` linking to `/plantilla` (MIKA/Plantilla reconciliation; no sync trigger on Dashboard).
 
-### 4.4 MIKA Sync Modal (`src/components/dashboard/MikaSyncModal.tsx`)
-- Sourced from shared `Modal` (`@/components/shared/Modal`).
-- Drag-and-drop file target (`.xlsx`, `.csv`) for MIKA masterfile upload with full keyboard and backdrop support.
-- Strictly labeled **`"Sync MIKA"`** action button (never `"Refresh"`).
-- Automatically triggers React Query refetch for operational metrics and analytics upon completion.
-- Zero color literals.
+### 4.4 Security & Audit Telemetry Footer
+- Replaced standalone Card E with a single high-contrast footer line:
+  `"System healthy · N access events today · Audit logs →"` linking to `/more?tab=audit_logs` and consuming `metrics?.securityEventCount`.
 
 ### 4.5 MIKA Attendance & Biometric Import Modal (`src/components/more/MikaImportModal.tsx`)
 - Accessible via More Dashboard -> Data Control & Batch Ingestion (`import_mika`).

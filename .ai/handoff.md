@@ -1,5 +1,55 @@
 # AI Handoff
 
+## Execution Report — Super Admin Dashboard Simplification & Group Matrix Parity - Phase 2A (ohm#7k2m9q4x)
+
+**Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT (0 ERRORS)**
+
+### Summary of Completed Work
+1. **Header Modernization & Button Pruning**:
+   - Streamlined Dashboard header title to "Command Center" with standard breadcrumb (`Admin panel / Dashboard Overview`).
+   - Removed `Live RPC Telemetry Connected` status chip.
+   - Removed `CENCOM Triage` header button and `Sync MIKA` header button.
+   - Clean toolbar retaining only the organizational `ScopeDropdown`.
+2. **4-Card Executive KPI Grid (Replaces 5 Cards + Standalone Analytics Card)**:
+   - **Workforce Coverage**: Displays fill rate % (`avgFillRatePct.toFixed(1)}%`), "X of Y seats filled" (`totalActivePlantilla` of `totalScopedDemand`), 3-segment progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with legends, and "Above 80% target" / "Below 80% target" pill. Clickable, navigates to `/plantilla`.
+   - **Open Vacancies**: Displays `totalOpenVacancies` with "N unassigned to HRCO" badge. Clickable, navigates to `/vacancy`.
+   - **Hiring Pipeline**: Displays `pipelineTotal`, subtitle `${totalHrEmplocPending} HR Emploc · ${applicantCount} applicants`, and footer "This month: +hired · −separated". Clickable, navigates to `/hr-emploc`.
+   - **SLA Breaches**: Displays `activeSlaBreaches`, "Action required" badge, and aging footer. Clickable, navigates to `/cencom`.
+   - Standalone Card A (Fill Rate breakdown) was cleanly absorbed into the Workforce Coverage card.
+3. **"Where is the gap?" Group Allocation Matrix**:
+   - Re-enclosed the operational matrix under "Where is the gap?" card.
+   - Preserved all 3 tabs: `Group matrix` (Group Workforce Matrix), `SLA breaches` (Active SLA Breaches), and `Under-staffed stores` (Under-Staffed Stores).
+   - **Canonical Group Ordering**: Guaranteed persistent display of **Group 1, Group 2, Group 3, Group 4, Group 5**, with **MOSES HQ pinned last**.
+   - Groups with zero active data (e.g. Groups 3 & 4) render `—` for plantilla, vacancy, pipeline, and fill rate, and "Standby" for status (never disappearing). Removed the active-only toggle.
+   - Rows in `Critical` status receive a prominent red highlight (`bg-red-500/10 border-l-4 border-l-red-500`).
+4. **MOSES HQ Handling (Condition 1 Fulfillment)**:
+   - Evaluated the global-to-CENCOM delta without modifying any database views or `cencom_scope`.
+   - `fn_dashboard_metrics` calculates active plantilla and HR Emploc across all accounts globally (769 and 8 respectively). `v_cencom_group_allocation_kpi` only aggregates `cencom_scope = TRUE` groups (767 and 6 respectively).
+   - The delta dynamically and accurately yields MOSES HQ real values: **2 active plantilla**, **2 HR Emploc pending**, and **0 vacancies**.
+   - Handled fill rate as `—` (no budgeted required headcount) and SLA status as `Standby` (never "Critical").
+5. **Open Vacancies Unassigned Breakdown (Condition 2 Fulfillment)**:
+   - Out of the 16 unassigned vacancies reported in `unassignedVacancies` by `fn_dashboard_metrics` (or total open delta), all 16 correspond to the legacy unclosed ghost vacancies in Group 1 (BANKO) and Group 2 (THREE) which have `actual >= required` and NULL `hrco_name`.
+   - Formulas and KPI values were kept completely untouched per ADR-001.
+6. **"Needs your attention" Alert List (Item 5)**:
+   - Mounted in the right 4-column container above where Recent Activity will reside in Phase 2B.
+   - Displays 4 compact operational rows with direct actions:
+     1. Critical group(s) alert (view matrix).
+     2. Pending approvals count (including coverage & reliever count), strictly synced with the Sidebar Approvals badge from `useRequestCategoryCounts()`.
+     3. Under-staffed stores alert (inspect stores).
+     4. Ghost employee records alert with "Resolve Anomalies →" linking to `/plantilla` (MIKA/Plantilla reconciliation; no sync trigger on Dashboard).
+7. **Security & Audit Telemetry Footer (Item 7)**:
+   - Replaced standalone Card E with a single high-contrast footer line:
+     `System healthy · N access events today · Audit logs →` linking to `/more?tab=audit_logs`.
+8. **Phase Boundary Safeguard**:
+   - Recent Activity feed and `fn_get_recent_activity` were intentionally NOT built in this phase, leaving the backend and database completely untouched.
+
+### Verification Results
+- `npm run lint`: Clean (0 errors, 9 baseline warnings).
+- `npm run build`: Clean (0 errors, 19/19 routes compiled including static `/dashboard`).
+- **Branch status**: Working on `main`. No branch created. Zero database migrations applied.
+
+---
+
 ## Execution Report — Settings & More cleanup: Profile & Security fix, structure consolidation, sessions audit (ohm#7q3m9xwk)
 
 **Status: COMPLETE ON MAIN; VERIFIED CLEAN BUILD/LINT (0 ERRORS)**
