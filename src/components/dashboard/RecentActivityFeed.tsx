@@ -161,13 +161,33 @@ export const RecentActivityFeed = memo(function RecentActivityFeed({
                             key={idx}
                             className="text-xs text-text-secondary flex items-center gap-1 truncate"
                           >
-                            <span className="font-medium text-text-primary truncate">
-                              {s.name}
-                            </span>
-                            {s.employee_no && (
-                              <span className="text-text-muted font-mono text-[10px] shrink-0">
-                                [{s.employee_no}]
-                              </span>
+                            {s.vcode ? (
+                              <>
+                                <span className="font-mono text-[11px] font-medium text-text-primary">
+                                  {s.vcode}
+                                </span>
+                                {s.position && (
+                                  <span className="text-text-secondary truncate">
+                                    — {s.position}
+                                  </span>
+                                )}
+                                {s.store_name && (
+                                  <span className="text-text-muted text-[11px] truncate">
+                                    ({s.store_name})
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium text-text-primary truncate">
+                                  {s.name}
+                                </span>
+                                {s.employee_no && (
+                                  <span className="text-text-muted font-mono text-[10px] shrink-0">
+                                    [{s.employee_no}]
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         ))}

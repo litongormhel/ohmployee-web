@@ -32,8 +32,11 @@ export type ActivityEventType =
   | "emploc_reverted";
 
 export interface RecentActivitySample {
-  name: string;
+  name?: string | null;
   employee_no?: string | null;
+  vcode?: string | null;
+  position?: string | null;
+  store_name?: string | null;
 }
 
 export interface RecentActivityDetails {

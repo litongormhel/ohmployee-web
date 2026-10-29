@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Round 3 Implementation: Account Requests Union, Vacancy Batching & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Option A Implemented (`account_requests` in `fn_get_recent_activity`)**:
+   - Integrated approved account requests into `public.fn_get_recent_activity` on staging (`qqiiznmqxfoamqytjica`) without modifying `approve_account_request_v2` or `reject_account_request`.
+   - **Privacy constraints enforced**: Exposes strictly `full_name` as `target_name` and the assigned role's `role_name` as `target_role`. Email and all other personal data fields are excluded.
+   - **System attribution**: When `approved_by` is NULL, actor name and role default to `'System'`.
+   - **Visibility gate**: Gated strictly to Data Team roles (Super Admin, Head Admin, Encoder) via `v_is_data_team`. Verified that Operations Manager, HRCO, Recruitment, HR Personnel, and Back Office roles receive 0 User Management rows.
+   - **Jurisdictional scoping**: Scoped by matching caller's assigned groups and accounts against `assigned_groups_snapshot` and `assigned_accounts_snapshot` via `jsonb_array_elements_text`.
+   - **Window**: Filtered to `approved_at >= (now() - interval '30 days')`.
+   - **Audit Logs separation**: Explicitly documented in `docs/state/dashboard_state.md` that these events do NOT appear in `/more?tab=audit_logs` because they originate directly from `account_requests`, not `audit_logs`.
+
+2. **Vacancy Batch Sampling & Formatter Upgrade**:
+   - Replaced employee-centric sample mapping for vacancy events. When `module = 'vacancies'`, `subject_name` is set to NULL, and samples include `{ vcode, position, store_name }`.
+   - Updated `activity_formatter.tsx` and `RecentActivityFeed.tsx` to handle batched vacancy events cleanly, rendering active sentences: `<Actor>: opened N vacancies for <position> at <store> [<account>]`.
+   - Verified with live batched vacancy test on staging (e.g. FOREVER OFFICE 3-vacancy batch).
+
+3. **Multi-Role Scoping & Isolation Tests**:
+   - Conducted caller-impersonated tests verifying fail-closed scope isolation:
+     - OM (Group 1) calling with Group 2 ID -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with PERFECT SM ID (Group 2 account) -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HRCO calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HA received global feed (identical to SA); OM received Group 1 feed only.
+
+4. **Open Vacancy Discrepancy Breakdown**:
+   - Investigated why matrix displays 4 in Group 5 (vs 5 raw), 0 in Group 4 (vs 2 raw), and 0 in Moses HQ (vs 1 raw).
+   - Proved that `BUN-GHQ-00015` (G5), `REL-00009` (G4), `COM-00005` (G4), and `SEA-00006` (Moses HQ) all have `is_pool_vacancy = true`, `affects_required_hc = false`, and `slot_count = 0` (unbudgeted pool slots).
+   - View `v_account_allocation_kpi` strictly excludes pool vacancies (`is_pool_vacancy = false` AND `affects_required_hc = true`). Moses HQ is a pool account (`is_pool_account = true`) under Global HQ (`cencom_scope = false`), pinned at the bottom with 0 vacancies and Standby status.
+   - Standardized terminology: The 12 vacancies in Groups 1 and 2 are defined as **over-capacity vacancies** (not "ghost slots"), normalized to 0 in UI metrics because `actual >= required`.
+
+5. **Migration Forensics (Versions 60–77)**:
+   - Full SELECT-only audit of `schema_migrations` across production (`rwxelulyapjgaarlwkus`) and staging (`qqiiznmqxfoamqytjica`), cross-referenced with repo files.
+   - Production is at version `20262606000065`. Staging has 60–69, 71, 72, 73, 76, 77.
+   - Explained staging versions 66, 67, 68, 69, 71 (prompt `ohm#9q5n3wvx` InitPlan optimizations and Oct 23 plantilla import patches). Reconciled why version 70 never existed and why 74/75 are repo files not yet applied to staging.
+
+6. **Hotfix A Production Apply & Rollback Procedure**:
+   - Clarified that `supabase migration repair` only updates metadata; SQL statements must be executed first via SQL/migration execution.
+   - Provided exact safe sequential run steps and comprehensive rollback DDL restoring the previous `audit_logs_select` policy and `v_audit_activity_feed` grants.
+
+7. **Verification & Quality Gate**:
+   - `npm run lint`: Clean (0 errors, 9 baseline warnings).
+   - `npm run build`: Clean (all 19 routes compiled cleanly).
+   - Local commit executed on `main` with explicit file staging.
+
+---
+
 ## Execution Report — Phase 2B-1 Round 3 Review: Parity, Regression & Vacancy Breakdown Audit (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
@@ -3054,6 +3103,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Phase 2B-1 Round 3 Implementation: Account Requests Union, Vacancy Batching & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Option A Implemented (`account_requests` in `fn_get_recent_activity`)**:
+   - Integrated approved account requests into `public.fn_get_recent_activity` on staging (`qqiiznmqxfoamqytjica`) without modifying `approve_account_request_v2` or `reject_account_request`.
+   - **Privacy constraints enforced**: Exposes strictly `full_name` as `target_name` and the assigned role's `role_name` as `target_role`. Email and all other personal data fields are excluded.
+   - **System attribution**: When `approved_by` is NULL, actor name and role default to `'System'`.
+   - **Visibility gate**: Gated strictly to Data Team roles (Super Admin, Head Admin, Encoder) via `v_is_data_team`. Verified that Operations Manager, HRCO, Recruitment, HR Personnel, and Back Office roles receive 0 User Management rows.
+   - **Jurisdictional scoping**: Scoped by matching caller's assigned groups and accounts against `assigned_groups_snapshot` and `assigned_accounts_snapshot` via `jsonb_array_elements_text`.
+   - **Window**: Filtered to `approved_at >= (now() - interval '30 days')`.
+   - **Audit Logs separation**: Explicitly documented in `docs/state/dashboard_state.md` that these events do NOT appear in `/more?tab=audit_logs` because they originate directly from `account_requests`, not `audit_logs`.
+
+2. **Vacancy Batch Sampling & Formatter Upgrade**:
+   - Replaced employee-centric sample mapping for vacancy events. When `module = 'vacancies'`, `subject_name` is set to NULL, and samples include `{ vcode, position, store_name }`.
+   - Updated `activity_formatter.tsx` and `RecentActivityFeed.tsx` to handle batched vacancy events cleanly, rendering active sentences: `<Actor>: opened N vacancies for <position> at <store> [<account>]`.
+   - Verified with live batched vacancy test on staging (e.g. FOREVER OFFICE 3-vacancy batch).
+
+3. **Multi-Role Scoping & Isolation Tests**:
+   - Conducted caller-impersonated tests verifying fail-closed scope isolation:
+     - OM (Group 1) calling with Group 2 ID -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with PERFECT SM ID (Group 2 account) -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HRCO calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HA received global feed (identical to SA); OM received Group 1 feed only.
+
+4. **Open Vacancy Discrepancy Breakdown**:
+   - Investigated why matrix displays 4 in Group 5 (vs 5 raw), 0 in Group 4 (vs 2 raw), and 0 in Moses HQ (vs 1 raw).
+   - Proved that `BUN-GHQ-00015` (G5), `REL-00009` (G4), `COM-00005` (G4), and `SEA-00006` (Moses HQ) all have `is_pool_vacancy = true`, `affects_required_hc = false`, and `slot_count = 0` (unbudgeted pool slots).
+   - View `v_account_allocation_kpi` strictly excludes pool vacancies (`is_pool_vacancy = false` AND `affects_required_hc = true`). Moses HQ is a pool account (`is_pool_account = true`) under Global HQ (`cencom_scope = false`), pinned at the bottom with 0 vacancies and Standby status.
+   - Standardized terminology: The 12 vacancies in Groups 1 and 2 are defined as **over-capacity vacancies** (not "ghost slots"), normalized to 0 in UI metrics because `actual >= required`.
+
+5. **Migration Forensics (Versions 60–77)**:
+   - Full SELECT-only audit of `schema_migrations` across production (`rwxelulyapjgaarlwkus`) and staging (`qqiiznmqxfoamqytjica`), cross-referenced with repo files.
+   - Production is at version `20262606000065`. Staging has 60–69, 71, 72, 73, 76, 77.
+   - Explained staging versions 66, 67, 68, 69, 71 (prompt `ohm#9q5n3wvx` InitPlan optimizations and Oct 23 plantilla import patches). Reconciled why version 70 never existed and why 74/75 are repo files not yet applied to staging.
+
+6. **Hotfix A Production Apply & Rollback Procedure**:
+   - Clarified that `supabase migration repair` only updates metadata; SQL statements must be executed first via SQL/migration execution.
+   - Provided exact safe sequential run steps and comprehensive rollback DDL restoring the previous `audit_logs_select` policy and `v_audit_activity_feed` grants.
+
+7. **Verification & Quality Gate**:
+   - `npm run lint`: Clean (0 errors, 9 baseline warnings).
+   - `npm run build`: Clean (all 19 routes compiled cleanly).
+   - Local commit executed on `main` with explicit file staging.
+
+---
+
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
@@ -3279,6 +3377,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Phase 2B-1 Round 3 Implementation: Account Requests Union, Vacancy Batching & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Option A Implemented (`account_requests` in `fn_get_recent_activity`)**:
+   - Integrated approved account requests into `public.fn_get_recent_activity` on staging (`qqiiznmqxfoamqytjica`) without modifying `approve_account_request_v2` or `reject_account_request`.
+   - **Privacy constraints enforced**: Exposes strictly `full_name` as `target_name` and the assigned role's `role_name` as `target_role`. Email and all other personal data fields are excluded.
+   - **System attribution**: When `approved_by` is NULL, actor name and role default to `'System'`.
+   - **Visibility gate**: Gated strictly to Data Team roles (Super Admin, Head Admin, Encoder) via `v_is_data_team`. Verified that Operations Manager, HRCO, Recruitment, HR Personnel, and Back Office roles receive 0 User Management rows.
+   - **Jurisdictional scoping**: Scoped by matching caller's assigned groups and accounts against `assigned_groups_snapshot` and `assigned_accounts_snapshot` via `jsonb_array_elements_text`.
+   - **Window**: Filtered to `approved_at >= (now() - interval '30 days')`.
+   - **Audit Logs separation**: Explicitly documented in `docs/state/dashboard_state.md` that these events do NOT appear in `/more?tab=audit_logs` because they originate directly from `account_requests`, not `audit_logs`.
+
+2. **Vacancy Batch Sampling & Formatter Upgrade**:
+   - Replaced employee-centric sample mapping for vacancy events. When `module = 'vacancies'`, `subject_name` is set to NULL, and samples include `{ vcode, position, store_name }`.
+   - Updated `activity_formatter.tsx` and `RecentActivityFeed.tsx` to handle batched vacancy events cleanly, rendering active sentences: `<Actor>: opened N vacancies for <position> at <store> [<account>]`.
+   - Verified with live batched vacancy test on staging (e.g. FOREVER OFFICE 3-vacancy batch).
+
+3. **Multi-Role Scoping & Isolation Tests**:
+   - Conducted caller-impersonated tests verifying fail-closed scope isolation:
+     - OM (Group 1) calling with Group 2 ID -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with PERFECT SM ID (Group 2 account) -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HRCO calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HA received global feed (identical to SA); OM received Group 1 feed only.
+
+4. **Open Vacancy Discrepancy Breakdown**:
+   - Investigated why matrix displays 4 in Group 5 (vs 5 raw), 0 in Group 4 (vs 2 raw), and 0 in Moses HQ (vs 1 raw).
+   - Proved that `BUN-GHQ-00015` (G5), `REL-00009` (G4), `COM-00005` (G4), and `SEA-00006` (Moses HQ) all have `is_pool_vacancy = true`, `affects_required_hc = false`, and `slot_count = 0` (unbudgeted pool slots).
+   - View `v_account_allocation_kpi` strictly excludes pool vacancies (`is_pool_vacancy = false` AND `affects_required_hc = true`). Moses HQ is a pool account (`is_pool_account = true`) under Global HQ (`cencom_scope = false`), pinned at the bottom with 0 vacancies and Standby status.
+   - Standardized terminology: The 12 vacancies in Groups 1 and 2 are defined as **over-capacity vacancies** (not "ghost slots"), normalized to 0 in UI metrics because `actual >= required`.
+
+5. **Migration Forensics (Versions 60–77)**:
+   - Full SELECT-only audit of `schema_migrations` across production (`rwxelulyapjgaarlwkus`) and staging (`qqiiznmqxfoamqytjica`), cross-referenced with repo files.
+   - Production is at version `20262606000065`. Staging has 60–69, 71, 72, 73, 76, 77.
+   - Explained staging versions 66, 67, 68, 69, 71 (prompt `ohm#9q5n3wvx` InitPlan optimizations and Oct 23 plantilla import patches). Reconciled why version 70 never existed and why 74/75 are repo files not yet applied to staging.
+
+6. **Hotfix A Production Apply & Rollback Procedure**:
+   - Clarified that `supabase migration repair` only updates metadata; SQL statements must be executed first via SQL/migration execution.
+   - Provided exact safe sequential run steps and comprehensive rollback DDL restoring the previous `audit_logs_select` policy and `v_audit_activity_feed` grants.
+
+7. **Verification & Quality Gate**:
+   - `npm run lint`: Clean (0 errors, 9 baseline warnings).
+   - `npm run build`: Clean (all 19 routes compiled cleanly).
+   - Local commit executed on `main` with explicit file staging.
+
+---
 
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 
@@ -3529,6 +3676,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Phase 2B-1 Round 3 Implementation: Account Requests Union, Vacancy Batching & Production Parity Audit (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Option A Implemented (`account_requests` in `fn_get_recent_activity`)**:
+   - Integrated approved account requests into `public.fn_get_recent_activity` on staging (`qqiiznmqxfoamqytjica`) without modifying `approve_account_request_v2` or `reject_account_request`.
+   - **Privacy constraints enforced**: Exposes strictly `full_name` as `target_name` and the assigned role's `role_name` as `target_role`. Email and all other personal data fields are excluded.
+   - **System attribution**: When `approved_by` is NULL, actor name and role default to `'System'`.
+   - **Visibility gate**: Gated strictly to Data Team roles (Super Admin, Head Admin, Encoder) via `v_is_data_team`. Verified that Operations Manager, HRCO, Recruitment, HR Personnel, and Back Office roles receive 0 User Management rows.
+   - **Jurisdictional scoping**: Scoped by matching caller's assigned groups and accounts against `assigned_groups_snapshot` and `assigned_accounts_snapshot` via `jsonb_array_elements_text`.
+   - **Window**: Filtered to `approved_at >= (now() - interval '30 days')`.
+   - **Audit Logs separation**: Explicitly documented in `docs/state/dashboard_state.md` that these events do NOT appear in `/more?tab=audit_logs` because they originate directly from `account_requests`, not `audit_logs`.
+
+2. **Vacancy Batch Sampling & Formatter Upgrade**:
+   - Replaced employee-centric sample mapping for vacancy events. When `module = 'vacancies'`, `subject_name` is set to NULL, and samples include `{ vcode, position, store_name }`.
+   - Updated `activity_formatter.tsx` and `RecentActivityFeed.tsx` to handle batched vacancy events cleanly, rendering active sentences: `<Actor>: opened N vacancies for <position> at <store> [<account>]`.
+   - Verified with live batched vacancy test on staging (e.g. FOREVER OFFICE 3-vacancy batch).
+
+3. **Multi-Role Scoping & Isolation Tests**:
+   - Conducted caller-impersonated tests verifying fail-closed scope isolation:
+     - OM (Group 1) calling with Group 2 ID -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with PERFECT SM ID (Group 2 account) -> `[]` (SA control -> returns rows).
+     - OM (Group 1) calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HRCO calling with Moses HQ pool account -> `[]` (SA control -> returns rows).
+     - HA received global feed (identical to SA); OM received Group 1 feed only.
+
+4. **Open Vacancy Discrepancy Breakdown**:
+   - Investigated why matrix displays 4 in Group 5 (vs 5 raw), 0 in Group 4 (vs 2 raw), and 0 in Moses HQ (vs 1 raw).
+   - Proved that `BUN-GHQ-00015` (G5), `REL-00009` (G4), `COM-00005` (G4), and `SEA-00006` (Moses HQ) all have `is_pool_vacancy = true`, `affects_required_hc = false`, and `slot_count = 0` (unbudgeted pool slots).
+   - View `v_account_allocation_kpi` strictly excludes pool vacancies (`is_pool_vacancy = false` AND `affects_required_hc = true`). Moses HQ is a pool account (`is_pool_account = true`) under Global HQ (`cencom_scope = false`), pinned at the bottom with 0 vacancies and Standby status.
+   - Standardized terminology: The 12 vacancies in Groups 1 and 2 are defined as **over-capacity vacancies** (not "ghost slots"), normalized to 0 in UI metrics because `actual >= required`.
+
+5. **Migration Forensics (Versions 60–77)**:
+   - Full SELECT-only audit of `schema_migrations` across production (`rwxelulyapjgaarlwkus`) and staging (`qqiiznmqxfoamqytjica`), cross-referenced with repo files.
+   - Production is at version `20262606000065`. Staging has 60–69, 71, 72, 73, 76, 77.
+   - Explained staging versions 66, 67, 68, 69, 71 (prompt `ohm#9q5n3wvx` InitPlan optimizations and Oct 23 plantilla import patches). Reconciled why version 70 never existed and why 74/75 are repo files not yet applied to staging.
+
+6. **Hotfix A Production Apply & Rollback Procedure**:
+   - Clarified that `supabase migration repair` only updates metadata; SQL statements must be executed first via SQL/migration execution.
+   - Provided exact safe sequential run steps and comprehensive rollback DDL restoring the previous `audit_logs_select` policy and `v_audit_activity_feed` grants.
+
+7. **Verification & Quality Gate**:
+   - `npm run lint`: Clean (0 errors, 9 baseline warnings).
+   - `npm run build`: Clean (all 19 routes compiled cleanly).
+   - Local commit executed on `main` with explicit file staging.
+
+---
 
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 

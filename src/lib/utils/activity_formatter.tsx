@@ -189,6 +189,15 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_opened":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}opened {batchCount} vacancies for {positionNode}
+            {storeText}
+            {accountTag}
+          </span>
+        );
+      }
       return (
         <span>
           {actorNode}opened vacancy for {positionNode}
@@ -198,6 +207,15 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_filled":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}filled {batchCount} vacancies for {positionNode}
+            {storeText}
+            {accountTag}
+          </span>
+        );
+      }
       return (
         <span>
           {actorNode}filled vacancy for {positionNode}
@@ -207,6 +225,15 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_closed":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}closed {batchCount} vacancies for {positionNode}
+            {storeText}
+            {accountTag}
+          </span>
+        );
+      }
       return (
         <span>
           {actorNode}closed vacancy for {positionNode}
@@ -216,6 +243,15 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_reopened":
+      if (batchCount > 1) {
+        return (
+          <span>
+            {actorNode}reopened {batchCount} vacancies for {positionNode}
+            {storeText}
+            {accountTag}
+          </span>
+        );
+      }
       return (
         <span>
           {actorNode}reopened vacancy for {positionNode}

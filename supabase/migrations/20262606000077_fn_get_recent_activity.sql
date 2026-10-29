@@ -1,7 +1,7 @@
 -- Migration: 20262606000077_fn_get_recent_activity.sql
 -- Purpose: Scoped Recent Activity Feed RPC (Phase 2B-1)
 -- Returns allow-listed operational activity events strictly scoped to caller's allowed modules and jurisdictions,
--- with per-transaction entity deduplication and 5-minute window batching.
+-- with per-transaction entity deduplication, 5-minute window batching, and Option A account_requests union.
 
 -- Performance index for account-scoped audit log scans
 CREATE INDEX IF NOT EXISTS idx_audit_logs_account_ts ON public.audit_logs USING btree ((((new_data ->> 'account_id'::text))::uuid), "timestamp" DESC) WHERE ((new_data ->> 'account_id'::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'::text);
@@ -122,7 +122,7 @@ BEGIN
 
   -- 4. Execute query with early-stopping ordered index scan (30-day window)
   RETURN QUERY
-  WITH parsed_events AS (
+  WITH audit_events AS (
     SELECT
       al.id,
       al.timestamp,
@@ -161,7 +161,7 @@ BEGIN
     CROSS JOIN LATERAL (
       SELECT
         CASE
-          -- Module: User Management
+          -- Module: User Management (audit_logs stream: user creation, role updates, archives)
           WHEN al.module = 'User Management' AND al.action::text IN ('APPROVE_REQUEST', 'APPROVE_USER_REQUEST', 'approved new user') THEN 'user_approved'
           WHEN al.module = 'User Management' AND al.action::text = 'CREATE_USER' THEN 'user_created'
           WHEN al.module = 'User Management' AND al.action::text = 'UPDATE_USER_ROLE' THEN 'user_role_updated'
@@ -201,27 +201,16 @@ BEGIN
         END AS event_type,
 
         CASE
-          -- Priority hierarchy for deduplication:
-          -- 1. Transferred to Plantilla (plantilla INSERT / hr_emploc Moved to Plantilla)
           WHEN al.module = 'plantilla' AND al.action::text = 'INSERT' THEN 1
           WHEN al.module = 'hr_emploc' AND (al.new_data->>'status' = 'Moved to Plantilla' OR al.new_data->>'hr_status' = 'Transferred') THEN 1
-          -- 2. Separation / Deactivation
           WHEN al.module = 'plantilla' AND (al.action::text = 'SOFT_DELETE' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' IN ('Inactive', 'Deactivated'))) THEN 2
-          -- 3. Vacancy filled
           WHEN al.module = 'vacancies' AND (al.action::text = 'APPROVAL' OR (al.action::text = 'UPDATE' AND al.new_data->>'status' = 'Filled')) THEN 3
-          -- 4. HR Emploc approved (Complete / Ready for Plantilla)
           WHEN al.module = 'hr_emploc' AND al.new_data->>'hr_status' = 'Complete' THEN 4
-          -- 5. HR Emploc status changes
           WHEN al.module = 'hr_emploc' AND al.new_data->>'hr_status' IN ('For Review', 'For Correction') THEN 5
-          -- 6. HR Emploc reverted
           WHEN al.module = 'hr_emploc' AND al.old_data->>'status' = 'Moved to Plantilla' AND al.new_data->>'status' = 'Pending Emploc' THEN 6
-          -- 7. Vacancy lifecycle
           WHEN al.module = 'vacancies' THEN 7
-          -- 8. Plantilla status changes
           WHEN al.module = 'plantilla' THEN 8
-          -- 9. HR Emploc created
           WHEN al.module = 'hr_emploc' THEN 9
-          -- 10. User Management
           WHEN al.module = 'User Management' THEN 10
           ELSE 99
         END AS priority
@@ -250,7 +239,6 @@ BEGIN
           )
         )
         OR
-        -- Operational / Scoped events:
         (
           al.module != 'User Management'
           AND (
@@ -267,6 +255,80 @@ BEGIN
           )
         )
       )
+  ),
+  account_request_events AS (
+    SELECT
+      ar.id,
+      ar.approved_at AS "timestamp",
+      'User Management'::text AS module,
+      'APPROVE_REQUEST'::text AS action,
+      'user_approved'::text AS event_type,
+      10::integer AS priority,
+      ar.id::text AS record_id,
+      ar.approved_by AS actor_id,
+      jsonb_build_object(
+        'full_name', ar.full_name,
+        'role_name', r.role_name
+      ) AS new_data,
+      '{}'::jsonb AS old_data,
+      ar.full_name AS entity_key,
+      CASE
+        WHEN jsonb_typeof(ar.assigned_accounts_snapshot) = 'array'
+             AND jsonb_array_length(ar.assigned_accounts_snapshot) > 0
+             AND (ar.assigned_accounts_snapshot->>0) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        THEN (ar.assigned_accounts_snapshot->>0)::uuid
+        ELSE NULL
+      END AS parsed_account_id,
+      NULL::uuid AS parsed_store_id
+    FROM public.account_requests ar
+    LEFT JOIN public.roles r ON r.id = ar.assigned_role_id
+    WHERE v_is_data_team
+      AND ar.status = 'approved'
+      AND ar.approved_at >= (now() - interval '30 days')
+      AND (
+        p_group_id IS NULL
+        OR (
+          jsonb_typeof(ar.assigned_groups_snapshot) = 'array'
+          AND ar.assigned_groups_snapshot ? p_group_id::text
+        )
+      )
+      AND (
+        p_account_id IS NULL
+        OR (
+          jsonb_typeof(ar.assigned_accounts_snapshot) = 'array'
+          AND ar.assigned_accounts_snapshot ? p_account_id::text
+        )
+      )
+      AND (
+        v_is_admin
+        OR (
+          p_group_id IS NOT NULL
+          OR p_account_id IS NOT NULL
+          OR (
+            jsonb_typeof(ar.assigned_groups_snapshot) = 'array'
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(ar.assigned_groups_snapshot) g_id
+              WHERE g_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                AND g_id::uuid = ANY(v_allowed_groups)
+            )
+          )
+          OR (
+            jsonb_typeof(ar.assigned_accounts_snapshot) = 'array'
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements_text(ar.assigned_accounts_snapshot) acc_id
+              WHERE acc_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                AND acc_id::uuid = ANY(v_allowed_accounts)
+            )
+          )
+        )
+      )
+  ),
+  parsed_events AS (
+    SELECT * FROM audit_events
+    UNION ALL
+    SELECT * FROM account_request_events
   ),
   deduped AS (
     SELECT
@@ -305,19 +367,37 @@ BEGIN
       dd.old_data,
       dd.parsed_account_id,
       dd.parsed_store_id,
-      COALESCE(
-        NULLIF(TRIM(dd.new_data->>'full_name'), ''),
-        NULLIF(TRIM(dd.new_data->>'employee_name'), ''),
-        NULLIF(TRIM(dd.new_data->>'applicant_name'), ''),
-        NULLIF(TRIM(dd.old_data->>'full_name'), ''),
-        NULLIF(TRIM(dd.new_data->>'position'), ''),
-        NULLIF(TRIM(dd.old_data->>'position'), '')
-      ) AS subject_name,
-      COALESCE(
-        NULLIF(TRIM(dd.new_data->>'employee_no'), ''),
-        NULLIF(TRIM(dd.new_data->>'emploc_no'), ''),
-        NULLIF(TRIM(dd.old_data->>'employee_no'), '')
-      ) AS subject_employee_no,
+      -- Employee subjects (do NOT put vacancy position in subject_name)
+      CASE
+        WHEN dd.module = 'vacancies' THEN NULL
+        ELSE COALESCE(
+          NULLIF(TRIM(dd.new_data->>'full_name'), ''),
+          NULLIF(TRIM(dd.new_data->>'employee_name'), ''),
+          NULLIF(TRIM(dd.new_data->>'applicant_name'), ''),
+          NULLIF(TRIM(dd.old_data->>'full_name'), '')
+        )
+      END AS subject_name,
+      CASE
+        WHEN dd.module = 'vacancies' THEN NULL
+        ELSE COALESCE(
+          NULLIF(TRIM(dd.new_data->>'employee_no'), ''),
+          NULLIF(TRIM(dd.new_data->>'emploc_no'), ''),
+          NULLIF(TRIM(dd.old_data->>'employee_no'), '')
+        )
+      END AS subject_employee_no,
+      -- Vacancy specific fields
+      CASE
+        WHEN dd.module = 'vacancies' THEN COALESCE(NULLIF(TRIM(dd.new_data->>'vcode'), ''), NULLIF(TRIM(dd.old_data->>'vcode'), ''))
+        ELSE NULL
+      END AS vacancy_vcode,
+      CASE
+        WHEN dd.module = 'vacancies' THEN COALESCE(NULLIF(TRIM(dd.new_data->>'position'), ''), NULLIF(TRIM(dd.old_data->>'position'), ''))
+        ELSE NULL
+      END AS vacancy_position,
+      CASE
+        WHEN dd.module = 'vacancies' THEN COALESCE(NULLIF(TRIM(dd.new_data->>'store_name'), ''), NULLIF(TRIM(dd.old_data->>'store_name'), ''))
+        ELSE NULL
+      END AS vacancy_store,
       date_bin(interval '5 minutes', dd.timestamp, timestamptz '2000-01-01 00:00:00Z') AS time_bucket,
       ROW_NUMBER() OVER (
         PARTITION BY
@@ -345,11 +425,21 @@ BEGIN
       (array_agg(b.old_data ORDER BY b.timestamp DESC, b.id DESC))[1] AS rep_old_data,
       COUNT(*)::integer AS batch_count,
       jsonb_agg(
-        jsonb_build_object(
-          'name', b.subject_name,
-          'employee_no', b.subject_employee_no
-        ) ORDER BY b.timestamp DESC, b.id DESC
-      ) FILTER (WHERE b.sample_rn <= 3 AND b.subject_name IS NOT NULL) AS samples
+        CASE
+          WHEN b.module = 'vacancies' THEN
+            jsonb_build_object(
+              'vcode', b.vacancy_vcode,
+              'position', b.vacancy_position,
+              'store_name', b.vacancy_store
+            )
+          ELSE
+            jsonb_build_object(
+              'name', b.subject_name,
+              'employee_no', b.subject_employee_no
+            )
+        END
+        ORDER BY b.timestamp DESC, b.id DESC
+      ) FILTER (WHERE b.sample_rn <= 3 AND (b.subject_name IS NOT NULL OR b.vacancy_vcode IS NOT NULL)) AS samples
     FROM bucketed b
     GROUP BY
       b.actor_id,
@@ -376,7 +466,7 @@ BEGIN
       'subject', COALESCE(c.rep_new_data->>'full_name', c.rep_new_data->>'employee_name', c.rep_new_data->>'applicant_name', c.rep_old_data->>'full_name'),
       'employee_no', COALESCE(c.rep_new_data->>'employee_no', c.rep_new_data->>'emploc_no', c.rep_old_data->>'employee_no'),
       'account_name', a.account_name,
-      'store_name', s.store_name,
+      'store_name', COALESCE(c.rep_new_data->>'store_name', c.rep_old_data->>'store_name', s.store_name),
       'position', COALESCE(c.rep_new_data->>'position', c.rep_old_data->>'position'),
       'vcode', COALESCE(c.rep_new_data->>'vcode', c.rep_old_data->>'vcode'),
       'target_role', COALESCE(c.rep_new_data->>'role_name', c.rep_old_data->>'role'),
