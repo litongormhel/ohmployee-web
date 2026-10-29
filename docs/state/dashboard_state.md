@@ -12,6 +12,7 @@ The Dashboard (`/dashboard`) is the cross-module operational overview for authen
 |-----|---------|
 | `fn_dashboard_metrics()` | Operational KPIs (active plantilla, open vacancies, unassigned/assigned vacancies, understaffed stores, active SLA breaches, ghost employee anomalies, 11-queue operational pending approvals) + role-gated admin security approvals |
 | `fn_dashboard_operational_analytics()` | Hiring pipeline and analytics metrics (actual deployed plantilla, HR pipeline count, open vacancies, required headcount, average fill rate %, hires/separations) |
+| `fn_get_recent_activity(p_group_id, p_account_id, p_limit)` | Scoped, role-gated audit feed (Plantilla, Vacancies, HR Emploc, User Approvals) enforcing caller scope and canonical module access (`get_web_current_user_context`). Non-admin callers without `user_scopes` fail closed. Pre-limit 30-day index scan. |
 
 Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` only. No caller-controlled role or scope parameters are accepted.
 
@@ -28,6 +29,10 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
 - `DashboardDataError` — error class with `access_denied` / `retryable` kind discriminator
 - `DashboardMetrics` type
 - `DashboardOperationalAnalytics` type
+
+`src/lib/queries/activity.ts` exports:
+- `useRecentActivity({ groupId, accountId, limit })` — calls `fn_get_recent_activity` with 60-second `staleTime` and reactive scope filtering
+- `RecentActivityItem` type
 
 ---
 
@@ -60,6 +65,13 @@ Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components
     2. Reconciled Pending approvals count (including coverage & reliever count), synced with the sidebar Approvals badge from `useRequestCategoryCounts()`.
     3. Under-staffed stores alert (inspect stores).
     4. Ghost employee records alert with `"Resolve Anomalies →"` linking to `/plantilla` (MIKA/Plantilla reconciliation; no sync trigger on Dashboard).
+  - **`RecentActivityFeed` (`src/components/dashboard/RecentActivityFeed.tsx`):**
+    - Compact, human-readable operational audit feed mounted directly beneath "Needs your attention".
+    - Role-gated to Super Admin and Head Admin (`currentUser?.roleKey` or `currentUser?.roleName` matching SA/HA).
+    - Reactively scoped to `selectedGroupScope` (`p_group_id` for retail groups, `p_account_id` for Moses HQ).
+    - Pre-filtered via `fn_get_recent_activity` within an indexed 30-day time window.
+    - Pure React formatting (`src/lib/utils/activity_formatter.tsx`) rendering bold `<span>` elements for actor, target, and position (zero `dangerouslySetInnerHTML`).
+    - Relative timestamps (`timeAgo`), empty state (`"No recent activity in this scope."`), and a `"View all →"` link to the Audit Logs modal gated strictly to Super Admin.
 
 ### 4.4 Security & Audit Telemetry Footer
 - Replaced standalone Card E with a single high-contrast footer line:

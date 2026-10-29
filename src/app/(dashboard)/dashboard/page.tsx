@@ -32,6 +32,8 @@ import { SegmentedTabs, type TabItem } from "@/components/shared/SegmentedTabs";
 import { ScopeDropdown, type ScopeOption } from "@/components/shared/ScopeDropdown";
 import { NeutralChip } from "@/components/shared/NeutralChip";
 import { Toast } from "@/components/shared/Toast";
+import { useCurrentUser } from "@/lib/auth";
+import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 
 // ---------------------------------------------------------------------------
 // Helpers & Types
@@ -255,6 +257,27 @@ export default function DashboardPage() {
   const criticalGroups = useMemo(() => {
     return displayedGroupRows.filter((g) => g.slaStatus === "Critical");
   }, [displayedGroupRows]);
+
+  const currentUser = useCurrentUser();
+  const isSuperAdmin = useMemo(() => {
+    const key = (currentUser?.roleKey || currentUser?.roleName || "").toLowerCase();
+    return key === "super_admin" || key === "super admin";
+  }, [currentUser]);
+
+  // Derived activity feed scope parameter
+  const activeActivityScope = useMemo(() => {
+    if (selectedGroupScope === "all") {
+      return { groupId: null, accountId: null };
+    }
+    if (selectedGroupScope === "MOSES HQ") {
+      // Moses HQ pool account ID
+      return { groupId: null, accountId: "3946ffdd-d826-4fc7-bb9e-356a32dcd152" };
+    }
+    const matched = groupKpiData?.find(
+      (g) => g.groupName.toLowerCase().includes(selectedGroupScope.toLowerCase())
+    );
+    return { groupId: matched?.groupId ?? null, accountId: null };
+  }, [selectedGroupScope, groupKpiData]);
 
   // Scope Dropdown Options
   const scopeOptions: ScopeOption[] = useMemo(() => {
@@ -849,6 +872,13 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+
+          {/* Recent Activity Feed (Phase 2B-1) */}
+          <RecentActivityFeed
+            groupId={activeActivityScope.groupId}
+            accountId={activeActivityScope.accountId}
+            isSuperAdmin={isSuperAdmin}
+          />
         </div>
       </div>
 

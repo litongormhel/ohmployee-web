@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Phase 2B-1: Recent Activity Feed on Staging (ohm#9d3t5hq2)
+
+**Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED**
+
+### Summary of Completed Work
+1. **Mobile Flutter Repo Grep (`D:\Projects\OHMployee`)**:
+   - `v_audit_activity_feed`: **0 occurrences** across all `.dart` files in the mobile app.
+   - `audit_logs`: Sourced only in `audit_log_service.dart:102` (gated to Super Admin `more_screen.dart`), `security_dashboard_service.dart:290, 302` (gated to Super Admin), and `user_management_screen.dart:956` (gated to `role_level >= 90`). Roles below level 90 in mobile never query `audit_logs` directly. Safe to apply Hotfix A to production whenever approved.
+2. **Database Migration (`20262606000077_fn_get_recent_activity.sql`) Applied on Staging**:
+   - **Time Window & Indexing**: Pre-limit 30-day filter (`timestamp >= now() - interval '30 days'`) utilizing `idx_audit_logs_timestamp_desc`.
+   - **Canonical Module Access**: Dynamically derives caller access via `SELECT allowed_module_keys FROM public.get_web_current_user_context()`. Eliminates hardcoded role name lists.
+   - **Fail-Closed Rule**: If a non-admin caller has no rows in `user_scopes`, returns 0 rows immediately.
+   - **Safe UUID Casting**: Validates `record_id` and JSON fields against UUID regex (`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`) before casting.
+   - **Pool Account Identification**: Uses `COALESCE(a.is_pool_account, false) = true` instead of account name strings.
+   - **Canonical Module Deduplication**: Restricts queries to lowercase modules (`plantilla`, `vacancies`, `hr_emploc`, `User Management`), discarding uppercase redundant triggers (`HR_EMPLOC`).
+   - **Action Allow-List**: Strict allow-list per module; unmapped actions return `NULL` event type and are dropped fail-closed.
+   - **Scope Parameter Behavior**: User Management approvals are unscoped (system-level); when a specific `p_group_id` or `p_account_id` is supplied in the scope selector, User Approvals disappear as intended. MOSES HQ is passed as `p_account_id = '3946ffdd-d826-4fc7-bb9e-356a32dcd152'`.
+3. **Frontend Implementation**:
+   - `src/lib/queries/activity.ts`: Implemented `useRecentActivity` hook with 60-second `staleTime` and reactive scope bindings.
+   - `src/lib/utils/activity_formatter.tsx`: Pure React element formatter `formatRecentActivityItem` producing bold `<span>` elements without `dangerouslySetInnerHTML`. Preserves `formatAuditSentence` untouched.
+   - `src/components/dashboard/RecentActivityFeed.tsx`: Compact design matching executive dashboard typography, relative timestamps (`timeAgo`), empty state `"No recent activity in this scope."`, and `"View all →"` link to Audit Logs modal gated strictly to Super Admin.
+   - `src/app/(dashboard)/dashboard/page.tsx`: Mounted feed in right rail directly beneath "Needs your attention" for Super Admin and Head Admin.
+4. **Staging Impersonation Tests (`SET LOCAL ROLE authenticated; SET LOCAL "request.jwt.claims" = ...`)**:
+   - **Super Admin** (`71d2...`): Full activity feed returned across all modules (execution time: 44.0 ms, 4,107 buffer hits, 0 disk reads).
+   - **Operations Manager** (`1c2e...`): Feed restricted to assigned stores in Group 1 (execution time: 3.7 ms, 820 buffer hits). Forged group ID returns 0 rows.
+   - **Recruitment Team** (`8189...`): Sees ONLY vacancy actions (10 rows). Plantilla, HR Emploc, and User Approvals are 100% hidden.
+   - **HR Coordinator without user_scopes** (`a688...`): Throws/returns 0 rows (fail closed).
+   - **Encoder** (`3b09...`): Sees scoped events + User Approval events.
+5. **Lint and Build Verification**:
+   - `npm run lint`: 0 errors (9 baseline warnings).
+   - `npm run build`: Next.js 16.2.4 compiled clean across all 19 routes.
+
+---
+
 ## Execution Report — Hotfix A: Secure audit_logs RLS & Close v_audit_activity_feed Backdoor (ohm#4c8x1nw6)
 
 **Status: COMPLETE ON MAIN & APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED AND VERIFIED CLEAN**
