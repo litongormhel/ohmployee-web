@@ -289,8 +289,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("hr_emploc_deletion_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
     ),
 
     // 9. Deactivations

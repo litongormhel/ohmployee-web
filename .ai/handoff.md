@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — UI Redesign & Bugfix: Tarsi-Style Centered OHMni Card, Tool Execution Safeguards & Approvals Queue Fix (ohm#0hmn1ui)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Part A: Tarsi-Style Centered Floating Card Overlay (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Replaced right-docked split sidebar drawer layout (`w-[380px] border-l`) with a centered floating card overlay inside the main workspace (`fixed inset-0 lg:left-[var(--sidebar-width)] z-50 bg-slate-900/10 backdrop-blur-[2px]`).
+   - Left navigation sidebar (`Sidebar.tsx`) remains 100% visible, interactable, and accessible.
+   - Centered card: `w-full max-w-[680px] h-[calc(100vh-48px)] max-h-[780px] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden mx-auto my-auto`.
+   - Top Header: Left subtle circular button with `ChevronLeft` (`onClose`), bold title `Chat` with status pill (`⚡ LIVE` / pulsing `⏳ SYNCING`), and right circular reset button (`RotateCcw`).
+   - Welcome View: Robot Icon avatar (`Bot` in `w-8 h-8 rounded-full bg-emerald-100 text-emerald-700`) labeled `OHMni` with greeting `"Hi OHM!"`, followed by 3 contextual starter prompt pills when `messages.length === 0`.
+   - Active Stream: Right-aligned user pills (`bg-slate-900 text-white rounded-2xl`) and left-aligned assistant blocks with formatted markdown/tables and verified live data trust badges.
+   - Bottom Composer: Rounded container with auto-resizing textarea, bottom bar containing route pill (`⚡ Cloud • {currentRoute}`) and circular submit button (`ArrowUp`), with micro-caption `"OHMni can make mistakes. Review important details."`
+   - Dismissible via Escape key, outer backdrop click, or header close button.
+
+2. **Part B: Tool Execution Fix & Client-Side Fallback (`src/app/api/ohmni/route.ts` & `src/components/ohmni/OhmniDrawer.tsx`)**:
+   - **Model Switch to `gemini-3.5-flash`**: Upgraded primary model from `gemini-3.8-flash` to `gemini-3.5-flash` to resolve Free Tier 20-req/day exhaustion (`429 RESOURCE_EXHAUSTED`). Real-time tests verified `200 OK` multi-step tool streaming.
+   - **8-Second Timeout Safeguards**: Wrapped each backend tool query (`getPlantillaSummary`, `getOpenVacancies`, `getEmplocQueueStatus`, `getHeadcountRequests`) in `executeWithTimeout` (8s timeout) so slow queries fail gracefully rather than hanging.
+   - **`getEmplocQueueStatus` Column Fix**: Corrected column selection on `hr_emploc` from non-existent `deployment_status` to `hr_status`.
+   - **`getOpenVacancies` Parameter Handling**: Properly consumed `branchFilter` and `positionTitle`.
+   - **Client-Side Fallback (`ToolOutputFallbackView`)**: Built a structured fallback component that immediately flips tool badges to `⚡ Verified Live Data` when `state === 'output-available'`, and automatically renders formatted live data tables directly from the tool JSON if a stream ends with zero text parts (preventing stuck `"Analyzing operations data..."`).
+
+3. **Approvals Queue Fix (`src/lib/queries/requests.ts` & `src/lib/queries/hr_emploc.ts`)**:
+   - Removed non-existent `is_archived` and `suppressed_by_batch_id` column filters on `hr_emploc_deletion_requests` in `countItem("hr_emploc_deletions", ...)` and `fetchEmplocDeletionCounts`.
+   - Eliminated PostgreSQL `42703 (column does not exist)` error on the Approvals Hub.
+
+### Files Modified
+- `src/app/api/ohmni/route.ts`
+- `src/components/ohmni/OhmniDrawer.tsx`
+- `src/lib/queries/hr_emploc.ts`
+- `src/lib/queries/requests.ts`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — Fix: OHMni Runtime gemini-3.8-flash Upgrade & Stream Error Forwarding (ohm#0hmn1fix)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**

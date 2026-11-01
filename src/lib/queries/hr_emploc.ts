@@ -1709,9 +1709,7 @@ export async function fetchEmplocDeletionCounts(): Promise<{
   const supabase = createClient();
   const { data, error } = await supabase
     .from("hr_emploc_deletion_requests")
-    .select("status")
-    .or("is_archived.is.null,is_archived.eq.false")
-    .is("suppressed_by_batch_id", null);
+    .select("status");
   if (error) {
     console.error("[fetchEmplocDeletionCounts] query failed:", error.code, error.message);
     throwHrEmplocError(error);
