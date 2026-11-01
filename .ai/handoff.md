@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Bugfix: query.limit Postgrest Unwrapping Fix, Multi-Model Quota Failover & Zero-Quota Fallback (ohm#0hmn1fix2)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Resolved `query.limit is not a function` Thenable Unwrapping Bug (`src/app/api/ohmni/route.ts`)**:
+   - Identified that returning a Postgrest builder from an `async` function (`applyPlantillaFilters`) caused the JavaScript Promise runtime to automatically unwrap the thenable, prematurely executing the HTTP query and turning `query` into `{ data, error }` before `.limit(...)` was invoked.
+   - Replaced `applyPlantillaFilters` with an async data-only helper `resolveGroupFilter(supabase, rawFilter)` that returns plain JSON data (`{ groupIds: string[], groupCodePattern: string | null, cleanText: string } | null`).
+   - Group resolution runs before query construction; chained methods (`.select()`, `.ilike()`, `.or()`, and `.limit()`) are applied 100% synchronously on the Postgrest builder inside both `getPlantillaSummary` and `getOpenVacancies`.
+
+2. **Multi-Model Discovery & Automatic Quota Failover Sequence (`src/app/api/ohmni/route.ts`)**:
+   - Polled Gemini models via API key to assess Free Tier quota status:
+     - 🟢 `gemini-3.5-flash-lite`: 200 OK
+     - 🟢 `gemini-3.1-flash-lite`: 200 OK
+     - 🟢 `gemini-flash-lite-latest`: 200 OK
+     - 🔴 `gemini-3.8-flash`: 429 RESOURCE_EXHAUSTED (20 req/day limit hit)
+     - 🔴 `gemini-3.6-flash`: 429 RESOURCE_EXHAUSTED
+     - 🔴 `gemini-3.5-flash`: 429 RESOURCE_EXHAUSTED
+   - Set `maxRetries: 0` so quota errors fail fast without consuming 3 redundant retries per exhausted model.
+   - Built an automatic failover sequence in `createUIMessageStream` with early-chunk buffering:
+     - Iterates through `CANDIDATE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"]`.
+     - Buffers chunks until generation confirms success (`start-step`, `text-start`, `tool-*`). If an error/429 chunk arrives, the buffer is dropped and execution seamlessly advances to the next candidate model without emitting corrupt SSE frames to the client.
+
+3. **Deterministic Server-Side Zero-Quota Fallback Router (`src/app/api/ohmni/route.ts`)**:
+   - Implemented `handleDeterministicFallback(supabase, promptText)`:
+     - If all Gemini models on the Free Tier key hit 429 quota exhaustion, prevents displaying any red error box in `OhmniDrawer`.
+     - **For How-To / SOP Queries** (e.g. `"paano"`, `"how to"`, `"headcount"`, `"mika"`, `"emploc"`, `"plantilla"`, `"cencom"`): streams clear, step-by-step Taglish/English SOP instructions directly from `OHMPLOYEE_SOP_MANUAL`.
+     - **For Live Data Inquiries** (e.g. `"vacant"`, `"group"`, `"pending"`, `"headcount request"`, `"emploc"`, `"plantilla"`): directly executes the corresponding Supabase query under the requesting user's RLS client and streams the formatted conversational summary and bullet points.
+
+### Files Modified
+- `src/app/api/ohmni/route.ts`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and static pages generated successfully).
+
+---
+
 ## Execution Report — UI & Prompt Refinement: Conversational Answers, Collapsed Badges & Group Matching for OHMni (ohm#0hmn1ref)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
