@@ -23,6 +23,10 @@ The **CENCOM (Central Command)** module provides operational manpower fulfillmen
 4. **Deployment Activity (`deployments`)**: Chronological candidate placement records and onboarding velocity (`CencomDeploymentActivityTab.tsx`).
 5. **Quick Reports (`reports`)**: 18 standard analytical workforce reports (`CencomQuickReportsTab.tsx`) using semantic card surfaces.
 
+### Co-Pilot Integration (OHMni)
+- Positioned directly below CENCOM in the primary sidebar navigation hierarchy (`Sidebar.tsx`) and header trigger (`AdminTopbar.tsx`).
+- Offers instant operations data lookup (`plantilla_slots`, `hr_emploc`, `headcount_requests`) and SOP assistance via docked 4-zone right-side drawer. See `docs/state/ohmni_copilot_state.md`.
+
 ---
 
 ## 2. Group Scope Dropdown

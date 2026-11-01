@@ -1,5 +1,61 @@
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot: AI Operations & Data Self-Service Assistant (ohm#0hmn1cop)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **AI Dependencies & Environment Alignment**:
+   - Installed AI SDK v7 (`ai@7.0.159`), `@ai-sdk/google@4.0.109`, `@ai-sdk/react@4.0.163`, and `zod@4.6.7`.
+   - Verified `GOOGLE_GENERATIVE_AI_API_KEY` in `.env.local` and added reference to `.env.example`.
+2. **Bearer Token Forwarding & Scoped Supabase SSR Client (`src/lib/supabase/server.ts`)**:
+   - Built `createScopedServerClient` to authenticate incoming requests using the user's `Authorization: Bearer <jwt>` session token.
+   - Enforced PostgreSQL Row-Level Security (RLS) and user RBAC scopes; verified client identity via `supabase.auth.getUser(token)`.
+   - Zero reliance on `SUPABASE_SERVICE_ROLE_KEY`. Returns `401 Unauthorized` on missing or invalid tokens.
+3. **Backend Streaming Route Handler (`src/app/api/ohmni/route.ts`)**:
+   - Built Next.js App Router streaming endpoint using `@ai-sdk/google` (`gemini-2.5-flash`), `streamText`, `stopWhen: stepCountIs(3)`, and `toUIMessageStreamResponse()`.
+   - Injected enterprise system prompt with concise tone guidelines and `OHMPLOYEE_SOP_MANUAL` (Headcount filing, Plantilla hydration/MIKA sync, HR Emploc discrepancies, CENCOM overview).
+   - Implemented 4 Zod-typed read-only live data tools running strictly under requesting user RLS:
+     - `getPlantillaSummary`: Computes total, filled, vacant counts, and fill rate % from `plantilla_slots` with up to 15 sample rows.
+     - `getOpenVacancies`: Queries open/vacant slots from `plantilla_slots` by position and branch.
+     - `getEmplocQueueStatus`: Queries `hr_emploc` for pending/movement placement queue status and candidate details.
+     - `getHeadcountRequests`: Queries `headcount_requests` for pending requisitions, status, urgency, branch, and role.
+4. **4-Zone UI Drawer Component (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - **Zone A (Sub-Header, 44px):** Live status dot (idle green / pulsing amber while streaming), dynamic route context pill (`usePathname()`), reset button (`↺`), and close button (`✕`).
+   - **Zone B (Dynamic Body):**
+     - Route-aware zero-state with 3 context-aware starter cards tailored to active route (CENCOM, Plantilla, Vacancy, HR Emploc).
+     - Active message stream with user bubble (`bg-slate-900`) and structured assistant cards with formatted mini-tables, bullet lists, and monospace code badges.
+     - Real-time tool execution trust badges (`⏳ Querying live Supabase data ({toolName})...` and `⚡ Verified Live Data • {toolName}`).
+   - **Zone C (Contextual Quick-Follow-Up Strip):** Quick-action chips (`🔍 Vacant Only`, `📋 Check Emploc Queue`, `↺ Clear`).
+   - **Zone D (Bottom Composer):** Textarea with `Enter` submit / `Shift+Enter` newline, send button, and RBAC micro-caption.
+   - Implemented token forwarding guardrail: extracts session `access_token` on every submission via `supabase.auth.getSession()` and injects `Authorization: Bearer ${token}`.
+5. **Navigation & Command Hierarchy Integration**:
+   - In `src/components/Sidebar.tsx`: Mounted OHMni Co-Pilot trigger directly below CENCOM in secondary modules list.
+   - In `src/components/AdminTopbar.tsx`: Added mobile header trigger for OHMni.
+   - In `src/components/DashboardAuthShell.tsx`: Mounted docked right-side drawer (`380px–400px` width) and wired global `⌘K` / `Ctrl+K` keyboard shortcut and Escape-to-close listener.
+
+### Files Modified & Created
+- `package.json`
+- `package-lock.json`
+- `.env.example`
+- `src/lib/supabase/server.ts` (created)
+- `src/app/api/ohmni/route.ts` (created)
+- `src/components/ohmni/OhmniDrawer.tsx` (created)
+- `src/components/Sidebar.tsx`
+- `src/components/AdminTopbar.tsx`
+- `src/components/DashboardAuthShell.tsx`
+- `docs/state/ohmni_copilot_state.md` (created)
+- `docs/state/cencom_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and prerendered successfully, including dynamic route `/api/ohmni`).
+
+---
+
 ## Execution Report — Fix: Account Archive Request Dispatch via notify_user RPC & Approvals Sync (ohm#w8e2k7x1)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**

@@ -1,8 +1,9 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useRequestCategoryCounts } from "@/lib/queries/requests";
@@ -13,6 +14,7 @@ type SidebarProps = {
   moduleCapabilities: Record<string, string[]>;
   userName?: string;
   userRole?: string;
+  onOpenOhmni?: () => void;
 };
 
 const MAIN_MODULE_KEYS = new Set(["vacancy", "hr_emploc", "plantilla"]);
@@ -30,6 +32,7 @@ export function Sidebar({
   moduleCapabilities,
   userName = "Admin",
   userRole = "Super admin",
+  onOpenOhmni,
 }: SidebarProps) {
   const path = usePathname();
   const router = useRouter();
@@ -103,29 +106,48 @@ export function Sidebar({
               : title;
 
           return (
-            <Link
-              key={href}
-              href={href}
-              title={getCapabilitySummary(key, moduleCapabilities)}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[13.5px] transition outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                isActive
-                  ? "bg-[var(--soft)] text-[var(--text)] font-semibold"
-                  : "text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
-              }`}
-            >
-              <span className="truncate">{displayTitle}</span>
-              {isApprovals && totalPendingCount > 0 && (
-                <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
-                  {totalPendingCount}
-                </span>
+            <React.Fragment key={href}>
+              <Link
+                href={href}
+                title={getCapabilitySummary(key, moduleCapabilities)}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[13.5px] transition outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                  isActive
+                    ? "bg-[var(--soft)] text-[var(--text)] font-semibold"
+                    : "text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
+                }`}
+              >
+                <span className="truncate">{displayTitle}</span>
+                {isApprovals && totalPendingCount > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
+                    {totalPendingCount}
+                  </span>
+                )}
+                {isNotifications && unreadNotificationsCount > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* OHMni AI Co-Pilot: Positioned directly below CENCOM */}
+              {key === "cencom" && (
+                <button
+                  type="button"
+                  onClick={onOpenOhmni}
+                  title="Ask OHMni AI Co-Pilot (⌘K)"
+                  className="flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[13.5px] transition outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 text-[var(--accent)] hover:bg-[var(--soft)] font-medium group cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <Sparkles size={14} className="text-amber-500 group-hover:rotate-12 transition-transform" />
+                    <span>OHMni Co-Pilot</span>
+                  </span>
+                  <span className="rounded bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-mono text-[var(--accent)] font-semibold">
+                    ⌘K
+                  </span>
+                </button>
               )}
-              {isNotifications && unreadNotificationsCount > 0 && (
-                <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
-                  {unreadNotificationsCount}
-                </span>
-              )}
-            </Link>
+            </React.Fragment>
           );
         })}
       </nav>

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 
 type AdminTopbarProps = {
   visibleModules: WebModule[];
   moduleCapabilities: Record<string, string[]>;
+  onOpenOhmni?: () => void;
 };
 
 function getCapabilitySummary(moduleKey: string, capabilities: Record<string, string[]>) {
@@ -20,6 +22,7 @@ function getCapabilitySummary(moduleKey: string, capabilities: Record<string, st
 export function AdminTopbar({
   visibleModules,
   moduleCapabilities,
+  onOpenOhmni,
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const activeModule = getActiveModule(pathname, visibleModules);
@@ -40,7 +43,20 @@ export function AdminTopbar({
           </h1>
         </div>
 
-        <nav className="flex max-w-[55vw] gap-2 overflow-x-auto no-scrollbar scrollbar-none">
+        <div className="flex items-center gap-2">
+          {onOpenOhmni && (
+            <button
+              type="button"
+              onClick={onOpenOhmni}
+              title="Ask OHMni AI Co-Pilot"
+              className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 transition cursor-pointer"
+            >
+              <Sparkles size={12} className="text-amber-600" />
+              <span>OHMni</span>
+            </button>
+          )}
+
+          <nav className="flex max-w-[40vw] gap-2 overflow-x-auto no-scrollbar scrollbar-none">
           {visibleModules.map((module) => {
             const isActive = activeModule.href === module.href;
 
@@ -60,6 +76,7 @@ export function AdminTopbar({
             );
           })}
         </nav>
+        </div>
       </div>
     </header>
   );

@@ -13,14 +13,18 @@
     "finish": "node scripts/finish.js"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.109",
+    "@ai-sdk/react": "^4.0.163",
     "@supabase/supabase-js": "^2.106.1",
     "@tanstack/react-query": "^5.100.13",
+    "ai": "^7.0.159",
     "exceljs": "^4.4.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

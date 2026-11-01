@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminTopbar } from "@/components/AdminTopbar";
 import { Sidebar } from "@/components/Sidebar";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
+import { OhmniDrawer } from "@/components/ohmni/OhmniDrawer";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { useMotionLevel } from "@/hooks/useMotionLevel";
 import {
@@ -35,6 +36,23 @@ function AuthenticatedShell({
   const pathname = usePathname();
   const motionLevel = useMotionLevel();
   const [idleWarningOpen, setIdleWarningOpen] = useState(false);
+  const [isOhmniOpen, setIsOhmniOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle OHMni Co-Pilot on Cmd+K or Ctrl+K
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsOhmniOpen((prev) => !prev);
+      }
+      // Escape closes drawer
+      if (e.key === "Escape" && isOhmniOpen) {
+        setIsOhmniOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOhmniOpen]);
 
   const { data: activeActingSession } = useActiveActingSession();
   const stopActingMutation = useStopActingSession();
@@ -151,11 +169,13 @@ function AuthenticatedShell({
           moduleCapabilities={currentUser.moduleCapabilities}
           userName={currentUser.displayName || currentUser.email || "Admin"}
           userRole={currentUser.roleName || currentUser.roleKey || "Super admin"}
+          onOpenOhmni={() => setIsOhmniOpen(true)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminTopbar
             visibleModules={visibleModules}
             moduleCapabilities={currentUser.moduleCapabilities}
+            onOpenOhmni={() => setIsOhmniOpen(true)}
           />
           {activeActingSession && !activeActingSession.isExpired && (
             <div className="bg-[var(--surface-sunken)] text-[var(--foreground)] px-4 py-2 text-xs font-semibold flex items-center justify-between border-b border-[var(--border-subtle)] shadow-xs z-10">
@@ -187,6 +207,10 @@ function AuthenticatedShell({
             </div>
           </main>
         </div>
+        <OhmniDrawer
+          isOpen={isOhmniOpen}
+          onClose={() => setIsOhmniOpen(false)}
+        />
       </div>
     </>
   );
