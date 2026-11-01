@@ -81,6 +81,7 @@ export function ArchiveAccountModal({
         remarks: remarksTrimmed,
         requestedBy: currentUser?.profileId ?? currentUser?.authUserId,
         requestedByName: currentUser?.displayName ?? "Admin",
+        authUserId: currentUser?.authUserId ?? null,
         actual: account.actual,
         vacant: account.vacant,
         required: account.required,
@@ -91,6 +92,9 @@ export function ArchiveAccountModal({
       queryClient.invalidateQueries({ queryKey: ["plantilla", "allowed-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla", "account-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-counts"] });
 
       const name = account.name;
       handleClose();

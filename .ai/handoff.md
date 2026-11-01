@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Fix: Account Archive Request Dispatch via notify_user RPC & Approvals Sync (ohm#w8e2k7x1)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Diagnosis & Root Cause Resolution**:
+   - Diagnosed why account archive requests failed to appear under Pending/Approved in the Approvals Hub.
+   - Identified that client-side `supabase.from("notifications").insert()` was rejected by database RLS (`notif_insert_service_role` blocks direct authenticated table inserts) and failed `recipient_role text not null` database constraints.
+   - Identified that `audit_logs.action` was rejecting `"ARCHIVE_ACCOUNT_REQUESTED"` due to strict Postgres enum constraints (`audit_action`).
+   - Identified that Supabase JS client returned `{ error }` without throwing, causing the error to be silently swallowed while returning false success.
+2. **RPC Notification Wiring (`src/lib/queries/plantilla.ts`)**:
+   - Updated `requestAccountArchive` to call the database SECURITY DEFINER RPC `public.notify_user(...)` with `p_recipient_role: "Super Admin"`, `p_event_type: "account_archive_request"`, `p_reference_type: "account"`, and `p_recipient_user_id: params.authUserId`.
+   - Added explicit error throwing on RPC failure.
+   - Corrected audit log insertion to conform strictly with `audit_logs` schema: `module = 'plantilla'`, `action = 'UPDATE'`, `record_id = accountId`, `new_data = { event: 'ARCHIVE_ACCOUNT_REQUESTED', ... }`.
+3. **Modal & Cache Synchronization (`src/components/plantilla/ArchiveAccountModal.tsx`)**:
+   - Passed `authUserId: currentUser?.authUserId` into archive request parameters to link the notification to the session.
+   - Added automatic invalidation of approval query keys: `["request-category-counts"]`, `["account-archive-requests"]`, and `["account-archive-counts"]`.
+4. **Approval Action Hardening (`src/lib/queries/requests.ts`)**:
+   - Enhanced `approveAccountArchive` and `rejectAccountArchive` with RPC fallback handling (`mark_notification_read`) and standardized audit log insertions.
+
+### Files Modified
+- `src/lib/queries/plantilla.ts`
+- `src/components/plantilla/ArchiveAccountModal.tsx`
+- `src/lib/queries/requests.ts`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (19 of 19 routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — Approvals Hub: Account Archives Review Queue & Approval Window (ohm#a7c3v9k2)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**

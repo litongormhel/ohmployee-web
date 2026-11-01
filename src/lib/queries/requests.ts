@@ -3668,7 +3668,7 @@ export async function approveAccountArchive({
   }
 
   // 2. Mark notification reviewed
-  await supabase
+  const { error: notifError } = await supabase
     .from("notifications")
     .update({
       is_read: true,
@@ -3676,6 +3676,26 @@ export async function approveAccountArchive({
       read_at: new Date().toISOString(),
     })
     .eq("id", notificationId);
+
+  if (notifError) {
+    await supabase.rpc("mark_notification_read", { p_notification_id: notificationId });
+  }
+
+  // 3. Log audit trail
+  try {
+    await supabase.from("audit_logs").insert({
+      module: "plantilla",
+      action: "UPDATE",
+      record_id: accountId,
+      new_data: {
+        event: "ACCOUNT_ARCHIVE_APPROVED",
+        account_id: accountId,
+        notification_id: notificationId,
+      },
+    });
+  } catch (e) {
+    console.warn("Failed to insert approval audit log:", e);
+  }
 }
 
 export async function rejectAccountArchive({
@@ -3697,7 +3717,7 @@ export async function rejectAccountArchive({
 
   const updatedMessage = `[REJECTED: ${remarks}] ${notif?.message ?? ""}`;
 
-  await supabase
+  const { error: notifError } = await supabase
     .from("notifications")
     .update({
       is_read: true,
@@ -3706,6 +3726,26 @@ export async function rejectAccountArchive({
       read_at: new Date().toISOString(),
     })
     .eq("id", notificationId);
+
+  if (notifError) {
+    await supabase.rpc("mark_notification_read", { p_notification_id: notificationId });
+  }
+
+  // Log audit trail
+  try {
+    await supabase.from("audit_logs").insert({
+      module: "approvals",
+      action: "UPDATE",
+      record_id: notificationId,
+      new_data: {
+        event: "ACCOUNT_ARCHIVE_REJECTED",
+        notification_id: notificationId,
+        rejection_remarks: remarks,
+      },
+    });
+  } catch (e) {
+    console.warn("Failed to insert rejection audit log:", e);
+  }
 }
 
 export function useAccountArchiveRequests(

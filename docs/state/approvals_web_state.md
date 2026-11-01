@@ -69,7 +69,7 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 
 ## 6. Account Archive Approval Workflow (`account_archives`)
 - **Access Control**: Category navigation tab and review queue are strictly visible to Super Admin (`level >= 100` / `isOwner`) via `getAllowedApprovalCategories` in `src/lib/rbac.ts`.
-- **Data Source**: Backed by `public.notifications` (with `reference_type = 'account'` and `event_type = 'ARCHIVE_REQUESTED'`), tracking requester, target account, justification remarks (>= 30 characters), and active employee snapshot at request time.
+- **Data Source**: Backed by `public.notifications` (with `reference_type = 'account'` and `event_type = 'account_archive_request'`), written securely via database SECURITY DEFINER RPC `public.notify_user(...)` to comply with RLS policy `notif_insert_service_role` and `recipient_role` NOT NULL constraints. Tracks requester, target account, justification remarks (>= 30 characters), and active employee snapshot at request time.
 - **Review Queue (`AccountArchiveDataTable`)**:
   - Filter tabs: `Pending`, `Approved`, `Rejected` with live counter badges.
   - Columns: Account Name & Code, Remarks / Justification, Headcount Impact (snapshot at request time), Requester & Date, Status, and Actions.

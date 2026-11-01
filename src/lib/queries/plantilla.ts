@@ -2533,6 +2533,7 @@ export interface RequestAccountArchiveParams {
   remarks: string;
   requestedBy?: string | null;
   requestedByName?: string | null;
+  authUserId?: string | null;
   actual?: number;
   vacant?: number;
   required?: number;
@@ -2544,29 +2545,33 @@ export async function requestAccountArchive(params: RequestAccountArchiveParams)
 
   const formattedMessage = `Requester: ${params.requestedByName || "Admin"} | Active: ${params.actual ?? 0} | Vacant: ${params.vacant ?? 0} | Remarks: ${params.remarks}`;
 
-  // Create notification for Super Admin
-  try {
-    await supabase.from("notifications").insert({
-      title: `Account Archive Request: ${params.accountName}`,
-      message: formattedMessage,
-      notification_type: "approval",
-      event_type: "account_archive_request",
-      reference_type: "account_archive",
-      reference_id: params.accountId,
-      is_read: false,
-      is_archived: false,
-    });
-  } catch (err) {
-    console.warn("Failed to create archive notification:", err);
+  // Call database SECURITY DEFINER RPC notify_user
+  const { error: rpcError } = await supabase.rpc("notify_user", {
+    p_recipient_user_id: params.authUserId ?? null,
+    p_recipient_role: "Super Admin",
+    p_title: `Account Archive Request: ${params.accountName}`,
+    p_message: formattedMessage,
+    p_notification_type: "approval",
+    p_event_type: "account_archive_request",
+    p_reference_type: "account",
+    p_reference_id: params.accountId,
+    p_deep_link_route: "/approvals?tab=account_archives",
+    p_sla_level: null,
+  });
+
+  if (rpcError) {
+    console.error("Failed to create archive notification via notify_user:", rpcError);
+    throw new Error(rpcError.message || "Failed to create archive notification");
   }
 
-  // Record audit log
+  // Record audit log conforming to audit_logs schema
   try {
     await supabase.from("audit_logs").insert({
-      action: "ARCHIVE_ACCOUNT_REQUESTED",
-      entity_name: "accounts",
-      entity_id: params.accountId,
-      details: {
+      module: "plantilla",
+      action: "UPDATE",
+      record_id: params.accountId,
+      new_data: {
+        event: "ARCHIVE_ACCOUNT_REQUESTED",
         account_name: params.accountName,
         remarks: params.remarks,
         requested_by: params.requestedBy,
