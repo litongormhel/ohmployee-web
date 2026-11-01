@@ -564,6 +564,9 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
  ├── AdminPageHeader ───────────────── Title: "Plantilla Directory"
  │                                     Subtitle: "Manage active personnel, audit store capacities, and govern movements."
  │                                     Primary Action: Scoped "Request Additional Headcount" (OM / Admin only)
+ │                                     Top Action Slot: "+ Add Account" (Head Admin / Super Admin only)
+ ├── Account Selection Grid ────────── Account Cards with MFR, Headcount, Pipeline, Fill Rate
+ │    └── Three-Dot Context Menu (⋮) ─ Actions: [ Absorb Employees ] | [ Archive Account ]
  ├── MetricCard (Grid) ─────────────── Renders: 1. Active Roster | 2. Budgeted Slots
  │                                              3. AH (Temp) Slots | 4. Under-Staffed Stores
  ├── AdminFilterBar ────────────────── Search: "Search by employee, store, or VCode..."
@@ -578,10 +581,46 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
       ├── StatusBadge ──────────────── Maps statuses ('Active' -> success, 'Pending Separation' -> danger)
       └── CapabilityActionBar ──────── Renders context action options:
                                                 - [ Transfer Personnel ] (Encoder / HeadAdmin / SuperAdmin)
+                                                - [ Absorb Employees ] (Encoder -> Pending Approval; HA/SA -> Direct DB Update)
                                                 - [ Initiate Separation ] (OM / HRCO / HR / Admin)
                                                 - [ Approve Clearance ] (HR Personnel / Admin)
                                                 - [ Adjust Roving Schedule ] (HRCO / OM / Admin)
 ```
+
+---
+
+## 11.1 Account Lifecycle Governance & Operations (ohm#p4a8x2m9)
+
+### 1. Add Account Feature
+- **UI Placement:** Upper right corner of the Plantilla Directory header (`AdminPageHeader` action slot).
+- **Access Control:** Rendered conditionally via `isHeadOrSuperAdmin(currentUser.roleKey) || isHeadOrSuperAdmin(currentUser.roleName)`. Visible strictly to Head Admin (`HA`, Level 90) and Super Admin (`SA`, Level 100). Hidden for Encoders and lower operational roles.
+- **Form Architecture (`AddAccountModal.tsx`):**
+  - Inputs: `account_name` (required), `account_code` (optional uppercase identifier), and `group_id` (required).
+  - Data Source: Dynamic group list fetched via `useGroupsQuery()` from Supabase `public.groups`. Zero hardcoding.
+  - Execution: Directly creates active account in `public.accounts` (`is_active = true, status = 'Active'`) and invalidates TanStack Query cache keys (`['plantilla', 'allowed-accounts']`, `['plantilla', 'account-metrics']`).
+
+### 2. Archive Account Feature
+- **UI Placement:** Three-dot context menu (`⋮` / `MoreVertical`) placed in the top right of each billing account card in the Plantilla Directory grid.
+- **Smart Active Employee Intercept (`ArchiveAccountModal.tsx`):**
+  - Checks `account.actual > 0`.
+  - If active employees exist: Renders an intercepting dialog: *"There are active employees in this account. Would you like to absorb them into another account first?"*
+    - Primary Button: "Absorb Employees First" -> routes to the Absorption Workflow modal for this account.
+    - Secondary Button: "Proceed to Archive" -> progresses directly to the remarks form.
+  - If `account.actual === 0`: Skips intercept dialog directly to the remarks form.
+- **Remarks Validation:** Requires a justification of **at least 30 characters** (`remarks.trim().length >= 30`). Live validation counter (`X / 30 min characters`) prevents submission until the character threshold is satisfied.
+- **Governance & Approval Routing:** Submitting does NOT delete or hide the account immediately. It dispatches an approval notification to the `SA` role in `public.notifications` and records an audit log (`ARCHIVE_ACCOUNT_REQUESTED`). While pending, the account remains fully visible and active in all dashboard capacity computations.
+
+### 3. Absorption Workflow (Employee Transfer)
+- **UI Placement:**
+  - "Absorb Employees" action inside each account card's three-dot menu (`⋮`).
+  - "Absorb Employees" header action button inside the detailed Account View (`AdminPageHeader` action slot).
+- **Transfer Interface (`AbsorbEmployeesModal.tsx`):**
+  - Destination Account Dropdown: Displays authorized accounts excluding the source account.
+  - Active Employee Selection: Renders active personnel roster with search filtering and a "Select All" batch toggle.
+  - Live count pill displays selected records.
+- **Role-Based Execution:**
+  - **Encoder (Level 30):** Submits batch transfer request to `public.employee_transfers` with `status = 'Pending'` and creates an admin notification in `public.notifications`. Active employee account assignments in the database remain unchanged pending review.
+  - **HA / SA (Levels 90 / 100):** Executes immediate direct database updates in Supabase on `public.plantilla` (`account`, `account_id`) and `public.hr_emploc` (`account`), records approved audit rows in `public.employee_transfers`, and invalidates queries (`['plantilla']`, `['team-directory']`, `['plantilla', 'employees-all']`, `['plantilla', 'account-metrics']`) to refresh roster data and metrics immediately.
 
 ---
 

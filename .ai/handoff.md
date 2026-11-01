@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Plantilla Account Lifecycle: Add Account, Archive Account & Employee Absorption Workflows (ohm#p4a8x2m9)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Clarification & Stack Realignment**:
+   - Loop Engineering honesty gate caught the user's initial mention of the Flutter/BLoC mobile stack while working in the Next.js web workspace (`OHMployee_web`).
+   - User confirmed and approved execution directly in `OHMployee_web` using Next.js 15, React, TypeScript, and TanStack Query on `main`.
+2. **Add Account Feature (`AddAccountModal.tsx`)**:
+   - Integrated `+ Add Account` action button in the upper right corner of the Plantilla Directory header (`AdminPageHeader`'s `actionSlot`).
+   - Access-controlled: visible only to Head Admin (`HA`, Level 90) and Super Admin (`SA`, Level 100); strictly hidden for Encoders and lower roles.
+   - Dynamic Groups Data: Fetches group options from Supabase `public.groups` dynamically via `useGroupsQuery()`.
+   - On submit: Inserts active account record into `public.accounts` (`account_name`, `account_code`, `group_id`, `status = 'Active'`, `is_active = true`) and invalidates cache keys `['plantilla', 'allowed-accounts']`, `['plantilla', 'account-metrics']`, `['plantilla']`.
+3. **Archive Account Feature (`ArchiveAccountModal.tsx`)**:
+   - Placed three-dot context menu (`⋮` / `MoreVertical`) in the upper right of each billing account card in the Plantilla Directory grid.
+   - Active Employee Intercept Dialog: If `account.actual > 0`, intercepts with *"There are active employees in this account. Would you like to absorb them into another account first?"*, providing buttons to route to "Absorb Employees First" or "Proceed to Archive".
+   - Justification Validation: Required Remarks textarea enforces **minimum 30 characters** with a live character indicator (`X / 30 min characters`) before enabling the submit button.
+   - Approval Governance: Submitting does NOT delete or hide the account. Inserts an approval notification for `SA` in `public.notifications` and records an audit log (`ARCHIVE_ACCOUNT_REQUESTED`). Account remains fully visible with headcount/capacity included in dashboard computations.
+4. **Absorption Workflow (`AbsorbEmployeesModal.tsx`)**:
+   - Added "Absorb Employees" action within the account card's three-dot menu and inside the detailed Account View header (`AdminPageHeader`'s `actionSlot`).
+   - Modal interface features destination account selector (excluding source account), active employee roster table with search filter, and a "Select All" batch checkbox.
+   - Role-Based Execution:
+     - **Encoder**: Submits batch transfer request to `public.employee_transfers` with `status = 'Pending'` and admin notification. Does NOT modify employee assignments in the database yet.
+     - **HA / SA**: Executes immediate direct updates to `public.plantilla` (`account`, `account_id`) and `public.hr_emploc` (`account`), records approved transfer logs, and invalidates queries (`['plantilla']`, `['team-directory']`, `['plantilla', 'employees-all']`, `['plantilla', 'account-metrics']`) to immediately refresh UI rosters.
+5. **Toast Feedback**:
+   - Integrated centralized `Toast` component into Plantilla root layout providing user feedback on created accounts, pending archive requests, and completed/submitted employee absorptions.
+
+### Files Modified & Created
+- `src/components/plantilla/AddAccountModal.tsx` (new)
+- `src/components/plantilla/ArchiveAccountModal.tsx` (new)
+- `src/components/plantilla/AbsorbEmployeesModal.tsx` (new)
+- `src/lib/queries/plantilla.ts` (`createAccount`, `requestAccountArchive`, `absorbEmployees`)
+- `src/app/(dashboard)/plantilla/page.tsx` (integrated header actions, card three-dot menu, modal state & handlers, toast)
+- `docs/state/plantilla_web_state.md` (documented Account Lifecycle Governance section 11.1)
+- `.ai/briefing.md` (prepended task to Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings elsewhere in repo).
+- `npm run build`: Clean (19 of 19 static/dynamic routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — Phase 2B-1 Round 3/4 Implementation: Option A Union, Scope Testing & Production Parity Audit (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; STAGING APPLIED & REVERTED TEST WRITES (`qqiiznmqxfoamqytjica`); PRODUCTION SELECT-ONLY AUDITED & STRICTLY UNTOUCHED (`rwxelulyapjgaarlwkus`)**
@@ -3076,6 +3119,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla Account Lifecycle: Add Account, Archive Account & Employee Absorption Workflows (ohm#p4a8x2m9)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Clarification & Stack Realignment**:
+   - Loop Engineering honesty gate caught the user's initial mention of the Flutter/BLoC mobile stack while working in the Next.js web workspace (`OHMployee_web`).
+   - User confirmed and approved execution directly in `OHMployee_web` using Next.js 15, React, TypeScript, and TanStack Query on `main`.
+2. **Add Account Feature (`AddAccountModal.tsx`)**:
+   - Integrated `+ Add Account` action button in the upper right corner of the Plantilla Directory header (`AdminPageHeader`'s `actionSlot`).
+   - Access-controlled: visible only to Head Admin (`HA`, Level 90) and Super Admin (`SA`, Level 100); strictly hidden for Encoders and lower roles.
+   - Dynamic Groups Data: Fetches group options from Supabase `public.groups` dynamically via `useGroupsQuery()`.
+   - On submit: Inserts active account record into `public.accounts` (`account_name`, `account_code`, `group_id`, `status = 'Active'`, `is_active = true`) and invalidates cache keys `['plantilla', 'allowed-accounts']`, `['plantilla', 'account-metrics']`, `['plantilla']`.
+3. **Archive Account Feature (`ArchiveAccountModal.tsx`)**:
+   - Placed three-dot context menu (`⋮` / `MoreVertical`) in the upper right of each billing account card in the Plantilla Directory grid.
+   - Active Employee Intercept Dialog: If `account.actual > 0`, intercepts with *"There are active employees in this account. Would you like to absorb them into another account first?"*, providing buttons to route to "Absorb Employees First" or "Proceed to Archive".
+   - Justification Validation: Required Remarks textarea enforces **minimum 30 characters** with a live character indicator (`X / 30 min characters`) before enabling the submit button.
+   - Approval Governance: Submitting does NOT delete or hide the account. Inserts an approval notification for `SA` in `public.notifications` and records an audit log (`ARCHIVE_ACCOUNT_REQUESTED`). Account remains fully visible with headcount/capacity included in dashboard computations.
+4. **Absorption Workflow (`AbsorbEmployeesModal.tsx`)**:
+   - Added "Absorb Employees" action within the account card's three-dot menu and inside the detailed Account View header (`AdminPageHeader`'s `actionSlot`).
+   - Modal interface features destination account selector (excluding source account), active employee roster table with search filter, and a "Select All" batch checkbox.
+   - Role-Based Execution:
+     - **Encoder**: Submits batch transfer request to `public.employee_transfers` with `status = 'Pending'` and admin notification. Does NOT modify employee assignments in the database yet.
+     - **HA / SA**: Executes immediate direct updates to `public.plantilla` (`account`, `account_id`) and `public.hr_emploc` (`account`), records approved transfer logs, and invalidates queries (`['plantilla']`, `['team-directory']`, `['plantilla', 'employees-all']`, `['plantilla', 'account-metrics']`) to immediately refresh UI rosters.
+5. **Toast Feedback**:
+   - Integrated centralized `Toast` component into Plantilla root layout providing user feedback on created accounts, pending archive requests, and completed/submitted employee absorptions.
+
+### Files Modified & Created
+- `src/components/plantilla/AddAccountModal.tsx` (new)
+- `src/components/plantilla/ArchiveAccountModal.tsx` (new)
+- `src/components/plantilla/AbsorbEmployeesModal.tsx` (new)
+- `src/lib/queries/plantilla.ts` (`createAccount`, `requestAccountArchive`, `absorbEmployees`)
+- `src/app/(dashboard)/plantilla/page.tsx` (integrated header actions, card three-dot menu, modal state & handlers, toast)
+- `docs/state/plantilla_web_state.md` (documented Account Lifecycle Governance section 11.1)
+- `.ai/briefing.md` (prepended task to Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings elsewhere in repo).
+- `npm run build`: Clean (19 of 19 static/dynamic routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 
 **Status: COMPLETE ON MAIN; APPLIED & TESTED ON STAGING ONLY (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED & SELECT-ONLY AUDITED**
@@ -3301,6 +3387,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Account Lifecycle: Add Account, Archive Account & Employee Absorption Workflows (ohm#p4a8x2m9)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Clarification & Stack Realignment**:
+   - Loop Engineering honesty gate caught the user's initial mention of the Flutter/BLoC mobile stack while working in the Next.js web workspace (`OHMployee_web`).
+   - User confirmed and approved execution directly in `OHMployee_web` using Next.js 15, React, TypeScript, and TanStack Query on `main`.
+2. **Add Account Feature (`AddAccountModal.tsx`)**:
+   - Integrated `+ Add Account` action button in the upper right corner of the Plantilla Directory header (`AdminPageHeader`'s `actionSlot`).
+   - Access-controlled: visible only to Head Admin (`HA`, Level 90) and Super Admin (`SA`, Level 100); strictly hidden for Encoders and lower roles.
+   - Dynamic Groups Data: Fetches group options from Supabase `public.groups` dynamically via `useGroupsQuery()`.
+   - On submit: Inserts active account record into `public.accounts` (`account_name`, `account_code`, `group_id`, `status = 'Active'`, `is_active = true`) and invalidates cache keys `['plantilla', 'allowed-accounts']`, `['plantilla', 'account-metrics']`, `['plantilla']`.
+3. **Archive Account Feature (`ArchiveAccountModal.tsx`)**:
+   - Placed three-dot context menu (`⋮` / `MoreVertical`) in the upper right of each billing account card in the Plantilla Directory grid.
+   - Active Employee Intercept Dialog: If `account.actual > 0`, intercepts with *"There are active employees in this account. Would you like to absorb them into another account first?"*, providing buttons to route to "Absorb Employees First" or "Proceed to Archive".
+   - Justification Validation: Required Remarks textarea enforces **minimum 30 characters** with a live character indicator (`X / 30 min characters`) before enabling the submit button.
+   - Approval Governance: Submitting does NOT delete or hide the account. Inserts an approval notification for `SA` in `public.notifications` and records an audit log (`ARCHIVE_ACCOUNT_REQUESTED`). Account remains fully visible with headcount/capacity included in dashboard computations.
+4. **Absorption Workflow (`AbsorbEmployeesModal.tsx`)**:
+   - Added "Absorb Employees" action within the account card's three-dot menu and inside the detailed Account View header (`AdminPageHeader`'s `actionSlot`).
+   - Modal interface features destination account selector (excluding source account), active employee roster table with search filter, and a "Select All" batch checkbox.
+   - Role-Based Execution:
+     - **Encoder**: Submits batch transfer request to `public.employee_transfers` with `status = 'Pending'` and admin notification. Does NOT modify employee assignments in the database yet.
+     - **HA / SA**: Executes immediate direct updates to `public.plantilla` (`account`, `account_id`) and `public.hr_emploc` (`account`), records approved transfer logs, and invalidates queries (`['plantilla']`, `['team-directory']`, `['plantilla', 'employees-all']`, `['plantilla', 'account-metrics']`) to immediately refresh UI rosters.
+5. **Toast Feedback**:
+   - Integrated centralized `Toast` component into Plantilla root layout providing user feedback on created accounts, pending archive requests, and completed/submitted employee absorptions.
+
+### Files Modified & Created
+- `src/components/plantilla/AddAccountModal.tsx` (new)
+- `src/components/plantilla/ArchiveAccountModal.tsx` (new)
+- `src/components/plantilla/AbsorbEmployeesModal.tsx` (new)
+- `src/lib/queries/plantilla.ts` (`createAccount`, `requestAccountArchive`, `absorbEmployees`)
+- `src/app/(dashboard)/plantilla/page.tsx` (integrated header actions, card three-dot menu, modal state & handlers, toast)
+- `docs/state/plantilla_web_state.md` (documented Account Lifecycle Governance section 11.1)
+- `.ai/briefing.md` (prepended task to Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings elsewhere in repo).
+- `npm run build`: Clean (19 of 19 static/dynamic routes compiled and prerendered successfully).
+
+---
 
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 
@@ -3551,6 +3680,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Account Lifecycle: Add Account, Archive Account & Employee Absorption Workflows (ohm#p4a8x2m9)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Clarification & Stack Realignment**:
+   - Loop Engineering honesty gate caught the user's initial mention of the Flutter/BLoC mobile stack while working in the Next.js web workspace (`OHMployee_web`).
+   - User confirmed and approved execution directly in `OHMployee_web` using Next.js 15, React, TypeScript, and TanStack Query on `main`.
+2. **Add Account Feature (`AddAccountModal.tsx`)**:
+   - Integrated `+ Add Account` action button in the upper right corner of the Plantilla Directory header (`AdminPageHeader`'s `actionSlot`).
+   - Access-controlled: visible only to Head Admin (`HA`, Level 90) and Super Admin (`SA`, Level 100); strictly hidden for Encoders and lower roles.
+   - Dynamic Groups Data: Fetches group options from Supabase `public.groups` dynamically via `useGroupsQuery()`.
+   - On submit: Inserts active account record into `public.accounts` (`account_name`, `account_code`, `group_id`, `status = 'Active'`, `is_active = true`) and invalidates cache keys `['plantilla', 'allowed-accounts']`, `['plantilla', 'account-metrics']`, `['plantilla']`.
+3. **Archive Account Feature (`ArchiveAccountModal.tsx`)**:
+   - Placed three-dot context menu (`⋮` / `MoreVertical`) in the upper right of each billing account card in the Plantilla Directory grid.
+   - Active Employee Intercept Dialog: If `account.actual > 0`, intercepts with *"There are active employees in this account. Would you like to absorb them into another account first?"*, providing buttons to route to "Absorb Employees First" or "Proceed to Archive".
+   - Justification Validation: Required Remarks textarea enforces **minimum 30 characters** with a live character indicator (`X / 30 min characters`) before enabling the submit button.
+   - Approval Governance: Submitting does NOT delete or hide the account. Inserts an approval notification for `SA` in `public.notifications` and records an audit log (`ARCHIVE_ACCOUNT_REQUESTED`). Account remains fully visible with headcount/capacity included in dashboard computations.
+4. **Absorption Workflow (`AbsorbEmployeesModal.tsx`)**:
+   - Added "Absorb Employees" action within the account card's three-dot menu and inside the detailed Account View header (`AdminPageHeader`'s `actionSlot`).
+   - Modal interface features destination account selector (excluding source account), active employee roster table with search filter, and a "Select All" batch checkbox.
+   - Role-Based Execution:
+     - **Encoder**: Submits batch transfer request to `public.employee_transfers` with `status = 'Pending'` and admin notification. Does NOT modify employee assignments in the database yet.
+     - **HA / SA**: Executes immediate direct updates to `public.plantilla` (`account`, `account_id`) and `public.hr_emploc` (`account`), records approved transfer logs, and invalidates queries (`['plantilla']`, `['team-directory']`, `['plantilla', 'employees-all']`, `['plantilla', 'account-metrics']`) to immediately refresh UI rosters.
+5. **Toast Feedback**:
+   - Integrated centralized `Toast` component into Plantilla root layout providing user feedback on created accounts, pending archive requests, and completed/submitted employee absorptions.
+
+### Files Modified & Created
+- `src/components/plantilla/AddAccountModal.tsx` (new)
+- `src/components/plantilla/ArchiveAccountModal.tsx` (new)
+- `src/components/plantilla/AbsorbEmployeesModal.tsx` (new)
+- `src/lib/queries/plantilla.ts` (`createAccount`, `requestAccountArchive`, `absorbEmployees`)
+- `src/app/(dashboard)/plantilla/page.tsx` (integrated header actions, card three-dot menu, modal state & handlers, toast)
+- `docs/state/plantilla_web_state.md` (documented Account Lifecycle Governance section 11.1)
+- `.ai/briefing.md` (prepended task to Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings elsewhere in repo).
+- `npm run build`: Clean (19 of 19 static/dynamic routes compiled and prerendered successfully).
+
+---
 
 ## Execution Report — Phase 2B-1 Round 2 Review & Production Parity Audit (ohm#9d3t5hq2)
 

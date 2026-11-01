@@ -2496,6 +2496,200 @@ export async function assignFloatingEmployeeToStore({
 }
 
 // ---------------------------------------------------------------------------
+// Account Governance & Lifecycle Operations (Add Account, Archive, Absorb)
+// ---------------------------------------------------------------------------
+
+export interface CreateAccountParams {
+  accountName: string;
+  accountCode?: string | null;
+  groupId: string;
+  createdBy?: string | null;
+}
+
+export async function createAccount(params: CreateAccountParams) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("accounts")
+    .insert({
+      account_name: params.accountName.trim(),
+      account_code: params.accountCode?.trim() || null,
+      group_id: params.groupId,
+      status: "Active",
+      is_active: true,
+      created_by: params.createdBy || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throwPlantillaError(error);
+  }
+  return data;
+}
+
+export interface RequestAccountArchiveParams {
+  accountId: string;
+  accountName: string;
+  remarks: string;
+  requestedBy?: string | null;
+  requestedByName?: string | null;
+}
+
+export async function requestAccountArchive(params: RequestAccountArchiveParams) {
+  const supabase = createClient();
+
+  // Create notification for Super Admin
+  try {
+    await supabase.from("notifications").insert({
+      title: `Account Archive Request: ${params.accountName}`,
+      message: `Archive requested for account "${params.accountName}" by ${params.requestedByName || "Admin"}. Remarks: ${params.remarks}`,
+      notification_type: "approval",
+      event_type: "account_archive_request",
+      reference_type: "account",
+      reference_id: params.accountId,
+    });
+  } catch (err) {
+    console.warn("Failed to create archive notification:", err);
+  }
+
+  // Record audit log
+  try {
+    await supabase.from("audit_logs").insert({
+      action: "ARCHIVE_ACCOUNT_REQUESTED",
+      entity_name: "accounts",
+      entity_id: params.accountId,
+      details: {
+        account_name: params.accountName,
+        remarks: params.remarks,
+        requested_by: params.requestedBy,
+      },
+    });
+  } catch (auditErr) {
+    console.warn("Failed to insert audit log for archive request:", auditErr);
+  }
+
+  return { success: true };
+}
+
+export interface AbsorbEmployeesParams {
+  sourceAccountId: string;
+  sourceAccountName: string;
+  targetAccountId: string;
+  targetAccountName: string;
+  employees: {
+    id: string;
+    employeeNo: string;
+    name: string;
+    vcode?: string | null;
+    primaryStoreName?: string | null;
+  }[];
+  isDirectExecution: boolean;
+  requestedBy?: string | null;
+  requestedByRole?: string | null;
+  notes?: string | null;
+}
+
+export async function absorbEmployees(params: AbsorbEmployeesParams) {
+  const supabase = createClient();
+
+  if (params.isDirectExecution) {
+    // Direct DB update for SA/HA
+    const employeeIds = params.employees.map((e) => e.id);
+    const employeeNos = params.employees.map((e) => e.employeeNo).filter(Boolean);
+
+    // 1. Update plantilla records
+    const { error: plantillaError } = await supabase
+      .from("plantilla")
+      .update({
+        account: params.targetAccountName,
+        account_id: params.targetAccountId,
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", employeeIds);
+
+    if (plantillaError) {
+      throwPlantillaError(plantillaError);
+    }
+
+    // 2. Update hr_emploc records if applicable
+    if (employeeNos.length > 0) {
+      try {
+        await supabase
+          .from("hr_emploc")
+          .update({
+            account: params.targetAccountName,
+          })
+          .in("emploc_no", employeeNos);
+      } catch (hrErr) {
+        console.warn("Failed to update hr_emploc during direct absorption:", hrErr);
+      }
+    }
+
+    // 3. Record completed transfers
+    try {
+      const transfers = params.employees.map((e) => ({
+        emploc_no: e.employeeNo || "N/A",
+        employee_name: e.name,
+        from_account: params.sourceAccountName,
+        to_account: params.targetAccountName,
+        from_store: e.primaryStoreName || null,
+        from_vcode: e.vcode || null,
+        requested_by: params.requestedBy || "Admin",
+        requested_by_role: params.requestedByRole || "Admin",
+        status: "Approved",
+        reason: params.notes || "Employee absorption",
+        reviewed_by: params.requestedBy || "Admin",
+        reviewed_at: new Date().toISOString(),
+      }));
+
+      await supabase.from("employee_transfers").insert(transfers);
+    } catch (txErr) {
+      console.warn("Failed to insert employee_transfers audit rows:", txErr);
+    }
+
+    return { direct: true, count: params.employees.length };
+  } else {
+    // Pending record creation for Encoder
+    const transfers = params.employees.map((e) => ({
+      emploc_no: e.employeeNo || "N/A",
+      employee_name: e.name,
+      from_account: params.sourceAccountName,
+      to_account: params.targetAccountName,
+      from_store: e.primaryStoreName || null,
+      from_vcode: e.vcode || null,
+      requested_by: params.requestedBy || "Encoder",
+      requested_by_role: params.requestedByRole || "Encoder",
+      status: "Pending",
+      reason: params.notes || "Batch employee absorption request",
+    }));
+
+    const { error: transferError } = await supabase
+      .from("employee_transfers")
+      .insert(transfers);
+
+    if (transferError) {
+      throwPlantillaError(transferError);
+    }
+
+    // Create notification for SA / HA
+    try {
+      await supabase.from("notifications").insert({
+        title: "Employee Absorption Request",
+        message: `Encoder requested absorption of ${params.employees.length} employees from "${params.sourceAccountName}" to "${params.targetAccountName}".`,
+        notification_type: "approval",
+        event_type: "employee_absorption_request",
+        reference_type: "account_transfer",
+        reference_id: params.sourceAccountId,
+      });
+    } catch (notifErr) {
+      console.warn("Failed to notify admins of absorption request:", notifErr);
+    }
+
+    return { direct: false, count: params.employees.length };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Workforce Pool & Workforce Analytics Re-exports
 // ---------------------------------------------------------------------------
 export * from "./workforcePool";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
@@ -25,9 +25,12 @@ import {
   UserCheck,
   RotateCw,
   UploadCloud,
+  MoreVertical,
+  Archive,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCurrentUser, isOpsAmendmentRole } from "@/lib/auth";
+import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
@@ -65,6 +68,10 @@ import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal"
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
 import { PlantillaImportModal } from "@/components/more/PlantillaImportModal";
+import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
+import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
+import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
+import { Toast, type ToastVariant } from "@/components/shared/Toast";
 
 // ---------------------------------------------------------------------------
 // Types & Constants
@@ -419,6 +426,34 @@ function PlantillaPageContent() {
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
+  // Account Governance Modals State (Add Account, Archive, Absorb)
+  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [archiveModalAccount, setArchiveModalAccount] = useState<{
+    id: string;
+    name: string;
+    actual: number;
+    vacant: number;
+    required: number;
+    groupName?: string | null;
+  } | null>(null);
+  const [absorbModalAccount, setAbsorbModalAccount] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [activeMenuAccountId, setActiveMenuAccountId] = useState<string | null>(null);
+
+  // Toast feedback state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
+
+  const showToast = useCallback((msg: string, variant: ToastVariant = "success") => {
+    setToastMessage(msg);
+    setToastVariant(variant);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 4500);
+  }, []);
+
   // Directory filter state
   const [search, setSearch] = useState("");
   const [areaCityFilter, setAreaCityFilter] = useState(""); // "" | "area:Name" | "city:Name"
@@ -449,6 +484,14 @@ function PlantillaPageContent() {
       currentUser.accountScope.mode === "all"
     );
   }, [currentUser]);
+
+  // Close card action menu on outside click
+  useEffect(() => {
+    if (!activeMenuAccountId) return;
+    const handleOutsideClick = () => setActiveMenuAccountId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, [activeMenuAccountId]);
 
   const allowedAccountsQuery = useQuery({
     queryKey: [
@@ -1310,10 +1353,16 @@ function PlantillaPageContent() {
                 const colors = getProgressColors(account.fillRate);
 
                 return (
-                  <button
+                  <div
                     key={account.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelectAccount(account.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        handleSelectAccount(account.id);
+                      }
+                    }}
                     className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 cursor-pointer"
                   >
                     <div
@@ -1363,6 +1412,62 @@ function PlantillaPageContent() {
                               </span>
                             )
                           )}
+
+                          {/* Three-dot context menu */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuAccountId((prev) =>
+                                  prev === account.id ? null : account.id,
+                                );
+                              }}
+                              className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition cursor-pointer"
+                              title="Account Actions"
+                              aria-label="Account actions menu"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+
+                            {activeMenuAccountId === account.id && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-border-default bg-surface-base p-1.5 shadow-lg z-30 animate-fade-in"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMenuAccountId(null);
+                                    setAbsorbModalAccount({ id: account.id, name: account.name });
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition cursor-pointer"
+                                >
+                                  <ArrowRightLeft className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                                  <span>Absorb Employees</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMenuAccountId(null);
+                                    setArchiveModalAccount({
+                                      id: account.id,
+                                      name: account.name,
+                                      actual: account.actual,
+                                      vacant: account.vacant,
+                                      required: account.required,
+                                      groupName: account.groupName,
+                                    });
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-danger-text hover:bg-danger-bg/40 transition cursor-pointer"
+                                >
+                                  <Archive className="h-3.5 w-3.5 text-danger-text shrink-0" />
+                                  <span>Archive Account</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
                           <ChevronRight className="h-4 w-4 text-text-secondary/60 transition-transform group-hover:translate-x-0.5 shrink-0" />
                         </div>
                       </div>
@@ -1413,7 +1518,7 @@ function PlantillaPageContent() {
                         </div>
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               });
             })()}
@@ -1497,6 +1602,18 @@ function PlantillaPageContent() {
             title="Plantilla Directory"
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
             icon={Building2}
+            actionSlot={
+              isHeadOrSuperAdmin(userRole) ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddAccountOpen(true)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-button px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover transition cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" />
+                  <span>+ Add Account</span>
+                </button>
+              ) : undefined
+            }
           />
           {renderAccountSelectionContent()}
         </div>
@@ -1611,6 +1728,22 @@ function PlantillaPageContent() {
                       <span>Import Plantilla</span>
                     </button>
                   )}
+
+                  {/* Action button: Absorb Employees */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAbsorbModalAccount({
+                        id: accountId,
+                        name: selectedAccountName,
+                      })
+                    }
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                    title="Absorb and reassign employees to another billing account"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 shrink-0 text-brand-600" />
+                    <span>Absorb Employees</span>
+                  </button>
                 </div>
               }
             />
@@ -2396,6 +2529,76 @@ function PlantillaPageContent() {
             />
           )}
         </>
+      )}
+
+      {/* ------------------------------------------------------------------- */}
+      {/* Account Lifecycle & Governance Modals (Directory & Detailed Views) */}
+      {/* ------------------------------------------------------------------- */}
+
+      {/* Add Account Modal */}
+      {isAddAccountOpen && (
+        <AddAccountModal
+          isOpen={isAddAccountOpen}
+          onClose={() => setIsAddAccountOpen(false)}
+          onSuccess={(createdName) =>
+            showToast(`Account "${createdName}" created successfully.`, "success")
+          }
+        />
+      )}
+
+      {/* Archive Account Modal */}
+      {archiveModalAccount && (
+        <ArchiveAccountModal
+          isOpen={Boolean(archiveModalAccount)}
+          onClose={() => setArchiveModalAccount(null)}
+          account={archiveModalAccount}
+          onRouteToAbsorption={(acc) => {
+            setArchiveModalAccount(null);
+            setAbsorbModalAccount(acc);
+          }}
+          onSuccess={(name) =>
+            showToast(
+              `Archive request submitted for "${name}". Pending Super Admin approval.`,
+              "success",
+            )
+          }
+        />
+      )}
+
+      {/* Absorb Employees Modal */}
+      {absorbModalAccount && (
+        <AbsorbEmployeesModal
+          isOpen={Boolean(absorbModalAccount)}
+          onClose={() => setAbsorbModalAccount(null)}
+          sourceAccount={absorbModalAccount}
+          onSuccess={(result) => {
+            if (result.direct) {
+              showToast(
+                `Successfully absorbed ${result.count} employee${
+                  result.count === 1 ? "" : "s"
+                } into ${result.targetAccountName}.`,
+                "success",
+              );
+            } else {
+              showToast(
+                `Absorption request for ${result.count} employee${
+                  result.count === 1 ? "" : "s"
+                } submitted for SA/HA approval.`,
+                "info",
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* Feedback Toast Banner */}
+      {toastMessage && (
+        <Toast
+          isOpen={Boolean(toastMessage)}
+          message={toastMessage}
+          variant={toastVariant}
+          onClose={() => setToastMessage(null)}
+        />
       )}
     </div>
   );
