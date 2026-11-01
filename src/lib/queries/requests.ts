@@ -13,7 +13,8 @@ export type RequestCategoryKey =
   | "deactivations"
   | "applicant_movements"
   | "account_group_transfers"
-  | "relievers";
+  | "relievers"
+  | "account_archives";
 
 export interface RequestCategoryConfig {
   key: RequestCategoryKey;
@@ -23,6 +24,12 @@ export interface RequestCategoryConfig {
 }
 
 export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
+  {
+    key: "account_archives",
+    label: "Account Archives",
+    description: "Billing account retirement and archive approval queue",
+    tableName: "notifications",
+  },
   {
     key: "account_group_transfers",
     label: "Account Group Transfers",
@@ -185,6 +192,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     applicant_movements: 0,
     account_group_transfers: 0,
     relievers: 0,
+    account_archives: 0,
   };
 
   const countItem = async (
@@ -314,6 +322,16 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
         .or("is_archived.is.null,is_archived.eq.false")
         .is("suppressed_by_batch_id", null)
+    ),
+
+    // 12. Account Archives
+    countItem(
+      "account_archives",
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("event_type", "account_archive_request")
+        .eq("is_archived", false)
     ),
   ];
 
@@ -3457,6 +3475,289 @@ export function useRejectPlantillaRequest() {
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy"] });
+    },
+  });
+}
+
+// ─── Account Archives Queue (SA Approval) ───────────────────────────────────
+
+export interface AccountArchiveItem {
+  id: string;
+  accountId: string;
+  accountName: string;
+  accountCode: string | null;
+  groupName: string | null;
+  remarks: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: ApprovalStatusTab;
+  reviewedAt: string | null;
+  reviewerRemarks?: string | null;
+  activeHeadcount: number;
+  vacantHeadcount: number;
+}
+
+export async function fetchAccountArchiveRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams,
+): Promise<{
+  data: AccountArchiveItem[];
+  totalCount: number;
+}> {
+  const supabase = createClient();
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.limit ?? 20;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from("notifications")
+    .select("id, title, message, reference_id, is_archived, created_at, read_at", { count: "exact" })
+    .eq("event_type", "account_archive_request")
+    .order("created_at", { ascending: false });
+
+  if (tab === "pending") {
+    query = query.eq("is_archived", false);
+  } else if (tab === "approved") {
+    query = query.eq("is_archived", true).not("message", "ilike", "[REJECTED:%");
+  } else if (tab === "rejected") {
+    query = query.eq("is_archived", true).ilike("message", "[REJECTED:%");
+  }
+
+  const { data: notifs, count, error } = await query.range(from, to);
+
+  if (error) {
+    throw new RequestDataError("generic", error.message);
+  }
+
+  if (!notifs || notifs.length === 0) {
+    return { data: [], totalCount: count ?? 0 };
+  }
+
+  // Fetch account data
+  const accountIds = Array.from(new Set(notifs.map((n) => n.reference_id).filter(Boolean)));
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select(`
+      id,
+      account_name,
+      account_code,
+      group_id,
+      groups (
+        group_name
+      )
+    `)
+    .in("id", accountIds);
+
+  const accountMap = new Map((accounts ?? []).map((a) => [a.id, a]));
+
+  const items: AccountArchiveItem[] = notifs.map((n) => {
+    const acc = accountMap.get(n.reference_id);
+    const rawMsg = n.message || "";
+
+    // Parse remarks and reviewer remarks
+    let remarks = rawMsg;
+    let reviewerRemarks: string | null = null;
+
+    if (rawMsg.startsWith("[REJECTED:")) {
+      const closingBracket = rawMsg.indexOf("]");
+      if (closingBracket !== -1) {
+        reviewerRemarks = rawMsg.slice("[REJECTED:".length, closingBracket).trim();
+        remarks = rawMsg.slice(closingBracket + 1).trim();
+      }
+    }
+
+    // Parse requester if present in message
+    let requestedBy = "Admin";
+    const requesterMatch = remarks.match(/Requester:\s*([^|]+)/i);
+    if (requesterMatch) {
+      requestedBy = requesterMatch[1].trim();
+    }
+
+    // Parse actual and vacant if present
+    let activeHeadcount = 0;
+    let vacantHeadcount = 0;
+    const hcMatch = remarks.match(/Active:\s*(\d+)\s*\|\s*Vacant:\s*(\d+)/i);
+    if (hcMatch) {
+      activeHeadcount = parseInt(hcMatch[1], 10);
+      vacantHeadcount = parseInt(hcMatch[2], 10);
+    }
+
+    const remarksMatch = remarks.match(/Remarks:\s*(.*)$/i);
+    if (remarksMatch) {
+      remarks = remarksMatch[1].trim();
+    }
+
+    const groupName = Array.isArray(acc?.groups)
+      ? ((acc.groups[0] as unknown as Record<string, unknown>)?.group_name as string | null)
+      : acc?.groups && typeof acc.groups === "object"
+      ? ((acc.groups as unknown as Record<string, unknown>).group_name as string | null)
+      : null;
+
+    return {
+      id: n.id,
+      accountId: n.reference_id,
+      accountName: acc?.account_name || n.title.replace(/^Account Archive Request:\s*/i, "").trim() || "Account",
+      accountCode: acc?.account_code || null,
+      groupName,
+      remarks,
+      requestedBy,
+      requestedAt: n.created_at,
+      status: tab,
+      reviewedAt: n.read_at,
+      reviewerRemarks,
+      activeHeadcount,
+      vacantHeadcount,
+    };
+  });
+
+  return {
+    data: items,
+    totalCount: count ?? items.length,
+  };
+}
+
+export async function fetchAccountArchiveCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, is_archived, message")
+    .eq("event_type", "account_archive_request");
+
+  if (error || !data) return { pending: 0, approved: 0, rejected: 0 };
+
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  for (const row of data) {
+    if (!row.is_archived) {
+      pending++;
+    } else if (row.message && row.message.startsWith("[REJECTED:")) {
+      rejected++;
+    } else {
+      approved++;
+    }
+  }
+
+  return { pending, approved, rejected };
+}
+
+export async function approveAccountArchive({
+  notificationId,
+  accountId,
+}: {
+  notificationId: string;
+  accountId: string;
+  accountName?: string;
+}): Promise<void> {
+  const supabase = createClient();
+
+  // 1. Mark account inactive in public.accounts
+  const { error: accountError } = await supabase
+    .from("accounts")
+    .update({
+      is_active: false,
+      status: "Inactive",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", accountId);
+
+  if (accountError) {
+    throw new RequestDataError("generic", accountError.message || "Failed to update account status.");
+  }
+
+  // 2. Mark notification reviewed
+  await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+      is_archived: true,
+      read_at: new Date().toISOString(),
+    })
+    .eq("id", notificationId);
+}
+
+export async function rejectAccountArchive({
+  notificationId,
+  remarks,
+}: {
+  notificationId: string;
+  accountId?: string;
+  accountName?: string;
+  remarks: string;
+}): Promise<void> {
+  const supabase = createClient();
+
+  const { data: notif } = await supabase
+    .from("notifications")
+    .select("message")
+    .eq("id", notificationId)
+    .single();
+
+  const updatedMessage = `[REJECTED: ${remarks}] ${notif?.message ?? ""}`;
+
+  await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+      is_archived: true,
+      message: updatedMessage,
+      read_at: new Date().toISOString(),
+    })
+    .eq("id", notificationId);
+}
+
+export function useAccountArchiveRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams,
+) {
+  return useQuery({
+    queryKey: ["account-archive-requests", tab, pagination],
+    queryFn: () => fetchAccountArchiveRequests(tab, pagination),
+  });
+}
+
+export function useAccountArchiveCounts() {
+  return useQuery({
+    queryKey: ["account-archive-counts"],
+    queryFn: () => fetchAccountArchiveCounts(),
+    refetchInterval: 30000,
+  });
+}
+
+export function useApproveAccountArchive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { notificationId: string; accountId: string; accountName: string }) =>
+      approveAccountArchive(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla", "allowed-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla", "account-metrics"] });
+    },
+  });
+}
+
+export function useRejectAccountArchive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      notificationId: string;
+      accountId: string;
+      accountName: string;
+      remarks: string;
+    }) => rejectAccountArchive(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["account-archive-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
     },
   });
 }

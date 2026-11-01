@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Approvals Hub: Account Archives Review Queue & Approval Window (ohm#a7c3v9k2)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**
+
+### What Changed
+1. **Dedicated Account Archive Category (`account_archives`) in Approvals Hub**:
+   - Added `account_archives` as the 12th category in `REQUEST_CATEGORIES` and `RequestCategoryKey` within `src/lib/queries/requests.ts`.
+   - Gated category visibility strictly to Super Admin (`level >= 100` / `isOwner`) in `src/lib/rbac.ts` via `getAllowedApprovalCategories`, ensuring Encoders, Head Admins, and non-SA roles cannot view or access the review queue.
+   - Mapped `account_archives` category pill to the `Archive` Lucide icon in `src/components/approvals/RequestCategoryNavigation.tsx`.
+   - Updated `src/app/(dashboard)/approvals/page.tsx` default count fallback and valid categories set to include `account_archives`.
+2. **Review Queue Table (`AccountArchiveDataTable.tsx`)**:
+   - Created full-featured approval table supporting `Pending`, `Approved`, and `Rejected` tabs with live count badges.
+   - Includes real-time client search filtering across account name, account code, and remarks.
+   - Displays Account Name & Code, Remarks / Justification, Headcount Impact (snapshot at request time), Requester & Date, Status, and Action buttons.
+   - Conforms strictly to 1:1 pagination standard via `@/components/shared/TablePagination` with selectable page sizes `[10, 25, 50]`.
+3. **Super Admin Review Actions & Governance**:
+   - **Approve Archive Modal**: Prompts Super Admin with account summary and headcount impact confirmation. Upon approval:
+     - Updates `public.accounts` setting `is_active = false` and `status = 'Inactive'`.
+     - Updates notification in `public.notifications` (`is_read = true`, `is_archived = false`, title updated with `[APPROVED]`).
+     - Records audit log in `public.audit_logs` (`action = 'UPDATE'`, `table_name = 'accounts'`).
+     - Invalidates TanStack Query keys `["plantilla-accounts"]`, `["account-archive-requests"]`, and `["request-category-counts"]`.
+   - **Reject Archive Modal**: Enforces mandatory reviewer justification. Upon submission:
+     - Marks notification as rejected (`is_read = true`, `is_archived = true`, title updated with `[REJECTED]`).
+     - Leaves account active and operational in `public.accounts`.
+     - Records audit log in `public.audit_logs`.
+     - Refreshes query caches and badges immediately.
+4. **Active Queue Integration (`ActiveQueueReviewPane.tsx`)**:
+   - Wired `useAccountArchiveRequests` and `useAccountArchiveCounts` hooks with query pagination and search filtering.
+   - Rendered `AccountArchiveDataTable` seamlessly within the existing pane layout.
+
+### Files Modified & Created
+- `src/components/approvals/AccountArchiveDataTable.tsx` (new)
+- `src/components/approvals/ActiveQueueReviewPane.tsx`
+- `src/components/approvals/RequestCategoryNavigation.tsx`
+- `src/app/(dashboard)/approvals/page.tsx`
+- `src/lib/queries/requests.ts`
+- `src/lib/rbac.ts`
+- `src/components/plantilla/ArchiveAccountModal.tsx`
+- `src/lib/queries/plantilla.ts`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (19 of 19 static/dynamic routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — Plantilla Account Lifecycle: Add Account, Archive Account & Employee Absorption Workflows (ohm#p4a8x2m9)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; LINT (0 ERRORS) & BUILD (19 ROUTES) CLEAN**

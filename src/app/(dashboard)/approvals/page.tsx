@@ -26,6 +26,7 @@ const VALID_CATEGORIES = new Set<string>([
   "applicant_movements",
   "account_group_transfers",
   "relievers",
+  "account_archives",
 ]);
 
 function ApprovalsPageContent() {
@@ -81,6 +82,7 @@ function ApprovalsPageContent() {
       applicant_movements: 0,
       account_group_transfers: 0,
       relievers: 0,
+      account_archives: 0,
     },
     isLoading: isLoadingCounts,
     refetch: refetchCounts,

@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { ApprovalsDataState } from "@/components/approvals/ApprovalsDataState";
+import { AccountArchiveDataTable } from "@/components/approvals/AccountArchiveDataTable";
 import { AccountRequestDataTable } from "@/components/approvals/AccountRequestDataTable";
 import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
 import { ApplicantMovementDataTable } from "@/components/approvals/ApplicantMovementDataTable";
@@ -43,6 +44,8 @@ import {
   useCoverageCounts,
   usePlantillaApprovals,
   usePlantillaApprovalCounts,
+  useAccountArchiveRequests,
+  useAccountArchiveCounts,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
@@ -229,6 +232,7 @@ export function ActiveQueueReviewPane({
   const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
   const [plantillaTab, setPlantillaTab] = useState<ApprovalStatusTab>("pending");
   const [accountTab, setAccountTab] = useState<AccountRequestStatus>("pending");
+  const [archiveTab, setArchiveTab] = useState<ApprovalStatusTab>("pending");
 
   // Search queries per queue
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,6 +246,7 @@ export function ActiveQueueReviewPane({
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
   const [plantillaSearchQuery, setPlantillaSearchQuery] = useState("");
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
 
   // ── Unified Pagination State (Vacancy Parity) ───────────────────────────
   const [page, setPage] = useState(1);
@@ -423,6 +428,25 @@ export function ActiveQueueReviewPane({
     isError: isAccountCountsError,
     refetch: refetchAccountCounts,
   } = useAccountRequestCounts();
+
+  // 12. Account Archives
+  const {
+    data: archiveData,
+    isLoading: isArchiveLoading,
+    isError: isArchiveError,
+    refetch: refetchArchive,
+    isRefetching: isArchiveRefetching,
+  } = useAccountArchiveRequests(archiveTab, { page, limit: pageSize });
+
+  const {
+    data: archiveCounts,
+    isLoading: isArchiveCountsLoading,
+    isError: isArchiveCountsError,
+    refetch: refetchArchiveCounts,
+  } = useAccountArchiveCounts();
+
+  const archiveRequests = useMemo(() => archiveData?.data ?? [], [archiveData?.data]);
+  const archiveTotalCount = archiveData?.totalCount ?? archiveRequests.length;
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -636,6 +660,104 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [accountRequests, accountSearchQuery]);
+
+  const filteredArchiveRequests = useMemo(() => {
+    if (!archiveSearchQuery.trim()) return archiveRequests;
+    const q = archiveSearchQuery.toLowerCase();
+    return archiveRequests.filter((req) => {
+      return (
+        req.accountName.toLowerCase().includes(q) ||
+        (req.accountCode?.toLowerCase().includes(q) ?? false) ||
+        (req.groupName?.toLowerCase().includes(q) ?? false) ||
+        req.requestedBy.toLowerCase().includes(q) ||
+        req.remarks.toLowerCase().includes(q)
+      );
+    });
+  }, [archiveRequests, archiveSearchQuery]);
+
+  // ── 0. Account Archives Queue (SA Only) ──────────────────────────────────
+  if (selectedCategory === "account_archives") {
+    const handleRefresh = () => {
+      refetchArchive();
+      refetchArchiveCounts();
+    };
+
+    return (
+      <div className="flex h-full flex-col">
+        <QueueToolbar
+          searchQuery={archiveSearchQuery}
+          onSearchChange={(val) => {
+            setArchiveSearchQuery(val);
+            setPage(1);
+          }}
+          searchPlaceholder="Search account name, code, group, requester, remarks..."
+          currentTab={archiveTab}
+          onTabChange={(tab) => {
+            setArchiveTab(tab);
+            setPage(1);
+          }}
+          counts={archiveCounts}
+          isCountsLoading={isArchiveCountsLoading}
+          isCountsError={isArchiveCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isArchiveRefetching}
+          isLoading={isArchiveLoading}
+        />
+
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
+          {isArchiveLoading ? (
+            <ApprovalsDataState
+              kind="loading"
+              title="Loading Account Archive Requests"
+              description="Fetching pending account retirement and archive approvals..."
+            />
+          ) : isArchiveError ? (
+            <ApprovalsDataState
+              kind="error"
+              title="Failed to Load Archive Queue"
+              description="An error occurred while fetching account archive requests."
+              onRetry={handleRefresh}
+            />
+          ) : filteredArchiveRequests.length === 0 ? (
+            <ApprovalsDataState
+              kind="empty"
+              title={
+                archiveSearchQuery
+                  ? "No Matching Requests"
+                  : archiveTab === "pending"
+                  ? "No Pending Account Archive Requests"
+                  : archiveTab === "approved"
+                  ? "No Approved Account Archives"
+                  : "No Rejected Account Archives"
+              }
+              description={
+                archiveSearchQuery
+                  ? `No requests match "${archiveSearchQuery}". Clear your search query to see all items.`
+                  : archiveTab === "pending"
+                  ? "All account archive requests have been reviewed and processed."
+                  : archiveTab === "approved"
+                  ? "No archived accounts found in this review queue."
+                  : "No rejected archive requests found in this queue."
+              }
+            />
+          ) : (
+            <AccountArchiveDataTable
+              requests={filteredArchiveRequests}
+              tab={archiveTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={archiveTotalCount}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── 1. New Store Requests Queue ──────────────────────────────────────────
   if (selectedCategory === "new_stores") {

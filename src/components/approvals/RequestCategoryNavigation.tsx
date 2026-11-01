@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/requests";
 
 const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: string }>> = {
+  account_archives: Archive,
   new_stores: Store,
   headcount: Users,
   plantilla_approvals: Briefcase,

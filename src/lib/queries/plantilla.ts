@@ -2533,20 +2533,28 @@ export interface RequestAccountArchiveParams {
   remarks: string;
   requestedBy?: string | null;
   requestedByName?: string | null;
+  actual?: number;
+  vacant?: number;
+  required?: number;
+  groupName?: string | null;
 }
 
 export async function requestAccountArchive(params: RequestAccountArchiveParams) {
   const supabase = createClient();
 
+  const formattedMessage = `Requester: ${params.requestedByName || "Admin"} | Active: ${params.actual ?? 0} | Vacant: ${params.vacant ?? 0} | Remarks: ${params.remarks}`;
+
   // Create notification for Super Admin
   try {
     await supabase.from("notifications").insert({
       title: `Account Archive Request: ${params.accountName}`,
-      message: `Archive requested for account "${params.accountName}" by ${params.requestedByName || "Admin"}. Remarks: ${params.remarks}`,
+      message: formattedMessage,
       notification_type: "approval",
       event_type: "account_archive_request",
-      reference_type: "account",
+      reference_type: "account_archive",
       reference_id: params.accountId,
+      is_read: false,
+      is_archived: false,
     });
   } catch (err) {
     console.warn("Failed to create archive notification:", err);

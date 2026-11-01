@@ -1,18 +1,19 @@
 # Approvals Module (Web) State
 
 ## 1. Overview & Architecture
-The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 11 functional categories, arranged in alphabetical order (A-Z):
-1. `account_group_transfers` — Account Group Transfers
-2. `account_requests` — Account Sign-Ups & Provisioning
-3. `applicant_movements` — Applicant Movements & Cross-Store Transfers
-4. `coverage` — Roving Coverage Group Requests
-5. `deactivations` — Employee Deactivation & Separation Clearance
-6. `headcount` — Headcount Quota Amendments & Requests
-7. `hr_emploc_deletions` — HR Emploc Deletion Requests
-8. `new_stores` — New Store Requests
-9. `plantilla_approvals` — Plantilla Placements & Deployments
-10. `relievers` — Reliever Coverage Endorsements
-11. `vacancy_closures` — Vacancy Closure Requests
+The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 12 functional categories, arranged in alphabetical order (A-Z):
+1. `account_archives` — Account Archive Requests (Super Admin only)
+2. `account_group_transfers` — Account Group Transfers
+3. `account_requests` — Account Sign-Ups & Provisioning
+4. `applicant_movements` — Applicant Movements & Cross-Store Transfers
+5. `coverage` — Roving Coverage Group Requests
+6. `deactivations` — Employee Deactivation & Separation Clearance
+7. `headcount` — Headcount Quota Amendments & Requests
+8. `hr_emploc_deletions` — HR Emploc Deletion Requests
+9. `new_stores` — New Store Requests
+10. `plantilla_approvals` — Plantilla Placements & Deployments
+11. `relievers` — Reliever Coverage Endorsements
+12. `vacancy_closures` — Vacancy Closure Requests
 
 ---
 
@@ -63,3 +64,25 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 - **Gated Predicates**: All operational queue queries and badge counters enforce `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
 - **Preserved Queues**: `account_requests` (Account Sign-Ups) are explicitly preserved and never archived or suppressed during QA Reset cycles.
 - **Rollback Behavior**: Batch rollback restores active requests to `is_archived = false` and clears `suppressed_by_batch_id = NULL` on pre-archived items without reopening closed records.
+
+---
+
+## 6. Account Archive Approval Workflow (`account_archives`)
+- **Access Control**: Category navigation tab and review queue are strictly visible to Super Admin (`level >= 100` / `isOwner`) via `getAllowedApprovalCategories` in `src/lib/rbac.ts`.
+- **Data Source**: Backed by `public.notifications` (with `reference_type = 'account'` and `event_type = 'ARCHIVE_REQUESTED'`), tracking requester, target account, justification remarks (>= 30 characters), and active employee snapshot at request time.
+- **Review Queue (`AccountArchiveDataTable`)**:
+  - Filter tabs: `Pending`, `Approved`, `Rejected` with live counter badges.
+  - Columns: Account Name & Code, Remarks / Justification, Headcount Impact (snapshot at request time), Requester & Date, Status, and Actions.
+  - Search: Real-time client search filtering by account name, account code, or remarks.
+  - Pagination: 1:1 parity with standard `TablePagination` (page index, page size `[10, 25, 50]`).
+- **Super Admin Actions**:
+  - **Approve Archive**: Opens confirmation modal summarizing account and headcount. Upon confirmation:
+    1. Sets `accounts.is_active = false` and `accounts.status = 'Inactive'`.
+    2. Updates notification status to approved (`is_read = true`, `is_archived = false`, title updated with `[APPROVED]`).
+    3. Logs audit trail in `public.audit_logs` (`action = 'UPDATE'`, `table_name = 'accounts'`).
+    4. Invalidates TanStack Query keys (`["plantilla-accounts"]`, `["account-archive-requests"]`, `["request-category-counts"]`).
+  - **Reject Archive**: Opens rejection dialog with mandatory reviewer justification. Upon submission:
+    1. Sets notification status to rejected (`is_read = true`, `is_archived = true`, title updated with `[REJECTED]`).
+    2. Leaves account active in `accounts` table.
+    3. Logs audit trail in `public.audit_logs`.
+    4. Invalidates TanStack Query keys to refresh counts and queue state.

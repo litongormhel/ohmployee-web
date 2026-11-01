@@ -81,6 +81,10 @@ export function ArchiveAccountModal({
         remarks: remarksTrimmed,
         requestedBy: currentUser?.profileId ?? currentUser?.authUserId,
         requestedByName: currentUser?.displayName ?? "Admin",
+        actual: account.actual,
+        vacant: account.vacant,
+        required: account.required,
+        groupName: account.groupName,
       });
 
       // Refresh queries
