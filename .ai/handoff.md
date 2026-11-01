@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Fix: OHMni Runtime gemini-3.8-flash Upgrade & Stream Error Forwarding (ohm#0hmn1fix)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Model Deprecation Resolution**:
+   - Diagnosed root cause of `Error: An error occurred.` on `/api/ohmni`. Identified that Google sunset `models/gemini-2.5-flash` for new requests (HTTP 404).
+   - Upgraded model instantiation in `src/app/api/ohmni/route.ts` to `google('gemini-3.8-flash')`, verified with real-time test execution.
+2. **Pre-Flight Environment Key Guardrail**:
+   - Added an explicit check for `process.env.GOOGLE_GENERATIVE_AI_API_KEY` at the top of the `POST` route handler in `src/app/api/ohmni/route.ts`. Returns a clean HTTP 500 JSON response advising to configure `.env.local` if missing.
+3. **Stream Error Forwarding & Exception Logging**:
+   - Configured `onError: (err) => ...` in `result.toUIMessageStreamResponse()` to stream descriptive error messages to the client drawer instead of generic masked errors.
+   - Added `console.error('[OHMni API Stream Error]:', err)` and `console.error('[OHMni API Error]:', err)` for developer observability.
+   - Added payload array validation for `messages` with 400 Bad Request handling.
+
+### Files Modified
+- `src/app/api/ohmni/route.ts`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot: AI Operations & Data Self-Service Assistant (ohm#0hmn1cop)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**

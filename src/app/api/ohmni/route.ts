@@ -24,6 +24,19 @@ ${OHMPLOYEE_SOP_MANUAL}
 `;
 
 export async function POST(req: Request) {
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Missing GOOGLE_GENERATIVE_AI_API_KEY in .env.local — please add your Gemini API key and restart npm run dev.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
   const authHeader = req.headers.get("authorization");
   const { supabase, user } = await createScopedServerClient(authHeader);
 
@@ -41,10 +54,20 @@ export async function POST(req: Request) {
 
   try {
     const { messages } = await req.json();
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid messages payload: expected an array." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const modelMessages = await convertToModelMessages(messages);
 
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-3.8-flash"),
       system: SYSTEM_PROMPT,
       messages: modelMessages,
       stopWhen: stepCountIs(3),
@@ -319,9 +342,14 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      onError: (err) => {
+        console.error("[OHMni API Stream Error]:", err);
+        return err instanceof Error ? err.message : String(err);
+      },
+    });
   } catch (err) {
-    console.error("[api/ohmni] Error executing streamText:", err);
+    console.error("[OHMni API Error]:", err);
     return new Response(
       JSON.stringify({
         error:

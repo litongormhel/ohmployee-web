@@ -13,7 +13,7 @@
 OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations managers, and administrators to self-serve operational data queries and standard operating procedure (SOP) lookups without manual SQL or reporting escalation.
 
 ### Core Architecture
-- **Model:** Google Gemini 2.5 Flash (`gemini-2.5-flash`) via Vercel AI SDK (`ai` v7, `@ai-sdk/google`, `@ai-sdk/react`, `zod`).
+- **Model:** Google Gemini 3.8 Flash (`gemini-3.8-flash`) via Vercel AI SDK (`ai` v7, `@ai-sdk/google`, `@ai-sdk/react`, `zod`).
 - **Security & RLS Enforcement:** Runs under the requesting user's Bearer JWT session token. Queries are executed with PostgreSQL Row-Level Security (RLS) and RBAC scopes applied. `SUPABASE_SERVICE_ROLE_KEY` is strictly prohibited. Unauthenticated requests receive `401 Unauthorized`.
 - **State Persistence:** Session-only memory managed in React client state (`useChat`). Resets cleanly on browser refresh or via the header reset button (`↺`). Zero unnecessary database tables.
 
