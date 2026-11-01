@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx`, Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut  
-**Last Updated:** 2026-11-01 (`ohm#0hmn1ui`)
+**Last Updated:** 2026-11-01 (`ohm#0hmn1ref`)
 
 ---
 
@@ -36,11 +36,14 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 3. **Welcome View & Active Stream:**
    - Always-visible welcome greeting with Robot Icon avatar (`Bot` in `w-8 h-8 rounded-full bg-emerald-100 text-emerald-700`) labeled `OHMni`, greeting `"Hi OHM!"`, and 3 contextual starter prompts tailored to active route when chat is empty.
    - User messages: Right-aligned pill (`bg-slate-900 text-white text-sm px-4 py-2.5 rounded-2xl max-w-[80%]`).
-   - Assistant messages: Left-aligned with `Bot` avatar, markdown/table formatting, and live trust badges (`⚡ Verified Live Data • {toolName}`).
+   - Assistant messages: Left-aligned with `Bot` avatar.
+   - **Consolidated Trust Indicator Pill:** Displays at most **ONE** subtle pill per assistant message (`⚡ Live Data Verified` or pulsing `⏳ Querying live Supabase data...`), eliminating multi-tool badge clutter.
+   - **Simple Text-First Answers:** When Gemini returns conversational text, only the clean text and bullets are rendered via `FormattedContent`.
 
 4. **Client-Side Tool Output Fallback:**
-   - As soon as a tool part reaches `state === 'output-available'` or has output/result, badge flips to `⚡ Verified Live Data`.
-   - If stream finishes (`!isLoading`) and an assistant message contains completed tool outputs but zero text parts, `ToolOutputFallbackView` automatically renders formatted data cards/tables directly from the tool's JSON instead of leaving `"Analyzing operations data..."` or a blank card.
+   - Activates only if the stream finishes (`!isLoading`) and an assistant message contains completed tool outputs but zero text parts.
+   - Selects the **last non-empty tool output** (or the last tool invocation if all were empty).
+   - Renders a **single plain-language summary line + clean bullet list** (e.g. `"Found **1** open vacancy: • **VCBPIG1_0183** — MOTORIZED COLLECTOR (open, regular)"`). Zero duplicate cards, zero 4-box `0` KPI grids, and zero empty tables.
 
 5. **Bottom Composer Box:**
    - Clean rounded container with auto-resizing textarea.
@@ -51,7 +54,7 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 
 ## 3. Backend Read-Only Tools
 
-1. **`getPlantillaSummary`:** Queries `plantilla_slots` table for total, filled, vacant slots, and fill rate percentage with up to 15 sample rows, wrapped in 8-second timeout safeguard.
-2. **`getOpenVacancies`:** Returns vacant/open slots from `plantilla_slots` with position title, branch, and status, wrapped in 8-second timeout safeguard.
+1. **`getPlantillaSummary`:** Queries `plantilla_slots` table for total, filled, vacant slots, and fill rate percentage with up to 15 sample rows. Supports `groupFilter` and intelligent group pattern matching (`"Group 1"` / `"G1"` -> `%G1%` in `legacy_vcode` and `group_id` foreign key lookup via `groups` table). Wrapped in 8-second timeout safeguard.
+2. **`getOpenVacancies`:** Returns vacant/open slots from `plantilla_slots` with position title, branch, and status. Supports `groupFilter` and group alias pattern matching. Wrapped in 8-second timeout safeguard.
 3. **`getEmplocQueueStatus`:** Queries `hr_emploc` table for pending or active movement items, `hr_status`, and employee details, wrapped in 8-second timeout safeguard.
 4. **`getHeadcountRequests`:** Queries `headcount_requests` table for requisition status, urgency, branch, requested role, and creation dates, wrapped in 8-second timeout safeguard.

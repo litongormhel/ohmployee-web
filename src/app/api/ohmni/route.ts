@@ -37,11 +37,84 @@ const SYSTEM_PROMPT = `You are OHMni, the official AI Operations & Data Self-Ser
 
 Enterprise Rules:
 1. Language & Tone: Enterprise-concise, zero conversational filler. Respond naturally in English or Taglish matching the user's prompt.
-2. Formatting Rules: Keep outputs compact for a 380px panel. Use short bullet lists, monospace badges for Slot Codes/IDs (\`SLOT-001\`), and compact 2-3 column markdown tables. Never fabricate numbers—always call a tool first.
-3. Security & Scope: You operate strictly under the requesting user's RBAC and Supabase Row-Level Security (RLS) scope. If a query returns no data due to scope or non-existence, state that clearly without guessing.
+2. Direct Answers: When the user asks a simple count or lookup question (e.g., 'what is the total vacant for group 1?' or 'how many pending requests?'), reply with a direct 1-to-2 sentence answer followed by a simple bullet list if there are matching items. Do not dump unnecessary metrics or raw debug tables.
+3. Group & Branch Lookups: When searching for groups (e.g., 'Group 1', 'G1'), use groupFilter or branchFilter with 'G1' or 'group 1' to match legacy slot codes and group assignments.
+4. Formatting Rules: Keep outputs compact and readable. Use short bullet lists and monospace badges for Slot Codes/IDs (\`SLOT-001\`). Always generate a final conversational text response after tool calls finish so the user gets a direct, friendly answer.
+5. Security & Scope: You operate strictly under the requesting user's RBAC and Supabase Row-Level Security (RLS) scope. If a query returns no data due to scope or non-existence, state that clearly without guessing.
 
 ${OHMPLOYEE_SOP_MANUAL}
 `;
+
+async function applyPlantillaFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  options: {
+    branchFilter?: string;
+    groupFilter?: string;
+  }
+) {
+  let updatedQuery = query;
+  const { branchFilter, groupFilter } = options;
+
+  // Check if groupFilter is provided or if branchFilter looks like a group (e.g. "group 1", "g1")
+  const looksLikeGroup =
+    branchFilter && (/group\s*\d+/i.test(branchFilter) || /\bg\d+\b/i.test(branchFilter));
+  const effectiveGroup = groupFilter || (looksLikeGroup ? branchFilter : undefined);
+
+  if (effectiveGroup) {
+    const trimmed = effectiveGroup.trim();
+    const groupMatch =
+      trimmed.match(/group\s*0*(\d+)/i) || trimmed.match(/\bg0*(\d+)\b/i);
+    const groupPattern = groupMatch ? `G${groupMatch[1]}` : undefined;
+
+    let groupIds: string[] = [];
+    try {
+      const orConds = [`group_name.ilike.%${trimmed}%`];
+      if (groupPattern) {
+        orConds.push(`group_name.ilike.%${groupPattern}%`);
+        if (groupMatch) {
+          orConds.push(`group_name.ilike.%Group ${groupMatch[1]}%`);
+        }
+      }
+      const { data: grpData } = await supabase
+        .from("groups")
+        .select("id")
+        .or(orConds.join(","));
+
+      if (grpData && grpData.length > 0) {
+        groupIds = grpData
+          .map((g: { id: string }) => g.id)
+          .filter(Boolean);
+      }
+    } catch {
+      // non-blocking fallback
+    }
+
+    const groupOrParts: string[] = [];
+    if (groupPattern) {
+      groupOrParts.push(`legacy_vcode.ilike.%${groupPattern}%`);
+    }
+    groupOrParts.push(`legacy_vcode.ilike.%${trimmed}%`);
+    if (groupIds.length > 0) {
+      for (const gid of groupIds) {
+        groupOrParts.push(`group_id.eq.${gid}`);
+      }
+    }
+
+    updatedQuery = updatedQuery.or(groupOrParts.join(","));
+  }
+
+  // If branchFilter was provided and was not a group alias
+  if (branchFilter && !looksLikeGroup) {
+    updatedQuery = updatedQuery.or(
+      `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
+    );
+  }
+
+  return updatedQuery;
+}
 
 export async function POST(req: Request) {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -100,6 +173,10 @@ export async function POST(req: Request) {
               .string()
               .optional()
               .describe("Filter slots by branch or store name/id"),
+            groupFilter: z
+              .string()
+              .optional()
+              .describe("Filter slots by group name, code, or alias (e.g. 'Group 1', 'G1')"),
             slotCode: z
               .string()
               .optional()
@@ -109,13 +186,13 @@ export async function POST(req: Request) {
               .optional()
               .describe("Filter by slot status (e.g. vacant, filled)"),
           }),
-          execute: async ({ branchFilter, slotCode, statusFilter }) => {
+          execute: async ({ branchFilter, groupFilter, slotCode, statusFilter }) => {
             try {
               return await executeWithTimeout(async () => {
                 let query = supabase
                   .from("plantilla_slots")
                   .select(
-                    "id, legacy_vcode, position, slot_status, employment_type, store_id, account_id, created_at"
+                    "id, legacy_vcode, position, slot_status, employment_type, store_id, account_id, group_id, created_at"
                   );
 
                 if (slotCode) {
@@ -124,11 +201,11 @@ export async function POST(req: Request) {
                 if (statusFilter) {
                   query = query.ilike("slot_status", `%${statusFilter}%`);
                 }
-                if (branchFilter) {
-                  query = query.or(
-                    `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
-                  );
-                }
+
+                query = await applyPlantillaFilters(query, supabase, {
+                  branchFilter,
+                  groupFilter,
+                });
 
                 const { data, error } = await query.limit(50);
                 if (error) {
@@ -176,6 +253,10 @@ export async function POST(req: Request) {
             "Returns open or vacant slots from plantilla_slots grouped or listed with slot code, position, and status.",
           inputSchema: z.object({
             branchFilter: z.string().optional().describe("Filter by branch/store"),
+            groupFilter: z
+              .string()
+              .optional()
+              .describe("Filter by group name, code, or alias (e.g. 'Group 1', 'G1')"),
             positionTitle: z
               .string()
               .optional()
@@ -186,24 +267,24 @@ export async function POST(req: Request) {
               .default(20)
               .describe("Max slots to return"),
           }),
-          execute: async ({ branchFilter, positionTitle, limit = 20 }) => {
+          execute: async ({ branchFilter, groupFilter, positionTitle, limit = 20 }) => {
             try {
               return await executeWithTimeout(async () => {
                 let query = supabase
                   .from("plantilla_slots")
                   .select(
-                    "id, legacy_vcode, position, slot_status, employment_type, store_id, account_id"
+                    "id, legacy_vcode, position, slot_status, employment_type, store_id, account_id, group_id"
                   )
                   .or("slot_status.ilike.vacant,slot_status.ilike.open");
 
                 if (positionTitle) {
                   query = query.ilike("position", `%${positionTitle}%`);
                 }
-                if (branchFilter) {
-                  query = query.or(
-                    `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
-                  );
-                }
+
+                query = await applyPlantillaFilters(query, supabase, {
+                  branchFilter,
+                  groupFilter,
+                });
 
                 const { data, error } = await query.limit(limit);
                 if (error) {

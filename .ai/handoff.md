@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — UI & Prompt Refinement: Conversational Answers, Collapsed Badges & Group Matching for OHMni (ohm#0hmn1ref)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Collapsed Tool Trust Badges (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Replaced multi-badge mapping over `toolParts` with at most **ONE subtle pill** per assistant message.
+   - If any tool is running / input-streaming: shows animated `⏳ Querying live Supabase data...`.
+   - Once all tools finish: shows a single consolidated badge: `⚡ Live Data Verified`.
+   - Completely eliminates the 3 duplicate badges previously rendered when multiple tool iterations executed.
+
+2. **Simple Text-First Answers & Streamlined Fallback (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - When Gemini returns conversational text (`hasNonEmptyText === true`), rendered **ONLY** Gemini's clean text/bullet response via `FormattedContent`.
+   - When Gemini finishes with zero text parts and fallback activates:
+     - Prioritizes the **last tool invocation that returned actual records** (or the last tool invocation if all were empty).
+     - Renders a single plain-language summary line + clean bullet list:
+       - For `getOpenVacancies`: `"Found **X** open vacancies:"` followed by `• **{slotCode}** — {position} ({status}, {employmentType})`. If 0: `"No open vacancies found matching your query."`
+       - For `getPlantillaSummary`: `"Found **X** slots (**Y** vacant, **Z** filled, **W%** fill rate):"` followed by sample bullets. If 0: `"No plantilla slots found matching your query."`
+       - For `getEmplocQueueStatus`: `"Found **X** items in HR Emploc queue:"` followed by `• **{employee}** ({employeeNo}) — Target: {targetSlot} [{status}]`.
+       - For `getHeadcountRequests`: `"Found **X** headcount requests:"` followed by `• **{position}** ({store}) — Needed: {headcountNeeded} [{status}]`.
+     - Eliminated 4-box `0` KPI grids (`TOTAL SLOTS 0`, `FILLED 0`, `VACANT 0`) and empty tables.
+
+3. **Group / Account / Legacy VCode Matching (`src/app/api/ohmni/route.ts`)**:
+   - Added `groupFilter` parameter to `getPlantillaSummary` and `getOpenVacancies`.
+   - Implemented `applyPlantillaFilters`:
+     - Natural pattern matching: parses `"group 1"`, `"group 01"`, `"G1"` into `groupPattern = "G1"` to query `legacy_vcode.ilike.%G1%` (matching codes like `VCBPIG1_0183`).
+     - Queries `groups` table (`group_name`) for matching group IDs, appending `group_id.eq.<id>` to the OR clause.
+     - Automatically handles `branchFilter` when passed with group aliases.
+   - Immediate first-call resolution without needing intermediate tool retries.
+
+4. **Tighter System Prompt (`src/app/api/ohmni/route.ts`)**:
+   - Instructed Gemini to reply with a direct 1-to-2 sentence answer followed by a simple bullet list when the user asks a simple count or lookup question.
+   - Instructed Gemini on group aliases and requiring a final conversational text response after tool calls finish.
+
+### Files Modified
+- `src/app/api/ohmni/route.ts`
+- `src/components/ohmni/OhmniDrawer.tsx`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and prerendered successfully).
+
+---
+
 ## Execution Report — UI Redesign & Bugfix: Tarsi-Style Centered OHMni Card, Tool Execution Safeguards & Approvals Queue Fix (ohm#0hmn1ui)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
