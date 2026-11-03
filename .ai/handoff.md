@@ -1,5 +1,21 @@
 # AI Handoff
 
+## Execution Report — BatchImportPageShell: Fix Duplicate Back Arrow (ohm#4d8w2n6p)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Summary of Implementation
+- **Duplicate Back Arrow Removal**: Removed the literal `"←"` character from the back button label text in `src/components/more/BatchImportPageShell.tsx`.
+- **Result**: The button now renders only the `ArrowLeft` icon followed by the label string `"Back to Batch Imports"` without duplicate arrow symbology across all 5 batch import flows (`hr_emploc`, `plantilla`, `vacancy`, `mika`, `payroll`).
+- **Strict Invariants Preserved**: Presentation-only change. Zero changes to routing, state, permissions, parsers, or APIs.
+
+### Files Modified / Created
+- `src/components/more/BatchImportPageShell.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — More → Data Control → Batch Imports: Convert Import Modals to Full-Page Views (All 5 Imports) (ohm#7k3q9x2m)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 0 ERRORS)**

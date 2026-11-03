@@ -32,7 +32,7 @@ export function BatchImportPageShell({
             aria-label="Back to Batch Imports"
           >
             <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5 text-text-muted group-hover:text-text-primary" />
-            <span>← Back to Batch Imports</span>
+            <span>Back to Batch Imports</span>
           </button>
         </div>
 
