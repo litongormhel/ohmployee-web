@@ -24,7 +24,6 @@ import {
   BarChart3,
   UserCheck,
   RotateCw,
-  UploadCloud,
   MoreVertical,
   Archive,
   ArrowRightLeft,
@@ -67,7 +66,6 @@ import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalytic
 import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
-import { PlantillaImportModal } from "@/components/more/PlantillaImportModal";
 import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
@@ -474,7 +472,6 @@ function PlantillaPageContent() {
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
-  const [isPlantillaImportOpen, setIsPlantillaImportOpen] = useState(false);
 
   // Workflow modals
   const [relieverTargetEmployee, setRelieverTargetEmployee] = useState<{
@@ -1852,19 +1849,6 @@ function PlantillaPageContent() {
                     </button>
                   )}
 
-                  {/* Primary button: Import Plantilla */}
-                  {canRequestAdjustment && (
-                    <button
-                      type="button"
-                      onClick={() => setIsPlantillaImportOpen(true)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
-                      title="Bulk import plantilla roster and initialize slots"
-                    >
-                      <UploadCloud className="w-3.5 h-3.5 shrink-0 text-brand-600" />
-                      <span>Import Plantilla</span>
-                    </button>
-                  )}
-
                   {/* Action button: Absorb Employees */}
                   <button
                     type="button"
@@ -2636,18 +2620,6 @@ function PlantillaPageContent() {
             />
           )}
 
-          {/* Plantilla Bulk Import Modal */}
-          {isPlantillaImportOpen && (
-            <PlantillaImportModal
-              isOpen={isPlantillaImportOpen}
-              onClose={() => {
-                setIsPlantillaImportOpen(false);
-                employeeQuery.refetch();
-                summaryQuery.refetch();
-                vacancyListQuery.refetch();
-              }}
-            />
-          )}
         </>
       )}
 

@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — Plantilla: Remove "Import Plantilla" Button and Stray Import Component Mounts (Fix Broken Inline Render) (ohm#9b5t3c7e)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Summary of Implementation
+- **Removed Stray Import Mount on Plantilla**: Removed the "Import Plantilla" header action button, the unused `UploadCloud` icon import, the `PlantillaImportModal` import, state `isPlantillaImportOpen`, and inline `<PlantillaImportModal>` mount from `src/app/(dashboard)/plantilla/page.tsx`.
+- **Eliminated Broken Inline Layout Overlay**: Following the batch imports conversion to full-page views (`BatchImportPageShell` in `ohm#7k3q9x2m`), mounting `PlantillaImportModal` inside the Plantilla page was causing it to render inline and overlap Plantilla content. Plantilla batch import now lives exclusively under More → Data Control → Batch Imports (`/more?tab=data_control&subtab=batch_imports&import=plantilla`).
+- **Grep Audit for Stray Import Mounts**: Verified targeted grep for `HrEmplocImportModal`, `PlantillaImportModal`, `VacancyImportModal`, `MikaImportModal`, and `PayrollImportModal`. Outside `src/app/(dashboard)/more/page.tsx`, zero other stray mounts exist across the codebase.
+- **Strict Invariants Preserved**:
+  - "Request Headcount" button and modal preserved untouched.
+  - "Absorb Employees" button and modal preserved untouched.
+  - Dual-view toggle (`[ 👥 Employee View | 🏬 Store View ]`), all 6 status tabs, sub-filters, search, and tables untouched.
+  - Import components (`PlantillaImportModal`, `BatchImportPageShell`) and the More page (`/more`) untouched.
+  - Zero database changes, queries, mutations, or ADR-001 behavior changes.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `docs/state/plantilla_web_state.md`
+
+---
+
 ## Execution Report — BatchImportPageShell: Fix Duplicate Back Arrow (ohm#4d8w2n6p)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**

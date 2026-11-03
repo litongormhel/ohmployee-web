@@ -30,7 +30,7 @@ Like other modules in OHMployee Web, this is designed as a thin admin presentati
 Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ 👥 Employee View | 🏬 Store View ]`) beside the `+ Request Headcount` button:
 
 ```
-[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]  [ Import Plantilla ]
+[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]  [ Absorb Employees ]
 ================================================================================================================================
 [ Card 1: Overall MFR ] [ Card 2: Active Deployed ] [ Card 3: Open Vacancies ] [ Card 4: HR Pipeline ] [ Card 5: Leadership ]
   (CENCOM Donut SVG)       (Active count)             (Approved slots)           (Candidate pipeline)     (OM, TL, ATL, HRCO)
@@ -39,6 +39,9 @@ Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [
 ================================================================================================================================
 [ 6 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) | Inactive (count) ]
 ```
+
+> [!NOTE]
+> **Batch Import Entry Point**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
 
 ### A. Employee View (Default)
 When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** with live count badges, filtering the employee directory:
@@ -896,10 +899,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
       4. Queries `v_plantilla_safe` matching `account.ilike.%${accountName}%` wildcard and `account_id.eq.${accountId}`.
       5. Provides a secondary direct query against `public.plantilla` if view constraints yield 0 records.
       6. Merges and deduplicates records into a `Map<string, Record<string, unknown>>` by `row.id` and `row.employee_no`, applying search, status filter, and sorting before normalizing to `PlantillaEmployeeListItem[]`.
-  - **KPI Synchronization & Safe View Roster Fallback (`src/lib/queries/plantilla.ts`)**:
-    - Updated `getPlantillaSummary` to query `v_account_allocation_kpi` when `params.accountId` is supplied, guaranteeing that the Account Detail view KPI cards (`actual_hc: 754`, `slot_vacant_hc: 1`, `required_hc: 755`, `pipeline_count: 0`) 100% match the metrics shown on the Plantilla Directory cards.
-    - Upgraded `listWebPlantillaEmployees` fallback: when primary RPC returns 0 rows, resolves `accountName` from `accounts` and queries `v_plantilla_safe` by both `account_id` and `account.ilike.${accountName}`, plus chunks against active `plantilla_id`s from `employee_store_allocations` to guarantee 100% parity with `v_account_allocation_kpi`.
-    - In `normalizeEmployeeListRow`, defaults `plantillaStatus` to `"Active"` when `is_active` is true and raw status string is unpopulated.
+  - **Removal of "Import Plantilla" Header Button and Inline Modal Mount (`ohm#9b5t3c7e`)**:
+    - Removed legacy "Import Plantilla" button from the Plantilla page header action bar (`src/app/(dashboard)/plantilla/page.tsx`).
+    - Unmounted `PlantillaImportModal` and removed unused state (`isPlantillaImportOpen`), icon (`UploadCloud`), and imports from the Plantilla page.
+    - Resolves broken inline overlay where `PlantillaImportModal` rendered inline and overlapped Plantilla content following its conversion to full-page `BatchImportPageShell`.
+    - Plantilla baseline batch roster import operates exclusively under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`).
 
 
 
