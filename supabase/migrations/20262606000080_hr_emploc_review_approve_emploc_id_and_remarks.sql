@@ -428,6 +428,30 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  IF v_sort_by <> ALL (ARRAY[
+    'vcode',
+    'applicant_name',
+    'account_name',
+    'group_name',
+    'store_name',
+    'position_title',
+    'hr_status',
+    'status',
+    'emploc_no',
+    'employee_no',
+    'date_requested',
+    'created_at',
+    'aging_days'
+  ]) THEN
+    RAISE EXCEPTION 'invalid sort field: %', p_sort_by
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_sort_dir <> ALL (ARRAY['asc', 'desc']) THEN
+    RAISE EXCEPTION 'invalid sort direction: %', p_sort_dir
+      USING ERRCODE = '22023';
+  END IF;
+
   RETURN QUERY
   WITH scoped AS (
     SELECT
@@ -451,9 +475,9 @@ BEGIN
       h.hired_date,
       h.assignment_type::text AS assignment_type,
       h.roving_assignment_id,
-      h.deleted_at,
-      h.moved_to_plantilla_at,
+      h.correction_reason,
       
+      -- SLA & Aging computation
       GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
       
       ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
@@ -468,6 +492,7 @@ BEGIN
       
       (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
       
+      -- Deficiency Summary
       CASE
         WHEN h.correction_reason IS NULL THEN jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
         ELSE jsonb_build_object(
@@ -494,39 +519,18 @@ BEGIN
         )
       END AS deficiency_summary,
       
+      -- Deletion Overlay visibility
       EXISTS (
         SELECT 1 FROM public.hr_emploc_deletion_requests dr
         WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
       ) AS is_pending_deletion,
       
+      -- UI capabilities presentation hints
       jsonb_build_object(
         'can_view_detail', true,
         'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
         'remarks', COALESCE(h.ops_remarks, h.hr_remarks),
         'ops_remarks', h.ops_remarks,
-        'hr_remarks', h.hr_remarks,
-        'attachment_url', (
-          SELECT ca.storage_path
-          FROM public.hr_emploc_correction_attachments ca
-          WHERE ca.hr_emploc_id = h.id AND ca.is_deleted = false
-          ORDER BY ca.uploaded_at DESC
-          LIMIT 1
-        ),
-        'attachment_file_name', (
-          SELECT ca.original_filename
-          FROM public.hr_emploc_correction_attachments ca
-          WHERE ca.hr_emploc_id = h.id AND ca.is_deleted = false
-          ORDER BY ca.uploaded_at DESC
-          LIMIT 1
-        ),
-        'can_edit_emploc', (
-          (v_role_level >= 30 OR v_role_name IN ('OM', 'HRCO', 'Encoder') OR public.i_am_hr_dept() OR public.i_have_full_access())
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status IN ('Transferred', 'Deployed', 'Complete') OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
-        ),
-        'can_revert_to_pending', (
-          (v_role_level >= 30 OR v_role_name IN ('OM', 'HRCO', 'Encoder') OR public.i_am_hr_dept() OR public.i_have_full_access())
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status IN ('Transferred', 'Deployed', 'Complete') OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
-        ),
         'can_request_deletion', (
           h.status <> 'Moved to Plantilla'
           AND h.hr_status <> 'Pending Deletion'
@@ -549,7 +553,14 @@ BEGIN
             )
           )
         ),
-        'can_review_deletion', (
+        'can_approve_deletion', (
+          (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
+          AND EXISTS (
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+          )
+        ),
+        'can_reject_deletion', (
           (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
           AND EXISTS (
             SELECT 1 FROM public.hr_emploc_deletion_requests dr
@@ -580,7 +591,7 @@ BEGIN
           AND (public.i_have_full_access() OR v_role_name = 'HRCO' OR h.hrco_user_id_snapshot = v_profile_id)
         ),
         'can_move_to_plantilla', (
-          (h.hr_status = 'Complete' OR h.status = 'Ready for Plantilla')
+          h.hr_status = 'Complete'
           AND COALESCE(h.employee_no, '') <> ''
           AND (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
         ),
@@ -596,14 +607,22 @@ BEGIN
           )
         ),
         'can_assign_employee_no', (
-          (v_role_name = 'Encoder' OR v_role_level >= 30 OR public.i_am_hr_dept() OR v_role_name IN ('OM', 'HRCO') OR public.i_have_full_access())
+          (v_role_name = 'Encoder' OR v_role_level = 30 OR v_role_level >= 100)
+          AND h.hr_status = 'Complete'
           AND COALESCE(h.employee_no, '') = ''
-          AND h.status <> 'Moved to Plantilla'
+          AND h.status = 'Pending Emploc'
           AND NOT EXISTS (
             SELECT 1
             FROM public.hr_emploc_deletion_requests dr
             WHERE dr.hr_emploc_id = h.id
               AND dr.status = 'Pending'
+          )
+        ),
+        'can_review_deletion', (
+          (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
+          AND EXISTS (
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
           )
         )
       ) AS row_capabilities
@@ -611,13 +630,17 @@ BEGIN
     LEFT JOIN public.accounts a ON a.id = h.account_id
     LEFT JOIN public.groups g ON g.id = a.group_id
     WHERE
+      -- Strict Soft-Delete Enforcement (always mandatory, never bypassed by role level)
       h.deleted_at IS NULL
+      -- Scoped Visibility Enforcements (role_level >= 90 or global scope bypasses account scoping)
       AND (
         COALESCE(v_role_level, 0) >= 90
+        OR public.i_have_full_access()
+        OR public.get_my_scope_type() = 'global'
+        OR public.i_have_hrco_global_visibility()
         OR (
           h.account = ANY (public.get_my_allowed_accounts())
-          OR
-          EXISTS (
+          OR EXISTS (
             SELECT 1 FROM public.user_scopes us
             WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
           )
@@ -638,22 +661,32 @@ BEGIN
     SELECT s.*
     FROM scoped s
     WHERE
-      -- Queue Filter (including 'deployed' and 'ready')
+      -- Queue Filter (Aligned with Mobile tabs and correction workflow)
       (p_queue IS NULL
-       OR (p_queue = 'pending' AND s.hr_status = 'Pending' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
-       OR (p_queue = 'correction' AND s.hr_status = 'For Correction' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
-       OR (p_queue = 'review' AND s.hr_status = 'For Review' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
-       OR (p_queue IN ('deployed', 'ready', 'complete', 'transferred') AND (
-            s.status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla')
-            OR s.hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete')
-            OR s.moved_to_plantilla_at IS NOT NULL
-            OR (s.employee_no IS NOT NULL AND btrim(s.employee_no) <> '')
-          )
-          AND s.status <> 'Backout'
-          AND s.deleted_at IS NULL
+       OR (p_queue = 'pending' AND s.hr_status = 'Pending')
+       OR (p_queue = 'correction' AND s.hr_status = 'For Correction')
+       OR (
+         p_queue = 'review' AND (
+           s.hr_status = 'For Review'
+           OR (
+             s.correction_reason IS NOT NULL
+             AND s.hr_status NOT IN ('For Correction', 'Pending')
+             AND NOT (s.hr_status = 'Complete' AND (NULLIF(BTRIM(COALESCE(s.employee_no, '')), '') IS NOT NULL OR NULLIF(BTRIM(COALESCE(s.emploc_no, '')), '') IS NOT NULL))
+           )
+         )
        )
-       OR (p_queue = 'rejected' AND s.hr_status = 'Rejected' AND s.deleted_at IS NULL)
+       OR (
+         p_queue = 'ready' AND (
+           s.hr_status = 'Complete'
+           AND s.status <> ALL (ARRAY['Moved to Plantilla'::text, 'Backout'::text])
+           AND NOT EXISTS (SELECT 1 FROM public.plantilla p WHERE p.hr_emploc_id = s.hr_emploc_id)
+         )
+       )
+       OR (p_queue = 'transferred' AND s.hr_status = 'Transferred')
+       OR (p_queue = 'rejected' AND s.hr_status = 'Rejected')
       )
+      
+      -- Deficiency Filter
       AND (p_deficiency IS NULL
        OR (p_deficiency = 'any' AND s.deficiency_summary->'active_count' > '0'::jsonb)
        OR (p_deficiency = 'none' AND s.deficiency_summary->'active_count' = '0'::jsonb)
@@ -664,10 +697,18 @@ BEGIN
          )
        )
       )
+      
+      -- SLA Filter
       AND (p_sla_filter IS NULL OR s.sla_status = p_sla_filter)
+      
+      -- Status Filter
       AND (p_status IS NULL OR s.status = p_status)
+      
+      -- Scope Filters
       AND (p_account_id IS NULL OR s.account_id = p_account_id)
       AND (p_group_id IS NULL OR s.group_id = p_group_id)
+      
+      -- Search Filter
       AND (
         p_search IS NULL
         OR nullif(btrim(p_search), '') IS NULL
@@ -679,74 +720,75 @@ BEGIN
         OR s.store_name ILIKE '%' || btrim(p_search) || '%'
         OR s.position_title ILIKE '%' || btrim(p_search) || '%'
         OR s.hrco_name ILIKE '%' || btrim(p_search) || '%'
+        OR s.hr_status ILIKE '%' || btrim(p_search) || '%'
+        OR s.status ILIKE '%' || btrim(p_search) || '%'
       )
   ),
   counted AS (
-    SELECT f.*, count(*) OVER () AS total_count
-    FROM filtered f
+    SELECT count(*)::bigint AS cnt FROM filtered
   )
   SELECT
-    c.hr_emploc_id,
-    c.applicant_name,
-    c.vcode,
-    c.account_id,
-    c.account_name,
-    c.group_id,
-    c.group_name,
-    c.store_id,
-    c.store_name,
-    c.position_title,
-    c.hr_status,
-    c.status,
-    c.emploc_no,
-    c.employee_no,
-    c.date_requested,
-    c.created_at,
-    c.hired_date,
-    c.assignment_type,
-    c.roving_assignment_id,
-    c.aging_days,
-    c.sla_breached,
-    c.sla_status,
-    c.sla_deadline,
-    c.deficiency_summary,
-    c.is_pending_deletion,
-    c.row_capabilities,
-    c.total_count
-  FROM counted c
+    f.hr_emploc_id,
+    f.applicant_name,
+    f.vcode,
+    f.account_id,
+    f.account_name,
+    f.group_id,
+    f.group_name,
+    f.store_id,
+    f.store_name,
+    f.position_title,
+    f.hr_status,
+    f.status,
+    f.emploc_no,
+    f.employee_no,
+    f.date_requested,
+    f.created_at,
+    f.hired_date,
+    f.assignment_type,
+    f.roving_assignment_id,
+    f.aging_days,
+    f.sla_breached,
+    f.sla_status,
+    f.sla_deadline,
+    f.deficiency_summary,
+    f.is_pending_deletion,
+    f.row_capabilities,
+    c.cnt AS total_count
+  FROM filtered f
+  CROSS JOIN counted c
   ORDER BY
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'vcode'            THEN c.vcode END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'vcode'            THEN c.vcode END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'applicant_name'   THEN c.applicant_name END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'applicant_name'   THEN c.applicant_name END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'account_name'     THEN c.account_name END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'account_name'     THEN c.account_name END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'group_name'       THEN c.group_name END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'group_name'       THEN c.group_name END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'store_name'       THEN c.store_name END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'store_name'       THEN c.store_name END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'position_title'   THEN c.position_title END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'position_title'   THEN c.position_title END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'hr_status'        THEN c.hr_status END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'hr_status'        THEN c.hr_status END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'status'           THEN c.status END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'status'           THEN c.status END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'emploc_no'        THEN c.emploc_no END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'emploc_no'        THEN c.emploc_no END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'employee_no'      THEN c.employee_no END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'employee_no'      THEN c.employee_no END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'date_requested'   THEN c.date_requested END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'date_requested'  THEN c.date_requested END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'created_at'       THEN c.created_at END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'created_at'      THEN c.created_at END DESC NULLS LAST,
-    CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'aging_days'       THEN c.aging_days END ASC NULLS LAST,
-    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'aging_days'      THEN c.aging_days END DESC NULLS LAST,
-    c.date_requested DESC NULLS LAST
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'vcode' THEN f.vcode END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'vcode' THEN f.vcode END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'applicant_name' THEN f.applicant_name END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'applicant_name' THEN f.applicant_name END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'account_name' THEN f.account_name END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'account_name' THEN f.account_name END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'group_name' THEN f.group_name END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'group_name' THEN f.group_name END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'store_name' THEN f.store_name END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'store_name' THEN f.store_name END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'position_title' THEN f.position_title END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'position_title' THEN f.position_title END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'hr_status' THEN f.hr_status END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'hr_status' THEN f.hr_status END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'status' THEN f.status END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'status' THEN f.status END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'emploc_no' THEN f.emploc_no END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'emploc_no' THEN f.emploc_no END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'employee_no' THEN f.employee_no END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'employee_no' THEN f.employee_no END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'aging_days' THEN f.aging_days END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'aging_days' THEN f.aging_days END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'date_requested' THEN f.date_requested END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'date_requested' THEN f.date_requested END DESC,
+    CASE WHEN v_sort_dir = 'asc' AND v_sort_by = 'created_at' THEN f.created_at END ASC,
+    CASE WHEN v_sort_dir = 'desc' AND v_sort_by = 'created_at' THEN f.created_at END DESC,
+    f.created_at DESC
   LIMIT v_limit
   OFFSET v_offset;
 END;
 $function$;
-
 
 REVOKE ALL    ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM PUBLIC;
 REVOKE ALL    ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM anon;

@@ -1,10 +1,10 @@
 # AI Handoff
 
-## Execution Report — HR Emploc (Web): Emploc ID on Approve Correction + Remarks Column Blank in Review Tab (ohm#7k4w9xqn)
+## Execution Report — HR Emploc (Web): Emploc ID on Approve Correction + Remarks Column Blank in Review Tab (ohm#7k4w9xqn — REVISED / GAP CLOSURE)
 
-**Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED & VERIFIED (14/14 SMOKE TESTS PASSED); MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `next build`: 0 ERRORS)**
+**Status: COMPLETE ON MAIN; STAGING MIGRATION RE-APPLIED & VERIFIED (19/19 SMOKE TESTS PASSED); PROD RUNBOOK & ROLLBACK PROVEN ON STAGING; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `next build`: 0 ERRORS)**
 
-### Summary of Implementation
+### Summary of Implementation & Findings
 - **Task 1 — Emploc ID on Approve Correction Modal (`ReviewApproveModal.tsx`)**:
   - Added required Emploc ID (Employee Number) input field with autofocus, formatted hint placeholder (`e.g. 2024-0012, EMP1024, 102948`), and validation.
   - Implemented client-side format validation regex `/^[A-Za-z0-9._-]+$/` (alphanumeric, hyphens, underscores, dots).
@@ -15,48 +15,55 @@
     - `P0001` → Pending deletion lock or unresolved deficiency keys.
     - `42501` → RBAC permission denied.
   - Submit button disabled when Emploc ID is empty, format is invalid, uniqueness check fails, or submission is in-flight.
-- **Task 2 — Remarks Column in Review Tab Table (`list_web_hr_emplocs`, `hr_emploc.ts`, `HrEmplocTable.tsx`)**:
-  - Updated `list_web_hr_emplocs` database function to project `'ops_remarks', h.ops_remarks` inside `row_capabilities`.
-  - Updated `normalizeListRow` in `src/lib/queries/hr_emploc.ts` so `caps.ops_remarks` / `row.ops_remarks` has top precedence in `hrcoRemarks` / `remarks` fallback order.
-  - In `HrEmplocTable.tsx`, Review tab Remarks column renders the Ops correction remark (e.g., `"dalwdaklwdklaw"`) with quotation styling and tooltip; renders `--` placeholder when null.
-- **Backend Architecture & RBAC Preservation (`20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql`)**:
-  - Created private core function `_assign_hr_emploc_number_core(p_id uuid, p_employee_no text)`: SECURITY DEFINER, search_path=public, EXECUTE revoked from PUBLIC, anon, and authenticated. Encapsulates full validation (empty check `22023`, not found/archived `P0002`, pending deletion `P0001`, active `hr_emploc` & `plantilla` uniqueness `23505`) and sets `employee_no`, `emploc_no`, `hr_emploc_no`, `updated_at`, `status = 'Ready for Plantilla'`, `hr_status = 'Complete'`, logs audit event, and timeline entry.
-  - Re-implemented `review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys jsonb, p_remarks text DEFAULT NULL, p_employee_no text DEFAULT NULL)`:
-    - Retained live role gate `i_am_hr_dept() OR i_have_full_access()`, guaranteeing Head Admin (level 90), Super Admin (level 100), and HR Personnel (level 25) can approve; Encoders and Ops remain blocked (`42501`).
-    - On `approve`: calls `_assign_hr_emploc_number_core(p_hr_emploc_id, p_employee_no)` atomically. All deficiencies resolved check enforced.
-    - On `return`: `p_employee_no` is optional/null; returns to `For Correction` with residual keys.
-    - Dropped old 4-argument signature `(uuid, text, jsonb, text)` to prevent overload drift; verified exactly 1 live overload exists.
-  - Preserved `assign_hr_emploc_number` function untouched for mobile and web Pending tab flows.
-  - *Future refactor note*: In a future dedicated database cleanup prompt, `assign_hr_emploc_number` can be refactored to delegate its internal assignment logic to `_assign_hr_emploc_number_core` under its existing role gate.
-- **Staging Database Verification & Smoke Test**:
-  - Applied migration `20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` to staging database (`qqiiznmqxfoamqytjica`).
-  - Executed rollback-wrapped smoke test script covering all happy paths, edge cases, role gates, timeline entries, list projection, and regression checks.
-  - **Raw Staging Smoke Test Results (14/14 PASS)**:
+- **Task 2 — Remarks Column Root Cause & Fix (`list_web_hr_emplocs`, `hr_emploc.ts`, `HrEmplocTable.tsx`)**:
+  - **Root Cause**: `.env.local` pointed to PROD (`rwxelulyapjgaarlwkus`), where migration `20261028150500_hr_emploc_overhaul_and_deployment_sync` was unapplied, causing PROD's `list_web_hr_emplocs` to omit `ops_remarks` from `row_capabilities`. The candidate `VCAG5_0071` exists on PROD with `ops_remarks = '23456789'`, but because PROD's RPC lacked `ops_remarks` in `row_capabilities` and `list_web_hr_emplocs` does not project `ops_remarks` as a top-level column, the client received `undefined`, resolving `row.remarks = null` and rendering a blank cell.
+  - **Database Fix**: Updated `list_web_hr_emplocs` in `20262606000080` based strictly on PROD's live definition, adding `'ops_remarks', h.ops_remarks` and `'remarks', COALESCE(h.ops_remarks, h.hr_remarks)` to `row_capabilities`.
+  - **Client Fix**: In `src/lib/queries/hr_emploc.ts`, `caps.ops_remarks` / `row.ops_remarks` has top precedence in `normalizeListRow`. In `HrEmplocTable.tsx`, Review tab Remarks renders the remark with quotation styling and tooltip; renders `--` placeholder when null.
+- **Backend Architecture & Option B Decision (`20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql`)**:
+  - Created private core function `_assign_hr_emploc_number_core(p_id uuid, p_employee_no text)`: SECURITY DEFINER, search_path=public, EXECUTE revoked from PUBLIC, anon, and authenticated. Encapsulates validation (`22023`, not found/archived `P0002`, pending deletion `P0001`, active uniqueness `23505`) and sets `employee_no`, `emploc_no`, `hr_status = 'Complete'`, `status = 'Ready for Plantilla'`, audit log, and timeline entry.
+  - Re-implemented `review_web_hr_emploc_correction`:
+    - Role gate preserved: `i_am_hr_dept() OR i_have_full_access()`. Head Admin (90), Super Admin (100), and HR Personnel (25) can approve; Encoder (30) and HRCO (45) remain blocked (`42501`).
+    - Option B approved: Step 5 retains `42501` on not-found/archived (`forbidden: hr_emploc record not found or archived`), preserving legacy web RPC parity.
+    - On `approve`: delegates atomically to `_assign_hr_emploc_number_core`. All deficiencies resolved check enforced.
+    - On `return`: `p_employee_no` is null/optional; returns to `For Correction` with residual keys (byte-identical behavior).
+    - Dropped old 4-argument signature to prevent overload drift; verified exactly 1 live overload exists.
+- **Rollback Proof & Staging Verification**:
+  - Rollback script based on exact PROD `pg_get_functiondef` applied on staging: restored 4-arg RPC, proved 4-arg works on approve and return, verified 5-arg RPC and core helper were gone.
+  - Migration `20262606000080` re-applied on staging: verified 5-arg RPC restored, core helper private, and 19/19 smoke tests passed.
+  - **Raw Staging Smoke Test Results (19/19 PASS)**:
     ```json
     [
-      {"test_name": "Guard: Unresolved keys", "status": "PASS", "detail": "Rejected with P0001"},
-      {"test_name": "Guard: Empty employee_no", "status": "PASS", "detail": "Rejected with 22023"},
-      {"test_name": "Guard: Duplicate hr_emploc", "status": "PASS", "detail": "Rejected with 23505"},
-      {"test_name": "Guard: Duplicate plantilla", "status": "PASS", "detail": "Rejected with 23505"},
-      {"test_name": "Guard: Pending deletion", "status": "PASS", "detail": "Rejected with P0001"},
-      {"test_name": "Guard: Not found", "status": "PASS", "detail": "Rejected with 42501"},
-      {"test_name": "Role Gate: Encoder blocked", "status": "PASS", "detail": "Rejected with 42501"},
-      {"test_name": "Role Gate: HRCO blocked", "status": "PASS", "detail": "Rejected with 42501"},
-      {"test_name": "Happy Path (Head Admin)", "status": "PASS", "detail": "Approved, employee_no=EMP-HA-2026-999, status=Ready for Plantilla, hr_status=Complete, slot_status=hr_processing"},
-      {"test_name": "Audit Trail Timeline", "status": "PASS", "detail": "Head Admin UAT assigned Employee ID EMP-HA-2026-999 to Smoke Test Candidate."},
-      {"test_name": "Return Path (HR Personnel)", "status": "PASS", "detail": "Record moved to For Correction with remarks"},
-      {"test_name": "list_web_hr_emplocs ops_remarks", "status": "PASS", "detail": "row_capabilities.ops_remarks = dalwdaklwdklaw"},
-      {"test_name": "Overload Check", "status": "PASS", "detail": "Exactly 1 overload exists"},
-      {"test_name": "Regression: assign_hr_emploc_number", "status": "PASS", "detail": "Pending assignment unchanged"}
+      {"test_name": "Guard: Unresolved keys", "role_tested": "Super Admin", "expected_code": "P0001", "actual_code": "P0001", "status": "PASS", "detail": "approve requires all existing correction keys to be resolved; 1 unresolved key(s) remain: INVALID_SSS"},
+      {"test_name": "Guard: Empty employee_no", "role_tested": "Super Admin", "expected_code": "22023", "actual_code": "22023", "status": "PASS", "detail": "employee_no is required"},
+      {"test_name": "Guard: Duplicate hr_emploc", "role_tested": "Super Admin", "expected_code": "23505", "actual_code": "23505", "status": "PASS", "detail": "employee_no EXISTING-EMP-999 already in use on active hr_emploc"},
+      {"test_name": "Guard: Duplicate plantilla", "role_tested": "Super Admin", "expected_code": "23505", "actual_code": "23505", "status": "PASS", "detail": "employee_no PLANTILLA-DUP-999 already exists in active plantilla"},
+      {"test_name": "Guard: Pending deletion", "role_tested": "Super Admin", "expected_code": "P0001", "actual_code": "P0001", "status": "PASS", "detail": "action locked: a pending deletion request exists for this record"},
+      {"test_name": "Guard: Not found (review RPC)", "role_tested": "Super Admin", "expected_code": "42501", "actual_code": "42501", "status": "PASS", "detail": "forbidden: not found or archived"},
+      {"test_name": "Guard: Not found (core helper)", "role_tested": "Super Admin", "expected_code": "P0002", "actual_code": "P0002", "status": "PASS", "detail": "hr_emploc 00000000-0000-0000-0000-000000000000 not found or archived"},
+      {"test_name": "Role Gate: Encoder blocked", "role_tested": "Encoder", "expected_code": "42501", "actual_code": "42501", "status": "PASS", "detail": "forbidden: HR Personnel or Admin role required for correction review"},
+      {"test_name": "Role Gate: HRCO blocked", "role_tested": "HRCO", "expected_code": "42501", "actual_code": "42501", "status": "PASS", "detail": "forbidden: HR Personnel or Admin role required for correction review"},
+      {"test_name": "Happy Path: Head Admin", "role_tested": "Head Admin", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Approved, employee_no=EMP-HA-2026-999"},
+      {"test_name": "Happy Path: Super Admin", "role_tested": "Super Admin", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Approved, employee_no=EMP-SA-2026-999"},
+      {"test_name": "Happy Path: HR Personnel", "role_tested": "HR Personnel", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Approved, employee_no=EMP-HR-2026-999"},
+      {"test_name": "Return Path: HR Personnel", "role_tested": "HR Personnel", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Moved to For Correction"},
+      {"test_name": "Audit Trail Timeline", "role_tested": "Head Admin", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Head Admin UAT assigned Employee ID EMP-HA-2026-999 to Smoke Test Candidate 1."},
+      {"test_name": "list_web_hr_emplocs ops_remarks", "role_tested": "Super Admin", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "row_capabilities.ops_remarks = dalwdaklwdklaw"},
+      {"test_name": "Privilege: Core helper private", "role_tested": "authenticated", "expected_code": "FALSE", "actual_code": "FALSE", "status": "PASS", "detail": "Revoked from authenticated"},
+      {"test_name": "Privilege: Review RPC executable", "role_tested": "authenticated", "expected_code": "TRUE", "actual_code": "TRUE", "status": "PASS", "detail": "Granted to authenticated"},
+      {"test_name": "Overload Check: review RPC", "role_tested": "N/A", "expected_code": "1", "actual_code": "1", "status": "PASS", "detail": "Exactly 1 overload exists"},
+      {"test_name": "Regression: assign_hr_emploc_number", "role_tested": "Super Admin", "expected_code": "OK", "actual_code": "OK", "status": "PASS", "detail": "Pending assignment unchanged"}
     ]
     ```
+- **Follow-up Item**:
+  - **Database Refactor**: Refactor `assign_hr_emploc_number` to call `_assign_hr_emploc_number_core` to remove logic duplication (separate prompt, includes Head Admin policy decision for the Pending tab).
+  - **PROD Migration Finding**: Migration `20261028150500_hr_emploc_overhaul_and_deployment_sync` is recorded/applied on STAGING but unapplied on PROD; flagged for a dedicated PROD sync prompt.
 
 ### Files Modified / Created
-- `supabase/migrations/20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` (Created migration file)
-- `src/lib/queries/hr_emploc.ts` (Updated `ReviewCorrectionParams`, `reviewWebHrEmplocCorrection`, `approveHrEmplocReview`, and `normalizeListRow` fallback order)
-- `src/components/hr-emploc/ReviewApproveModal.tsx` (Added required Emploc ID input, validation, uniqueness check, friendly errors)
+- `supabase/migrations/20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` (Updated list function based on PROD live body)
+- `src/lib/queries/hr_emploc.ts` (ReviewCorrectionParams, approveHrEmplocReview, normalizeListRow precedence)
+- `src/components/hr-emploc/ReviewApproveModal.tsx` (Required Emploc ID input, validation, uniqueness check)
 - `src/components/hr-emploc/HrEmplocTable.tsx` (Render placeholder `--` when Remarks is blank)
-- `docs/state/hr_emploc_web_state.md` (Updated state documentation for Review Approve and Remarks)
+- `docs/state/hr_emploc_web_state.md` (Updated state documentation)
 - `.ai/briefing.md` (Updated Last Completed Tasks)
 - `.ai/handoff.md` (Updated handoff entry)
 
