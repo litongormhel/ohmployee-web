@@ -9,7 +9,6 @@ import {
   RotateCcw,
   ChevronLeft,
   ArrowUp,
-  CheckCircle2,
   Loader2,
   Bot,
 } from "lucide-react";
@@ -406,7 +405,7 @@ function getStarterPrompts(pathname: string): string[] {
   if (pathname.includes("/plantilla")) {
     return [
       "Summarize Plantilla fill-rate and vacant slots by branch",
-      "Check details for a specific slot in plantilla_slots",
+      "How do I file a new Headcount Request?",
       "How do I bulk-import or Sync MIKA in Plantilla?",
     ];
   }
@@ -414,7 +413,7 @@ function getStarterPrompts(pathname: string): string[] {
     return [
       "Count all open vacancies grouped by position or branch",
       "List pending Headcount Requests older than 7 days",
-      "How do I file a new Headcount Request?",
+      "Show open vacancies across retail branches",
     ];
   }
   if (pathname.includes("/hr-emploc")) {
@@ -671,41 +670,6 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
                     <div className="flex-1 space-y-2">
                       <div className="font-semibold text-slate-900 text-sm">OHMni</div>
 
-                      {/* Tool Execution Trust Indicator (at most ONE subtle pill) */}
-                      {toolParts.length > 0 && (() => {
-                        const isAnyCalling = toolParts.some((tp) => {
-                          const state = (tp as GenericToolOutput)?.state;
-                          return state === "input-streaming" || state === "input-available";
-                        });
-                        const isAnyDone = toolParts.some((tp) => {
-                          const state = (tp as GenericToolOutput)?.state;
-                          const hasOutput =
-                            (tp as GenericToolOutput)?.output !== undefined ||
-                            (tp as GenericToolOutput)?.result !== undefined;
-                          return state === "output-available" || hasOutput;
-                        });
-
-                        if (isAnyCalling) {
-                          return (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border bg-amber-50 text-amber-800 border-amber-200 animate-pulse">
-                              <Loader2 size={11} className="animate-spin text-amber-600" />
-                              <span>⏳ Querying live Supabase data...</span>
-                            </div>
-                          );
-                        }
-
-                        if (isAnyDone) {
-                          return (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border bg-emerald-50 text-emerald-800 border-emerald-200">
-                              <CheckCircle2 size={11} className="text-emerald-600" />
-                              <span>⚡ Live Data Verified</span>
-                            </div>
-                          );
-                        }
-
-                        return null;
-                      })()}
-
                       {/* Assistant Reply Content */}
                       <div className="text-sm text-slate-800 leading-relaxed bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs w-full">
                         {hasNonEmptyText ? (
@@ -717,7 +681,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
                           <div className="flex items-center gap-2 text-slate-400 py-1">
                             <Loader2 size={14} className="animate-spin text-emerald-600" />
                             <span className="text-xs italic text-slate-500">
-                              Analyzing operations data...
+                              Thinking.....
                             </span>
                           </div>
                         ) : toolParts.length > 0 ? (
@@ -731,6 +695,26 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               </div>
             );
           })}
+
+          {/* Pending Thinking bubble while waiting for initial stream response */}
+          {isLoading && messages[messages.length - 1]?.role === "user" && (
+            <div className="flex items-start gap-3 max-w-[94%] w-full animate-in fade-in duration-150">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs mt-1">
+                <Bot size={18} />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="font-semibold text-slate-900 text-sm">OHMni</div>
+                <div className="text-sm text-slate-800 leading-relaxed bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs w-full">
+                  <div className="flex items-center gap-2 text-slate-400 py-1">
+                    <Loader2 size={14} className="animate-spin text-emerald-600" />
+                    <span className="text-xs italic text-slate-500">
+                      Thinking.....
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
@@ -754,13 +738,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               disabled={isLoading}
               className="text-sm placeholder:text-slate-400 border-0 focus:ring-0 focus:outline-none w-full resize-none text-slate-800 disabled:bg-transparent disabled:opacity-60"
             />
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <div
-                className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-emerald-200/60"
-                title={`Active module: ${pathname}`}
-              >
-                <span>⚡ Cloud • {pathname}</span>
-              </div>
+            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => handleSend()}

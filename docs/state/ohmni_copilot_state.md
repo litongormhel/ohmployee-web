@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
-**Last Updated:** 2026-11-03 (`ohm#alt754fix`)
+**Last Updated:** 2026-11-03 (`ohm#0hmn1sop`)
 
 ---
 
@@ -13,8 +13,9 @@
 OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations managers, and administrators to self-serve operational data queries and standard operating procedure (SOP) lookups without manual SQL or reporting escalation.
 
 ### Core Architecture
+- **Creator Identity & Ecosystem Architecture:** OHMni recognizes **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee, as its sole designer and creator. Any questions regarding who built OHMni or who Ohm is highlight Ohm's role architecting both the Mobile and Web ecosystems (Plantilla, Vacancy, HR Emploc, CENCOM, OHMni).
 - **Multi-Model Discovery & Automatic Quota Failover:** Dynamically fails over across Google Gemini models (`gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-flash-lite-latest`, `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`) with `maxRetries: 0` and chunk buffering to handle Free Tier 20-req/day exhaustion (`429 RESOURCE_EXHAUSTED`) seamlessly.
-- **Zero-Quota Deterministic Local Fallback:** If all candidate models in the pool hit 429 quota exhaustion, streams a clean conversational Taglish/English answer from a deterministic local router (SOP manual step-by-step instructions or direct Supabase RLS tool execution), ensuring zero red error boxes ever appear in the user interface.
+- **Zero-Quota Deterministic Local Fallback:** If all candidate models in the pool hit 429 quota exhaustion, streams a clean conversational Taglish/English answer from a deterministic local router (SOP manual step-by-step instructions or direct Supabase RLS tool execution), ensuring zero red error boxes ever appear in the user interface. Headcount Request SOP directs users to the **Plantilla** module (`/plantilla` -> select Account -> click `+ Request Headcount` in header action bar -> submit for Approvals).
 - **Postgrest Synchronous Query Chaining:** Group resolution is handled via plain async data helper `resolveGroupFilter(supabase, rawFilter)`. Filter builder methods (`.ilike(...)`, `.or(...)`, `.limit(...)`) are chained synchronously on `supabase.from("plantilla_slots").select(...)`, completely preventing Promise thenable unwrapping and resolving `query.limit is not a function`.
 - **Security & RLS Enforcement:** Runs under the requesting user's Bearer JWT session token. Queries are executed with PostgreSQL Row-Level Security (RLS) and RBAC scopes applied. `SUPABASE_SERVICE_ROLE_KEY` is strictly prohibited. Unauthenticated requests receive `401 Unauthorized`.
 - **Query Timeout Safeguards:** All backend Supabase tool calls execute with an 8-second timeout safeguard (`executeWithTimeout`) to prevent database hanging.
@@ -39,7 +40,7 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
    - Always-visible welcome greeting with Robot Icon avatar (`Bot` in `w-8 h-8 rounded-full bg-emerald-100 text-emerald-700`) labeled `OHMni`, greeting `"Hi OHM!"`, and 3 contextual starter prompts tailored to active route when chat is empty.
    - User messages: Right-aligned pill (`bg-slate-900 text-white text-sm px-4 py-2.5 rounded-2xl max-w-[80%]`).
    - Assistant messages: Left-aligned with `Bot` avatar.
-   - **Consolidated Trust Indicator Pill:** Displays at most **ONE** subtle pill per assistant message (`⚡ Live Data Verified` or pulsing `⏳ Querying live Supabase data...`), eliminating multi-tool badge clutter.
+   - **Clean Thinking State:** Displays a subtle `Thinking.....` label alongside a spinner inside the response bubble while generation/tools are in progress. Live data feed pills (`⏳ Querying...`, `⚡ Live Data Verified`) are completely removed for a minimal, distraction-free aesthetic.
    - **Simple Text-First Answers:** When Gemini returns conversational text, only the clean text and bullets are rendered via `FormattedContent`.
 
 4. **Client-Side Tool Output Fallback:**
@@ -49,7 +50,7 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 
 5. **Bottom Composer Box:**
    - Clean rounded container with auto-resizing textarea.
-   - Bottom bar with soft route pill (`⚡ Cloud • {currentRoute}`) and circular submit button with `ArrowUp` icon.
+   - Minimalist bottom action bar with right-aligned circular submit button (`ArrowUp`). Route pill removed.
    - Micro-caption: `"OHMni can make mistakes. Review important details."`
 
 ---

@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Refinement: Headcount Request SOP in Plantilla, Simple Thinking Indicator, Clean Composer & Creator Identity (ohm#0hmn1sop)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Corrected Headcount Request SOP (`src/app/api/ohmni/route.ts`)**:
+   - Updated `OHMPLOYEE_SOP_MANUAL` and `handleDeterministicFallback` so instructions for filing a headcount request direct users to the **Plantilla** module (`/plantilla` -> select target Account -> click `+ Request Headcount` in the top-right header action bar -> fill in Store/Branch, Position/Slot, headcount, justification -> submit for approval in Approvals), rather than the Vacancy module.
+2. **Established Creator Identity (`src/app/api/ohmni/route.ts`)**:
+   - Updated `SYSTEM_PROMPT` Rule 6 and `OHMPLOYEE_SOP_MANUAL` to state proudly that OHMni was designed and built exclusively by **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee. Strictly prohibits crediting "CENCOM Engineering" or other entities.
+   - Added dedicated deterministic handler in `handleDeterministicFallback` matching creator questions (`"who created"`, `"who built"`, `"who made"`, `"sino gumawa"`, `"who is ohm"`, `"sino si ohm"`, `"ormhel"`), returning Ohm's full professional background and system architecture credits even under API quota exhaustion.
+3. **Replaced Live Feed Badges with Clean `"Thinking....."` State (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Completely removed the `⏳ Querying live Supabase data...` and `⚡ Live Data Verified` tool badges from assistant message bubbles.
+   - Cleaned up unused `CheckCircle2` import from `lucide-react`.
+   - Replaced `"Analyzing operations data..."` with a subtle **`Thinking.....`** state with spinner inside the assistant response bubble.
+   - Added an upfront pending thinking bubble when `isLoading` is true and the last message in `messages` is from the user, guaranteeing the user sees immediate thinking feedback upon sending a message.
+4. **Streamlined Bottom Input Composer (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Removed the `⚡ Cloud • {pathname}` pill from the bottom composer box.
+   - Right-aligned the Up-Arrow circular submit button (`justify-end`).
+
+### Files Modified
+- `src/app/api/ohmni/route.ts`
+- `src/components/ohmni/OhmniDrawer.tsx`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and static pages generated successfully).
+
+---
+
 ## Execution Report — Bugfix: Missing 754 Active Employees in Alturas Plantilla & OHMni Lookup, Show OHMni to All Roles (ohm#alt754fix)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**

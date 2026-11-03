@@ -14,10 +14,14 @@ export const runtime = "nodejs";
 
 const OHMPLOYEE_SOP_MANUAL = `
 ## Built-In SOP Manual:
-- How to file a Headcount Request: Navigate to Vacancy module -> click "+ Request Headcount" -> select Branch & Position/Slot -> submit for approval.
+- How to file a Headcount Request: Navigate to Plantilla module (/plantilla) -> select target Account -> click "+ Request Headcount" in the top-right header -> fill in Store/Branch, Position/Slot, headcount needed, and reason -> submit for approval (tracked under the Approvals module).
 - How to hydrate/sync Plantilla: Navigate to Plantilla -> use bulk import / "Sync MIKA" action to hydrate slot assignments.
 - How to check HR Emploc discrepancies: Navigate to HR Emploc -> filter queue by pending/sync status to compare web vs. mobile movement records.
 - CENCOM overview: Central Command sits right above OHMni for high-level executive operational oversight and directory tracking.
+
+## Creator Identity & Origin:
+- Who created you? / Who built you? / Sino gumawa sa'yo?: OHMni was designed and built by OHM (Ormhel Litong). NEVER credit "CENCOM Engineering" or any third-party entity.
+- Who is Ohm? / Sino si Ohm?: Ormhel "OHM" Litong is the IT Manager at Moses Coop and the Full-Stack Software Developer & Systems Architect who architected and built the entire OHMployee ecosystem (Mobile and Web—powering Plantilla, Vacancy, HR Emploc, CENCOM, and the OHMni AI Co-Pilot) to modernize and automate workforce operations across retail stores and accounts.
 `;
 
 const QUERY_TIMEOUT_MS = 8000;
@@ -48,6 +52,7 @@ Enterprise Rules:
 3. Group, Branch, and Account Lookups: When searching for groups (e.g., 'Group 1', 'G1'), use groupFilter. When searching for billing accounts or clients (e.g., 'Alturas'), use accountFilter or branchFilter. getPlantillaSummary will automatically resolve the account and provide active employee counts, total headcount, open vacancies, and fill rate from live canonical data.
 4. Formatting Rules: Keep outputs compact and readable. Use short bullet lists and monospace badges for Slot Codes/IDs (\`SLOT-001\`). Always generate a final conversational text response after tool calls finish so the user gets a direct, friendly answer.
 5. Security & Scope: You operate strictly under the requesting user's RBAC and Supabase Row-Level Security (RLS) scope. If a query returns no data due to scope or non-existence, state that clearly without guessing.
+6. Creator Identity: You were created and built exclusively by OHM (Ormhel Litong), IT Manager at Moses Coop and Systems Architect of the OHMployee ecosystem. Never credit 'CENCOM Engineering' or anyone else as your creator.
 
 ${OHMPLOYEE_SOP_MANUAL}
 `;
@@ -561,6 +566,38 @@ async function handleDeterministicFallback(
 ): Promise<string> {
   const p = rawPrompt.toLowerCase().trim();
 
+  // 0. Check for Creator / Builder Identity inquiries ("Who created you?", "Who is Ohm?")
+  const isCreatorQuery =
+    p.includes("who created") ||
+    p.includes("who built") ||
+    p.includes("who made") ||
+    p.includes("who designed") ||
+    p.includes("sino gumawa") ||
+    p.includes("sinong gumawa") ||
+    p.includes("creator") ||
+    p.includes("who is ohm") ||
+    p.includes("sino si ohm") ||
+    p.includes("kilala mo si ohm") ||
+    p.includes("ormhel") ||
+    (p.includes("ohm") &&
+      (p.includes("who") || p.includes("sino") || p.includes("developer") || p.includes("author")));
+
+  if (isCreatorQuery) {
+    if (
+      p.includes("who is ohm") ||
+      p.includes("sino si ohm") ||
+      p.includes("kilala mo si ohm") ||
+      p.includes("ormhel")
+    ) {
+      return (
+        "Si **Ormhel \"OHM\" Litong** ay ang **IT Manager sa Moses Coop** at ang **Full-Stack Software Developer & Systems Architect** na nagdisenyo at nagtayo ng buong **OHMployee** ecosystem (parehong Mobile at Web—na nagpapatakbo sa Plantilla, Vacancy, HR Emploc, CENCOM, at OHMni AI Co-Pilot) upang gawing moderno at automated ang pamamahala ng workforce sa mga retail stores at accounts."
+      );
+    }
+    return (
+      "Ako ay si **OHMni**, ang official AI Operations & Data Co-Pilot ng OHMployee! Ako ay nilikha at binuo ni **OHM (Ormhel Litong)**, ang IT Manager sa Moses Coop at Systems Architect ng buong OHMployee ecosystem."
+    );
+  }
+
   // 1. Check for SOP / How-to queries
   const isHowTo =
     p.includes("paano") ||
@@ -574,11 +611,10 @@ async function handleDeterministicFallback(
     if (p.includes("headcount") || p.includes("request")) {
       return (
         "Para mag-file ng **Headcount Request**:\n\n" +
-        "1. Pumunta sa **Vacancy** module mula sa kaliwang navigation sidebar.\n" +
-        "2. I-click ang **`+ Request Headcount`** button sa itaas.\n" +
-        "3. Piliin ang target **Branch / Store** at ang **Position / Slot** na kailangan.\n" +
-        "4. Ilagay ang **Headcount Needed**, dahilan (justification), at urgency level.\n" +
-        "5. I-click ang **Submit** para mapunta sa Approvals queue para sa review at approval."
+        "1. Pumunta sa **Plantilla** module (`/plantilla`) mula sa kaliwang navigation sidebar at piliin ang target **Account**.\n" +
+        "2. I-click ang **`+ Request Headcount`** button sa kanang itaas ng header (action bar).\n" +
+        "3. Piliin ang target **Store / Branch**, **Position / Slot**, bilang ng kailangang headcount, at dahilan (justification).\n" +
+        "4. I-click ang **Submit** para mapunta sa **Approvals** module para sa review at approval."
       );
     }
     if (p.includes("mika") || p.includes("hydrate") || p.includes("sync")) {
@@ -602,7 +638,7 @@ async function handleDeterministicFallback(
     }
     return (
       "Narito ang mga gabay mula sa **OHMployee Built-In SOP Manual**:\n\n" +
-      "- **Headcount Request:** Navigate sa *Vacancy* module -> click `+ Request Headcount` -> piliin ang Branch & Position -> submit for approval.\n" +
+      "- **Headcount Request:** Navigate sa *Plantilla* module -> piliin ang target Account -> click `+ Request Headcount` sa itaas -> punan ang Store, Position, at headcount -> submit for approval sa *Approvals*.\n" +
       "- **Plantilla Sync:** Navigate sa *Plantilla* -> gamitin ang bulk import / `Sync MIKA` para ma-hydrate ang slots.\n" +
       "- **HR Emploc Queue:** Navigate sa *HR Emploc* -> i-filter ang queue ayon sa pending/sync status para ma-resolve ang discrepancies.\n" +
       "- **CENCOM:** Central Command sa sidebar para sa high-level operational oversight."
