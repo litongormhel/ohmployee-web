@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — More → Data Control → Batch Imports: Convert Import Modals to Full-Page Views (All 5 Imports) (ohm#7k3q9x2m)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 0 ERRORS)**
+
+### Summary of Implementation
+- **Presentation Container Conversion**: Replaced the clipped `<Modal>` containers of all 5 Batch Import flows (`hr_emploc`, `plantilla`, `vacancy`, `mika`, `payroll`) with a unified, full-page view powered by `BatchImportPageShell`.
+- **Full Viewport & Natural Scroll Layout**: Removed vertical restrictions (`max-h-[58vh]`, `max-h-72`, `max-h-60`, `max-h-56`) from preview tables and staged rows. The preview table area now scrolls naturally inside the page body and supports horizontal overflow without clipping table rows or headers.
+- **Sticky Actions Footer**: In `BatchImportPageShell`, pinned the footer with `sticky bottom-0 z-30 bg-surface-base/95 backdrop-blur-xs border-t border-border-default` ensuring action triggers (Close, Approve, Reject, Export, Send to Ops) remain permanently in view even across large preview tables.
+- **URL-Driven Routing**: Selecting an import card in `/more?tab=data_control&subtab=batch_imports` updates the URL via `router.push('/more?tab=data_control&subtab=batch_imports&import=<key>')`.
+  - Browser Back and Forward navigation smoothly toggles between the full-page import view and the Batch Imports card grid.
+  - Page refresh preserves the active import view and inner tab state.
+  - Invalid or unknown `import` param values fall back cleanly to the Batch Imports card grid.
+  - "← Back to Batch Imports" at the top of the page and "Close" in the footer return to the card grid.
+- **Legacy URL Mapping & Redirect**: In `src/app/(dashboard)/hr-emploc/import/page.tsx`, updated the redirect target to `/more?tab=data_control&subtab=batch_imports&import=hr_emploc`. In `MorePageContent`, preserved fallback mapping from legacy query parameters (`open=import_hr_emploc` / `open=hr_emploc`).
+- **Sub-Dialog Preservation**: Preserved internal sub-modals for rejection notes, rollback requests, emergency rollback justifications, and audit logs within `PlantillaImportModal` and `VacancyImportModal` as focused `<Modal>` dialogs.
+- **Strict Invariants Preserved**: Zero changes to parser logic, XLSX handling, database queries/mutations, RBAC permissions, ADR-001 slot validation rules, or Operations & Governance controls.
+
+### Files Modified / Created
+- `src/components/more/BatchImportPageShell.tsx`
+- `src/components/more/HrEmplocImportModal.tsx`
+- `src/components/more/PlantillaImportModal.tsx`
+- `src/components/more/VacancyImportModal.tsx`
+- `src/components/more/MikaImportModal.tsx`
+- `src/components/more/PayrollImportModal.tsx`
+- `src/app/(dashboard)/more/page.tsx`
+- `src/app/(dashboard)/hr-emploc/import/page.tsx`
+- `docs/state/more_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: User Management Scope Assignment & Friendly Error Mapping (ohm#userscopefix)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**

@@ -27,16 +27,16 @@ import {
   useMikaImportRowsQuery,
 } from "@/lib/queries/dataControl";
 import { createClient } from "@/lib/supabase/client";
-import { Modal } from "@/components/shared/Modal";
+import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 
 export interface MikaImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
 type TabType = "upload" | "review" | "history";
 
-export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
+export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps) {
   const currentUser = useCurrentUser();
   const [activeTab, setActiveTab] = useState<TabType>("upload");
 
@@ -264,19 +264,14 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
   const blockedCount = stagedRows.filter((r) => r.flagType === "blocked").length;
   const matchedCount = stagedRows.filter((r) => r.flagType === "matched").length;
 
-  const isFormDirty = stagedRows.length > 0 || actionRemarks.trim().length > 0;
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
+    <BatchImportPageShell
+      onBack={onClose}
       title="Import MIKA"
       subtitle="Upload MIKA biometric and store activity sheets with ghost employee cross-check detection."
       icon={FileSpreadsheet}
-      maxWidthClass="max-w-5xl"
-      isSubmitting={isSubmitting || isActionPending}
-      disableBackdropClick={isSubmitting || isActionPending}
-      isDirty={isFormDirty}
       footer={
         <div className="flex w-full items-center justify-between text-xs text-text-muted">
           <span>Full Mobile MIKA Biometric Parity with Ghost Case Isolation and Checker Security.</span>
@@ -334,7 +329,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
         </div>
 
         {/* Content */}
-        <div className="max-h-[58vh] overflow-y-auto space-y-4 pr-1">
+        <div className="space-y-4">
           {activeTab === "upload" && (
             <div className="space-y-4">
               {submitSuccess && (
@@ -412,7 +407,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border-default overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="rounded-xl border border-border-default overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                         <tr>
@@ -576,7 +571,7 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
                           <Loader2 className="h-4 w-4 animate-spin mr-2 text-brand-primary" /> Loading rows...
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-border-default bg-surface-primary overflow-x-auto max-h-56">
+                        <div className="rounded-xl border border-border-default bg-surface-primary overflow-x-auto">
                           <table className="w-full text-left text-sm">
                             <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold">
                               <tr>
@@ -664,6 +659,6 @@ export function MikaImportModal({ isOpen, onClose }: MikaImportModalProps) {
           )}
         </div>
       </div>
-    </Modal>
+    </BatchImportPageShell>
   );
 }

@@ -42,11 +42,17 @@ This document captures the current stable architecture and navigation contract f
        - `roving_coverage_groups`: Roving coverage group pools.
        - `payroll_review_center`: Payroll Review Center (Canonical review hub).
      - Sub-tab `batch_imports`:
-       - `hr_emploc_import`: HR Emploc XLSX bulk import.
-       - `plantilla_import`: Plantilla batch import.
-       - `vacancy_import`: Vacancy batch import.
-       - `mika_import`: Mika import.
-       - `payroll_import`: Payroll reconciliation import.
+       - Full-Page Architecture: All 5 batch imports are rendered as URL-driven full-page views via `BatchImportPageShell` rather than modals, providing full-width/full-height content, unclipped preview tables scrolling inside the page body, and a sticky action footer (`sticky bottom-0`).
+       - URL Contract: `/more?tab=data_control&subtab=batch_imports&import=<plantilla|hr_emploc|vacancy|mika|payroll>`.
+         - Invalid or omitted `import` parameter cleanly falls back to the Batch Imports card grid.
+         - Back control ("← Back to Batch Imports") and footer "Close" action both return to the card grid.
+         - Browser back/forward navigation and refresh preserve active import and tab state.
+         - Legacy `/hr-emploc/import` route and `open=import_hr_emploc` query param map to `import=hr_emploc`.
+       - `hr_emploc_import`: HR Emploc XLSX bulk import (`import=hr_emploc`).
+       - `plantilla_import`: Plantilla batch import (`import=plantilla`). Internal rejection and rollback confirmation actions retain focused `<Modal>` dialogs.
+       - `vacancy_import`: Vacancy batch import (`import=vacancy`). Internal rollback and rejection actions retain focused `<Modal>` dialogs.
+       - `mika_import`: Mika import (`import=mika`).
+       - `payroll_import`: Payroll reconciliation import (`import=payroll`). Pure read-only checker with sticky review center handover trigger.
 
 ## Data Archival & Recovery Consolidation
 - Canonical entry point is strictly located in **More > Data Control > Operations & Governance > "Data Archival & Recovery"** (Level 100).

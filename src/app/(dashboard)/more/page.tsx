@@ -72,6 +72,8 @@ import { SystemDiagnosticsModal } from "@/components/more/SystemDiagnosticsModal
 
 export type MoreTabKey = "overview" | "admin_tools" | "permissions" | "audit" | "data_control";
 export type DataControlSubTab = "operations" | "batch_imports";
+export type BatchImportKey = "plantilla" | "hr_emploc" | "vacancy" | "mika" | "payroll";
+const VALID_BATCH_IMPORTS = new Set<string>(["plantilla", "hr_emploc", "vacancy", "mika", "payroll"]);
 
 export interface MoreFeatureTile {
   id: string;
@@ -153,13 +155,6 @@ function MorePageContent() {
   const [accountRequestsOpen, setAccountRequestsOpen] = useState(
     () => targetModal === "account_requests"
   );
-  const [hrEmplocImportOpen, setHrEmplocImportOpen] = useState(
-    () => targetModal === "import_hr_emploc" || targetModal === "hr_emploc" || targetModal === "hr_emploc_import"
-  );
-  const [plantillaImportOpen, setPlantillaImportOpen] = useState(false);
-  const [vacancyImportOpen, setVacancyImportOpen] = useState(false);
-  const [mikaImportOpen, setMikaImportOpen] = useState(false);
-  const [payrollImportOpen, setPayrollImportOpen] = useState(false);
   const [payrollReviewCenterOpen, setPayrollReviewCenterOpen] = useState(false);
   const [ohmsSafespaceOpen, setOhmsSafespaceOpen] = useState(
     () => targetModal === "ohms_safespace"
@@ -244,6 +239,7 @@ function MorePageContent() {
     }
     if (tab !== "data_control") {
       params.delete("subtab");
+      params.delete("import");
     }
     const query = params.toString();
     router.replace(query ? `/more?${query}` : "/more", { scroll: false });
@@ -253,12 +249,64 @@ function MorePageContent() {
     const params = new URLSearchParams(searchParams.toString());
     if (subtab === "operations") {
       params.delete("subtab");
+      params.delete("import");
     } else {
       params.set("subtab", subtab);
     }
     const query = params.toString();
     router.replace(query ? `/more?${query}` : "/more", { scroll: false });
   };
+
+  // Batch Import URL-driven state & navigation handlers
+  const rawImport = searchParams.get("import");
+  const activeImport: BatchImportKey | null = useMemo(() => {
+    if (activeTab !== "data_control" || dataControlSubTab !== "batch_imports") return null;
+    if (rawImport && VALID_BATCH_IMPORTS.has(rawImport)) {
+      return rawImport as BatchImportKey;
+    }
+    // Legacy query fallback mapping
+    const target = searchParams.get("open") || searchParams.get("modal") || searchParams.get("tool");
+    if (target === "import_hr_emploc" || target === "hr_emploc" || target === "hr_emploc_import") {
+      return "hr_emploc";
+    }
+    if (target === "import_plantilla" || target === "plantilla" || target === "plantilla_import") {
+      return "plantilla";
+    }
+    if (target === "import_vacancy" || target === "vacancy" || target === "vacancy_import") {
+      return "vacancy";
+    }
+    if (target === "import_mika" || target === "mika" || target === "mika_import") {
+      return "mika";
+    }
+    if (target === "import_payroll" || target === "payroll" || target === "payroll_import") {
+      return "payroll";
+    }
+    return null;
+  }, [activeTab, dataControlSubTab, rawImport, searchParams]);
+
+  const handleSelectImport = useCallback(
+    (importKey: BatchImportKey) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", "data_control");
+      params.set("subtab", "batch_imports");
+      params.set("import", importKey);
+      params.delete("open");
+      params.delete("modal");
+      params.delete("tool");
+      router.push(`/more?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const handleCloseImport = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("import");
+    params.delete("open");
+    params.delete("modal");
+    params.delete("tool");
+    const query = params.toString();
+    router.push(query ? `/more?${query}` : "/more?tab=data_control&subtab=batch_imports");
+  }, [router, searchParams]);
 
   // Sign out handler
   const handleLogout = useCallback(async () => {
@@ -548,7 +596,7 @@ function MorePageContent() {
         title: "Import HR Emploc",
         description: "Bulk upload HR Emploc records via XLSX with HA/SA approval",
         icon: FileSpreadsheet,
-        onClick: () => setHrEmplocImportOpen(true),
+        onClick: () => handleSelectImport("hr_emploc"),
         badgeLabel: "RECONCILIATION",
         badgeVariant: "purple",
       },
@@ -557,7 +605,7 @@ function MorePageContent() {
         title: "Import Plantilla",
         description: "Bulk master plantilla baseline ingestion (CSV/XLSX parser staging)",
         icon: FileSpreadsheet,
-        onClick: () => setPlantillaImportOpen(true),
+        onClick: () => handleSelectImport("plantilla"),
         badgeLabel: "BASELINE",
         badgeVariant: "purple",
       },
@@ -566,7 +614,7 @@ function MorePageContent() {
         title: "Import Vacancy",
         description: "Bulk import vacancy records and requisitions into current operational active groups",
         icon: FileSpreadsheet,
-        onClick: () => setVacancyImportOpen(true),
+        onClick: () => handleSelectImport("vacancy"),
         badgeLabel: "INTAKE",
         badgeVariant: "purple",
       },
@@ -575,7 +623,7 @@ function MorePageContent() {
         title: "Import MIKA",
         description: "MIKA biometric attendance and store activity import staging",
         icon: FileSpreadsheet,
-        onClick: () => setMikaImportOpen(true),
+        onClick: () => handleSelectImport("mika"),
         badgeLabel: "BIOMETRIC",
         badgeVariant: "purple",
       },
@@ -584,12 +632,12 @@ function MorePageContent() {
         title: "Import Payroll",
         description: "Import operational payroll sheets and employee wage deductions",
         icon: FileSpreadsheet,
-        onClick: () => setPayrollImportOpen(true),
+        onClick: () => handleSelectImport("payroll"),
         badgeLabel: "CHECKER",
         badgeVariant: "purple",
       },
     ],
-    []
+    [handleSelectImport]
   );
 
   const visibleAdminTiles = useMemo(() => {
@@ -632,6 +680,37 @@ function MorePageContent() {
       return isHeadAdmin;
     });
   }, [batchImportTiles, roleLevel, isHeadAdmin, isEncoder]);
+
+  if (activeImport) {
+    return (
+      <div className="w-full">
+        {activeImport === "hr_emploc" && (
+          <HrEmplocImportModal isOpen={true} onClose={handleCloseImport} />
+        )}
+        {activeImport === "plantilla" && (
+          <PlantillaImportModal isOpen={true} onClose={handleCloseImport} />
+        )}
+        {activeImport === "vacancy" && (
+          <VacancyImportModal isOpen={true} onClose={handleCloseImport} />
+        )}
+        {activeImport === "mika" && (
+          <MikaImportModal isOpen={true} onClose={handleCloseImport} />
+        )}
+        {activeImport === "payroll" && (
+          <PayrollImportModal
+            isOpen={true}
+            onClose={handleCloseImport}
+            onOpenReviewCenter={() => setPayrollReviewCenterOpen(true)}
+          />
+        )}
+
+        <PayrollReviewCenterModal
+          isOpen={payrollReviewCenterOpen}
+          onClose={() => setPayrollReviewCenterOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -1016,32 +1095,6 @@ function MorePageContent() {
         isOpen={accountRequestsOpen}
         onClose={() => setAccountRequestsOpen(false)}
         isSuperAdmin={isSuperAdmin}
-      />
-
-      <HrEmplocImportModal
-        isOpen={hrEmplocImportOpen}
-        onClose={() => setHrEmplocImportOpen(false)}
-      />
-
-      <PlantillaImportModal
-        isOpen={plantillaImportOpen}
-        onClose={() => setPlantillaImportOpen(false)}
-      />
-
-      <VacancyImportModal
-        isOpen={vacancyImportOpen}
-        onClose={() => setVacancyImportOpen(false)}
-      />
-
-      <MikaImportModal
-        isOpen={mikaImportOpen}
-        onClose={() => setMikaImportOpen(false)}
-      />
-
-      <PayrollImportModal
-        isOpen={payrollImportOpen}
-        onClose={() => setPayrollImportOpen(false)}
-        onOpenReviewCenter={() => setPayrollReviewCenterOpen(true)}
       />
 
       <PayrollReviewCenterModal

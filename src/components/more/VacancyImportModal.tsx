@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/shared/Modal";
+import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 import { useCurrentUser } from "@/lib/auth";
 import {
   downloadVacancyImportTemplate,
@@ -45,13 +46,13 @@ import {
 } from "@/lib/queries/dataControl";
 
 export interface VacancyImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
 type TabType = "upload" | "review" | "history";
 
-export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps) {
+export function VacancyImportModal({ isOpen = true, onClose }: VacancyImportModalProps) {
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
   const [activeTab, setActiveTab] = useState<TabType>("upload");
@@ -276,13 +277,12 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
 
   const pendingBatches = batches.filter((b) => b.status === "pending_approval" || b.status === "draft_uploaded");
   const historyBatches = batches.filter((b) => b.status !== "pending_approval" && b.status !== "draft_uploaded");
-  const isBusy = isSubmitting || isActionPending || rollbackActionBusy;
+  if (!isOpen) return null;
 
   return (
     <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
+      <BatchImportPageShell
+        onBack={onClose}
         title={
           <span className="flex items-center gap-2">
             <span>Import Vacancy</span>
@@ -293,9 +293,6 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
         }
         subtitle="Bulk intake vacancy requisitions and pipeline allocations into operational scope groups."
         icon={FileSpreadsheet}
-        maxWidthClass="max-w-5xl"
-        disableBackdropClick={isBusy}
-        isSubmitting={isBusy}
         footer={
           <div className="flex items-center justify-between w-full">
             <p className="text-xs text-[var(--text-muted)]">
@@ -304,7 +301,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition"
+              className="px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
             >
               Close
             </button>
@@ -472,7 +469,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                     </span>
                   </div>
 
-                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                         <tr>
@@ -627,7 +624,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
                           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-56">
+                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto">
                           <table className="w-full text-left text-sm">
                             <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                               <tr>
@@ -920,7 +917,7 @@ export function VacancyImportModal({ isOpen, onClose }: VacancyImportModalProps)
             </div>
           )}
         </div>
-      </Modal>
+      </BatchImportPageShell>
 
       {/* SUB-MODAL 1: Request Rollback Modal */}
       {isRequestRollbackOpen && historySelectedBatch && (

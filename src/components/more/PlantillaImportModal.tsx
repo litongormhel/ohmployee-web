@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/shared/Modal";
+import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 import { useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { useUsersList } from "@/lib/queries/users";
@@ -51,7 +52,7 @@ import {
 } from "@/lib/queries/dataControl";
 
 export interface PlantillaImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
@@ -81,7 +82,7 @@ function getActualErrorEntries(errorSummary?: Record<string, number | unknown>):
 
 type TabType = "upload" | "review" | "history";
 
-export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalProps) {
+export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImportModalProps) {
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
   const { data: usersList = [] } = useUsersList();
@@ -470,13 +471,12 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
     }
   };
 
-  const isBusy = isSubmitting || isActionPending || rollbackActionBusy;
+  if (!isOpen) return null;
 
   return (
     <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
+      <BatchImportPageShell
+        onBack={onClose}
         title={
           <span className="flex items-center gap-2">
             <span>Import Plantilla</span>
@@ -487,9 +487,6 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
         }
         subtitle="Ingest master store plantilla baselines, slot capacities, and employee assignments via CSV/XLSX."
         icon={FileSpreadsheet}
-        maxWidthClass="max-w-5xl"
-        disableBackdropClick={isBusy}
-        isSubmitting={isBusy}
         footer={
           <div className="flex items-center justify-between w-full">
             <p className="text-xs text-[var(--text-muted)]">
@@ -498,7 +495,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition"
+              className="px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
             >
               Close
             </button>
@@ -674,7 +671,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                     </span>
                   </div>
 
-                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                         <tr>
@@ -988,7 +985,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                                 No rows match the selected filter ({rowFilter}).
                               </div>
                             ) : (
-                              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-72">
+                              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto">
                                 <table className="w-full text-left text-sm">
                                   <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0">
                                     <tr>
@@ -1471,7 +1468,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
                           No rows match the selected filter ({historyRowFilter}).
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-72">
+                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto">
                           <table className="w-full text-left text-sm">
                             <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
                               <tr>
@@ -1805,7 +1802,7 @@ export function PlantillaImportModal({ isOpen, onClose }: PlantillaImportModalPr
             </div>
           )}
         </div>
-      </Modal>
+      </BatchImportPageShell>
 
       {/* REJECTION REASON MODAL */}
       {isRejectModalOpen && rejectTargetBatch && (

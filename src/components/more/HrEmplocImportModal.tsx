@@ -12,16 +12,16 @@ import { useImportBatches } from "@/lib/queries/hr_emploc_import";
 import { UploadTab } from "@/components/hr-emploc/import/UploadTab";
 import { ReviewBatchesTab } from "@/components/hr-emploc/import/ReviewBatchesTab";
 import { HistoryTab } from "@/components/hr-emploc/import/HistoryTab";
-import { Modal } from "@/components/shared/Modal";
+import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 
 export interface HrEmplocImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
 type TabType = "upload" | "review" | "history";
 
-export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProps) {
+export function HrEmplocImportModal({ isOpen = true, onClose }: HrEmplocImportModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const currentUser = useCurrentUser();
 
@@ -43,14 +43,14 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
     return batches.filter((b) => b.status !== "pending_approval").length;
   }, [batches]);
 
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
+    <BatchImportPageShell
+      onBack={onClose}
       title="Import HR Emploc"
       subtitle="Bulk recruit onboarding pipeline with slot-first capacity reservation, ADR-001 reconciliation, and rollback safety."
       icon={FileSpreadsheet}
-      maxWidthClass="max-w-5xl"
       footer={
         <div className="flex w-full items-center justify-between text-xs text-text-muted">
           <span>Full Mobile HR Emploc Parity with ADR-001 Slot Validation and Rollback Governance.</span>
@@ -128,7 +128,7 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
         </div>
 
         {/* Tab Panels */}
-        <div className="max-h-[58vh] overflow-y-auto space-y-4 pr-1">
+        <div className="space-y-4">
           {activeTab === "upload" && (
             <UploadTab
               onSuccess={() => {
@@ -149,6 +149,6 @@ export function HrEmplocImportModal({ isOpen, onClose }: HrEmplocImportModalProp
           {activeTab === "history" && <HistoryTab canAct={canAct} />}
         </div>
       </div>
-    </Modal>
+    </BatchImportPageShell>
   );
 }

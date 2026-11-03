@@ -22,10 +22,10 @@ import {
   PayrollCheckResult,
   reconcilePayroll,
 } from "@/lib/queries/dataControl";
-import { Modal } from "@/components/shared/Modal";
+import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 
 export interface PayrollImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   onOpenReviewCenter?: () => void;
 }
@@ -39,7 +39,7 @@ type TabType =
   | "clean";
 
 export function PayrollImportModal({
-  isOpen,
+  isOpen = true,
   onClose,
   onOpenReviewCenter,
 }: PayrollImportModalProps) {
@@ -209,17 +209,14 @@ export function PayrollImportModal({
 
   const currentFindings = result ? result[activeTab] : [];
 
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
+    <BatchImportPageShell
+      onBack={onClose}
       title="Import Payroll"
       subtitle="Upload wage and payroll sheets to compare against active Plantilla slots. Pure read-only checker without data mutations."
       icon={FileSpreadsheet}
-      maxWidthClass="max-w-5xl"
-      disableBackdropClick={isProcessing || isSendingToOps || isSubmittingSession}
-      isSubmitting={isProcessing || isSendingToOps || isSubmittingSession}
-      isDirty={Boolean(file || result)}
       footer={
         <div className="flex w-full items-center justify-between text-xs text-text-muted">
           <span>OHM2026_0071 Parity: Pure read-only payroll checker with automated variance detection.</span>
@@ -420,7 +417,7 @@ export function PayrollImportModal({
             </div>
 
             {/* Findings Table */}
-            <div className="rounded-xl border border-border-default overflow-hidden max-h-72 overflow-y-auto">
+            <div className="rounded-xl border border-border-default overflow-x-auto">
               {currentFindings.length === 0 ? (
                 <div className="p-8 text-center text-xs text-text-muted">
                   No records found in this reconciliation category.
@@ -463,6 +460,6 @@ export function PayrollImportModal({
           </div>
         )}
       </div>
-    </Modal>
+    </BatchImportPageShell>
   );
 }
