@@ -120,7 +120,7 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
 
 ### C. Top 5 KPI & Leadership Cards
 Responsive 5-column grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4`) with centered content:
-1. **Overall MFR**: Circular SVG progress ring with rounded caps (`stroke-linecap="round"`), dynamic stroke color (`< 75%` red `#dc2626`, `75%–89.9%` amber `#d97706`, `>= 90%` emerald `#16a34a`), centered percentage (e.g., `73.0%`), and footer `[activeCount] active / [requiredCount] required`.
+1. **Overall MFR**: Circular SVG progress ring with rounded caps (`stroke-linecap="round"`), dynamic stroke color (`100%` green `var(--pct-good-bar, #16a34a)`, `95%–99.99%` yellow `var(--pct-warn-bar, #ca8a04)`, `< 95%` red `var(--pct-bad-bar, #dc2626)`), centered percentage (e.g., `99.87%`), and footer `[activeCount] active / [requiredCount] required`.
 2. **Active Deployed**: Metric count + subtext `Active deployed personnel`.
 3. **Open Vacancies**: Metric count + subtext `Approved open vacancy slots`.
 4. **HR Pipeline**: Metric count + subtext `Candidate onboarding pipeline`.

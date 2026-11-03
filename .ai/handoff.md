@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Bugfix: MFR Donut Threshold Colors (ohm#mfrcolor)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Three-Tier Semantic Color Logic in `OverallMfrDonut` (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated the circular SVG progress ring's dynamic stroke color calculation to enforce the user's explicit thresholds:
+     - **`100%`**: Green (`var(--pct-good-bar, #16a34a)`) — only when `percent >= 100 && !hasGap`.
+     - **`95% – 99.99%`**: Yellow (`var(--pct-warn-bar, #ca8a04)` in light mode, `#facc15` in dark mode) — triggered whenever `percent >= 95` (including when `hasGap` is true with near-100% fulfillment).
+     - **`< 95%`**: Red (`var(--pct-bad-bar, #dc2626)`).
+   - In ALTURAS (`754 active / 755 required`, MFR = `99.87%`), the progress ring now renders in yellow/amber instead of emerald green, alerting operations to the 1 unfilled open vacancy.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors, 4 unrelated unused-var warnings in `VacancyTable.tsx`
+- `npm run build`: Compiled 20/20 routes successfully (Static & Dynamic)
+
+---
+
 ## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**

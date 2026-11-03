@@ -188,12 +188,14 @@ function OverallMfrDonut({
   const sweepFraction = Math.min(1, Math.max(0, percent / 100));
   const strokeDashoffset = circumference * (1 - sweepFraction);
 
-  // Dynamic stroke color based on percentage:
-  // Red (#dc2626) for < 75%
-  // Amber (#d97706) for 75%–89.9%
-  // Emerald (#16a34a) for >= 90%
+  // Dynamic stroke color based on percentage thresholds:
+  // 100% green, 95%-99.99% yellow, below 95% red
   const strokeColor =
-    percent >= 90 ? "#16a34a" : percent >= 75 ? "#d97706" : "#dc2626";
+    percent >= 100 && !hasGap
+      ? "var(--pct-good-bar, #16a34a)"
+      : percent >= 95
+      ? "var(--pct-warn-bar, #ca8a04)"
+      : "var(--pct-bad-bar, #dc2626)";
 
   // Format percentage display: do not round off to 100% when there is an open vacancy gap
   let displayPercent: string;
