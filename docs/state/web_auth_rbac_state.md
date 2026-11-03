@@ -322,4 +322,19 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
   - `useRolePermissions()`: exposes `canPerformAction`, `roleLevel`, `role`, and groupings
   - `<RoleGuard action="..." minLevel={...} fallback={...}>`: declarative UI barrier
 
+---
+
+## User Management Scope Assignment & Error Mapping
+
+### `friendlyUserError` Mapping
+- In `src/lib/queries/users.ts`, `friendlyUserError` maps database exception codes and messages to human-readable UI notices.
+- Specific check: only messages containing `"last active super admin"` map to `"This action is blocked because at least one active Super Admin must remain."`. Generic Postgres SQLSTATE `22023` (`invalid_parameter_value`) is no longer hijacked for Super Admin blocking.
+- Messages containing `"do not belong to selected groups"` map to `"One or more selected accounts do not belong to the selected groups."`.
+- Messages containing `"cannot change your own active status"` map to `"You cannot change your own active status."`.
+
+### Account Scope Synchronization on Group Deselection
+- In `src/components/users/UserDetailDrawer.tsx` and `src/components/users/CreateUserModal.tsx`, an `accountGroupRef` (`Map<string, string>`) tracks account-to-group associations across initial user scopes and live query fetches.
+- When a group is toggled off, `selectedAccountIds` immediately prunes accounts mapped to the deselected group.
+- Prior to submission in `handleSave` or `handleSubmit`, `accountIds` is sanitized to ensure only accounts belonging to active `selectedGroupIds` are passed to `upsert_user_profile_and_scopes`, preventing database Guard (c) violations.
+
 

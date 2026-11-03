@@ -39,8 +39,17 @@ export function friendlyUserError(error: unknown): string {
   if (message.includes("hrco_global_visibility only applies")) {
     return "Global Visibility only applies to the HRCO role.";
   }
-  if (message.includes("last active super admin") || code === "22023") {
+  if (message.includes("last active super admin")) {
     return "This action is blocked because at least one active Super Admin must remain.";
+  }
+  if (message.includes("do not belong to selected groups")) {
+    return "One or more selected accounts do not belong to the selected groups.";
+  }
+  if (
+    message.includes("cannot change your own active status") ||
+    message.includes("cannot deactivate your own")
+  ) {
+    return "You cannot change your own active status.";
   }
   if (message.includes("duplicate") || code === "23505") {
     return "A user with the same details already exists.";
@@ -682,7 +691,7 @@ export function useGroupsQuery() {
 
 export function useAccountsByGroupsQuery(groupIds: string[]) {
   return useQuery({
-    queryKey: ["users-accounts-by-groups", groupIds.sort().join(",")],
+    queryKey: ["users-accounts-by-groups", [...groupIds].sort().join(",")],
     queryFn: () => fetchAccountsByGroups(groupIds),
     enabled: groupIds.length > 0,
     staleTime: 5 * 60 * 1000,

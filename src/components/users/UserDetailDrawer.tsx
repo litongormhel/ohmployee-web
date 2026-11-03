@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   User,
   Shield,
@@ -99,6 +99,28 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
   const { data: userTempOverrides = [] } = useActiveTempPermissionsQuery(user?.id);
   const activeTempOverride = userTempOverrides[0];
 
+  const accountGroupRef = useRef<Map<string, string>>(new Map());
+
+  // Seed / update accountGroupRef from user.scopes
+  useEffect(() => {
+    if (user?.scopes) {
+      for (const s of user.scopes) {
+        if (s.accountId && s.groupId) {
+          accountGroupRef.current.set(s.accountId, s.groupId);
+        }
+      }
+    }
+  }, [user]);
+
+  // Keep accountGroupRef updated whenever accounts query returns
+  useEffect(() => {
+    for (const a of accounts) {
+      if (a.id && a.group_id) {
+        accountGroupRef.current.set(a.id, a.group_id);
+      }
+    }
+  }, [accounts]);
+
   // Mutations
   const upsertMutation = useUpsertUser();
   const toggleStatusMutation = useToggleUserStatus();
@@ -172,10 +194,15 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
   const toggleGroup = (groupId: string) => {
     if (isTargetLocked) return;
-    setSelectedGroupIds((prev) => {
-      const isSelected = prev.includes(groupId);
-      return isSelected ? prev.filter((id) => id !== groupId) : [...prev, groupId];
-    });
+    const isCurrentlySelected = selectedGroupIds.includes(groupId);
+    if (isCurrentlySelected) {
+      setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+      setSelectedAccountIds((prev) =>
+        prev.filter((aid) => accountGroupRef.current.get(aid) !== groupId)
+      );
+    } else {
+      setSelectedGroupIds((prev) => [...prev, groupId]);
+    }
   };
 
   const toggleAccount = (accountId: string) => {
@@ -207,9 +234,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
   const summaryAccountNames = useMemo(() => {
     if (isGlobalHQSelected) return "All Accounts (Global HQ)";
-    if (selectedAccountIds.length === 0) return "All Accounts (Group Wide)";
-    const count = selectedAccountIds.length;
-    const firstTwo = selectedAccountIds
+    const validIds = selectedAccountIds.filter((aid) => accounts.some((a) => a.id === aid));
+    if (validIds.length === 0) return "All Accounts (Group Wide)";
+    const count = validIds.length;
+    const firstTwo = validIds
       .slice(0, 2)
       .map((aid) => accounts.find((a) => a.id === aid)?.account_name)
       .filter(Boolean)
@@ -223,13 +251,20 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
     if (!user || isTargetLocked) return;
     setFeedbackNotice(null);
 
+    const sanitizedAccountIds = isGlobalHQSelected
+      ? []
+      : selectedAccountIds.filter((aid) => {
+          const gid = accountGroupRef.current.get(aid) || accounts.find((a) => a.id === aid)?.group_id;
+          return gid ? selectedGroupIds.includes(gid) : accounts.some((a) => a.id === aid);
+        });
+
     try {
       await upsertMutation.mutateAsync({
         fullName: user.fullName,
         email: user.email,
         roleId: selectedRoleId,
         groupIds: selectedGroupIds,
-        accountIds: isGlobalHQSelected ? [] : selectedAccountIds,
+        accountIds: sanitizedAccountIds,
         existingProfileId: user.id,
       });
 

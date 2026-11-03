@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus,
   CheckCircle,
@@ -35,6 +35,17 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
   const { data: groups = [], isLoading: groupsLoading } = useGroupsQuery();
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsByGroupsQuery(selectedGroupIds);
 
+  const accountGroupRef = useRef<Map<string, string>>(new Map());
+
+  // Keep accountGroupRef updated whenever accounts query returns
+  useEffect(() => {
+    for (const a of accounts) {
+      if (a.id && a.group_id) {
+        accountGroupRef.current.set(a.id, a.group_id);
+      }
+    }
+  }, [accounts]);
+
   const upsertMutation = useUpsertUser();
 
   const isGlobalHQSelected = useMemo(() => {
@@ -57,11 +68,15 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
   }, [selectableAccounts, accountSearch]);
 
   const toggleGroup = (groupId: string) => {
-    setSelectedGroupIds((prev) => {
-      const isSelected = prev.includes(groupId);
-      const next = isSelected ? prev.filter((id) => id !== groupId) : [...prev, groupId];
-      return next;
-    });
+    const isCurrentlySelected = selectedGroupIds.includes(groupId);
+    if (isCurrentlySelected) {
+      setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+      setSelectedAccountIds((prev) =>
+        prev.filter((aid) => accountGroupRef.current.get(aid) !== groupId)
+      );
+    } else {
+      setSelectedGroupIds((prev) => [...prev, groupId]);
+    }
   };
 
   const toggleAccount = (accountId: string) => {
@@ -106,13 +121,20 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
       return;
     }
 
+    const sanitizedAccountIds = isGlobalHQSelected
+      ? []
+      : selectedAccountIds.filter((aid) => {
+          const gid = accountGroupRef.current.get(aid) || accounts.find((a) => a.id === aid)?.group_id;
+          return gid ? selectedGroupIds.includes(gid) : accounts.some((a) => a.id === aid);
+        });
+
     try {
       await upsertMutation.mutateAsync({
         fullName: fullName.trim(),
         email: email.trim(),
         roleId: selectedRoleId,
         groupIds: selectedGroupIds,
-        accountIds: isGlobalHQSelected ? [] : selectedAccountIds,
+        accountIds: sanitizedAccountIds,
         existingProfileId: null, // Creation mode
       });
 

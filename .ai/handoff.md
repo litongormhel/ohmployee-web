@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Bugfix: User Management Scope Assignment & Friendly Error Mapping (ohm#userscopefix)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **False-Positive Error Mapping**: In `src/lib/queries/users.ts`, `friendlyUserError` checked `if (message.includes("last active super admin") || code === "22023")`. PostgreSQL SQLSTATE `22023` is the generic code for `invalid_parameter_value`. This unconditionally converted any Postgres `22023` error into `"This action is blocked because at least one active Super Admin must remain."`, even when editing regular users (like HRCOs).
+- **Account Scope Desync on Group Deselection**: In `UserDetailDrawer.tsx` and `CreateUserModal.tsx`, when users deselected or changed groups under Scope Assignment, `selectedAccountIds` was not pruned of accounts belonging to the deselected groups. When saving, `accountIds` sent orphaned accounts outside the active group selection to `upsert_user_profile_and_scopes`. This triggered backend Guard (c) (`one or more accounts do not belong to selected groups`, `ERRCODE = 22023`), which was falsely displayed in the drawer banner as the Super Admin restriction.
+
+### What Changed
+1. **Precision Error Mapping in `src/lib/queries/users.ts`**:
+   - Removed `code === "22023"` from the Super Admin restriction check. Only actual error messages mentioning `"last active super admin"` trigger the Super Admin alert.
+   - Added friendly mapping for `"do not belong to selected groups"` ("One or more selected accounts do not belong to the selected groups.") and self-active deactivation attempts ("You cannot change your own active status.").
+   - Fixed `useAccountsByGroupsQuery` queryKey array mutation (`[...groupIds].sort().join(",")`).
+2. **Account Scope Sanitization in `UserDetailDrawer.tsx`**:
+   - Added an `accountGroupRef` tracking account-to-group associations from both user initial scopes and query results.
+   - In `toggleGroup`, immediately pruned any accounts belonging to a deselected group from `selectedAccountIds`.
+   - In `handleSave`, sanitized `accountIds` so only accounts belonging to active `selectedGroupIds` are passed to `upsertMutation.mutateAsync`.
+   - Fixed `summaryAccountNames` to safely filter accounts matching the current selection without accessing React refs during render.
+3. **Account Scope Sanitization in `CreateUserModal.tsx`**:
+   - Replicated group deselection pruning and pre-submission `accountIds` sanitization to prevent Guard (c) failures on user creation.
+4. **State & Documentation Alignment**:
+   - Updated `docs/state/web_auth_rbac_state.md`.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/lib/queries/users.ts`
+- `src/components/users/UserDetailDrawer.tsx`
+- `src/components/users/CreateUserModal.tsx`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
