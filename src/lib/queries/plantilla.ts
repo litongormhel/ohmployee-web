@@ -332,6 +332,7 @@ export type PlantillaDetailItem = {
 
 export type PlantillaEmployeeListParams = {
   accountId?: string;
+  accountName?: string;
   groupId?: string;
   storeId?: string;
   deployment?: string;
@@ -662,6 +663,10 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
   const rawVcode = asString(row.vcode);
   const isCg = rawVcode?.startsWith("CG-") || false;
 
+  const rawStatus = asString(row.plantilla_status ?? row.status);
+  const isActiveBool = row.is_active !== undefined ? asBoolean(row.is_active) : undefined;
+  const resolvedStatus = rawStatus || (isActiveBool ? "Active" : "Inactive");
+
   return {
     id,
     employeeNo: asString(row.employee_no) ?? "Uncoded",
@@ -676,7 +681,7 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (asCount(row.covered_stores_count ?? row.roving_store_count) > 1 ? "Roving" : "Stationary"),
     coveredStoresCount: asCount(row.covered_stores_count ?? row.roving_store_count),
     plantillaType: asString(row.plantilla_type),
-    plantillaStatus: asString(row.plantilla_status ?? row.status),
+    plantillaStatus: resolvedStatus,
     dateDeployed: asString(row.date_deployed ?? row.date_hired),
     tenureDays: asCount(row.tenure_days),
     baseRateMasked: asString(row.base_rate_masked),
@@ -685,7 +690,7 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     separationDate: asString(row.separation_date ?? row.separationDate ?? row.date_separated ?? row.resignation_date ?? row.date_of_separation),
     clearanceStatus: asString(row.clearance_status ?? row.clearanceStatus),
     separationRemarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
-    isActive: row.is_active !== undefined ? asBoolean(row.is_active) : undefined,
+    isActive: isActiveBool,
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
   };
@@ -1140,9 +1145,23 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
   }
 
   // Fallback: If RPC returned 0 rows but an accountId was provided, query v_plantilla_safe directly
-  // to prevent missing roster personnel due to RPC chunking or safe view scoping edge-cases.
+  // to prevent missing roster personnel due to RPC chunking, safe view scoping, or unlinked account_id fields.
   if (rows.length === 0 && params.accountId) {
     try {
+      // 1. Resolve account name if not provided
+      let accountName = params.accountName?.trim();
+      if (!accountName) {
+        const { data: acct } = await supabase
+          .from("accounts")
+          .select("account_name")
+          .eq("id", params.accountId)
+          .maybeSingle();
+        accountName = (acct?.account_name as string | undefined)?.trim();
+      }
+
+      let safeRows: Record<string, unknown>[] = [];
+
+      // 2. Query v_plantilla_safe by account_id and/or account name
       let safeQuery = supabase
         .from("v_plantilla_safe")
         .select(`
@@ -1170,8 +1189,15 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
           created_at,
           deactivated_at,
           deactivation_reason
-        `)
-        .eq("account_id", params.accountId);
+        `);
+
+      if (accountName) {
+        safeQuery = safeQuery.or(
+          `account_id.eq.${params.accountId},account.ilike.${accountName}`
+        );
+      } else {
+        safeQuery = safeQuery.eq("account_id", params.accountId);
+      }
 
       if (params.search?.trim()) {
         const q = params.search.trim();
@@ -1184,15 +1210,76 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
         safeQuery = safeQuery.eq("status", params.status);
       }
 
-      const { data: safeRows, error: safeError } = await safeQuery
+      const { data: queryData, error: safeError } = await safeQuery
         .order("employee_name", { ascending: params.sortDir !== "desc" })
         .limit(pageSize);
 
-      if (!safeError && Array.isArray(safeRows) && safeRows.length > 0) {
+      if (!safeError && Array.isArray(queryData) && queryData.length > 0) {
+        safeRows = queryData as Record<string, unknown>[];
+      } else {
+        // 3. Fallback to querying active allocations from employee_store_allocations
+        // (100% parity with v_account_allocation_kpi canonical metrics)
+        const { data: allocRows } = await supabase
+          .from("employee_store_allocations")
+          .select("plantilla_id")
+          .eq("account_id", params.accountId)
+          .eq("is_active", true);
+
+        const allocatedPlantillaIds = Array.from(
+          new Set(
+            (allocRows ?? [])
+              .map((r) => r.plantilla_id as string | undefined)
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+
+        if (allocatedPlantillaIds.length > 0) {
+          const chunkSize = 200;
+          for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
+            const chunkIds = allocatedPlantillaIds.slice(i, i + chunkSize);
+            const { data: chunkData } = await supabase
+              .from("v_plantilla_safe")
+              .select(`
+                id,
+                employee_name,
+                employee_no,
+                account_id,
+                account,
+                store_id,
+                store_name,
+                province_id,
+                position,
+                status,
+                deployment_type,
+                roving_assignment_id,
+                roving_store_count,
+                vcode,
+                hr_emploc_id,
+                date_hired,
+                tenure_months,
+                age,
+                has_penalty,
+                separation_status,
+                date_of_separation,
+                created_at,
+                deactivated_at,
+                deactivation_reason
+              `)
+              .in("id", chunkIds)
+              .order("employee_name", { ascending: params.sortDir !== "desc" });
+
+            if (Array.isArray(chunkData)) {
+              safeRows.push(...(chunkData as Record<string, unknown>[]));
+            }
+          }
+        }
+      }
+
+      if (safeRows.length > 0) {
         rows = safeRows
           .map((row) => {
-            const s = (row.status || "").toLowerCase().trim();
-            const sep = (row.separation_status || "").toLowerCase().trim();
+            const s = (String(row.status || "")).toLowerCase().trim();
+            const sep = (String(row.separation_status || "")).toLowerCase().trim();
             const is_active =
               !row.deactivated_at &&
               !row.date_of_separation &&
@@ -1200,11 +1287,14 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
               !["inactive", "deactivated", "resigned", "separated", "endo", "terminated"].includes(sep);
             const is_inactive = !is_active;
 
+            if (params.activeState === "active" && !is_active) return null;
+            if (params.activeState === "inactive" && !is_inactive) return null;
+
             return normalizeEmployeeListRow({
               ...row,
               plantilla_id: row.id,
               position_title: row.position,
-              account_name: row.account,
+              account_name: row.account || accountName,
               is_active,
               is_inactive,
               total_count: safeRows.length,

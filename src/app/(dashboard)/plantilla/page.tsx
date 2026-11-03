@@ -369,13 +369,38 @@ export default function PlantillaPage() {
 }
 
 function PlantillaPageContent() {
+  // Search parameters and router
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   // Main view toggle: "employee" vs "store"
   const [mainView, setMainView] = useState<MainViewToggle>("employee");
 
-  // 6 Status Sub-Tabs
-  const [statusTab, setStatusTab] = useState<StatusSubTab>("active");
+  // 6 Status Sub-Tabs with reactive URL search param synchronization
+  const [internalStatusTab, setInternalStatusTab] = useState<StatusSubTab>("active");
+  const urlStatusParam = (
+    searchParams.get("status") ||
+    searchParams.get("statusTab")
+  )?.toLowerCase();
+  const statusTab: StatusSubTab =
+    urlStatusParam &&
+    (["active", "on_leave", "vacancy", "floating", "deactivation", "inactive"] as string[]).includes(
+      urlStatusParam
+    )
+      ? (urlStatusParam as StatusSubTab)
+      : internalStatusTab;
+
   const [vacancySubFilter, setVacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
   const [displayView, setDisplayView] = useState<DisplayView>("table");
+
+  function handleSelectStatusTab(tab: StatusSubTab) {
+    setInternalStatusTab(tab);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("status", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   // Table pagination state
   const [page, setPage] = useState(1);
@@ -417,11 +442,6 @@ function PlantillaPageContent() {
     positionTitle?: string | null;
   } | null>(null);
 
-  // Search parameters and router
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
   // Search query specifically for the account selector list
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
@@ -452,7 +472,7 @@ function PlantillaPageContent() {
     setTimeout(() => {
       setToastMessage((current) => (current === msg ? null : current));
     }, 4500);
-  }, []);
+  }, [setToastMessage, setToastVariant]);
 
   // Directory filter state
   const [search, setSearch] = useState("");
@@ -691,12 +711,17 @@ function PlantillaPageContent() {
     };
   }, [teamDirectoryQuery.data]);
 
+  const selectedAccount = useMemo(() => {
+    return (allowedAccountsQuery.data ?? []).find((a) => a.id === accountId);
+  }, [allowedAccountsQuery.data, accountId]);
+
   // Query all plantilla employees under current account
   const employeeQuery = useQuery({
-    queryKey: ["plantilla", "employees-all", accountId],
+    queryKey: ["plantilla", "employees-all", accountId, selectedAccount?.name],
     queryFn: () =>
       listWebPlantillaEmployees({
         accountId,
+        accountName: selectedAccount?.name,
         activeState: "all",
         page: 1,
         pageSize: 2000,
@@ -839,13 +864,22 @@ function PlantillaPageContent() {
   // Tab 1: Active
   const activeEmployees = useMemo(() => {
     return allEmployees.filter((emp) => {
-      const s = (emp.plantillaStatus || "").toLowerCase();
+      if (
+        isInactiveRecord(emp) ||
+        isDeactivationRecord(emp) ||
+        isFloatingRecord(emp) ||
+        isOnLeaveRecord(emp)
+      ) {
+        return false;
+      }
+      const s = (emp.plantillaStatus || "").toLowerCase().trim();
       return (
-        s === "active" &&
-        !isInactiveRecord(emp) &&
-        !isDeactivationRecord(emp) &&
-        !isFloatingRecord(emp) &&
-        !isOnLeaveRecord(emp)
+        emp.isActive === true ||
+        s === "active" ||
+        s === "active deployed" ||
+        s === "deployed" ||
+        s === "" ||
+        !emp.plantillaStatus
       );
     });
   }, [allEmployees]);
@@ -1160,7 +1194,7 @@ function PlantillaPageContent() {
     setSearch("");
     setAreaCityFilter("");
     setAssignmentType("");
-    setStatusTab("active");
+    setInternalStatusTab("active");
     setPage(1);
     setSelectorGroupId("");
     setAccountSearch("");
@@ -1168,6 +1202,7 @@ function PlantillaPageContent() {
     const params = new URLSearchParams(searchParams.toString());
     params.set("accountId", accId);
     params.delete("view");
+    params.delete("status");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -1175,11 +1210,12 @@ function PlantillaPageContent() {
     setSearch("");
     setAreaCityFilter("");
     setAssignmentType("");
-    setStatusTab("active");
+    setInternalStatusTab("active");
     setPage(1);
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("accountId");
+    params.delete("status");
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -1774,8 +1810,7 @@ function PlantillaPageContent() {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  setStatusTab("active");
-                  setPage(1);
+                  handleSelectStatusTab("active");
                 }}
                 className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
               >
@@ -1795,9 +1830,8 @@ function PlantillaPageContent() {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  setStatusTab("vacancy");
+                  handleSelectStatusTab("vacancy");
                   setVacancySubFilter("open");
-                  setPage(1);
                 }}
                 className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
               >
@@ -1823,9 +1857,8 @@ function PlantillaPageContent() {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  setStatusTab("vacancy");
+                  handleSelectStatusTab("vacancy");
                   setVacancySubFilter("pipeline");
-                  setPage(1);
                 }}
                 className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
               >
@@ -1901,10 +1934,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "active"}
-                    onClick={() => {
-                      setStatusTab("active");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("active")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "active"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
@@ -1929,10 +1959,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "on_leave"}
-                    onClick={() => {
-                      setStatusTab("on_leave");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("on_leave")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "on_leave"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
@@ -1957,10 +1984,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "vacancy"}
-                    onClick={() => {
-                      setStatusTab("vacancy");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("vacancy")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "vacancy"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
@@ -1992,10 +2016,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "floating"}
-                    onClick={() => {
-                      setStatusTab("floating");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("floating")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "floating"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
@@ -2020,10 +2041,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "deactivation"}
-                    onClick={() => {
-                      setStatusTab("deactivation");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("deactivation")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "deactivation"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
@@ -2048,10 +2066,7 @@ function PlantillaPageContent() {
                     type="button"
                     role="tab"
                     aria-selected={statusTab === "inactive"}
-                    onClick={() => {
-                      setStatusTab("inactive");
-                      setPage(1);
-                    }}
+                    onClick={() => handleSelectStatusTab("inactive")}
                     className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       statusTab === "inactive"
                         ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"

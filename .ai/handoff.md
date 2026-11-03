@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Plantilla Employee List Query & State Synchronization (ohm#alt754tbl)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Resolved Employee List & Safe View Roster Fallback (`src/lib/queries/plantilla.ts`)**:
+   - Diagnosed root cause of "No active employees" table view under ALTURAS (`accountId=3126b9a8-29a6-4917-8b49-82e937d7cf88`) despite summary header showing 754 active deployed:
+     - In PostgreSQL RPC `list_web_plantilla_employees`, older/imported Plantilla records lacked populated `account_id` foreign keys while having text `account = 'ALTURAS'`.
+     - Upgraded `listWebPlantillaEmployees` fallback: when primary RPC returns 0 rows, queries `accounts` table to resolve `account_name` and queries `v_plantilla_safe` matching both `account_id.eq.${params.accountId}` and `account.ilike.${accountName}`.
+     - Added secondary allocation fallback: queries active records from `employee_store_allocations` under `params.accountId` and fetches `v_plantilla_safe` in safe chunks against allocated `plantilla_id`s, guaranteeing 100% parity with `v_account_allocation_kpi`.
+     - In `normalizeEmployeeListRow`, defaults `plantillaStatus` to `"Active"` when `is_active` is true and raw database status is blank or unpopulated.
+     - Added optional `accountName?: string;` to `PlantillaEmployeeListParams`.
+
+2. **Normalized Status Partitioning in Active Tab (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Fixed strict `s === "active"` filter that discarded active employees whose database status is `"Active Deployed"`, `"Deployed"`, or blank with `emp.isActive === true`.
+   - Updated `activeEmployees` useMemo to evaluate:
+     ```ts
+     const s = (emp.plantillaStatus || "").toLowerCase().trim();
+     return (
+       emp.isActive === true ||
+       s === "active" ||
+       s === "active deployed" ||
+       s === "deployed" ||
+       s === "" ||
+       !emp.plantillaStatus
+     ) && !isInactiveRecord(emp) && !isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp);
+     ```
+   - Restores all active employees to the rendered table rows without dropping records.
+
+3. **Synchronized URL Search Parameters & Tab State Reactivity (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Derived `statusTab` reactively from `searchParams.get("status") || searchParams.get("statusTab")`, fallback to `internalStatusTab` without cascading render warnings.
+   - Built `handleSelectStatusTab(tab)` which updates `internalStatusTab`, resets `page` to 1, and updates URL query parameters (`params.set("status", tab)`) via `router.replace(..., { scroll: false })`.
+   - Wired `handleSelectStatusTab` across all 6 tab buttons (`Active`, `On-Leave`, `Vacancy`, `Floating`, `Deactivation`, `Inactive`) and summary KPI cards (Active Deployed, Open Vacancies, HR Pipeline).
+   - In `employeeQuery`, included `selectedAccount?.name` in query parameters and query key for instant reactivity upon account change.
+
+### Files Modified
+- `src/lib/queries/plantilla.ts`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and static pages generated successfully).
+
+---
+
 ## Execution Report — Refinement: Headcount Request SOP in Plantilla, Simple Thinking Indicator, Clean Composer & Creator Identity (ohm#0hmn1sop)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
