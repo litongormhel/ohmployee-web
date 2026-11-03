@@ -176,10 +176,12 @@ function OverallMfrDonut({
   percent,
   size = 72,
   strokeWidth = 7.5,
+  hasGap = false,
 }: {
   percent: number;
   size?: number;
   strokeWidth?: number;
+  hasGap?: boolean;
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -192,6 +194,20 @@ function OverallMfrDonut({
   // Emerald (#16a34a) for >= 90%
   const strokeColor =
     percent >= 90 ? "#16a34a" : percent >= 75 ? "#d97706" : "#dc2626";
+
+  // Format percentage display: do not round off to 100% when there is an open vacancy gap
+  let displayPercent: string;
+  if (percent <= 0) {
+    displayPercent = "0.0%";
+  } else if (hasGap && percent >= 99.95) {
+    displayPercent = "99.9%";
+  } else if (percent >= 100 && !hasGap) {
+    displayPercent = "100.0%";
+  } else if (percent % 1 === 0) {
+    displayPercent = `${percent.toFixed(1)}%`;
+  } else {
+    displayPercent = `${percent.toFixed(2)}%`;
+  }
 
   return (
     <div
@@ -231,8 +247,8 @@ function OverallMfrDonut({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold tracking-tight text-text-primary tabular-nums">
-          {percent.toFixed(1)}%
+        <span className="text-xs sm:text-sm font-bold tracking-tight text-text-primary tabular-nums">
+          {displayPercent}
         </span>
       </div>
     </div>
@@ -608,7 +624,7 @@ function PlantillaPageContent() {
         const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
         const hrProcess = Number(row.pipeline_count ?? 0);
         const required = actual + vacant;
-        const fillRate = required > 0 ? Math.round((actual / required) * 100) : 0;
+        const fillRate = required > 0 ? (actual / required) * 100 : 0;
         map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate });
       });
       return map;
@@ -1131,7 +1147,7 @@ function PlantillaPageContent() {
       ? summaryData.required
       : activeCount + effectiveVacancySlots;
   const fulfillmentRate =
-    requiredCount > 0 ? Math.round((activeCount / requiredCount) * 100) : 0;
+    requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;
 
   // Active view pagination
   const currentTabRows =
@@ -1341,7 +1357,7 @@ function PlantillaPageContent() {
                   const vacant = summary.vacant;
                   const hrProcess = summary.hrProcess;
                   const required = actual + vacant;
-                  const fillRate = required > 0 ? Math.round((actual / required) * 100) : 0;
+                  const fillRate = required > 0 ? (actual / required) * 100 : 0;
 
                   return {
                     ...account,
@@ -1551,11 +1567,17 @@ function PlantillaPageContent() {
                             )}
                           </div>
                           <span
-                            className={`text-xs font-semibold shrink-0 w-8 text-right font-mono ${
+                            className={`text-xs font-semibold shrink-0 text-right font-mono ${
                               account.required > 0 ? colors.text : "text-text-muted"
                             }`}
                           >
-                            {account.required > 0 ? `${account.fillRate}%` : "—"}
+                            {account.required > 0
+                              ? account.fillRate >= 100
+                                ? "100%"
+                                : account.actual < account.required && account.fillRate >= 99.95
+                                ? "99.9%"
+                                : `${(account.fillRate % 1 === 0 ? account.fillRate : account.fillRate.toFixed(2))}%`
+                              : "—"}
                           </span>
                         </div>
                       )}
@@ -1799,7 +1821,12 @@ function PlantillaPageContent() {
                 <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                   Overall MFR
                 </div>
-                <OverallMfrDonut percent={fulfillmentRate} size={68} strokeWidth={7} />
+                <OverallMfrDonut
+                  percent={fulfillmentRate}
+                  hasGap={activeCount < requiredCount}
+                  size={68}
+                  strokeWidth={7}
+                />
                 <div className="text-[11px] font-medium text-text-secondary mt-0.5">
                   {activeCount} active / {requiredCount} required
                 </div>

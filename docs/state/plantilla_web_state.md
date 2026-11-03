@@ -872,6 +872,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Decoupled `effectiveSelectorGroupId` in `summaryQuery` whenever `accountId` is present (`groupId: accountId ? undefined : (effectiveSelectorGroupId || undefined)`), fixing 0-return queries for accounts residing in groups other than the directory's default group selector.
     - Synchronized `statusTab` reactively with URL search params (`?status=`, `?statusTab=`), updating browser history and internal state without cascading renders.
     - Added `selectedAccount?.name` into `employeeQuery` parameters and query key for instant account-aware cache invalidation.
+  - **Unrounded MFR Formula & Precision Donut Formatting (`src/app/(dashboard)/plantilla/page.tsx`, `src/app/api/ohmni/route.ts`)**:
+    - Removed `Math.round` integer truncation from MFR calculation in `plantilla/page.tsx` (`const fulfillmentRate = requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0`) and account cards (`const fillRate = required > 0 ? (actual / required) * 100 : 0`).
+    - Updated `OverallMfrDonut` to accept `hasGap = activeCount < requiredCount` and render exact decimal percentages (e.g., `99.87%` for 754/755) with a guard ensuring that any account with a staffing gap (`active < required`) never rounds up to `100.0%` or `100%`.
+    - Synchronized OHMni Co-Pilot route (`/api/ohmni/route.ts`) to return unrounded MFR percentages matching canonical `v_account_allocation_kpi.mfr` basis point precision.
   - **Failover RPC & Headcount Parity Fallback Roster Resolver (`src/lib/queries/plantilla.ts`)**:
     - Wrapped primary RPC `list_web_plantilla_employees` in a graceful failover try/catch so if the RPC errors or returns 0 rows when `params.accountId` is provided, it falls through to the multi-source fallback resolver rather than throwing.
     - Replaced the brittle 25-column projection string (`selectCols`) with safe wildcard `.select("*")` on both `v_plantilla_safe` and `public.plantilla`, eliminating PostgREST 42703 column-not-found errors on computed or unpopulated fields.

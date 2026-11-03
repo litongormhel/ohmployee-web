@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Unrounded Fulfillment Formula in `src/app/(dashboard)/plantilla/page.tsx`**:
+   - Diagnosed root cause of the MFR metric showing `100.0%` for ALTURAS despite an open vacancy (`754 active / 755 required`):
+     - `fulfillmentRate` previously used `Math.round((activeCount / requiredCount) * 100)`. Because `(754 / 755) * 100 = 99.8675...`, `Math.round` rounded it to integer `100`, which `OverallMfrDonut` rendered as `100.0%`.
+   - Removed `Math.round` across all MFR/fillRate calculations:
+     - `const fulfillmentRate = requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;`
+     - In `accountMetricsQuery` and `sortedAccounts`: `const fillRate = required > 0 ? (actual / required) * 100 : 0;`
+2. **Precision Display & Gap Guard in `OverallMfrDonut`**:
+   - Added `hasGap` prop (`activeCount < requiredCount`).
+   - If `hasGap` is true, percentage is formatted to 2 decimals (`99.87%` for 754/755) or 1 decimal without ever rounding up to `100.0%` or `100%`.
+   - Clean whole numbers (`100%`, `80%`) format as `100.0%`, while fractional numbers show exact decimal percentages (e.g. `99.87%`), matching canonical `v_account_allocation_kpi.mfr = 0.9987` to the basis point.
+3. **Directory Card Badge & OHMni Precision**:
+   - Updated directory card badge formatting (`account.fillRate`) to render exact decimal fill rates (e.g., `99.87%`).
+   - Updated `/api/ohmni/route.ts` so OHMni Co-Pilot conversational summaries return unrounded MFR percentages.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/app/api/ohmni/route.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors, 4 unrelated unused-var warnings in `VacancyTable.tsx`
+- `npm run build`: Compiled 20/20 routes successfully (Static & Dynamic)
+
+---
+
 ## Execution Report — Bugfix: Guaranteed Parity Fallback Roster Resolver for Alturas 754 Employees (ohm#alt754par)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
@@ -3605,6 +3638,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Unrounded Fulfillment Formula in `src/app/(dashboard)/plantilla/page.tsx`**:
+   - Diagnosed root cause of the MFR metric showing `100.0%` for ALTURAS despite an open vacancy (`754 active / 755 required`):
+     - `fulfillmentRate` previously used `Math.round((activeCount / requiredCount) * 100)`. Because `(754 / 755) * 100 = 99.8675...`, `Math.round` rounded it to integer `100`, which `OverallMfrDonut` rendered as `100.0%`.
+   - Removed `Math.round` across all MFR/fillRate calculations:
+     - `const fulfillmentRate = requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;`
+     - In `accountMetricsQuery` and `sortedAccounts`: `const fillRate = required > 0 ? (actual / required) * 100 : 0;`
+2. **Precision Display & Gap Guard in `OverallMfrDonut`**:
+   - Added `hasGap` prop (`activeCount < requiredCount`).
+   - If `hasGap` is true, percentage is formatted to 2 decimals (`99.87%` for 754/755) or 1 decimal without ever rounding up to `100.0%` or `100%`.
+   - Clean whole numbers (`100%`, `80%`) format as `100.0%`, while fractional numbers show exact decimal percentages (e.g. `99.87%`), matching canonical `v_account_allocation_kpi.mfr = 0.9987` to the basis point.
+3. **Directory Card Badge & OHMni Precision**:
+   - Updated directory card badge formatting (`account.fillRate`) to render exact decimal fill rates (e.g., `99.87%`).
+   - Updated `/api/ohmni/route.ts` so OHMni Co-Pilot conversational summaries return unrounded MFR percentages.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/app/api/ohmni/route.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors, 4 unrelated unused-var warnings in `VacancyTable.tsx`
+- `npm run build`: Compiled 20/20 routes successfully (Static & Dynamic)
+
+---
+
 ## Execution Report — Bugfix: Guaranteed Parity Fallback Roster Resolver for Alturas 754 Employees (ohm#alt754par)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
@@ -3903,6 +3969,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Unrounded Fulfillment Formula in `src/app/(dashboard)/plantilla/page.tsx`**:
+   - Diagnosed root cause of the MFR metric showing `100.0%` for ALTURAS despite an open vacancy (`754 active / 755 required`):
+     - `fulfillmentRate` previously used `Math.round((activeCount / requiredCount) * 100)`. Because `(754 / 755) * 100 = 99.8675...`, `Math.round` rounded it to integer `100`, which `OverallMfrDonut` rendered as `100.0%`.
+   - Removed `Math.round` across all MFR/fillRate calculations:
+     - `const fulfillmentRate = requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;`
+     - In `accountMetricsQuery` and `sortedAccounts`: `const fillRate = required > 0 ? (actual / required) * 100 : 0;`
+2. **Precision Display & Gap Guard in `OverallMfrDonut`**:
+   - Added `hasGap` prop (`activeCount < requiredCount`).
+   - If `hasGap` is true, percentage is formatted to 2 decimals (`99.87%` for 754/755) or 1 decimal without ever rounding up to `100.0%` or `100%`.
+   - Clean whole numbers (`100%`, `80%`) format as `100.0%`, while fractional numbers show exact decimal percentages (e.g. `99.87%`), matching canonical `v_account_allocation_kpi.mfr = 0.9987` to the basis point.
+3. **Directory Card Badge & OHMni Precision**:
+   - Updated directory card badge formatting (`account.fillRate`) to render exact decimal fill rates (e.g., `99.87%`).
+   - Updated `/api/ohmni/route.ts` so OHMni Co-Pilot conversational summaries return unrounded MFR percentages.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/app/api/ohmni/route.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors, 4 unrelated unused-var warnings in `VacancyTable.tsx`
+- `npm run build`: Compiled 20/20 routes successfully (Static & Dynamic)
+
+---
 
 ## Execution Report — Bugfix: Guaranteed Parity Fallback Roster Resolver for Alturas 754 Employees (ohm#alt754par)
 
@@ -4226,6 +4325,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Unrounded Fulfillment Formula in `src/app/(dashboard)/plantilla/page.tsx`**:
+   - Diagnosed root cause of the MFR metric showing `100.0%` for ALTURAS despite an open vacancy (`754 active / 755 required`):
+     - `fulfillmentRate` previously used `Math.round((activeCount / requiredCount) * 100)`. Because `(754 / 755) * 100 = 99.8675...`, `Math.round` rounded it to integer `100`, which `OverallMfrDonut` rendered as `100.0%`.
+   - Removed `Math.round` across all MFR/fillRate calculations:
+     - `const fulfillmentRate = requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;`
+     - In `accountMetricsQuery` and `sortedAccounts`: `const fillRate = required > 0 ? (actual / required) * 100 : 0;`
+2. **Precision Display & Gap Guard in `OverallMfrDonut`**:
+   - Added `hasGap` prop (`activeCount < requiredCount`).
+   - If `hasGap` is true, percentage is formatted to 2 decimals (`99.87%` for 754/755) or 1 decimal without ever rounding up to `100.0%` or `100%`.
+   - Clean whole numbers (`100%`, `80%`) format as `100.0%`, while fractional numbers show exact decimal percentages (e.g. `99.87%`), matching canonical `v_account_allocation_kpi.mfr = 0.9987` to the basis point.
+3. **Directory Card Badge & OHMni Precision**:
+   - Updated directory card badge formatting (`account.fillRate`) to render exact decimal fill rates (e.g., `99.87%`).
+   - Updated `/api/ohmni/route.ts` so OHMni Co-Pilot conversational summaries return unrounded MFR percentages.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/app/api/ohmni/route.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors, 4 unrelated unused-var warnings in `VacancyTable.tsx`
+- `npm run build`: Compiled 20/20 routes successfully (Static & Dynamic)
+
+---
 
 ## Execution Report — Bugfix: Guaranteed Parity Fallback Roster Resolver for Alturas 754 Employees (ohm#alt754par)
 

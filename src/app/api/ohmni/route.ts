@@ -206,7 +206,13 @@ async function executePlantillaSummary(
           vacantHc = Math.round(Number(kpiData.slot_vacant_hc ?? 0));
           pipelineCount = Number(kpiData.pipeline_count ?? 0);
           requiredHc = Number(kpiData.required_hc ?? (actualHc + vacantHc));
-          fillRatePercent = `${requiredHc > 0 ? Math.round((actualHc / requiredHc) * 100) : 0}%`;
+          const rawMfr = requiredHc > 0 ? (actualHc / requiredHc) * 100 : 0;
+          fillRatePercent =
+            rawMfr >= 100
+              ? "100%"
+              : actualHc < requiredHc && rawMfr >= 99.95
+              ? "99.9%"
+              : `${rawMfr.toFixed(2)}%`;
         } else {
           // Fallback to counting v_plantilla_safe rows directly
           const { count: vpsCount } = await supabase
