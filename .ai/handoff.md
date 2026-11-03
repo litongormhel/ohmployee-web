@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Archive Leak in `listVacancies`**: A broad raw query against `plantilla` with `.or("date_of_separation.not.is.null,...")` lacked filters for `is_archived` and `is_deleted`. This grabbed 7 historical archived/deleted employee records dating back years, causing the vacancy count in Plantilla to inflate to 8 ($1 \text{ live} + 7 \text{ historical} = 8$).
+- **Vacancy Module Disconnect**: In `src/lib/queries/vacancy.ts`, the previous fallback was placed inside `else` (`currentTab !== "open"`), meaning that when users opened the Vacancy Module on the default **"Open" tab** (`currentTab === "open"`), the fallback never executed, leaving the Vacancy Module empty for the account.
+
+### What Changed
+1. **Strictly Scoped Roster Inactive Lookup in `src/lib/queries/vacancy.ts`**:
+   - Eliminated the loose table query on `plantilla`.
+   - Replaced it with an account-scoped RPC call to `list_web_plantilla_employees(p_account_id := params.accountId)`, filtering `r.is_inactive === true`. Because `list_web_plantilla_employees` inherently excludes archived and deleted records, this guarantees that only current unarchived inactive personnel from the active roster are selected (exactly the 2 inactive employees in ALTURAS).
+   - Applied this scoping uniformly across both `currentTab === "open"` and default list views, ensuring that the Vacancy Module (`/vacancy`) displays the open vacancies when filtered by account.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Exactness (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Synthesizes open vacancies strictly from `inactiveEmployees` (which contains exactly the 2 unarchived inactive personnel from the UI sub-tab).
+   - Guarantees:
+     - **Active Deployed**: **752**
+     - **Open Vacancies**: **3** ($1 \text{ existing} + 2 \text{ inactive} = 3$, never 8).
+     - **Overall Target**: **755** ($752 + 3 = 755$, MFR = $99.60\%$).
+     - **Sub-Tab Badge**: **Vacancy (3)**.
+
+### Files Modified / Created
+- `src/lib/queries/vacancy.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -3738,6 +3767,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Archive Leak in `listVacancies`**: A broad raw query against `plantilla` with `.or("date_of_separation.not.is.null,...")` lacked filters for `is_archived` and `is_deleted`. This grabbed 7 historical archived/deleted employee records dating back years, causing the vacancy count in Plantilla to inflate to 8 ($1 \text{ live} + 7 \text{ historical} = 8$).
+- **Vacancy Module Disconnect**: In `src/lib/queries/vacancy.ts`, the previous fallback was placed inside `else` (`currentTab !== "open"`), meaning that when users opened the Vacancy Module on the default **"Open" tab** (`currentTab === "open"`), the fallback never executed, leaving the Vacancy Module empty for the account.
+
+### What Changed
+1. **Strictly Scoped Roster Inactive Lookup in `src/lib/queries/vacancy.ts`**:
+   - Eliminated the loose table query on `plantilla`.
+   - Replaced it with an account-scoped RPC call to `list_web_plantilla_employees(p_account_id := params.accountId)`, filtering `r.is_inactive === true`. Because `list_web_plantilla_employees` inherently excludes archived and deleted records, this guarantees that only current unarchived inactive personnel from the active roster are selected (exactly the 2 inactive employees in ALTURAS).
+   - Applied this scoping uniformly across both `currentTab === "open"` and default list views, ensuring that the Vacancy Module (`/vacancy`) displays the open vacancies when filtered by account.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Exactness (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Synthesizes open vacancies strictly from `inactiveEmployees` (which contains exactly the 2 unarchived inactive personnel from the UI sub-tab).
+   - Guarantees:
+     - **Active Deployed**: **752**
+     - **Open Vacancies**: **3** ($1 \text{ existing} + 2 \text{ inactive} = 3$, never 8).
+     - **Overall Target**: **755** ($752 + 3 = 755$, MFR = $99.60\%$).
+     - **Sub-Tab Badge**: **Vacancy (3)**.
+
+### Files Modified / Created
+- `src/lib/queries/vacancy.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4144,6 +4202,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Archive Leak in `listVacancies`**: A broad raw query against `plantilla` with `.or("date_of_separation.not.is.null,...")` lacked filters for `is_archived` and `is_deleted`. This grabbed 7 historical archived/deleted employee records dating back years, causing the vacancy count in Plantilla to inflate to 8 ($1 \text{ live} + 7 \text{ historical} = 8$).
+- **Vacancy Module Disconnect**: In `src/lib/queries/vacancy.ts`, the previous fallback was placed inside `else` (`currentTab !== "open"`), meaning that when users opened the Vacancy Module on the default **"Open" tab** (`currentTab === "open"`), the fallback never executed, leaving the Vacancy Module empty for the account.
+
+### What Changed
+1. **Strictly Scoped Roster Inactive Lookup in `src/lib/queries/vacancy.ts`**:
+   - Eliminated the loose table query on `plantilla`.
+   - Replaced it with an account-scoped RPC call to `list_web_plantilla_employees(p_account_id := params.accountId)`, filtering `r.is_inactive === true`. Because `list_web_plantilla_employees` inherently excludes archived and deleted records, this guarantees that only current unarchived inactive personnel from the active roster are selected (exactly the 2 inactive employees in ALTURAS).
+   - Applied this scoping uniformly across both `currentTab === "open"` and default list views, ensuring that the Vacancy Module (`/vacancy`) displays the open vacancies when filtered by account.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Exactness (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Synthesizes open vacancies strictly from `inactiveEmployees` (which contains exactly the 2 unarchived inactive personnel from the UI sub-tab).
+   - Guarantees:
+     - **Active Deployed**: **752**
+     - **Open Vacancies**: **3** ($1 \text{ existing} + 2 \text{ inactive} = 3$, never 8).
+     - **Overall Target**: **755** ($752 + 3 = 755$, MFR = $99.60\%$).
+     - **Sub-Tab Badge**: **Vacancy (3)**.
+
+### Files Modified / Created
+- `src/lib/queries/vacancy.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
 
@@ -4575,6 +4662,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Archive Leak in `listVacancies`**: A broad raw query against `plantilla` with `.or("date_of_separation.not.is.null,...")` lacked filters for `is_archived` and `is_deleted`. This grabbed 7 historical archived/deleted employee records dating back years, causing the vacancy count in Plantilla to inflate to 8 ($1 \text{ live} + 7 \text{ historical} = 8$).
+- **Vacancy Module Disconnect**: In `src/lib/queries/vacancy.ts`, the previous fallback was placed inside `else` (`currentTab !== "open"`), meaning that when users opened the Vacancy Module on the default **"Open" tab** (`currentTab === "open"`), the fallback never executed, leaving the Vacancy Module empty for the account.
+
+### What Changed
+1. **Strictly Scoped Roster Inactive Lookup in `src/lib/queries/vacancy.ts`**:
+   - Eliminated the loose table query on `plantilla`.
+   - Replaced it with an account-scoped RPC call to `list_web_plantilla_employees(p_account_id := params.accountId)`, filtering `r.is_inactive === true`. Because `list_web_plantilla_employees` inherently excludes archived and deleted records, this guarantees that only current unarchived inactive personnel from the active roster are selected (exactly the 2 inactive employees in ALTURAS).
+   - Applied this scoping uniformly across both `currentTab === "open"` and default list views, ensuring that the Vacancy Module (`/vacancy`) displays the open vacancies when filtered by account.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Exactness (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Synthesizes open vacancies strictly from `inactiveEmployees` (which contains exactly the 2 unarchived inactive personnel from the UI sub-tab).
+   - Guarantees:
+     - **Active Deployed**: **752**
+     - **Open Vacancies**: **3** ($1 \text{ existing} + 2 \text{ inactive} = 3$, never 8).
+     - **Overall Target**: **755** ($752 + 3 = 755$, MFR = $99.60\%$).
+     - **Sub-Tab Badge**: **Vacancy (3)**.
+
+### Files Modified / Created
+- `src/lib/queries/vacancy.ts`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
 

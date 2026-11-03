@@ -2512,77 +2512,78 @@ export async function listVacancies(params: VacancyListParams) {
         r.derivedStatus?.toLowerCase() === "hired";
       return !isFullyOccupied && !isFilled;
     });
+  }
 
-    // Parity fallback: ensure vacated slots from inactive plantilla personnel are included
-    if (params.accountId) {
-      try {
-        const { data: inactivePlantilla } = await supabase
-          .from("plantilla")
-          .select("id, vcode, store_id, store_name, position, account, account_id, date_of_separation, deployment_type")
-          .eq("account_id", params.accountId)
-          .or("status.ilike.%inactive%,status.ilike.%resigned%,status.ilike.%awol%,status.ilike.%terminated%,status.ilike.%separated%,date_of_separation.not.is.null");
-
-        if (inactivePlantilla && Array.isArray(inactivePlantilla)) {
-          const existingVcodes = new Set(
-            finalRows.map((r) => (r.vcode || "").trim().toUpperCase()).filter(Boolean),
-          );
-          for (const pl of inactivePlantilla) {
-            const vk = (asString(pl.vcode) || "").trim().toUpperCase();
-            const occupied = vk ? (occupiedVcodeCountMap.get(vk) ?? 0) : 0;
-            if (vk && occupied === 0 && !existingVcodes.has(vk)) {
-              existingVcodes.add(vk);
-              finalRows.push({
-                id: asString(pl.id) ?? `vac-inactive-${finalRows.length}`,
-                vcode: vk,
-                accountId: asString(pl.account_id) ?? params.accountId,
-                accountName: asString(pl.account) ?? null,
-                groupId: null,
-                groupName: null,
-                storeId: asString(pl.store_id) ?? null,
-                storeName: asString(pl.store_name) ?? null,
-                storeLocation: null,
-                position_title: asString(pl.position) ?? "Motorized Collector",
-                department: null,
-                employmentType: asString(pl.deployment_type) ?? "Stationary",
-                vacancyStatus: "Open",
-                pipelineStatus: "Vacancy - Open",
-                derivedStatus: "Open",
-                activeApplicantCount: 0,
-                confirmedOnboardCount: 0,
-                hasRecentHire: false,
-                hasPendingClosure: false,
-                closureRequestStatus: null,
-                vacantDate: asString(pl.date_of_separation) ?? new Date().toISOString().substring(0, 10),
-                agingDays: null,
-                agingBucket: null,
-                targetFillDate: null,
-                urgencyLevel: "Standard",
-                hrcoName: "—",
-                applicantName: null,
-                hasPenalty: false,
-                penaltyExposure: 0,
-                penaltyAmount: null,
-                headcount: 1,
-                hcFilled: 0,
-                hcTotal: 1,
-                hcDisplay: "0/1",
-                lastActivityAt: null,
-                stageBadge: "Vacancy - Open",
-                rowCapabilities: {
-                  canViewDetail: true,
-                  canApprove: false,
-                  canUpdateApplicantStatus: true,
-                  canRequestClosure: true,
-                  raw: {},
-                },
-                totalCount: finalRows.length + 1,
-              });
-            }
+  // Parity fallback: ensure vacated slots from inactive plantilla personnel are included for this account
+  if (params.accountId && (currentTab === "open" || !currentTab)) {
+    try {
+      const { data: plantillaRows } = await supabase.rpc("list_web_plantilla_employees", {
+        p_account_id: params.accountId,
+        p_limit: 1000,
+      });
+      if (Array.isArray(plantillaRows)) {
+        const inactive = plantillaRows.filter(
+          (r: Record<string, unknown>) => r.is_inactive === true,
+        );
+        const existingVcodes = new Set(
+          finalRows.map((r) => (r.vcode || "").trim().toUpperCase()).filter(Boolean),
+        );
+        for (const pl of inactive) {
+          const vk = (asString(pl.vcode) || "").trim().toUpperCase();
+          const occupied = vk ? (occupiedVcodeCountMap.get(vk) ?? 0) : 0;
+          if (vk && occupied === 0 && !existingVcodes.has(vk)) {
+            existingVcodes.add(vk);
+            finalRows.push({
+              id: asString(pl.plantilla_id) ?? `vac-inactive-${finalRows.length}`,
+              vcode: vk,
+              accountId: asString(pl.account_id) ?? params.accountId,
+              accountName: asString(pl.account_name) ?? null,
+              groupId: asString(pl.group_id) ?? null,
+              groupName: asString(pl.group_name) ?? null,
+              storeId: asString(pl.store_id) ?? null,
+              storeName: asString(pl.store_name) ?? null,
+              storeLocation: null,
+              position_title: asString(pl.position_title) ?? "Motorized Collector",
+              department: null,
+              employmentType: asString(pl.deployment_type) ?? "Stationary",
+              vacancyStatus: "Open",
+              pipelineStatus: "Vacancy - Open",
+              derivedStatus: "Open",
+              activeApplicantCount: 0,
+              confirmedOnboardCount: 0,
+              hasRecentHire: false,
+              hasPendingClosure: false,
+              closureRequestStatus: null,
+              vacantDate: asString(pl.date_of_separation) ?? new Date().toISOString().substring(0, 10),
+              agingDays: null,
+              agingBucket: null,
+              targetFillDate: null,
+              urgencyLevel: "Standard",
+              hrcoName: "—",
+              applicantName: null,
+              hasPenalty: false,
+              penaltyExposure: 0,
+              penaltyAmount: null,
+              headcount: 1,
+              hcFilled: 0,
+              hcTotal: 1,
+              hcDisplay: "0/1",
+              lastActivityAt: null,
+              stageBadge: "Vacancy - Open",
+              rowCapabilities: {
+                canViewDetail: true,
+                canApprove: false,
+                canUpdateApplicantStatus: true,
+                canRequestClosure: true,
+                raw: {},
+              },
+              totalCount: finalRows.length + 1,
+            });
           }
         }
-      } catch {
-        // Graceful fallback
       }
+    } catch {
+      // Graceful fallback
     }
   }
 
