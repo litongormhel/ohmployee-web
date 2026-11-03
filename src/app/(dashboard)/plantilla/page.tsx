@@ -368,6 +368,52 @@ export default function PlantillaPage() {
   );
 }
 
+// Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
+function isInactiveRecord(emp: PlantillaEmployeeListItem) {
+  const s = (emp.plantillaStatus || "").toLowerCase();
+  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
+  return (
+    s === "resigned" ||
+    s === "awol" ||
+    s === "terminated" ||
+    s === "inactive" ||
+    s === "separated" ||
+    overlay.showDeactivatedBanner ||
+    emp.isActive === false
+  );
+}
+
+// Helper check for deactivation statuses (pending offboarding approval)
+function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
+  if (isInactiveRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase();
+  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
+  return (
+    overlay.isPendingSeparation ||
+    s === "pending for deactivation" ||
+    s === "pending_for_deactivation" ||
+    s === "pending deactivation" ||
+    s === "for deactivation" ||
+    s === "pending separation" ||
+    s === "pending_separation" ||
+    s === "deactivated"
+  );
+}
+
+// Helper check for floating status
+function isFloatingRecord(emp: PlantillaEmployeeListItem) {
+  if (isInactiveRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase();
+  return s === "floating";
+}
+
+// Helper check for on-leave status
+function isOnLeaveRecord(emp: PlantillaEmployeeListItem) {
+  if (isInactiveRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase();
+  return s === "on leave" || s === "on_leave";
+}
+
 function PlantillaPageContent() {
   // Search parameters and router
   const searchParams = useSearchParams();
@@ -814,52 +860,6 @@ function PlantillaPageContent() {
 
     return true;
   }, [search, areaCityFilter, assignmentType, storeLookupMap]);
-
-  // Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
-  const isInactiveRecord = (emp: PlantillaEmployeeListItem) => {
-    const s = (emp.plantillaStatus || "").toLowerCase();
-    const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-    return (
-      s === "resigned" ||
-      s === "awol" ||
-      s === "terminated" ||
-      s === "inactive" ||
-      s === "separated" ||
-      overlay.showDeactivatedBanner ||
-      emp.isActive === false
-    );
-  };
-
-  // Helper check for deactivation statuses (pending offboarding approval)
-  const isDeactivationRecord = (emp: PlantillaEmployeeListItem) => {
-    if (isInactiveRecord(emp)) return false;
-    const s = (emp.plantillaStatus || "").toLowerCase();
-    const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-    return (
-      overlay.isPendingSeparation ||
-      s === "pending for deactivation" ||
-      s === "pending_for_deactivation" ||
-      s === "pending deactivation" ||
-      s === "for deactivation" ||
-      s === "pending separation" ||
-      s === "pending_separation" ||
-      s === "deactivated"
-    );
-  };
-
-  // Helper check for floating status
-  const isFloatingRecord = (emp: PlantillaEmployeeListItem) => {
-    if (isInactiveRecord(emp)) return false;
-    const s = (emp.plantillaStatus || "").toLowerCase();
-    return s === "floating";
-  };
-
-  // Helper check for on-leave status
-  const isOnLeaveRecord = (emp: PlantillaEmployeeListItem) => {
-    if (isInactiveRecord(emp)) return false;
-    const s = (emp.plantillaStatus || "").toLowerCase();
-    return s === "on leave" || s === "on_leave";
-  };
 
   // Tab 1: Active
   const activeEmployees = useMemo(() => {

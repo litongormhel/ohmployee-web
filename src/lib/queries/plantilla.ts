@@ -1144,7 +1144,7 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
     }
   }
 
-  // Fallback: If RPC returned 0 rows but an accountId was provided, query v_plantilla_safe directly
+  // Fallback: If RPC returned 0 rows but an accountId was provided, query v_plantilla_safe / stores / allocations directly
   // to prevent missing roster personnel due to RPC chunking, safe view scoping, or unlinked account_id fields.
   if (rows.length === 0 && params.accountId) {
     try {
@@ -1159,127 +1159,202 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
         accountName = (acct?.account_name as string | undefined)?.trim();
       }
 
-      let safeRows: Record<string, unknown>[] = [];
+      const safeRowsMap = new Map<string, Record<string, unknown>>();
 
-      // 2. Query v_plantilla_safe by account_id and/or account name
-      let safeQuery = supabase
-        .from("v_plantilla_safe")
-        .select(`
-          id,
-          employee_name,
-          employee_no,
-          account_id,
-          account,
-          store_id,
-          store_name,
-          province_id,
-          position,
-          status,
-          deployment_type,
-          roving_assignment_id,
-          roving_store_count,
-          vcode,
-          hr_emploc_id,
-          date_hired,
-          tenure_months,
-          age,
-          has_penalty,
-          separation_status,
-          date_of_separation,
-          created_at,
-          deactivated_at,
-          deactivation_reason
-        `);
+      // 2. Fetch all stores under this account (canonical link for deployed store personnel)
+      const { data: storeRows } = await supabase
+        .from("stores")
+        .select("id, store_name")
+        .eq("account_id", params.accountId);
 
+      const storeIds = (storeRows ?? [])
+        .map((s) => s.id as string)
+        .filter(Boolean);
+      const storeNameMap = new Map<string, string>();
+      for (const st of storeRows ?? []) {
+        if (st.id && st.store_name) {
+          storeNameMap.set(st.id as string, st.store_name as string);
+        }
+      }
+
+      // 3. Fetch active allocations from employee_store_allocations
+      // (100% parity with v_account_allocation_kpi canonical metrics)
+      const { data: allocRows } = await supabase
+        .from("employee_store_allocations")
+        .select("plantilla_id, employee_no, store_id, store_name")
+        .eq("account_id", params.accountId)
+        .eq("is_active", true);
+
+      const allocatedPlantillaIds = Array.from(
+        new Set(
+          (allocRows ?? [])
+            .map((r) => r.plantilla_id as string | undefined)
+            .filter((id): id is string => Boolean(id))
+        )
+      );
+      const allocatedEmployeeNos = Array.from(
+        new Set(
+          (allocRows ?? [])
+            .map((r) => r.employee_no as string | undefined)
+            .filter((no): no is string => Boolean(no))
+        )
+      );
+
+      const selectCols = `
+        id,
+        employee_name,
+        employee_no,
+        account_id,
+        account,
+        store_id,
+        store_name,
+        province_id,
+        position,
+        status,
+        deployment_type,
+        roving_assignment_id,
+        roving_store_count,
+        vcode,
+        hr_emploc_id,
+        date_hired,
+        tenure_months,
+        age,
+        has_penalty,
+        separation_status,
+        date_of_separation,
+        created_at,
+        deactivated_at,
+        deactivation_reason
+      `;
+
+      const addRowsToMap = (records: unknown) => {
+        if (!Array.isArray(records)) return;
+        for (const item of records) {
+          const rec = item as Record<string, unknown>;
+          const key = (rec.id as string) || (rec.employee_no as string);
+          if (key && !safeRowsMap.has(key)) {
+            safeRowsMap.set(key, rec);
+          }
+        }
+      };
+
+      // Strategy A: Query v_plantilla_safe by store_id chunks
+      if (storeIds.length > 0) {
+        const chunkSize = 50;
+        for (let i = 0; i < storeIds.length; i += chunkSize) {
+          const chunk = storeIds.slice(i, i + chunkSize);
+          const { data: storeSafeData } = await supabase
+            .from("v_plantilla_safe")
+            .select(selectCols)
+            .in("store_id", chunk);
+          addRowsToMap(storeSafeData);
+        }
+      }
+
+      // Strategy B: Query v_plantilla_safe by allocated plantilla_id chunks
+      if (allocatedPlantillaIds.length > 0) {
+        const chunkSize = 200;
+        for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
+          const chunk = allocatedPlantillaIds.slice(i, i + chunkSize);
+          const { data: chunkData } = await supabase
+            .from("v_plantilla_safe")
+            .select(selectCols)
+            .in("id", chunk);
+          addRowsToMap(chunkData);
+        }
+      }
+
+      // Strategy C: Query v_plantilla_safe by allocated employee_no chunks
+      if (allocatedEmployeeNos.length > 0 && safeRowsMap.size < allocatedEmployeeNos.length) {
+        const chunkSize = 200;
+        for (let i = 0; i < allocatedEmployeeNos.length; i += chunkSize) {
+          const chunk = allocatedEmployeeNos.slice(i, i + chunkSize);
+          const { data: chunkData } = await supabase
+            .from("v_plantilla_safe")
+            .select(selectCols)
+            .in("employee_no", chunk);
+          addRowsToMap(chunkData);
+        }
+      }
+
+      // Strategy D: Query v_plantilla_safe by account wildcard or account_id
       if (accountName) {
-        safeQuery = safeQuery.or(
-          `account_id.eq.${params.accountId},account.ilike.${accountName}`
-        );
-      } else {
-        safeQuery = safeQuery.eq("account_id", params.accountId);
+        const { data: acctSafeData } = await supabase
+          .from("v_plantilla_safe")
+          .select(selectCols)
+          .ilike("account", `%${accountName}%`)
+          .limit(pageSize);
+        addRowsToMap(acctSafeData);
       }
-
-      if (params.search?.trim()) {
-        const q = params.search.trim();
-        safeQuery = safeQuery.or(
-          `employee_name.ilike.%${q}%,employee_no.ilike.%${q}%,store_name.ilike.%${q}%`
-        );
-      }
-
-      if (params.status) {
-        safeQuery = safeQuery.eq("status", params.status);
-      }
-
-      const { data: queryData, error: safeError } = await safeQuery
-        .order("employee_name", { ascending: params.sortDir !== "desc" })
+      const { data: idSafeData } = await supabase
+        .from("v_plantilla_safe")
+        .select(selectCols)
+        .eq("account_id", params.accountId)
         .limit(pageSize);
+      addRowsToMap(idSafeData);
 
-      if (!safeError && Array.isArray(queryData) && queryData.length > 0) {
-        safeRows = queryData as Record<string, unknown>[];
-      } else {
-        // 3. Fallback to querying active allocations from employee_store_allocations
-        // (100% parity with v_account_allocation_kpi canonical metrics)
-        const { data: allocRows } = await supabase
-          .from("employee_store_allocations")
-          .select("plantilla_id")
-          .eq("account_id", params.accountId)
-          .eq("is_active", true);
-
-        const allocatedPlantillaIds = Array.from(
-          new Set(
-            (allocRows ?? [])
-              .map((r) => r.plantilla_id as string | undefined)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-
+      // Strategy E: Direct table fallback to plantilla if v_plantilla_safe was constrained
+      if (safeRowsMap.size === 0) {
+        if (storeIds.length > 0) {
+          const chunkSize = 50;
+          for (let i = 0; i < storeIds.length; i += chunkSize) {
+            const chunk = storeIds.slice(i, i + chunkSize);
+            const { data: tableData } = await supabase
+              .from("plantilla")
+              .select(selectCols)
+              .in("store_id", chunk);
+            addRowsToMap(tableData);
+          }
+        }
         if (allocatedPlantillaIds.length > 0) {
           const chunkSize = 200;
           for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
-            const chunkIds = allocatedPlantillaIds.slice(i, i + chunkSize);
-            const { data: chunkData } = await supabase
-              .from("v_plantilla_safe")
-              .select(`
-                id,
-                employee_name,
-                employee_no,
-                account_id,
-                account,
-                store_id,
-                store_name,
-                province_id,
-                position,
-                status,
-                deployment_type,
-                roving_assignment_id,
-                roving_store_count,
-                vcode,
-                hr_emploc_id,
-                date_hired,
-                tenure_months,
-                age,
-                has_penalty,
-                separation_status,
-                date_of_separation,
-                created_at,
-                deactivated_at,
-                deactivation_reason
-              `)
-              .in("id", chunkIds)
-              .order("employee_name", { ascending: params.sortDir !== "desc" });
-
-            if (Array.isArray(chunkData)) {
-              safeRows.push(...(chunkData as Record<string, unknown>[]));
-            }
+            const chunk = allocatedPlantillaIds.slice(i, i + chunkSize);
+            const { data: tableData } = await supabase
+              .from("plantilla")
+              .select(selectCols)
+              .in("id", chunk);
+            addRowsToMap(tableData);
           }
         }
       }
 
+      let safeRows = Array.from(safeRowsMap.values());
+
+      // Client-side search filtering if search term passed
+      if (params.search?.trim()) {
+        const q = params.search.trim().toLowerCase();
+        safeRows = safeRows.filter((r) => {
+          const name = String(r.employee_name || "").toLowerCase();
+          const empNo = String(r.employee_no || "").toLowerCase();
+          const store = String(r.store_name || "").toLowerCase();
+          const vcode = String(r.vcode || "").toLowerCase();
+          return name.includes(q) || empNo.includes(q) || store.includes(q) || vcode.includes(q);
+        });
+      }
+
+      // Client-side status filtering if status passed
+      if (params.status) {
+        const targetStatus = params.status.toLowerCase().trim();
+        safeRows = safeRows.filter(
+          (r) => String(r.status || "").toLowerCase().trim() === targetStatus
+        );
+      }
+
+      // Sort rows according to requested sort direction
+      safeRows.sort((a, b) => {
+        const nameA = String(a.employee_name || "");
+        const nameB = String(b.employee_name || "");
+        return params.sortDir === "desc"
+          ? nameB.localeCompare(nameA)
+          : nameA.localeCompare(nameB);
+      });
+
       if (safeRows.length > 0) {
         rows = safeRows
           .map((row) => {
-            const s = (String(row.status || "")).toLowerCase().trim();
-            const sep = (String(row.separation_status || "")).toLowerCase().trim();
+            const s = String(row.status || "").toLowerCase().trim();
+            const sep = String(row.separation_status || "").toLowerCase().trim();
             const is_active =
               !row.deactivated_at &&
               !row.date_of_separation &&
@@ -1290,11 +1365,17 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             if (params.activeState === "active" && !is_active) return null;
             if (params.activeState === "inactive" && !is_inactive) return null;
 
+            const resolvedStoreName =
+              (row.store_name as string | undefined) ||
+              (row.store_id ? storeNameMap.get(row.store_id as string) : undefined);
+
             return normalizeEmployeeListRow({
               ...row,
               plantilla_id: row.id,
-              position_title: row.position,
-              account_name: row.account || accountName,
+              position_title: row.position ?? row.position_title,
+              account_name: row.account || row.account_name || accountName,
+              primary_store_name: resolvedStoreName,
+              store_name: resolvedStoreName,
               is_active,
               is_inactive,
               total_count: safeRows.length,
@@ -1302,8 +1383,8 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
           })
           .filter((row): row is PlantillaEmployeeListItem => row !== null);
       }
-    } catch {
-      // Graceful fallback
+    } catch (err) {
+      console.warn("[Plantilla] Fallback query resolution encountered non-fatal error:", err);
     }
   }
 

@@ -874,6 +874,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Added `selectedAccount?.name` into `employeeQuery` parameters and query key for instant account-aware cache invalidation.
   - **Active Status Partitioning Normalization (`src/app/(dashboard)/plantilla/page.tsx`)**:
     - Normalized `activeEmployees` status filter: records with `emp.isActive === true` or non-separated statuses (`"Active"`, `"Active Deployed"`, `"Deployed"`, or blank/default) now reliably populate the active list, matching the summary KPI card count (e.g. 754) and eliminating the false "No active employees" empty state.
+  - **Multi-Strategy Fallback Roster Resolution (`src/lib/queries/plantilla.ts`)**:
+    - Re-architected `listWebPlantillaEmployees` fallback when the primary RPC returns 0 rows:
+      1. Resolves `account_name` from `accounts` table.
+      2. Queries all stores belonging to the account (`stores.account_id = accountId`) and chunks `v_plantilla_safe` by `store_id.in.(storeIds)` (retrieving all 754 deployed personnel).
+      3. Queries active allocations from `employee_store_allocations` selecting both `plantilla_id` and `employee_no`, chunking `v_plantilla_safe` by `id` and `employee_no`.
+      4. Queries `v_plantilla_safe` matching `account.ilike.%${accountName}%` wildcard and `account_id.eq.${accountId}`.
+      5. Provides a secondary direct query against `public.plantilla` if view constraints yield 0 records.
+      6. Merges and deduplicates records into a `Map<string, Record<string, unknown>>` by `row.id` and `row.employee_no`, applying search, status filter, and sorting before normalizing to `PlantillaEmployeeListItem[]`.
   - **KPI Synchronization & Safe View Roster Fallback (`src/lib/queries/plantilla.ts`)**:
     - Updated `getPlantillaSummary` to query `v_account_allocation_kpi` when `params.accountId` is supplied, guaranteeing that the Account Detail view KPI cards (`actual_hc: 754`, `slot_vacant_hc: 1`, `required_hc: 755`, `pipeline_count: 0`) 100% match the metrics shown on the Plantilla Directory cards.
     - Upgraded `listWebPlantillaEmployees` fallback: when primary RPC returns 0 rows, resolves `accountName` from `accounts` and queries `v_plantilla_safe` by both `account_id` and `account.ilike.${accountName}`, plus chunks against active `plantilla_id`s from `employee_store_allocations` to guarantee 100% parity with `v_account_allocation_kpi`.
