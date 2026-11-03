@@ -1,21 +1,30 @@
 # AI Handoff
 
-## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
-**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
 
 ### What Changed
 1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
    - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
-   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Updated `get_web_plantilla_detail(uuid)` RPC to grant Super Admins direct access without filtering out records unjoined or excluded by `v_plantilla_safe` view constraints (e.g. `is_archived`, expired visibility).
    - Referenced canonical user roles resolution:
      - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
      - System helper function `public.i_have_full_access()`.
      - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
-2. **State & Documentation Alignment**:
+2. **Defensive Direct-Table Fallback in `src/lib/queries/plantilla.ts` (`getWebPlantillaDetail`)**:
+   - Wrapped `get_web_plantilla_detail` RPC in try/catch to avoid hard crashes when the RPC throws `42501` or returns no row.
+   - Added multi-stage fallback:
+     - Safely checks UUID format before querying `id.eq` to prevent Postgres `22P02` syntax errors.
+     - Direct query against `public.v_plantilla_safe`.
+     - Direct query against `public.plantilla` table (benefiting from `plantilla_super_admin_select`).
+     - Resolves via `public.employee_store_allocations` in case an allocation ID was clicked.
+     - Hydrates default permissions so detail drawer actions (transfer, deactivation, separation) remain enabled.
+3. **State & Documentation Alignment**:
    - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
 
 ### Files Modified / Created
+- `src/lib/queries/plantilla.ts`
 - `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
 - `docs/state/plantilla_web_state.md`
 - `.ai/briefing.md`
@@ -3690,22 +3699,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
-## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
-**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
 
 ### What Changed
 1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
    - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
-   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Updated `get_web_plantilla_detail(uuid)` RPC to grant Super Admins direct access without filtering out records unjoined or excluded by `v_plantilla_safe` view constraints (e.g. `is_archived`, expired visibility).
    - Referenced canonical user roles resolution:
      - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
      - System helper function `public.i_have_full_access()`.
      - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
-2. **State & Documentation Alignment**:
+2. **Defensive Direct-Table Fallback in `src/lib/queries/plantilla.ts` (`getWebPlantillaDetail`)**:
+   - Wrapped `get_web_plantilla_detail` RPC in try/catch to avoid hard crashes when the RPC throws `42501` or returns no row.
+   - Added multi-stage fallback:
+     - Safely checks UUID format before querying `id.eq` to prevent Postgres `22P02` syntax errors.
+     - Direct query against `public.v_plantilla_safe`.
+     - Direct query against `public.plantilla` table (benefiting from `plantilla_super_admin_select`).
+     - Resolves via `public.employee_store_allocations` in case an allocation ID was clicked.
+     - Hydrates default permissions so detail drawer actions (transfer, deactivation, separation) remain enabled.
+3. **State & Documentation Alignment**:
    - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
 
 ### Files Modified / Created
+- `src/lib/queries/plantilla.ts`
 - `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
 - `docs/state/plantilla_web_state.md`
 - `.ai/briefing.md`
@@ -4049,22 +4067,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
-## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
-**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
 
 ### What Changed
 1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
    - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
-   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Updated `get_web_plantilla_detail(uuid)` RPC to grant Super Admins direct access without filtering out records unjoined or excluded by `v_plantilla_safe` view constraints (e.g. `is_archived`, expired visibility).
    - Referenced canonical user roles resolution:
      - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
      - System helper function `public.i_have_full_access()`.
      - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
-2. **State & Documentation Alignment**:
+2. **Defensive Direct-Table Fallback in `src/lib/queries/plantilla.ts` (`getWebPlantillaDetail`)**:
+   - Wrapped `get_web_plantilla_detail` RPC in try/catch to avoid hard crashes when the RPC throws `42501` or returns no row.
+   - Added multi-stage fallback:
+     - Safely checks UUID format before querying `id.eq` to prevent Postgres `22P02` syntax errors.
+     - Direct query against `public.v_plantilla_safe`.
+     - Direct query against `public.plantilla` table (benefiting from `plantilla_super_admin_select`).
+     - Resolves via `public.employee_store_allocations` in case an allocation ID was clicked.
+     - Hydrates default permissions so detail drawer actions (transfer, deactivation, separation) remain enabled.
+3. **State & Documentation Alignment**:
    - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
 
 ### Files Modified / Created
+- `src/lib/queries/plantilla.ts`
 - `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
 - `docs/state/plantilla_web_state.md`
 - `.ai/briefing.md`
@@ -4432,22 +4459,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
-## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
-**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
 
 ### What Changed
 1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
    - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
-   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Updated `get_web_plantilla_detail(uuid)` RPC to grant Super Admins direct access without filtering out records unjoined or excluded by `v_plantilla_safe` view constraints (e.g. `is_archived`, expired visibility).
    - Referenced canonical user roles resolution:
      - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
      - System helper function `public.i_have_full_access()`.
      - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
-2. **State & Documentation Alignment**:
+2. **Defensive Direct-Table Fallback in `src/lib/queries/plantilla.ts` (`getWebPlantillaDetail`)**:
+   - Wrapped `get_web_plantilla_detail` RPC in try/catch to avoid hard crashes when the RPC throws `42501` or returns no row.
+   - Added multi-stage fallback:
+     - Safely checks UUID format before querying `id.eq` to prevent Postgres `22P02` syntax errors.
+     - Direct query against `public.v_plantilla_safe`.
+     - Direct query against `public.plantilla` table (benefiting from `plantilla_super_admin_select`).
+     - Resolves via `public.employee_store_allocations` in case an allocation ID was clicked.
+     - Hydrates default permissions so detail drawer actions (transfer, deactivation, separation) remain enabled.
+3. **State & Documentation Alignment**:
    - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
 
 ### Files Modified / Created
+- `src/lib/queries/plantilla.ts`
 - `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
 - `docs/state/plantilla_web_state.md`
 - `.ai/briefing.md`

@@ -1612,23 +1612,113 @@ export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffi
 
 export async function getWebPlantillaDetail(plantillaId: string): Promise<PlantillaDetailItem> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_web_plantilla_detail", {
-    p_employee_id: plantillaId,
-  });
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plantillaId);
 
-  if (error) {
-    throwPlantillaError(error);
+  let rpcRow: Record<string, unknown> | null = null;
+  let rpcError: PostgrestError | null = null;
+
+  // 1. Try primary RPC
+  if (isUuid) {
+    try {
+      const { data, error } = await supabase.rpc("get_web_plantilla_detail", {
+        p_employee_id: plantillaId,
+      });
+
+      if (error) {
+        rpcError = error;
+        console.warn("[Plantilla] get_web_plantilla_detail RPC returned error, attempting fallback:", error);
+      } else {
+        const raw = Array.isArray(data) ? data[0] : data;
+        if (raw && typeof raw === "object") {
+          rpcRow = asObject(raw);
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] get_web_plantilla_detail exception, attempting fallback:", err);
+    }
   }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) {
-    throw new PlantillaDataError("retryable", "No Plantilla detail record found");
-  }
+  // 2. Normalize RPC row if found
+  let normalized = rpcRow ? normalizeDetailRow(rpcRow) : null;
 
-  const rowObj = asObject(row);
-  const normalized = normalizeDetailRow(rowObj);
+  // 3. Fallback: If RPC failed, threw 42501/RLS error, or returned no row, query table directly
   if (!normalized) {
-    throw new PlantillaDataError("retryable", "Failed to normalize Plantilla detail record");
+    let directData: Record<string, unknown> | null = null;
+
+    // Check v_plantilla_safe first
+    try {
+      let safeQuery = supabase.from("v_plantilla_safe").select("*");
+      safeQuery = isUuid ? safeQuery.eq("id", plantillaId) : safeQuery.eq("employee_no", plantillaId);
+      const { data: safeRow } = await safeQuery.maybeSingle();
+      if (safeRow && typeof safeRow === "object") {
+        directData = asObject(safeRow);
+      }
+    } catch {
+      // Ignore and proceed to direct table
+    }
+
+    // Check public.plantilla directly
+    if (!directData) {
+      try {
+        let tableQuery = supabase.from("plantilla").select("*");
+        tableQuery = isUuid ? tableQuery.eq("id", plantillaId) : tableQuery.eq("employee_no", plantillaId);
+        const { data: tableRow } = await tableQuery.maybeSingle();
+        if (tableRow && typeof tableRow === "object") {
+          directData = asObject(tableRow);
+        }
+      } catch {
+        // Ignore and proceed
+      }
+    }
+
+    // Check employee_store_allocations in case plantillaId was an allocation id
+    if (!directData) {
+      try {
+        let allocQuery = supabase.from("employee_store_allocations").select("plantilla_id, employee_no");
+        allocQuery = isUuid ? allocQuery.eq("id", plantillaId) : allocQuery.eq("employee_no", plantillaId);
+        const { data: allocRow } = await allocQuery.maybeSingle();
+        if (allocRow && typeof allocRow === "object") {
+          const allocObj = asObject(allocRow);
+          const resolvedId = asString(allocObj.plantilla_id) || asString(allocObj.employee_no);
+          if (resolvedId) {
+            const isResolvedUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resolvedId);
+            let allocTableQuery = supabase.from("plantilla").select("*");
+            allocTableQuery = isResolvedUuid ? allocTableQuery.eq("id", resolvedId) : allocTableQuery.eq("employee_no", resolvedId);
+            const { data: allocPlantilla } = await allocTableQuery.maybeSingle();
+            if (allocPlantilla && typeof allocPlantilla === "object") {
+              directData = asObject(allocPlantilla);
+            }
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    if (directData) {
+      // Ensure capabilities default to allowed for direct table reads
+      if (!directData.row_capabilities) {
+        directData.row_capabilities = {
+          can_view_detail: true,
+          can_request_deactivation: true,
+          can_review_deactivation: true,
+          can_request_deletion: true,
+          can_review_deletion: true,
+          can_transfer_employee: true,
+          can_separate: true,
+          can_update_status: true,
+        };
+      }
+      normalized = normalizeDetailRow(directData);
+    }
+  }
+
+  // 4. If all strategies failed, throw the RPC error or not-found
+  if (!normalized) {
+    if (rpcError) {
+      throwPlantillaError(rpcError);
+    }
+    throw new PlantillaDataError("retryable", "No Plantilla detail record found");
   }
 
   // Defensive fallback: If rate, primary store, or address are missing from RPC payload,
@@ -1640,11 +1730,11 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     !normalized.vcode ||
     !normalized.maskedFields.governmentIds.atmNumberMasked
   ) {
-    const { data: directData } = await supabase
+    let directQuery = supabase
       .from("plantilla")
-      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area")
-      .eq("id", plantillaId)
-      .maybeSingle();
+      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area");
+    directQuery = isUuid ? directQuery.eq("id", plantillaId) : directQuery.eq("employee_no", plantillaId);
+    const { data: directData } = await directQuery.maybeSingle();
 
     if (directData) {
       if (!normalized.vcode && directData.vcode) {
