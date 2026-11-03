@@ -66,6 +66,11 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
     - Bumped `vacancyListQuery` in `src/app/(dashboard)/plantilla/page.tsx` to `pageSize: 2000` to prevent truncation of vacant slots.
     - Hardened `allVacancies` filter in `plantilla/page.tsx` so requisitions with remaining capacity (`v.hcFilled < v.hcTotal`) are never dropped by active employee deduplication.
 
+- **Inactive Personnel Vacancy Reopening & Scoped Resolution (`ohm#vacparscoped`)**:
+  - Reconciled inactive personnel whose positions are vacated but whose vacancy rows were not yet marked Open in `public.vacancies`.
+  - In `src/lib/queries/vacancy.ts`, `listVacancies` and `getVacancySummary` now ensure that inactive unassigned personnel from active rosters (excluding deleted/archived records) are seamlessly merged into the Open queue (`currentTab === "open"`).
+  - Guarantees that ALTURAS vacancies (`VCBPIG1_0183`, `VCBPIG1_0049`, `VCBPIG1_0050`) appear in `/vacancy` on the Open tab (with `Open (3)` badge and `Showing 1-3 of 3 records` pagination), matching the Plantilla Vacancy tab and Directory cards.
+
 - **Landing Page Integration**: Vacancy (`/vacancy`) serves as the primary operational landing workspace for authenticated OHMployee Web sessions; the application root (`/`), successful authentication redirects, and fallback redirects route to `/vacancy` instead of `/dashboard`.
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
 - The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.

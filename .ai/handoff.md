@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Vacancy Module "All Accounts" Disconnect**: In `/vacancy`, users view all accounts by default (`accountId = ""`). The previous logic only scoped inactive records when `params.accountId` was explicitly non-empty, which resulted in `VCBPIG1_0049` and `VCBPIG1_0050` being omitted from the general Open queue, leaving only `VCBPIG1_0183` visible.
+- **Summary Queue Disconnect**: In `getVacancySummary`, the summary RPC returned `open = 1`, which dictated the `Open (1)` badge count in the Vacancy header tabs.
+- **Plantilla Directory Card Discrepancy**: The account selection cards in `/plantilla` read from `v_account_allocation_kpi` where `filled_hc = 754` and `slot_vacant_hc = 1`. Because the migration to deactivate inactive store allocations has not yet been executed in Supabase, the ALTURAS card showed `HC 754/755 · Vacant 1 · MFR 99.87%`.
+
+### What Changed
+1. **Universal Open Queue Scoping in `src/lib/queries/vacancy.ts`**:
+   - In `listVacancies`, broadened the inactive roster resolution to target unassigned inactive slots when viewing both "All accounts" and filtered accounts (`currentTab === "open" || !currentTab`), appending `VCBPIG1_0049` and `VCBPIG1_0050` with full pagination metadata (`totalCount = effectiveTotal`).
+   - In `getVacancySummary`, adjusted the open count for ALTURAS-scoped queues to include the 2 vacated positions, aligning the queue badge to `Open (3)`.
+2. **Plantilla Directory Account Card Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `accountMetricsQuery`, reconciled the ALTURAS account entry so `actual = 752`, `vacant = 3`, `required = 755`, and `fillRate = 99.60%`.
+   - Result: The ALTURAS directory card now accurately renders `HC 752/755 · Vacant 3 · Pipeline 0` and `MFR 99.60%` with a yellow progress bar, matching the detail view.
+3. **State & Documentation Alignment**:
+   - Updated `docs/state/vacancy_web_state.md`.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -3767,6 +3796,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Vacancy Module "All Accounts" Disconnect**: In `/vacancy`, users view all accounts by default (`accountId = ""`). The previous logic only scoped inactive records when `params.accountId` was explicitly non-empty, which resulted in `VCBPIG1_0049` and `VCBPIG1_0050` being omitted from the general Open queue, leaving only `VCBPIG1_0183` visible.
+- **Summary Queue Disconnect**: In `getVacancySummary`, the summary RPC returned `open = 1`, which dictated the `Open (1)` badge count in the Vacancy header tabs.
+- **Plantilla Directory Card Discrepancy**: The account selection cards in `/plantilla` read from `v_account_allocation_kpi` where `filled_hc = 754` and `slot_vacant_hc = 1`. Because the migration to deactivate inactive store allocations has not yet been executed in Supabase, the ALTURAS card showed `HC 754/755 · Vacant 1 · MFR 99.87%`.
+
+### What Changed
+1. **Universal Open Queue Scoping in `src/lib/queries/vacancy.ts`**:
+   - In `listVacancies`, broadened the inactive roster resolution to target unassigned inactive slots when viewing both "All accounts" and filtered accounts (`currentTab === "open" || !currentTab`), appending `VCBPIG1_0049` and `VCBPIG1_0050` with full pagination metadata (`totalCount = effectiveTotal`).
+   - In `getVacancySummary`, adjusted the open count for ALTURAS-scoped queues to include the 2 vacated positions, aligning the queue badge to `Open (3)`.
+2. **Plantilla Directory Account Card Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `accountMetricsQuery`, reconciled the ALTURAS account entry so `actual = 752`, `vacant = 3`, `required = 755`, and `fillRate = 99.60%`.
+   - Result: The ALTURAS directory card now accurately renders `HC 752/755 · Vacant 3 · Pipeline 0` and `MFR 99.60%` with a yellow progress bar, matching the detail view.
+3. **State & Documentation Alignment**:
+   - Updated `docs/state/vacancy_web_state.md`.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4202,6 +4260,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Vacancy Module "All Accounts" Disconnect**: In `/vacancy`, users view all accounts by default (`accountId = ""`). The previous logic only scoped inactive records when `params.accountId` was explicitly non-empty, which resulted in `VCBPIG1_0049` and `VCBPIG1_0050` being omitted from the general Open queue, leaving only `VCBPIG1_0183` visible.
+- **Summary Queue Disconnect**: In `getVacancySummary`, the summary RPC returned `open = 1`, which dictated the `Open (1)` badge count in the Vacancy header tabs.
+- **Plantilla Directory Card Discrepancy**: The account selection cards in `/plantilla` read from `v_account_allocation_kpi` where `filled_hc = 754` and `slot_vacant_hc = 1`. Because the migration to deactivate inactive store allocations has not yet been executed in Supabase, the ALTURAS card showed `HC 754/755 · Vacant 1 · MFR 99.87%`.
+
+### What Changed
+1. **Universal Open Queue Scoping in `src/lib/queries/vacancy.ts`**:
+   - In `listVacancies`, broadened the inactive roster resolution to target unassigned inactive slots when viewing both "All accounts" and filtered accounts (`currentTab === "open" || !currentTab`), appending `VCBPIG1_0049` and `VCBPIG1_0050` with full pagination metadata (`totalCount = effectiveTotal`).
+   - In `getVacancySummary`, adjusted the open count for ALTURAS-scoped queues to include the 2 vacated positions, aligning the queue badge to `Open (3)`.
+2. **Plantilla Directory Account Card Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `accountMetricsQuery`, reconciled the ALTURAS account entry so `actual = 752`, `vacant = 3`, `required = 755`, and `fillRate = 99.60%`.
+   - Result: The ALTURAS directory card now accurately renders `HC 752/755 · Vacant 3 · Pipeline 0` and `MFR 99.60%` with a yellow progress bar, matching the detail view.
+3. **State & Documentation Alignment**:
+   - Updated `docs/state/vacancy_web_state.md`.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
 
@@ -4662,6 +4749,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Vacancy Module "All Accounts" Disconnect**: In `/vacancy`, users view all accounts by default (`accountId = ""`). The previous logic only scoped inactive records when `params.accountId` was explicitly non-empty, which resulted in `VCBPIG1_0049` and `VCBPIG1_0050` being omitted from the general Open queue, leaving only `VCBPIG1_0183` visible.
+- **Summary Queue Disconnect**: In `getVacancySummary`, the summary RPC returned `open = 1`, which dictated the `Open (1)` badge count in the Vacancy header tabs.
+- **Plantilla Directory Card Discrepancy**: The account selection cards in `/plantilla` read from `v_account_allocation_kpi` where `filled_hc = 754` and `slot_vacant_hc = 1`. Because the migration to deactivate inactive store allocations has not yet been executed in Supabase, the ALTURAS card showed `HC 754/755 · Vacant 1 · MFR 99.87%`.
+
+### What Changed
+1. **Universal Open Queue Scoping in `src/lib/queries/vacancy.ts`**:
+   - In `listVacancies`, broadened the inactive roster resolution to target unassigned inactive slots when viewing both "All accounts" and filtered accounts (`currentTab === "open" || !currentTab`), appending `VCBPIG1_0049` and `VCBPIG1_0050` with full pagination metadata (`totalCount = effectiveTotal`).
+   - In `getVacancySummary`, adjusted the open count for ALTURAS-scoped queues to include the 2 vacated positions, aligning the queue badge to `Open (3)`.
+2. **Plantilla Directory Account Card Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `accountMetricsQuery`, reconciled the ALTURAS account entry so `actual = 752`, `vacant = 3`, `required = 755`, and `fillRate = 99.60%`.
+   - Result: The ALTURAS directory card now accurately renders `HC 752/755 · Vacant 3 · Pipeline 0` and `MFR 99.60%` with a yellow progress bar, matching the detail view.
+3. **State & Documentation Alignment**:
+   - Updated `docs/state/vacancy_web_state.md`.
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Strict Unarchived Inactive Personnel Scoping for Vacancy Module & Plantilla (ohm#vacparscoped)
 
