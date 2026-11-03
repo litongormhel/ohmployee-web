@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+
+**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### What Changed
+1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
+   - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
+   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Referenced canonical user roles resolution:
+     - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
+     - System helper function `public.i_have_full_access()`.
+     - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
+2. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
+
+### Files Modified / Created
+- `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors (4 pre-existing unrelated warnings in `VacancyTable.tsx`)
+
+---
+
 ## Execution Report — Bugfix: MFR Donut Threshold Colors (ohm#mfrcolor)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
@@ -3663,6 +3690,33 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+
+**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### What Changed
+1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
+   - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
+   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Referenced canonical user roles resolution:
+     - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
+     - System helper function `public.i_have_full_access()`.
+     - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
+2. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
+
+### Files Modified / Created
+- `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors (4 pre-existing unrelated warnings in `VacancyTable.tsx`)
+
+---
+
 ## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
@@ -3994,6 +4048,33 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+
+**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### What Changed
+1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
+   - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
+   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Referenced canonical user roles resolution:
+     - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
+     - System helper function `public.i_have_full_access()`.
+     - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
+2. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
+
+### Files Modified / Created
+- `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors (4 pre-existing unrelated warnings in `VacancyTable.tsx`)
+
+---
 
 ## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
 
@@ -4350,6 +4431,33 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Super Admin RLS Policies for Plantilla and Employee Records (ohm#sarlsfix)
+
+**Status: COMPLETE ON MAIN; WEB REPO MIGRATION WRITTEN; GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### What Changed
+1. **Migration `20262606000078_super_admin_plantilla_employee_rls.sql`**:
+   - Added permissive row-level security (RLS) policies `plantilla_super_admin_select` on `public.plantilla` and `employees_super_admin_select` on `public.employees`.
+   - Ensures any authenticated user with the "Super Admin" role has full, unrestricted SELECT access to read employee and plantilla records across all statuses and lifecycle states.
+   - Referenced canonical user roles resolution:
+     - Direct lookup against `public.users_profile` joined with `public.roles` (`r.role_name = 'Super Admin'` or `r.role_level >= 100`, plus legacy fallback `up.role = 'Super Admin'`).
+     - System helper function `public.i_have_full_access()`.
+     - Custom Supabase JWT claims fallback (`auth.jwt() -> 'app_metadata' ->> 'role'` and `user_metadata`).
+2. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 3 (Scoped RBAC Visibility & RLS Boundaries).
+
+### Files Modified / Created
+- `supabase/migrations/20262606000078_super_admin_plantilla_employee_rls.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Verification
+- `npx tsc --noEmit`: 0 errors
+- `npm run lint`: 0 errors (4 pre-existing unrelated warnings in `VacancyTable.tsx`)
+
+---
 
 ## Execution Report — Bugfix: Unrounded MFR Percentage Formula & Precision Donut Formatting (ohm#mfrprec)
 
