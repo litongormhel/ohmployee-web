@@ -48,6 +48,11 @@ export function Sidebar({
   const mainModules = visibleModules.filter((m) => MAIN_MODULE_KEYS.has(m.key));
   const secondaryModules = visibleModules.filter((m) => !MAIN_MODULE_KEYS.has(m.key));
 
+  const hasCencom = secondaryModules.some((m) => m.key === "cencom");
+  const fallbackSecondaryKey = secondaryModules.some((m) => m.key === "dashboard")
+    ? "dashboard"
+    : secondaryModules[0]?.key;
+
   const logout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -105,6 +110,10 @@ export function Sidebar({
               ? "Team directory"
               : title;
 
+          const shouldRenderOhmniHere =
+            (hasCencom && key === "cencom") ||
+            (!hasCencom && key === fallbackSecondaryKey);
+
           return (
             <React.Fragment key={href}>
               <Link
@@ -130,8 +139,8 @@ export function Sidebar({
                 )}
               </Link>
 
-              {/* OHMni AI Co-Pilot: Positioned directly below CENCOM */}
-              {key === "cencom" && (
+              {/* OHMni AI Co-Pilot: Positioned below CENCOM (or fallback below Dashboard/first module for non-CENCOM roles) */}
+              {shouldRenderOhmniHere && (
                 <button
                   type="button"
                   onClick={onOpenOhmni}

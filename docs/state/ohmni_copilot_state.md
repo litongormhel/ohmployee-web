@@ -3,8 +3,8 @@
 **Module:** OHMni (AI Operations & Data Self-Service Co-Pilot)  
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
-**Navigation Placement:** Directly below CENCOM in `Sidebar.tsx`, Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut  
-**Last Updated:** 2026-11-01 (`ohm#0hmn1fix2`)
+**Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
+**Last Updated:** 2026-11-03 (`ohm#alt754fix`)
 
 ---
 
@@ -56,7 +56,7 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 
 ## 3. Backend Read-Only Tools
 
-1. **`getPlantillaSummary`:** Queries `plantilla_slots` table for total, filled, vacant slots, and fill rate percentage with up to 15 sample rows. Supports `groupFilter` and intelligent group pattern matching (`"Group 1"` / `"G1"` -> `%G1%` in `legacy_vcode` and `group_id` foreign key lookup via `groups` table). Wrapped in 8-second timeout safeguard.
-2. **`getOpenVacancies`:** Returns vacant/open slots from `plantilla_slots` with position title, branch, and status. Supports `groupFilter` and group alias pattern matching. Wrapped in 8-second timeout safeguard.
+1. **`getPlantillaSummary`:** Queries `plantilla_slots` table for total, filled, vacant slots, and fill rate percentage with sample rows. Supports `groupFilter` and `accountFilter` with intelligent account resolution via `accounts` table (`resolveAccountFilter`). When an account (such as `"Alturas"`) is queried, accesses `v_account_allocation_kpi` and `v_plantilla_safe` to accurately return the active employee count (e.g. 754), open vacancies (1), and 100% fill rate. Wrapped in 8-second timeout safeguard.
+2. **`getOpenVacancies`:** Returns vacant/open slots from `plantilla_slots` with position title, branch, and status. Supports `groupFilter` and `accountFilter` (filtering by resolved `account_id`). Wrapped in 8-second timeout safeguard.
 3. **`getEmplocQueueStatus`:** Queries `hr_emploc` table for pending or active movement items, `hr_status`, and employee details, wrapped in 8-second timeout safeguard.
 4. **`getHeadcountRequests`:** Queries `headcount_requests` table for requisition status, urgency, branch, requested role, and creation dates, wrapped in 8-second timeout safeguard.

@@ -631,12 +631,16 @@ function PlantillaPageContent() {
   // -------------------------------------------------------------------------
 
   const summaryQuery = useQuery({
-    queryKey: ["plantilla", "summary", { search, accountId, effectiveSelectorGroupId }],
+    queryKey: [
+      "plantilla",
+      "summary",
+      { search, accountId, effectiveSelectorGroupId: accountId ? undefined : effectiveSelectorGroupId },
+    ],
     queryFn: () =>
       getPlantillaSummary({
         search: accountId ? (search || undefined) : undefined,
         accountId: accountId || undefined,
-        groupId: effectiveSelectorGroupId || undefined,
+        groupId: accountId ? undefined : (effectiveSelectorGroupId || undefined),
       }),
     enabled: !!currentUser && !!accountId && isAccountAuthorized,
   });
@@ -1158,6 +1162,8 @@ function PlantillaPageContent() {
     setAssignmentType("");
     setStatusTab("active");
     setPage(1);
+    setSelectorGroupId("");
+    setAccountSearch("");
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("accountId", accId);

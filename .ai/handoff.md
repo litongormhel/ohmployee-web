@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Missing 754 Active Employees in Alturas Plantilla & OHMni Lookup, Show OHMni to All Roles (ohm#alt754fix)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**
+
+### What Changed
+1. **Resolved Plantilla Account Detail 0-Employee Mismatch (`src/app/(dashboard)/plantilla/page.tsx` & `src/lib/queries/plantilla.ts`)**:
+   - Identified root cause of 0 active employees for ALTURAS (`accountId=3126b9a8-29a6-4917-8b49-82e937d7cf88`):
+     - **Group Filter Leakage**: In `src/app/(dashboard)/plantilla/page.tsx`, `selectorGroupId` (e.g. Group 1) was leaking into the Account Detail query parameters as `effectiveSelectorGroupId`, causing `get_web_plantilla_summary` RPC to query ALTURAS inside Group 1 instead of its true group (Group 2), returning 0. Fixed by updating `handleSelectAccount` to reset `selectorGroupId` and `accountSearch`, and decoupling `effectiveSelectorGroupId` in `summaryQuery` whenever `accountId` is active (`groupId: accountId ? undefined : (effectiveSelectorGroupId || undefined)`).
+     - **KPI & Allocation Sync**: In `src/lib/queries/plantilla.ts` (`getPlantillaSummary`), added priority querying against `v_account_allocation_kpi` when `params.accountId` is provided. This synchronizes the Account Detail KPI header (`actual_hc: 754`, `slot_vacant_hc: 1`, `required_hc: 755`, `pipeline_count: 0`) directly with the canonical figures shown on the Plantilla Directory card.
+     - **Safe View Roster Fallback**: In `src/lib/queries/plantilla.ts` (`listWebPlantillaEmployees`), added a fallback query against `v_plantilla_safe` where `account_id = params.accountId` if the web RPC returns 0 rows, normalizing rows with `normalizeEmployeeListRow`.
+2. **Upgraded OHMni Account Resolution & Live Roster Querying (`src/app/api/ohmni/route.ts`)**:
+   - Added `accountFilter` to `getPlantillaSummary` and `getOpenVacancies` tool schemas and route parameters.
+   - Implemented `resolveAccountFilter(supabase, rawFilter)` to resolve user natural language account references (e.g. `"Alturas"`) against `accounts` (`id, account_name, group_id`).
+   - In `executePlantillaSummary`, when `resolvedAccount` is detected, queries `v_account_allocation_kpi` and `v_plantilla_safe` to accurately return account metrics (`activeEmployees: 754`, `openVacancies: 1`, `totalHeadcount: 755`, `fillRatePercent: 100%`) alongside sample employee records and open slots.
+   - In `executeOpenVacancies`, filters by `account_id` when resolved.
+   - In `handleDeterministicFallback`, added account-aware Taglish conversational response: `"Sa kasalukuyan, ang **ALTURAS** ay may **754 active employees** mula sa kabuuang **755 required headcount**, na may **1 open vacancy** (100% fulfillment rate)."`.
+   - Updated `SYSTEM_PROMPT` Rule 3 to guide Gemini to use `accountFilter` when queries mention billing accounts or clients.
+3. **Ensured 100% OHMni Visibility Across All Authenticated Roles (`src/components/Sidebar.tsx`)**:
+   - Previously, the OHMni Co-Pilot button in `Sidebar.tsx` was only rendered inside the `.map()` loop when `key === "cencom"`. Roles that lacked CENCOM in their module permissions (such as HRCO, Encoder, HR Personnel, and Recruitment Team) had OHMni completely hidden.
+   - Refactored `Sidebar.tsx` to detect `hasCencom = secondaryModules.some((m) => m.key === "cencom")` and `fallbackSecondaryKey = secondaryModules.some((m) => m.key === "dashboard") ? "dashboard" : secondaryModules[0]?.key`.
+   - Rendered OHMni Co-Pilot below CENCOM if the user's role has CENCOM, or below Dashboard/primary navigation for non-CENCOM roles.
+
+### Files Modified
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/plantilla.ts`
+- `src/app/api/ohmni/route.ts`
+- `src/components/Sidebar.tsx`
+- `docs/state/plantilla_web_state.md`
+- `docs/state/ohmni_copilot_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Mechanical Gate Verification
+- `npx tsc --noEmit`: Clean (0 errors).
+- `npm run lint`: Clean (0 errors, 9 existing warnings in untouched files).
+- `npm run build`: Clean (20 of 20 routes compiled and static pages generated successfully).
+
+---
+
 ## Execution Report — Bugfix: query.limit Postgrest Unwrapping Fix, Multi-Model Quota Failover & Zero-Quota Fallback (ohm#0hmn1fix2)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `npm run build`: 20/20 ROUTES)**

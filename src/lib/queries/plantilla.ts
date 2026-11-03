@@ -1012,6 +1012,36 @@ export async function getPlantillaSummary(
   params: PlantillaSummaryParams = {},
 ): Promise<PlantillaSummary> {
   const supabase = createClient();
+
+  // If scoped to a specific account, prioritize v_account_allocation_kpi to ensure
+  // 100% parity with the Directory card metrics (e.g. ALTURAS 754/755, 1 vacant).
+  if (params.accountId) {
+    try {
+      const { data: kpiRows, error: kpiError } = await supabase
+        .from("v_account_allocation_kpi")
+        .select("actual_hc, slot_vacant_hc, pipeline_count, required_hc")
+        .eq("account_id", params.accountId)
+        .maybeSingle();
+
+      if (!kpiError && kpiRows) {
+        const actual = Number(kpiRows.actual_hc ?? 0);
+        const vacant = Math.round(Number(kpiRows.slot_vacant_hc ?? 0));
+        const hrProcess = Number(kpiRows.pipeline_count ?? 0);
+        const required = Number(kpiRows.required_hc ?? (actual + vacant));
+        if (actual > 0 || required > 0) {
+          return {
+            required,
+            actual,
+            hrProcess,
+            vacant,
+          };
+        }
+      }
+    } catch {
+      // Fall through to RPC if view query fails
+    }
+  }
+
   const { data, error } = await supabase.rpc("get_web_plantilla_summary", {
     p_search: params.search?.trim() || null,
     p_account_id: params.accountId ?? null,
@@ -1106,6 +1136,84 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
       }
     } catch {
       // Graceful fallback: continue with rows already fetched
+    }
+  }
+
+  // Fallback: If RPC returned 0 rows but an accountId was provided, query v_plantilla_safe directly
+  // to prevent missing roster personnel due to RPC chunking or safe view scoping edge-cases.
+  if (rows.length === 0 && params.accountId) {
+    try {
+      let safeQuery = supabase
+        .from("v_plantilla_safe")
+        .select(`
+          id,
+          employee_name,
+          employee_no,
+          account_id,
+          account,
+          store_id,
+          store_name,
+          province_id,
+          position,
+          status,
+          deployment_type,
+          roving_assignment_id,
+          roving_store_count,
+          vcode,
+          hr_emploc_id,
+          date_hired,
+          tenure_months,
+          age,
+          has_penalty,
+          separation_status,
+          date_of_separation,
+          created_at,
+          deactivated_at,
+          deactivation_reason
+        `)
+        .eq("account_id", params.accountId);
+
+      if (params.search?.trim()) {
+        const q = params.search.trim();
+        safeQuery = safeQuery.or(
+          `employee_name.ilike.%${q}%,employee_no.ilike.%${q}%,store_name.ilike.%${q}%`
+        );
+      }
+
+      if (params.status) {
+        safeQuery = safeQuery.eq("status", params.status);
+      }
+
+      const { data: safeRows, error: safeError } = await safeQuery
+        .order("employee_name", { ascending: params.sortDir !== "desc" })
+        .limit(pageSize);
+
+      if (!safeError && Array.isArray(safeRows) && safeRows.length > 0) {
+        rows = safeRows
+          .map((row) => {
+            const s = (row.status || "").toLowerCase().trim();
+            const sep = (row.separation_status || "").toLowerCase().trim();
+            const is_active =
+              !row.deactivated_at &&
+              !row.date_of_separation &&
+              !["inactive", "deactivated", "resigned", "separated", "endo", "terminated"].includes(s) &&
+              !["inactive", "deactivated", "resigned", "separated", "endo", "terminated"].includes(sep);
+            const is_inactive = !is_active;
+
+            return normalizeEmployeeListRow({
+              ...row,
+              plantilla_id: row.id,
+              position_title: row.position,
+              account_name: row.account,
+              is_active,
+              is_inactive,
+              total_count: safeRows.length,
+            });
+          })
+          .filter((row): row is PlantillaEmployeeListItem => row !== null);
+      }
+    } catch {
+      // Graceful fallback
     }
   }
 

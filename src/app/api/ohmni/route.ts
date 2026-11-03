@@ -45,7 +45,7 @@ const SYSTEM_PROMPT = `You are OHMni, the official AI Operations & Data Self-Ser
 Enterprise Rules:
 1. Language & Tone: Enterprise-concise, zero conversational filler. Respond naturally in English or Taglish matching the user's prompt.
 2. Direct Answers: When the user asks a simple count or lookup question (e.g., 'what is the total vacant for group 1?' or 'how many pending requests?'), reply with a direct 1-to-2 sentence answer followed by a simple bullet list if there are matching items. Do not dump unnecessary metrics or raw debug tables.
-3. Group & Branch Lookups: When searching for groups (e.g., 'Group 1', 'G1'), use groupFilter or branchFilter with 'G1' or 'group 1' to match legacy slot codes and group assignments.
+3. Group, Branch, and Account Lookups: When searching for groups (e.g., 'Group 1', 'G1'), use groupFilter. When searching for billing accounts or clients (e.g., 'Alturas'), use accountFilter or branchFilter. getPlantillaSummary will automatically resolve the account and provide active employee counts, total headcount, open vacancies, and fill rate from live canonical data.
 4. Formatting Rules: Keep outputs compact and readable. Use short bullet lists and monospace badges for Slot Codes/IDs (\`SLOT-001\`). Always generate a final conversational text response after tool calls finish so the user gets a direct, friendly answer.
 5. Security & Scope: You operate strictly under the requesting user's RBAC and Supabase Row-Level Security (RLS) scope. If a query returns no data due to scope or non-existence, state that clearly without guessing.
 
@@ -112,17 +112,55 @@ async function resolveGroupFilter(
 }
 
 /**
+ * Resolves account filter against public.accounts to fetch account ID and canonical name.
+ */
+async function resolveAccountFilter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  rawFilter: string
+): Promise<{
+  id: string;
+  accountName: string;
+  groupId: string | null;
+} | null> {
+  const trimmed = rawFilter.trim();
+  if (!trimmed) return null;
+
+  try {
+    const { data: accounts } = await supabase
+      .from("accounts")
+      .select("id, account_name, group_id")
+      .ilike("account_name", `%${trimmed}%`)
+      .limit(1);
+
+    if (accounts && accounts.length > 0) {
+      return {
+        id: accounts[0].id,
+        accountName: accounts[0].account_name,
+        groupId: accounts[0].group_id,
+      };
+    }
+  } catch {
+    // non-blocking fallback
+  }
+
+  return null;
+}
+
+/**
  * 1. Plantilla Summary Executor
  */
 async function executePlantillaSummary(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   {
+    accountFilter,
     branchFilter,
     groupFilter,
     slotCode,
     statusFilter,
   }: {
+    accountFilter?: string;
     branchFilter?: string;
     groupFilter?: string;
     slotCode?: string;
@@ -136,6 +174,79 @@ async function executePlantillaSummary(
         (/group\s*\d+/i.test(branchFilter) || /\bg\d+\b/i.test(branchFilter));
       const effectiveGroup =
         groupFilter || (looksLikeGroup ? branchFilter : undefined);
+
+      // Check if query targets an account (e.g. "Alturas")
+      const candidateAccount =
+        accountFilter || (!looksLikeGroup && branchFilter ? branchFilter : undefined);
+      const resolvedAccount = candidateAccount
+        ? await resolveAccountFilter(supabase, candidateAccount)
+        : null;
+
+      // If an account is resolved, query canonical account allocation KPI + safe roster count
+      if (resolvedAccount) {
+        let actualHc = 0;
+        let vacantHc = 0;
+        let pipelineCount = 0;
+        let requiredHc = 0;
+        let fillRatePercent = "100%";
+
+        const { data: kpiData } = await supabase
+          .from("v_account_allocation_kpi")
+          .select("actual_hc, slot_vacant_hc, pipeline_count, required_hc, mfr")
+          .eq("account_id", resolvedAccount.id)
+          .maybeSingle();
+
+        if (kpiData) {
+          actualHc = Number(kpiData.actual_hc ?? 0);
+          vacantHc = Math.round(Number(kpiData.slot_vacant_hc ?? 0));
+          pipelineCount = Number(kpiData.pipeline_count ?? 0);
+          requiredHc = Number(kpiData.required_hc ?? (actualHc + vacantHc));
+          fillRatePercent = `${requiredHc > 0 ? Math.round((actualHc / requiredHc) * 100) : 0}%`;
+        } else {
+          // Fallback to counting v_plantilla_safe rows directly
+          const { count: vpsCount } = await supabase
+            .from("v_plantilla_safe")
+            .select("*", { count: "exact", head: true })
+            .eq("account_id", resolvedAccount.id);
+          actualHc = vpsCount ?? 0;
+          requiredHc = actualHc;
+        }
+
+        // Fetch sample active employees for conversational detail
+        const { data: sampleEmps } = await supabase
+          .from("v_plantilla_safe")
+          .select("id, employee_name, employee_no, position, store_name, status")
+          .eq("account_id", resolvedAccount.id)
+          .order("employee_name", { ascending: true })
+          .limit(10);
+
+        // Fetch matching plantilla_slots (if any exist)
+        const { data: slotRows } = await supabase
+          .from("plantilla_slots")
+          .select("id, legacy_vcode, position, slot_status, employment_type")
+          .eq("account_id", resolvedAccount.id)
+          .limit(10);
+
+        return {
+          accountName: resolvedAccount.accountName,
+          totalHeadcount: requiredHc,
+          activeEmployees: actualHc,
+          openVacancies: vacantHc,
+          pipelineCount,
+          fillRatePercent,
+          sampleEmployees: (sampleEmps || []).map((e: Record<string, unknown>) => ({
+            name: String(e.employee_name ?? ""),
+            employeeNo: String(e.employee_no ?? ""),
+            position: String(e.position || "Unspecified"),
+            store: String(e.store_name ?? ""),
+          })),
+          slots: (slotRows || []).map((s: Record<string, unknown>) => ({
+            slotCode: String(s.legacy_vcode || s.id || ""),
+            position: String(s.position || "Unspecified"),
+            status: String(s.slot_status || "Unknown"),
+          })),
+        };
+      }
 
       const resolvedGroup = effectiveGroup
         ? await resolveGroupFilter(supabase, effectiveGroup)
@@ -219,11 +330,13 @@ async function executeOpenVacancies(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   {
+    accountFilter,
     branchFilter,
     groupFilter,
     positionTitle,
     limit = 20,
   }: {
+    accountFilter?: string;
     branchFilter?: string;
     groupFilter?: string;
     positionTitle?: string;
@@ -237,6 +350,12 @@ async function executeOpenVacancies(
         (/group\s*\d+/i.test(branchFilter) || /\bg\d+\b/i.test(branchFilter));
       const effectiveGroup =
         groupFilter || (looksLikeGroup ? branchFilter : undefined);
+
+      const candidateAccount =
+        accountFilter || (!looksLikeGroup && branchFilter ? branchFilter : undefined);
+      const resolvedAccount = candidateAccount
+        ? await resolveAccountFilter(supabase, candidateAccount)
+        : null;
 
       const resolvedGroup = effectiveGroup
         ? await resolveGroupFilter(supabase, effectiveGroup)
@@ -253,7 +372,9 @@ async function executeOpenVacancies(
         query = query.ilike("position", `%${positionTitle}%`);
       }
 
-      if (resolvedGroup) {
+      if (resolvedAccount) {
+        query = query.eq("account_id", resolvedAccount.id);
+      } else if (resolvedGroup) {
         const groupOrParts: string[] = [];
         if (resolvedGroup.groupCodePattern) {
           groupOrParts.push(`legacy_vcode.ilike.%${resolvedGroup.groupCodePattern}%`);
@@ -263,9 +384,7 @@ async function executeOpenVacancies(
           groupOrParts.push(`group_id.eq.${gid}`);
         }
         query = query.or(groupOrParts.join(","));
-      }
-
-      if (branchFilter && !looksLikeGroup) {
+      } else if (branchFilter && !looksLikeGroup) {
         query = query.or(
           `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
         );
@@ -490,6 +609,57 @@ async function handleDeterministicFallback(
     );
   }
 
+  // 1.5. Live Data: Account-level Active Employee / Headcount Inquiry (e.g. "ilan ang active employee ng alturas?", "active employee alturas")
+  if (
+    p.includes("active") ||
+    p.includes("employee") ||
+    p.includes("headcount") ||
+    p.includes("ilan") ||
+    p.includes("alturas")
+  ) {
+    const cleanWords = p
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(
+        (w) =>
+          w.length >= 4 &&
+          ![
+            "ilan",
+            "mga",
+            "active",
+            "employee",
+            "employees",
+            "headcount",
+            "meron",
+            "tayo",
+            "para",
+            "what",
+            "many",
+            "total",
+            "kailan",
+            "saan",
+            "sino",
+          ].includes(w)
+      );
+
+    for (const word of cleanWords) {
+      const resolved = await resolveAccountFilter(supabase, word);
+      if (resolved) {
+        const res = await executePlantillaSummary(supabase, {
+          accountFilter: resolved.accountName,
+        });
+
+        if ("accountName" in res && res.accountName) {
+          const act = res.activeEmployees ?? 0;
+          const req = res.totalHeadcount ?? act;
+          const vac = res.openVacancies ?? 0;
+          const rate = res.fillRatePercent ?? "100%";
+          return `Sa kasalukuyan, ang **${res.accountName}** ay may **${act} active employees** mula sa kabuuang **${req} required headcount**, na may **${vac} open vacancy** (${rate} fulfillment rate).`;
+        }
+      }
+    }
+  }
+
   // 2. Live Data: Open Vacancies / Vacant
   if (p.includes("vacan") || (p.includes("open") && p.includes("slot"))) {
     const groupMatch = p.match(/group\s*0*(\d+)/i) || p.match(/\bg0*(\d+)\b/i);
@@ -663,8 +833,12 @@ export async function POST(req: Request) {
     const tools = {
       getPlantillaSummary: tool({
         description:
-          "Queries plantilla_slots to get summary counts (total, filled, vacant, fill rate %) and up to 15 matching slots.",
+          "Queries accounts and plantilla_slots to get summary counts (active employees, total headcount, filled, vacant, fill rate %) and matching slots/employees.",
         inputSchema: z.object({
+          accountFilter: z
+            .string()
+            .optional()
+            .describe("Filter by billing account or client name (e.g. 'Alturas')"),
           branchFilter: z
             .string()
             .optional()
@@ -689,6 +863,10 @@ export async function POST(req: Request) {
         description:
           "Returns open or vacant slots from plantilla_slots grouped or listed with slot code, position, and status.",
         inputSchema: z.object({
+          accountFilter: z
+            .string()
+            .optional()
+            .describe("Filter by billing account or client name (e.g. 'Alturas')"),
           branchFilter: z.string().optional().describe("Filter by branch/store"),
           groupFilter: z
             .string()

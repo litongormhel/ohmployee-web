@@ -866,6 +866,16 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Updated `public.fn_set_slot_status` to clear `closed_at = NULL`, `closed_by = NULL`, and `closure_reason_code = NULL` whenever `p_new_status = 'open'` (leaving `qa_archive_batch_id` intact because `fn_qa_rollback_operational_data_reset` and `fn_rollback_archive_batch` read it).
     - Updated `public.fn_sync_vacancy_slot_open_pipeline` to enforce `AND closed_at IS NULL` on both the `'open'` release loop and the `'pipeline'` claim loop, and added deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC` on the `'open' -> 'pipeline'` claim loop.
 
+- **Plantilla Account Detail Active Employee & KPI Parity Fix (`ohm#alt754fix` — 2026-11-03)**:
+  - **Account Detail Group Isolation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - Cleared `selectorGroupId` and `accountSearch` upon selecting an account in `handleSelectAccount` to prevent directory group filter state leaking into account view.
+    - Decoupled `effectiveSelectorGroupId` in `summaryQuery` whenever `accountId` is present (`groupId: accountId ? undefined : (effectiveSelectorGroupId || undefined)`), fixing 0-return queries for accounts residing in groups other than the directory's default group selector.
+  - **KPI Synchronization with `v_account_allocation_kpi` (`src/lib/queries/plantilla.ts`)**:
+    - Updated `getPlantillaSummary` to query `v_account_allocation_kpi` when `params.accountId` is supplied, guaranteeing that the Account Detail view KPI cards (`actual_hc: 754`, `slot_vacant_hc: 1`, `required_hc: 755`, `pipeline_count: 0`) 100% match the metrics shown on the Plantilla Directory cards.
+  - **Roster Hydration Fallback (`src/lib/queries/plantilla.ts`)**:
+    - Updated `listWebPlantillaEmployees` to query `v_plantilla_safe` where `account_id = params.accountId` if the primary web RPC returns 0 rows, normalizing personnel rows via `normalizeEmployeeListRow`.
+
+
 
 
 
