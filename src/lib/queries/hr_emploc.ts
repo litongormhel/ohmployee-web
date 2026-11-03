@@ -314,16 +314,17 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
   );
 
   const hrcoRemarks = asString(
+    caps.ops_remarks ??
+    caps.opsRemarks ??
+    row.ops_remarks ??
+    row.opsRemarks ??
     caps.remarks ??
     row.remarks ??
     row.hrco_remarks ??
     row.hrcoRemarks ??
-    row.ops_remarks ??
-    row.opsRemarks ??
     row.notes ??
     caps.hrco_remarks ??
     caps.notes ??
-    caps.ops_remarks ??
     caps.hr_remarks
   );
 
@@ -625,6 +626,7 @@ export type ReviewCorrectionParams = {
   decision: "approve" | "return";
   resolvedKeys?: string[] | null;
   remarks?: string | null;
+  employeeNo?: string | null;
 };
 
 export type ReviewCorrectionResult = {
@@ -645,6 +647,7 @@ export async function reviewWebHrEmplocCorrection(
     p_decision: params.decision,
     p_resolved_keys: params.resolvedKeys ?? null,
     p_remarks: params.remarks ?? null,
+    p_employee_no: params.employeeNo?.trim() || null,
   });
 
   if (error) {
@@ -850,10 +853,11 @@ export async function submitHrcoCorrection(params: {
 }
 
 /**
- * Approves a record currently in Review, resolving deficiencies and moving it to Complete/Ready.
+ * Approves a record currently in Review, assigning Employee Number, resolving deficiencies, and moving it to Complete/Ready.
  */
 export async function approveHrEmplocReview(params: {
   hrEmplocId: string;
+  employeeNo: string;
   resolvedKeys?: string[];
   remarks?: string;
 }): Promise<void> {
@@ -864,17 +868,11 @@ export async function approveHrEmplocReview(params: {
     p_decision: "approve",
     p_resolved_keys: params.resolvedKeys ?? [],
     p_remarks: params.remarks?.trim() || null,
+    p_employee_no: params.employeeNo.trim(),
   });
 
   if (error) {
-    // Fallback: try approve_correction_request if review_web_hr_emploc_correction errored on resolution keys
-    const { error: approveError } = await supabase.rpc("approve_correction_request", {
-      p_correction_request_id: params.hrEmplocId,
-      p_approved_by: null,
-    });
-    if (approveError) {
-      throwHrEmplocError(error);
-    }
+    throwHrEmplocError(error);
   }
 }
 

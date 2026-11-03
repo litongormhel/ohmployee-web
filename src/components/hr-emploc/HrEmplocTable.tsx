@@ -369,7 +369,9 @@ export function HrEmplocTable({
                           >
                             &ldquo;{row.remarks}&rdquo;
                           </span>
-                        ) : null}
+                        ) : (
+                          <span className="text-table-text-muted text-xs">--</span>
+                        )}
                       </td>
                     )}
 

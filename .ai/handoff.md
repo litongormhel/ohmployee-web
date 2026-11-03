@@ -1,6 +1,66 @@
 # AI Handoff
 
-## Execution Report — Plantilla: Remove "Import Plantilla" Button and Stray Import Component Mounts (Fix Broken Inline Render) (ohm#9b5t3c7e)
+## Execution Report — HR Emploc (Web): Emploc ID on Approve Correction + Remarks Column Blank in Review Tab (ohm#7k4w9xqn)
+
+**Status: COMPLETE ON MAIN; STAGING MIGRATION APPLIED & VERIFIED (14/14 SMOKE TESTS PASSED); MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS; `next build`: 0 ERRORS)**
+
+### Summary of Implementation
+- **Task 1 — Emploc ID on Approve Correction Modal (`ReviewApproveModal.tsx`)**:
+  - Added required Emploc ID (Employee Number) input field with autofocus, formatted hint placeholder (`e.g. 2024-0012, EMP1024, 102948`), and validation.
+  - Implemented client-side format validation regex `/^[A-Za-z0-9._-]+$/` (alphanumeric, hyphens, underscores, dots).
+  - Added asynchronous ecosystem uniqueness pre-check via `checkEcosystemEmployeeIdUnique(trimmed, row.id)` before submitting, displaying clear duplicate alerts indicating existing occupant/module.
+  - Mapped friendly inline errors for database exception codes:
+    - `23505` → Duplicate Emploc ID across `hr_emploc` or `plantilla`.
+    - `22023` → Empty or whitespace Emploc ID.
+    - `P0001` → Pending deletion lock or unresolved deficiency keys.
+    - `42501` → RBAC permission denied.
+  - Submit button disabled when Emploc ID is empty, format is invalid, uniqueness check fails, or submission is in-flight.
+- **Task 2 — Remarks Column in Review Tab Table (`list_web_hr_emplocs`, `hr_emploc.ts`, `HrEmplocTable.tsx`)**:
+  - Updated `list_web_hr_emplocs` database function to project `'ops_remarks', h.ops_remarks` inside `row_capabilities`.
+  - Updated `normalizeListRow` in `src/lib/queries/hr_emploc.ts` so `caps.ops_remarks` / `row.ops_remarks` has top precedence in `hrcoRemarks` / `remarks` fallback order.
+  - In `HrEmplocTable.tsx`, Review tab Remarks column renders the Ops correction remark (e.g., `"dalwdaklwdklaw"`) with quotation styling and tooltip; renders `--` placeholder when null.
+- **Backend Architecture & RBAC Preservation (`20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql`)**:
+  - Created private core function `_assign_hr_emploc_number_core(p_id uuid, p_employee_no text)`: SECURITY DEFINER, search_path=public, EXECUTE revoked from PUBLIC, anon, and authenticated. Encapsulates full validation (empty check `22023`, not found/archived `P0002`, pending deletion `P0001`, active `hr_emploc` & `plantilla` uniqueness `23505`) and sets `employee_no`, `emploc_no`, `hr_emploc_no`, `updated_at`, `status = 'Ready for Plantilla'`, `hr_status = 'Complete'`, logs audit event, and timeline entry.
+  - Re-implemented `review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys jsonb, p_remarks text DEFAULT NULL, p_employee_no text DEFAULT NULL)`:
+    - Retained live role gate `i_am_hr_dept() OR i_have_full_access()`, guaranteeing Head Admin (level 90), Super Admin (level 100), and HR Personnel (level 25) can approve; Encoders and Ops remain blocked (`42501`).
+    - On `approve`: calls `_assign_hr_emploc_number_core(p_hr_emploc_id, p_employee_no)` atomically. All deficiencies resolved check enforced.
+    - On `return`: `p_employee_no` is optional/null; returns to `For Correction` with residual keys.
+    - Dropped old 4-argument signature `(uuid, text, jsonb, text)` to prevent overload drift; verified exactly 1 live overload exists.
+  - Preserved `assign_hr_emploc_number` function untouched for mobile and web Pending tab flows.
+  - *Future refactor note*: In a future dedicated database cleanup prompt, `assign_hr_emploc_number` can be refactored to delegate its internal assignment logic to `_assign_hr_emploc_number_core` under its existing role gate.
+- **Staging Database Verification & Smoke Test**:
+  - Applied migration `20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` to staging database (`qqiiznmqxfoamqytjica`).
+  - Executed rollback-wrapped smoke test script covering all happy paths, edge cases, role gates, timeline entries, list projection, and regression checks.
+  - **Raw Staging Smoke Test Results (14/14 PASS)**:
+    ```json
+    [
+      {"test_name": "Guard: Unresolved keys", "status": "PASS", "detail": "Rejected with P0001"},
+      {"test_name": "Guard: Empty employee_no", "status": "PASS", "detail": "Rejected with 22023"},
+      {"test_name": "Guard: Duplicate hr_emploc", "status": "PASS", "detail": "Rejected with 23505"},
+      {"test_name": "Guard: Duplicate plantilla", "status": "PASS", "detail": "Rejected with 23505"},
+      {"test_name": "Guard: Pending deletion", "status": "PASS", "detail": "Rejected with P0001"},
+      {"test_name": "Guard: Not found", "status": "PASS", "detail": "Rejected with 42501"},
+      {"test_name": "Role Gate: Encoder blocked", "status": "PASS", "detail": "Rejected with 42501"},
+      {"test_name": "Role Gate: HRCO blocked", "status": "PASS", "detail": "Rejected with 42501"},
+      {"test_name": "Happy Path (Head Admin)", "status": "PASS", "detail": "Approved, employee_no=EMP-HA-2026-999, status=Ready for Plantilla, hr_status=Complete, slot_status=hr_processing"},
+      {"test_name": "Audit Trail Timeline", "status": "PASS", "detail": "Head Admin UAT assigned Employee ID EMP-HA-2026-999 to Smoke Test Candidate."},
+      {"test_name": "Return Path (HR Personnel)", "status": "PASS", "detail": "Record moved to For Correction with remarks"},
+      {"test_name": "list_web_hr_emplocs ops_remarks", "status": "PASS", "detail": "row_capabilities.ops_remarks = dalwdaklwdklaw"},
+      {"test_name": "Overload Check", "status": "PASS", "detail": "Exactly 1 overload exists"},
+      {"test_name": "Regression: assign_hr_emploc_number", "status": "PASS", "detail": "Pending assignment unchanged"}
+    ]
+    ```
+
+### Files Modified / Created
+- `supabase/migrations/20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` (Created migration file)
+- `src/lib/queries/hr_emploc.ts` (Updated `ReviewCorrectionParams`, `reviewWebHrEmplocCorrection`, `approveHrEmplocReview`, and `normalizeListRow` fallback order)
+- `src/components/hr-emploc/ReviewApproveModal.tsx` (Added required Emploc ID input, validation, uniqueness check, friendly errors)
+- `src/components/hr-emploc/HrEmplocTable.tsx` (Render placeholder `--` when Remarks is blank)
+- `docs/state/hr_emploc_web_state.md` (Updated state documentation for Review Approve and Remarks)
+- `.ai/briefing.md` (Updated Last Completed Tasks)
+- `.ai/handoff.md` (Updated handoff entry)
+
+---
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
 

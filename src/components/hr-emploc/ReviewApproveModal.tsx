@@ -11,6 +11,7 @@ import {
 import { Modal } from "@/components/shared/Modal";
 import {
   approveHrEmplocReview,
+  checkEcosystemEmployeeIdUnique,
   type HrEmplocListItem,
 } from "@/lib/queries/hr_emploc";
 
@@ -27,7 +28,9 @@ export function ReviewApproveModal({
   row,
   onSuccess,
 }: ReviewApproveModalProps) {
+  const [employeeNo, setEmployeeNo] = useState(row?.employeeNo ?? "");
   const [remarks, setRemarks] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,31 +38,79 @@ export function ReviewApproveModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsApproving(true);
     setError(null);
+
+    const trimmedEmployeeNo = employeeNo.trim();
+    if (!trimmedEmployeeNo) {
+      setError("Emploc ID (Employee Number) is required to approve and move to Ready.");
+      return;
+    }
+
+    // Alphanumeric with optional hyphen, underscore, or dot
+    const alphanumericPattern = /^[A-Za-z0-9._-]+$/;
+    if (!alphanumericPattern.test(trimmedEmployeeNo)) {
+      setError("Employee ID must contain only alphanumeric characters, hyphens, underscores, or periods.");
+      return;
+    }
+
+    // Ecosystem Uniqueness Pre-check
+    setIsValidating(true);
+    try {
+      const check = await checkEcosystemEmployeeIdUnique(trimmedEmployeeNo, row.id);
+      if (!check.isUnique) {
+        setError(
+          check.message ||
+            `Employee ID "${trimmedEmployeeNo}" is already assigned to ${check.existingName || "Existing Employee"} (${check.existingModule || "System"}). Duplicate Emploc numbers are not allowed.`
+        );
+        setIsValidating(false);
+        return;
+      }
+    } catch {
+      // Allow proceeding to backend transaction check
+    } finally {
+      setIsValidating(false);
+    }
+
+    setIsApproving(true);
 
     try {
       const resolvedKeys = row.deficiencyIssues?.map((i) => i.code) ?? [];
       await approveHrEmplocReview({
         hrEmplocId: row.id,
+        employeeNo: trimmedEmployeeNo,
         resolvedKeys,
         remarks: remarks.trim() || undefined,
       });
 
-      onSuccess(`Correction for "${row.applicantName}" approved and moved to Ready.`);
+      onSuccess(`Correction for "${row.applicantName}" approved with Emploc ID ${trimmedEmployeeNo} and moved to Ready.`);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to approve correction review.");
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      if (rawMsg.includes("23505") || rawMsg.toLowerCase().includes("already exists") || rawMsg.toLowerCase().includes("duplicate")) {
+        setError(`Employee ID "${trimmedEmployeeNo}" is already assigned to another active record or plantilla occupant.`);
+      } else if (rawMsg.includes("22023") || rawMsg.toLowerCase().includes("empty") || rawMsg.toLowerCase().includes("whitespace")) {
+        setError("Employee ID cannot be empty or whitespace.");
+      } else if (rawMsg.includes("P0001") || rawMsg.toLowerCase().includes("pending deletion")) {
+        setError("Cannot approve: record has a pending deletion request or unresolved corrections.");
+      } else if (rawMsg.includes("42501") || rawMsg.toLowerCase().includes("forbidden") || rawMsg.toLowerCase().includes("permission denied")) {
+        setError("Permission denied: only HR Personnel or Administrators can approve corrections.");
+      } else {
+        setError(rawMsg || "Failed to approve correction review.");
+      }
     } finally {
       setIsApproving(false);
     }
   };
 
   const handleClose = () => {
+    setEmployeeNo(row?.employeeNo ?? "");
     setRemarks("");
     setError(null);
     onClose();
   };
+
+  const isSubmitting = isApproving || isValidating;
+  const isDirty = Boolean(remarks.trim() || employeeNo.trim() !== (row.employeeNo ?? ""));
 
   return (
     <Modal
@@ -68,8 +119,8 @@ export function ReviewApproveModal({
       title="Approve Correction"
       maxWidthClass="max-w-md"
       disableBackdropClick={true}
-      isSubmitting={isApproving}
-      isDirty={Boolean(remarks.trim())}
+      isSubmitting={isSubmitting}
+      isDirty={isDirty}
     >
       <div className="space-y-4">
         <div className="flex items-center gap-2.5 pb-2 border-b border-border-subtle">
@@ -81,7 +132,7 @@ export function ReviewApproveModal({
               Compliance Verification
             </h4>
             <p className="text-xs text-text-muted mt-0.5">
-              Confirm compliance and advance to Ready.
+              Assign Emploc ID, confirm compliance, and advance to Ready.
             </p>
           </div>
         </div>
@@ -103,7 +154,7 @@ export function ReviewApproveModal({
           )}
           {row.notes && (
             <div className="border-t border-border-subtle pt-2 flex flex-col gap-0.5">
-              <span className="text-text-muted font-medium">HRCO Remarks:</span>
+              <span className="text-text-muted font-medium">Ops Correction Remarks:</span>
               <span className="text-text-primary italic">&ldquo;{row.notes}&rdquo;</span>
             </div>
           )}
@@ -119,6 +170,29 @@ export function ReviewApproveModal({
 
           <div className="space-y-1.5">
             <label
+              htmlFor="emploc-id"
+              className="text-xs font-semibold text-text-primary"
+            >
+              Emploc ID (Employee Number) <span className="text-[var(--danger-text)]">*</span>
+            </label>
+            <input
+              id="emploc-id"
+              type="text"
+              required
+              value={employeeNo}
+              onChange={(e) => {
+                setEmployeeNo(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="e.g. 2024-0012, EMP1024, 102948"
+              className="w-full rounded-md border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary disabled:opacity-50"
+              disabled={isSubmitting}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label
               htmlFor="approval-remarks"
               className="text-xs font-semibold text-text-primary"
             >
@@ -131,7 +205,7 @@ export function ReviewApproveModal({
               onChange={(e) => setRemarks(e.target.value)}
               placeholder="Optional confirmation note or audit remarks..."
               className="w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-              disabled={isApproving}
+              disabled={isSubmitting}
             />
           </div>
 
@@ -139,20 +213,20 @@ export function ReviewApproveModal({
             <button
               type="button"
               onClick={handleClose}
-              disabled={isApproving}
+              disabled={isSubmitting}
               className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isApproving}
+              disabled={isSubmitting || !employeeNo.trim()}
               className="inline-flex items-center gap-1.5 rounded-md bg-brand-button px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover transition cursor-pointer disabled:opacity-50"
             >
-              {isApproving ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Approving...</span>
+                  <span>{isValidating ? "Validating ID..." : "Approving..."}</span>
                 </>
               ) : (
                 <>
