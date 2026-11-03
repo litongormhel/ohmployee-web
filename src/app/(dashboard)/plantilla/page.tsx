@@ -934,10 +934,12 @@ function PlantillaPageContent() {
     return map;
   }, [activeEmployees]);
 
-  // Tab 3: Vacancy Rows (exclude any slot already active/occupied in Plantilla)
+  // Tab 3: Vacancy Rows (exclude any slot already active/occupied in Plantilla + include vacated slots from inactive personnel)
   const allVacancies = useMemo(() => {
     const raw = vacancyListQuery.data?.data ?? [];
-    return raw.filter((v) => {
+    const seenVcodes = new Set<string>();
+
+    const filtered = raw.filter((v) => {
       const vk = (v.vcode || v.cgCode || "").trim().toUpperCase();
       const isFilled =
         v.vacancyStatus?.toLowerCase() === "filled" ||
@@ -947,6 +949,7 @@ function PlantillaPageContent() {
 
       // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
       if (v.hcTotal != null && v.hcFilled != null && v.hcFilled < v.hcTotal) {
+        if (vk) seenVcodes.add(vk);
         return true;
       }
 
@@ -956,9 +959,71 @@ function PlantillaPageContent() {
         const required = v.hcTotal ?? v.headcount ?? 1;
         if (activeCount >= required && required > 0) return false;
       }
+      if (vk) seenVcodes.add(vk);
       return true;
     });
-  }, [vacancyListQuery.data?.data, activeOccupiedVcodes]);
+
+    // Synthesize open vacancy slots for inactive employees whose VCodes are not occupied by active personnel
+    const synthesized: VacancyListItem[] = [];
+    inactiveEmployees.forEach((emp) => {
+      const vk = (emp.vcode || "").trim().toUpperCase();
+      const isOccupiedByActive = vk ? activeOccupiedVcodes.has(vk) : false;
+      const alreadyInVacancies = vk ? seenVcodes.has(vk) : false;
+
+      if (!isOccupiedByActive && !alreadyInVacancies) {
+        if (vk) seenVcodes.add(vk);
+        synthesized.push({
+          id: `vac-inactive-${emp.id}`,
+          vcode: emp.vcode || `VC-${emp.id.substring(0, 8).toUpperCase()}`,
+          cgCode: null,
+          accountId: accountId || null,
+          accountName: emp.accountName || selectedAccount?.name || null,
+          groupId: null,
+          groupName: null,
+          storeId: null,
+          storeName: emp.primaryStoreName || null,
+          storeLocation: null,
+          position_title: emp.positionTitle || "Motorized Collector",
+          department: null,
+          employmentType: emp.assignmentType || "Stationary",
+          vacancyStatus: "Open",
+          pipelineStatus: "Vacancy - Open",
+          derivedStatus: "Open",
+          activeApplicantCount: 0,
+          confirmedOnboardCount: 0,
+          hasRecentHire: false,
+          hasPendingClosure: false,
+          closureRequestStatus: null,
+          vacantDate: emp.separationDate || new Date().toISOString().substring(0, 10),
+          agingDays: null,
+          agingBucket: null,
+          targetFillDate: null,
+          urgencyLevel: "Standard",
+          hrcoName: "—",
+          applicantName: null,
+          hasPenalty: false,
+          penaltyExposure: 0,
+          penaltyAmount: null,
+          headcount: 1,
+          hcFilled: 0,
+          hcTotal: 1,
+          hcDisplay: "0/1",
+          lastActivityAt: null,
+          stageBadge: "Vacancy - Open",
+          rowCapabilities: {
+            canViewDetail: true,
+            canApprove: false,
+            canUpdateApplicantStatus: true,
+            canRequestClosure: true,
+            raw: {},
+          },
+          totalCount: 1,
+        });
+      }
+    });
+
+    return [...filtered, ...synthesized];
+  }, [vacancyListQuery.data?.data, activeOccupiedVcodes, inactiveEmployees, accountId, selectedAccount?.name]);
 
   const vacantStoreIds = useMemo(() => {
     const set = new Set<string>();

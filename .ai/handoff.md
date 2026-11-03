@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Headcount Math**: `v_account_allocation_kpi` computes $\text{required\_hc} = \text{filled\_hc} + \text{pipeline\_count} + \text{slot\_vacant\_hc}$. For ALTURAS, `filled_hc = 754` (from `employee_store_allocations.is_active = true`), `pipeline_count = 0`, and `slot_vacant_hc = 1`, resulting in the canonical target capacity of **755**.
+- **Discrepancy**: The roster actually contained **752 active personnel** and **2 inactive personnel** (`isInactiveRecord` matching Resigned/AWOL/Terminated/Separated).
+- **Missing Slots**: The 2 inactive employees had not been converted into open vacancies in `public.vacancies`, their slots in `public.plantilla_slots` remained occupied, and their `employee_store_allocations` remained active. Consequently, the UI showed 752 active + 1 open vacancy = 753 (2 slots missing from both the Vacancy Module and the Plantilla Vacancy tab).
+
+### What Changed
+1. **Migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql`**:
+   - Deactivates `employee_store_allocations` (`is_active = false`, `effective_end = date_of_separation`) for inactive/separated personnel across all accounts so `filled_hc` accurately reflects active personnel ($752$).
+   - Reopens existing vacancies or inserts new Open vacancies in `public.vacancies` (`status = 'Open'`, `is_archived = false`, `archived_at = NULL`, `has_pending_closure = false`) for all inactive personnel whose VCodes are not occupied by active personnel.
+   - Updates `public.plantilla_slots` (`slot_status = 'open'`, `current_occupant_plantilla_id = NULL`) so `slot_vacant_non_roving` counts them as vacant ($1 + 2 = 3$).
+   - Permanently updates `public.plantilla_update_separation` to de-allocate ESA, call `fn_sync_slot_to_open`, and enforce `status = 'Open'` in `public.vacancies` on all future separations.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Enhanced `allVacancies` to guarantee that vacated slots from inactive employees (`inactiveEmployees`) whose VCodes are not held by active personnel are synthesized as open vacancies if not already present in the vacancy query dataset.
+   - Result:
+     - Sub-tab Vacancy badge shows **3** (`1 + 2 = 3`).
+     - Open Vacancies KPI card shows **3**.
+     - Active Deployed card shows **752**.
+     - Overall MFR donut shows **752 active / 755 required** ($99.60\%$).
+     - Exact capacity parity: $752 \text{ active} + 3 \text{ vacancies} = 755 \text{ target capacity}$.
+3. **Vacancy Query Parity Fallback (`src/lib/queries/vacancy.ts`)**:
+   - In `listVacancies`, added an account-level reconciliation check querying inactive plantilla personnel to ensure any unlinked/unreopened inactive slots are merged into the returned vacancy list for that account.
+4. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 2 (Tab 3: Vacancy).
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `supabase/migrations/20262606000079_reopen_vacancies_for_inactive_plantilla.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -3699,6 +3738,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Headcount Math**: `v_account_allocation_kpi` computes $\text{required\_hc} = \text{filled\_hc} + \text{pipeline\_count} + \text{slot\_vacant\_hc}$. For ALTURAS, `filled_hc = 754` (from `employee_store_allocations.is_active = true`), `pipeline_count = 0`, and `slot_vacant_hc = 1`, resulting in the canonical target capacity of **755**.
+- **Discrepancy**: The roster actually contained **752 active personnel** and **2 inactive personnel** (`isInactiveRecord` matching Resigned/AWOL/Terminated/Separated).
+- **Missing Slots**: The 2 inactive employees had not been converted into open vacancies in `public.vacancies`, their slots in `public.plantilla_slots` remained occupied, and their `employee_store_allocations` remained active. Consequently, the UI showed 752 active + 1 open vacancy = 753 (2 slots missing from both the Vacancy Module and the Plantilla Vacancy tab).
+
+### What Changed
+1. **Migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql`**:
+   - Deactivates `employee_store_allocations` (`is_active = false`, `effective_end = date_of_separation`) for inactive/separated personnel across all accounts so `filled_hc` accurately reflects active personnel ($752$).
+   - Reopens existing vacancies or inserts new Open vacancies in `public.vacancies` (`status = 'Open'`, `is_archived = false`, `archived_at = NULL`, `has_pending_closure = false`) for all inactive personnel whose VCodes are not occupied by active personnel.
+   - Updates `public.plantilla_slots` (`slot_status = 'open'`, `current_occupant_plantilla_id = NULL`) so `slot_vacant_non_roving` counts them as vacant ($1 + 2 = 3$).
+   - Permanently updates `public.plantilla_update_separation` to de-allocate ESA, call `fn_sync_slot_to_open`, and enforce `status = 'Open'` in `public.vacancies` on all future separations.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Enhanced `allVacancies` to guarantee that vacated slots from inactive employees (`inactiveEmployees`) whose VCodes are not held by active personnel are synthesized as open vacancies if not already present in the vacancy query dataset.
+   - Result:
+     - Sub-tab Vacancy badge shows **3** (`1 + 2 = 3`).
+     - Open Vacancies KPI card shows **3**.
+     - Active Deployed card shows **752**.
+     - Overall MFR donut shows **752 active / 755 required** ($99.60\%$).
+     - Exact capacity parity: $752 \text{ active} + 3 \text{ vacancies} = 755 \text{ target capacity}$.
+3. **Vacancy Query Parity Fallback (`src/lib/queries/vacancy.ts`)**:
+   - In `listVacancies`, added an account-level reconciliation check querying inactive plantilla personnel to ensure any unlinked/unreopened inactive slots are merged into the returned vacancy list for that account.
+4. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 2 (Tab 3: Vacancy).
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `supabase/migrations/20262606000079_reopen_vacancies_for_inactive_plantilla.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4066,6 +4144,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Headcount Math**: `v_account_allocation_kpi` computes $\text{required\_hc} = \text{filled\_hc} + \text{pipeline\_count} + \text{slot\_vacant\_hc}$. For ALTURAS, `filled_hc = 754` (from `employee_store_allocations.is_active = true`), `pipeline_count = 0`, and `slot_vacant_hc = 1`, resulting in the canonical target capacity of **755**.
+- **Discrepancy**: The roster actually contained **752 active personnel** and **2 inactive personnel** (`isInactiveRecord` matching Resigned/AWOL/Terminated/Separated).
+- **Missing Slots**: The 2 inactive employees had not been converted into open vacancies in `public.vacancies`, their slots in `public.plantilla_slots` remained occupied, and their `employee_store_allocations` remained active. Consequently, the UI showed 752 active + 1 open vacancy = 753 (2 slots missing from both the Vacancy Module and the Plantilla Vacancy tab).
+
+### What Changed
+1. **Migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql`**:
+   - Deactivates `employee_store_allocations` (`is_active = false`, `effective_end = date_of_separation`) for inactive/separated personnel across all accounts so `filled_hc` accurately reflects active personnel ($752$).
+   - Reopens existing vacancies or inserts new Open vacancies in `public.vacancies` (`status = 'Open'`, `is_archived = false`, `archived_at = NULL`, `has_pending_closure = false`) for all inactive personnel whose VCodes are not occupied by active personnel.
+   - Updates `public.plantilla_slots` (`slot_status = 'open'`, `current_occupant_plantilla_id = NULL`) so `slot_vacant_non_roving` counts them as vacant ($1 + 2 = 3$).
+   - Permanently updates `public.plantilla_update_separation` to de-allocate ESA, call `fn_sync_slot_to_open`, and enforce `status = 'Open'` in `public.vacancies` on all future separations.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Enhanced `allVacancies` to guarantee that vacated slots from inactive employees (`inactiveEmployees`) whose VCodes are not held by active personnel are synthesized as open vacancies if not already present in the vacancy query dataset.
+   - Result:
+     - Sub-tab Vacancy badge shows **3** (`1 + 2 = 3`).
+     - Open Vacancies KPI card shows **3**.
+     - Active Deployed card shows **752**.
+     - Overall MFR donut shows **752 active / 755 required** ($99.60\%$).
+     - Exact capacity parity: $752 \text{ active} + 3 \text{ vacancies} = 755 \text{ target capacity}$.
+3. **Vacancy Query Parity Fallback (`src/lib/queries/vacancy.ts`)**:
+   - In `listVacancies`, added an account-level reconciliation check querying inactive plantilla personnel to ensure any unlinked/unreopened inactive slots are merged into the returned vacancy list for that account.
+4. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 2 (Tab 3: Vacancy).
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `supabase/migrations/20262606000079_reopen_vacancies_for_inactive_plantilla.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
@@ -4458,6 +4575,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Bugfix: Inactive Personnel Slot Reopening & Headcount Parity (ohm#vacparreconcile)
+
+**Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
+
+### Root Cause Diagnosed
+- **Headcount Math**: `v_account_allocation_kpi` computes $\text{required\_hc} = \text{filled\_hc} + \text{pipeline\_count} + \text{slot\_vacant\_hc}$. For ALTURAS, `filled_hc = 754` (from `employee_store_allocations.is_active = true`), `pipeline_count = 0`, and `slot_vacant_hc = 1`, resulting in the canonical target capacity of **755**.
+- **Discrepancy**: The roster actually contained **752 active personnel** and **2 inactive personnel** (`isInactiveRecord` matching Resigned/AWOL/Terminated/Separated).
+- **Missing Slots**: The 2 inactive employees had not been converted into open vacancies in `public.vacancies`, their slots in `public.plantilla_slots` remained occupied, and their `employee_store_allocations` remained active. Consequently, the UI showed 752 active + 1 open vacancy = 753 (2 slots missing from both the Vacancy Module and the Plantilla Vacancy tab).
+
+### What Changed
+1. **Migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql`**:
+   - Deactivates `employee_store_allocations` (`is_active = false`, `effective_end = date_of_separation`) for inactive/separated personnel across all accounts so `filled_hc` accurately reflects active personnel ($752$).
+   - Reopens existing vacancies or inserts new Open vacancies in `public.vacancies` (`status = 'Open'`, `is_archived = false`, `archived_at = NULL`, `has_pending_closure = false`) for all inactive personnel whose VCodes are not occupied by active personnel.
+   - Updates `public.plantilla_slots` (`slot_status = 'open'`, `current_occupant_plantilla_id = NULL`) so `slot_vacant_non_roving` counts them as vacant ($1 + 2 = 3$).
+   - Permanently updates `public.plantilla_update_separation` to de-allocate ESA, call `fn_sync_slot_to_open`, and enforce `status = 'Open'` in `public.vacancies` on all future separations.
+2. **Plantilla UI Vacancy Sub-Tab & KPI Alignment (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Enhanced `allVacancies` to guarantee that vacated slots from inactive employees (`inactiveEmployees`) whose VCodes are not held by active personnel are synthesized as open vacancies if not already present in the vacancy query dataset.
+   - Result:
+     - Sub-tab Vacancy badge shows **3** (`1 + 2 = 3`).
+     - Open Vacancies KPI card shows **3**.
+     - Active Deployed card shows **752**.
+     - Overall MFR donut shows **752 active / 755 required** ($99.60\%$).
+     - Exact capacity parity: $752 \text{ active} + 3 \text{ vacancies} = 755 \text{ target capacity}$.
+3. **Vacancy Query Parity Fallback (`src/lib/queries/vacancy.ts`)**:
+   - In `listVacancies`, added an account-level reconciliation check querying inactive plantilla personnel to ensure any unlinked/unreopened inactive slots are merged into the returned vacancy list for that account.
+4. **State & Documentation Alignment**:
+   - Updated `docs/state/plantilla_web_state.md` under Section 2 (Tab 3: Vacancy).
+   - Updated `.ai/briefing.md` and `.ai/handoff.md`.
+
+### Files Modified / Created
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy.ts`
+- `supabase/migrations/20262606000079_reopen_vacancies_for_inactive_plantilla.sql`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 
 ## Execution Report — Bugfix: Super Admin RLS Policies & Plantilla Detail Direct Query Fallback (ohm#sarlsfix)
 
