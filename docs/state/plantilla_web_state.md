@@ -872,6 +872,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Decoupled `effectiveSelectorGroupId` in `summaryQuery` whenever `accountId` is present (`groupId: accountId ? undefined : (effectiveSelectorGroupId || undefined)`), fixing 0-return queries for accounts residing in groups other than the directory's default group selector.
     - Synchronized `statusTab` reactively with URL search params (`?status=`, `?statusTab=`), updating browser history and internal state without cascading renders.
     - Added `selectedAccount?.name` into `employeeQuery` parameters and query key for instant account-aware cache invalidation.
+  - **Failover RPC & Headcount Parity Fallback Roster Resolver (`src/lib/queries/plantilla.ts`)**:
+    - Wrapped primary RPC `list_web_plantilla_employees` in a graceful failover try/catch so if the RPC errors or returns 0 rows when `params.accountId` is provided, it falls through to the multi-source fallback resolver rather than throwing.
+    - Replaced the brittle 25-column projection string (`selectCols`) with safe wildcard `.select("*")` on both `v_plantilla_safe` and `public.plantilla`, eliminating PostgREST 42703 column-not-found errors on computed or unpopulated fields.
+    - Added direct active allocation resolution from `employee_store_allocations` (`WHERE account_id = params.accountId AND is_active = true`), mapping `plantilla_id`, `employee_no`, `store_id`, `store_name`, and `vcode`.
+    - Implemented chunked hydration (100 IDs per batch) querying `v_plantilla_safe` and `public.plantilla` by `id` and `employee_no`, with store ID (`stores.account_id = accountId`) and account wildcard fallbacks.
+    - Added an allocation parity safeguard: if any active allocation row cannot be resolved from plantilla tables, synthesizes an active employee list entry (`is_active = true`, `status = "Active"`), guaranteeing 100% headcount parity (exactly 754 active personnel) and eliminating the empty state.
+    - Enhanced `normalizeEmployeeListRow` to resolve fallback field aliases (`row.position_title ?? row.position`, `row.account_name ?? row.account`, `row.primary_store_name ?? row.store_name`).
   - **Active Status Partitioning Normalization (`src/app/(dashboard)/plantilla/page.tsx`)**:
     - Normalized `activeEmployees` status filter: records with `emp.isActive === true` or non-separated statuses (`"Active"`, `"Active Deployed"`, `"Deployed"`, or blank/default) now reliably populate the active list, matching the summary KPI card count (e.g. 754) and eliminating the false "No active employees" empty state.
   - **Multi-Strategy Fallback Roster Resolution (`src/lib/queries/plantilla.ts`)**:

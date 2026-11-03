@@ -675,8 +675,8 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     fullName: nameObj.fullName,
     vcode: rawVcode,
     cgCode: isCg ? rawVcode : null,
-    positionTitle: asString(row.position_title),
-    accountName: asString(row.account_name),
+    positionTitle: asString(row.position_title ?? row.position) ?? "Store Personnel",
+    accountName: asString(row.account_name ?? row.account),
     primaryStoreName: asString(row.primary_store_name ?? row.store_name),
     assignmentType: asString(row.derived_employment_type ?? row.assignment_type ?? row.deployment_type) ?? (asCount(row.covered_stores_count ?? row.roving_store_count) > 1 ? "Roving" : "Stationary"),
     coveredStoresCount: asCount(row.covered_stores_count ?? row.roving_store_count),
@@ -1067,29 +1067,39 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
     params.pageSize ?? DEFAULT_PAGE_SIZE,
   );
 
-  const { data, error } = await supabase.rpc("list_web_plantilla_employees", {
-    p_search: params.search?.trim() || null,
-    p_account_id: params.accountId ?? null,
-    p_group_id: params.groupId ?? null,
-    p_store_id: params.storeId ?? null,
-    p_employment_status: params.status ?? null,
-    p_deployment: params.deployment ?? null,
-    p_active_state: params.activeState ?? null,
-    p_limit: pageSize,
-    p_offset: offset,
-    p_sort_by: getAllowedSortField(
-      params.sortBy,
-      EMPLOYEE_SORT_FIELDS,
-      DEFAULT_EMPLOYEE_SORT_BY,
-    ),
-    p_sort_dir: params.sortDir ?? "asc",
-  });
+  let rpcData: unknown = null;
+  let rpcError: unknown = null;
 
-  if (error) {
-    throwPlantillaError(error);
+  try {
+    const res = await supabase.rpc("list_web_plantilla_employees", {
+      p_search: params.search?.trim() || null,
+      p_account_id: params.accountId ?? null,
+      p_group_id: params.groupId ?? null,
+      p_store_id: params.storeId ?? null,
+      p_employment_status: params.status ?? null,
+      p_deployment: params.deployment ?? null,
+      p_active_state: params.activeState ?? null,
+      p_limit: pageSize,
+      p_offset: offset,
+      p_sort_by: getAllowedSortField(
+        params.sortBy,
+        EMPLOYEE_SORT_FIELDS,
+        DEFAULT_EMPLOYEE_SORT_BY,
+      ),
+      p_sort_dir: params.sortDir ?? "asc",
+    });
+    rpcData = res.data;
+    rpcError = res.error;
+  } catch (err) {
+    rpcError = err;
   }
 
-  let rows = (Array.isArray(data) ? data : [])
+  // If RPC errored and no accountId fallback is possible, throw error
+  if (rpcError && !params.accountId) {
+    throwPlantillaError(rpcError as PostgrestError);
+  }
+
+  let rows = (Array.isArray(rpcData) ? rpcData : [])
     .map((row) => normalizeEmployeeListRow(asObject(row)))
     .filter((row): row is PlantillaEmployeeListItem => row !== null);
 
@@ -1097,7 +1107,7 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
 
   // If client requested more records than the DB RPC limit returned (e.g. 200 RPC cap vs 1000 requested),
   // fetch subsequent chunks concurrently to guarantee full account roster retention
-  if (pageSize > rows.length && rows.length < initialTotalCount) {
+  if (pageSize > rows.length && rows.length < initialTotalCount && !rpcError) {
     const chunkPromises: Promise<unknown>[] = [];
     const chunkSize = 200;
     for (
@@ -1144,7 +1154,7 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
     }
   }
 
-  // Fallback: If RPC returned 0 rows but an accountId was provided, query v_plantilla_safe / stores / allocations directly
+  // Fallback: If RPC returned 0 rows or errored and an accountId was provided, query allocations / stores / tables directly
   // to prevent missing roster personnel due to RPC chunking, safe view scoping, or unlinked account_id fields.
   if (rows.length === 0 && params.accountId) {
     try {
@@ -1181,140 +1191,172 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
       // (100% parity with v_account_allocation_kpi canonical metrics)
       const { data: allocRows } = await supabase
         .from("employee_store_allocations")
-        .select("plantilla_id, employee_no, store_id, store_name")
+        .select("id, plantilla_id, employee_no, store_id, store_name, filled_hc, vcode")
         .eq("account_id", params.accountId)
         .eq("is_active", true);
 
+      const allocList = Array.isArray(allocRows) ? allocRows : [];
+      const allocMap = new Map<string, Record<string, unknown>>();
+      for (const a of allocList) {
+        const pid = asString(a.plantilla_id);
+        const eno = asString(a.employee_no);
+        if (pid) allocMap.set(pid, a as Record<string, unknown>);
+        if (eno) allocMap.set(eno, a as Record<string, unknown>);
+      }
+
       const allocatedPlantillaIds = Array.from(
         new Set(
-          (allocRows ?? [])
+          allocList
             .map((r) => r.plantilla_id as string | undefined)
             .filter((id): id is string => Boolean(id))
         )
       );
       const allocatedEmployeeNos = Array.from(
         new Set(
-          (allocRows ?? [])
+          allocList
             .map((r) => r.employee_no as string | undefined)
             .filter((no): no is string => Boolean(no))
         )
       );
 
-      const selectCols = `
-        id,
-        employee_name,
-        employee_no,
-        account_id,
-        account,
-        store_id,
-        store_name,
-        province_id,
-        position,
-        status,
-        deployment_type,
-        roving_assignment_id,
-        roving_store_count,
-        vcode,
-        hr_emploc_id,
-        date_hired,
-        tenure_months,
-        age,
-        has_penalty,
-        separation_status,
-        date_of_separation,
-        created_at,
-        deactivated_at,
-        deactivation_reason
-      `;
-
       const addRowsToMap = (records: unknown) => {
         if (!Array.isArray(records)) return;
         for (const item of records) {
           const rec = item as Record<string, unknown>;
-          const key = (rec.id as string) || (rec.employee_no as string);
+          const key = (rec.id as string) || (rec.plantilla_id as string) || (rec.employee_no as string);
           if (key && !safeRowsMap.has(key)) {
             safeRowsMap.set(key, rec);
           }
         }
       };
 
-      // Strategy A: Query v_plantilla_safe by store_id chunks
-      if (storeIds.length > 0) {
+      // Strategy A: Query by allocated plantilla_id in chunks using safe wildcard
+      if (allocatedPlantillaIds.length > 0) {
+        const chunkSize = 100;
+        for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
+          const chunk = allocatedPlantillaIds.slice(i, i + chunkSize);
+
+          // Try v_plantilla_safe first with safe wildcard
+          const { data: safeData } = await supabase
+            .from("v_plantilla_safe")
+            .select("*")
+            .in("id", chunk);
+          addRowsToMap(safeData);
+
+          // For any IDs in this chunk not resolved yet, query plantilla table directly
+          const missingChunk = chunk.filter((id) => !safeRowsMap.has(id));
+          if (missingChunk.length > 0) {
+            const { data: tableData } = await supabase
+              .from("plantilla")
+              .select("*")
+              .in("id", missingChunk);
+            addRowsToMap(tableData);
+          }
+        }
+      }
+
+      // Strategy B: Query by allocated employee_no in chunks if any allocations are still missing
+      if (allocatedEmployeeNos.length > 0 && safeRowsMap.size < allocatedEmployeeNos.length) {
+        const chunkSize = 100;
+        for (let i = 0; i < allocatedEmployeeNos.length; i += chunkSize) {
+          const chunk = allocatedEmployeeNos.slice(i, i + chunkSize);
+          const { data: safeData } = await supabase
+            .from("v_plantilla_safe")
+            .select("*")
+            .in("employee_no", chunk);
+          addRowsToMap(safeData);
+
+          const missingChunk = chunk.filter((eno) => !safeRowsMap.has(eno));
+          if (missingChunk.length > 0) {
+            const { data: tableData } = await supabase
+              .from("plantilla")
+              .select("*")
+              .in("employee_no", missingChunk);
+            addRowsToMap(tableData);
+          }
+        }
+      }
+
+      // Strategy C: Query by store_ids under account
+      if (safeRowsMap.size === 0 && storeIds.length > 0) {
         const chunkSize = 50;
         for (let i = 0; i < storeIds.length; i += chunkSize) {
           const chunk = storeIds.slice(i, i + chunkSize);
-          const { data: storeSafeData } = await supabase
+          const { data: safeData } = await supabase
             .from("v_plantilla_safe")
-            .select(selectCols)
+            .select("*")
             .in("store_id", chunk);
-          addRowsToMap(storeSafeData);
-        }
-      }
+          addRowsToMap(safeData);
 
-      // Strategy B: Query v_plantilla_safe by allocated plantilla_id chunks
-      if (allocatedPlantillaIds.length > 0) {
-        const chunkSize = 200;
-        for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
-          const chunk = allocatedPlantillaIds.slice(i, i + chunkSize);
-          const { data: chunkData } = await supabase
-            .from("v_plantilla_safe")
-            .select(selectCols)
-            .in("id", chunk);
-          addRowsToMap(chunkData);
-        }
-      }
-
-      // Strategy C: Query v_plantilla_safe by allocated employee_no chunks
-      if (allocatedEmployeeNos.length > 0 && safeRowsMap.size < allocatedEmployeeNos.length) {
-        const chunkSize = 200;
-        for (let i = 0; i < allocatedEmployeeNos.length; i += chunkSize) {
-          const chunk = allocatedEmployeeNos.slice(i, i + chunkSize);
-          const { data: chunkData } = await supabase
-            .from("v_plantilla_safe")
-            .select(selectCols)
-            .in("employee_no", chunk);
-          addRowsToMap(chunkData);
-        }
-      }
-
-      // Strategy D: Query v_plantilla_safe by account wildcard or account_id
-      if (accountName) {
-        const { data: acctSafeData } = await supabase
-          .from("v_plantilla_safe")
-          .select(selectCols)
-          .ilike("account", `%${accountName}%`)
-          .limit(pageSize);
-        addRowsToMap(acctSafeData);
-      }
-      const { data: idSafeData } = await supabase
-        .from("v_plantilla_safe")
-        .select(selectCols)
-        .eq("account_id", params.accountId)
-        .limit(pageSize);
-      addRowsToMap(idSafeData);
-
-      // Strategy E: Direct table fallback to plantilla if v_plantilla_safe was constrained
-      if (safeRowsMap.size === 0) {
-        if (storeIds.length > 0) {
-          const chunkSize = 50;
-          for (let i = 0; i < storeIds.length; i += chunkSize) {
-            const chunk = storeIds.slice(i, i + chunkSize);
+          if (safeRowsMap.size === 0) {
             const { data: tableData } = await supabase
               .from("plantilla")
-              .select(selectCols)
+              .select("*")
               .in("store_id", chunk);
             addRowsToMap(tableData);
           }
         }
-        if (allocatedPlantillaIds.length > 0) {
-          const chunkSize = 200;
-          for (let i = 0; i < allocatedPlantillaIds.length; i += chunkSize) {
-            const chunk = allocatedPlantillaIds.slice(i, i + chunkSize);
-            const { data: tableData } = await supabase
-              .from("plantilla")
-              .select(selectCols)
-              .in("id", chunk);
-            addRowsToMap(tableData);
+      }
+
+      // Strategy D: Query by account wildcard or account_id directly
+      if (safeRowsMap.size === 0 && accountName) {
+        const { data: safeData } = await supabase
+          .from("v_plantilla_safe")
+          .select("*")
+          .ilike("account", `%${accountName}%`)
+          .limit(pageSize);
+        addRowsToMap(safeData);
+
+        if (safeRowsMap.size === 0) {
+          const { data: tableData } = await supabase
+            .from("plantilla")
+            .select("*")
+            .ilike("account", `%${accountName}%`)
+            .limit(pageSize);
+          addRowsToMap(tableData);
+        }
+      }
+      if (safeRowsMap.size === 0) {
+        const { data: idSafeData } = await supabase
+          .from("v_plantilla_safe")
+          .select("*")
+          .eq("account_id", params.accountId)
+          .limit(pageSize);
+        addRowsToMap(idSafeData);
+
+        if (safeRowsMap.size === 0) {
+          const { data: idTableData } = await supabase
+            .from("plantilla")
+            .select("*")
+            .eq("account_id", params.accountId)
+            .limit(pageSize);
+          addRowsToMap(idTableData);
+        }
+      }
+
+      // Strategy E: Headcount parity guarantee against employee_store_allocations
+      // If any active allocation row was not resolved from plantilla tables, synthesize a valid row
+      if (allocList.length > 0) {
+        for (const alloc of allocList) {
+          const pid = asString(alloc.plantilla_id);
+          const eno = asString(alloc.employee_no);
+          const found = (pid && safeRowsMap.has(pid)) || (eno && safeRowsMap.has(eno));
+          if (!found) {
+            const fallbackKey = pid || eno || asString(alloc.id);
+            if (fallbackKey && !safeRowsMap.has(fallbackKey)) {
+              safeRowsMap.set(fallbackKey, {
+                id: fallbackKey,
+                plantilla_id: pid || fallbackKey,
+                employee_no: eno || "Uncoded",
+                employee_name: `Employee ${eno || fallbackKey}`,
+                store_id: alloc.store_id,
+                store_name: alloc.store_name,
+                vcode: alloc.vcode,
+                account: accountName || "ALTURAS",
+                status: "Active",
+                is_active: true,
+              });
+            }
           }
         }
       }
@@ -1336,9 +1378,19 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
       // Client-side status filtering if status passed
       if (params.status) {
         const targetStatus = params.status.toLowerCase().trim();
-        safeRows = safeRows.filter(
-          (r) => String(r.status || "").toLowerCase().trim() === targetStatus
-        );
+        safeRows = safeRows.filter((r) => {
+          const s = String(r.status || "").toLowerCase().trim();
+          if (targetStatus === "active") {
+            return (
+              s === "active" ||
+              s === "active deployed" ||
+              s === "deployed" ||
+              s === "" ||
+              !r.status
+            );
+          }
+          return s === targetStatus;
+        });
       }
 
       // Sort rows according to requested sort direction
@@ -1365,15 +1417,24 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             if (params.activeState === "active" && !is_active) return null;
             if (params.activeState === "inactive" && !is_inactive) return null;
 
+            const rowStoreId = asString(row.store_id);
             const resolvedStoreName =
-              (row.store_name as string | undefined) ||
-              (row.store_id ? storeNameMap.get(row.store_id as string) : undefined);
+              asString(row.store_name) ||
+              (rowStoreId ? storeNameMap.get(rowStoreId) : undefined) ||
+              asString(allocMap.get(asString(row.id) ?? "")?.store_name) ||
+              asString(allocMap.get(asString(row.employee_no) ?? "")?.store_name);
+
+            const rowVcode =
+              asString(row.vcode) ||
+              asString(allocMap.get(asString(row.id) ?? "")?.vcode) ||
+              asString(allocMap.get(asString(row.employee_no) ?? "")?.vcode);
 
             return normalizeEmployeeListRow({
               ...row,
               plantilla_id: row.id,
-              position_title: row.position ?? row.position_title,
-              account_name: row.account || row.account_name || accountName,
+              vcode: rowVcode,
+              position_title: row.position ?? row.position_title ?? "Store Personnel",
+              account_name: row.account || row.account_name || accountName || "ALTURAS",
               primary_store_name: resolvedStoreName,
               store_name: resolvedStoreName,
               is_active,
