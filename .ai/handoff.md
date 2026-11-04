@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Fix HR Emploc "Approve Correction" RPC Signature Mismatch (ohm#7k2m9x4q)
+
+**Status: COMPLETE ON MAIN; STAGING ALIGNED & VERIFIED (`qqiiznmqxfoamqytjica`); PROD (`rwxelulyapjgaarlwkus`) UNTOUCHED PER DIRECTIVE; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Diagnosis & Findings
+- **Reported Error**:
+  > `Could not find the function public.review_web_hr_emploc_correction(p_decision, p_employee_no, p_hr_emploc_id, p_remarks, p_resolved_keys) in the schema cache. Perhaps you meant public.review_web_hr_emploc_correction(p_decision, p_hr_emploc_id, p_remarks, p_resolved_keys)`
+- **Root Cause (Cause a)**: Local environment `.env.local` pointed directly to Production (`rwxelulyapjgaarlwkus`), which lacks migrations `20262606000080` and `20262606000081`. Production only exposes the original 4-parameter signature from `20260609000000_web_hr_emploc_review_correction_rpc.sql` (`p_hr_emploc_id`, `p_decision`, `p_resolved_keys`, `p_remarks`).
+- **Target Desync**: Connecting localhost or agent sessions to Production violated `.ai/briefing.md` § Database Access & Modification Rule.
+- **Mobile Caller Audit**: Audited the entire mobile repository (`/Users/armanjr/Projects/OHMployee/OHMployee/`). Confirmed zero (0) callers of `review_web_hr_emploc_correction` in mobile; mobile uses `approve_correction_request` and `reject_correction_request`. `review_web_hr_emploc_correction` is strictly a web-only RPC.
+- **Production Promotion Pending**:
+  - Migration `20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql` (5 params: adds `p_employee_no`) and migration `20262606000081_hr_emploc_final_workflow_and_registry.sql` (7 params: adds `p_employee_no`, `p_confirm_reuse`, `p_reuse_reason`) were applied and verified on Staging (`qqiiznmqxfoamqytjica`) only. Both migrations remain **pending Production promotion** by Ohm.
+
+### 2. Implementation & Staging Verification
+1. **Local Environment Alignment**:
+   - Updated `.env.local` to point to Staging (`https://qqiiznmqxfoamqytjica.supabase.co`) with valid staging anon key. Production is completely disconnected from local session.
+2. **PostgREST Schema Resolution Smoke Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+   - **5-param Approve Payload (`approveHrEmplocReview`)**: Sent `{ p_hr_emploc_id, p_decision: "approve", p_resolved_keys: [], p_remarks, p_employee_no: "EMP-TEST" }`. Response: `42501 permission denied for function review_web_hr_emploc_correction` (PostgREST matched the 7-param signature with default parameters cleanly; zero schema cache missing function errors).
+   - **4-param Return Payload (`revertHrEmplocReview`)**: Sent `{ p_hr_emploc_id, p_decision: "return", p_resolved_keys: [], p_remarks }`. Response: `42501 permission denied for function review_web_hr_emploc_correction` (PostgREST matched cleanly with `p_employee_no` falling back to its `DEFAULT NULL`).
+   - Confirmed single live function definition on Staging; zero ambiguous overload errors (`PGRST203`).
+3. **Mechanical Gates**:
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+
+### 3. Files Modified
+- `.env.local` (Realigned to Staging `qqiiznmqxfoamqytjica`; gitignored)
+- `docs/state/hr_emploc_web_state.md` (Noted signature extension and pending Production promotion)
+- `.ai/briefing.md` (Updated Last Completed Tasks)
+- `.ai/handoff.md` (Prepended this handoff entry)
+
+---
+
 ## Execution Report — HR Emploc: Phase 2a DB Foundation (Registry, Shared Core, Role Gates, Queues) on STAGING Only (ohm#7k4w9xqn)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`); MIGRATION `20262606000081` APPLIED & VERIFIED (23/23 SMOKE TESTS PASSED); SCRIPT-GENERATED ROLLBACK PROVEN (MD5-VERIFIED) AND RE-APPLY CYCLE VERIFIED; WEB & MOBILE UNTOUCHED; PROD READ-ONLY; STOPPED FOR PHASE 2B (WEB) APPROVAL**
