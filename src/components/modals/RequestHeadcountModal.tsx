@@ -28,6 +28,7 @@ import {
 } from "@/lib/queries/requests";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface RequestHeadcountModalProps {
   isOpen: boolean;
@@ -1267,7 +1268,7 @@ function RequestHeadcountModalDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-text-secondary mb-1 block">
-                      Position Title *
+                      Position Title <RequiredAsterisk />
                     </label>
                     <select
                       value={selectedPositionId}
@@ -1284,7 +1285,7 @@ function RequestHeadcountModalDialog({
 
                   <div>
                     <label className="text-xs font-medium text-text-secondary mb-1 block">
-                      Request Type *
+                      Request Type <RequiredAsterisk />
                     </label>
                     <select
                       value={requestType}
@@ -1304,7 +1305,7 @@ function RequestHeadcountModalDialog({
                 <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                   <div>
                     <div className="text-xs font-medium text-text-secondary">
-                      {requestType === "HC Reduction" ? "Headcount to Reduce" : "Headcount Needed"} *
+                      {requestType === "HC Reduction" ? "Headcount to Reduce" : "Headcount Needed"} <RequiredAsterisk />
                     </div>
                     <div className="text-[11px] text-text-muted">
                       {requestType === "HC Reduction"
@@ -1359,7 +1360,7 @@ function RequestHeadcountModalDialog({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-xs font-medium text-text-secondary mb-1 block">
-                        Vacant Date *
+                        Vacant Date <RequiredAsterisk />
                       </label>
                       <input
                         type="date"
@@ -1371,7 +1372,7 @@ function RequestHeadcountModalDialog({
 
                     <div>
                       <label className="text-xs font-medium text-text-secondary mb-1 block">
-                        Urgency Tier *
+                        Urgency Tier <RequiredAsterisk />
                       </label>
                       <select
                         value={urgency}
@@ -1388,7 +1389,7 @@ function RequestHeadcountModalDialog({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-medium text-text-secondary block">
-                          Target Fill Date *
+                          Target Fill Date <RequiredAsterisk />
                         </label>
                         {isTargetDateUserOverridden && (
                           <button

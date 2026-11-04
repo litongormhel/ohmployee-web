@@ -8,6 +8,19 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Vacancy UI/UX & Data-Mapping Refinements (`ohm#vac-ui-refinements`)**:
+  - **HRCO Resolution Across All 5 Tabs**:
+    - Replaced raw table queries on `vacancies` in `pipeline`, `hired`, `closure`, `failed_backout`, and export routines with the canonical view `public.vw_vacancy_list`.
+    - Standardized `hrcoName` mapping to return `null` instead of `"—"` when unassigned, enabling `VacancyTable.tsx` to uniformly render the standard `Unassigned` badge across all 5 tabs. Added a defensive check in `VacancyTable.tsx` treating legacy `"—"` and `"-"` as unassigned.
+  - **Mark Hired / Onboard Form Lock & Deployer Select**:
+    - Locked candidate identity fields (`Last Name`, `First Name`, `Middle Name`, `Contact Number`) as read-only and visually grayed out (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`).
+    - Converted `Endorsed By Deployer` from a free-text field into a searchable combobox select backed by `useUsersList()`, filtering active users assigned to the vacancy's group/account, with fallback preservation for the original endorser.
+    - Updated callers (`page.tsx`, `VacancyDetailDrawer.tsx`, `vacancy.ts`) to propagate `groupId`, `accountId`, and `endorsedByName`.
+  - **Closure Clearance In-Flight Red/Rose Theme**:
+    - In `VacancyDetailDrawer.tsx`, restyled the Closure notice container (`bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]`), clock icon (`text-[#DC2626]`), inline `Pending` badge (`bg-white text-[#991B1B] border-[#FECACA]`), top drawer header badge (`border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`), and `Withdraw Closure Request` button (`bg-white hover:bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]`).
+  - **System-Wide Standardized Red Asterisk (`*`)**:
+    - Created `RequiredAsterisk.tsx` (`<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`) and `.required-asterisk` in `globals.css`. Standardized required asterisks across all Vacancy modals and system form modals.
+
 - **VCAG5_0056 Quota Reset 7 -> 1 via Option A (`ohm#4x7n2k9w` — Phase 11)**:
   - Addressed the D4 live-slot gap root cause identified in Phase 10: target 1 reduced all 6 open slots because delta was computed against `required_headcount = 7` ($1 - 7 = -6$).
   - Reopened slot Ord 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) via sanctioned `fn_set_slot_status('79e510b4...', 'open', 'HC_READD', 'b865eef6...')`, which brought live open slots to 7 (Ord 2–8).

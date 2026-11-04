@@ -451,7 +451,7 @@ export function VacancyTable({
 
                     {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                      {row.hrcoName ? (
+                      {row.hrcoName && row.hrcoName !== "—" && row.hrcoName !== "-" ? (
                         <div className="font-medium text-table-text">
                           {formatPersonName(formatHrcoName(row.hrcoName))}
                         </div>

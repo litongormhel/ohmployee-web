@@ -728,3 +728,12 @@ select option {
   background-color: var(--surface-card);
   color: var(--text-primary);
 }
+
+/* Global Required Field Indicator (*) */
+.required-asterisk {
+  color: #ef4444;
+  margin-left: 0.125rem;
+  font-weight: 600;
+  user-select: none;
+}
+

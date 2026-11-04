@@ -6,6 +6,7 @@ import { useUpdateApplicantProfile } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
 import { canEditApplicantProfile, isOwner } from "@/lib/rbac";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface EditApplicantTarget {
   applicantId: string;
@@ -303,7 +304,7 @@ function EditApplicantModalContent({
             {/* Last Name */}
             <div>
               <label htmlFor={lastNameId} className="block font-semibold text-text-primary mb-1">
-                Last Name <span className="text-text-muted">*</span>
+                Last Name <RequiredAsterisk />
               </label>
               <input
                 id={lastNameId}
@@ -327,7 +328,7 @@ function EditApplicantModalContent({
             {/* First Name */}
             <div>
               <label htmlFor={firstNameId} className="block font-semibold text-text-primary mb-1">
-                First Name <span className="text-text-muted">*</span>
+                First Name <RequiredAsterisk />
               </label>
               <input
                 id={firstNameId}
@@ -351,7 +352,7 @@ function EditApplicantModalContent({
             {/* Middle Name */}
             <div>
               <label htmlFor={middleNameId} className="block font-semibold text-text-primary mb-1">
-                Middle Name <span className="text-text-muted">*</span>{" "}
+                Middle Name <RequiredAsterisk />{" "}
                 <span className="text-text-muted font-normal">(enter NA if not applicable)</span>
               </label>
               <input
@@ -376,7 +377,7 @@ function EditApplicantModalContent({
             {/* Contact Number */}
             <div>
               <label htmlFor={contactNumberId} className="block font-semibold text-text-primary mb-1">
-                Contact Number (11-digit mobile) <span className="text-text-muted">*</span>
+                Contact Number (11-digit mobile) <RequiredAsterisk />
               </label>
               <input
                 id={contactNumberId}
@@ -403,7 +404,7 @@ function EditApplicantModalContent({
             {/* Comments / Reason */}
             <div>
               <label htmlFor={reasonId} className="block font-semibold text-text-primary mb-1">
-                Reason / Comments <span className="text-text-muted">*</span>
+                Reason / Comments <RequiredAsterisk />
               </label>
               <textarea
                 id={reasonId}

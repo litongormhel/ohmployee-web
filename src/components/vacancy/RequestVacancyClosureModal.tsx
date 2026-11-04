@@ -5,6 +5,7 @@ import { Archive, Loader2 } from "lucide-react";
 import { useRequestVacancyClosure } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface RequestVacancyClosureModalProps {
   isOpen: boolean;
@@ -108,7 +109,7 @@ function RequestVacancyClosureModalContent({
 
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1">
-            Closure Reason *
+            Closure Reason <RequiredAsterisk />
           </label>
           <select
             value={reason}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useReopenVacancy } from "@/lib/queries/vacancy";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface ReopenVacancyModalProps {
   isOpen: boolean;
@@ -106,7 +107,7 @@ function ReopenVacancyModalContent({
 
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1">
-            New Vacant Date *
+            New Vacant Date <RequiredAsterisk />
           </label>
           <input
             type="date"

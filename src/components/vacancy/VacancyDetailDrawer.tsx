@@ -248,6 +248,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     vcode: string;
     positionTitle?: string | null;
     hiredDate?: string | null;
+    groupId?: string | null;
+    accountId?: string | null;
+    endorsedByName?: string | null;
   } | null>(null);
 
   const currentUser = useCurrentUser();
@@ -365,7 +368,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     ? "Pending Clearance"
     : detail?.derivedStatus ?? detail?.vacancyStatus ?? "--";
 
-  const statusBadgeStyle = "border-border-default bg-surface-muted text-text-secondary";
+  const statusBadgeStyle = isPendingClosure
+    ? "border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold"
+    : "border-border-default bg-surface-muted text-text-secondary";
 
   const urgencyVariant =
     detail?.urgencyLevel === "High"
@@ -534,27 +539,27 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
               {(detail.hasPendingClosure ||
                 detail.closureRequestStatus?.toLowerCase() === "pending" ||
                 detail.derivedStatus === "For Closure") && (
-                <div className="rounded-md border border-border-default bg-surface-muted p-3 text-text-primary flex items-start gap-2.5">
-                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-text-muted" />
-                  <div className="text-xs space-y-1">
-                    <div className="font-semibold flex items-center gap-1.5">
+                <div className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B] flex items-start gap-2.5">
+                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-[#DC2626]" />
+                  <div className="text-xs space-y-1 w-full">
+                    <div className="font-semibold flex items-center gap-1.5 text-[#991B1B]">
                       <span>Closure Clearance In-Flight</span>
                       {detail.closureRequestStatus && (
-                        <span className="rounded-full bg-surface-base px-2 py-0.5 text-[10px] text-text-secondary border border-border-default">
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs">
                           {detail.closureRequestStatus}
                         </span>
                       )}
                     </div>
-                    <div className="text-text-secondary leading-relaxed">
+                    <div className="text-[#7F1D1D] leading-relaxed">
                       This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
                     </div>
                     {detail.closureReason && (
-                      <div className="mt-1 font-medium text-text-primary">
+                      <div className="mt-1 font-medium text-[#991B1B]">
                         Reason: {detail.closureReason}
                       </div>
                     )}
                     {detail.closureRequestedBy && (
-                      <div className="text-[11px] text-text-muted">
+                      <div className="text-[11px] text-[#991B1B]/80">
                         Requested by {detail.closureRequestedBy}
                         {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
                       </div>
@@ -580,7 +585,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                               alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
                             }
                           }}
-                          className="inline-flex items-center gap-1 rounded bg-surface-base hover:bg-surface-hover text-text-primary border border-border-default px-2 py-0.5 text-[11px] font-semibold transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
                         >
                           <RotateCcw className="h-3 w-3" />
                           <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
@@ -1174,6 +1179,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                         status: candidate.statusLabel,
                                         vcode: detail.vcode,
                                         positionTitle: detail.position_title,
+                                        groupId: detail.groupId,
+                                        accountId: detail.accountId,
+                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
                                       });
                                       setIsAdvancePipelineModalOpen(true);
                                     }}
@@ -1197,6 +1205,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                         status: candidate.statusLabel,
                                         vcode: detail.vcode,
                                         positionTitle: detail.position_title,
+                                        groupId: detail.groupId,
+                                        accountId: detail.accountId,
+                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
                                       });
                                       setIsMarkHiredModalOpen(true);
                                     }}
@@ -1299,6 +1310,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     status: detail.pipelineStatus || "Pipeline",
                                     vcode: detail.vcode,
                                     positionTitle: detail.position_title,
+                                    groupId: detail.groupId,
+                                    accountId: detail.accountId,
+                                    endorsedByName: detail.recruiterName || null,
                                   });
                                   setIsAdvancePipelineModalOpen(true);
                                 }}
@@ -1322,6 +1336,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     status: detail.pipelineStatus || "Pipeline",
                                     vcode: detail.vcode,
                                     positionTitle: detail.position_title,
+                                    groupId: detail.groupId,
+                                    accountId: detail.accountId,
+                                    endorsedByName: detail.recruiterName || null,
                                   });
                                   setIsMarkHiredModalOpen(true);
                                 }}
@@ -1493,6 +1510,9 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       contactNumber: detail.contactNumber,
                       vcode: detail.vcode,
                       positionTitle: detail.position_title,
+                      groupId: detail.groupId,
+                      accountId: detail.accountId,
+                      endorsedByName: detail.recruiterName || null,
                     }
                   }
                   onSuccess={() => {

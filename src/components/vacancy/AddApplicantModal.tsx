@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react";
 import { useEndorseApplicant } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface VacancyContextSummary {
   vcode: string;
@@ -214,7 +215,7 @@ function AddApplicantModalContent({
                   htmlFor={firstNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  First Name <span className="text-text-muted">*</span>
+                  First Name <RequiredAsterisk />
                 </label>
                 <input
                   id={firstNameId}
@@ -244,7 +245,7 @@ function AddApplicantModalContent({
                   htmlFor={middleNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  Middle Name <span className="text-text-muted">*</span>
+                  Middle Name <RequiredAsterisk />
                 </label>
                 <input
                   id={middleNameId}
@@ -274,7 +275,7 @@ function AddApplicantModalContent({
                   htmlFor={lastNameId}
                   className="block text-xs font-medium text-text-primary mb-1"
                 >
-                  Last Name <span className="text-text-muted">*</span>
+                  Last Name <RequiredAsterisk />
                 </label>
                 <input
                   id={lastNameId}
@@ -308,7 +309,7 @@ function AddApplicantModalContent({
                     htmlFor={contactNumberId}
                     className="block text-xs font-medium text-text-primary"
                   >
-                    11-Digit Contact Number <span className="text-text-muted">*</span>
+                    11-Digit Contact Number <RequiredAsterisk />
                   </label>
                   <span
                     className={`text-[10px] font-mono ${

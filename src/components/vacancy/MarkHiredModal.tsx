@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, UserCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Loader2, Search, UserCheck, X } from "lucide-react";
 import { useConfirmApplicantOnboard } from "@/lib/queries/vacancy";
+import { useUsersList } from "@/lib/queries/users";
 import { useCurrentUser } from "@/lib/auth";
 import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface MarkHiredModalProps {
   isOpen: boolean;
@@ -20,6 +22,10 @@ export interface MarkHiredModalProps {
     vcode: string;
     positionTitle?: string | null;
     vacancyRequirementId?: string | null;
+    groupId?: string | null;
+    accountId?: string | null;
+    endorsedByName?: string | null;
+    recruiterName?: string | null;
   } | null;
   onSuccess?: (workerName: string) => void;
 }
@@ -55,6 +61,7 @@ function MarkHiredModalContent({
 }) {
   const currentUser = useCurrentUser();
   const confirmOnboardMutation = useConfirmApplicantOnboard();
+  const { data: allUsers = [], isLoading: isLoadingUsers } = useUsersList();
 
   // Name binding and fallback parsing
   const initialNames = parseCandidateFullName(applicant.fullName, {
@@ -63,21 +70,106 @@ function MarkHiredModalContent({
     middleName: applicant.middleName,
   });
 
-  const [lastName, setLastName] = useState(initialNames.lastName);
-  const [firstName, setFirstName] = useState(initialNames.firstName);
-  const [middleName, setMiddleName] = useState(initialNames.middleName);
-  const [contactNumber, setContactNumber] = useState(
-    applicant.contactNumber || "",
-  );
+  const lastName = initialNames.lastName || "";
+  const firstName = initialNames.firstName || "";
+  const middleName = initialNames.middleName || "";
+  const contactNumber = applicant.contactNumber || "";
+
   const [hiredDate, setHiredDate] = useState(
     new Date().toISOString().substring(0, 10),
   );
-  const [endorsedByName, setEndorsedByName] = useState(
-    currentUser?.displayName || "",
-  );
+
+  // Deployer endorsement selection
+  const initialEndorser =
+    applicant.endorsedByName?.trim() ||
+    applicant.recruiterName?.trim() ||
+    currentUser?.displayName?.trim() ||
+    "";
+
+  const [endorsedByName, setEndorsedByName] = useState(initialEndorser);
+  const [selectedDeployerId, setSelectedDeployerId] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [remarks, setRemarks] = useState("");
   const [requirementsChecked, setRequirementsChecked] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filter users eligible to endorse: Deployers, HRCOs, Recruitment, OM, Ops, Admins
+  // scoped to the vacancy's group or account, or users with global visibility
+  const eligibleUsers = useMemo(() => {
+    const targetGroupId = applicant.groupId;
+    const targetAccountId = applicant.accountId;
+
+    const filtered = allUsers.filter((u) => {
+      if (!u.isActive || u.isArchived) return false;
+
+      const role = (u.roleName || "").toLowerCase();
+      const isEligibleRole =
+        role.includes("deployer") ||
+        role.includes("hrco") ||
+        role.includes("recruitment") ||
+        role.includes("om") ||
+        role.includes("operations") ||
+        role.includes("admin");
+
+      if (!isEligibleRole) return false;
+
+      // Global visibility / Super Admins / Head Admins bypass scope check
+      if (
+        u.hrcoGlobalVisibility ||
+        role.includes("super admin") ||
+        role.includes("head admin")
+      ) {
+        return true;
+      }
+
+      // Check group / account assignment
+      const matchesGroup = targetGroupId ? u.scopedGroupIds?.includes(targetGroupId) : false;
+      const matchesAccount = targetAccountId
+        ? u.scopes?.some((s) => s.accountId === targetAccountId)
+        : false;
+
+      return matchesGroup || matchesAccount;
+    });
+
+    filtered.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    return filtered;
+  }, [allUsers, applicant.groupId, applicant.accountId]);
+
+  // Dynamically resolve deployer user ID without triggering cascading renders in effects
+  const resolvedDeployerId = useMemo(() => {
+    if (!endorsedByName) return null;
+    if (selectedDeployerId) return selectedDeployerId;
+    const matched = allUsers.find(
+      (u) => u.fullName.toLowerCase().trim() === endorsedByName.toLowerCase().trim(),
+    );
+    return matched?.id || null;
+  }, [endorsedByName, selectedDeployerId, allUsers]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filtered dropdown options based on local search term
+  const displayedOptions = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return eligibleUsers;
+    return eligibleUsers.filter(
+      (u) =>
+        u.fullName.toLowerCase().includes(term) ||
+        (u.roleName && u.roleName.toLowerCase().includes(term)) ||
+        (u.email && u.email.toLowerCase().includes(term)),
+    );
+  }, [eligibleUsers, searchTerm]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +206,7 @@ function MarkHiredModalContent({
         contactNumber: normalizedContact,
         hiredByUserId: currentUser?.profileId ?? null,
         hiredDate,
+        endorsedByDeployerId: resolvedDeployerId || null,
         endorsedByName: endorsedByName.trim() || null,
         remarks: remarks.trim() || null,
         vacancyRequirementId: applicant.vacancyRequirementId || null,
@@ -150,33 +243,37 @@ function MarkHiredModalContent({
           </div>
         )}
 
+        {/* Read-Only Candidate Name Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
-              Last Name *
+              Last Name <RequiredAsterisk />
             </label>
             <input
               type="text"
-              required
+              readOnly
+              disabled
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              title="Candidate identity fields are read-only at onboarding. Edit via candidate profile if corrections are needed."
+              className="w-full rounded-lg border border-border-default bg-gray-100 dark:bg-surface-muted px-3 py-2 text-sm text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
-              First Name *
+              First Name <RequiredAsterisk />
             </label>
             <input
               type="text"
-              required
+              readOnly
+              disabled
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              title="Candidate identity fields are read-only at onboarding. Edit via candidate profile if corrections are needed."
+              className="w-full rounded-lg border border-border-default bg-gray-100 dark:bg-surface-muted px-3 py-2 text-sm text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none"
             />
           </div>
         </div>
 
+        {/* Read-Only Middle Name & Contact Number Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
@@ -184,30 +281,33 @@ function MarkHiredModalContent({
             </label>
             <input
               type="text"
+              readOnly
+              disabled
               value={middleName}
-              onChange={(e) => setMiddleName(e.target.value)}
-              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              title="Candidate identity fields are read-only at onboarding. Edit via candidate profile if corrections are needed."
+              className="w-full rounded-lg border border-border-default bg-gray-100 dark:bg-surface-muted px-3 py-2 text-sm text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
-              Contact Number *
+              Contact Number <RequiredAsterisk />
             </label>
             <input
               type="tel"
-              required
+              readOnly
+              disabled
               value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="09171234567"
-              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              title="Candidate identity fields are read-only at onboarding. Edit via candidate profile if corrections are needed."
+              className="w-full rounded-lg border border-border-default bg-gray-100 dark:bg-surface-muted px-3 py-2 text-sm text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none font-mono"
             />
           </div>
         </div>
 
+        {/* Hired Date & Endorsed By Deployer */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
-              Hired / Deployment Date *
+              Hired / Deployment Date <RequiredAsterisk />
             </label>
             <input
               type="date"
@@ -217,17 +317,128 @@ function MarkHiredModalContent({
               className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
-          <div>
+
+          {/* Searchable Select for Endorsed By Deployer */}
+          <div className="relative" ref={dropdownRef}>
             <label className="block text-xs font-semibold text-text-secondary mb-1">
               Endorsed By Deployer
             </label>
-            <input
-              type="text"
-              value={endorsedByName}
-              onChange={(e) => setEndorsedByName(e.target.value)}
-              placeholder="Deployer or Recruiter Name"
-              className="w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
+            <div
+              onClick={() => {
+                setIsDropdownOpen((prev) => !prev);
+                setSearchTerm("");
+              }}
+              className="w-full flex items-center justify-between rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary cursor-pointer hover:border-brand-500 transition focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500"
+            >
+              <span className={`truncate ${endorsedByName ? "text-text-primary font-medium" : "text-text-muted"}`}>
+                {endorsedByName || "Select active deployer / HRCO..."}
+              </span>
+              <div className="flex items-center gap-1 text-text-muted shrink-0">
+                {endorsedByName && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEndorsedByName("");
+                      setSelectedDeployerId(null);
+                    }}
+                    className="p-0.5 hover:text-text-primary cursor-pointer"
+                    title="Clear selection"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <ChevronDown className="h-4 w-4" />
+              </div>
+            </div>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-border-default bg-surface-base shadow-lg overflow-hidden flex flex-col max-h-60">
+                <div className="p-2 border-b border-border-subtle bg-surface-muted/30">
+                  <div className="relative">
+                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-text-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search active deployer or HRCO..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full rounded-md border border-border-default bg-surface-base pl-8 pr-3 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto divide-y divide-border-subtle/50">
+                  {/* Graceful preservation of current endorser if not in filtered list */}
+                  {endorsedByName &&
+                    !eligibleUsers.some(
+                      (u) => u.fullName.toLowerCase().trim() === endorsedByName.toLowerCase().trim(),
+                    ) && (
+                      <button
+                        type="button"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full text-left px-3 py-2 text-xs flex items-center justify-between bg-surface-selected hover:bg-surface-hover transition cursor-pointer"
+                      >
+                        <div className="truncate">
+                          <div className="font-semibold text-text-primary truncate">
+                            {endorsedByName}
+                          </div>
+                          <div className="text-[10px] text-text-muted">
+                            Original Candidate Endorsement
+                          </div>
+                        </div>
+                        <Check className="h-4 w-4 text-brand-600 shrink-0 ml-2" />
+                      </button>
+                    )}
+
+                  {isLoadingUsers ? (
+                    <div className="p-4 text-center text-xs text-text-muted flex items-center justify-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading assigned users...
+                    </div>
+                  ) : displayedOptions.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-text-muted">
+                      No matching deployers found.
+                    </div>
+                  ) : (
+                    displayedOptions.map((user) => {
+                      const isSelected =
+                        endorsedByName.toLowerCase().trim() === user.fullName.toLowerCase().trim();
+                      return (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => {
+                            setEndorsedByName(user.fullName);
+                            setSelectedDeployerId(user.id);
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-surface-hover transition cursor-pointer ${
+                            isSelected ? "bg-surface-selected" : ""
+                          }`}
+                        >
+                          <div className="truncate">
+                            <div className="font-medium text-text-primary truncate">
+                              {user.fullName}
+                            </div>
+                            <div className="text-[10px] text-text-muted flex items-center gap-1 mt-0.5">
+                              <span className="font-semibold">{user.roleName || "User"}</span>
+                              {user.scopeLabel && (
+                                <span className="truncate">• {user.scopeLabel}</span>
+                              )}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <Check className="h-4 w-4 text-brand-600 shrink-0 ml-2" />
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -265,7 +476,7 @@ function MarkHiredModalContent({
             type="button"
             onClick={onClose}
             disabled={confirmOnboardMutation.isPending}
-            className="rounded-lg border border-border-default px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
+            className="rounded-lg border border-border-default px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover cursor-pointer"
           >
             Cancel
           </button>

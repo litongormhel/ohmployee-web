@@ -15,6 +15,7 @@ import {
   useUnlockVacancyEditing,
 } from "@/lib/queries/more";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface EditLockControlModalProps {
   isOpen: boolean;
@@ -197,7 +198,7 @@ export function EditLockControlModal({
 
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">
-                Audited Reason <span className="text-danger">*</span>
+                Audited Reason <RequiredAsterisk />
               </label>
               <textarea
                 value={reason}

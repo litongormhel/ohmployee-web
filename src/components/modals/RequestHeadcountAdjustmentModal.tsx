@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle, ArrowRight, Minus, Plus, ShieldAlert } from "lucide-react";
 import { useSubmitHeadcountAmendment, useVcodeQuotaDetails } from "@/lib/queries/quota";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface RequestHeadcountAdjustmentModalProps {
   isOpen: boolean;
@@ -293,7 +294,7 @@ export function RequestHeadcountAdjustmentModal({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label htmlFor="amendment-justification" className="text-xs font-semibold text-[var(--foreground)]">
-                  Operational Justification <span className="text-[var(--danger)]">*</span>
+                  Operational Justification <RequiredAsterisk />
                 </label>
                 <span className="text-[11px] text-[var(--text-muted)] font-mono">
                   {justification.trim().length}/5 chars min

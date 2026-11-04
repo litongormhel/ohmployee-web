@@ -8,6 +8,7 @@ import {
   Check,
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 import {
   useUpsertUser,
   useRolesQuery,
@@ -179,7 +180,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
-                Full Name <span className="text-danger-icon">*</span>
+                Full Name <RequiredAsterisk />
               </label>
               <input
                 type="text"
@@ -192,7 +193,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
             </div>
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
-                Email Address <span className="text-danger-icon">*</span>
+                Email Address <RequiredAsterisk />
               </label>
               <input
                 type="email"
@@ -207,7 +208,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
 
           <div>
             <label className="block text-xs font-semibold text-text-primary mb-1">
-              Assign Role <span className="text-danger-icon">*</span>
+              Assign Role <RequiredAsterisk />
             </label>
             <select
               required

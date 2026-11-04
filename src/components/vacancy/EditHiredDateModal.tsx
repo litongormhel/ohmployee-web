@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Calendar, Loader2 } from "lucide-react";
 import { useUpdateHiredApplicantDate } from "@/lib/queries/vacancy";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface EditHiredDateModalProps {
   isOpen: boolean;
@@ -95,7 +96,7 @@ function EditHiredDateModalContent({
 
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1">
-            Effective Hired / Onboard Date *
+            Effective Hired / Onboard Date <RequiredAsterisk />
           </label>
           <input
             type="date"

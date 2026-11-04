@@ -20,6 +20,7 @@ import {
 } from "@/lib/queries/accountRequests";
 import { useRolesQuery, useGroupsQuery, useAccountsByGroupsQuery } from "@/lib/queries/users";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface AccountRequestsModalProps {
   isOpen: boolean;
@@ -386,7 +387,7 @@ export function AccountRequestsModal({
           <form onSubmit={handleApproveSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-text-primary mb-1">
-                Assigned Role *
+                Assigned Role <RequiredAsterisk />
               </label>
               <select
                 required
@@ -404,7 +405,7 @@ export function AccountRequestsModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-text-primary mb-1">Scope Mode *</label>
+              <label className="block text-xs font-bold text-text-primary mb-1">Scope Mode <RequiredAsterisk /></label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -435,7 +436,7 @@ export function AccountRequestsModal({
               <>
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-text-primary">
-                    Assign Operational Groups *
+                    Assign Operational Groups <RequiredAsterisk />
                   </label>
                   <div className="border border-border-default rounded-xl p-3 max-h-36 overflow-y-auto space-y-1.5 bg-surface-subtle">
                     {groups.map((g) => (
@@ -521,7 +522,7 @@ export function AccountRequestsModal({
           <form onSubmit={handleRejectSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-text-primary mb-1">
-                Rejection Reason *
+                Rejection Reason <RequiredAsterisk />
               </label>
               <select
                 required

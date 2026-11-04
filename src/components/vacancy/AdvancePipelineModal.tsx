@@ -9,6 +9,7 @@ import {
   useUpdateApplicantPipeline,
 } from "@/lib/queries/vacancy";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface AdvancePipelineModalProps {
   isOpen: boolean;
@@ -234,7 +235,7 @@ function AdvancePipelineModalContent({
 
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1">
-            Select Pipeline Stage / Outcome *
+            Select Pipeline Stage / Outcome <RequiredAsterisk />
           </label>
           <select
             value={selectedStage}
@@ -269,7 +270,7 @@ function AdvancePipelineModalContent({
 
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1">
-                Standard Reason *
+                Standard Reason <RequiredAsterisk />
               </label>
               {isLoadingReasons ? (
                 <div className="flex items-center gap-2 py-2 text-xs text-text-muted">

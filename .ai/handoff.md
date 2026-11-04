@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
+
+**Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: System-Wide Required Field Indicator (`*`)**:
+  - Created standardized component `src/components/shared/RequiredAsterisk.tsx` rendering `<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`.
+  - Added `.required-asterisk` utility class in `src/app/globals.css`.
+  - Standardized all required asterisks across all Vacancy modals:
+    - `AddApplicantModal.tsx` (First Name, Middle Name, Last Name, Contact Number)
+    - `MarkHiredModal.tsx` (Last Name, First Name, Contact Number, Hired / Deployment Date)
+    - `AdvancePipelineModal.tsx` (Select Pipeline Stage / Outcome, Standard Reason)
+    - `EditApplicantModal.tsx` (Last Name, First Name, Middle Name, Contact Number, Reason / Comments)
+    - `EditHiredDateModal.tsx` (Effective Hired / Onboard Date)
+    - `RequestVacancyClosureModal.tsx` (Closure Reason)
+    - `FailBackoutModal.tsx` (Standard Reason)
+    - `ReopenVacancyModal.tsx` (New Vacant Date)
+    - `SavedViewsModal.tsx` (Preset Name)
+  - Standardized other form modals across the web app (`CreateUserModal.tsx`, `RequestHeadcountModal.tsx`, `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `AccountRequestsModal.tsx`, `EditLockControlModal.tsx`).
+- **Item 2: Confirm Onboarding / Mark Hired Modal Refinements**:
+  - Locked candidate identity fields (`lastName`, `firstName`, `middleName`, `contactNumber`) as strictly `readOnly` and `disabled`, styled with visual gray-out classes (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`). Removed active mutation `onChange` handlers so applicant master identity is protected from unintended edits at the onboarding step.
+  - Converted `Endorsed By Deployer` from a free-text input into an interactive, searchable combobox select backed by `useUsersList()`.
+  - Filtered options to active users in scope (Deployer, HRCO, Recruitment, OM, Ops, Admins assigned to the vacancy's group or account, or users with global visibility).
+  - Maintained fallback preservation so candidate's original endorser (from `Add / Endorse Applicant`) is preserved as the default value even if outside scope filters.
+  - Passed `groupId`, `accountId`, and `endorsedByName` through from `page.tsx` (`handleMarkHired`), `VacancyDetailDrawer.tsx` (`setSelectedCandidate`), and `vacancy.ts` (`pipelineApplicants` query).
+  - Passed both `p_endorsed_by_name` and `p_endorsed_by_deployer_id` to `confirmApplicantOnboard` RPC.
+- **Item 3: Closure Clearance In-Flight Card & Badge Styling**:
+  - Restyled `VacancyDetailDrawer.tsx` Closure Clearance notice container to Red / Rose theme: `rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B]`.
+  - Styled Clock icon with vibrant red `text-[#DC2626]`.
+  - Styled top drawer header badge when pending closure: `border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`.
+  - Styled inline status badge: `rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs`.
+  - Styled body text with cohesive dark red/rose readable tints (`text-[#7F1D1D]` and `text-[#991B1B]`).
+  - Restyled `Withdraw Closure Request` button to clean white with rose border: `inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer`.
+- **Item 4: HRCO Column Data Mapping Parity Across All Tabs & Exports**:
+  - Updated `Pipeline`, `Hired`, `Closure`, and `Failed / Backout` queries in `src/lib/queries/vacancy.ts` to resolve `hrco_name` from canonical view `public.vw_vacancy_list` instead of raw `vacancies` table.
+  - Ensured `hrcoName` maps to `null` when unassigned rather than the string `"—"`, allowing `VacancyTable.tsx` to render the clean `Unassigned` badge uniformly across all 5 tabs (`Open`, `Pipeline`, `Hired`, `Closure`, `Failed / Backout`).
+  - Added defensive guard in `VacancyTable.tsx` to treat `"—"` and `"-"` as unassigned.
+  - Updated CSV export functions (`fetchAllPipelineVacancies`, `fetchAllHiredVacancies`, `fetchAllDropoutVacancies`) to query `vw_vacancy_list`, ensuring exported spreadsheets contain accurate HRCO names.
+
+### 2. Verification Results
+- `npx tsc --noEmit`: 0 errors.
+- `npm run lint`: 0 errors (4 pre-existing unused variable warnings in `VacancyTable.tsx`).
+- `npm run build`: Production build completed successfully in 3.6s, all 20 static/dynamic routes compiled.
+
+---
+
 ## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
@@ -4390,6 +4436,52 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
+
+**Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: System-Wide Required Field Indicator (`*`)**:
+  - Created standardized component `src/components/shared/RequiredAsterisk.tsx` rendering `<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`.
+  - Added `.required-asterisk` utility class in `src/app/globals.css`.
+  - Standardized all required asterisks across all Vacancy modals:
+    - `AddApplicantModal.tsx` (First Name, Middle Name, Last Name, Contact Number)
+    - `MarkHiredModal.tsx` (Last Name, First Name, Contact Number, Hired / Deployment Date)
+    - `AdvancePipelineModal.tsx` (Select Pipeline Stage / Outcome, Standard Reason)
+    - `EditApplicantModal.tsx` (Last Name, First Name, Middle Name, Contact Number, Reason / Comments)
+    - `EditHiredDateModal.tsx` (Effective Hired / Onboard Date)
+    - `RequestVacancyClosureModal.tsx` (Closure Reason)
+    - `FailBackoutModal.tsx` (Standard Reason)
+    - `ReopenVacancyModal.tsx` (New Vacant Date)
+    - `SavedViewsModal.tsx` (Preset Name)
+  - Standardized other form modals across the web app (`CreateUserModal.tsx`, `RequestHeadcountModal.tsx`, `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `AccountRequestsModal.tsx`, `EditLockControlModal.tsx`).
+- **Item 2: Confirm Onboarding / Mark Hired Modal Refinements**:
+  - Locked candidate identity fields (`lastName`, `firstName`, `middleName`, `contactNumber`) as strictly `readOnly` and `disabled`, styled with visual gray-out classes (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`). Removed active mutation `onChange` handlers so applicant master identity is protected from unintended edits at the onboarding step.
+  - Converted `Endorsed By Deployer` from a free-text input into an interactive, searchable combobox select backed by `useUsersList()`.
+  - Filtered options to active users in scope (Deployer, HRCO, Recruitment, OM, Ops, Admins assigned to the vacancy's group or account, or users with global visibility).
+  - Maintained fallback preservation so candidate's original endorser (from `Add / Endorse Applicant`) is preserved as the default value even if outside scope filters.
+  - Passed `groupId`, `accountId`, and `endorsedByName` through from `page.tsx` (`handleMarkHired`), `VacancyDetailDrawer.tsx` (`setSelectedCandidate`), and `vacancy.ts` (`pipelineApplicants` query).
+  - Passed both `p_endorsed_by_name` and `p_endorsed_by_deployer_id` to `confirmApplicantOnboard` RPC.
+- **Item 3: Closure Clearance In-Flight Card & Badge Styling**:
+  - Restyled `VacancyDetailDrawer.tsx` Closure Clearance notice container to Red / Rose theme: `rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B]`.
+  - Styled Clock icon with vibrant red `text-[#DC2626]`.
+  - Styled top drawer header badge when pending closure: `border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`.
+  - Styled inline status badge: `rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs`.
+  - Styled body text with cohesive dark red/rose readable tints (`text-[#7F1D1D]` and `text-[#991B1B]`).
+  - Restyled `Withdraw Closure Request` button to clean white with rose border: `inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer`.
+- **Item 4: HRCO Column Data Mapping Parity Across All Tabs & Exports**:
+  - Updated `Pipeline`, `Hired`, `Closure`, and `Failed / Backout` queries in `src/lib/queries/vacancy.ts` to resolve `hrco_name` from canonical view `public.vw_vacancy_list` instead of raw `vacancies` table.
+  - Ensured `hrcoName` maps to `null` when unassigned rather than the string `"—"`, allowing `VacancyTable.tsx` to render the clean `Unassigned` badge uniformly across all 5 tabs (`Open`, `Pipeline`, `Hired`, `Closure`, `Failed / Backout`).
+  - Added defensive guard in `VacancyTable.tsx` to treat `"—"` and `"-"` as unassigned.
+  - Updated CSV export functions (`fetchAllPipelineVacancies`, `fetchAllHiredVacancies`, `fetchAllDropoutVacancies`) to query `vw_vacancy_list`, ensuring exported spreadsheets contain accurate HRCO names.
+
+### 2. Verification Results
+- `npx tsc --noEmit`: 0 errors.
+- `npm run lint`: 0 errors (4 pre-existing unused variable warnings in `VacancyTable.tsx`).
+- `npm run build`: Production build completed successfully in 3.6s, all 20 static/dynamic routes compiled.
+
+---
+
 ## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
@@ -4900,6 +4992,52 @@ When Web (`2b-Web`) and Mobile (Stage C) are complete:
 ---
 
 # AI Handoff
+
+## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
+
+**Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: System-Wide Required Field Indicator (`*`)**:
+  - Created standardized component `src/components/shared/RequiredAsterisk.tsx` rendering `<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`.
+  - Added `.required-asterisk` utility class in `src/app/globals.css`.
+  - Standardized all required asterisks across all Vacancy modals:
+    - `AddApplicantModal.tsx` (First Name, Middle Name, Last Name, Contact Number)
+    - `MarkHiredModal.tsx` (Last Name, First Name, Contact Number, Hired / Deployment Date)
+    - `AdvancePipelineModal.tsx` (Select Pipeline Stage / Outcome, Standard Reason)
+    - `EditApplicantModal.tsx` (Last Name, First Name, Middle Name, Contact Number, Reason / Comments)
+    - `EditHiredDateModal.tsx` (Effective Hired / Onboard Date)
+    - `RequestVacancyClosureModal.tsx` (Closure Reason)
+    - `FailBackoutModal.tsx` (Standard Reason)
+    - `ReopenVacancyModal.tsx` (New Vacant Date)
+    - `SavedViewsModal.tsx` (Preset Name)
+  - Standardized other form modals across the web app (`CreateUserModal.tsx`, `RequestHeadcountModal.tsx`, `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `AccountRequestsModal.tsx`, `EditLockControlModal.tsx`).
+- **Item 2: Confirm Onboarding / Mark Hired Modal Refinements**:
+  - Locked candidate identity fields (`lastName`, `firstName`, `middleName`, `contactNumber`) as strictly `readOnly` and `disabled`, styled with visual gray-out classes (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`). Removed active mutation `onChange` handlers so applicant master identity is protected from unintended edits at the onboarding step.
+  - Converted `Endorsed By Deployer` from a free-text input into an interactive, searchable combobox select backed by `useUsersList()`.
+  - Filtered options to active users in scope (Deployer, HRCO, Recruitment, OM, Ops, Admins assigned to the vacancy's group or account, or users with global visibility).
+  - Maintained fallback preservation so candidate's original endorser (from `Add / Endorse Applicant`) is preserved as the default value even if outside scope filters.
+  - Passed `groupId`, `accountId`, and `endorsedByName` through from `page.tsx` (`handleMarkHired`), `VacancyDetailDrawer.tsx` (`setSelectedCandidate`), and `vacancy.ts` (`pipelineApplicants` query).
+  - Passed both `p_endorsed_by_name` and `p_endorsed_by_deployer_id` to `confirmApplicantOnboard` RPC.
+- **Item 3: Closure Clearance In-Flight Card & Badge Styling**:
+  - Restyled `VacancyDetailDrawer.tsx` Closure Clearance notice container to Red / Rose theme: `rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B]`.
+  - Styled Clock icon with vibrant red `text-[#DC2626]`.
+  - Styled top drawer header badge when pending closure: `border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`.
+  - Styled inline status badge: `rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs`.
+  - Styled body text with cohesive dark red/rose readable tints (`text-[#7F1D1D]` and `text-[#991B1B]`).
+  - Restyled `Withdraw Closure Request` button to clean white with rose border: `inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer`.
+- **Item 4: HRCO Column Data Mapping Parity Across All Tabs & Exports**:
+  - Updated `Pipeline`, `Hired`, `Closure`, and `Failed / Backout` queries in `src/lib/queries/vacancy.ts` to resolve `hrco_name` from canonical view `public.vw_vacancy_list` instead of raw `vacancies` table.
+  - Ensured `hrcoName` maps to `null` when unassigned rather than the string `"—"`, allowing `VacancyTable.tsx` to render the clean `Unassigned` badge uniformly across all 5 tabs (`Open`, `Pipeline`, `Hired`, `Closure`, `Failed / Backout`).
+  - Added defensive guard in `VacancyTable.tsx` to treat `"—"` and `"-"` as unassigned.
+  - Updated CSV export functions (`fetchAllPipelineVacancies`, `fetchAllHiredVacancies`, `fetchAllDropoutVacancies`) to query `vw_vacancy_list`, ensuring exported spreadsheets contain accurate HRCO names.
+
+### 2. Verification Results
+- `npx tsc --noEmit`: 0 errors.
+- `npm run lint`: 0 errors (4 pre-existing unused variable warnings in `VacancyTable.tsx`).
+- `npm run build`: Production build completed successfully in 3.6s, all 20 static/dynamic routes compiled.
+
+---
 
 ## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
 
@@ -5435,6 +5573,52 @@ When Web (`2b-Web`) and Mobile (Stage C) are complete:
 ---
 
 # AI Handoff
+
+## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
+
+**Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: System-Wide Required Field Indicator (`*`)**:
+  - Created standardized component `src/components/shared/RequiredAsterisk.tsx` rendering `<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`.
+  - Added `.required-asterisk` utility class in `src/app/globals.css`.
+  - Standardized all required asterisks across all Vacancy modals:
+    - `AddApplicantModal.tsx` (First Name, Middle Name, Last Name, Contact Number)
+    - `MarkHiredModal.tsx` (Last Name, First Name, Contact Number, Hired / Deployment Date)
+    - `AdvancePipelineModal.tsx` (Select Pipeline Stage / Outcome, Standard Reason)
+    - `EditApplicantModal.tsx` (Last Name, First Name, Middle Name, Contact Number, Reason / Comments)
+    - `EditHiredDateModal.tsx` (Effective Hired / Onboard Date)
+    - `RequestVacancyClosureModal.tsx` (Closure Reason)
+    - `FailBackoutModal.tsx` (Standard Reason)
+    - `ReopenVacancyModal.tsx` (New Vacant Date)
+    - `SavedViewsModal.tsx` (Preset Name)
+  - Standardized other form modals across the web app (`CreateUserModal.tsx`, `RequestHeadcountModal.tsx`, `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `AccountRequestsModal.tsx`, `EditLockControlModal.tsx`).
+- **Item 2: Confirm Onboarding / Mark Hired Modal Refinements**:
+  - Locked candidate identity fields (`lastName`, `firstName`, `middleName`, `contactNumber`) as strictly `readOnly` and `disabled`, styled with visual gray-out classes (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`). Removed active mutation `onChange` handlers so applicant master identity is protected from unintended edits at the onboarding step.
+  - Converted `Endorsed By Deployer` from a free-text input into an interactive, searchable combobox select backed by `useUsersList()`.
+  - Filtered options to active users in scope (Deployer, HRCO, Recruitment, OM, Ops, Admins assigned to the vacancy's group or account, or users with global visibility).
+  - Maintained fallback preservation so candidate's original endorser (from `Add / Endorse Applicant`) is preserved as the default value even if outside scope filters.
+  - Passed `groupId`, `accountId`, and `endorsedByName` through from `page.tsx` (`handleMarkHired`), `VacancyDetailDrawer.tsx` (`setSelectedCandidate`), and `vacancy.ts` (`pipelineApplicants` query).
+  - Passed both `p_endorsed_by_name` and `p_endorsed_by_deployer_id` to `confirmApplicantOnboard` RPC.
+- **Item 3: Closure Clearance In-Flight Card & Badge Styling**:
+  - Restyled `VacancyDetailDrawer.tsx` Closure Clearance notice container to Red / Rose theme: `rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B]`.
+  - Styled Clock icon with vibrant red `text-[#DC2626]`.
+  - Styled top drawer header badge when pending closure: `border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`.
+  - Styled inline status badge: `rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs`.
+  - Styled body text with cohesive dark red/rose readable tints (`text-[#7F1D1D]` and `text-[#991B1B]`).
+  - Restyled `Withdraw Closure Request` button to clean white with rose border: `inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer`.
+- **Item 4: HRCO Column Data Mapping Parity Across All Tabs & Exports**:
+  - Updated `Pipeline`, `Hired`, `Closure`, and `Failed / Backout` queries in `src/lib/queries/vacancy.ts` to resolve `hrco_name` from canonical view `public.vw_vacancy_list` instead of raw `vacancies` table.
+  - Ensured `hrcoName` maps to `null` when unassigned rather than the string `"—"`, allowing `VacancyTable.tsx` to render the clean `Unassigned` badge uniformly across all 5 tabs (`Open`, `Pipeline`, `Hired`, `Closure`, `Failed / Backout`).
+  - Added defensive guard in `VacancyTable.tsx` to treat `"—"` and `"-"` as unassigned.
+  - Updated CSV export functions (`fetchAllPipelineVacancies`, `fetchAllHiredVacancies`, `fetchAllDropoutVacancies`) to query `vw_vacancy_list`, ensuring exported spreadsheets contain accurate HRCO names.
+
+### 2. Verification Results
+- `npx tsc --noEmit`: 0 errors.
+- `npm run lint`: 0 errors (4 pre-existing unused variable warnings in `VacancyTable.tsx`).
+- `npm run build`: Production build completed successfully in 3.6s, all 20 static/dynamic routes compiled.
+
+---
 
 ## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
 

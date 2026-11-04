@@ -130,6 +130,9 @@ export default function VacancyPage() {
     contactNumber?: string | null;
     vcode: string;
     positionTitle?: string | null;
+    groupId?: string | null;
+    accountId?: string | null;
+    endorsedByName?: string | null;
   } | null>(null);
   const [isFailBackoutModalOpen, setIsFailBackoutModalOpen] = useState(false);
   const [failBackoutTargetCandidate, setFailBackoutTargetCandidate] = useState<{
@@ -474,6 +477,9 @@ export default function VacancyPage() {
       contactNumber: row.contactNumber,
       vcode: row.vcode,
       positionTitle: row.position_title,
+      groupId: row.groupId,
+      accountId: row.accountId,
+      endorsedByName: row.endorsedByName || row.recruiterName || null,
     });
     setIsMarkHiredModalOpen(true);
   }

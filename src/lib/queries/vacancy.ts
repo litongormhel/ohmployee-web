@@ -81,6 +81,9 @@ export type VacancyListItem = {
   applicantLastName?: string | null;
   applicantMiddleName?: string | null;
   contactNumber?: string | null;
+  recruiterName?: string | null;
+  recruiterId?: string | null;
+  endorsedByName?: string | null;
   hiredDate?: string | null;
   daysToFill?: number | null;
   stageBadge?: string | null;
@@ -1233,7 +1236,9 @@ export async function listVacancies(params: VacancyListParams) {
           created_at,
           updated_at,
           profile_edit_count,
-          is_archived
+          is_archived,
+          recruited_by_name,
+          recruited_by_user_id
         `)
         .eq("is_archived", false)
         .order("created_at", { ascending: false });
@@ -1249,7 +1254,7 @@ export async function listVacancies(params: VacancyListParams) {
         ) as string[];
 
         let vacQuery = supabase
-          .from("vacancies")
+          .from("vw_vacancy_list")
           .select(`
             id,
             vcode,
@@ -1269,8 +1274,7 @@ export async function listVacancies(params: VacancyListParams) {
             urgency_level,
             status,
             is_archived,
-            deleted_at,
-            required_headcount,
+            hc_total,
             has_pending_closure,
             closure_request_status,
             employment_type,
@@ -1278,8 +1282,7 @@ export async function listVacancies(params: VacancyListParams) {
             is_pool_vacancy
           `)
           .in("vcode", vcodes)
-          .eq("is_archived", false)
-          .is("deleted_at", null);
+          .eq("is_archived", false);
 
         if (params.accountId) {
           vacQuery = vacQuery.eq("account_id", params.accountId);
@@ -1384,13 +1387,16 @@ export async function listVacancies(params: VacancyListParams) {
             agingBucket,
             targetFillDate: asString(vac?.target_fill_date),
             urgencyLevel: asString(vac?.urgency_level),
-            hrcoName: asString(vac?.hrco_name) ?? "—",
+            hrcoName: asString(vac?.hrco_name) || null,
             applicantId: asString(c.id),
             applicantName: candidateName,
             applicantFirstName: fName,
             applicantLastName: lName,
             applicantMiddleName: mName,
             contactNumber: asString(c.contact_number),
+            recruiterName: asString(c.recruited_by_name) || null,
+            recruiterId: asString(c.recruited_by_user_id) || null,
+            endorsedByName: asString(c.recruited_by_name) || null,
             hiredDate: null,
             stageBadge,
             profileEditCount: asNumber(c.profile_edit_count) ?? 0,
@@ -1504,7 +1510,7 @@ export async function listVacancies(params: VacancyListParams) {
             agingBucket: null,
             targetFillDate: null,
             urgencyLevel: null,
-            hrcoName: asString(h.hired_by) ?? "HR Team",
+            hrcoName: null,
             applicantId: asString(h.id),
             applicantName: workerName,
             applicantFirstName: fName,
@@ -1536,10 +1542,9 @@ export async function listVacancies(params: VacancyListParams) {
         if (hiredVcodes.length > 0) {
           try {
             const { data: vacsData } = await supabase
-              .from("vacancies")
+              .from("vw_vacancy_list")
               .select("vcode, store_name, store_branch, area_city, province, store_id, account_id, group_id, account, vacant_date, created_at, employment_type, hrco_name")
-              .in("vcode", hiredVcodes)
-              .is("deleted_at", null);
+              .in("vcode", hiredVcodes);
 
             if (vacsData && vacsData.length > 0) {
               const vacMap = new Map(vacsData.map((v) => [v.vcode, v]));
@@ -1557,7 +1562,7 @@ export async function listVacancies(params: VacancyListParams) {
                   row.storeId = v.store_id || row.storeId;
                   row.accountName = row.accountName || v.account || null;
                   if (v.employment_type) row.employmentType = v.employment_type;
-                  if (v.hrco_name) row.hrcoName = v.hrco_name;
+                  row.hrcoName = asString(v.hrco_name) || null;
                   const loc = [v.area_city, v.province].filter(Boolean).join(" • ");
                   if (loc) row.storeLocation = loc;
                 }
@@ -1633,7 +1638,7 @@ export async function listVacancies(params: VacancyListParams) {
 
       // 2. Fetch active vacancies
       let vacQuery = supabase
-        .from("vacancies")
+        .from("vw_vacancy_list")
         .select(`
           id,
           vcode,
@@ -1646,15 +1651,16 @@ export async function listVacancies(params: VacancyListParams) {
           area_city,
           province,
           is_archived,
-          deleted_at,
           has_pending_closure,
           closure_request_status,
           status,
           created_at,
-          updated_at
+          updated_at,
+          hrco_name,
+          source,
+          is_pool_vacancy
         `)
-        .eq("is_archived", false)
-        .is("deleted_at", null);
+        .eq("is_archived", false);
 
       if (params.accountId) {
         vacQuery = vacQuery.eq("account_id", params.accountId);
@@ -1746,7 +1752,7 @@ export async function listVacancies(params: VacancyListParams) {
             agingBucket: null,
             targetFillDate: null,
             urgencyLevel: null,
-            hrcoName: "—",
+            hrcoName: asString(vac.hrco_name) || null,
             applicantId: null,
             applicantName: null,
             contactNumber: null,
@@ -1847,10 +1853,9 @@ export async function listVacancies(params: VacancyListParams) {
       if (!dropoutsError && Array.isArray(dropoutsData) && dropoutsData.length > 0) {
         const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
         let vacQuery = supabase
-          .from("vacancies")
-          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, deleted_at, required_headcount")
-          .in("vcode", dropoutVcodes)
-          .is("deleted_at", null);
+          .from("vw_vacancy_list")
+          .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, created_at, target_fill_date, urgency_level, is_archived, hc_total, source, is_pool_vacancy")
+          .in("vcode", dropoutVcodes);
 
         if (params.accountId) {
           vacQuery = vacQuery.eq("account_id", params.accountId);
@@ -1947,7 +1952,7 @@ export async function listVacancies(params: VacancyListParams) {
             agingBucket,
             targetFillDate: asString(vac?.target_fill_date),
             urgencyLevel: asString(vac?.urgency_level),
-            hrcoName: asString(vac?.hrco_name) ?? "—",
+            hrcoName: asString(vac?.hrco_name) || null,
             applicantId: asString(d.id),
             applicantName: candidateName,
             contactNumber: asString(d.contact_number),
@@ -4857,7 +4862,7 @@ async function fetchAllPipelineVacancies(
     ) as string[];
 
     let vacQuery = supabase
-      .from("vacancies")
+      .from("vw_vacancy_list")
       .select(`
         id,
         vcode,
@@ -4877,8 +4882,7 @@ async function fetchAllPipelineVacancies(
         urgency_level,
         status,
         is_archived,
-        deleted_at,
-        required_headcount,
+        hc_total,
         has_pending_closure,
         closure_request_status,
         employment_type,
@@ -4886,8 +4890,7 @@ async function fetchAllPipelineVacancies(
         is_pool_vacancy
       `)
       .in("vcode", vcodes)
-      .eq("is_archived", false)
-      .is("deleted_at", null);
+      .eq("is_archived", false);
 
     if (filters.accountId) {
       vacQuery = vacQuery.eq("account_id", filters.accountId);
@@ -5041,10 +5044,9 @@ async function fetchAllHiredVacancies(
     if (hiredVcodes.length > 0) {
       try {
         const { data: vacsData } = await supabase
-          .from("vacancies")
-          .select("vcode, store_name, store_branch, area_city, province, store_id, account_id, group_id, account, vacant_date, created_at")
-          .in("vcode", hiredVcodes)
-          .is("deleted_at", null);
+          .from("vw_vacancy_list")
+          .select("vcode, store_name, store_branch, area_city, province, store_id, account_id, group_id, account, vacant_date, created_at, hrco_name")
+          .in("vcode", hiredVcodes);
 
         if (vacsData && vacsData.length > 0) {
           const vacMap = new Map(vacsData.map((v) => [v.vcode, v]));
@@ -5058,6 +5060,7 @@ async function fetchAllHiredVacancies(
               row.groupId = v.group_id || row.groupId;
               row.storeId = v.store_id || row.storeId;
               row.accountName = row.accountName || v.account || null;
+              if (v.hrco_name) row.hrcoName = asString(v.hrco_name) || "Unassigned";
               const loc = [v.area_city, v.province].filter(Boolean).join(" • ");
               if (loc) row.storeLocation = loc;
             }
@@ -5331,10 +5334,9 @@ async function fetchAllFailedVacancies(
 
     const dropoutVcodes = Array.from(new Set(dropoutsData.map((d) => d.vacancy_vcode).filter(Boolean)));
     let vacQuery = supabase
-      .from("vacancies")
-      .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived, deleted_at")
-      .in("vcode", dropoutVcodes)
-      .is("deleted_at", null);
+      .from("vw_vacancy_list")
+      .select("id, vcode, store_name, store_branch, store_id, position, account, account_id, group_id, area_city, province, hrco_name, vacant_date, target_fill_date, urgency_level, is_archived")
+      .in("vcode", dropoutVcodes);
 
     if (filters.accountId) {
       vacQuery = vacQuery.eq("account_id", filters.accountId);
@@ -5379,7 +5381,7 @@ async function fetchAllFailedVacancies(
         position_title: position,
         vacantDate: asString(vac?.vacant_date) || dropoutDate,
         urgencyLevel: asString(vac?.urgency_level),
-        hrcoName: asString(vac?.hrco_name) ?? "—",
+        hrcoName: asString(vac?.hrco_name) || "Unassigned",
         applicantName: candidateName,
         dropoutReason,
       };

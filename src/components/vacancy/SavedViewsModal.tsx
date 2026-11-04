@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 import type { VacancyFilterState, VacancySavedView } from "./useVacancySavedViews";
 import type { VacancyStatus } from "./VacancyTable";
 
@@ -231,7 +232,7 @@ function SavedViewsModalContent({
                   htmlFor="saved-view-name"
                   className="block text-xs font-semibold text-text-primary"
                 >
-                  Preset Name <span className="text-text-muted">*</span>
+                  Preset Name <RequiredAsterisk />
                 </label>
                 <input
                   id="saved-view-name"

@@ -12,6 +12,7 @@ import {
   Store,
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 import { createClient } from "@/lib/supabase/client";
 import {
   useSubmitNewStoreRequest,
@@ -398,7 +399,7 @@ function NewStoreRequestModalDialog({
                   htmlFor="nsr-store-name"
                   className="text-xs font-semibold text-text-primary block"
                 >
-                  Store Name <span className="text-[var(--danger)]">*</span>
+                  Store Name <RequiredAsterisk />
                 </label>
                 <input
                   id="nsr-store-name"
@@ -418,7 +419,7 @@ function NewStoreRequestModalDialog({
                     htmlFor="nsr-province"
                     className="text-xs font-semibold text-text-primary block"
                   >
-                    Province <span className="text-[var(--danger)]">*</span>
+                    Province <RequiredAsterisk />
                   </label>
                   <select
                     id="nsr-province"
@@ -445,7 +446,7 @@ function NewStoreRequestModalDialog({
                     htmlFor="nsr-city"
                     className="text-xs font-semibold text-text-primary block"
                   >
-                    City / Municipality <span className="text-[var(--danger)]">*</span>
+                    City / Municipality <RequiredAsterisk />
                   </label>
                   {availableCities.length > 0 ? (
                     <select
@@ -497,7 +498,7 @@ function NewStoreRequestModalDialog({
                   htmlFor="nsr-reason"
                   className="text-xs font-semibold text-text-primary block"
                 >
-                  Justification / Operational Reason <span className="text-[var(--danger)]">*</span>
+                  Justification / Operational Reason <RequiredAsterisk />
                 </label>
                 <textarea
                   id="nsr-reason"

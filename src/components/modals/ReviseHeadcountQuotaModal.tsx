@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle, Minus, Plus, ShieldAlert } from "lucide-react";
 import { useReviseHeadcountQuota, useVcodeQuotaDetails } from "@/lib/queries/quota";
 import { Modal } from "@/components/shared/Modal";
+import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
 
 export interface ReviseHeadcountQuotaModalProps {
   isOpen: boolean;
@@ -250,7 +251,7 @@ export function ReviseHeadcountQuotaModal({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label htmlFor="revision-reason" className="text-xs font-semibold text-[var(--foreground)]">
-                  Reason for Quota Revision <span className="text-[var(--danger)]">*</span>
+                  Reason for Quota Revision <RequiredAsterisk />
                 </label>
                 <span className="text-[11px] text-[var(--text-muted)] font-mono">
                   {reason.trim().length}/5 chars min
