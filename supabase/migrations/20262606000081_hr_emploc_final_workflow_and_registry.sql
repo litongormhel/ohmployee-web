@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MIGRATION: 20262606000081_hr_emploc_final_workflow_and_registry.sql
--- Module: HR Emploc (Phase 2a: DB foundation & registry on STAGING)
+-- Module: HR Emploc (Phase 2a & 2a-fix: DB foundation & registry on STAGING)
 --
 -- Authoritative Workflow:
 -- 1. No "Ready" tab and no manual "Move to Plantilla" path.
@@ -10,9 +10,10 @@
 -- 4. Reuses move_to_plantilla logic via shared private core:
 --    _assign_and_deploy_emploc_core.
 -- 5. Strict Plantilla validation (no silent defaults: hired_date required,
---    structured applicant names required).
+--    structured applicant names required, position/account/store required).
 -- 6. Slot occupancy reconciled to 'occupied'.
--- 7. Permanent employee_number_registry with race-safe rules (a, b, c, d).
+-- 7. Permanent employee_number_registry with race-safe rules (a, b, c, d)
+--    and middle-name rules (initial match, missing-middle warning confirm).
 -- 8. Centralized role helpers matching Ohm's final role matrix:
 --    - can_tag_or_review_hr_emploc()
 --    - can_assign_pending_hr_emploc()
@@ -20,41 +21,60 @@
 --    - can_edit_deployed_hr_emploc()
 -- ====================================================================
 
--- SECTION 1: NAME NORMALIZATION HELPERS (IMMUTABLE)
+-- Drop obsolete helper from 20262606000080 if present
+DROP FUNCTION IF EXISTS public._assign_hr_emploc_number_core(uuid, text);
+
+-- SECTION 1: NAME NORMALIZATION HELPERS
 -- ====================================================================
 
 CREATE OR REPLACE FUNCTION public.fn_clean_name_token(p_token text)
 RETURNS text
 LANGUAGE plpgsql
 IMMUTABLE PARALLEL SAFE
+SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_clean text;
+  v_raw     text;
+  v_words   text[];
+  v_w       text;
+  v_clean_w text;
+  v_out     text[] := '{}'::text[];
 BEGIN
   IF p_token IS NULL THEN
     RETURN NULL;
   END IF;
-  
-  -- Uppercase, trim, strip punctuation and special characters
-  v_clean := regexp_replace(upper(trim(p_token)), '[.,\/#!$%\^&\*;:{}=\-_`~()]', '', 'g');
-  v_clean := regexp_replace(v_clean, '\s+', ' ', 'g');
-  v_clean := trim(v_clean);
-  
-  IF v_clean = '' THEN
+
+  v_raw := upper(btrim(p_token));
+  IF v_raw IN ('', 'N/A', 'NA', 'NONE', '-') THEN
     RETURN NULL;
   END IF;
-  
-  -- Expand common abbreviations
-  IF v_clean = 'MA' THEN
-    RETURN 'MARIA';
-  END IF;
-  
-  -- Strip standalone generational suffixes if present as token
-  IF v_clean IN ('JR', 'SR', 'III', 'II', 'IV') THEN
+
+  -- Replace common punctuation with space or empty string
+  v_raw := regexp_replace(v_raw, '[.,\/#!$%\^&\*;:{}=\-_~()]', ' ', 'g');
+  v_raw := regexp_replace(v_raw, '\s+', ' ', 'g');
+  v_raw := btrim(v_raw);
+
+  IF v_raw = '' THEN
     RETURN NULL;
   END IF;
-  
-  RETURN v_clean;
+
+  v_words := regexp_split_to_array(v_raw, '\s+');
+  FOREACH v_w IN ARRAY v_words LOOP
+    v_clean_w := btrim(v_w);
+    IF v_clean_w = '' OR v_clean_w IN ('JR', 'SR', 'II', 'III', 'IV', 'NA', 'NONE') THEN
+      CONTINUE;
+    END IF;
+    IF v_clean_w = 'MA' THEN
+      v_clean_w := 'MARIA';
+    END IF;
+    v_out := array_append(v_out, v_clean_w);
+  END LOOP;
+
+  IF array_length(v_out, 1) IS NULL OR array_length(v_out, 1) = 0 THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN array_to_string(v_out, ' ');
 END;
 $$;
 
@@ -68,84 +88,110 @@ CREATE OR REPLACE FUNCTION public.fn_normalize_person_name(
 RETURNS text
 LANGUAGE plpgsql
 IMMUTABLE PARALLEL SAFE
+SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_first   text;
-  v_middle  text;
-  v_last    text;
-  v_raw     text;
-  v_parts   text[];
-  v_tokens  text[];
-  v_t       text;
-  v_clean_t text;
+  v_first     text;
+  v_middle    text;
+  v_last      text;
+  v_raw       text;
+  v_parts     text[];
+  v_raw_words text[];
+  v_tokens    text[] := '{}'::text[];
+  v_w         text;
+  v_clean_w   text;
+  v_n         int;
+  v_last_idx  int;
+  v_mid_idx   int;
 BEGIN
-  -- If structured first and last are provided, use them
-  IF NULLIF(trim(coalesce(p_first, '')), '') IS NOT NULL 
-     AND NULLIF(trim(coalesce(p_last, '')), '') IS NOT NULL THEN
+  -- 1. If structured first and last are provided, use them directly
+  IF NULLIF(btrim(coalesce(p_first, '')), '') IS NOT NULL
+     AND NULLIF(btrim(coalesce(p_last, '')), '') IS NOT NULL THEN
     v_first  := public.fn_clean_name_token(p_first);
     v_middle := public.fn_clean_name_token(p_middle);
     v_last   := public.fn_clean_name_token(p_last);
-    
     RETURN coalesce(v_last, '') || '|' || coalesce(v_first, '') || '|' || coalesce(v_middle, '');
   END IF;
 
-  v_raw := trim(coalesce(p_raw_full, ''));
+  v_raw := btrim(coalesce(p_raw_full, ''));
   IF v_raw = '' THEN
     RETURN '';
   END IF;
 
-  -- If raw contains comma: "LAST, FIRST MIDDLE" (standard Plantilla format)
+  -- 2. Comma format: "LAST, FIRST [MIDDLE]"
   IF position(',' IN v_raw) > 0 THEN
-    v_parts  := string_to_array(v_raw, ',');
-    v_last   := public.fn_clean_name_token(v_parts[1]);
-    v_tokens := regexp_split_to_array(trim(coalesce(v_parts[2], '')), '\s+');
-    
-    v_first := NULL;
-    v_middle := NULL;
-    
-    IF array_length(v_tokens, 1) >= 1 THEN
-      v_first := public.fn_clean_name_token(v_tokens[1]);
-      IF array_length(v_tokens, 1) >= 2 THEN
-        -- Remaining tokens form middle name
-        FOR i IN 2..array_length(v_tokens, 1) LOOP
-          v_clean_t := public.fn_clean_name_token(v_tokens[i]);
-          IF v_clean_t IS NOT NULL THEN
-            IF v_middle IS NULL THEN
-              v_middle := v_clean_t;
-            ELSE
-              v_middle := v_middle || ' ' || v_clean_t;
-            END IF;
-          END IF;
-        END LOOP;
+    v_parts := string_to_array(v_raw, ',');
+    v_last  := public.fn_clean_name_token(v_parts[1]);
+
+    v_raw_words := regexp_split_to_array(btrim(coalesce(v_parts[2], '')), '\s+');
+    FOREACH v_w IN ARRAY v_raw_words LOOP
+      v_clean_w := public.fn_clean_name_token(v_w);
+      IF v_clean_w IS NOT NULL THEN
+        v_tokens := array_append(v_tokens, v_clean_w);
       END IF;
+    END LOOP;
+
+    v_n := coalesce(array_length(v_tokens, 1), 0);
+    IF v_n = 0 THEN
+      RETURN coalesce(v_last, '') || '||';
+    ELSIF v_n = 1 THEN
+      RETURN coalesce(v_last, '') || '|' || v_tokens[1] || '|';
+    ELSE
+      -- Check if trailing tokens form a compound middle surname (e.g. DELOS REYES, DELA CRUZ, DE LEON, DE LA CRUZ)
+      v_mid_idx := v_n;
+      IF v_n >= 4 AND v_tokens[v_n - 2] = 'DE' AND v_tokens[v_n - 1] IN ('LA', 'LOS', 'LAS') THEN
+        v_mid_idx := v_n - 2;
+      ELSIF v_n >= 3 AND v_tokens[v_n - 1] IN ('DELA', 'DE', 'DEL', 'DELOS', 'SAN', 'STA', 'SANTA', 'VAN', 'VON', 'DA', 'DI', 'LA', 'LE') THEN
+        v_mid_idx := v_n - 1;
+      END IF;
+
+      v_first  := array_to_string(v_tokens[1:(v_mid_idx - 1)], ' ');
+      v_middle := array_to_string(v_tokens[v_mid_idx:v_n], ' ');
+      RETURN coalesce(v_last, '') || '|' || coalesce(v_first, '') || '|' || coalesce(v_middle, '');
     END IF;
-    
-    RETURN coalesce(v_last, '') || '|' || coalesce(v_first, '') || '|' || coalesce(v_middle, '');
+
+  -- 3. Space format: "FIRST [MIDDLE] LAST"
   ELSE
-    -- No comma: "FIRST MIDDLE LAST" (hr_emploc format)
-    v_tokens := regexp_split_to_array(v_raw, '\s+');
-    IF array_length(v_tokens, 1) = 1 THEN
-      v_clean_t := public.fn_clean_name_token(v_tokens[1]);
-      RETURN coalesce(v_clean_t, '') || '|' || coalesce(v_clean_t, '') || '|';
+    v_raw_words := regexp_split_to_array(v_raw, '\s+');
+    FOREACH v_w IN ARRAY v_raw_words LOOP
+      v_clean_w := public.fn_clean_name_token(v_w);
+      IF v_clean_w IS NOT NULL THEN
+        v_tokens := array_append(v_tokens, v_clean_w);
+      END IF;
+    END LOOP;
+
+    v_n := coalesce(array_length(v_tokens, 1), 0);
+    IF v_n = 0 THEN
+      RETURN '';
+    ELSIF v_n = 1 THEN
+      RETURN v_tokens[1] || '|' || v_tokens[1] || '|';
     END IF;
-    
-    v_first := public.fn_clean_name_token(v_tokens[1]);
-    v_last  := public.fn_clean_name_token(v_tokens[array_length(v_tokens, 1)]);
-    v_middle := NULL;
-    
-    IF array_length(v_tokens, 1) > 2 THEN
-      FOR i IN 2..(array_length(v_tokens, 1) - 1) LOOP
-        v_clean_t := public.fn_clean_name_token(v_tokens[i]);
-        IF v_clean_t IS NOT NULL THEN
-          IF v_middle IS NULL THEN
-            v_middle := v_clean_t;
-          ELSE
-            v_middle := v_middle || ' ' || v_clean_t;
-          END IF;
-        END IF;
-      END LOOP;
+
+    -- Determine where trailing surname starts (compound surname support)
+    v_last_idx := v_n;
+    IF v_n >= 4 AND v_tokens[v_n - 2] = 'DE' AND v_tokens[v_n - 1] IN ('LA', 'LOS', 'LAS') THEN
+      v_last_idx := v_n - 2;
+    ELSIF v_n >= 3 AND v_tokens[v_n - 1] IN ('DELA', 'DE', 'DEL', 'DELOS', 'SAN', 'STA', 'SANTA', 'VAN', 'VON', 'DA', 'DI', 'LA', 'LE') THEN
+      v_last_idx := v_n - 1;
     END IF;
-    
+
+    v_last := array_to_string(v_tokens[v_last_idx:v_n], ' ');
+
+    -- Remaining tokens before v_last_idx are FIRST [MIDDLE]
+    IF v_last_idx - 1 = 1 THEN
+      v_first  := v_tokens[1];
+      v_middle := '';
+    ELSE
+      v_mid_idx := v_last_idx - 1;
+      IF v_mid_idx >= 3 AND v_tokens[v_mid_idx - 2] = 'DE' AND v_tokens[v_mid_idx - 1] IN ('LA', 'LOS', 'LAS') AND v_mid_idx > 3 THEN
+        v_mid_idx := v_mid_idx - 2;
+      ELSIF v_mid_idx >= 3 AND v_tokens[v_mid_idx - 1] IN ('DELA', 'DE', 'DEL', 'DELOS', 'SAN', 'STA', 'SANTA', 'VAN', 'VON', 'DA', 'DI', 'LA', 'LE') THEN
+        v_mid_idx := v_mid_idx - 1;
+      END IF;
+      v_first  := array_to_string(v_tokens[1:(v_mid_idx - 1)], ' ');
+      v_middle := array_to_string(v_tokens[v_mid_idx:(v_last_idx - 1)], ' ');
+    END IF;
+
     RETURN coalesce(v_last, '') || '|' || coalesce(v_first, '') || '|' || coalesce(v_middle, '');
   END IF;
 END;
@@ -157,7 +203,8 @@ CREATE OR REPLACE FUNCTION public.fn_match_person_name(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-IMMUTABLE PARALLEL SAFE
+STABLE PARALLEL SAFE
+SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
   v_p1_parts  text[];
@@ -168,58 +215,80 @@ DECLARE
   v_last2     text;
   v_first2    text;
   v_middle2   text;
-  v_is_alias  boolean := false;
+  v_alias_hit boolean := false;
 BEGIN
-  IF p_norm1 = p_norm2 THEN
-    RETURN jsonb_build_object('match', true, 'type', 'EXACT', 'reason', 'Identical normalized key');
+  IF p_norm1 = p_norm2 AND split_part(p_norm1, '|', 3) <> '' THEN
+    RETURN jsonb_build_object('match', true, 'type', 'EXACT', 'requires_confirm', false, 'reason', 'Identical normalized key');
+  END IF;
+
+  -- Check table-driven alias match first
+  IF EXISTS (
+    SELECT 1 FROM public.registry_name_aliases rna
+    WHERE (rna.normalized_name = p_norm1 AND rna.alias_normalized_name = p_norm2)
+       OR (rna.normalized_name = p_norm2 AND rna.alias_normalized_name = p_norm1)
+  ) THEN
+    RETURN jsonb_build_object('match', true, 'type', 'ALIAS_MATCH', 'requires_confirm', false, 'reason', 'Registered name alias in registry_name_aliases');
   END IF;
 
   v_p1_parts := string_to_array(p_norm1, '|');
   v_p2_parts := string_to_array(p_norm2, '|');
-  
+
   v_last1   := coalesce(v_p1_parts[1], '');
   v_first1  := coalesce(v_p1_parts[2], '');
   v_middle1 := coalesce(v_p1_parts[3], '');
-  
+
   v_last2   := coalesce(v_p2_parts[1], '');
   v_first2  := coalesce(v_p2_parts[2], '');
   v_middle2 := coalesce(v_p2_parts[3], '');
 
-  -- Check registered alias for Hautea / Huatea
-  IF (v_last1 IN ('HAUTEA', 'HUATEA') AND v_last2 IN ('HAUTEA', 'HUATEA'))
-     AND v_first1 = v_first2 THEN
-    RETURN jsonb_build_object('match', true, 'type', 'ALIAS_MATCH', 'reason', 'Registered name alias (Hautea/Huatea)');
-  END IF;
-
-  IF v_last1 <> v_last2 THEN
-    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_LAST_NAME', 'reason', 'Last names do not match');
+  -- Check registered surname alias for Hautea / Huatea (Decision 5)
+  IF (v_last1 IN ('HAUTEA', 'HUATEA') AND v_last2 IN ('HAUTEA', 'HUATEA')) THEN
+    v_alias_hit := true;
+  ELSIF v_last1 <> v_last2 THEN
+    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_LAST_NAME', 'requires_confirm', false, 'reason', 'Last names do not match');
   END IF;
 
   IF v_first1 <> v_first2 THEN
-    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_FIRST_NAME', 'reason', 'First names do not match');
+    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_FIRST_NAME', 'requires_confirm', false, 'reason', 'First names do not match');
   END IF;
 
-  -- Middle name rules
+  -- Middle name rules:
+  -- 1. Both present -> compare (exact or single-letter initial match)
   IF v_middle1 <> '' AND v_middle2 <> '' THEN
     IF v_middle1 = v_middle2 THEN
-      RETURN jsonb_build_object('match', true, 'type', 'EXACT', 'reason', 'Full name match');
+      IF v_alias_hit THEN
+        RETURN jsonb_build_object('match', true, 'type', 'ALIAS_MATCH', 'requires_confirm', false, 'reason', 'Registered name alias (Hautea/Huatea)');
+      END IF;
+      RETURN jsonb_build_object('match', true, 'type', 'EXACT', 'requires_confirm', false, 'reason', 'Full name match');
     END IF;
-    -- Initial match
     IF (length(v_middle1) = 1 AND starts_with(v_middle2, v_middle1)) OR
        (length(v_middle2) = 1 AND starts_with(v_middle1, v_middle2)) THEN
-      RETURN jsonb_build_object('match', true, 'type', 'INITIAL_MATCH', 'reason', 'Middle initial matches full middle name');
+      RETURN jsonb_build_object('match', true, 'type', 'INITIAL_MATCH', 'requires_confirm', false, 'reason', 'Middle initial matches full middle name');
     END IF;
-    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_MIDDLE_NAME', 'reason', 'Different middle names');
+    RETURN jsonb_build_object('match', false, 'type', 'DIFFERENT_MIDDLE_NAME', 'requires_confirm', false, 'reason', 'Different middle names');
   END IF;
 
+  -- 2. Both missing middle name
   IF v_middle1 = '' AND v_middle2 = '' THEN
-    RETURN jsonb_build_object('match', true, 'type', 'EXACT_NO_MIDDLE', 'reason', 'Both missing middle name');
+    IF v_alias_hit THEN
+      RETURN jsonb_build_object('match', true, 'type', 'ALIAS_MATCH', 'requires_confirm', false, 'reason', 'Registered name alias (Hautea/Huatea)');
+    END IF;
+    RETURN jsonb_build_object('match', true, 'type', 'EXACT_NO_MIDDLE', 'requires_confirm', false, 'reason', 'Both missing middle name');
   END IF;
 
-  -- One side missing middle -> matches with warning
-  RETURN jsonb_build_object('match', true, 'type', 'WARNING_MISSING_MIDDLE', 'reason', 'One record missing middle name');
+  -- 3. One side missing middle name -> WARNING needing confirmation
+  RETURN jsonb_build_object('match', true, 'type', 'WARNING_MISSING_MIDDLE', 'requires_confirm', true, 'reason', 'One record is missing a middle name');
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.fn_clean_name_token(text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_clean_name_token(text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.fn_normalize_person_name(text, text, text, text, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_normalize_person_name(text, text, text, text, text) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.fn_match_person_name(text, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_match_person_name(text, text) TO authenticated;
 
 
 -- SECTION 2: PERMANENT EMPLOYEE NUMBER REGISTRY & CONFLICTS
@@ -243,7 +312,7 @@ CREATE TABLE IF NOT EXISTS public.employee_number_registry (
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_emploc_registry_normalized_name 
+CREATE INDEX IF NOT EXISTS idx_emploc_registry_normalized_name
   ON public.employee_number_registry (normalized_name);
 
 CREATE TABLE IF NOT EXISTS public.registry_conflicts (
@@ -269,37 +338,30 @@ CREATE TABLE IF NOT EXISTS public.registry_name_aliases (
   created_at             timestamptz NOT NULL DEFAULT now()
 );
 
--- Enable RLS: direct DML forbidden, authenticated/anon can only SELECT
+-- Enable RLS and enforce read-only access for non-DEFINER callers
 ALTER TABLE public.employee_number_registry ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.registry_conflicts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.registry_name_aliases ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE tablename = 'employee_number_registry' AND policyname = 'p_select_employee_number_registry'
-  ) THEN
-    CREATE POLICY p_select_employee_number_registry ON public.employee_number_registry
-      FOR SELECT TO authenticated, anon USING (true);
-  END IF;
+REVOKE ALL ON TABLE public.employee_number_registry FROM anon, authenticated, PUBLIC;
+REVOKE ALL ON TABLE public.registry_conflicts FROM anon, authenticated, PUBLIC;
+REVOKE ALL ON TABLE public.registry_name_aliases FROM anon, authenticated, PUBLIC;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE tablename = 'registry_conflicts' AND policyname = 'p_select_registry_conflicts'
-  ) THEN
-    CREATE POLICY p_select_registry_conflicts ON public.registry_conflicts
-      FOR SELECT TO authenticated USING (true);
-  END IF;
+GRANT SELECT ON TABLE public.employee_number_registry TO authenticated;
+GRANT SELECT ON TABLE public.registry_conflicts TO authenticated;
+GRANT SELECT ON TABLE public.registry_name_aliases TO authenticated;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE tablename = 'registry_name_aliases' AND policyname = 'p_select_registry_name_aliases'
-  ) THEN
-    CREATE POLICY p_select_registry_name_aliases ON public.registry_name_aliases
-      FOR SELECT TO authenticated USING (true);
-  END IF;
-END $$;
+DROP POLICY IF EXISTS p_select_employee_number_registry ON public.employee_number_registry;
+CREATE POLICY p_select_employee_number_registry ON public.employee_number_registry
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS p_select_registry_conflicts ON public.registry_conflicts;
+CREATE POLICY p_select_registry_conflicts ON public.registry_conflicts
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS p_select_registry_name_aliases ON public.registry_name_aliases;
+CREATE POLICY p_select_registry_name_aliases ON public.registry_name_aliases
+  FOR SELECT TO authenticated USING (true);
 
 -- Super Admin management function for typos/aliases in registry
 CREATE OR REPLACE FUNCTION public.admin_correct_registry_name(
@@ -359,14 +421,18 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.admin_correct_registry_name(text, text, text, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_correct_registry_name(text, text, text, text) TO authenticated;
+
 
 -- SECTION 3: BACKFILL STAGING REGISTRY APPLYING OHM'S DECISIONS
 -- ====================================================================
 
--- Register alias Hautea / Huatea
+DELETE FROM public.registry_name_aliases WHERE reason LIKE 'Decision 5:%';
 INSERT INTO public.registry_name_aliases (normalized_name, alias_normalized_name, reason)
-VALUES ('HUATEA|EDGIE|MENDOZA', 'HAUTEA|EDGIE|MENDOZA', 'Decision 5: Huatea vs Hautea alias mapping')
-ON CONFLICT DO NOTHING;
+VALUES ('HUATEA|EDGIE|MENDOZA', 'HAUTEA|EDGIE|MENDOZA', 'Decision 5: Huatea vs Hautea alias mapping');
+
+DELETE FROM public.registry_conflicts WHERE employee_no = '2026-08678';
 
 DO $$
 DECLARE
@@ -374,11 +440,11 @@ DECLARE
   v_norm text;
   v_display text;
 BEGIN
-  -- Backfill from plantilla rows (earliest first)
+  -- 1. Backfill from plantilla rows (earliest first)
   FOR r IN (
-    SELECT 
+    SELECT
       p.id,
-      btrim(p.employee_no) as emp_no,
+      btrim(p.employee_no) AS emp_no,
       p.employee_name,
       p.first_name,
       p.middle_name,
@@ -388,28 +454,27 @@ BEGIN
       p.created_by,
       p.hr_emploc_id
     FROM public.plantilla p
-    WHERE p.employee_no IS NOT NULL 
+    WHERE p.employee_no IS NOT NULL
       AND btrim(p.employee_no) <> ''
       AND btrim(p.employee_no) <> '(PENDING)'
+      AND btrim(p.employee_no) <> '2026-123123'
     ORDER BY p.created_at ASC
   ) LOOP
     v_norm := public.fn_normalize_person_name(r.first_name, r.middle_name, r.last_name, NULL, r.employee_name);
     v_display := coalesce(r.employee_name, r.last_name || ', ' || r.first_name);
 
     -- Special handling for Decision 4: 2026-08678
-    IF r.emp_no = '2026-08678' AND v_norm LIKE '%DELA CRUZ%' THEN
-      -- Later assignee: log as conflict, do not insert to registry
+    IF r.emp_no = '2026-08678' AND v_norm LIKE 'DELA CRUZ|%' THEN
       INSERT INTO public.registry_conflicts (
         employee_no, record_type, record_id, display_name, normalized_name, conflict_reason, conflict_details
       ) VALUES (
         r.emp_no, 'plantilla', r.id, v_display, v_norm,
         'Decision 4: Earliest owner is Babia, Frak Dave. Dela Cruz, Juan Santos recorded for manual resolution.',
         jsonb_build_object('plantilla_id', r.id, 'status', r.status, 'created_at', r.created_at)
-      ) ON CONFLICT DO NOTHING;
+      );
       CONTINUE;
     END IF;
 
-    -- Upsert into registry
     INSERT INTO public.employee_number_registry (
       emploc_no, normalized_name, display_name, status,
       first_assigned_at, first_assigned_by, last_assigned_at, last_assigned_by,
@@ -420,28 +485,30 @@ BEGIN
       r.id, r.hr_emploc_id
     )
     ON CONFLICT (emploc_no) DO UPDATE SET
+      normalized_name = public.employee_number_registry.normalized_name,
       last_assigned_at = EXCLUDED.last_assigned_at,
-      source_plantilla_id = COALESCE(public.employee_number_registry.source_plantilla_id, EXCLUDED.source_plantilla_id);
+      source_plantilla_id = COALESCE(public.employee_number_registry.source_plantilla_id, EXCLUDED.source_plantilla_id),
+      source_hr_emploc_id = COALESCE(public.employee_number_registry.source_hr_emploc_id, EXCLUDED.source_hr_emploc_id);
   END LOOP;
 
-  -- Backfill from hr_emploc (already moved/deployed rows)
+  -- 2. Backfill from hr_emploc (any row that ever had an employee_no / emploc_no assigned)
   FOR r IN (
-    SELECT 
+    SELECT
       h.id,
-      btrim(coalesce(h.employee_no, h.emploc_no)) as emp_no,
+      btrim(coalesce(nullif(btrim(h.employee_no), ''), nullif(btrim(h.emploc_no), ''))) AS emp_no,
       h.applicant_name,
       h.employee_name_snapshot,
       h.created_at,
       h.created_by,
-      a.first_name as app_first,
-      a.middle_name as app_middle,
-      a.last_name as app_last
+      a.first_name AS app_first,
+      a.middle_name AS app_middle,
+      a.last_name AS app_last
     FROM public.hr_emploc h
     LEFT JOIN public.applicants a ON a.id = h.applicant_id
     WHERE (h.employee_no IS NOT NULL OR h.emploc_no IS NOT NULL)
-      AND btrim(coalesce(h.employee_no, h.emploc_no)) <> ''
-      AND btrim(coalesce(h.employee_no, h.emploc_no)) <> '(PENDING)'
-      AND h.status = 'Moved to Plantilla'
+      AND btrim(coalesce(nullif(btrim(h.employee_no), ''), nullif(btrim(h.emploc_no), ''), '')) <> ''
+      AND btrim(coalesce(nullif(btrim(h.employee_no), ''), nullif(btrim(h.emploc_no), ''), '')) <> '(PENDING)'
+      AND btrim(coalesce(nullif(btrim(h.employee_no), ''), nullif(btrim(h.emploc_no), ''), '')) <> '2026-123123'
     ORDER BY h.created_at ASC
   ) LOOP
     v_norm := public.fn_normalize_person_name(r.app_first, r.app_middle, r.app_last, NULL, coalesce(r.employee_name_snapshot, r.applicant_name));
@@ -512,7 +579,13 @@ BEGIN
   IF public.is_super_admin() THEN
     RETURN true;
   END IF;
-  RETURN public.i_am_ops();
+  IF public.i_am_ops() THEN
+    RETURN true;
+  END IF;
+  IF COALESCE(public.get_my_role(), '') IN ('Operations Manager', 'OM', 'HRCO', 'ATL', 'TL', 'ATL/TL') THEN
+    RETURN true;
+  END IF;
+  RETURN false;
 END;
 $$;
 
@@ -585,9 +658,11 @@ DECLARE
   v_match            jsonb;
   v_is_rehire        boolean := false;
   v_dup_reg          public.employee_number_registry;
+  v_dup_match        jsonb;
+  r_cand             RECORD;
 BEGIN
-  -- 1. Format validation
-  IF v_clean_id = '' OR v_clean_id !~ '^[A-Za-z0-9._-]+$' THEN
+  -- 1. Format validation (rejects empty, spaces, (PENDING), invalid chars)
+  IF v_clean_id = '' OR upper(v_clean_id) = '(PENDING)' OR v_clean_id !~ '^[A-Za-z0-9._-]+$' THEN
     RAISE EXCEPTION 'EMPLOYEE_NO_FORMAT_INVALID: Employee number "%" is invalid. Allowed: alphanumeric, dots, underscores, dashes.', v_clean_id
       USING ERRCODE = '22023';
   END IF;
@@ -610,9 +685,9 @@ BEGIN
 
   -- Safe idempotent no-op check: already moved with same number
   IF v_emp.status = 'Moved to Plantilla' AND v_emp.employee_no = v_clean_id THEN
-    SELECT * INTO v_existing_pl 
-    FROM public.plantilla 
-    WHERE hr_emploc_id = p_hr_emploc_id 
+    SELECT * INTO v_existing_pl
+    FROM public.plantilla
+    WHERE hr_emploc_id = p_hr_emploc_id
       AND COALESCE(is_deleted, false) = false
     LIMIT 1;
     IF FOUND THEN
@@ -631,12 +706,10 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  IF (v_app.first_name IS NULL OR btrim(v_app.first_name) = '') OR 
+  IF (v_app.first_name IS NULL OR btrim(v_app.first_name) = '') OR
      (v_app.last_name IS NULL OR btrim(v_app.last_name) = '') THEN
-    IF v_emp.employee_name_snapshot IS NULL OR btrim(v_emp.employee_name_snapshot) = '' THEN
-      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: applicant first_name and last_name are required'
-        USING ERRCODE = '22023';
-    END IF;
+    RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: applicant first_name and last_name are required'
+      USING ERRCODE = '22023';
   END IF;
 
   IF v_emp.account_id IS NULL AND (v_emp.account IS NULL OR btrim(v_emp.account) = '') THEN
@@ -650,37 +723,37 @@ BEGIN
   END IF;
 
   IF COALESCE(v_emp.assignment_type, 'Stationary') <> 'Roving' AND v_emp.coverage_slot_id IS NULL THEN
-    IF v_emp.store_id IS NULL THEN
+    IF v_emp.store_id IS NULL AND (v_emp.store_name IS NULL OR btrim(v_emp.store_name) = '') THEN
       RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: store is required for stationary deployment'
+        USING ERRCODE = '22023';
+    END IF;
+    IF v_emp.store_id IS NULL THEN
+      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: store_id is required for stationary deployment'
         USING ERRCODE = '22023';
     END IF;
   END IF;
 
   -- Resolve canonical formatted name and normalized name
-  IF v_app.last_name IS NOT NULL AND v_app.first_name IS NOT NULL THEN
-    v_formatted_name := v_app.last_name || ', ' || v_app.first_name || COALESCE(' ' || NULLIF(btrim(v_app.middle_name), ''), '');
-    v_norm_name      := public.fn_normalize_person_name(v_app.first_name, v_app.middle_name, v_app.last_name, NULL, NULL);
-  ELSE
-    v_formatted_name := COALESCE(v_emp.employee_name_snapshot, v_emp.applicant_name);
-    v_norm_name      := public.fn_normalize_person_name(NULL, NULL, NULL, NULL, v_formatted_name);
-  END IF;
+  v_formatted_name := v_app.last_name || ', ' || v_app.first_name || COALESCE(' ' || NULLIF(btrim(v_app.middle_name), ''), '');
+  v_norm_name      := public.fn_normalize_person_name(v_app.first_name, v_app.middle_name, v_app.last_name, NULL, NULL);
 
   -- 5. REGISTRY RACE-SAFE CHECK UNDER FOR UPDATE LOCK
-  SELECT * INTO v_reg 
-  FROM public.employee_number_registry 
-  WHERE emploc_no = v_clean_id 
+  SELECT * INTO v_reg
+  FROM public.employee_number_registry
+  WHERE emploc_no = v_clean_id
   FOR UPDATE;
 
   IF FOUND THEN
     IF v_reg.status IN ('assigned', 'rehire_reused') THEN
       v_match := public.fn_match_person_name(v_reg.normalized_name, v_norm_name);
-      
+
       -- Rule a: Number registered to a different person -> HARD BLOCK
       IF (v_match->>'match')::boolean = false THEN
         RAISE EXCEPTION 'EMPLOYEE_NO_ALREADY_ASSIGNED: Employee number % is permanently registered to %',
           v_clean_id, v_reg.display_name
           USING ERRCODE = '23505',
                 DETAIL = jsonb_build_object(
+                  'code', 'EMPLOYEE_NO_ALREADY_ASSIGNED',
                   'employee_no', v_clean_id,
                   'registered_to', v_reg.display_name,
                   'registered_norm', v_reg.normalized_name,
@@ -689,11 +762,11 @@ BEGIN
                 )::text;
       END IF;
 
-      -- Rule b: Same person, but prior row is ACTIVE -> HARD BLOCK
+      -- Rule b: Same person/number, but prior row is ACTIVE -> HARD BLOCK
       IF EXISTS (
         SELECT 1 FROM public.plantilla p
         WHERE (p.employee_no = v_clean_id OR p.emploc_no = v_clean_id)
-          AND p.status IN ('Active', 'On Leave', 'For Deactivation')
+          AND p.status IN ('Active', 'On Leave', 'For Deactivation', 'Pending Deactivation')
           AND COALESCE(p.is_deleted, false) = false
           AND (p.hr_emploc_id IS NULL OR p.hr_emploc_id <> p_hr_emploc_id)
       ) OR EXISTS (
@@ -707,48 +780,143 @@ BEGIN
           v_formatted_name, v_clean_id
           USING ERRCODE = '23505',
                 DETAIL = jsonb_build_object(
+                  'code', 'EMPLOYEE_ALREADY_ACTIVE',
                   'employee_no', v_clean_id,
                   'person', v_formatted_name
                 )::text;
       END IF;
 
-      -- Rule c: Same person, prior row is inactive -> requires confirm (rehire reuse)
-      IF NOT p_confirm_reuse OR coalesce(btrim(p_reuse_reason), '') = '' THEN
-        RAISE EXCEPTION 'REHIRE_CONFIRM_REQUIRED: % was previously assigned number %. Confirm rehire reuse with reason.',
-          v_formatted_name, v_clean_id
-          USING ERRCODE = '23505',
-                DETAIL = jsonb_build_object(
-                  'code', 'REHIRE_CONFIRM_REQUIRED',
-                  'employee_no', v_clean_id,
-                  'display_name', v_reg.display_name,
-                  'first_assigned_at', v_reg.first_assigned_at,
-                  'status', v_reg.status
-                )::text;
+      -- Middle-name warning check (one side missing middle name)
+      IF (v_match->>'type') = 'WARNING_MISSING_MIDDLE' THEN
+        IF NOT p_confirm_reuse OR coalesce(btrim(p_reuse_reason), '') = '' THEN
+          RAISE EXCEPTION 'MIDDLE_NAME_CONFIRM_REQUIRED: % matches % on first and last name, but one record is missing a middle name. Confirm with reason.',
+            v_formatted_name, v_reg.display_name
+            USING ERRCODE = '23505',
+                  DETAIL = jsonb_build_object(
+                    'code', 'MIDDLE_NAME_CONFIRM_REQUIRED',
+                    'employee_no', v_clean_id,
+                    'registered_to', v_reg.display_name,
+                    'incoming_name', v_formatted_name,
+                    'reason', v_match->>'reason'
+                  )::text;
+        END IF;
       END IF;
-      v_is_rehire := true;
+
+      -- Rule c & Decision 1:
+      -- If v_reg.source_hr_emploc_id = p_hr_emploc_id (same hr_emploc record re-assigning its own number after Revert to Pending),
+      -- NO rehire confirm is required!
+      -- Otherwise (a NEW hr_emploc record for a person who previously owned the number), require confirm + reason.
+      IF v_reg.source_hr_emploc_id IS DISTINCT FROM p_hr_emploc_id THEN
+        IF NOT p_confirm_reuse OR coalesce(btrim(p_reuse_reason), '') = '' THEN
+          RAISE EXCEPTION 'REHIRE_CONFIRM_REQUIRED: % was previously assigned number %. Confirm rehire reuse with reason.',
+            v_formatted_name, v_clean_id
+            USING ERRCODE = '23505',
+                  DETAIL = jsonb_build_object(
+                    'code', 'REHIRE_CONFIRM_REQUIRED',
+                    'employee_no', v_clean_id,
+                    'display_name', v_reg.display_name,
+                    'first_assigned_at', v_reg.first_assigned_at,
+                    'status', v_reg.status
+                  )::text;
+        END IF;
+        v_is_rehire := true;
+      END IF;
     END IF;
   END IF;
 
-  -- Rule d: Same person already owns another number in the registry
-  SELECT * INTO v_dup_reg
-  FROM public.employee_number_registry
-  WHERE normalized_name = v_norm_name
-    AND emploc_no <> v_clean_id
-    AND status IN ('assigned', 'rehire_reused')
-  LIMIT 1;
+  -- Rule b (person-wide active check across any other number) & Rule d (person already owns another number in registry)
+  FOR r_cand IN (
+    SELECT *
+    FROM public.employee_number_registry reg
+    WHERE reg.emploc_no <> v_clean_id
+      AND reg.status IN ('assigned', 'rehire_reused')
+      AND (
+        split_part(reg.normalized_name, '|', 1) = split_part(v_norm_name, '|', 1)
+        OR (split_part(reg.normalized_name, '|', 1) IN ('HAUTEA', 'HUATEA') AND split_part(v_norm_name, '|', 1) IN ('HAUTEA', 'HUATEA'))
+        OR EXISTS (
+          SELECT 1 FROM public.registry_name_aliases rna
+          WHERE rna.normalized_name = reg.normalized_name OR rna.alias_normalized_name = reg.normalized_name
+        )
+      )
+  ) LOOP
+    v_dup_match := public.fn_match_person_name(r_cand.normalized_name, v_norm_name);
+    IF (v_dup_match->>'match')::boolean = true THEN
+      -- First check Rule b: if this same person has an active Plantilla or active hr_emploc under r_cand.emploc_no, HARD BLOCK!
+      IF (v_dup_match->>'type') <> 'WARNING_MISSING_MIDDLE' AND (
+        EXISTS (
+          SELECT 1 FROM public.plantilla p
+          WHERE (p.employee_no = r_cand.emploc_no OR p.emploc_no = r_cand.emploc_no)
+            AND p.status IN ('Active', 'On Leave', 'For Deactivation', 'Pending Deactivation')
+            AND COALESCE(p.is_deleted, false) = false
+            AND (p.hr_emploc_id IS NULL OR p.hr_emploc_id <> p_hr_emploc_id)
+        ) OR EXISTS (
+          SELECT 1 FROM public.hr_emploc h
+          WHERE (h.employee_no = r_cand.emploc_no OR h.emploc_no = r_cand.emploc_no)
+            AND h.status NOT IN ('Backout', 'Moved to Plantilla')
+            AND h.id <> p_hr_emploc_id
+            AND h.deleted_at IS NULL
+        )
+      ) THEN
+        RAISE EXCEPTION 'EMPLOYEE_ALREADY_ACTIVE: % already has an active placement or active Plantilla record under Employee number %',
+          v_formatted_name, r_cand.emploc_no
+          USING ERRCODE = '23505',
+                DETAIL = jsonb_build_object(
+                  'code', 'EMPLOYEE_ALREADY_ACTIVE',
+                  'employee_no', r_cand.emploc_no,
+                  'person', v_formatted_name
+                )::text;
+      END IF;
 
-  IF FOUND THEN
-    IF NOT p_confirm_reuse OR coalesce(btrim(p_reuse_reason), '') = '' THEN
-      RAISE EXCEPTION 'POSSIBLE_DUPLICATE_PERSON: % is already registered with Employee number %. Confirm duplicate assignment with reason.',
-        v_formatted_name, v_dup_reg.emploc_no
-        USING ERRCODE = '23505',
-              DETAIL = jsonb_build_object(
-                'code', 'POSSIBLE_DUPLICATE_PERSON',
-                'new_employee_no', v_clean_id,
-                'existing_employee_no', v_dup_reg.emploc_no,
-                'display_name', v_dup_reg.display_name
-              )::text;
+      -- Rule d: Person owns another number (inactive) -> require confirmation + reason
+      IF NOT p_confirm_reuse OR coalesce(btrim(p_reuse_reason), '') = '' THEN
+        IF (v_dup_match->>'type') = 'WARNING_MISSING_MIDDLE' THEN
+          RAISE EXCEPTION 'MIDDLE_NAME_CONFIRM_REQUIRED (POSSIBLE_DUPLICATE_PERSON): % matches % (Employee number %) on first and last name with one side missing middle name. Confirm with reason.',
+            v_formatted_name, r_cand.display_name, r_cand.emploc_no
+            USING ERRCODE = '23505',
+                  DETAIL = jsonb_build_object(
+                    'code', 'MIDDLE_NAME_CONFIRM_REQUIRED',
+                    'secondary_code', 'POSSIBLE_DUPLICATE_PERSON',
+                    'new_employee_no', v_clean_id,
+                    'existing_employee_no', r_cand.emploc_no,
+                    'display_name', r_cand.display_name
+                  )::text;
+        ELSE
+          RAISE EXCEPTION 'POSSIBLE_DUPLICATE_PERSON: % is already registered with Employee number %. Confirm duplicate assignment with reason.',
+            v_formatted_name, r_cand.emploc_no
+            USING ERRCODE = '23505',
+                  DETAIL = jsonb_build_object(
+                    'code', 'POSSIBLE_DUPLICATE_PERSON',
+                    'new_employee_no', v_clean_id,
+                    'existing_employee_no', r_cand.emploc_no,
+                    'display_name', r_cand.display_name,
+                    'match_type', v_dup_match->>'type'
+                  )::text;
+        END IF;
+      END IF;
     END IF;
+  END LOOP;
+
+  -- Also check Rule b against any active un-registered hr_emploc for the same person
+  IF EXISTS (
+    SELECT 1
+    FROM public.hr_emploc h
+    LEFT JOIN public.applicants a ON a.id = h.applicant_id
+    WHERE h.id <> p_hr_emploc_id
+      AND h.deleted_at IS NULL
+      AND h.status NOT IN ('Backout', 'Moved to Plantilla')
+      AND h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''
+      AND (public.fn_match_person_name(
+            public.fn_normalize_person_name(a.first_name, a.middle_name, a.last_name, NULL, coalesce(h.employee_name_snapshot, h.applicant_name)),
+            v_norm_name
+          )->>'match')::boolean = true
+      AND (public.fn_match_person_name(
+            public.fn_normalize_person_name(a.first_name, a.middle_name, a.last_name, NULL, coalesce(h.employee_name_snapshot, h.applicant_name)),
+            v_norm_name
+          )->>'type') <> 'WARNING_MISSING_MIDDLE'
+  ) THEN
+    RAISE EXCEPTION 'EMPLOYEE_ALREADY_ACTIVE: % already has an active hr_emploc record',
+      v_formatted_name
+      USING ERRCODE = '23505';
   END IF;
 
   -- 6. SLOT SELECTION AND RESERVATION (Stationary non-pool non-roving)
@@ -761,27 +929,28 @@ BEGIN
   v_is_pool := COALESCE(v_is_pool, false);
 
   IF NOT v_is_pool AND COALESCE(v_emp.assignment_type, 'Stationary') <> 'Roving' AND v_emp.coverage_slot_id IS NULL THEN
-    SELECT id INTO v_slot_id
-    FROM public.plantilla_slots
-    WHERE legacy_vcode = v_emp.vcode
-      AND slot_status = 'open'
-    ORDER BY created_at ASC
-    LIMIT 1
-    FOR UPDATE SKIP LOCKED;
+    -- Prefer v_emp.slot_id first if already bound and open/hr_processing
+    IF v_emp.slot_id IS NOT NULL THEN
+      SELECT id INTO v_slot_id
+      FROM public.plantilla_slots
+      WHERE id = v_emp.slot_id
+        AND slot_status IN ('open', 'hr_processing')
+      FOR UPDATE SKIP LOCKED;
+    END IF;
 
     IF v_slot_id IS NULL THEN
-      IF v_emp.slot_id IS NOT NULL THEN
-        SELECT id INTO v_slot_id
-        FROM public.plantilla_slots
-        WHERE id = v_emp.slot_id
-          AND slot_status IN ('open', 'hr_processing')
-        FOR UPDATE SKIP LOCKED;
-      END IF;
+      SELECT id INTO v_slot_id
+      FROM public.plantilla_slots
+      WHERE legacy_vcode = v_emp.vcode
+        AND slot_status = 'open'
+      ORDER BY created_at ASC
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED;
+    END IF;
 
-      IF v_slot_id IS NULL THEN
-        RAISE EXCEPTION 'SLOT_UNAVAILABLE: No available headcount slot for VCode %', v_emp.vcode
-          USING ERRCODE = '22023';
-      END IF;
+    IF v_slot_id IS NULL THEN
+      RAISE EXCEPTION 'SLOT_UNAVAILABLE: No available headcount slot for VCode %', v_emp.vcode
+        USING ERRCODE = '22023';
     END IF;
 
     -- Reserve slot first
@@ -979,26 +1148,14 @@ BEGIN
        );
   END IF;
 
-  -- 10. UPDATE HR_EMPLOC STATUS (Final: Moved to Plantilla / Transferred)
-  UPDATE public.hr_emploc
-     SET employee_no           = v_clean_id,
-         emploc_no             = v_clean_id,
-         status                = 'Moved to Plantilla',
-         hr_status             = 'Transferred',
-         moved_to_plantilla_at = NOW(),
-         moved_to_plantilla_by = v_actor_profile_id,
-         updated_at            = NOW(),
-         updated_by            = v_actor_profile_id
-   WHERE id = p_hr_emploc_id;
-
-  -- 11. STAMP REGISTRY
+  -- 10. STAMP REGISTRY BEFORE HR_EMPLOC UPDATE (so trigger sees registered entry)
   INSERT INTO public.employee_number_registry (
     emploc_no, normalized_name, display_name, status,
     first_assigned_at, first_assigned_by, last_assigned_at, last_assigned_by,
     source_hr_emploc_id, source_plantilla_id,
     history
   ) VALUES (
-    v_clean_id, v_norm_name, v_formatted_name, 
+    v_clean_id, v_norm_name, v_formatted_name,
     CASE WHEN v_is_rehire THEN 'rehire_reused' ELSE 'assigned' END,
     NOW(), v_actor_profile_id, NOW(), v_actor_profile_id,
     p_hr_emploc_id, v_pl.id,
@@ -1022,6 +1179,18 @@ BEGIN
     source_plantilla_id = v_pl.id,
     history             = public.employee_number_registry.history || EXCLUDED.history;
 
+  -- 11. UPDATE HR_EMPLOC STATUS (Final: Moved to Plantilla / Transferred)
+  UPDATE public.hr_emploc
+     SET employee_no           = v_clean_id,
+         emploc_no             = v_clean_id,
+         status                = 'Moved to Plantilla',
+         hr_status             = 'Transferred',
+         moved_to_plantilla_at = NOW(),
+         moved_to_plantilla_by = v_actor_profile_id,
+         updated_at            = NOW(),
+         updated_by            = v_actor_profile_id
+   WHERE id = p_hr_emploc_id;
+
   -- 12. SINGLE AUDIT / TIMELINE LOG ENTRY
   PERFORM public.log_audit_event(
     'hr_emploc',
@@ -1040,16 +1209,6 @@ BEGIN
   );
 
   RETURN v_pl;
-
-EXCEPTION WHEN OTHERS THEN
-  -- Failure safety: revert temporary slot reservation
-  IF v_slot_id IS NOT NULL THEN
-    UPDATE public.plantilla_slots
-    SET slot_status = 'open',
-        updated_at  = NOW()
-    WHERE id = v_slot_id AND slot_status = 'hr_processing';
-  END IF;
-  RAISE;
 END;
 $$;
 
@@ -1144,9 +1303,9 @@ GRANT EXECUTE ON FUNCTION public.assign_hr_emploc_number(uuid, text, boolean, te
 
 
 -- 2. review_web_hr_emploc_correction
--- Drop old signatures to guarantee exactly one overload
 DROP FUNCTION IF EXISTS public.review_web_hr_emploc_correction(uuid, text, jsonb, text);
 DROP FUNCTION IF EXISTS public.review_web_hr_emploc_correction(uuid, text, jsonb, text, text);
+DROP FUNCTION IF EXISTS public.review_web_hr_emploc_correction(uuid, text, jsonb, text, text, boolean, text);
 
 CREATE OR REPLACE FUNCTION public.review_web_hr_emploc_correction(
   p_hr_emploc_id  uuid,
@@ -1163,15 +1322,15 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_auth_uid         uuid    := auth.uid();
-  v_profile_id       uuid    := public.get_my_profile_id();
-  v_actor_name       text    := public.get_my_full_name();
-  v_old              public.hr_emploc;
-  v_new              public.hr_emploc;
-  v_decision         text;
-  v_clean_remarks    text;
+  v_auth_uid          uuid := auth.uid();
+  v_profile_id        uuid := public.get_my_profile_id();
+  v_actor_name        text := public.get_my_full_name();
+  v_old               public.hr_emploc;
+  v_new               public.hr_emploc;
+  v_decision          text;
+  v_clean_remarks     text;
   v_clean_employee_no text;
-  v_pl               public.plantilla;
+  v_pl                public.plantilla;
 BEGIN
   IF v_auth_uid IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: correction review requires a valid session'
@@ -1296,6 +1455,221 @@ $$;
 
 REVOKE ALL ON FUNCTION public.review_web_hr_emploc_correction(uuid, text, jsonb, text, text, boolean, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.review_web_hr_emploc_correction(uuid, text, jsonb, text, text, boolean, text) TO authenticated;
+
+
+-- 2b. approve_correction_request (Mobile Review Approve Path -> routes through _assign_and_deploy_emploc_core)
+DROP FUNCTION IF EXISTS public.approve_correction_request(uuid, text);
+DROP FUNCTION IF EXISTS public.approve_correction_request(uuid, text, text, boolean, text);
+
+CREATE OR REPLACE FUNCTION public.approve_correction_request(
+  p_correction_request_id uuid,
+  p_approved_by           text DEFAULT NULL::text,
+  p_employee_no           text DEFAULT NULL::text,
+  p_confirm_reuse         boolean DEFAULT false,
+  p_reuse_reason          text DEFAULT NULL::text
+)
+RETURNS public.hr_emploc
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_row        public.hr_emploc;
+  v_profile_id uuid := public.get_my_profile_id();
+  v_actor_name text := COALESCE(NULLIF(btrim(p_approved_by), ''), public.get_my_full_name());
+  v_emp_no     text;
+BEGIN
+  -- Gate: HR Personnel (+SA) ONLY. Head Admin and Encoder NOT allowed.
+  IF NOT public.can_tag_or_review_hr_emploc() THEN
+    RAISE EXCEPTION 'forbidden: HR Personnel or Super Admin role required to approve correction request'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_row
+  FROM public.hr_emploc
+  WHERE id = p_correction_request_id
+    AND deleted_at IS NULL
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'HR Emploc record not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.hr_emploc_deletion_requests dr
+    WHERE dr.hr_emploc_id = p_correction_request_id AND dr.status = 'Pending'
+  ) THEN
+    RAISE EXCEPTION 'action locked: a pending deletion request exists for this record'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF v_row.hr_status <> 'For Review' THEN
+    RAISE EXCEPTION 'Only For Review records can be approved'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  v_emp_no := COALESCE(
+    NULLIF(btrim(p_employee_no), ''),
+    NULLIF(btrim(v_row.employee_no), ''),
+    NULLIF(btrim(v_row.emploc_no), '')
+  );
+
+  IF v_emp_no IS NULL THEN
+    RAISE EXCEPTION 'EMPLOYEE_NO_REQUIRED: EMPLoc number required before approval'
+      USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.hr_emploc
+  SET
+    correction_reason      = NULL,
+    hr_reviewed_by         = v_actor_name,
+    hr_reviewed_by_user_id = v_profile_id,
+    hr_reviewed_at         = now(),
+    updated_at             = now(),
+    updated_by             = v_profile_id
+  WHERE id = p_correction_request_id;
+
+  PERFORM public._assign_and_deploy_emploc_core(
+    p_hr_emploc_id     => p_correction_request_id,
+    p_employee_no      => v_emp_no,
+    p_confirm_reuse    => p_confirm_reuse,
+    p_reuse_reason     => p_reuse_reason,
+    p_actor_profile_id => v_profile_id,
+    p_source_fn        => 'approve_correction_request'
+  );
+
+  SELECT * INTO v_row FROM public.hr_emploc WHERE id = p_correction_request_id;
+  RETURN v_row;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.approve_correction_request(uuid, text, text, boolean, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.approve_correction_request(uuid, text, text, boolean, text) TO authenticated;
+
+
+-- 2c. reject_correction_request & reopen_correction_request (Mobile Review Return paths)
+CREATE OR REPLACE FUNCTION public.reject_correction_request(p_correction_request_id uuid, p_hr_remarks text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_row   public.hr_emploc%rowtype;
+  v_actor public.users_profile%rowtype;
+  v_actor_role text;
+BEGIN
+  IF NOT public.can_tag_or_review_hr_emploc() THEN
+    RAISE EXCEPTION 'Unauthorized: only Super Admin or HR Personnel can reject correction review'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_actor
+  FROM public.users_profile
+  WHERE auth_user_id = auth.uid()
+    AND is_active = true
+  LIMIT 1;
+
+  v_actor_role := coalesce(public.get_my_role(), v_actor.role, '');
+
+  IF v_actor.id IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized: active user profile not found'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_row
+  FROM public.hr_emploc
+  WHERE id = p_correction_request_id
+    AND deleted_at IS NULL
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'HR Emploc correction request not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  IF coalesce(v_row.hr_status, '') <> 'For Review' THEN
+    RAISE EXCEPTION 'Only For Review correction requests can be rejected back to For Correction. Current status: %',
+      coalesce(v_row.hr_status, 'NULL')
+      USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.hr_emploc
+  SET
+    hr_status              = 'For Correction',
+    status                 = CASE
+                               WHEN status = 'Ready for Plantilla' AND emploc_no IS NULL
+                               THEN 'Pending Requirements'
+                               ELSE status
+                             END,
+    hr_remarks             = nullif(trim(coalesce(p_hr_remarks, '')), ''),
+    hr_rejection_reason    = nullif(trim(coalesce(p_hr_remarks, '')), ''),
+    hr_reviewed_by         = coalesce(v_actor.full_name, v_actor.email, auth.uid()::text),
+    hr_reviewed_by_user_id = v_actor.id,
+    hr_reviewed_at         = now(),
+    updated_by             = v_actor.id,
+    updated_at             = now()
+  WHERE id = p_correction_request_id
+  RETURNING * INTO v_row;
+
+  INSERT INTO public.activity_log (
+    actor_id, actor_name, actor_role, action,
+    target_table, target_id, target_name,
+    old_value, new_value, created_at
+  ) VALUES (
+    v_actor.id,
+    coalesce(v_actor.full_name, v_actor.email),
+    v_actor_role,
+    'HR Emploc correction rejected to For Correction',
+    'hr_emploc',
+    v_row.id,
+    v_row.applicant_name,
+    jsonb_build_object('hr_status', 'For Review'),
+    jsonb_build_object('hr_status', v_row.hr_status, 'hr_remarks', v_row.hr_remarks),
+    now()
+  );
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'id', v_row.id,
+    'hr_status', v_row.hr_status,
+    'status', v_row.status,
+    'message', 'Correction request returned to For Correction.'
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.reject_correction_request(uuid, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reject_correction_request(uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.reopen_correction_request(p_correction_request_id uuid, p_reason text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF NOT public.can_tag_or_review_hr_emploc() THEN
+    RAISE EXCEPTION 'forbidden: HR Personnel or Super Admin required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.hr_emploc
+  SET
+    hr_status = 'For Correction',
+    updated_at = now()
+  WHERE id = p_correction_request_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Correction request not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.reopen_correction_request(uuid, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reopen_correction_request(uuid, text) TO authenticated;
 
 
 -- 3. tag_web_hr_emploc_deficiency Gate Update
@@ -1437,8 +1811,7 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_old     public.hr_emploc;
-  v_new     public.hr_emploc;
+  v_new public.hr_emploc;
 BEGIN
   -- Gate: HR Personnel (+SA) ONLY.
   IF NOT public.can_tag_or_review_hr_emploc() THEN
@@ -1557,17 +1930,13 @@ REVOKE ALL ON FUNCTION public.submit_correction(uuid, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.submit_correction(uuid, text) TO authenticated;
 
 
--- 7. update_deployed_employee_id Gate Update (Decision 1: Data Team + SA ONLY)
-CREATE OR REPLACE FUNCTION public.update_deployed_employee_id(
-  p_hr_emploc_id uuid,
-  p_new_employee_no text,
-  p_reason text
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public', 'pg_temp'
-AS $$
+-- 7. update_deployed_employee_id Gate Update (Decision 1: Gate-only change vs live body)
+CREATE OR REPLACE FUNCTION public.update_deployed_employee_id(p_hr_emploc_id uuid, p_new_employee_no text, p_reason text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
 DECLARE
   v_actor_profile_id uuid := public.get_my_profile_id();
   v_actor_name       text := public.get_my_full_name();
@@ -1584,9 +1953,8 @@ BEGIN
     RAISE EXCEPTION 'Reason for edit is required' USING ERRCODE = '22023';
   END IF;
 
-  -- Gate: Data Team: Encoder, Head Admin (+SA) ONLY. Remove HR Personnel.
   IF NOT public.can_edit_deployed_hr_emploc() THEN
-    RAISE EXCEPTION 'forbidden: Data Team (Encoder, Head Admin) or Super Admin required' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'forbidden: Super Admin or Data Team (Encoder, Head Admin) required' USING ERRCODE = '42501';
   END IF;
 
   SELECT * INTO v_emp FROM public.hr_emploc WHERE id = p_hr_emploc_id FOR UPDATE;
@@ -1602,7 +1970,7 @@ BEGIN
     RAISE EXCEPTION '%', (v_check->>'message') USING ERRCODE = '23505';
   END IF;
 
-  -- Update hr_emploc (trigger trg_sync_deployed_employee_no will sync registry & typo release)
+  -- Update hr_emploc
   UPDATE public.hr_emploc
   SET employee_no = v_clean_id,
       emploc_no   = v_clean_id,
@@ -1639,13 +2007,14 @@ BEGIN
     'message', format('Updated Employee ID from %s to %s', coalesce(v_old_id, 'None'), v_clean_id)
   );
 END;
-$$;
+$function$
+;
 
 REVOKE ALL ON FUNCTION public.update_deployed_employee_id(uuid, text, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.update_deployed_employee_id(uuid, text, text) TO authenticated;
 
 
--- 8. revert_hr_emploc_to_pending Gate Update (Decision 7: Data Team + SA ONLY)
+-- 8. revert_hr_emploc_to_pending Gate Update (Decision 1 & Decision 7: Data Team + SA ONLY)
 CREATE OR REPLACE FUNCTION public.revert_hr_emploc_to_pending(
   p_hr_emploc_id uuid,
   p_reason text
@@ -1721,13 +2090,14 @@ BEGIN
       AND deleted_at IS NULL;
   END IF;
 
-  -- Release number in registry if assigned
+  -- Decision 1: Keep number reserved to this person & source_hr_emploc_id in registry
+  -- (status stays 'assigned' so another person cannot steal it, while the same hr_emploc + same person
+  -- can re-assign the same number without REHIRE_CONFIRM_REQUIRED).
   IF v_emp.employee_no IS NOT NULL AND btrim(v_emp.employee_no) <> '' THEN
     UPDATE public.employee_number_registry
-    SET status = 'released',
-        updated_at = now(),
+    SET updated_at = now(),
         history = history || jsonb_build_object(
-          'action', 'revert_to_pending_released',
+          'action', 'revert_to_pending',
           'actor', v_actor_profile_id,
           'timestamp', now(),
           'reason', v_reason
@@ -1751,7 +2121,7 @@ BEGIN
     'hr_emploc',
     'UPDATE',
     p_hr_emploc_id,
-    jsonb_build_object('status', v_emp.status, 'hr_status', v_emp.hr_status),
+    jsonb_build_object('status', v_emp.status, 'hr_status', v_emp.hr_status, 'employee_no', v_emp.employee_no),
     jsonb_build_object(
       'action', 'revert_to_pending',
       'reason', v_reason,
@@ -1771,7 +2141,7 @@ REVOKE ALL ON FUNCTION public.revert_hr_emploc_to_pending(uuid, text) FROM anon,
 GRANT EXECUTE ON FUNCTION public.revert_hr_emploc_to_pending(uuid, text) TO authenticated;
 
 
--- SECTION 8: TRIGGER SYNC FOR DEPLOYED EDIT (DECISION 2 TYPO RELEASE)
+-- SECTION 8: TRIGGER SYNC FOR DEPLOYED EDIT (DECISION 2 TYPO RELEASE, BOTH UPDATE ORDERS)
 -- ====================================================================
 
 CREATE OR REPLACE FUNCTION public.trg_sync_deployed_employee_no_fn()
@@ -1781,72 +2151,162 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_old_no text := btrim(coalesce(OLD.employee_no, ''));
-  v_new_no text := btrim(coalesce(NEW.employee_no, ''));
-  v_norm_name text;
-  v_display_name text;
-  v_can_release boolean := false;
+  v_old_no            text := btrim(coalesce(OLD.employee_no, ''));
+  v_new_no            text := btrim(coalesce(NEW.employee_no, ''));
+  v_this_hr_emploc_id uuid;
+  v_this_plantilla_id uuid;
+  v_app_id            uuid;
+  v_app               public.applicants;
+  v_norm_name         text;
+  v_display_name      text;
+  v_new_reg           public.employee_number_registry;
+  v_old_reg           public.employee_number_registry;
+  v_match             jsonb;
+  v_can_release       boolean := false;
 BEGIN
   IF TG_OP = 'UPDATE' AND v_new_no IS DISTINCT FROM v_old_no AND v_new_no <> '' THEN
-    -- Check format
-    IF v_new_no !~ '^[A-Za-z0-9._-]+$' THEN
+    -- 1. Format check
+    IF upper(v_new_no) = '(PENDING)' OR v_new_no !~ '^[A-Za-z0-9._-]+$' THEN
       RAISE EXCEPTION 'EMPLOYEE_NO_FORMAT_INVALID: Employee number "%" is invalid', v_new_no
         USING ERRCODE = '22023';
     END IF;
 
-    v_display_name := coalesce(NEW.employee_name_snapshot, NEW.applicant_name);
-    v_norm_name := public.fn_normalize_person_name(NULL, NULL, NULL, NULL, v_display_name);
+    -- 2. If editing an existing deployed number (v_old_no <> ''), enforce Data Team / SA gate
+    IF v_old_no <> '' AND NOT public.can_edit_deployed_hr_emploc() THEN
+      RAISE EXCEPTION 'forbidden: Super Admin or Data Team (Encoder, Head Admin) required to edit deployed employee number'
+        USING ERRCODE = '42501';
+    END IF;
 
-    -- Upsert new number in registry
-    INSERT INTO public.employee_number_registry (
-      emploc_no, normalized_name, display_name, status,
-      first_assigned_at, first_assigned_by, last_assigned_at, last_assigned_by,
-      source_hr_emploc_id, history
-    ) VALUES (
-      v_new_no, v_norm_name, v_display_name, 'assigned',
-      now(), NEW.updated_by, now(), NEW.updated_by,
-      NEW.id,
-      jsonb_build_array(
-        jsonb_build_object(
-          'action', 'deployed_edit_sync',
-          'actor', NEW.updated_by,
-          'old_no', v_old_no,
-          'timestamp', now()
+    -- 3. Resolve linked IDs and person name depending on which table fired first
+    IF TG_TABLE_NAME = 'hr_emploc' THEN
+      v_this_hr_emploc_id := NEW.id;
+      SELECT p.id INTO v_this_plantilla_id
+      FROM public.plantilla p
+      WHERE p.hr_emploc_id = NEW.id AND coalesce(p.is_deleted, false) = false
+      LIMIT 1;
+      v_app_id := NEW.applicant_id;
+      IF v_app_id IS NOT NULL THEN
+        SELECT * INTO v_app FROM public.applicants WHERE id = v_app_id;
+      END IF;
+      v_display_name := coalesce(NEW.employee_name_snapshot, NEW.applicant_name);
+      v_norm_name    := public.fn_normalize_person_name(v_app.first_name, v_app.middle_name, v_app.last_name, NULL, v_display_name);
+    ELSE
+      -- TG_TABLE_NAME = 'plantilla'
+      v_this_plantilla_id := NEW.id;
+      v_this_hr_emploc_id := NEW.hr_emploc_id;
+      v_display_name      := coalesce(NEW.employee_name_snapshot, NEW.employee_name, NEW.last_name || ', ' || NEW.first_name);
+      v_norm_name         := public.fn_normalize_person_name(NEW.first_name, NEW.middle_name, NEW.last_name, NULL, v_display_name);
+    END IF;
+
+    -- 4. Lock & check target number in employee_number_registry
+    SELECT * INTO v_new_reg
+    FROM public.employee_number_registry
+    WHERE emploc_no = v_new_no
+    FOR UPDATE;
+
+    IF FOUND THEN
+      IF v_new_reg.status IN ('assigned', 'rehire_reused') THEN
+        v_match := public.fn_match_person_name(v_new_reg.normalized_name, v_norm_name);
+        IF (v_match->>'match')::boolean = false THEN
+          RAISE EXCEPTION 'EMPLOYEE_NO_ALREADY_ASSIGNED: Employee number % is permanently registered to %',
+            v_new_no, v_new_reg.display_name
+            USING ERRCODE = '23505';
+        END IF;
+      END IF;
+    END IF;
+
+    -- 5. Upsert new number in registry (if already updated by the paired table trigger in the same tx, avoid duplicate history)
+    IF NOT FOUND THEN
+      INSERT INTO public.employee_number_registry (
+        emploc_no, normalized_name, display_name, status,
+        first_assigned_at, first_assigned_by, last_assigned_at, last_assigned_by,
+        source_hr_emploc_id, source_plantilla_id, history
+      ) VALUES (
+        v_new_no, v_norm_name, v_display_name, 'assigned',
+        now(), NEW.updated_by, now(), NEW.updated_by,
+        v_this_hr_emploc_id, v_this_plantilla_id,
+        jsonb_build_array(
+          jsonb_build_object(
+            'action', 'deployed_edit_sync',
+            'actor', NEW.updated_by,
+            'old_no', v_old_no,
+            'table', TG_TABLE_NAME,
+            'timestamp', now()
+          )
         )
-      )
-    )
-    ON CONFLICT (emploc_no) DO UPDATE SET
-      last_assigned_at = now(),
-      last_assigned_by = NEW.updated_by,
-      source_hr_emploc_id = NEW.id;
+      );
+    ELSE
+      UPDATE public.employee_number_registry
+      SET normalized_name     = v_norm_name,
+          display_name        = v_display_name,
+          status              = CASE WHEN status = 'released' THEN 'assigned' ELSE status END,
+          last_assigned_at    = now(),
+          last_assigned_by    = COALESCE(NEW.updated_by, last_assigned_by),
+          source_hr_emploc_id = COALESCE(v_this_hr_emploc_id, source_hr_emploc_id),
+          source_plantilla_id = COALESCE(v_this_plantilla_id, source_plantilla_id),
+          history             = CASE
+            WHEN status = 'released' OR source_hr_emploc_id IS DISTINCT FROM v_this_hr_emploc_id THEN
+              history || jsonb_build_array(
+                jsonb_build_object(
+                  'action', 'deployed_edit_sync',
+                  'actor', NEW.updated_by,
+                  'old_no', v_old_no,
+                  'table', TG_TABLE_NAME,
+                  'timestamp', now()
+                )
+              )
+            ELSE history
+          END,
+          updated_at          = now()
+      WHERE emploc_no = v_new_no;
+    END IF;
 
-    -- Decision 2: Typo release for old number
-    -- Release old number ONLY if first assigned to this same record,
-    -- and no other hr_emploc/plantilla row ever referenced it.
+    -- 6. Decision 2: Typo release for old number
+    -- Release old number ONLY if it was first assigned to this same record (status = 'assigned', not 'rehire_reused'),
+    -- and no OTHER hr_emploc or plantilla row ever referenced it.
+    -- Handles BOTH table update orders (hr_emploc -> plantilla AND plantilla -> hr_emploc).
     IF v_old_no <> '' AND v_old_no <> '(PENDING)' THEN
-      SELECT (
-        NOT EXISTS (
-          SELECT 1 FROM public.hr_emploc h 
-          WHERE h.id <> NEW.id AND (h.employee_no = v_old_no OR h.emploc_no = v_old_no)
-        ) AND NOT EXISTS (
-          SELECT 1 FROM public.plantilla p
-          WHERE (p.hr_emploc_id IS NULL OR p.hr_emploc_id <> NEW.id) 
-            AND (p.employee_no = v_old_no OR p.emploc_no = v_old_no)
-        )
-      ) INTO v_can_release;
+      SELECT * INTO v_old_reg
+      FROM public.employee_number_registry
+      WHERE emploc_no = v_old_no
+      FOR UPDATE;
 
-      IF v_can_release THEN
-        UPDATE public.employee_number_registry
-        SET status = 'released',
-            updated_at = now(),
-            history = history || jsonb_build_object(
-              'action', 'typo_release_decision_2',
-              'actor', NEW.updated_by,
-              'timestamp', now(),
-              'corrected_to', v_new_no
+      IF FOUND AND v_old_reg.status = 'assigned' THEN
+        IF (
+          (v_this_hr_emploc_id IS NOT NULL AND v_old_reg.source_hr_emploc_id = v_this_hr_emploc_id)
+          OR
+          (v_this_plantilla_id IS NOT NULL AND v_old_reg.source_plantilla_id = v_this_plantilla_id)
+        ) THEN
+          SELECT (
+            NOT EXISTS (
+              SELECT 1 FROM public.hr_emploc h
+              WHERE (v_this_hr_emploc_id IS NULL OR h.id <> v_this_hr_emploc_id)
+                AND (h.employee_no = v_old_no OR h.emploc_no = v_old_no)
             )
-        WHERE emploc_no = v_old_no
-          AND source_hr_emploc_id = NEW.id;
+            AND NOT EXISTS (
+              SELECT 1 FROM public.plantilla p
+              WHERE (v_this_plantilla_id IS NULL OR p.id <> v_this_plantilla_id)
+                AND (v_this_hr_emploc_id IS NULL OR p.hr_emploc_id IS NULL OR p.hr_emploc_id <> v_this_hr_emploc_id)
+                AND (p.employee_no = v_old_no OR p.emploc_no = v_old_no)
+            )
+          ) INTO v_can_release;
+
+          IF v_can_release THEN
+            UPDATE public.employee_number_registry
+            SET status     = 'released',
+                updated_at = now(),
+                history    = history || jsonb_build_array(
+                  jsonb_build_object(
+                    'action', 'typo_release_decision_2',
+                    'actor', NEW.updated_by,
+                    'timestamp', now(),
+                    'corrected_to', v_new_no,
+                    'table', TG_TABLE_NAME
+                  )
+                )
+            WHERE emploc_no = v_old_no;
+          END IF;
+        END IF;
       END IF;
     END IF;
   END IF;
@@ -1855,6 +2315,9 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.trg_sync_deployed_employee_no_fn() FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.trg_sync_deployed_employee_no_fn() TO authenticated;
+
 DROP TRIGGER IF EXISTS trg_sync_deployed_employee_no ON public.hr_emploc;
 CREATE TRIGGER trg_sync_deployed_employee_no
 AFTER UPDATE OF employee_no ON public.hr_emploc
@@ -1862,101 +2325,67 @@ FOR EACH ROW
 WHEN (NEW.employee_no IS DISTINCT FROM OLD.employee_no)
 EXECUTE FUNCTION public.trg_sync_deployed_employee_no_fn();
 
+DROP TRIGGER IF EXISTS trg_sync_deployed_plantilla_employee_no ON public.plantilla;
+CREATE TRIGGER trg_sync_deployed_plantilla_employee_no
+AFTER UPDATE OF employee_no ON public.plantilla
+FOR EACH ROW
+WHEN (NEW.employee_no IS DISTINCT FROM OLD.employee_no)
+EXECUTE FUNCTION public.trg_sync_deployed_employee_no_fn();
 
--- SECTION 9: LIST_WEB_HR_EMPLOCS (PRESERVING LIVE BODY, UPDATING QUEUE & CAPABILITIES)
+
+-- SECTION 9: LIST_WEB_HR_EMPLOCS (SURGICAL DIFF ON TOP OF LIVE BODY)
 -- ====================================================================
 
-DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
-DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
-CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
-  p_queue text DEFAULT NULL::text,
-  p_status text DEFAULT NULL::text,
-  p_deficiency text DEFAULT NULL::text,
-  p_sla_filter text DEFAULT NULL::text,
-  p_account_id uuid DEFAULT NULL::uuid,
-  p_group_id uuid DEFAULT NULL::uuid,
-  p_search text DEFAULT NULL::text,
-  p_limit integer DEFAULT 50,
-  p_offset integer DEFAULT 0,
-  p_sort_by text DEFAULT 'date_requested'::text,
-  p_sort_dir text DEFAULT 'desc'::text
-)
-RETURNS TABLE(
-  hr_emploc_id uuid,
-  applicant_name text,
-  vcode text,
-  account_id uuid,
-  account_name text,
-  group_id uuid,
-  group_name text,
-  store_id uuid,
-  store_name text,
-  position_title text,
-  hr_status text,
-  status text,
-  emploc_no text,
-  employee_no text,
-  date_requested timestamp with time zone,
-  created_at timestamp with time zone,
-  hired_date date,
-  assignment_type text,
-  roving_assignment_id uuid,
-  aging_days integer,
-  sla_breached boolean,
-  sla_status text,
-  sla_deadline timestamp with time zone,
-  deficiency_summary jsonb,
-  is_pending_deletion boolean,
-  row_capabilities jsonb,
-  total_count bigint
-)
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path TO 'public', 'pg_temp'
+CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(p_queue text DEFAULT NULL::text, p_status text DEFAULT NULL::text, p_deficiency text DEFAULT NULL::text, p_sla_filter text DEFAULT NULL::text, p_account_id uuid DEFAULT NULL::uuid, p_group_id uuid DEFAULT NULL::uuid, p_search text DEFAULT NULL::text, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0, p_sort_by text DEFAULT 'date_requested'::text, p_sort_dir text DEFAULT 'desc'::text)
+ RETURNS TABLE(hr_emploc_id uuid, applicant_name text, vcode text, account_id uuid, account_name text, group_id uuid, group_name text, store_id uuid, store_name text, position_title text, hr_status text, status text, emploc_no text, employee_no text, date_requested timestamp with time zone, created_at timestamp with time zone, hired_date date, assignment_type text, roving_assignment_id uuid, aging_days integer, sla_breached boolean, sla_status text, sla_deadline timestamp with time zone, deficiency_summary jsonb, is_pending_deletion boolean, row_capabilities jsonb, total_count bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_auth_uid     uuid := auth.uid();
   v_profile_id   uuid;
-  v_role_level   integer;
   v_role_name    text;
-  v_limit        integer := LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
-  v_offset       integer := GREATEST(COALESCE(p_offset, 0), 0);
-  v_sort_by      text    := LOWER(COALESCE(p_sort_by, 'date_requested'));
-  v_sort_dir     text    := LOWER(COALESCE(p_sort_dir, 'desc'));
+  v_role_level   integer;
+  v_sort_by      text := lower(coalesce(nullif(btrim(p_sort_by), ''), 'date_requested'));
+  v_sort_dir     text := lower(coalesce(nullif(btrim(p_sort_dir), ''), 'desc'));
+  v_limit        integer := least(greatest(coalesce(p_limit, 50), 1), 200);
+  v_offset       integer := greatest(coalesce(p_offset, 0), 0);
 BEGIN
   IF v_auth_uid IS NULL THEN
-    RAISE EXCEPTION 'unauthenticated: list_web_hr_emplocs requires a valid session'
+    RAISE EXCEPTION 'unauthenticated: web hr_emploc list requires a valid session'
       USING ERRCODE = '42501';
   END IF;
 
-  SELECT up.id, r.role_level, r.role_name
-  INTO   v_profile_id, v_role_level, v_role_name
+  SELECT up.id, r.role_name, r.role_level
+  INTO   v_profile_id, v_role_name, v_role_level
   FROM   public.users_profile up
   JOIN   public.roles r ON r.id = up.role_id
   WHERE  up.auth_user_id = v_auth_uid
-    AND  up.is_active    = TRUE
-    AND  up.archived_at  IS NULL
+    AND  up.is_active = TRUE
+    AND  up.archived_at IS NULL
   ORDER  BY up.created_at DESC
   LIMIT  1;
 
-  IF v_profile_id IS NULL THEN
-    RAISE EXCEPTION 'forbidden: caller profile is inactive or not found'
+  IF v_profile_id IS NULL OR coalesce(v_role_level, 0) <= 0 THEN
+    RAISE EXCEPTION 'forbidden: web hr_emploc list caller is not allowed'
       USING ERRCODE = '42501';
   END IF;
 
   RETURN QUERY
   WITH scoped AS (
     SELECT
-      h.id,
-      COALESCE(h.applicant_name_snapshot, h.applicant_name) AS applicant_name,
+      h.id AS hr_emploc_id,
+      h.applicant_name,
       h.vcode,
       h.account_id,
-      COALESCE(a.account_name, h.account) AS account_name,
+      a.account_name,
       a.group_id,
       g.group_name,
       h.store_id,
       h.store_name,
       h.position AS position_title,
+      COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)) AS hrco_name,
       h.hr_status,
       h.status,
       h.emploc_no,
@@ -1969,24 +2398,22 @@ BEGIN
       h.deleted_at,
       h.moved_to_plantilla_at,
       
-      -- SLA & Aging computation
       GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
       
       ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
       
       CASE
-        WHEN (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> '') OR (h.status = 'Moved to Plantilla') THEN 'completed'
-        WHEN COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval) THEN 'breached'
-        WHEN COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval) THEN 'warning'
-        ELSE 'on_track'
+        WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))
+          THEN 'breached'
+        WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) >= (now() - '3 days'::interval) AND COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval))
+          THEN 'warning'
+        ELSE 'normal'
       END AS sla_status,
       
       (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
       
-      -- Deficiency summary
       CASE
-        WHEN h.correction_reason IS NULL OR h.correction_reason = 'null'::jsonb OR h.correction_reason = '[]'::jsonb THEN
-          jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
+        WHEN h.correction_reason IS NULL THEN jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
         ELSE jsonb_build_object(
           'active_count', CASE WHEN jsonb_typeof(h.correction_reason) = 'array' THEN jsonb_array_length(h.correction_reason) ELSE 1 END,
           'issues', CASE
@@ -2016,7 +2443,6 @@ BEGIN
         WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
       ) AS is_pending_deletion,
       
-      -- ROW CAPABILITIES MATCHING OHM'S FINAL ROLE MATRIX
       jsonb_build_object(
         'can_view_detail', true,
         'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
@@ -2039,11 +2465,11 @@ BEGIN
         ),
         'can_edit_emploc', (
           public.can_edit_deployed_hr_emploc()
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred' OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
         ),
         'can_revert_to_pending', (
           public.can_edit_deployed_hr_emploc()
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred' OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
         ),
         'can_request_deletion', (
           h.status <> 'Moved to Plantilla'
@@ -2094,26 +2520,32 @@ BEGIN
           public.can_tag_or_review_hr_emploc()
           AND h.hr_status = 'For Review'
           AND NOT EXISTS (
-            SELECT 1 FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+            SELECT 1
+            FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id
+              AND dr.status = 'Pending'
           )
         ),
         'can_submit_correction', (
           public.can_submit_hr_emploc_correction()
           AND h.hr_status = 'For Correction'
           AND NOT EXISTS (
-            SELECT 1 FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+            SELECT 1
+            FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id
+              AND dr.status = 'Pending'
           )
         ),
-        'can_move_to_plantilla', false, -- Deprecated & removed per final workflow
+        'can_move_to_plantilla', false,
         'can_tag_deficiency', (
           public.can_tag_or_review_hr_emploc()
           AND h.status <> 'Moved to Plantilla'
           AND h.hr_status <> 'Transferred'
           AND NOT EXISTS (
-            SELECT 1 FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+            SELECT 1
+            FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id
+              AND dr.status = 'Pending'
           )
         ),
         'can_assign_employee_no', (
@@ -2121,8 +2553,10 @@ BEGIN
           AND COALESCE(h.employee_no, '') = ''
           AND h.status <> 'Moved to Plantilla'
           AND NOT EXISTS (
-            SELECT 1 FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+            SELECT 1
+            FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id
+              AND dr.status = 'Pending'
           )
         )
       ) AS row_capabilities
@@ -2157,7 +2591,7 @@ BEGIN
     SELECT s.*
     FROM scoped s
     WHERE
-      -- Queue Filter: Deployed strictly mapped to status = 'Moved to Plantilla' OR hr_status = 'Transferred'
+      -- Queue Filter (including 'deployed' and 'ready')
       (p_queue IS NULL
        OR (p_queue = 'pending' AND s.hr_status = 'Pending' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
        OR (p_queue = 'correction' AND s.hr_status = 'For Correction' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
@@ -2182,24 +2616,28 @@ BEGIN
        )
       )
       AND (p_sla_filter IS NULL OR s.sla_status = p_sla_filter)
+      AND (p_status IS NULL OR s.status = p_status)
       AND (p_account_id IS NULL OR s.account_id = p_account_id)
       AND (p_group_id IS NULL OR s.group_id = p_group_id)
       AND (
         p_search IS NULL
-        OR s.applicant_name ILIKE '%' || p_search || '%'
-        OR s.vcode ILIKE '%' || p_search || '%'
-        OR s.emploc_no ILIKE '%' || p_search || '%'
-        OR s.employee_no ILIKE '%' || p_search || '%'
-        OR s.store_name ILIKE '%' || p_search || '%'
-        OR s.position_title ILIKE '%' || p_search || '%'
+        OR nullif(btrim(p_search), '') IS NULL
+        OR s.applicant_name ILIKE '%' || btrim(p_search) || '%'
+        OR s.employee_no ILIKE '%' || btrim(p_search) || '%'
+        OR s.emploc_no ILIKE '%' || btrim(p_search) || '%'
+        OR s.vcode ILIKE '%' || btrim(p_search) || '%'
+        OR s.account_name ILIKE '%' || btrim(p_search) || '%'
+        OR s.store_name ILIKE '%' || btrim(p_search) || '%'
+        OR s.position_title ILIKE '%' || btrim(p_search) || '%'
+        OR s.hrco_name ILIKE '%' || btrim(p_search) || '%'
       )
   ),
   counted AS (
-    SELECT f.*, COUNT(*) OVER() AS full_count
+    SELECT f.*, count(*) OVER () AS total_count
     FROM filtered f
   )
   SELECT
-    c.id AS hr_emploc_id,
+    c.hr_emploc_id,
     c.applicant_name,
     c.vcode,
     c.account_id,
@@ -2225,7 +2663,7 @@ BEGIN
     c.deficiency_summary,
     c.is_pending_deletion,
     c.row_capabilities,
-    COALESCE(c.full_count, 0::bigint) AS total_count
+    c.total_count
   FROM counted c
   ORDER BY
     CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'vcode'            THEN c.vcode END ASC NULLS LAST,
@@ -2258,39 +2696,21 @@ BEGIN
   LIMIT v_limit
   OFFSET v_offset;
 END;
-$function$;
+$function$
+;
 
 REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) TO authenticated;
 
 
--- SECTION 10: GET_WEB_HR_EMPLOC_SUMMARY (PRESERVING EXACT TABLE RETURN SIGNATURE & NEW DEPLOYED LOGIC)
+-- SECTION 10: GET_WEB_HR_EMPLOC_SUMMARY (SURGICAL DIFF ON TOP OF LIVE BODY)
 -- ====================================================================
 
-DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);
-DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary;
-CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(
-  p_queue text DEFAULT NULL::text,
-  p_status text DEFAULT NULL::text,
-  p_deficiency text DEFAULT NULL::text,
-  p_sla_filter text DEFAULT NULL::text,
-  p_account_id uuid DEFAULT NULL::uuid,
-  p_group_id uuid DEFAULT NULL::uuid,
-  p_search text DEFAULT NULL::text
-)
-RETURNS TABLE(
-  pending_count bigint,
-  correction_count bigint,
-  review_count bigint,
-  ready_count bigint,
-  sla_breached_count bigint,
-  sla_warning_count bigint,
-  with_deficiency_count bigint,
-  pending_deletion_count bigint
-)
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path TO 'public', 'pg_temp'
+CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(p_queue text DEFAULT NULL::text, p_status text DEFAULT NULL::text, p_deficiency text DEFAULT NULL::text, p_sla_filter text DEFAULT NULL::text, p_account_id uuid DEFAULT NULL::uuid, p_group_id uuid DEFAULT NULL::uuid, p_search text DEFAULT NULL::text)
+ RETURNS TABLE(pending_count bigint, correction_count bigint, review_count bigint, ready_count bigint, sla_breached_count bigint, sla_warning_count bigint, with_deficiency_count bigint, pending_deletion_count bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_auth_uid     uuid := auth.uid();
@@ -2415,14 +2835,381 @@ BEGIN
     count(*) FILTER (WHERE f.hr_status = 'Pending' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS pending_count,
     count(*) FILTER (WHERE f.hr_status = 'For Correction' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS correction_count,
     count(*) FILTER (WHERE f.hr_status = 'For Review' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS review_count,
-    count(*) FILTER (WHERE (f.status = 'Moved to Plantilla' OR f.hr_status = 'Transferred') AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS ready_count,
+    count(*) FILTER (WHERE (
+      f.status = 'Moved to Plantilla'
+      OR f.hr_status = 'Transferred'
+    ) AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS ready_count,
     count(*) FILTER (WHERE f.sla_breached = true)::bigint AS sla_breached_count,
     count(*) FILTER (WHERE f.sla_warning = true)::bigint AS sla_warning_count,
     count(*) FILTER (WHERE f.correction_reason IS NOT NULL)::bigint AS with_deficiency_count,
     count(*) FILTER (WHERE f.hr_status = 'Pending Deletion' AND f.status <> 'Backout' AND f.deleted_at IS NULL)::bigint AS pending_deletion_count
   FROM filtered f;
 END;
-$function$;
+$function$
+;
 
 REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) TO authenticated;
+
+
+-- SECTION 11: GET_WEB_HR_EMPLOC_DETAIL (SURGICAL DIFF ON TOP OF LIVE BODY)
+-- ====================================================================
+
+CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_detail(p_hr_emploc_id uuid)
+ RETURNS TABLE(hr_emploc_id uuid, applicant_name text, vcode text, vacancy_id uuid, vacancy_code_snapshot text, position_id_snapshot uuid, position_title text, assignment_type text, roving_assignment_id uuid, covered_stores jsonb, account_id uuid, account_name text, group_id uuid, group_name text, store_id uuid, store_name text, hr_status text, status text, emploc_no text, employee_no text, date_requested timestamp with time zone, created_at timestamp with time zone, hired_date date, deployed_by_user_id uuid, hrco_user_id_snapshot uuid, hrco_name text, employee_lookup_found boolean, employee_lookup_synced_at timestamp with time zone, employee_lookup_remarks text, employee_name_snapshot text, birthdate_snapshot date, civil_status_snapshot text, requirement_overall_status text, ops_remarks text, hr_remarks text, hr_rejection_reason text, hr_reviewed_by text, hr_reviewed_at timestamp with time zone, deficiency_summary jsonb, correction_reason jsonb, correction_attachments jsonb, deletion_request jsonb, sla_breached boolean, sla_status text, sla_deadline timestamp with time zone, aging_days integer, timeline jsonb, row_capabilities jsonb)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_auth_uid     uuid := auth.uid();
+  v_profile_id   uuid;
+  v_role_name    text;
+  v_role_level   integer;
+BEGIN
+  -- Direct SQL/anon safety. Fail closed if unauthenticated.
+  IF v_auth_uid IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated: web hr_emploc detail requires a valid session'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT up.id, r.role_name, r.role_level
+  INTO   v_profile_id, v_role_name, v_role_level
+  FROM   public.users_profile up
+  JOIN   public.roles r ON r.id = up.role_id
+  WHERE  up.auth_user_id = v_auth_uid
+    AND  up.is_active = TRUE
+    AND  up.archived_at IS NULL
+  ORDER  BY up.created_at DESC
+  LIMIT  1;
+
+  IF v_profile_id IS NULL OR coalesce(v_role_level, 0) <= 0 THEN
+    RAISE EXCEPTION 'forbidden: web hr_emploc detail caller is not allowed'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Validate record existence and scoped visibility
+  IF NOT EXISTS (
+    SELECT 1 FROM public.hr_emploc h
+    WHERE h.id = p_hr_emploc_id
+      AND h.deleted_at IS NULL
+      AND (
+        COALESCE(v_role_level, 0) >= 90
+        OR (
+          h.account = ANY (public.get_my_allowed_accounts())
+          OR EXISTS (
+            SELECT 1 FROM public.user_scopes us
+            WHERE us.user_id = v_profile_id AND us.account_id = h.account_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.user_scopes us JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE us.user_id = v_profile_id AND us.account_id IS NULL AND us.group_id = ac.group_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.users_profile up_fallback JOIN public.accounts ac ON ac.id = h.account_id
+            WHERE up_fallback.id = v_profile_id
+              AND NOT EXISTS (SELECT 1 FROM public.user_scopes us_any WHERE us_any.user_id = v_profile_id AND (us_any.group_id IS NOT NULL OR us_any.account_id IS NOT NULL))
+              AND (up_fallback.account_id = h.account_id OR up_fallback.group_id = ac.group_id)
+          )
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'forbidden: web hr_emploc detail record is not found or caller has insufficient access'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    h.id AS hr_emploc_id,
+    h.applicant_name,
+    h.vcode,
+    h.vacancy_id,
+    h.vacancy_code_snapshot,
+    h.position_id_snapshot,
+    h.position AS position_title,
+    h.assignment_type::text AS assignment_type,
+    h.roving_assignment_id,
+    h.covered_stores,
+    h.account_id,
+    a.account_name,
+    a.group_id,
+    g.group_name,
+    h.store_id,
+    h.store_name,
+    h.hr_status,
+    h.status,
+    h.emploc_no,
+    h.employee_no,
+    h.date_requested,
+    h.created_at,
+    h.hired_date,
+    h.deployed_by_user_id,
+    h.hrco_user_id_snapshot,
+    h.hrco_name,
+    h.employee_lookup_found,
+    h.employee_lookup_synced_at,
+    h.employee_lookup_remarks,
+    h.employee_name_snapshot,
+    h.birthdate_snapshot,
+    h.civil_status_snapshot,
+    h.requirement_overall_status,
+    h.ops_remarks,
+    h.hr_remarks,
+    h.hr_rejection_reason,
+    h.hr_reviewed_by,
+    h.hr_reviewed_at,
+
+    -- Deficiency Summary
+    CASE
+      WHEN h.correction_reason IS NULL THEN jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
+      ELSE jsonb_build_object(
+        'active_count', CASE WHEN jsonb_typeof(h.correction_reason) = 'array' THEN jsonb_array_length(h.correction_reason) ELSE 1 END,
+        'issues', CASE
+          WHEN jsonb_typeof(h.correction_reason) = 'array' THEN (
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'code', el->>'code',
+                'comment', el->>'comment',
+                'label', COALESCE((SELECT it.label FROM public.hr_emploc_issue_types it WHERE it.code = el->>'code'), el->>'code')
+              )
+            )
+            FROM jsonb_array_elements(h.correction_reason) el
+          )
+          ELSE jsonb_build_array(
+            jsonb_build_object(
+              'code', h.correction_reason->>'type',
+              'comment', h.correction_reason->>'comment',
+              'label', COALESCE((SELECT it.label FROM public.hr_emploc_issue_types it WHERE it.code = h.correction_reason->>'type'), h.correction_reason->>'type')
+            )
+          )
+        END
+      )
+    END AS deficiency_summary,
+
+    h.correction_reason,
+
+    -- Correction Attachments (exposes private supabase storage paths only if caller is safe)
+    (
+      SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+          'id', ca.id,
+          'original_filename', ca.original_filename,
+          'mime_type', ca.mime_type,
+          'size_bytes', ca.size_bytes,
+          'uploaded_by', ca.uploaded_by,
+          'uploaded_at', ca.uploaded_at,
+          'storage_path', CASE
+            WHEN (
+              v_role_level >= 90
+              OR ca.uploaded_by = v_profile_id
+              OR h.hrco_user_id_snapshot = v_profile_id
+            ) THEN ca.storage_path
+            ELSE NULL
+          END
+        )
+      ), '[]'::jsonb)
+      FROM public.hr_emploc_correction_attachments ca
+      WHERE ca.hr_emploc_id = h.id AND ca.is_deleted = false
+    ) AS correction_attachments,
+
+    -- Deletion Request Overlay Details
+    (
+      SELECT jsonb_build_object(
+        'id', dr.id,
+        'status', dr.status,
+        'reason', dr.reason,
+        'requested_by', dr.requested_by,
+        'requested_by_role', dr.requested_by_role,
+        'requested_by_user_id', dr.requested_by_user_id,
+        'created_at', dr.created_at,
+        'deletion_type', dr.deletion_type,
+        'original_emploc_id', dr.original_emploc_id,
+        'original_hr_status', dr.original_hr_status,
+        'reviewed_by', dr.reviewed_by,
+        'reviewed_at', dr.reviewed_at,
+        'reviewer_remarks', dr.reviewer_remarks,
+        'activities', (
+          SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+              'id', act.id,
+              'activity_type', act.activity_type,
+              'performed_by', act.performed_by,
+              'performed_by_user_id', act.performed_by_user_id,
+              'performed_at', act.performed_at,
+              'remarks', act.remarks
+            ) ORDER BY act.performed_at DESC
+          ), '[]'::jsonb)
+          FROM public.hr_emploc_deletion_activities act
+          WHERE act.request_id = dr.id
+        )
+      )
+      FROM public.hr_emploc_deletion_requests dr
+      WHERE dr.hr_emploc_id = h.id
+      ORDER BY dr.created_at DESC
+      LIMIT 1
+    ) AS deletion_request,
+
+    -- SLA & Aging Computations
+    ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
+
+    CASE
+      WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))
+        THEN 'breached'
+      WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) >= (now() - '3 days'::interval) AND COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval))
+        THEN 'warning'
+      ELSE 'normal'
+    END AS sla_status,
+
+    (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
+    GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
+
+    -- Chronological Correction / Action Timeline History
+    (
+      SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+          'event_id', t.event_id,
+          'event_type', t.event_type,
+          'event_label', t.event_label,
+          'status_from', t.status_from,
+          'status_to', t.status_to,
+          'remarks', t.remarks,
+          'actor_id', t.actor_id,
+          'actor_name', t.actor_name,
+          'has_attachment', t.has_attachment,
+          'attachment_filename', t.attachment_filename,
+          'attachment_size_bytes', t.attachment_size_bytes,
+          'created_at', t.created_at
+        ) ORDER BY t.created_at ASC
+      ), '[]'::jsonb)
+      FROM public.get_correction_timeline(h.id) t
+    ) AS timeline,
+
+    -- Row action capability presentation UI hints
+    jsonb_build_object(
+      'can_view_detail', true,
+      'can_request_deletion', (
+        h.status <> 'Moved to Plantilla'
+        AND h.hr_status <> 'Pending Deletion'
+        AND NOT EXISTS (
+          SELECT 1 FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+        )
+        AND (v_role_level >= 70 OR v_role_name IN ('OM', 'HRCO', 'ATL', 'TL', 'ATL/TL') OR public.i_am_ops() OR public.i_have_full_access())
+      ),
+      'can_withdraw_deletion_request', (
+        EXISTS (
+          SELECT 1 FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+        )
+        AND (
+          public.i_have_full_access()
+          OR EXISTS (
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending' AND dr.requested_by_user_id = v_profile_id
+          )
+        )
+      ),
+      'can_approve_deletion', (
+        (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
+        AND EXISTS (
+          SELECT 1 FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+        )
+      ),
+      'can_reject_deletion', (
+        (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
+        AND EXISTS (
+          SELECT 1 FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+        )
+      ),
+      'can_edit_emploc', (
+        public.can_edit_deployed_hr_emploc()
+        AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
+      ),
+      'can_revert_to_pending', (
+        public.can_edit_deployed_hr_emploc()
+        AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
+      ),
+      'can_approve_correction', (
+        public.can_tag_or_review_hr_emploc()
+        AND h.hr_status = 'For Review'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_revert_correction', (
+        public.can_tag_or_review_hr_emploc()
+        AND h.hr_status = 'For Review'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_review_correction', (
+        public.can_tag_or_review_hr_emploc()
+        AND h.hr_status = 'For Review'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_submit_correction', (
+        public.can_submit_hr_emploc_correction()
+        AND h.hr_status = 'For Correction'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_move_to_plantilla', false,
+      'can_tag_deficiency', (
+        public.can_tag_or_review_hr_emploc()
+        AND h.status <> 'Moved to Plantilla'
+        AND h.hr_status <> 'Transferred'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_assign_employee_no', (
+        public.can_assign_pending_hr_emploc()
+        AND COALESCE(h.employee_no, '') = ''
+        AND h.status <> 'Moved to Plantilla'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id
+            AND dr.status = 'Pending'
+        )
+      ),
+      'can_review_deletion', (
+        (public.i_have_full_access() OR v_role_name = 'Encoder' OR v_role_level = 30)
+        AND EXISTS (
+          SELECT 1 FROM public.hr_emploc_deletion_requests dr
+          WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
+        )
+      )
+    ) AS row_capabilities
+  FROM public.hr_emploc h
+  LEFT JOIN public.accounts a ON a.id = h.account_id
+  LEFT JOIN public.groups g ON g.id = a.group_id
+  WHERE h.id = p_hr_emploc_id
+    AND h.deleted_at IS NULL;
+END;
+$function$
+;
+
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_detail(uuid) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_detail(uuid) TO authenticated;

@@ -175,10 +175,10 @@ The backend enforces strict transition pathways and timings. The frontend visual
 1. **Tagging Deficiency**: HR Personnel identifies blurry/missing files. They check deficiency tags (from `hr_emploc_issue_types`), add remarks, and set state to `For Correction` (this writes the `correction_reason` JSONB block).
 2. **Correction Notification**: A push trigger notifies the coordinator (`trg_notify_hr_emploc_correction_tagged`).
 3. **Resolution**: Coordinator uploads valid attachments to `hr_emploc_correction_attachments` and triggers an update RPC. The state moves to `For Review` and triggers `trg_notify_hr_emploc_correction_submitted` to alert the HR Personnel. *(This upload step is an ops/Mobile RPC and is out of scope for the web mutation layer.)*
-4. **Finalization (Correction Review — second web mutation, architected OHM2026_1110, updated ohm#7k4w9xqn)**: HR Personnel reviews the `For Review` resubmission via `review_web_hr_emploc_correction(...)`. Under the **strict all-deficiencies-resolved model**, the reviewer affirms each tagged deficiency:
-   - **Approve** (every deficiency resolved + mandatory Emploc ID) → `employee_no` / `emploc_no` set atomically via `_assign_hr_emploc_number_core` (validates `/^[A-Za-z0-9._-]+$/` format, ecosystem uniqueness across `hr_emploc` and `plantilla`, `22023` non-empty, `P0001` no pending deletion, `P0002` non-archived), `status = 'Ready for Plantilla'`, `hr_status = 'Complete'`, `correction_reason` cleared, `hr_remarks` saved, `employee_id_assigned` audit timeline entry recorded. Record transitions from Review tab to Deployed tab.
+4. **Finalization (Correction Review — second web mutation, architected OHM2026_1110, updated ohm#7k4w9xqn)**: HR Personnel (or Super Admin) reviews the `For Review` resubmission via `review_web_hr_emploc_correction(...)` (or `approve_correction_request(...)` on mobile). Head Admin and Encoder are strictly blocked (`42501`). Under the **strict all-deficiencies-resolved model**, the reviewer affirms each tagged deficiency:
+   - **Approve** (every deficiency resolved + mandatory Emploc ID) → `employee_no` / `emploc_no` is assigned and the record is **atomically deployed to Plantilla in the same transaction** via `_assign_and_deploy_emploc_core` (validates `/^[A-Za-z0-9._-]+$/` format, permanent 1:1 ownership in `employee_number_registry` under Rules a/b/c/d + Decision 1, required Plantilla fields without silent defaults, slot reservation and `occupied` transition), setting `status = 'Moved to Plantilla'`, `hr_status = 'Transferred'`, `moved_to_plantilla_at = now()`, clearing `correction_reason`, saving `hr_remarks` while preserving `ops_remarks`, and writing a single `assign_and_deploy_to_plantilla` audit entry. Record transitions directly from Review tab to Deployed tab (there is no `Ready for Plantilla` or `Complete` ready state).
    - **Return** (residual deficiencies remain) → `hr_status = 'For Correction'`, `correction_reason` rewritten to the residual keys, HRCO re-notified. The loop repeats until clean.
-   See `docs/state/web_mutation_workflow_state.md` Part II (§10–§18) for the full backend-authoritative contract, approval-model comparison, and the exact implementation prompt.
+   See `docs/state/web_mutation_workflow_state.md` Part II (§10–§18) and `docs/proposals/adr-001-workflow-update.md` for the full backend-authoritative contract.
 
 ---
 
@@ -186,17 +186,16 @@ The backend enforces strict transition pathways and timings. The frontend visual
 
 Mutations inside the HR Emploc module are strictly transaction-safe. The web interface relies on safe RPC handlers for the following critical workflows:
 
-### A. Assigning Employee Number (The Compliance Complete gate)
-* **Pre-conditions**: `hr_status = 'Complete'`, `status = 'Pending Emploc'`, and no pending deletion requests.
-* **Role Check (CRITICAL FIX)**: This action is **strictly restricted to Encoder and Super Admin roles**. 
-  > [!IMPORTANT]
-  > **Head Admin is blocked** from executing this action per migration `fix_assign_hr_emploc_number_block_head_admin`.
-* **Execution**: Caller enters the official employee ID. The RPC updates `employee_no` and runs unique validations.
+### A. Assigning Employee Number & Atomic Deployment to Plantilla
+* **Pre-conditions**: `status = 'Pending Emploc'` (on Pending tab via `assign_hr_emploc_number`) or `hr_status = 'For Review'` (on Review tab via `review_web_hr_emploc_correction` / `approve_correction_request`), all required Plantilla fields present (`hired_date`, `position`, `account`, `store` for stationary, applicant `first_name` & `last_name`), and no pending deletion requests.
+* **Role Check**:
+  - **Pending (`assign_hr_emploc_number`)**: Restricted to `HR Personnel`, `Head Admin`, `Encoder`, and `Super Admin` (`public.can_assign_pending_hr_emploc()`).
+  - **Review (`review_web_hr_emploc_correction`, `approve_correction_request`)**: Restricted to `HR Personnel` and `Super Admin` ONLY (`public.can_tag_or_review_hr_emploc()`). `Head Admin` and `Encoder` are blocked (`42501`).
+* **Execution**: Both paths call `public._assign_and_deploy_emploc_core(...)`, which locks and validates `public.employee_number_registry` (Rules a, b, c, d + Decision 1), occupies the linked `plantilla_slots` row (`slot_status = 'occupied'`), inserts the active `public.plantilla` record (`status = 'Active'`), updates `hr_emploc` to `status = 'Moved to Plantilla'` and `hr_status = 'Transferred'`, and logs a single unified audit trail entry.
 
-### B. Moving to Plantilla (Final Deployment)
-* **Pre-conditions**: `employee_no` must be assigned (non-null), `hr_status` must be `Complete`, and no pending deletion requests.
-* **Role Check**: Authorized Data Team roles (`Encoder`, `headAdmin`, `superAdmin`) only.
-* **Execution**: Moves candidate data to `plantilla` table, logs onboarding timestamp, creates audit trail, and marks `status = 'Moved to Plantilla'`.
+### B. Legacy `move_to_plantilla` Wrapper & Deployed Revert/Edit
+* **`move_to_plantilla(uuid)`**: Retained as an idempotent wrapper for backwards compatibility. If the record is already `Moved to Plantilla`, it returns the existing `plantilla` row as a no-op; otherwise it delegates to `_assign_and_deploy_emploc_core` gated by `can_assign_pending_hr_emploc()`.
+* **Deployed Edit (`update_deployed_employee_id`) & Revert (`revert_hr_emploc_to_pending`)**: Restricted to Data Team (`Encoder`, `Head Admin`) and `Super Admin` ONLY (`public.can_edit_deployed_hr_emploc()`). `HR Personnel` is blocked (`42501`). `revert_hr_emploc_to_pending` soft-deletes the `plantilla` row, reopens the `plantilla_slots` row, resets `hr_emploc` to `Pending Emploc` / `Pending` (`employee_no = NULL`), and keeps the employee number reserved to that person in `employee_number_registry` (so re-assigning the same number on the same `hr_emploc` record requires no rehire confirmation per Decision 1).
 
 ### C. Requesting Deletion (The Operational Separation Gate)
 If a candidate backs out or is found to be a duplicate prior to final Plantilla deployment, Ops roles (`om`, `hrco`, `atl`, `tl`) must trigger a deletion request.

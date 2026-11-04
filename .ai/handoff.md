@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Phase 2a-fix: Close DB Gaps on STAGING (ohm#7k4w9xqn)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; ALL PHASE 2a DB & DOC GAPS CLOSED; 37/37 SMOKE TESTS + 2-SESSION CONCURRENCY TEST + ROLLBACK/MD5/RE-APPLY CYCLE PASSED; WAITING FOR APPROVAL OF PHASE 2b (WEB)**
+
+### 1. Summary of Changes & Decisions Implemented
+- **ADR Basis**: `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (Core Decisions, Workforce Rules, Employee Integrity Architecture Lock, HR Emploc Import — Slot-First Lifecycle Architecture, HRCO Scope Isolation, Vacancy Requirements Normalization). Proposed ADR addition documented in `docs/proposals/adr-001-workflow-update.md`.
+- **Decision 1 (Revert to Pending -> Re-assign on same record)**: Implemented in `_assign_and_deploy_emploc_core`: when `v_reg.source_hr_emploc_id = p_hr_emploc_id` and the person matches, re-assigning the same number requires **no** `REHIRE_CONFIRM_REQUIRED` prompt. `REHIRE_CONFIRM_REQUIRED` applies only when a **new** `hr_emploc` record (`v_reg.source_hr_emploc_id IS DISTINCT FROM p_hr_emploc_id`) of the previous owner reuses the number.
+- **Section A (List/Summary/Detail & KPI RPCs)**:
+  - Captured all 17 live pre-change definitions and MD5s in `/scratch/captured/manifest.json`.
+  - Applied surgical patches (`diff -u` verified against `/scratch/captured/`) to `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail` updating only the `ready`/`deployed` queue filter (`status = 'Moved to Plantilla' OR hr_status = 'Transferred'`, `ready_count = 0::bigint`) and `row_capabilities` via `can_assign_pending_hr_emploc()`, `can_tag_or_review_hr_emploc()`, `can_submit_hr_emploc_correction()`, and `can_edit_deployed_hr_emploc()` (`can_move_to_plantilla = false`), preserving `ops_remarks` and `remarks`.
+  - Verified all other KPI sources (`fn_dashboard_metrics`, `fn_dashboard_operational_analytics`, `fn_cencom_deployment_summary`, `get_web_plantilla_summary`, `list_web_plantilla_store_staffing`, notifications) need no changes.
+- **Section B (All Paths Producing Ready/Complete or Assigning Employee#)**:
+  - Audited live catalog and updated `approve_correction_request`, `reject_correction_request`, `reopen_correction_request`, and `mark_for_correction` to enforce `public.can_tag_or_review_hr_emploc()` (HR Personnel + Super Admin ONLY; Head Admin and Encoder blocked with `42501`).
+  - Routed `approve_correction_request` through `_assign_and_deploy_emploc_core` so mobile correction approval atomically deploys to Plantilla with `status = 'Moved to Plantilla'` and `hr_status = 'Transferred'`.
+  - Reconciled mobile file paths (`lib/data/services/hr_emploc_service.dart` and `lib/features/hr_emploc/hr_emploc_screen.dart` exist; `hr_emploc_repository.dart` does not exist).
+- **Section C (Registry Rules a, b, c, d, Middle Name, Alias, Concurrency)**:
+  - Rule b hard-blocks across both same-number and person-wide active checks on `plantilla` (`status IN ('Active', 'On Leave', 'For Deactivation', 'Pending Deactivation', 'Rejected Deactivation') AND NOT is_deleted`) and active `hr_emploc` (`status NOT IN ('Backout', 'Moved to Plantilla') AND deleted_at IS NULL`).
+  - Rule a and Rule d use the same `fn_match_person_name` matcher (exact, middle initial match, one side missing middle name -> `MIDDLE_NAME_CONFIRM_REQUIRED`, different middle name -> mismatch, plus `Huatea`/`Hautea` alias in `registry_name_aliases`).
+- **Section D (Deployed Edit Trigger & Typo Release)**:
+  - Applied gate-only change to `update_deployed_employee_id` (`can_edit_deployed_hr_emploc()`).
+  - Attached `trg_sync_deployed_employee_no_fn()` to both `public.hr_emploc` (`trg_sync_deployed_employee_no`) and `public.plantilla` (`trg_sync_deployed_plantilla_employee_no`), supporting Decision 2 typo release in either table update order (`hr_emploc` -> `plantilla` or `plantilla` -> `hr_emploc`).
+- **Section F (Registry Backfill Reconciliation & Privilege Audit)**:
+  - Removed `AND h.status = 'Moved to Plantilla'` from the `hr_emploc` backfill loop so the 6 historical archived (`deleted_at IS NOT NULL`) `hr_emploc` rows with `status = 'Ready for Plantilla'` are included in `employee_number_registry` (`2,429 + 6 + 2 manual test numbers = 2,437` rows).
+  - Verified RLS enabled, `SELECT`-only grants for `authenticated`, and `has_function_privilege` = `false` for `anon` across all Phase 2a functions.
+- **Section G (Rollback Script & MD5 Verification)**:
+  - Generated `supabase/rollbacks/rollback_20262606000081.sql` directly from `/scratch/captured/`, ran full rollback on Staging, verified 17/17 MD5 hashes matched `/scratch/captured/manifest.json` 100%, and re-applied `20262606000081` + `20262606000082`.
+
+### 2. ADR Updates Needed (Ohm Applies in Mobile Repo After Rebase)
+- Merge `docs/proposals/adr-001-workflow-update.md` into `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`.
+
+---
+
 ## Execution Report — Fix Migration `20262606000079` Null `slot_ordinal` in `plantilla_slots` (ohm#fix-mig-23502-slot-ordinal)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `slot_ordinal` WITH CANONICAL DERIVATION `COALESCE(MAX(slot_ordinal), 0) + 1` TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
