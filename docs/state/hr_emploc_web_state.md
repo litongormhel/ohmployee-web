@@ -30,10 +30,10 @@ To facilitate rapid filtering and administrative scanning, the UI implements 4 p
 
 | Queue Tab | Database Conditions | Primary Purpose / Administrative Action |
 | :--- | :--- | :--- |
-| **Pending** | `status = 'Pending Emploc'` AND `hr_status = 'Pending'` | Operational onboarding queue. Actions: `+ Add Emploc` (allowed for Super Admin, Data Team, HR Personnel/OM/HRCO) and `! For Correction` (allowed for Super Admin, HR Personnel/OM/HRCO; hidden from Data Team). Auto-locked if pending deletion request exists. |
-| **Correction** | `hr_status = 'For Correction'` | Deficiency correction queue. Displays deficient documents returned to field coordinators. Actions: Upload attachments, submit correction to review. Dispatches notifications to all assigned HRCOs in Group/Account matrix. |
-| **Review** | `hr_status = 'For Review'` | Review queue for corrected submissions. Actions: Approve (requires mandatory Emploc ID / Employee Number with ecosystem uniqueness validation, atomically sets `employee_no`, transitions to `Ready for Plantilla`/`Complete`, and moves record to Deployed tab) or Revert to Correction. Remarks column displays latest Ops correction remarks (`ops_remarks`). |
-| **Deployed** | `status IN ('Moved to Plantilla', 'Deployed', 'Employee No Assigned', 'Ready for Plantilla')` OR `hr_status IN ('Transferred', 'Ready', 'Deployed', 'Complete')` OR `moved_to_plantilla_at IS NOT NULL` OR `employee_no IS NOT NULL` (with `status <> 'Backout'` AND `deleted_at IS NULL`) | Historical & audit queue for records assigned an Employee ID and deployed to Plantilla. Actions: `Edit Emploc` (correct typo in Employee ID across tables or `Revert to Pending` which soft-deletes the Plantilla row (`is_deleted = true`, `status = 'Deactivated'`), frees Employee ID, and reconciles vacancy fulfillment). SLA timer is frozen with `Completed in X days`. |
+| **Pending** | `status = 'Pending Emploc'` AND `hr_status = 'Pending'` | Operational onboarding queue. Actions: `+ Add Emploc` (allowed for HR Personnel, Head Admin, Encoder, Super Admin; atomically assigns Emploc# and auto-moves to Plantilla) and `! Tag Deficiency` (allowed for HR Personnel and Super Admin ONLY; Head Admin and Encoder NOT allowed). Auto-locked if pending deletion request exists. |
+| **Correction** | `hr_status = 'For Correction'` | Deficiency correction queue. Displays deficient documents returned to field coordinators. Actions: Upload attachments, submit correction to review (Ops only: OM, TL, ATL, HRCO, and Super Admin; HR Personnel, Head Admin, and Encoder blocked). |
+| **Review** | `hr_status = 'For Review'` | Review queue for corrected submissions. Actions: Approve (HR Personnel and Super Admin ONLY; Head Admin and Encoder blocked. Atomically assigns Emploc ID and auto-moves to Plantilla in same transaction) or Revert/Return to Correction. Remarks column displays Ops coordinator correction remarks (`ops_remarks`) only. |
+| **Deployed** | `status = 'Moved to Plantilla'` OR `hr_status = 'Transferred'` (with `deleted_at IS NULL`) | Historical & audit queue for records assigned an Employee ID and deployed to Plantilla. Actions: `Edit Emploc` (Data Team: Encoder, Head Admin + Super Admin ONLY; HR Personnel blocked) and `Revert to Pending` (Data Team + Super Admin ONLY with required reason; soft-deletes Plantilla row, re-opens slot, releases typo number if applicable). SLA timer is frozen with `Completed in X days`. |
 
 ---
 
@@ -216,30 +216,47 @@ If a candidate backs out or is found to be a duplicate prior to final Plantilla 
 Web presentation utilizes capability keys returned by `get_web_current_user_context()`. The Supabase backend enforces these boundaries on all queries:
 
 ```
-                         [Role Access Matrix]
+                         [Role Access Matrix - Authoritative]
 =============================================================================
 Role             | Read Scope       | Mutations (RPCs Allowed)
 =============================================================================
-superAdmin       | Global           | Full approvals, assignments, deletion overrides
+superAdmin       | Global           | Full approvals, assignments, deletion overrides (All)
 -----------------------------------------------------------------------------
-headAdmin        | Global           | Move to Plantilla, Review Deletion
-                 |                  | (BLOCKED: Assign Employee Number!)
+headAdmin        | Global           | Pending Assign (+auto-move), Deployed Edit Emploc,
+                 |                  | Deployed Revert to Pending
+                 |                  | (BLOCKED: Tag Deficiency, Review Approve/Return!)
 -----------------------------------------------------------------------------
-Encoder          | Scoped           | Assign Employee Number, Move to Plantilla,
-                 | (Allowed Accts)  | Review Deletion (Approved/Rejected)
+Encoder          | Scoped           | Pending Assign (+auto-move), Deployed Edit Emploc,
+                 | (Allowed Accts)  | Deployed Revert to Pending
+                 |                  | (BLOCKED: Tag Deficiency, Review Approve/Return!)
 -----------------------------------------------------------------------------
-hrPersonnel      | Global           | Deficiency tagging, correction approvals,
-                 |                  | complete documentation review
+hrPersonnel      | Global           | Pending Assign (+auto-move), Tag Deficiency,
+                 |                  | Review Approve (+auto-move) & Return
+                 |                  | (BLOCKED: Deployed Edit Emploc, Deployed Revert)
 -----------------------------------------------------------------------------
-om / hrco        | Scoped / Global  | Upload corrections, submit compliance files,
-                 | (Allowed Accts / | request Deletions (Backout/Duplicate)
-                 |  All Scope)      |
+om / hrco        | Scoped / Global  | Correction Submit (`submit_hrco_correction_update`,
+                 | (Allowed Accts / | `submit_correction`), request Deletions
+                 |  All Scope)      | (BLOCKED: Assign, Tag, Approve, Edit Deployed)
 -----------------------------------------------------------------------------
-atl / tl         | Scoped           | Read-only scoped queue view, details inspector
+atl / tl         | Scoped           | Correction Submit (`submit_correction`), scoped read
+                 |                  | (BLOCKED: Assign, Tag, Approve, Edit Deployed)
 -----------------------------------------------------------------------------
-viewer           | Scoped           | Read-only (Read RPCs only, mutations blocked)
+viewer           | Scoped           | Read-only (Read RPCs only, all mutations blocked)
 =============================================================================
 ```
+
+### Permanent Emploc# Ecosystem Registry & Rules
+1. **1:1 Lifetime Ownership**: An Employee Number belongs to one person permanently. Person identity is determined by normalized full name (Last, First, Middle) via `fn_normalize_person_name`.
+2. **Atomic Move to Plantilla**: Whenever an Emploc# is assigned (from Pending via `assign_hr_emploc_number` or from Review via `review_web_hr_emploc_correction`), the record is deployed immediately to `plantilla` in status `Active`, the slot transitions to `occupied`, and `hr_emploc` status is set to `status = 'Moved to Plantilla'` and `hr_status = 'Transferred'`.
+3. **Four Registry Lock Rules (under `SELECT FOR UPDATE`)**:
+   - **Rule a (Hard Block)**: If number is already assigned to a different person → raises `EMPLOYEE_NO_ALREADY_ASSIGNED` (`23505`).
+   - **Rule b (Hard Block)**: If same person already has an active placement or active Plantilla record with that number → raises `EMPLOYEE_ALREADY_ACTIVE` (`23505`).
+   - **Rule c (Rehire Confirmation)**: If same person was previously assigned that number but all prior records are inactive/resigned → raises `REHIRE_CONFIRM_REQUIRED` (`23505`) with JSON detail until `p_confirm_reuse = true` with non-empty reason is supplied. Stamped `rehire_reused`.
+   - **Rule d (Duplicate Warning)**: If same person already owns a different number in the registry → raises `POSSIBLE_DUPLICATE_PERSON` (`23505`) with JSON detail until `p_confirm_reuse = true` with reason is supplied.
+4. **Decision 2 Typo Release (Option A)**:
+   - On Deployed tab `update_deployed_employee_id`, if the old number was first assigned to this same record, no other row references it, actor is Data Team or SA, and reason is provided, trigger releases the old number in the registry (`status = 'released'`).
+5. **Missing Required Fields (No Silent Defaults)**:
+   - If `hired_date`, `position`, `account`/`account_id`, `store_name`/`store_id`, or applicant structured name is missing when moving to Plantilla, raises specific `FIELD_REQUIRED_MISSING: <field> is required` (`23502`). Silent defaults (`CURRENT_DATE` fallback, name splitting) are prohibited.
 
 * **HRCO All Scope / Global Visibility**: HRCO users with `scope_type = 'global'` or `hrco_global_visibility = true` bypass per-coordinator snapshot and account restrictions across `get_correction_requests_scoped`, `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, and `get_web_hr_emploc_detail`, loading all records across Pending, Correction, Review, and Ready queues. Restricted HRCOs remain strictly bound to their allowed accounts or assigned records.
 * **Caller Validation**: All queries and RPCs fetch caller metadata directly from `auth.uid()`. The frontend never passes `profile_id` or `role_key` as arguments.
