@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Fix Migration `20262606000079` Null Position in `plantilla_slots` (ohm#fix-mig-23502-slots)
+
+**Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `position` AND `employment_type` NON-NULL VALUES TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `23502` on `plantilla_slots`
+- **Reported Error**: During `npx supabase db push --include-all` against Production (`rwxelulyapjgaarlwkus`), migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` failed at statement 2:
+  `ERROR: null value in column "position" of relation "plantilla_slots" violates not-null constraint (SQLSTATE 23502)`
+  `Failing row contains (85aca01b-..., null, 4fba7c47-..., null, null, null, f, open, ... VCAG5_0014, ...)`
+- **Root Cause**: In `public.plantilla_slots`, both `position` and `employment_type` are marked `NOT NULL` without default values. When creating missing slots for VCodes like `VCAG5_0014`, the `INSERT INTO public.plantilla_slots` statement did not pass `position` or `employment_type`, violating the NOT NULL constraint.
+- **Surgical Patch**:
+  1. In `INSERT INTO public.plantilla_slots`: Added `position` with fallback `COALESCE(NULLIF(btrim(rec.position), ''), (SELECT v.position FROM public.vacancies v WHERE v.vcode = rec.vcode LIMIT 1), 'Motorized Collector')` and `employment_type` with fallback `CASE WHEN COALESCE(rec.deployment_type, '') = 'Roving' THEN 'Roving' ELSE 'Stationary' END`.
+  2. In `UPDATE public.vacancies`: Hardened `position = COALESCE(position, rec.position, 'Motorized Collector')`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Fix Migration `20262606000079` Column `updated_at` on `employee_store_allocations` (ohm#fix-mig-42703-esa)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (REMOVED INVALID `updated_at = now()` REFERENCES FROM `employee_store_allocations` UPDATES); ADDED `DROP FUNCTION IF EXISTS public.plantilla_update_separation` GUARDS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

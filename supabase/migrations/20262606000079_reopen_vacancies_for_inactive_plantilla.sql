@@ -74,7 +74,7 @@ BEGIN
             account_id = COALESCE(account_id, rec.account_id),
             store_id = COALESCE(store_id, rec.store_id),
             store_name = COALESCE(store_name, rec.store_name),
-            position = COALESCE(position, rec.position),
+            position = COALESCE(position, rec.position, 'Motorized Collector'),
             position_id = COALESCE(position_id, rec.position_id),
             updated_at = now()
         WHERE id = v_vac_id;
@@ -149,6 +149,8 @@ BEGIN
         INSERT INTO public.plantilla_slots (
           account_id,
           store_id,
+          position,
+          employment_type,
           legacy_vcode,
           slot_status,
           is_roving,
@@ -158,6 +160,8 @@ BEGIN
         VALUES (
           rec.account_id,
           rec.store_id,
+          COALESCE(NULLIF(btrim(rec.position), ''), (SELECT v.position FROM public.vacancies v WHERE v.vcode = rec.vcode LIMIT 1), 'Motorized Collector'),
+          CASE WHEN COALESCE(rec.deployment_type, '') = 'Roving' THEN 'Roving' ELSE 'Stationary' END,
           rec.vcode,
           'open',
           false,
