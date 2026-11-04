@@ -1,9 +1,9 @@
 # ADR-001 Proposal: HR Emploc Atomic Auto-Move to Plantilla & Permanent Employee Number Registry
 
 ## Metadata
-- **Proposal ID**: `ohm#7k4w9xqn`
+- **Proposal ID**: `ohm#q3v8n2kd` (Continuation of `ohm#7k4w9xqn`)
 - **Date**: 2026-11-04
-- **Status**: Proposed (Implemented on STAGING `qqiiznmqxfoamqytjica`; PROD `rwxelulyapjgaarlwkus` deferred)
+- **Status**: Stage 2b-DB Implemented on STAGING (`qqiiznmqxfoamqytjica`); PROD (`rwxelulyapjgaarlwkus`) frozen read-only awaiting coordinated DB+web+mobile release
 - **Canonical Target File**: `.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (currently located in mobile repo `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`; mobile repo is mid-rebase and untouched)
 
 ---
@@ -39,3 +39,19 @@
 4. **Strict Required Plantilla Fields & `ops_remarks` Isolation**:
    - `_assign_and_deploy_emploc_core` validates all required Plantilla fields (`hired_date`, `position`, `account`/`account_id`, `store_id`/`store_name` for stationary, and applicant `first_name`/`last_name`) before writing. Missing fields raise `FIELD_REQUIRED_MISSING: <field>` (`22023`) and roll back the entire transaction. Silent defaults (`CURRENT_DATE`, `'Unspecified'`, name splitting) are forbidden.
    - `hr_emploc.ops_remarks` comes **exclusively** from Ops correction submissions (`submit_correction` / `submit_hrco_correction_update`) and is never inherited from `vacancies.remarks`.
+
+5. **Stage 2b Workflow Extension: 'For Emploc' Queue, Scoped Ops Documents, and 3-Day Purge Queue**:
+   - **5-Tab Workflow**: `Pending` → `For Emploc` → `Correction` → `Review` → `Deployed`.
+     - `Pending`: Intake queue (`status = 'Pending Emploc', hr_status = 'Pending'`). Ops coordinators in scope (OM, TL, ATL, HRCO) + SA upload compliance requirements. Moving to `For Emploc` requires at least 1 document uploaded. Direct assignment from Pending is restricted to SA override only. Tag Deficiency from Pending is blocked (requires For Emploc).
+     - `For Emploc`: Readiness queue (`status = 'Pending Emploc', hr_status = 'For Emploc'`). Waiting ONLY for Emploc ID. Allowed to assign: HR Personnel, Head Admin, Encoder, SA. Allowed to Tag Deficiency: HR Personnel + SA only (Head Admin & Encoder blocked). Document upload/removal by Ops blocked.
+     - `Correction` & `Review`: Ops coordinators submit corrections; HR Personnel + SA approve/revert.
+     - `Deployed`: `status = 'Moved to Plantilla', hr_status = 'Transferred'`.
+   - **Scoped Document Storage**:
+     - Private Supabase bucket `hr-corrections`, path `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+     - Table `public.hr_emploc_correction_attachments` extended with `stage` (`requirement` or `correction`), `deleted_at`, `deleted_reason`.
+     - Ops uploaders may remove only their own files (SA override) while Pending or For Correction.
+     - Viewing docs blocked for everyone once deployed.
+   - **3-Day Storage Purge Queue**:
+     - Deployed records automatically enqueue document paths into `storage_cleanup_queue` with `run_at = now() + interval '3 days'`.
+     - Sweeper `process_storage_cleanup_queue()` calls Storage API via `pg_net` (`net.http_delete`) to permanently delete storage objects, then marks rows `is_deleted = true, deleted_reason = 'deployed_3day_ttl'`.
+     - Reverting Deployed to Pending within 3-day grace period cancels queued purge and restores `hr_status = 'For Emploc'` (if unpurged docs remain). If docs already purged, restores `hr_status = 'Pending'`.

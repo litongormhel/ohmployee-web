@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
+
+### 1. Summary of Decisions & Architectures Implemented
+- **PROD Freeze Note & Option 3 Decision**: PROD (`rwxelulyapjgaarlwkus`) is strictly read-only and untouched. Only one active HR Emploc row exists on PROD (`Cruz, Jose Reyes`) with zero mutations since Nov 4 push. PROD is frozen for HR Emploc mutations (Review Approve, Assign, and mobile Review approve) until a single coordinated release (`…83` + `…84` + Web + Mobile) is executed.
+- **Migration History Hygiene (Section A)**:
+  - Restored `20262606000081_hr_emploc_final_workflow_and_registry.sql` and `20262606000082_fix_list_web_hr_emplocs_position_column.sql` to exact `bb2e31f` blobs (verified MD5 matching `bb2e31f`).
+  - Generated idempotent delta migration `20262606000083_hr_emploc_phase2a_fix_delta.sql` encapsulating all Phase 2a-fix changes (rules b/d, middle-name matcher, `approve_correction_request` 5-arg via core, gates, RPC filters, typo release). Verified 100% no-op on STAGING and dry-run against PROD.
+  - Reconciled `supabase_migrations.schema_migrations` on STAGING for `…74`, `…75`, `…83`, and `…84`.
+- **Stage 2b-DB Architecture (`20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`)**:
+  - **New 5-Tab Workflow**: `Pending | For Emploc | Correction | Review | Deployed`.
+    - `For Emploc` state (`hr_status = 'For Emploc'`, `status = 'Pending Emploc'`). Existing Pending records remain Pending until Ops in scope uploads compliance documents.
+    - Advancing `Pending` → `For Emploc` via `submit_hr_emploc_requirements` requires at least 1 document uploaded.
+    - Assigning directly from `Pending` is restricted to Super Admin override ONLY (`can_assign_pending_hr_emploc()`). All other roles (HR Personnel, Head Admin, Encoder) wait for `hr_status = 'For Emploc'`.
+    - Tagging deficiency on `Pending` is strictly BLOCKED (requires `For Emploc`).
+    - Tagging deficiency on `For Emploc` is restricted to HR Personnel + SA ONLY (`can_tag_or_review_hr_emploc()`; Head Admin and Encoder blocked with `42501`).
+    - Adding Emploc on `For Emploc` permitted for HR Personnel, Head Admin, Encoder, SA.
+  - **Scoped Private Storage & Lifecycle**:
+    - Reused private bucket `hr-corrections`, path format: `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+    - Extended `public.hr_emploc_correction_attachments` in place (`stage` default `'requirement'`, `deleted_at`, `deleted_reason`).
+    - Scoped authorization: Ops coordinators (OM, TL, ATL, HRCO) within account/store scope + SA can upload and remove only their own uploaded files while Pending or For Correction.
+    - Document viewing permitted for HR Personnel, Head Admin, Encoder, Ops in scope (OM, TL, ATL, HRCO), and SA while record is not deployed; strictly BLOCKED for all roles once deployed.
+  - **3-Day Storage Purge Queue & Revert Grace**:
+    - Deployment automatically enqueues all uploaded requirement and correction files into `storage_cleanup_queue` with a 3-day TTL (`run_at = now() + interval '3 days'`).
+    - Cron job `process_storage_cleanup_queue` scheduled every 15 minutes (`*/15 * * * *`, jobid 7) via `pg_net` (`net.http_delete`) against Supabase Storage API using credentials in `vault.secrets` (`supabase_project_url` and `supabase_service_role_key`).
+    - Decision 6a: If Deployed record is reverted within 3-day window before docs are purged, queued purge is cancelled and `hr_status` is restored to `'For Emploc'`.
+    - Decision 6b: If Deployed record is reverted after docs have been purged, `hr_status` is restored to `'Pending'` (Ops re-uploads).
+  - **Cross-Module Pipeline Invariance**:
+    - Added `'For Emploc'` alongside `'Pending'` across all dashboard metrics, headcount summaries, and store staffing calculations. Verified dashboard metrics remain 100% identical when a record transitions `Pending` → `For Emploc`.
+  - **Pending-Deletion Locks**:
+    - All 13 operations across the lifecycle (assign, tag deficiency, submit correction, approve, reject, reopen, authorize upload, register doc, remove doc, submit requirements, direct attachment insert) are strictly BLOCKED with `P0001` or `42501` when an active deletion request exists.
+
+### 2. Coordinated PROD Release Checklist (Deferred)
+When Web (`2b-Web`) and Mobile (Stage C) are complete:
+1. Apply `20262606000083_hr_emploc_phase2a_fix_delta.sql` on PROD.
+2. Apply `20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql` on PROD.
+3. Configure `vault.secrets` on PROD for `supabase_project_url` and `supabase_service_role_key`.
+4. Run `SELECT * FROM public.fn_adr001_smoke();` and registry verification on PROD.
+5. Deploy Web build to production.
+6. Publish Mobile build to production.
+7. Combined rollback available: `rollback_20262606000084.sql` followed by `rollback_20262606000083.sql`.
+
+---
+
+
 ## Execution Report — HR Emploc Phase 2a-fix: Close DB Gaps on STAGING (ohm#7k4w9xqn)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; ALL PHASE 2a DB & DOC GAPS CLOSED; 37/37 SMOKE TESTS + 2-SESSION CONCURRENCY TEST + ROLLBACK/MD5/RE-APPLY CYCLE PASSED; WAITING FOR APPROVAL OF PHASE 2b (WEB)**
@@ -4344,6 +4390,52 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
+
+### 1. Summary of Decisions & Architectures Implemented
+- **PROD Freeze Note & Option 3 Decision**: PROD (`rwxelulyapjgaarlwkus`) is strictly read-only and untouched. Only one active HR Emploc row exists on PROD (`Cruz, Jose Reyes`) with zero mutations since Nov 4 push. PROD is frozen for HR Emploc mutations (Review Approve, Assign, and mobile Review approve) until a single coordinated release (`…83` + `…84` + Web + Mobile) is executed.
+- **Migration History Hygiene (Section A)**:
+  - Restored `20262606000081_hr_emploc_final_workflow_and_registry.sql` and `20262606000082_fix_list_web_hr_emplocs_position_column.sql` to exact `bb2e31f` blobs (verified MD5 matching `bb2e31f`).
+  - Generated idempotent delta migration `20262606000083_hr_emploc_phase2a_fix_delta.sql` encapsulating all Phase 2a-fix changes (rules b/d, middle-name matcher, `approve_correction_request` 5-arg via core, gates, RPC filters, typo release). Verified 100% no-op on STAGING and dry-run against PROD.
+  - Reconciled `supabase_migrations.schema_migrations` on STAGING for `…74`, `…75`, `…83`, and `…84`.
+- **Stage 2b-DB Architecture (`20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`)**:
+  - **New 5-Tab Workflow**: `Pending | For Emploc | Correction | Review | Deployed`.
+    - `For Emploc` state (`hr_status = 'For Emploc'`, `status = 'Pending Emploc'`). Existing Pending records remain Pending until Ops in scope uploads compliance documents.
+    - Advancing `Pending` → `For Emploc` via `submit_hr_emploc_requirements` requires at least 1 document uploaded.
+    - Assigning directly from `Pending` is restricted to Super Admin override ONLY (`can_assign_pending_hr_emploc()`). All other roles (HR Personnel, Head Admin, Encoder) wait for `hr_status = 'For Emploc'`.
+    - Tagging deficiency on `Pending` is strictly BLOCKED (requires `For Emploc`).
+    - Tagging deficiency on `For Emploc` is restricted to HR Personnel + SA ONLY (`can_tag_or_review_hr_emploc()`; Head Admin and Encoder blocked with `42501`).
+    - Adding Emploc on `For Emploc` permitted for HR Personnel, Head Admin, Encoder, SA.
+  - **Scoped Private Storage & Lifecycle**:
+    - Reused private bucket `hr-corrections`, path format: `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+    - Extended `public.hr_emploc_correction_attachments` in place (`stage` default `'requirement'`, `deleted_at`, `deleted_reason`).
+    - Scoped authorization: Ops coordinators (OM, TL, ATL, HRCO) within account/store scope + SA can upload and remove only their own uploaded files while Pending or For Correction.
+    - Document viewing permitted for HR Personnel, Head Admin, Encoder, Ops in scope (OM, TL, ATL, HRCO), and SA while record is not deployed; strictly BLOCKED for all roles once deployed.
+  - **3-Day Storage Purge Queue & Revert Grace**:
+    - Deployment automatically enqueues all uploaded requirement and correction files into `storage_cleanup_queue` with a 3-day TTL (`run_at = now() + interval '3 days'`).
+    - Cron job `process_storage_cleanup_queue` scheduled every 15 minutes (`*/15 * * * *`, jobid 7) via `pg_net` (`net.http_delete`) against Supabase Storage API using credentials in `vault.secrets` (`supabase_project_url` and `supabase_service_role_key`).
+    - Decision 6a: If Deployed record is reverted within 3-day window before docs are purged, queued purge is cancelled and `hr_status` is restored to `'For Emploc'`.
+    - Decision 6b: If Deployed record is reverted after docs have been purged, `hr_status` is restored to `'Pending'` (Ops re-uploads).
+  - **Cross-Module Pipeline Invariance**:
+    - Added `'For Emploc'` alongside `'Pending'` across all dashboard metrics, headcount summaries, and store staffing calculations. Verified dashboard metrics remain 100% identical when a record transitions `Pending` → `For Emploc`.
+  - **Pending-Deletion Locks**:
+    - All 13 operations across the lifecycle (assign, tag deficiency, submit correction, approve, reject, reopen, authorize upload, register doc, remove doc, submit requirements, direct attachment insert) are strictly BLOCKED with `P0001` or `42501` when an active deletion request exists.
+
+### 2. Coordinated PROD Release Checklist (Deferred)
+When Web (`2b-Web`) and Mobile (Stage C) are complete:
+1. Apply `20262606000083_hr_emploc_phase2a_fix_delta.sql` on PROD.
+2. Apply `20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql` on PROD.
+3. Configure `vault.secrets` on PROD for `supabase_project_url` and `supabase_service_role_key`.
+4. Run `SELECT * FROM public.fn_adr001_smoke();` and registry verification on PROD.
+5. Deploy Web build to production.
+6. Publish Mobile build to production.
+7. Combined rollback available: `rollback_20262606000084.sql` followed by `rollback_20262606000083.sql`.
+
+---
+
+
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4808,6 +4900,52 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
+
+### 1. Summary of Decisions & Architectures Implemented
+- **PROD Freeze Note & Option 3 Decision**: PROD (`rwxelulyapjgaarlwkus`) is strictly read-only and untouched. Only one active HR Emploc row exists on PROD (`Cruz, Jose Reyes`) with zero mutations since Nov 4 push. PROD is frozen for HR Emploc mutations (Review Approve, Assign, and mobile Review approve) until a single coordinated release (`…83` + `…84` + Web + Mobile) is executed.
+- **Migration History Hygiene (Section A)**:
+  - Restored `20262606000081_hr_emploc_final_workflow_and_registry.sql` and `20262606000082_fix_list_web_hr_emplocs_position_column.sql` to exact `bb2e31f` blobs (verified MD5 matching `bb2e31f`).
+  - Generated idempotent delta migration `20262606000083_hr_emploc_phase2a_fix_delta.sql` encapsulating all Phase 2a-fix changes (rules b/d, middle-name matcher, `approve_correction_request` 5-arg via core, gates, RPC filters, typo release). Verified 100% no-op on STAGING and dry-run against PROD.
+  - Reconciled `supabase_migrations.schema_migrations` on STAGING for `…74`, `…75`, `…83`, and `…84`.
+- **Stage 2b-DB Architecture (`20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`)**:
+  - **New 5-Tab Workflow**: `Pending | For Emploc | Correction | Review | Deployed`.
+    - `For Emploc` state (`hr_status = 'For Emploc'`, `status = 'Pending Emploc'`). Existing Pending records remain Pending until Ops in scope uploads compliance documents.
+    - Advancing `Pending` → `For Emploc` via `submit_hr_emploc_requirements` requires at least 1 document uploaded.
+    - Assigning directly from `Pending` is restricted to Super Admin override ONLY (`can_assign_pending_hr_emploc()`). All other roles (HR Personnel, Head Admin, Encoder) wait for `hr_status = 'For Emploc'`.
+    - Tagging deficiency on `Pending` is strictly BLOCKED (requires `For Emploc`).
+    - Tagging deficiency on `For Emploc` is restricted to HR Personnel + SA ONLY (`can_tag_or_review_hr_emploc()`; Head Admin and Encoder blocked with `42501`).
+    - Adding Emploc on `For Emploc` permitted for HR Personnel, Head Admin, Encoder, SA.
+  - **Scoped Private Storage & Lifecycle**:
+    - Reused private bucket `hr-corrections`, path format: `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+    - Extended `public.hr_emploc_correction_attachments` in place (`stage` default `'requirement'`, `deleted_at`, `deleted_reason`).
+    - Scoped authorization: Ops coordinators (OM, TL, ATL, HRCO) within account/store scope + SA can upload and remove only their own uploaded files while Pending or For Correction.
+    - Document viewing permitted for HR Personnel, Head Admin, Encoder, Ops in scope (OM, TL, ATL, HRCO), and SA while record is not deployed; strictly BLOCKED for all roles once deployed.
+  - **3-Day Storage Purge Queue & Revert Grace**:
+    - Deployment automatically enqueues all uploaded requirement and correction files into `storage_cleanup_queue` with a 3-day TTL (`run_at = now() + interval '3 days'`).
+    - Cron job `process_storage_cleanup_queue` scheduled every 15 minutes (`*/15 * * * *`, jobid 7) via `pg_net` (`net.http_delete`) against Supabase Storage API using credentials in `vault.secrets` (`supabase_project_url` and `supabase_service_role_key`).
+    - Decision 6a: If Deployed record is reverted within 3-day window before docs are purged, queued purge is cancelled and `hr_status` is restored to `'For Emploc'`.
+    - Decision 6b: If Deployed record is reverted after docs have been purged, `hr_status` is restored to `'Pending'` (Ops re-uploads).
+  - **Cross-Module Pipeline Invariance**:
+    - Added `'For Emploc'` alongside `'Pending'` across all dashboard metrics, headcount summaries, and store staffing calculations. Verified dashboard metrics remain 100% identical when a record transitions `Pending` → `For Emploc`.
+  - **Pending-Deletion Locks**:
+    - All 13 operations across the lifecycle (assign, tag deficiency, submit correction, approve, reject, reopen, authorize upload, register doc, remove doc, submit requirements, direct attachment insert) are strictly BLOCKED with `P0001` or `42501` when an active deletion request exists.
+
+### 2. Coordinated PROD Release Checklist (Deferred)
+When Web (`2b-Web`) and Mobile (Stage C) are complete:
+1. Apply `20262606000083_hr_emploc_phase2a_fix_delta.sql` on PROD.
+2. Apply `20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql` on PROD.
+3. Configure `vault.secrets` on PROD for `supabase_project_url` and `supabase_service_role_key`.
+4. Run `SELECT * FROM public.fn_adr001_smoke();` and registry verification on PROD.
+5. Deploy Web build to production.
+6. Publish Mobile build to production.
+7. Combined rollback available: `rollback_20262606000084.sql` followed by `rollback_20262606000083.sql`.
+
+---
+
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
@@ -5297,6 +5435,52 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — HR Emploc Stage 2b-DB on STAGING (ohm#q3v8n2kd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-DB FULLY IMPLEMENTED & VERIFIED (31/31 TEST SUITE CASES PASS, 13/13 PENDING DELETION LOCKS PASS, REAL STORAGE PURGE WITH SIGNED URL 404 VERIFIED, 100% ROLLBACK & IDEMPOTENCY PASS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; STOPPED AND WAITING FOR EXPLICIT APPROVAL BEFORE PROCEEDING TO 2b-WEB**
+
+### 1. Summary of Decisions & Architectures Implemented
+- **PROD Freeze Note & Option 3 Decision**: PROD (`rwxelulyapjgaarlwkus`) is strictly read-only and untouched. Only one active HR Emploc row exists on PROD (`Cruz, Jose Reyes`) with zero mutations since Nov 4 push. PROD is frozen for HR Emploc mutations (Review Approve, Assign, and mobile Review approve) until a single coordinated release (`…83` + `…84` + Web + Mobile) is executed.
+- **Migration History Hygiene (Section A)**:
+  - Restored `20262606000081_hr_emploc_final_workflow_and_registry.sql` and `20262606000082_fix_list_web_hr_emplocs_position_column.sql` to exact `bb2e31f` blobs (verified MD5 matching `bb2e31f`).
+  - Generated idempotent delta migration `20262606000083_hr_emploc_phase2a_fix_delta.sql` encapsulating all Phase 2a-fix changes (rules b/d, middle-name matcher, `approve_correction_request` 5-arg via core, gates, RPC filters, typo release). Verified 100% no-op on STAGING and dry-run against PROD.
+  - Reconciled `supabase_migrations.schema_migrations` on STAGING for `…74`, `…75`, `…83`, and `…84`.
+- **Stage 2b-DB Architecture (`20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`)**:
+  - **New 5-Tab Workflow**: `Pending | For Emploc | Correction | Review | Deployed`.
+    - `For Emploc` state (`hr_status = 'For Emploc'`, `status = 'Pending Emploc'`). Existing Pending records remain Pending until Ops in scope uploads compliance documents.
+    - Advancing `Pending` → `For Emploc` via `submit_hr_emploc_requirements` requires at least 1 document uploaded.
+    - Assigning directly from `Pending` is restricted to Super Admin override ONLY (`can_assign_pending_hr_emploc()`). All other roles (HR Personnel, Head Admin, Encoder) wait for `hr_status = 'For Emploc'`.
+    - Tagging deficiency on `Pending` is strictly BLOCKED (requires `For Emploc`).
+    - Tagging deficiency on `For Emploc` is restricted to HR Personnel + SA ONLY (`can_tag_or_review_hr_emploc()`; Head Admin and Encoder blocked with `42501`).
+    - Adding Emploc on `For Emploc` permitted for HR Personnel, Head Admin, Encoder, SA.
+  - **Scoped Private Storage & Lifecycle**:
+    - Reused private bucket `hr-corrections`, path format: `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+    - Extended `public.hr_emploc_correction_attachments` in place (`stage` default `'requirement'`, `deleted_at`, `deleted_reason`).
+    - Scoped authorization: Ops coordinators (OM, TL, ATL, HRCO) within account/store scope + SA can upload and remove only their own uploaded files while Pending or For Correction.
+    - Document viewing permitted for HR Personnel, Head Admin, Encoder, Ops in scope (OM, TL, ATL, HRCO), and SA while record is not deployed; strictly BLOCKED for all roles once deployed.
+  - **3-Day Storage Purge Queue & Revert Grace**:
+    - Deployment automatically enqueues all uploaded requirement and correction files into `storage_cleanup_queue` with a 3-day TTL (`run_at = now() + interval '3 days'`).
+    - Cron job `process_storage_cleanup_queue` scheduled every 15 minutes (`*/15 * * * *`, jobid 7) via `pg_net` (`net.http_delete`) against Supabase Storage API using credentials in `vault.secrets` (`supabase_project_url` and `supabase_service_role_key`).
+    - Decision 6a: If Deployed record is reverted within 3-day window before docs are purged, queued purge is cancelled and `hr_status` is restored to `'For Emploc'`.
+    - Decision 6b: If Deployed record is reverted after docs have been purged, `hr_status` is restored to `'Pending'` (Ops re-uploads).
+  - **Cross-Module Pipeline Invariance**:
+    - Added `'For Emploc'` alongside `'Pending'` across all dashboard metrics, headcount summaries, and store staffing calculations. Verified dashboard metrics remain 100% identical when a record transitions `Pending` → `For Emploc`.
+  - **Pending-Deletion Locks**:
+    - All 13 operations across the lifecycle (assign, tag deficiency, submit correction, approve, reject, reopen, authorize upload, register doc, remove doc, submit requirements, direct attachment insert) are strictly BLOCKED with `P0001` or `42501` when an active deletion request exists.
+
+### 2. Coordinated PROD Release Checklist (Deferred)
+When Web (`2b-Web`) and Mobile (Stage C) are complete:
+1. Apply `20262606000083_hr_emploc_phase2a_fix_delta.sql` on PROD.
+2. Apply `20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql` on PROD.
+3. Configure `vault.secrets` on PROD for `supabase_project_url` and `supabase_service_role_key`.
+4. Run `SELECT * FROM public.fn_adr001_smoke();` and registry verification on PROD.
+5. Deploy Web build to production.
+6. Publish Mobile build to production.
+7. Combined rollback available: `rollback_20262606000084.sql` followed by `rollback_20262606000083.sql`.
+
+---
+
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 

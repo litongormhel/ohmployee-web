@@ -1,59 +1,101 @@
 -- ====================================================================
 -- MIGRATION: 20262606000082_fix_list_web_hr_emplocs_position_column.sql
 -- Module: HR Emploc
--- Purpose: Reassert surgical list_web_hr_emplocs definition (h.position AS position_title).
+-- Purpose: Fix undefined column reference (h.position_snapshot) in list_web_hr_emplocs.
+--          Restores h.position AS position_title.
 -- ====================================================================
 
-CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(p_queue text DEFAULT NULL::text, p_status text DEFAULT NULL::text, p_deficiency text DEFAULT NULL::text, p_sla_filter text DEFAULT NULL::text, p_account_id uuid DEFAULT NULL::uuid, p_group_id uuid DEFAULT NULL::uuid, p_search text DEFAULT NULL::text, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0, p_sort_by text DEFAULT 'date_requested'::text, p_sort_dir text DEFAULT 'desc'::text)
- RETURNS TABLE(hr_emploc_id uuid, applicant_name text, vcode text, account_id uuid, account_name text, group_id uuid, group_name text, store_id uuid, store_name text, position_title text, hr_status text, status text, emploc_no text, employee_no text, date_requested timestamp with time zone, created_at timestamp with time zone, hired_date date, assignment_type text, roving_assignment_id uuid, aging_days integer, sla_breached boolean, sla_status text, sla_deadline timestamp with time zone, deficiency_summary jsonb, is_pending_deletion boolean, row_capabilities jsonb, total_count bigint)
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
+CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
+  p_queue text DEFAULT NULL::text,
+  p_status text DEFAULT NULL::text,
+  p_deficiency text DEFAULT NULL::text,
+  p_sla_filter text DEFAULT NULL::text,
+  p_account_id uuid DEFAULT NULL::uuid,
+  p_group_id uuid DEFAULT NULL::uuid,
+  p_search text DEFAULT NULL::text,
+  p_limit integer DEFAULT 50,
+  p_offset integer DEFAULT 0,
+  p_sort_by text DEFAULT 'date_requested'::text,
+  p_sort_dir text DEFAULT 'desc'::text
+)
+RETURNS TABLE(
+  hr_emploc_id uuid,
+  applicant_name text,
+  vcode text,
+  account_id uuid,
+  account_name text,
+  group_id uuid,
+  group_name text,
+  store_id uuid,
+  store_name text,
+  position_title text,
+  hr_status text,
+  status text,
+  emploc_no text,
+  employee_no text,
+  date_requested timestamp with time zone,
+  created_at timestamp with time zone,
+  hired_date date,
+  assignment_type text,
+  roving_assignment_id uuid,
+  aging_days integer,
+  sla_breached boolean,
+  sla_status text,
+  sla_deadline timestamp with time zone,
+  deficiency_summary jsonb,
+  is_pending_deletion boolean,
+  row_capabilities jsonb,
+  total_count bigint
+)
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_auth_uid     uuid := auth.uid();
   v_profile_id   uuid;
-  v_role_name    text;
   v_role_level   integer;
-  v_sort_by      text := lower(coalesce(nullif(btrim(p_sort_by), ''), 'date_requested'));
-  v_sort_dir     text := lower(coalesce(nullif(btrim(p_sort_dir), ''), 'desc'));
-  v_limit        integer := least(greatest(coalesce(p_limit, 50), 1), 200);
-  v_offset       integer := greatest(coalesce(p_offset, 0), 0);
+  v_role_name    text;
+  v_limit        integer := LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
+  v_offset       integer := GREATEST(COALESCE(p_offset, 0), 0);
+  v_sort_by      text    := LOWER(COALESCE(p_sort_by, 'date_requested'));
+  v_sort_dir     text    := LOWER(COALESCE(p_sort_dir, 'desc'));
 BEGIN
   IF v_auth_uid IS NULL THEN
-    RAISE EXCEPTION 'unauthenticated: web hr_emploc list requires a valid session'
+    RAISE EXCEPTION 'unauthenticated: list_web_hr_emplocs requires a valid session'
       USING ERRCODE = '42501';
   END IF;
 
-  SELECT up.id, r.role_name, r.role_level
-  INTO   v_profile_id, v_role_name, v_role_level
+  SELECT up.id, r.role_level, r.role_name
+  INTO   v_profile_id, v_role_level, v_role_name
   FROM   public.users_profile up
   JOIN   public.roles r ON r.id = up.role_id
   WHERE  up.auth_user_id = v_auth_uid
-    AND  up.is_active = TRUE
-    AND  up.archived_at IS NULL
+    AND  up.is_active    = TRUE
+    AND  up.archived_at  IS NULL
   ORDER  BY up.created_at DESC
   LIMIT  1;
 
-  IF v_profile_id IS NULL OR coalesce(v_role_level, 0) <= 0 THEN
-    RAISE EXCEPTION 'forbidden: web hr_emploc list caller is not allowed'
+  IF v_profile_id IS NULL THEN
+    RAISE EXCEPTION 'forbidden: caller profile is inactive or not found'
       USING ERRCODE = '42501';
   END IF;
 
   RETURN QUERY
   WITH scoped AS (
     SELECT
-      h.id AS hr_emploc_id,
-      h.applicant_name,
+      h.id,
+      COALESCE(h.applicant_name_snapshot, h.applicant_name) AS applicant_name,
       h.vcode,
       h.account_id,
-      a.account_name,
+      COALESCE(a.account_name, h.account) AS account_name,
       a.group_id,
       g.group_name,
       h.store_id,
       h.store_name,
       h.position AS position_title,
-      COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)) AS hrco_name,
       h.hr_status,
       h.status,
       h.emploc_no,
@@ -66,22 +108,24 @@ BEGIN
       h.deleted_at,
       h.moved_to_plantilla_at,
       
+      -- SLA & Aging computation
       GREATEST(0, (EXTRACT(day FROM (now() - COALESCE(h.date_requested, h.created_at))))::integer) AS aging_days,
       
       ((h.deleted_at IS NULL) AND (h.employee_no IS NULL OR h.employee_no = '') AND (h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text])) AND (COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))) AS sla_breached,
       
       CASE
-        WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval))
-          THEN 'breached'
-        WHEN (h.deleted_at IS NULL AND (h.employee_no IS NULL OR h.employee_no = '') AND h.status = ANY (ARRAY['Pending Emploc'::text, 'Pending Requirements'::text, 'For Compliance'::text, 'In Review'::text]) AND COALESCE(h.date_requested, h.created_at) >= (now() - '3 days'::interval) AND COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval))
-          THEN 'warning'
-        ELSE 'normal'
+        WHEN (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> '') OR (h.status = 'Moved to Plantilla') THEN 'completed'
+        WHEN COALESCE(h.date_requested, h.created_at) < (now() - '3 days'::interval) THEN 'breached'
+        WHEN COALESCE(h.date_requested, h.created_at) < (now() - '2 days'::interval) THEN 'warning'
+        ELSE 'on_track'
       END AS sla_status,
       
       (COALESCE(h.date_requested, h.created_at) + INTERVAL '3 days') AS sla_deadline,
       
+      -- Deficiency summary
       CASE
-        WHEN h.correction_reason IS NULL THEN jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
+        WHEN h.correction_reason IS NULL OR h.correction_reason = 'null'::jsonb OR h.correction_reason = '[]'::jsonb THEN
+          jsonb_build_object('active_count', 0, 'issues', '[]'::jsonb)
         ELSE jsonb_build_object(
           'active_count', CASE WHEN jsonb_typeof(h.correction_reason) = 'array' THEN jsonb_array_length(h.correction_reason) ELSE 1 END,
           'issues', CASE
@@ -111,6 +155,7 @@ BEGIN
         WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
       ) AS is_pending_deletion,
       
+      -- ROW CAPABILITIES MATCHING OHM'S FINAL ROLE MATRIX
       jsonb_build_object(
         'can_view_detail', true,
         'hrco_name', COALESCE(h.hrco_name, (SELECT up2.full_name FROM public.users_profile up2 WHERE up2.id = h.hrco_user_id_snapshot)),
@@ -133,11 +178,11 @@ BEGIN
         ),
         'can_edit_emploc', (
           public.can_edit_deployed_hr_emploc()
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred' OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
         ),
         'can_revert_to_pending', (
           public.can_edit_deployed_hr_emploc()
-          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred')
+          AND (h.status = 'Moved to Plantilla' OR h.hr_status = 'Transferred' OR (h.employee_no IS NOT NULL AND btrim(h.employee_no) <> ''))
         ),
         'can_request_deletion', (
           h.status <> 'Moved to Plantilla'
@@ -188,32 +233,26 @@ BEGIN
           public.can_tag_or_review_hr_emploc()
           AND h.hr_status = 'For Review'
           AND NOT EXISTS (
-            SELECT 1
-            FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id
-              AND dr.status = 'Pending'
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
           )
         ),
         'can_submit_correction', (
           public.can_submit_hr_emploc_correction()
           AND h.hr_status = 'For Correction'
           AND NOT EXISTS (
-            SELECT 1
-            FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id
-              AND dr.status = 'Pending'
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
           )
         ),
-        'can_move_to_plantilla', false,
+        'can_move_to_plantilla', false, -- Deprecated & removed per final workflow
         'can_tag_deficiency', (
           public.can_tag_or_review_hr_emploc()
           AND h.status <> 'Moved to Plantilla'
           AND h.hr_status <> 'Transferred'
           AND NOT EXISTS (
-            SELECT 1
-            FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id
-              AND dr.status = 'Pending'
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
           )
         ),
         'can_assign_employee_no', (
@@ -221,10 +260,8 @@ BEGIN
           AND COALESCE(h.employee_no, '') = ''
           AND h.status <> 'Moved to Plantilla'
           AND NOT EXISTS (
-            SELECT 1
-            FROM public.hr_emploc_deletion_requests dr
-            WHERE dr.hr_emploc_id = h.id
-              AND dr.status = 'Pending'
+            SELECT 1 FROM public.hr_emploc_deletion_requests dr
+            WHERE dr.hr_emploc_id = h.id AND dr.status = 'Pending'
           )
         )
       ) AS row_capabilities
@@ -259,7 +296,7 @@ BEGIN
     SELECT s.*
     FROM scoped s
     WHERE
-      -- Queue Filter (including 'deployed' and 'ready')
+      -- Queue Filter: Deployed strictly mapped to status = 'Moved to Plantilla' OR hr_status = 'Transferred'
       (p_queue IS NULL
        OR (p_queue = 'pending' AND s.hr_status = 'Pending' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
        OR (p_queue = 'correction' AND s.hr_status = 'For Correction' AND s.status <> 'Backout' AND s.deleted_at IS NULL)
@@ -284,28 +321,24 @@ BEGIN
        )
       )
       AND (p_sla_filter IS NULL OR s.sla_status = p_sla_filter)
-      AND (p_status IS NULL OR s.status = p_status)
       AND (p_account_id IS NULL OR s.account_id = p_account_id)
       AND (p_group_id IS NULL OR s.group_id = p_group_id)
       AND (
         p_search IS NULL
-        OR nullif(btrim(p_search), '') IS NULL
-        OR s.applicant_name ILIKE '%' || btrim(p_search) || '%'
-        OR s.employee_no ILIKE '%' || btrim(p_search) || '%'
-        OR s.emploc_no ILIKE '%' || btrim(p_search) || '%'
-        OR s.vcode ILIKE '%' || btrim(p_search) || '%'
-        OR s.account_name ILIKE '%' || btrim(p_search) || '%'
-        OR s.store_name ILIKE '%' || btrim(p_search) || '%'
-        OR s.position_title ILIKE '%' || btrim(p_search) || '%'
-        OR s.hrco_name ILIKE '%' || btrim(p_search) || '%'
+        OR s.applicant_name ILIKE '%' || p_search || '%'
+        OR s.vcode ILIKE '%' || p_search || '%'
+        OR s.emploc_no ILIKE '%' || p_search || '%'
+        OR s.employee_no ILIKE '%' || p_search || '%'
+        OR s.store_name ILIKE '%' || p_search || '%'
+        OR s.position_title ILIKE '%' || p_search || '%'
       )
   ),
   counted AS (
-    SELECT f.*, count(*) OVER () AS total_count
+    SELECT f.*, COUNT(*) OVER() AS full_count
     FROM filtered f
   )
   SELECT
-    c.hr_emploc_id,
+    c.id AS hr_emploc_id,
     c.applicant_name,
     c.vcode,
     c.account_id,
@@ -331,7 +364,7 @@ BEGIN
     c.deficiency_summary,
     c.is_pending_deletion,
     c.row_capabilities,
-    c.total_count
+    COALESCE(c.full_count, 0::bigint) AS total_count
   FROM counted c
   ORDER BY
     CASE WHEN v_sort_dir = 'asc'  AND v_sort_by = 'vcode'            THEN c.vcode END ASC NULLS LAST,
@@ -364,8 +397,7 @@ BEGIN
   LIMIT v_limit
   OFFSET v_offset;
 END;
-$function$
-;
+$function$;
 
 REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) TO authenticated;

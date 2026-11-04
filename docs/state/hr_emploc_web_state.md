@@ -23,17 +23,18 @@ Like all modules in OHMployee Web, this is a thin admin-panel presentation layer
 ## 2. Queue & Status Architecture
 
 The administrative dashboard organizes employee placement records into distinct queues using **Status Tabs**. These queues are driven by two database fields:
-* `hr_status`: Tracks the HR compliance workflow state (`Pending`, `For Correction`, `For Review`, `Complete`, `Rejected`, `Transferred`).
+* `hr_status`: Tracks the HR compliance workflow state (`Pending`, `For Emploc`, `For Correction`, `For Review`, `Complete`, `Rejected`, `Transferred`).
 * `status`: Tracks the deployment lifecycle (`Pending Emploc`, `Moved to Plantilla`, `Backout`).
 
-To facilitate rapid filtering and administrative scanning, the UI implements 4 primary tab-controlled queues:
+To facilitate rapid filtering and administrative scanning, the UI implements 5 tab-controlled queues, each with a live badge count:
 
 | Queue Tab | Database Conditions | Primary Purpose / Administrative Action |
 | :--- | :--- | :--- |
-| **Pending** | `status = 'Pending Emploc'` AND `hr_status = 'Pending'` | Operational onboarding queue. Actions: `+ Add Emploc` (allowed for HR Personnel, Head Admin, Encoder, Super Admin; atomically assigns Emploc# and auto-moves to Plantilla) and `! Tag Deficiency` (allowed for HR Personnel and Super Admin ONLY; Head Admin and Encoder NOT allowed). Auto-locked if pending deletion request exists. |
-| **Correction** | `hr_status = 'For Correction'` | Deficiency correction queue. Displays deficient documents returned to field coordinators. Actions: Upload attachments, submit correction to review (Ops only: OM, TL, ATL, HRCO, and Super Admin; HR Personnel, Head Admin, and Encoder blocked). |
+| **Pending** | `status = 'Pending Emploc'` AND `hr_status = 'Pending'` | Operational requirements intake queue. Ops coordinators in scope (OM, TL, ATL, HRCO) + Super Admin upload compliance documents to private bucket `hr-corrections`. Advancing to `For Emploc` via `submit_hr_emploc_requirements` requires at least 1 document uploaded. Assigning Emploc ID directly from Pending is restricted to Super Admin override ONLY (`can_assign_pending_hr_emploc()`); all other roles wait for `hr_status = 'For Emploc'`. Tag Deficiency is BLOCKED on Pending (requires For Emploc). |
+| **For Emploc** *(NEW)* | `status = 'Pending Emploc'` AND `hr_status = 'For Emploc'` | Deployment readiness queue (requirements uploaded and verified, waiting ONLY for Emploc ID). Actions: `+ Add Emploc` (allowed for HR Personnel, Head Admin, Encoder, Super Admin; atomically assigns Emploc ID and auto-moves to Plantilla) and `! Tag Deficiency` (allowed for HR Personnel and Super Admin ONLY; Head Admin and Encoder blocked; moves record to `For Correction`). Document upload/removal by Ops is blocked. |
+| **Correction** | `hr_status = 'For Correction'` | Deficiency correction queue. Displays deficient documents returned to field coordinators. Actions: In-scope Ops upload compliance attachments (stage `correction`) and submit correction to review (`submit_hrco_correction_update`; moves to `For Review`). HR Personnel, Head Admin, and Encoder blocked. |
 | **Review** | `hr_status = 'For Review'` | Review queue for corrected submissions. Actions: Approve (HR Personnel and Super Admin ONLY; Head Admin and Encoder blocked. Atomically assigns Emploc ID and auto-moves to Plantilla in same transaction) or Revert/Return to Correction. Remarks column displays Ops coordinator correction remarks (`ops_remarks`) only. |
-| **Deployed** | `status = 'Moved to Plantilla'` OR `hr_status = 'Transferred'` (with `deleted_at IS NULL`) | Historical & audit queue for records assigned an Employee ID and deployed to Plantilla. Actions: `Edit Emploc` (Data Team: Encoder, Head Admin + Super Admin ONLY; HR Personnel blocked) and `Revert to Pending` (Data Team + Super Admin ONLY with required reason; soft-deletes Plantilla row, re-opens slot, releases typo number if applicable). SLA timer is frozen with `Completed in X days`. |
+| **Deployed** | `status = 'Moved to Plantilla'` OR `hr_status = 'Transferred'` (with `deleted_at IS NULL`) | Historical & audit queue for records assigned an Employee ID and deployed to Plantilla. Actions: `Edit Emploc` (Data Team: Encoder, Head Admin + Super Admin ONLY; HR Personnel blocked) and `Revert to Pending` (Data Team + Super Admin ONLY with required reason; soft-deletes Plantilla row, re-opens slot). **3-Day Storage Purge Queue**: Deployment automatically enqueues all uploaded requirement/correction docs for permanent storage purge in 3 days (`run_at = now() + interval '3 days'`). If reverted within the 3-day grace window before docs are purged, the queued purge is cancelled and `hr_status` is restored to `'For Emploc'`; if reverted after docs have been purged, `hr_status` is restored to `'Pending'` (Ops re-uploads). View docs is blocked for all roles once deployed. SLA timer is frozen with `Completed in X days`. |
 
 ---
 
@@ -127,9 +128,17 @@ When a row is selected, the desktop Detail Drawer slides overlaying the grid fro
    - SLA breach alert badge & Tier 1/2 escalation notifications (active only while in progress).
 5. *(Completely Removed: "Onboarding Requirements Compliance" checklist)*:
    - The document checklist (SSS, Pag-IBIG, PhilHealth, NBI, PSA) has been completely removed from the drawer.
-6. **Correction Submissions & Attachments Card**:
+6. **Requirements & Correction Documents Card**:
    - Placed directly below SLA & Aging Performance.
-   - Shows uploaded attachment files with one-click signed URL download links, uploader metadata, and file sizes.
+   - Shows uploaded requirement and correction files with one-click signed URL download links, uploader metadata, stage (`requirement` or `correction`), and file sizes.
+   - Storage architecture:
+     - Private Supabase bucket `hr-corrections`.
+     - Standardized path: `emploc-docs/{record_id}/{timestamp}_{sanitized_filename}`.
+     - Document metadata tracked in `public.hr_emploc_correction_attachments` (extended with `stage`, `deleted_at`, `deleted_reason`).
+     - Upload permitted strictly for Ops coordinators within account/store scope (OM, TL, ATL, HRCO) + Super Admin while the record is in `Pending` or `For Correction`.
+     - Ops uploaders may remove only their own uploaded files (Super Admin override) while the record is in `Pending` or `For Correction`.
+     - Viewing documents permitted for HR Personnel, Head Admin, Encoder, in-scope Ops (OM, TL, ATL, HRCO), and Super Admin, but strictly BLOCKED for everyone once the record is Deployed.
+     - 3-day document purge queue: upon deployment, documents are enqueued into `storage_cleanup_queue` with a 3-day TTL. When the queue runs via pg_net and cron, the physical storage objects are deleted via Storage API and metadata rows marked `is_deleted = true, deleted_reason = 'deployed_3day_ttl'`. Reverting to Pending within the 3-day window cancels the queued purge.
 7. **Specific Activity History Trail Card**:
    - Replaces generic "Status Updated" placeholders with human-readable, event-specific logs:
      - Creation/Endorsement: `"Added to HR Emploc Queue ([Position] – [Store]) from Vacancy [VCode] by [Actor Name]"`
