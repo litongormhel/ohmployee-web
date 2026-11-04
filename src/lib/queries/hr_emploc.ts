@@ -1633,7 +1633,7 @@ export async function fetchEmplocDeletionRequests(
       reviewed_by,
       reviewed_at,
       reviewer_remarks,
-      hr_emploc:hr_emploc_id (
+      hr_emploc:hr_emploc!hr_emploc_id (
         applicant_name,
         employee_no,
         store_name,
@@ -1666,6 +1666,7 @@ export async function fetchEmplocDeletionRequests(
   const { data, error } = await orderedQuery;
 
   if (error) {
+    console.error("[fetchEmplocDeletionRequests] query failed:", error);
     if (error.code === "42501") {
       throw new HrEmplocDataError("access_denied", "Unauthorized: Scoped access restricted.");
     }

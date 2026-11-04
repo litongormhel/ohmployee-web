@@ -1,7 +1,8 @@
 # Approvals Module (Web) State
 
 ## 1. Overview & Architecture
-The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 12 functional categories, arranged in alphabetical order (A-Z):
+The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across functional categories, led by the unified **All Requests** command tab, followed by 12 functional categories:
+0. `all_requests` — All Requests Unified Hub (Default active tab for Super Admin / Admin review)
 1. `account_archives` — Account Archive Requests (Super Admin only)
 2. `account_group_transfers` — Account Group Transfers
 3. `account_requests` — Account Sign-Ups & Provisioning
@@ -17,7 +18,21 @@ The Approvals Module (`/approvals`) serves as the administrative hub and request
 
 ---
 
-## 2. UI Layout & Navigation
+## 2. All Requests Unified Command Center (`all_requests`)
+- **Default Landing Tab**: Automatically defaults to `"all_requests"` when entering `/approvals` without a `?tab=` query parameter.
+- **Top Badge**: Sum of all pending operational requests across categories.
+- **Toolbar & Global Search**: Status pills (`Pending`, `Approved / Completed`, `Rejected`), global search input filtering items across all categories simultaneously, and a unified refresh button.
+- **Resilient Parallel Fetching**: Utilizes `Promise.allSettled()` to fetch queues across all operational categories in parallel; individual category failures are safely isolated without crashing the entire hub.
+- **Smart Category Accordions**:
+  - **Dynamic Sorting**: Categories with active items (`count > 0` for current status and search query) sort automatically to the top; categories with `0` items sort to the bottom.
+  - **Auto-Expand / Collapse**: Auto-expands categories with active items (`count > 0`); auto-collapses empty categories into a compact 1-line header with `0` badge while preserving manual toggle control.
+  - **Header Actions**: Each category card includes an `"Open Tab ->"` action button that smoothly routes to that category's dedicated main tab.
+  - **Preview Cap (5 items)**: Displays up to 5 items per category by default, with a `"Show all X requests"` toggle and deep-link navigation.
+  - **Direct In-Line Actions**: Direct row action buttons (Approve, Reject, Review, View) are functional in-place using existing modular modal and mutation workflows, auto-invalidating category queries and global badges upon completion.
+
+---
+
+## 3. UI Layout & Navigation
 - **Header**: `AdminPageHeader` with title, subtitle, refresh button, and module category tag.
 - **Top Tab Strip**: `RequestCategoryNavigation` rendering pill tabs in alphabetical sequence (A-Z) with live counts and acknowledgment badges for authorized categories (`canViewApprovalsHub`, `getAllowedApprovalCategories`).
 - **Main Review Pane**: `ActiveQueueReviewPane` rendered with `key={selectedCategory}` for immediate state isolation and clean tab remounting.

@@ -15,6 +15,7 @@ import { canViewApprovalsHub, getAllowedApprovalCategories } from "@/lib/rbac";
 import { DataState } from "@/components/shared/DataState";
 
 const VALID_CATEGORIES = new Set<string>([
+  "all_requests",
   "new_stores",
   "headcount",
   "plantilla_approvals",
@@ -40,9 +41,9 @@ function ApprovalsPageContent() {
   );
 
   const defaultCategory: RequestCategoryKey =
-    allowedCategories.includes("headcount")
-      ? "headcount"
-      : allowedCategories[0] ?? "headcount";
+    allowedCategories.includes("all_requests")
+      ? "all_requests"
+      : allowedCategories[0] ?? "all_requests";
 
   const paramTab = searchParams.get("tab") || searchParams.get("category");
   const urlCategory =
@@ -71,6 +72,7 @@ function ApprovalsPageContent() {
 
   const {
     data: counts = {
+      all_requests: 0,
       new_stores: 0,
       headcount: 0,
       plantilla_approvals: 0,
@@ -160,6 +162,7 @@ function ApprovalsPageContent() {
           selectedCategory={selectedCategory}
           onSelectCategory={handleSelectCategory}
           counts={counts}
+          allowedCategories={allowedCategories}
         />
       </div>
     </div>

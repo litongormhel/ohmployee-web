@@ -22,6 +22,7 @@ import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
 import { PlantillaApprovalDataTable } from "@/components/approvals/PlantillaApprovalDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
+import { AllRequestsUnifiedQueue } from "@/components/approvals/AllRequestsUnifiedQueue";
 import {
   REQUEST_CATEGORIES,
   useHeadcountRequests,
@@ -63,6 +64,7 @@ interface ActiveQueueReviewPaneProps {
   selectedCategory: RequestCategoryKey;
   onSelectCategory: (key: RequestCategoryKey) => void;
   counts: RequestCategoryCounts;
+  allowedCategories?: RequestCategoryKey[];
 }
 
 const CATEGORY_LINKS: Partial<Record<RequestCategoryKey, { href: string; label: string }>> = {
@@ -219,6 +221,7 @@ export function ActiveQueueReviewPane({
   selectedCategory,
   onSelectCategory,
   counts,
+  allowedCategories,
 }: ActiveQueueReviewPaneProps) {
   // Sub-tab selection state (pending | approved | rejected) for each queue
   const [newStoreTab, setNewStoreTab] = useState<ApprovalStatusTab>("pending");
@@ -674,6 +677,16 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [archiveRequests, archiveSearchQuery]);
+
+  // ── Unified All Requests Command Center ─────────────────────────────────
+  if (selectedCategory === "all_requests") {
+    return (
+      <AllRequestsUnifiedQueue
+        onSelectCategory={onSelectCategory}
+        allowedCategories={allowedCategories}
+      />
+    );
+  }
 
   // ── 0. Account Archives Queue (SA Only) ──────────────────────────────────
   if (selectedCategory === "account_archives") {

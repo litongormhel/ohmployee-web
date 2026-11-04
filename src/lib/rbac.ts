@@ -344,6 +344,7 @@ export function getAllowedApprovalCategories(
 ): RequestCategoryKey[] {
   if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) {
     return [
+      "all_requests",
       "new_stores",
       "headcount",
       "plantilla_approvals",
@@ -364,6 +365,7 @@ export function getAllowedApprovalCategories(
 
   if (role === AppRole.HEAD_ADMIN || level === 90) {
     return [
+      "all_requests",
       "new_stores",
       "headcount",
       "plantilla_approvals",
@@ -379,6 +381,7 @@ export function getAllowedApprovalCategories(
 
   if (role === AppRole.ENCODER || level === 30) {
     return [
+      "all_requests",
       "headcount",
       "plantilla_approvals",
       "applicant_movements",
@@ -389,7 +392,7 @@ export function getAllowedApprovalCategories(
   }
 
   if (role === AppRole.BACKOFFICE_PERSONNEL || level === 15) {
-    return ["deactivations"];
+    return ["all_requests", "deactivations"];
   }
 
   return [];

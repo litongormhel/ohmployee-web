@@ -3,6 +3,7 @@ import {
   Archive,
   ArrowLeftRight,
   Briefcase,
+  GitFork,
   Layers,
   MapPin,
   Store,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/queries/requests";
 
 const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: string }>> = {
+  all_requests: Layers,
   account_archives: Archive,
   new_stores: Store,
   headcount: Users,
@@ -29,7 +31,7 @@ const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: str
   hr_emploc_deletions: UserX,
   deactivations: UserMinus,
   applicant_movements: ArrowLeftRight,
-  account_group_transfers: Layers,
+  account_group_transfers: GitFork,
   relievers: UserCheck,
 };
 

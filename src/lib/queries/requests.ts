@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
 
 export type RequestCategoryKey =
+  | "all_requests"
   | "new_stores"
   | "headcount"
   | "plantilla_approvals"
@@ -24,6 +25,12 @@ export interface RequestCategoryConfig {
 }
 
 export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
+  {
+    key: "all_requests",
+    label: "All Requests",
+    description: "Unified cross-category approval command center and operational inbox",
+    tableName: "",
+  },
   {
     key: "account_archives",
     label: "Account Archives",
@@ -181,6 +188,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   const supabase = createClient();
 
   const results: RequestCategoryCounts = {
+    all_requests: 0,
     new_stores: 0,
     headcount: 0,
     plantilla_approvals: 0,
@@ -334,9 +342,12 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   ];
 
   const settled = await Promise.all(countPromises);
+  let totalPending = 0;
   for (const item of settled) {
     results[item.key] = item.count;
+    totalPending += item.count;
   }
+  results.all_requests = totalPending;
 
   return results;
 }
@@ -987,20 +998,20 @@ export async function fetchNewStoreRequests(
       reviewed_at,
       review_reason,
       created_at,
-      groups:group_id (
+      groups:groups!group_id (
         id,
         group_name
       ),
-      accounts:account_id (
+      accounts:accounts!account_id (
         id,
         account_name,
         group_id,
-        groups:group_id (
+        groups:groups!group_id (
           id,
           group_name
         )
       ),
-      users_profile:requested_by (
+      users_profile:users_profile!requested_by (
         id,
         full_name,
         first_name,
@@ -1026,6 +1037,7 @@ export async function fetchNewStoreRequests(
   );
 
   if (error) {
+    console.error("[fetchNewStoreRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
@@ -1339,7 +1351,7 @@ export async function fetchVacancyClosureRequests(
       reviewed_at,
       reviewer_remarks,
       created_at,
-      vacancies:vacancy_vcode (
+      vacancies:vacancies!vacancy_vcode (
         store_name,
         store_branch,
         position,
@@ -1364,6 +1376,7 @@ export async function fetchVacancyClosureRequests(
   );
 
   if (error) {
+    console.error("[fetchVacancyClosureRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
@@ -1658,14 +1671,12 @@ export async function fetchApplicantMovementRequests(
   }
 
   const { data, error } = await applyPagination(
-    query
-      .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
-      .order("created_at", { ascending: false }),
+    query.order("created_at", { ascending: false }),
     pagination
   );
 
   if (error) {
+    console.error("[fetchApplicantMovementRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
@@ -2038,12 +2049,12 @@ export async function fetchDeactivationRequests(
   const { data, error } = await applyPagination(
     query
       .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
       .order("created_at", { ascending: false }),
     pagination
   );
 
   if (error) {
+    console.error("[fetchDeactivationRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
@@ -2454,9 +2465,9 @@ export async function fetchAccountGroupTransfers(
     .from("account_group_transfer_requests")
     .select(`
       *,
-      accounts:account_id(account_name),
-      from_groups:from_group_id(group_name, group_code),
-      to_groups:to_group_id(group_name, group_code)
+      accounts:accounts!account_id(account_name),
+      from_groups:groups!from_group_id(group_name, group_code),
+      to_groups:groups!to_group_id(group_name, group_code)
     `);
 
   if (tab === "pending") {
@@ -2476,6 +2487,7 @@ export async function fetchAccountGroupTransfers(
   );
 
   if (error) {
+    console.error("[fetchAccountGroupTransfers] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
@@ -2872,10 +2884,10 @@ export async function fetchCoverageRequests(
       reviewer_remarks,
       execution_summary,
       created_at,
-      accounts:account_id (
+      accounts:accounts!account_id (
         account_name
       ),
-      target_coverage_group:target_coverage_group_id (
+      target_coverage_group:coverage_groups!target_coverage_group_id (
         coverage_code,
         area_name
       )
@@ -2899,6 +2911,7 @@ export async function fetchCoverageRequests(
   );
 
   if (error) {
+    console.error("[fetchCoverageRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }

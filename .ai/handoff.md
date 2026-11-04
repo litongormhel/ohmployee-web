@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Approvals Module: Audit & Fix All Approval Tab Queries + Implement "All Requests" Unified Command Hub (ohm#approvals-unified-and-query-fix)
+
+**Status: COMPLETE ON LOCAL main; ALL 10 QUEUES FIXED, "ALL REQUESTS" UNIFIED HUB IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**
+
+### 1. Summary of Changes Implemented
+- **Item 1: Full Audit & Query Fixes across All 10 Approval Queues**:
+  - **Deactivations (`v_deactivation_requests`)**: Removed non-existent filter `.is("suppressed_by_batch_id", null)` from `fetchDeactivationRequests`. Retained `.eq("is_archived", false)` and `.order("created_at", { ascending: false })`.
+  - **Applicant Movements (`vw_amr_list`)**: Removed non-existent filters `.eq("is_archived", false).is("suppressed_by_batch_id", null)` from `fetchApplicantMovementRequests`.
+  - **Account Group Transfers (`account_group_transfer_requests`)**: Fixed PostgREST foreign key embedded resource joins from `accounts:account_id(...)`, `from_groups:from_group_id(...)`, and `to_groups:to_group_id(...)` to `accounts:accounts!account_id(account_name)`, `from_groups:groups!from_group_id(group_name, group_code)`, and `to_groups:groups!to_group_id(group_name, group_code)`.
+  - **Coverage (`coverage_requests`)**: Fixed PostgREST foreign key joins from `target_coverage_group:target_coverage_group_id(...)` to `target_coverage_group:coverage_groups!target_coverage_group_id(coverage_code, area_name)` and `accounts:accounts!account_id(account_name)`.
+  - **New Stores (`new_store_requests`)**: Fixed relation embeds to `groups:groups!group_id(...)`, `accounts:accounts!account_id(...)`, and `users_profile:users_profile!requested_by(...)`.
+  - **Vacancy Closures (`vacancy_closure_requests`)**: Fixed relation embed to `vacancies:vacancies!vacancy_vcode(...)`.
+  - **HR Emploc Deletions (`hr_emploc_deletion_requests`)**: Fixed relation embed to `hr_emploc:hr_emploc!hr_emploc_id(...)`.
+  - **Runtime & Dev Error Handling**: Added explicit `console.error` logs in dev on each query error to resolve unhandled promise rejections and eliminate the Next.js `1 Issue` dev overlay error.
+- **Item 2: "All Requests" Tab Implementation (`AllRequestsUnifiedQueue.tsx`)**:
+  - Added `"all_requests"` as the first item in `REQUEST_CATEGORIES` and `RequestCategoryKey` with `Layers` icon.
+  - Configured `/approvals` to default directly to `"all_requests"` when loading without a `?tab=` query parameter.
+  - Calculated the global pending badge as the sum of pending counts across all categories.
+  - Implemented resilient parallel fetching with `Promise.allSettled()` across all categories so individual category glitches do not crash the view.
+  - Built smart dynamic sorting: categories with active items (`count > 0` for current status and search query) sort automatically to the top, while categories with `0` items sort to the bottom.
+  - Built auto-expand for non-empty categories (`count > 0`) and auto-collapse into clean 1-line header bars for empty categories (`count === 0`), with full manual click-to-toggle support.
+  - Implemented direct in-line row actions (Approve / Reject / Review modals) reusing existing category data tables, with automatic query cache invalidation on completion.
+  - Added 5-item preview cap with `"Show all X requests"` expand toggle and `"Open Tab ->"` category header routing buttons.
+  - Unified toolbar with `Pending`, `Approved / Completed`, `Rejected` pills, global search across all categories simultaneously, and a unified refresh button.
+- **Item 3: Verification**:
+  - Verified clean TypeScript typecheck (`tsc --noEmit` 0 errors).
+  - Verified clean ESLint check (`npm run lint` 0 errors).
+  - Verified clean Next.js production build via `npm run build` (20/20 routes passing cleanly).
+
+### 2. Files Modified & Created
+- `src/lib/queries/requests.ts` (Fixed query joins & filters, added `all_requests` category key, config & counts)
+- `src/lib/queries/hr_emploc.ts` (Fixed `hr_emploc_deletion_requests` PostgREST join syntax)
+- `src/lib/rbac.ts` (Added `all_requests` to allowed approval categories for authorized roles)
+- `src/app/(dashboard)/approvals/page.tsx` (Added `all_requests` to valid categories, defaulted landing tab, passed `allowedCategories`)
+- `src/components/approvals/RequestCategoryNavigation.tsx` (Added `all_requests` icon and badge display)
+- `src/components/approvals/ActiveQueueReviewPane.tsx` (Integrated `AllRequestsUnifiedQueue` when `selectedCategory === "all_requests"`)
+- `src/components/approvals/AllRequestsUnifiedQueue.tsx` (Created unified command tab component)
+- `docs/state/approvals_web_state.md` (Updated state documentation)
+- `.ai/briefing.md` (Updated task history)
+- `.ai/handoff.md` (Added execution handoff report)
+
+---
+
 ## Execution Report — High-Contrast Readability & Button Visibility Fix for Obsidian Dark Mode (ohm#obsidian-contrast-button-fix)
 
 **Status: COMPLETE ON LOCAL main; 5/5 FIXES IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES); AWAITING FINAL LOCAL COMMIT**
