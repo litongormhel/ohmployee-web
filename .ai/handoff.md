@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Approvals Module: Fix PostgREST Query Errors Across All Approval Tabs & Remove Plantilla Placements (ohm#fix-approval-queries-remove-plantilla)
+
+**Status: COMPLETE ON LOCAL main; ALL REMAINING QUEUES FIXED, PLANTILLA PLACEMENTS EXCISED, VERIFIED CLEAN (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**
+
+### 1. Summary of Changes Implemented
+- **Item 1: Fix PostgREST Query Errors (`requests.ts`, `hr_emploc.ts`)**:
+  - **Account Group Transfers (`fetchAccountGroupTransfers`)**: Stripped non-existent filters `.eq("is_archived", false).is("suppressed_by_batch_id", null)` from the query function and badge count queries. (Table `account_group_transfer_requests` was recreated in migration `20261227000000` without those columns). Maintained correct embedded resource joins `accounts:accounts!account_id(account_name)`, `from_groups:groups!from_group_id(group_name, group_code)`, and `to_groups:groups!to_group_id(group_name, group_code)`.
+  - **Coverage Requests (`fetchCoverageRequests`)**: Stripped non-existent filters `.or("is_archived.is.null,is_archived.eq.false").is("suppressed_by_batch_id", null)` from the query function. Aligned with canonical soft-archive check `.is("archived_at", null)` matching `fetchCoverageCounts`. Maintained correct embedded joins for `target_coverage_group:coverage_groups!target_coverage_group_id(...)` and `accounts:accounts!account_id(...)`.
+  - Added explicit `console.error` logs on query errors for dev traceability.
+- **Item 2: Completely Remove "Plantilla Placements" Tab**:
+  - **Types & Constants (`src/lib/queries/requests.ts`)**: Removed `"plantilla_approvals"` from `RequestCategoryKey` union and `REQUEST_CATEGORIES` configuration. Removed `plantilla_approvals` from `fetchRequestCategoryCounts()` return shape and parallel count promises.
+  - **Navigation (`src/components/approvals/RequestCategoryNavigation.tsx`)**: Removed `plantilla_approvals` from `CATEGORY_ICONS`. Cleaned up unused `Briefcase` import.
+  - **Page & Routing (`src/app/(dashboard)/approvals/page.tsx`)**: Removed `"plantilla_approvals"` from `VALID_CATEGORIES` and from default `counts` state.
+  - **RBAC Gatekeeper (`src/lib/rbac.ts`)**: Removed `"plantilla_approvals"` from `getAllowedApprovalCategories()` across all role tiers (Super Admin / Owner, Head Admin, and Encoder).
+  - **Review Pane (`src/components/approvals/ActiveQueueReviewPane.tsx`)**: Excised all hooks (`usePlantillaApprovals`, `usePlantillaApprovalCounts`), state variables (`plantillaTab`, `plantillaSearchQuery`), search filter memo, conditional rendering blocks (`if (selectedCategory === "plantilla_approvals")`), and unused `PlantillaApprovalDataTable` import.
+  - **Unified Command Hub (`src/components/approvals/AllRequestsUnifiedQueue.tsx`)**: Removed `plantilla_approvals` from `UnifiedQueuesData` interface, initial results, parallel `Promise.allSettled()` array, `CATEGORY_META`, `ALL_CATEGORY_KEYS`, unified multi-field search filter, `totalMatchingItems` accumulator, and accordion data table rendering block. Cleaned up unused `Briefcase` import.
+- **Item 3: Verification**:
+  - `npx tsc --noEmit` passed with 0 errors.
+  - `npm run lint` passed with 0 errors.
+  - `npm run build` compiled successfully (all 20/20 Next.js routes passing).
+
+### 2. Files Modified
+- `src/lib/queries/requests.ts`
+- `src/lib/rbac.ts`
+- `src/app/(dashboard)/approvals/page.tsx`
+- `src/components/approvals/RequestCategoryNavigation.tsx`
+- `src/components/approvals/ActiveQueueReviewPane.tsx`
+- `src/components/approvals/AllRequestsUnifiedQueue.tsx`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Approvals Module: Audit & Fix All Approval Tab Queries + Implement "All Requests" Unified Command Hub (ohm#approvals-unified-and-query-fix)
 
 **Status: COMPLETE ON LOCAL main; ALL 10 QUEUES FIXED, "ALL REQUESTS" UNIFIED HUB IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**

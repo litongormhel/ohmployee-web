@@ -347,7 +347,6 @@ export function getAllowedApprovalCategories(
       "all_requests",
       "new_stores",
       "headcount",
-      "plantilla_approvals",
       "account_requests",
       "coverage",
       "vacancy_closures",
@@ -368,7 +367,6 @@ export function getAllowedApprovalCategories(
       "all_requests",
       "new_stores",
       "headcount",
-      "plantilla_approvals",
       "account_requests",
       "coverage",
       "vacancy_closures",
@@ -383,7 +381,6 @@ export function getAllowedApprovalCategories(
     return [
       "all_requests",
       "headcount",
-      "plantilla_approvals",
       "applicant_movements",
       "relievers",
       "vacancy_closures",

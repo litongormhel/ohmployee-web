@@ -6,7 +6,6 @@ export type RequestCategoryKey =
   | "all_requests"
   | "new_stores"
   | "headcount"
-  | "plantilla_approvals"
   | "account_requests"
   | "coverage"
   | "vacancy_closures"
@@ -84,12 +83,6 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     label: "New Stores",
     description: "Store registry additions and branch onboarding requests",
     tableName: "new_store_requests",
-  },
-  {
-    key: "plantilla_approvals",
-    label: "Plantilla Placements",
-    description: "Candidate endorsements and slot deployment approvals to permanent plantilla",
-    tableName: "plantilla_approvals",
   },
   {
     key: "relievers",
@@ -191,7 +184,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     all_requests: 0,
     new_stores: 0,
     headcount: 0,
-    plantilla_approvals: 0,
     account_requests: 0,
     coverage: 0,
     vacancy_closures: 0,
@@ -238,18 +230,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
-    // 3. Plantilla Approvals (Candidate deployment queue)
-    countItem(
-      "plantilla_approvals",
-      supabase
-        .from("plantilla_approvals")
-        .select("id", { count: "exact", head: true })
-        .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
-    ),
-
-    // 4. Account Sign-Up Requests (Preserved across QA Reset)
+    // 3. Account Sign-Up Requests (Preserved across QA Reset)
     countItem(
       "account_requests",
       supabase
@@ -258,19 +239,17 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 5. Coverage (Roving Coverage Groups)
+    // 4. Coverage (Roving Coverage Groups)
     countItem(
       "coverage",
       supabase
         .from("coverage_requests")
         .select("id", { count: "exact", head: true })
         .is("archived_at", null)
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
         .in("status", ["pending", "draft"])
     ),
 
-    // 6. Relievers (Workforce Pool Reliever Endorsements)
+    // 5. Relievers (Workforce Pool Reliever Endorsements)
     countItem(
       "relievers",
       supabase
@@ -279,7 +258,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .in("status", ["Pending", "pending", "For Review", "for review"])
     ),
 
-    // 7. Vacancy Closures
+    // 6. Vacancy Closures
     countItem(
       "vacancy_closures",
       supabase
@@ -290,7 +269,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .is("suppressed_by_batch_id", null)
     ),
 
-    // 8. HR Emploc Deletions
+    // 7. HR Emploc Deletions
     countItem(
       "hr_emploc_deletions",
       supabase
@@ -299,7 +278,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 9. Deactivations
+    // 8. Deactivations
     countItem(
       "deactivations",
       supabase
@@ -308,29 +287,25 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 10. Applicant Movements
+    // 9. Applicant Movements
     countItem(
       "applicant_movements",
       supabase
         .from("applicant_movement_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
     ),
 
-    // 11. Account Group Transfers
+    // 10. Account Group Transfers
     countItem(
       "account_group_transfers",
       supabase
         .from("account_group_transfer_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
     ),
 
-    // 12. Account Archives
+    // 11. Account Archives
     countItem(
       "account_archives",
       supabase
@@ -415,6 +390,7 @@ export async function fetchHeadcountRequests(
   );
 
   if (error) {
+    console.error("[fetchHeadcountRequests] query failed:", error);
     if (error.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
@@ -2479,10 +2455,7 @@ export async function fetchAccountGroupTransfers(
   }
 
   const { data, error } = await applyPagination(
-    query
-      .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
-      .order("created_at", { ascending: false }),
+    query.order("created_at", { ascending: false }),
     pagination
   );
 
@@ -2904,8 +2877,6 @@ export async function fetchCoverageRequests(
   const { data, error } = await applyPagination(
     query
       .is("archived_at", null)
-      .or("is_archived.is.null,is_archived.eq.false")
-      .is("suppressed_by_batch_id", null)
       .order("created_at", { ascending: false }),
     pagination
   );

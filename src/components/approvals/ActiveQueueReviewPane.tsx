@@ -19,7 +19,6 @@ import { DeactivationDataTable } from "@/components/approvals/DeactivationDataTa
 import { HeadcountDataTable } from "@/components/approvals/HeadcountDataTable";
 import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeletionDataTable";
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
-import { PlantillaApprovalDataTable } from "@/components/approvals/PlantillaApprovalDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
 import { AllRequestsUnifiedQueue } from "@/components/approvals/AllRequestsUnifiedQueue";
@@ -43,8 +42,6 @@ import {
   useRelieverCounts,
   useCoverageRequests,
   useCoverageCounts,
-  usePlantillaApprovals,
-  usePlantillaApprovalCounts,
   useAccountArchiveRequests,
   useAccountArchiveCounts,
   type RequestCategoryCounts,
@@ -233,7 +230,6 @@ export function ActiveQueueReviewPane({
   const [deactivationTab, setDeactivationTab] = useState<DeactivationStatusTab>("pending");
   const [transferTab, setTransferTab] = useState<ApprovalStatusTab>("pending");
   const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
-  const [plantillaTab, setPlantillaTab] = useState<ApprovalStatusTab>("pending");
   const [accountTab, setAccountTab] = useState<AccountRequestStatus>("pending");
   const [archiveTab, setArchiveTab] = useState<ApprovalStatusTab>("pending");
 
@@ -247,7 +243,6 @@ export function ActiveQueueReviewPane({
   const [transferSearchQuery, setTransferSearchQuery] = useState("");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
-  const [plantillaSearchQuery, setPlantillaSearchQuery] = useState("");
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
 
@@ -400,23 +395,7 @@ export function ActiveQueueReviewPane({
     refetch: refetchCoverageCounts,
   } = useCoverageCounts();
 
-  // 10. Plantilla Approvals (Candidate Deployments)
-  const {
-    data: plantillaRequests = [],
-    isLoading: isPlantillaLoading,
-    isError: isPlantillaError,
-    refetch: refetchPlantilla,
-    isRefetching: isPlantillaRefetching,
-  } = usePlantillaApprovals(plantillaTab);
-
-  const {
-    data: plantillaCounts,
-    isLoading: isPlantillaCountsLoading,
-    isError: isPlantillaCountsError,
-    refetch: refetchPlantillaCounts,
-  } = usePlantillaApprovalCounts();
-
-  // 11. Account Sign-Up Requests
+  // 10. Account Sign-Up Requests
   const {
     data: accountRequests = [],
     isLoading: isAccountLoading,
@@ -630,23 +609,6 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [rovingRequests, rovingSearchQuery]);
-
-  const filteredPlantillaRequests = useMemo(() => {
-    if (!plantillaSearchQuery.trim()) return plantillaRequests;
-    const q = plantillaSearchQuery.toLowerCase();
-    return plantillaRequests.filter((req) => {
-      return (
-        req.applicantName.toLowerCase().includes(q) ||
-        req.vcode.toLowerCase().includes(q) ||
-        req.account.toLowerCase().includes(q) ||
-        req.position.toLowerCase().includes(q) ||
-        req.emplocNo.toLowerCase().includes(q) ||
-        req.requestedBy.toLowerCase().includes(q) ||
-        (req.reviewedBy?.toLowerCase().includes(q) ?? false) ||
-        (req.remarks?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [plantillaRequests, plantillaSearchQuery]);
 
   const filteredAccountRequests = useMemo(() => {
     if (!accountSearchQuery.trim()) return accountRequests;
@@ -1100,91 +1062,6 @@ export function ActiveQueueReviewPane({
               page={page}
               pageSize={pageSize}
               totalCount={filteredRequests.length}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── 5. Plantilla Placements Queue (Candidate Deployments) ─────────────────
-  if (selectedCategory === "plantilla_approvals") {
-    const handleRefresh = () => {
-      refetchPlantilla();
-      refetchPlantillaCounts();
-    };
-
-    return (
-      <div className="flex h-full flex-col">
-        <QueueToolbar
-          searchQuery={plantillaSearchQuery}
-          onSearchChange={(val) => {
-            setPlantillaSearchQuery(val);
-            setPage(1);
-          }}
-          searchPlaceholder="Search candidate, VCode, account, position, requester..."
-          currentTab={plantillaTab}
-          onTabChange={(tab) => {
-            setPlantillaTab(tab);
-            setPage(1);
-          }}
-          counts={plantillaCounts}
-          isCountsLoading={isPlantillaCountsLoading}
-          isCountsError={isPlantillaCountsError}
-          onRefresh={handleRefresh}
-          isRefreshing={isPlantillaRefetching}
-          isLoading={isPlantillaLoading}
-        />
-
-        {/* Requests List Area */}
-        <div className="mt-4 flex-1 min-h-0 flex flex-col">
-          {isPlantillaLoading ? (
-            <ApprovalsDataState
-              kind="loading"
-              title="Loading Plantilla Deployments"
-              description="Fetching pending candidate deployment approvals..."
-            />
-          ) : isPlantillaError ? (
-            <ApprovalsDataState
-              kind="error"
-              title="Failed to Load Queue"
-              description="An error occurred while fetching candidate plantilla approvals."
-              onRetry={handleRefresh}
-            />
-          ) : filteredPlantillaRequests.length === 0 ? (
-            <ApprovalsDataState
-              kind="empty"
-              title={
-                plantillaSearchQuery
-                  ? "No Matching Requests"
-                  : plantillaTab === "pending"
-                  ? "No Pending Candidate Deployments"
-                  : plantillaTab === "approved"
-                  ? "No Approved Candidate Deployments"
-                  : "No Rejected Candidate Deployments"
-              }
-              description={
-                plantillaSearchQuery
-                  ? `No requests match "${plantillaSearchQuery}". Clear your search query to see all items.`
-                  : plantillaTab === "pending"
-                  ? "All candidate plantilla placement requests have been reviewed and processed."
-                  : plantillaTab === "approved"
-                  ? "No approved candidate deployments found in this queue."
-                  : "No rejected candidate deployments found in this queue."
-              }
-            />
-          ) : (
-            <PlantillaApprovalDataTable
-              requests={filteredPlantillaRequests}
-              tab={plantillaTab}
-              page={page}
-              pageSize={pageSize}
-              totalCount={filteredPlantillaRequests.length}
               onPageChange={setPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);

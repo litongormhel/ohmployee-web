@@ -2,7 +2,6 @@ import type { ComponentType } from "react";
 import {
   Archive,
   ArrowLeftRight,
-  Briefcase,
   GitFork,
   Layers,
   MapPin,
@@ -24,7 +23,6 @@ const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: str
   account_archives: Archive,
   new_stores: Store,
   headcount: Users,
-  plantilla_approvals: Briefcase,
   account_requests: UserPlus,
   coverage: MapPin,
   vacancy_closures: Archive,

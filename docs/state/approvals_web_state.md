@@ -1,7 +1,7 @@
 # Approvals Module (Web) State
 
 ## 1. Overview & Architecture
-The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across functional categories, led by the unified **All Requests** command tab, followed by 12 functional categories:
+The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across functional categories, led by the unified **All Requests** command tab, followed by 11 functional categories:
 0. `all_requests` — All Requests Unified Hub (Default active tab for Super Admin / Admin review)
 1. `account_archives` — Account Archive Requests (Super Admin only)
 2. `account_group_transfers` — Account Group Transfers
@@ -12,9 +12,8 @@ The Approvals Module (`/approvals`) serves as the administrative hub and request
 7. `headcount` — Headcount Quota Amendments & Requests
 8. `hr_emploc_deletions` — HR Emploc Deletion Requests
 9. `new_stores` — New Store Requests
-10. `plantilla_approvals` — Plantilla Placements & Deployments
-11. `relievers` — Reliever Coverage Endorsements
-12. `vacancy_closures` — Vacancy Closure Requests
+10. `relievers` — Reliever Coverage Endorsements
+11. `vacancy_closures` — Vacancy Closure Requests
 
 ---
 
@@ -75,7 +74,7 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 ---
 
 ## 5. Archival, QA Reset & Rollback Filtering Contract
-- **Operational Queues Swept**: `account_group_transfers`, `applicant_movements`, `coverage`, `deactivations`, `headcount`, `hr_emploc_deletions`, `new_stores`, `plantilla_approvals`, `relievers`, `vacancy_closures`.
+- **Operational Queues Swept**: `account_group_transfers`, `applicant_movements`, `coverage`, `deactivations`, `headcount`, `hr_emploc_deletions`, `new_stores`, `relievers`, `vacancy_closures`.
 - **Gated Predicates**: All operational queue queries and badge counters enforce `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
 - **Preserved Queues**: `account_requests` (Account Sign-Ups) are explicitly preserved and never archived or suppressed during QA Reset cycles.
 - **Rollback Behavior**: Batch rollback restores active requests to `is_archived = false` and clears `suppressed_by_batch_id = NULL` on pre-archived items without reopening closed records.

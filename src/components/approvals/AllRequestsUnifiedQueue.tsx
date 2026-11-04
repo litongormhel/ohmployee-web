@@ -6,7 +6,6 @@ import {
   Archive,
   ArrowLeftRight,
   ArrowRight,
-  Briefcase,
   ChevronDown,
   ChevronRight,
   GitFork,
@@ -31,7 +30,6 @@ import { DeactivationDataTable } from "@/components/approvals/DeactivationDataTa
 import { HeadcountDataTable } from "@/components/approvals/HeadcountDataTable";
 import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeletionDataTable";
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
-import { PlantillaApprovalDataTable } from "@/components/approvals/PlantillaApprovalDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
 import {
@@ -45,7 +43,6 @@ import {
   type AccountGroupTransferItem,
   type RelieverEndorsementItem,
   type CoverageGroupRequestItem,
-  type PlantillaApprovalItem,
   type AccountArchiveItem,
   fetchHeadcountRequests,
   fetchNewStoreRequests,
@@ -55,7 +52,6 @@ import {
   fetchAccountGroupTransfers,
   fetchRelieverEndorsements,
   fetchCoverageRequests,
-  fetchPlantillaApprovals,
   fetchAccountArchiveRequests,
 } from "@/lib/queries/requests";
 import {
@@ -80,7 +76,6 @@ interface UnifiedQueuesData {
   account_group_transfers: AccountGroupTransferItem[];
   coverage: CoverageGroupRequestItem[];
   new_stores: NewStoreRequestItem[];
-  plantilla_approvals: PlantillaApprovalItem[];
   account_requests: AccountRequestItem[];
   hr_emploc_deletions: EmplocDeletionRequestItem[];
   account_archives: AccountArchiveItem[];
@@ -127,11 +122,6 @@ const CATEGORY_META: Record<
     description: "Store registry additions and branch onboarding requests",
     icon: Store,
   },
-  plantilla_approvals: {
-    label: "Plantilla Placements",
-    description: "Candidate endorsements and slot deployment approvals to permanent plantilla",
-    icon: Briefcase,
-  },
   account_requests: {
     label: "Account Sign-Ups",
     description: "Staff and user registration approval and access provisioning queue",
@@ -166,7 +156,6 @@ const ALL_CATEGORY_KEYS: Array<Exclude<RequestCategoryKey, "all_requests">> = [
   "applicant_movements",
   "account_group_transfers",
   "new_stores",
-  "plantilla_approvals",
   "account_requests",
   "hr_emploc_deletions",
   "account_archives",
@@ -210,7 +199,6 @@ export function AllRequestsUnifiedQueue({
         account_group_transfers: [],
         coverage: [],
         new_stores: [],
-        plantilla_approvals: [],
         account_requests: [],
         hr_emploc_deletions: [],
         account_archives: [],
@@ -226,7 +214,6 @@ export function AllRequestsUnifiedQueue({
         transferRes,
         coverageRes,
         newStoreRes,
-        plantillaRes,
         accountRes,
         deletionRes,
         archiveRes,
@@ -239,7 +226,6 @@ export function AllRequestsUnifiedQueue({
         fetchAccountGroupTransfers(currentTab),
         fetchCoverageRequests(currentTab),
         fetchNewStoreRequests(currentTab),
-        fetchPlantillaApprovals(currentTab),
         fetchApprovalQueue(currentTab as AccountRequestStatus),
         fetchEmplocDeletionRequests(currentTab),
         fetchAccountArchiveRequests(currentTab).then((r) => r.data),
@@ -264,9 +250,6 @@ export function AllRequestsUnifiedQueue({
 
       if (newStoreRes.status === "fulfilled") results.new_stores = newStoreRes.value;
       else results.errors.new_stores = String(newStoreRes.reason);
-
-      if (plantillaRes.status === "fulfilled") results.plantilla_approvals = plantillaRes.value;
-      else results.errors.plantilla_approvals = String(plantillaRes.reason);
 
       if (accountRes.status === "fulfilled") results.account_requests = accountRes.value;
       else results.errors.account_requests = String(accountRes.reason);
@@ -363,15 +346,6 @@ export function AllRequestsUnifiedQueue({
           r.reason?.toLowerCase().includes(normalizedQuery) ||
           r.requestedByName?.toLowerCase().includes(normalizedQuery)
       ),
-      plantilla_approvals: queues.plantilla_approvals.filter(
-        (r) =>
-          r.applicantName?.toLowerCase().includes(normalizedQuery) ||
-          r.vcode?.toLowerCase().includes(normalizedQuery) ||
-          r.account?.toLowerCase().includes(normalizedQuery) ||
-          r.position?.toLowerCase().includes(normalizedQuery) ||
-          r.emplocNo?.toLowerCase().includes(normalizedQuery) ||
-          r.requestedBy?.toLowerCase().includes(normalizedQuery)
-      ),
       account_requests: queues.account_requests.filter(
         (r) =>
           r.fullName?.toLowerCase().includes(normalizedQuery) ||
@@ -428,7 +402,6 @@ export function AllRequestsUnifiedQueue({
       filteredData.applicant_movements.length +
       filteredData.account_group_transfers.length +
       filteredData.new_stores.length +
-      filteredData.plantilla_approvals.length +
       filteredData.account_requests.length +
       filteredData.hr_emploc_deletions.length +
       filteredData.account_archives.length +
@@ -739,16 +712,6 @@ export function AllRequestsUnifiedQueue({
                         {catKey === "new_stores" && (
                           <NewStoreDataTable
                             requests={visibleItems as NewStoreRequestItem[]}
-                            tab={currentTab}
-                            page={1}
-                            pageSize={visibleItems.length}
-                            totalCount={visibleItems.length}
-                          />
-                        )}
-
-                        {catKey === "plantilla_approvals" && (
-                          <PlantillaApprovalDataTable
-                            requests={visibleItems as PlantillaApprovalItem[]}
                             tab={currentTab}
                             page={1}
                             pageSize={visibleItems.length}
