@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Synchronize `pnpm-lock.yaml` with `package.json` Dependencies for Vercel CI Deployments (ohm#syncpnpm)
+
+**Status: COMPLETE ON MAIN; `package.json` PINNED TO `pnpm@10.29.3`; `pnpm-lock.yaml` SYNCHRONIZED WITH `@ai-sdk/google`, `@ai-sdk/react`, `ai`, `zod`; FROZEN-LOCKFILE CI VALIDATION SUCCEEDED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, `pnpm build`: 20/20 ROUTES SUCCEEDED)**
+
+### 1. Root Cause Resolution for Vercel Deployment Failure
+- **Reported Error**: Vercel CI deployment failed with `ERR_PNPM_OUTDATED_LOCKFILE: Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with <ROOT>/package.json`.
+- **Root Cause**: `package.json` dependencies (`@ai-sdk/google`, `@ai-sdk/react`, `ai`, `zod`) were previously installed using `npm` without synchronizing `pnpm-lock.yaml`. Under Vercel's default `--frozen-lockfile` rule, the missing dependencies triggered build termination.
+
+### 2. Lockfile & Package Manager Synchronization
+1. **Package Manager Specification**:
+   - Pinned `"packageManager": "pnpm@10.29.3"` in `package.json` to ensure deterministic execution on Vercel runtime matching `lockfileVersion: '9.0'`.
+2. **Lockfile Synchronization**:
+   - Executed `pnpm install --lockfile-only` locally, incorporating `@ai-sdk/google@4.0.111`, `@ai-sdk/react@4.0.166`, `ai@7.0.162`, and `zod@4.6.7` into `pnpm-lock.yaml`.
+3. **Frozen Lockfile Verification**:
+   - Executed `pnpm install --frozen-lockfile --lockfile-only` — completed cleanly in 160ms with zero mismatches.
+4. **Build & Lint Verification**:
+   - `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+   - `pnpm build`: Next.js Turbopack production build succeeded cleanly across all 20 routes (19 static routes, 1 dynamic `/api/ohmni`).
+
+### 3. Files Modified
+- `package.json` (pinned `packageManager: pnpm@10.29.3`)
+- `pnpm-lock.yaml` (synchronized dependencies for frozen lockfile)
+- `.gitignore` (added `.pnpm-store/` entry)
+- `.ai/briefing.md` (updated Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+---
+
 ## Execution Report — Diagnose and fix HR Emploc "Compliance Queue Data Unavailable" across all tabs (ohm#9x4v2m8p)
 
 **Status: COMPLETE ON MAIN; STAGING FIXED & VERIFIED (`qqiiznmqxfoamqytjica`); MIGRATION `20262606000082` APPLIED; PROD (`rwxelulyapjgaarlwkus`) UNTOUCHED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
