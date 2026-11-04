@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Fix Migration `20262606000079` Null `slot_ordinal` in `plantilla_slots` (ohm#fix-mig-23502-slot-ordinal)
+
+**Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `slot_ordinal` WITH CANONICAL DERIVATION `COALESCE(MAX(slot_ordinal), 0) + 1` TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `23502` on `slot_ordinal`
+- **Reported Error**: During `npx supabase db push --include-all` against Production (`rwxelulyapjgaarlwkus`), migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` failed at statement 2:
+  `ERROR: null value in column "slot_ordinal" of relation "plantilla_slots" violates not-null constraint (SQLSTATE 23502)`
+  `Failing row contains (84d0a8bb-..., null, 4fba7c47-..., null, Cashier, Stationary, f, open, ... VCAG5_0014, ...)`
+- **Root Cause**: `slot_ordinal` is enforced as `NOT NULL` with range check `slot_ordinal >= 1` and composite uniqueness per VCode on `public.plantilla_slots` (`20260816000000_vcode_slot_phase_a_schema_bridge.sql`). The `INSERT INTO public.plantilla_slots` statement omitted `slot_ordinal`.
+- **Surgical Patch**:
+  Added `slot_ordinal` to the column list and assigned `COALESCE((SELECT MAX(ps.slot_ordinal) FROM public.plantilla_slots ps WHERE ps.legacy_vcode = rec.vcode), 0) + 1`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Fix Migration `20262606000079` Null Position in `plantilla_slots` (ohm#fix-mig-23502-slots)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `position` AND `employment_type` NON-NULL VALUES TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
