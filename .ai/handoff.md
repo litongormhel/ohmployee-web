@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — High-Contrast Readability & Button Visibility Fix for Obsidian Dark Mode (ohm#obsidian-contrast-button-fix)
+
+**Status: COMPLETE ON LOCAL main; 5/5 FIXES IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES); AWAITING FINAL LOCAL COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: Primary Action Button Visibility (Fixed White-on-White)**:
+  - Enforced dark text (`color: #09090B !important;`) and hover (`background-color: #E4E4E7 !important; color: #09090B !important;`) across `.bg-brand-button`, `.bg-brand-primary`, `.bg-primary`, and all their text/icon children in Dark Mode.
+  - Cured invisible white-on-white text in modals ("+ Add Emploc (Auto-Deploy to Plantilla)" Assign & Deploy button) and page action buttons (Plantilla header buttons).
+- **Item 2: Brand Links, Phone Numbers & Contact Icons Contrast**:
+  - Replaced dark navy blue (`#2240b0`) in Dark Mode with high-contrast light sky blue (`#93c5fd` / `#8aa4ff`) for `.text-brand-600` and `.text-brand-500`.
+  - Cured dark smudged links and contact information across Notifications ("Inspect Vacancy →", "View in Approvals →") and Team Directory (phone numbers, mail links).
+- **Item 3: Elevated Text Hierarchy to WCAG AAA Standards**:
+  - Upgraded `--text-secondary` to `#D4D4D8` (13.5:1 contrast against black, up from `#A1A1AA`) for notification message summaries, table cells, and scopes.
+  - Upgraded `--text-muted` to `#A1A1AA` (8.3:1 contrast against black, up from `#52525B`) for timestamps ("2h ago", "4h ago"), metadata, placeholders, and descriptions.
+  - Re-anchored `--table-text-sub` to `#D4D4D8` and `--table-text-muted` to `#A1A1AA`.
+- **Item 4: Surface Separation Between Cards & Canvas**:
+  - Set `--surface-base` and `--surface-card` to `#111113` (Dark Zinc) and hover to `#1E1E22` over `#0A0A0A` (Deep Obsidian Canvas), giving cards, notification streams, and table containers visible depth and hairline boundary.
+- **Item 5: StatusBadge Cascade Fix**:
+  - In `src/components/ui/StatusBadge.tsx`, removed `Badge` component wrapper fallback styles to ensure semantic status variant classes (`text-status-success-text`, etc.) apply with full color clarity.
+- **Item 6: Verification**:
+  - Verified clean `npm run lint` (0 errors).
+  - Verified clean Next.js production build via `npm run build` (20/20 routes passing).
+
+### 2. Files Modified
+- `src/app/globals.css`
+- `src/components/ui/StatusBadge.tsx`
+- `docs/state/web_design_tokens.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Design System: Antigravity-Inspired Obsidian Dark Mode, Theme Switcher, and Typography (ohm#antigravity-obsidian-dark-mode)
 
 **Status: COMPLETE ON LOCAL main; 5/5 OBJECTIVES IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES); AWAITING FINAL LOCAL COMMIT**

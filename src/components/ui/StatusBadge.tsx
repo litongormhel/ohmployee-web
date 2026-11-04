@@ -1,5 +1,4 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 
 export type BadgeVariant = "info" | "success" | "warning" | "danger" | "neutral";
 
@@ -31,8 +30,11 @@ export function StatusBadge({
   const variantStyles = variantClasses[variant] || variantClasses.neutral;
 
   return (
-    <Badge className={`${variantStyles} ${className}`} {...props}>
+    <span
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold tracking-tight ${variantStyles} ${className}`}
+      {...props}
+    >
       {text ?? children}
-    </Badge>
+    </span>
   );
 }

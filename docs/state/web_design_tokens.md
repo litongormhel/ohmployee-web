@@ -28,14 +28,14 @@ Dense feature tables (Vacancy, HR Emploc) are now fully tokenized (OHM2026_1098)
 | Token variable | Light value | Dark value (Obsidian) | Tailwind utility |
 |---|---|---|---|
 | `--table-header` | `#fafafa` | `#111113` | `bg-table-header` |
-| `--table-row` | `#ffffff` | `#0A0A0A` | `bg-table-row` |
+| `--table-row` | `#ffffff` | `#111113` | `bg-table-row` |
 | `--table-row-hover` | `#f8fafc` | `#18181B` | `bg-table-row-hover` |
-| `--table-row-selected` | `#eff6ff` | `#18181B` | `bg-table-row-selected` |
+| `--table-row-selected` | `#eff6ff` | `#1E1E22` | `bg-table-row-selected` |
 | `--table-rule` | `#f1f5f9` | `#222225` | `border-table-rule` |
 | `--table-rule-section` | `#e2e8f0` | `#222225` | `border-table-rule-section` |
 | `--table-text` | `#0f172a` | `#F4F4F5` | `text-table-text` |
-| `--table-text-sub` | `#475569` | `#A1A1AA` | `text-table-text-sub` |
-| `--table-text-muted` | `#6b7280` | `#52525B` | `text-table-text-muted` |
+| `--table-text-sub` | `#475569` | `#D4D4D8` | `text-table-text-sub` |
+| `--table-text-muted` | `#6b7280` | `#A1A1AA` | `text-table-text-muted` |
 | `--mono-pill-surface` | `#f8fafc` | `#16181D` | `bg-mono-pill-surface` |
 | `--mono-pill-ink` | `#374151` | `#F4F4F5` | `text-mono-pill-ink` |
 | `--mono-pill-ring` | `#e2e8f0` | `#262930` | `border-mono-pill-ring` |

@@ -175,17 +175,17 @@
   --background: var(--bg);
   --foreground: var(--text);
 
-  --surface-base: #0A0A0A;
+  --surface-base: #111113;
   --surface-card: #111113;
   --surface-header: #111113;
-  --surface-muted: #16181D;
-  --surface-hover: #18181B;
-  --surface-selected: #18181B;
+  --surface-muted: #18181B;
+  --surface-hover: #1E1E22;
+  --surface-selected: #1E1E22;
   --surface-overlay: rgba(0, 0, 0, 0.75); /* drawer / modal backdrop */
 
   --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --text-muted: #52525B;
+  --text-secondary: #D4D4D8;
+  --text-muted: #A1A1AA;
   --text-inverted: #09090B;
 
   --border-subtle: #222225;
@@ -193,14 +193,14 @@
   --border-strong: #27272A;
 
   --table-header: #111113;
-  --table-row: #0A0A0A;
+  --table-row: #111113;
   --table-row-hover: #18181B;
-  --table-row-selected: #18181B;
+  --table-row-selected: #1E1E22;
   --table-rule: #222225;
   --table-rule-section: #222225;
   --table-text: #F4F4F5;
-  --table-text-sub: #A1A1AA;
-  --table-text-muted: #52525B;
+  --table-text-sub: #D4D4D8;
+  --table-text-muted: #A1A1AA;
 
   --mono-pill-surface: #16181D;
   --mono-pill-ink: #F4F4F5;
@@ -306,17 +306,17 @@
     --background: var(--bg);
     --foreground: var(--text);
 
-    --surface-base: #0A0A0A;
+    --surface-base: #111113;
     --surface-card: #111113;
     --surface-header: #111113;
-    --surface-muted: #16181D;
-    --surface-hover: #18181B;
-    --surface-selected: #18181B;
+    --surface-muted: #18181B;
+    --surface-hover: #1E1E22;
+    --surface-selected: #1E1E22;
     --surface-overlay: rgba(0, 0, 0, 0.75);
 
     --text-primary: #F4F4F5;
-    --text-secondary: #A1A1AA;
-    --text-muted: #52525B;
+    --text-secondary: #D4D4D8;
+    --text-muted: #A1A1AA;
     --text-inverted: #09090B;
 
     --border-subtle: #222225;
@@ -324,14 +324,14 @@
     --border-strong: #27272A;
 
     --table-header: #111113;
-    --table-row: #0A0A0A;
+    --table-row: #111113;
     --table-row-hover: #18181B;
-    --table-row-selected: #18181B;
+    --table-row-selected: #1E1E22;
     --table-rule: #222225;
     --table-rule-section: #222225;
     --table-text: #F4F4F5;
-    --table-text-sub: #A1A1AA;
-    --table-text-muted: #52525B;
+    --table-text-sub: #D4D4D8;
+    --table-text-muted: #A1A1AA;
 
     --mono-pill-surface: #16181D;
     --mono-pill-ink: #F4F4F5;
@@ -442,6 +442,77 @@
   :root[data-theme="system"] .shadow-xl,
   :root[data-theme="system"] .shadow-2xl {
     box-shadow: none !important;
+  }
+}
+
+/*
+ * High-Contrast Dark Mode Action Button & Brand Link Enforcements
+ * 1. Primary Action Buttons: Crisp off-white (#FAFAFA) fill strictly gets dark #09090B text and dark icons.
+ * 2. Brand Links & Icons: High-contrast light sky blue (#93c5fd / #8aa4ff) replacing dark navy on black.
+ */
+:root[data-theme="dark"] .bg-brand-button,
+:root[data-theme="dark"] .bg-brand-primary,
+:root[data-theme="dark"] .bg-primary,
+:root.dark .bg-brand-button,
+:root.dark .bg-brand-primary,
+:root.dark .bg-primary {
+  color: #09090B !important;
+}
+
+:root[data-theme="dark"] .bg-brand-button *,
+:root[data-theme="dark"] .bg-brand-primary *,
+:root[data-theme="dark"] .bg-primary *,
+:root.dark .bg-brand-button *,
+:root.dark .bg-brand-primary *,
+:root.dark .bg-primary * {
+  color: #09090B !important;
+}
+
+:root[data-theme="dark"] .bg-brand-button:hover,
+:root[data-theme="dark"] .bg-brand-primary:hover,
+:root[data-theme="dark"] .bg-primary:hover,
+:root.dark .bg-brand-button:hover,
+:root.dark .bg-brand-primary:hover,
+:root.dark .bg-primary:hover {
+  background-color: #E4E4E7 !important;
+  color: #09090B !important;
+}
+
+:root[data-theme="dark"] .text-brand-600,
+:root[data-theme="dark"] .text-brand-500,
+:root.dark .text-brand-600,
+:root.dark .text-brand-500 {
+  color: #93c5fd !important;
+}
+
+:root[data-theme="dark"] .text-brand-700,
+:root.dark .text-brand-700 {
+  color: #bfdbfe !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .bg-brand-button,
+  :root[data-theme="system"] .bg-brand-primary,
+  :root[data-theme="system"] .bg-primary {
+    color: #09090B !important;
+  }
+  :root[data-theme="system"] .bg-brand-button *,
+  :root[data-theme="system"] .bg-brand-primary *,
+  :root[data-theme="system"] .bg-primary * {
+    color: #09090B !important;
+  }
+  :root[data-theme="system"] .bg-brand-button:hover,
+  :root[data-theme="system"] .bg-brand-primary:hover,
+  :root[data-theme="system"] .bg-primary:hover {
+    background-color: #E4E4E7 !important;
+    color: #09090B !important;
+  }
+  :root[data-theme="system"] .text-brand-600,
+  :root[data-theme="system"] .text-brand-500 {
+    color: #93c5fd !important;
+  }
+  :root[data-theme="system"] .text-brand-700 {
+    color: #bfdbfe !important;
   }
 }
 
