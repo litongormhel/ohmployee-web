@@ -448,3 +448,8 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Pending tab: while an active deletion request exists (`is_pending_deletion`), `+ Add Emploc` and `! For Correction` are disabled until the request is withdrawn.
 - Activity History Trail (`get_correction_timeline`) returns human-readable sentences with the actor first (e.g. "Litong, Ohm requested deletion of Santos, Jayson Mendez due to <reason>."), and includes deletion request requested/withdrawn/approved/rejected events. The drawer shows the trail latest-first.
 - The drawer treats a deletion request as active only while its status is `Pending`; withdrawn/approved/rejected requests restore the normal Pending Emploc view and the Request Deletion action.
+
+## Schema Fix — Migration 20262606000082 (ohm#9x4v2m8p)
+- Fixed PostgreSQL error `42703 (undefined_column)` in `list_web_hr_emplocs`: migration `20262606000081` contained broken column reference `COALESCE(h.position_snapshot, h.position) AS position_title` (table `hr_emploc` lacks `position_snapshot`).
+- Re-asserted `list_web_hr_emplocs` projecting `h.position AS position_title` in migration `20262606000082_fix_list_web_hr_emplocs_position_column.sql`, reloaded PostgREST schema cache (`NOTIFY pgrst, 'reload schema';`), and patched line 1957 of `20262606000081` for future clean Production promotion.
+- Confirmed live HTTP 200 row listings across all 4 queue tabs (`pending`, `correction`, `review`, `deployed`) matching tab badge counters on Staging (`qqiiznmqxfoamqytjica`).

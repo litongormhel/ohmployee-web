@@ -1,5 +1,45 @@
 # AI Handoff
 
+## Execution Report — Diagnose and fix HR Emploc "Compliance Queue Data Unavailable" across all tabs (ohm#9x4v2m8p)
+
+**Status: COMPLETE ON MAIN; STAGING FIXED & VERIFIED (`qqiiznmqxfoamqytjica`); MIGRATION `20262606000082` APPLIED; PROD (`rwxelulyapjgaarlwkus`) UNTOUCHED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Diagnosis & Findings
+- **Reported Issue**:
+  On `localhost:3000/hr-emploc`, the tab badges rendered counts (`Pending 2`, `Correction 3`, `Review 3`, `Deployed 6`), but every tab failed to load rows with:
+  > `Compliance Queue Data Unavailable`  
+  > `The compliance RPC request failed on the server. You can retry the query directly.`
+- **Root Cause**:
+  In migration `20262606000081_hr_emploc_final_workflow_and_registry.sql` (Section 9, line 1957), `list_web_hr_emplocs` introduced a reference to a nonexistent column:
+  `COALESCE(h.position_snapshot, h.position) AS position_title`
+  Table `public.hr_emploc` contains `position` (`text`) and `position_id_snapshot` (`uuid`), but has never had a column named `position_snapshot`.
+- **Why Tab Counts Succeeded while Row Listings Failed**:
+  Tab badge counts are calculated by `get_web_hr_emploc_summary`, which referenced the valid column `h.position AS position_title` (line 2330 of `20262606000081`). When `list_web_hr_emplocs` was called by `listQuery` on ANY tab, PostgreSQL failed query compilation with error:
+  `code: "42703", message: "column h.position_snapshot does not exist", hint: "Perhaps you meant to reference the column \"h.position\" or the column \"h.position_id_snapshot\"."`
+  Client-side `getErrorKind()` mapped `42703` to `kind: "retryable"`, prompting `HrEmplocTable` to show "Compliance Queue Data Unavailable".
+
+### 2. Implementation & Staging Verification
+1. **Migration 20262606000082 Created & Applied**:
+   Created `supabase/migrations/20262606000082_fix_list_web_hr_emplocs_position_column.sql` restoring `h.position AS position_title` in `public.list_web_hr_emplocs`, followed by `NOTIFY pgrst, 'reload schema';`. Applied to Staging (`qqiiznmqxfoamqytjica`) via Supabase CLI.
+2. **Surgical Patch to Migration 20262606000081**:
+   Updated line 1957 of `supabase/migrations/20262606000081_hr_emploc_final_workflow_and_registry.sql` to `h.position AS position_title` so that when `000081` is promoted to Production, it does not reintroduce the broken column reference.
+3. **Staging RPC Verification Across All 4 Tabs**:
+   - `pending`: HTTP 200, 2 rows returned, `total_count: 2` (matches badge `Pending 2`).
+   - `correction`: HTTP 200, 3 rows returned, `total_count: 3` (matches badge `Correction 3`).
+   - `review`: HTTP 200, 3 rows returned, `total_count: 3` (matches badge `Review 3`).
+   - `deployed`: HTTP 200, 5 rows returned (limit 5), `total_count: 6` (matches badge `Deployed 6`).
+4. **Mechanical Gates**:
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+
+### 3. Files Modified / Created
+- `supabase/migrations/20262606000082_fix_list_web_hr_emplocs_position_column.sql` (New migration fixing `list_web_hr_emplocs`)
+- `supabase/migrations/20262606000081_hr_emploc_final_workflow_and_registry.sql` (Surgically fixed line 1957)
+- `docs/state/hr_emploc_web_state.md` (Updated state documentation)
+- `.ai/briefing.md` (Updated Last Completed Tasks)
+- `.ai/handoff.md` (Prepended this handoff entry)
+
+---
+
 ## Execution Report — Fix HR Emploc "Approve Correction" RPC Signature Mismatch (ohm#7k2m9x4q)
 
 **Status: COMPLETE ON MAIN; STAGING ALIGNED & VERIFIED (`qqiiznmqxfoamqytjica`); PROD (`rwxelulyapjgaarlwkus`) UNTOUCHED PER DIRECTIVE; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

@@ -1954,7 +1954,7 @@ BEGIN
       g.group_name,
       h.store_id,
       h.store_name,
-      COALESCE(h.position_snapshot, h.position) AS position_title,
+      h.position AS position_title,
       h.hr_status,
       h.status,
       h.emploc_no,
