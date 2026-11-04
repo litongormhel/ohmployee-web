@@ -16,22 +16,29 @@ The token system is **live** in `src/app/globals.css`. Implementation notes:
 - **Status tokens are wired through `StatusBadge`**, so every semantic badge now reads from `status-*` variables rather than ad-hoc green/amber/red strings.
 - **Shared primitives** (`AdminPageHeader`, `MetricCard`, `DataState`, `DetailDrawer`, `AdminFilterBar`, `StatusBadge`) consume the semantic surface/text/border tokens and therefore respond to dark mode automatically.
 
+- **Antigravity-Inspired Obsidian Dark Mode & Zero-Shadow Elevation:**
+  Dark Mode is strictly aligned with Google Antigravity and Linear UI: Canvas `#0A0A0A`, elevated panels/sidebar/modals/OHMni drawer `#111113`, interactive hover `#18181B`, hairline borders `#222225`, and technical monospace pills `#16181D` (border `#262930`). Heavy drop shadows (`shadow-md`, `shadow-lg`, etc.) are stripped out in dark mode in favor of crisp 1px borders and subtle surface luminance shifts.
+- **Theme Switcher & Light Default:**
+  Theme mode defaults strictly to `Light` for new sessions. Users can toggle seamlessly between `Light`, `Dark`, and `System` via the Settings Preferences tab or the persistent toggle button in the Sidebar footer and mobile topbar without page flicker or layout shift.
+- **Typography Pairing:**
+  UI Sans-serif choices expanded with `Inter` (Antigravity default) and `Geist Sans`, paired with `JetBrains Mono` and `Roboto Mono` for technical monospace tokens (Employee IDs, Store Codes, Plantilla slot codes, timestamps, audit IDs) via `.tech-token` and `.mono-pill` containers.
+
 Dense feature tables (Vacancy, HR Emploc) are now fully tokenized (OHM2026_1098). Table interior tokens are declared as runtime `:root` variables alongside the existing semantic surface/text/border set and remapped under `@media (prefers-color-scheme: dark)`. They are exposed via `@theme inline`:
 
-| Token variable | Light value | Dark value | Tailwind utility |
+| Token variable | Light value | Dark value (Obsidian) | Tailwind utility |
 |---|---|---|---|
-| `--table-header` | `#fafafa` | `#0f172a` | `bg-table-header` |
-| `--table-row` | `#ffffff` | `#111827` | `bg-table-row` |
-| `--table-row-hover` | `#f8fafc` | `#1e293b` | `bg-table-row-hover` |
-| `--table-row-selected` | `#eff6ff` | `#0c2433` | `bg-table-row-selected` |
-| `--table-rule` | `#f1f5f9` | `#1e293b` | `border-table-rule` |
-| `--table-rule-section` | `#e2e8f0` | `#334155` | `border-table-rule-section` |
-| `--table-text` | `#0f172a` | `#e2e8f0` | `text-table-text` |
-| `--table-text-sub` | `#475569` | `#94a3b8` | `text-table-text-sub` |
-| `--table-text-muted` | `#6b7280` | `#64748b` | `text-table-text-muted` |
-| `--mono-pill-surface` | `#f8fafc` | `#1e293b` | `bg-mono-pill-surface` |
-| `--mono-pill-ink` | `#374151` | `#cbd5e1` | `text-mono-pill-ink` |
-| `--mono-pill-ring` | `#e2e8f0` | `#334155` | `border-mono-pill-ring` |
+| `--table-header` | `#fafafa` | `#111113` | `bg-table-header` |
+| `--table-row` | `#ffffff` | `#0A0A0A` | `bg-table-row` |
+| `--table-row-hover` | `#f8fafc` | `#18181B` | `bg-table-row-hover` |
+| `--table-row-selected` | `#eff6ff` | `#18181B` | `bg-table-row-selected` |
+| `--table-rule` | `#f1f5f9` | `#222225` | `border-table-rule` |
+| `--table-rule-section` | `#e2e8f0` | `#222225` | `border-table-rule-section` |
+| `--table-text` | `#0f172a` | `#F4F4F5` | `text-table-text` |
+| `--table-text-sub` | `#475569` | `#A1A1AA` | `text-table-text-sub` |
+| `--table-text-muted` | `#6b7280` | `#52525B` | `text-table-text-muted` |
+| `--mono-pill-surface` | `#f8fafc` | `#16181D` | `bg-mono-pill-surface` |
+| `--mono-pill-ink` | `#374151` | `#F4F4F5` | `text-mono-pill-ink` |
+| `--mono-pill-ring` | `#e2e8f0` | `#262930` | `border-mono-pill-ring` |
 
 ---
 

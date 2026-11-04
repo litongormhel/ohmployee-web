@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Sun, Moon, Laptop } from "lucide-react";
 import { getActiveModule, type WebModule } from "@/lib/modules";
+import { useTheme } from "@/providers/ThemeProvider";
 
 type AdminTopbarProps = {
   visibleModules: WebModule[];
@@ -26,6 +27,17 @@ export function AdminTopbar({
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const activeModule = getActiveModule(pathname, visibleModules);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
+  const cycleTheme = () => {
+    if (theme === "light") {
+      setTheme("dark");
+    } else if (theme === "dark") {
+      setTheme("system");
+    } else {
+      setTheme("light");
+    }
+  };
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)] lg:hidden">
@@ -44,6 +56,22 @@ export function AdminTopbar({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={cycleTheme}
+            title={`Current theme: ${theme} (resolved: ${resolvedTheme}). Click to cycle.`}
+            aria-label="Toggle theme mode"
+            className="flex items-center justify-center rounded-lg border border-border-default bg-surface-base p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
+          >
+            {theme === "system" ? (
+              <Laptop size={14} aria-hidden="true" />
+            ) : resolvedTheme === "dark" ? (
+              <Moon size={14} aria-hidden="true" />
+            ) : (
+              <Sun size={14} aria-hidden="true" />
+            )}
+          </button>
+
           {onOpenOhmni && (
             <button
               type="button"

@@ -3,11 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Sparkles } from "lucide-react";
+import { LogOut, Sparkles, Sun, Moon, Laptop } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useRequestCategoryCounts } from "@/lib/queries/requests";
 import { useUnreadNotificationsCount } from "@/lib/queries/notifications";
+import { useTheme } from "@/providers/ThemeProvider";
 
 type SidebarProps = {
   visibleModules: WebModule[];
@@ -52,6 +53,18 @@ export function Sidebar({
   const fallbackSecondaryKey = secondaryModules.some((m) => m.key === "dashboard")
     ? "dashboard"
     : secondaryModules[0]?.key;
+
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
+  const cycleTheme = () => {
+    if (theme === "light") {
+      setTheme("dark");
+    } else if (theme === "dark") {
+      setTheme("system");
+    } else {
+      setTheme("light");
+    }
+  };
 
   const logout = async () => {
     const supabase = createClient();
@@ -161,21 +174,38 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Footer: User Name + Role + Logout */}
-      <div className="mt-auto pt-6 px-2.5 text-xs text-[var(--muted)] flex items-center justify-between">
-        <div className="truncate pr-2">
+      {/* Footer: User Name + Role + Theme Toggle + Logout */}
+      <div className="mt-auto pt-6 px-2.5 text-xs text-[var(--muted)] flex items-center justify-between gap-1">
+        <div className="truncate pr-1 min-w-0">
           <b className="block font-medium text-[var(--text)] truncate text-[13.5px] leading-snug">
             {userName}
           </b>
           <span className="truncate block text-[12px] leading-snug">{userRole}</span>
         </div>
-        <button
-          onClick={logout}
-          title="Sign Out"
-          className="rounded-md p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)] transition shrink-0 cursor-pointer outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-        >
-          <LogOut size={15} aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={cycleTheme}
+            title={`Current theme: ${theme} (resolved: ${resolvedTheme}). Click to cycle.`}
+            aria-label="Toggle theme mode"
+            className="rounded-md p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)] transition cursor-pointer outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            {theme === "system" ? (
+              <Laptop size={15} aria-hidden="true" />
+            ) : resolvedTheme === "dark" ? (
+              <Moon size={15} aria-hidden="true" />
+            ) : (
+              <Sun size={15} aria-hidden="true" />
+            )}
+          </button>
+          <button
+            onClick={logout}
+            title="Sign Out"
+            className="rounded-md p-1.5 text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)] transition cursor-pointer outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            <LogOut size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </aside>
   );

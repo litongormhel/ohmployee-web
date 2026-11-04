@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Design System: Antigravity-Inspired Obsidian Dark Mode, Theme Switcher, and Typography (ohm#antigravity-obsidian-dark-mode)
+
+**Status: COMPLETE ON LOCAL main; 5/5 OBJECTIVES IMPLEMENTED & VERIFIED (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES); AWAITING FINAL LOCAL COMMIT**
+
+### 1. Summary of Changes Implemented
+- **Item 1: Theme Switcher & Strict Light Default**:
+  - Maintained strict Light default theme for new sessions in `src/app/layout.tsx` inline script (`localStorage.getItem('ohmployee_theme_mode') || 'light'`) and `src/providers/ThemeProvider.tsx`.
+  - In `src/app/globals.css`, removed `:root:not([data-theme="light"]):not([data-theme="dark"])` media query fallback so that dark mode is only enabled when `:root[data-theme="dark"]` or `:root[data-theme="system"]` is explicitly present.
+  - Added persistent Theme Switcher controls:
+    - Updated `src/components/settings/PreferencesTab.tsx` with instant, flicker-free toggling between Light, Dark, and System.
+    - Added quick cycle theme button in `src/components/Sidebar.tsx` footer (next to user role and logout button).
+    - Added quick theme toggle button in `src/components/AdminTopbar.tsx` mobile header.
+- **Item 2: Antigravity Obsidian Dark Mode Color Tokens (.dark)**:
+  - Re-anchored `.dark` CSS custom properties in `src/app/globals.css`:
+    - Canvas / Main Background: `#0A0A0A` (Deep Obsidian)
+    - Sidebar / Panels / Modals / Floating Overlays: `#111113` (Dark Zinc)
+    - Interactive Hover / Active Item: `#18181B`
+    - Code Blocks / Monospace Pills / Secondary Badges: `#16181D` with `1px solid #262930` border
+    - Hairline Borders & Dividers: `#222225` (`1px solid`)
+    - Text Hierarchy: Primary `#F4F4F5`, Secondary `#A1A1AA`, Muted `#52525B`
+    - Primary Action Buttons: Crisp off-white `#FAFAFA` with `#09090B` text and `#E4E4E7` hover.
+    - Secondary Action Buttons: `#18181B` with `#E4E4E7` text and `1px solid #27272A` border.
+    - Semantic Status Badges: Low-opacity tinted backgrounds (`bg-emerald-500/10 text-emerald-400 border-emerald-500/20`, `bg-amber-500/10 text-amber-400 border-amber-500/20`, `bg-rose-500/10 text-rose-400 border-rose-500/20`).
+- **Item 3: Zero-Shadow, Hairline-Border Elevation**:
+  - Stripped blurry box shadows (`shadow-md`, `shadow-lg`, `shadow-xl`, `shadow-2xl`) in dark mode under `.dark .shadow-* { box-shadow: none !important; }`.
+  - Refactored `src/components/ohmni/OhmniDrawer.tsx` floating card and backdrop to consume semantic tokens (`bg-[var(--surface-card)]` / `#111113`, `border-[var(--border-subtle)]` / `#222225`, zero shadow in dark mode, and design token input composer).
+- **Item 4: Typography & Monospace Pairing**:
+  - Imported `Inter`, `Geist`, `JetBrains_Mono`, and `Roboto_Mono` in `src/app/layout.tsx` via `next/font/google`.
+  - Expanded Font Family selection in `src/components/settings/PreferencesTab.tsx` with `Inter` and `Geist Sans`.
+  - Dynamically wired font selection via `document.documentElement.setAttribute('data-font', ...)` and `localStorage.getItem('ohm_font_preference')`.
+  - Defined `.tech-token` and `.mono-pill` containers in `src/app/globals.css` with `JetBrains Mono` and `Roboto Mono` pairing.
+- **Item 5: Verification**:
+  - `npm run lint` verified clean (0 errors, 4 pre-existing warnings in VacancyTable).
+  - `npm run build` compiled 20/20 static and dynamic routes cleanly with Turbopack and TypeScript.
+
+### 2. Files Modified
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/providers/ThemeProvider.tsx`
+- `src/components/settings/PreferencesTab.tsx`
+- `src/components/Sidebar.tsx`
+- `src/components/AdminTopbar.tsx`
+- `src/components/ohmni/OhmniDrawer.tsx`
+- `docs/state/web_design_tokens.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
 
 **Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**

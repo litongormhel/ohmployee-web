@@ -38,7 +38,7 @@ function renderInlineFormatted(text: string): React.ReactNode {
         node: (
           <code
             key={`c-${keyIdx++}`}
-            className="px-1.5 py-0.5 mx-0.5 bg-slate-100 text-slate-800 rounded font-mono text-[11px] border border-slate-200"
+            className="tech-token text-[11px] mx-0.5"
           >
             {codeMatch[1]}
           </code>
@@ -52,7 +52,7 @@ function renderInlineFormatted(text: string): React.ReactNode {
           index: boldMatch.index,
           length: boldMatch[0].length,
           node: (
-            <strong key={`b-${keyIdx++}`} className="font-semibold text-slate-900">
+            <strong key={`b-${keyIdx++}`} className="font-semibold text-text-primary">
               {boldMatch[1]}
             </strong>
           ),
@@ -88,10 +88,10 @@ function FormattedContent({ content }: { content: string }) {
       renderedElements.push(
         <div
           key={`table-wrapper-${idx}`}
-          className="my-3 overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs"
+          className="my-3 overflow-x-auto rounded-xl border border-[var(--border-subtle)] shadow-2xs"
         >
-          <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-            <thead className="bg-slate-50 font-semibold text-slate-700">
+          <table className="min-w-full divide-y divide-[var(--border-subtle)] text-left text-xs">
+            <thead className="bg-surface-muted font-semibold text-text-primary">
               <tr>
                 {header.map((col, cIdx) => (
                   <th key={`th-${cIdx}`} className="px-3 py-2 whitespace-nowrap">
@@ -100,11 +100,11 @@ function FormattedContent({ content }: { content: string }) {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-[var(--border-subtle)] bg-surface-base">
               {dataRows.map((r, rIdx) => (
-                <tr key={`tr-${rIdx}`} className="hover:bg-slate-50/80 transition-colors">
+                <tr key={`tr-${rIdx}`} className="hover:bg-surface-hover transition-colors">
                   {r.map((col, cIdx) => (
-                    <td key={`td-${cIdx}`} className="px-3 py-2 whitespace-nowrap text-slate-700">
+                    <td key={`td-${cIdx}`} className="px-3 py-2 whitespace-nowrap text-text-secondary">
                       {renderInlineFormatted(col)}
                     </td>
                   ))}
@@ -147,7 +147,7 @@ function FormattedContent({ content }: { content: string }) {
       renderedElements.push(
         <div key={`li-${idx}`} className="flex items-start gap-2 pl-1 my-1">
           <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
-          <span className="flex-1 leading-relaxed text-sm text-slate-800">
+          <span className="flex-1 leading-relaxed text-sm text-text-secondary">
             {renderInlineFormatted(trimmed.slice(2))}
           </span>
         </div>
@@ -156,7 +156,7 @@ function FormattedContent({ content }: { content: string }) {
     }
 
     renderedElements.push(
-      <p key={`p-${idx}`} className="leading-relaxed my-1.5 text-sm text-slate-800">
+      <p key={`p-${idx}`} className="leading-relaxed my-1.5 text-sm text-text-secondary">
         {renderInlineFormatted(trimmed)}
       </p>
     );
@@ -212,7 +212,7 @@ function ToolOutputFallbackView({
 
   if (!selected || !selected.output) {
     return (
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-text-muted">
         No records found matching your query.
       </p>
     );
@@ -222,7 +222,7 @@ function ToolOutputFallbackView({
 
   if (output.error) {
     return (
-      <p className="text-sm text-rose-600">
+      <p className="text-sm text-danger">
         Query encountered an error: {String(output.error)}
       </p>
     );
@@ -239,7 +239,7 @@ function ToolOutputFallbackView({
 
     if (slots.length === 0) {
       return (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-muted">
           No open vacancies found matching your query.
         </p>
       );
@@ -247,15 +247,15 @@ function ToolOutputFallbackView({
 
     return (
       <div className="space-y-2">
-        <p className="text-sm text-slate-800">
-          Found <strong className="text-slate-900">{slots.length}</strong> open {slots.length === 1 ? "vacancy" : "vacancies"}:
+        <p className="text-sm text-text-secondary">
+          Found <strong className="text-text-primary">{slots.length}</strong> open {slots.length === 1 ? "vacancy" : "vacancies"}:
         </p>
         <ul className="space-y-1.5 pl-1">
           {slots.map((s, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
+            <li key={idx} className="flex items-start gap-2 text-sm text-text-secondary">
               <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
               <span className="leading-relaxed">
-                <strong className="font-semibold text-slate-900 font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                <strong className="font-semibold text-text-primary tech-token">
                   {s.slotCode || "—"}
                 </strong>{" "}
                 — {s.position || "Unspecified"} ({s.status?.toLowerCase() || "open"}, {s.employmentType?.toLowerCase() || "regular"})
@@ -283,7 +283,7 @@ function ToolOutputFallbackView({
 
     if (total === 0) {
       return (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-muted">
           No plantilla slots found matching your query.
         </p>
       );
@@ -291,18 +291,18 @@ function ToolOutputFallbackView({
 
     return (
       <div className="space-y-2">
-        <p className="text-sm text-slate-800">
-          Found <strong className="text-slate-900">{total}</strong> total {total === 1 ? "slot" : "slots"} (
-          <strong className="text-amber-700">{vacant} vacant</strong>,{" "}
-          <strong className="text-emerald-700">{filled} filled</strong>, {rate} fill rate):
+        <p className="text-sm text-text-secondary">
+          Found <strong className="text-text-primary">{total}</strong> total {total === 1 ? "slot" : "slots"} (
+          <strong className="text-amber-500 font-semibold">{vacant} vacant</strong>,{" "}
+          <strong className="text-emerald-500 font-semibold">{filled} filled</strong>, {rate} fill rate):
         </p>
         {sampleRows.length > 0 && (
           <ul className="space-y-1.5 pl-1">
             {sampleRows.slice(0, 10).map((r, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
+              <li key={idx} className="flex items-start gap-2 text-sm text-text-secondary">
                 <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
                 <span className="leading-relaxed">
-                  <strong className="font-semibold text-slate-900 font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  <strong className="font-semibold text-text-primary tech-token">
                     {r.slotCode || "—"}
                   </strong>{" "}
                   — {r.position || "Unspecified"} ({r.status?.toLowerCase() || "open"})
@@ -327,7 +327,7 @@ function ToolOutputFallbackView({
 
     if (items.length === 0) {
       return (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-muted">
           No HR Emploc queue items found matching your query.
         </p>
       );
@@ -335,16 +335,16 @@ function ToolOutputFallbackView({
 
     return (
       <div className="space-y-2">
-        <p className="text-sm text-slate-800">
-          Found <strong className="text-slate-900">{items.length}</strong> {items.length === 1 ? "item" : "items"} in HR Emploc queue:
+        <p className="text-sm text-text-secondary">
+          Found <strong className="text-text-primary">{items.length}</strong> {items.length === 1 ? "item" : "items"} in HR Emploc queue:
         </p>
         <ul className="space-y-1.5 pl-1">
           {items.slice(0, 10).map((it, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
+            <li key={idx} className="flex items-start gap-2 text-sm text-text-secondary">
               <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
               <span className="leading-relaxed">
-                <strong className="font-semibold text-slate-900">{it.employee}</strong> ({it.employeeNo || "—"}) — Target:{" "}
-                <strong className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                <strong className="font-semibold text-text-primary">{it.employee}</strong> ({it.employeeNo || "—"}) — Target:{" "}
+                <strong className="tech-token">
                   {it.targetSlot || "—"}
                 </strong>{" "}
                 [{it.status || "Pending"}]
@@ -367,7 +367,7 @@ function ToolOutputFallbackView({
 
     if (requests.length === 0) {
       return (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-muted">
           No headcount requests found matching your query.
         </p>
       );
@@ -375,15 +375,15 @@ function ToolOutputFallbackView({
 
     return (
       <div className="space-y-2">
-        <p className="text-sm text-slate-800">
-          Found <strong className="text-slate-900">{requests.length}</strong> headcount {requests.length === 1 ? "request" : "requests"}:
+        <p className="text-sm text-text-secondary">
+          Found <strong className="text-text-primary">{requests.length}</strong> headcount {requests.length === 1 ? "request" : "requests"}:
         </p>
         <ul className="space-y-1.5 pl-1">
           {requests.slice(0, 10).map((r, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-sm text-slate-800">
+            <li key={idx} className="flex items-start gap-2 text-sm text-text-secondary">
               <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
               <span className="leading-relaxed">
-                <strong className="font-semibold text-slate-900">{r.position || "Unspecified"}</strong> ({r.store || "—"}) — Needed: {r.headcountNeeded ?? 1} [{r.status || "Pending"}]
+                <strong className="font-semibold text-text-primary">{r.position || "Unspecified"}</strong> ({r.store || "—"}) — Needed: {r.headcountNeeded ?? 1} [{r.status || "Pending"}]
               </span>
             </li>
           ))}
@@ -393,7 +393,7 @@ function ToolOutputFallbackView({
   }
 
   return (
-    <p className="text-sm text-slate-600">
+    <p className="text-sm text-text-muted">
       Query completed successfully.
     </p>
   );
@@ -539,39 +539,39 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           onClose();
         }
       }}
-      className="fixed inset-0 lg:left-[var(--sidebar-width)] z-50 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 transition-opacity duration-200"
+      className="fixed inset-0 lg:left-[var(--sidebar-width)] z-50 bg-[var(--surface-overlay)] backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5 transition-opacity duration-200"
     >
-      {/* ── Tarsi Centered Floating Card ───────────────────────────────────── */}
+      {/* ── Antigravity Centered Floating Card ───────────────────────────────────── */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[680px] h-[calc(100vh-48px)] max-h-[780px] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden mx-auto my-auto animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-[680px] h-[calc(100vh-48px)] max-h-[780px] bg-[var(--surface-card)] rounded-3xl shadow-2xl border border-[var(--border-subtle)] flex flex-col overflow-hidden mx-auto my-auto animate-in fade-in zoom-in-95 duration-200"
       >
         {/* ── 1. Top Header ──────────────────────────────────────────────── */}
-        <header className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white shrink-0">
+        <header className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border-subtle)] bg-[var(--surface-card)] shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
               title="Close chat"
               aria-label="Close"
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-surface-muted hover:bg-surface-hover flex items-center justify-center text-text-secondary transition-colors cursor-pointer"
             >
               <ChevronLeft size={18} />
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-slate-900">Chat</span>
+                <span className="text-lg font-bold text-text-primary">Chat</span>
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors ${
                     isLoading
-                      ? "bg-amber-50 text-amber-700 animate-pulse border border-amber-200"
-                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse"
+                      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                   }`}
                 >
                   {isLoading ? "⏳ SYNCING" : "⚡ LIVE"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 leading-tight">
+              <p className="text-xs text-text-muted leading-tight">
                 Ask questions about slots, vacancies, or HR queues in plain language.
               </p>
             </div>
@@ -583,7 +583,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               onClick={handleReset}
               title="Reset conversation"
               aria-label="Reset chat"
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-surface-muted hover:bg-surface-hover flex items-center justify-center text-text-secondary transition-colors cursor-pointer"
             >
               <RotateCcw size={14} />
             </button>
@@ -594,18 +594,18 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
           {/* Welcome / Greeting Message */}
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs">
               <Bot size={18} />
             </div>
             <div className="flex-1 space-y-1.5">
-              <div className="font-semibold text-slate-900 text-sm">OHMni</div>
-              <div className="text-sm text-slate-800 space-y-1.5 leading-relaxed bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/60">
-                <p className="font-bold text-slate-900">Hi OHM!</p>
+              <div className="font-semibold text-text-primary text-sm">OHMni</div>
+              <div className="text-sm text-text-secondary space-y-1.5 leading-relaxed bg-surface-muted p-3.5 rounded-2xl border border-[var(--border-subtle)]">
+                <p className="font-bold text-text-primary">Hi OHM!</p>
                 <p>
                   Ask me about your Plantilla slots, open vacancies, headcount requests, or HR
                   Emploc queues.
                 </p>
-                <p className="text-slate-600 text-xs">
+                <p className="text-text-muted text-xs">
                   You can also ask step-by-step how-to questions anytime.
                 </p>
               </div>
@@ -613,7 +613,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               {/* Starter pills (when session has no user messages) */}
               {messages.length === 0 && (
                 <div className="pt-2 space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block px-1">
                     Suggested prompts
                   </span>
                   <div className="flex flex-col gap-1.5">
@@ -622,9 +622,9 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
                         key={i}
                         type="button"
                         onClick={() => handleSend(promptText)}
-                        className="text-left rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs text-slate-700 shadow-2xs hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer flex items-center gap-2 group"
+                        className="text-left rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-base)] px-3.5 py-2 text-xs text-text-secondary shadow-2xs hover:border-emerald-500/50 hover:bg-surface-hover transition-all cursor-pointer flex items-center gap-2 group"
                       >
-                        <span className="text-emerald-600 font-mono text-[11px] font-bold group-hover:translate-x-0.5 transition-transform">
+                        <span className="text-emerald-500 font-mono text-[11px] font-bold group-hover:translate-x-0.5 transition-transform">
                           →
                         </span>
                         <span className="leading-snug">{promptText}</span>
@@ -658,29 +658,29 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               >
                 {isUser ? (
                   /* User Bubble */
-                  <div className="bg-slate-900 text-white text-sm px-4 py-2.5 rounded-2xl max-w-[80%] shadow-2xs break-words whitespace-pre-wrap leading-relaxed">
+                  <div className="bg-brand-button text-white dark:bg-[#18181B] dark:text-[#F4F4F5] dark:border dark:border-[#27272A] text-sm px-4 py-2.5 rounded-2xl max-w-[80%] shadow-2xs break-words whitespace-pre-wrap leading-relaxed">
                     {textParts.map((t) => t.text).join("")}
                   </div>
                 ) : (
                   /* OHMni Assistant Message */
                   <div className="flex items-start gap-3 max-w-[94%] w-full">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs mt-1">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs mt-1">
                       <Bot size={18} />
                     </div>
                     <div className="flex-1 space-y-2">
-                      <div className="font-semibold text-slate-900 text-sm">OHMni</div>
+                      <div className="font-semibold text-text-primary text-sm">OHMni</div>
 
                       {/* Assistant Reply Content */}
-                      <div className="text-sm text-slate-800 leading-relaxed bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs w-full">
+                      <div className="text-sm text-text-secondary leading-relaxed bg-[var(--surface-base)] p-3.5 rounded-2xl border border-[var(--border-subtle)] shadow-2xs w-full">
                         {hasNonEmptyText ? (
                           textParts.map((t, idx) => (
                             <FormattedContent key={idx} content={t.text} />
                           ))
                         ) : isLoading ? (
                           /* Loading State while stream is in flight */
-                          <div className="flex items-center gap-2 text-slate-400 py-1">
-                            <Loader2 size={14} className="animate-spin text-emerald-600" />
-                            <span className="text-xs italic text-slate-500">
+                          <div className="flex items-center gap-2 text-text-muted py-1">
+                            <Loader2 size={14} className="animate-spin text-emerald-500" />
+                            <span className="text-xs italic text-text-muted">
                               Thinking.....
                             </span>
                           </div>
@@ -699,15 +699,15 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           {/* Pending Thinking bubble while waiting for initial stream response */}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex items-start gap-3 max-w-[94%] w-full animate-in fade-in duration-150">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs mt-1">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs mt-1">
                 <Bot size={18} />
               </div>
               <div className="flex-1 space-y-2">
-                <div className="font-semibold text-slate-900 text-sm">OHMni</div>
-                <div className="text-sm text-slate-800 leading-relaxed bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs w-full">
-                  <div className="flex items-center gap-2 text-slate-400 py-1">
-                    <Loader2 size={14} className="animate-spin text-emerald-600" />
-                    <span className="text-xs italic text-slate-500">
+                <div className="font-semibold text-text-primary text-sm">OHMni</div>
+                <div className="text-sm text-text-secondary leading-relaxed bg-[var(--surface-base)] p-3.5 rounded-2xl border border-[var(--border-subtle)] shadow-2xs w-full">
+                  <div className="flex items-center gap-2 text-text-muted py-1">
+                    <Loader2 size={14} className="animate-spin text-emerald-500" />
+                    <span className="text-xs italic text-text-muted">
                       Thinking.....
                     </span>
                   </div>
@@ -717,7 +717,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           )}
 
           {error && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
               <strong>Error:</strong> {error.message || "Failed to process query."}
             </div>
           )}
@@ -725,9 +725,9 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── 3. Bottom Composer Box (Tarsi Style) ─────────────────────────── */}
+        {/* ── 3. Bottom Composer Box (Antigravity Style) ─────────────────────────── */}
         <div className="px-6 pb-2">
-          <div className="p-3 rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-slate-300 focus-within:shadow-md transition-all">
+          <div className="p-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-base)] shadow-sm focus-within:border-border-strong transition-all">
             <textarea
               ref={textareaRef}
               value={input}
@@ -736,19 +736,19 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               placeholder='Ask a question or type "Show open vacancies in SM North"...'
               rows={2}
               disabled={isLoading}
-              className="text-sm placeholder:text-slate-400 border-0 focus:ring-0 focus:outline-none w-full resize-none text-slate-800 disabled:bg-transparent disabled:opacity-60"
+              className="text-sm placeholder:text-text-muted border-0 focus:ring-0 focus:outline-none w-full resize-none text-text-primary disabled:bg-transparent disabled:opacity-60 bg-transparent"
             />
-            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end pt-2 border-t border-[var(--border-subtle)]">
               <button
                 type="button"
                 onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
                 title="Send query"
                 aria-label="Send message"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-600 flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer"
+                className="w-8 h-8 rounded-full bg-surface-muted hover:bg-surface-hover text-text-primary flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer"
               >
                 {isLoading ? (
-                  <Loader2 size={14} className="animate-spin text-emerald-600" />
+                  <Loader2 size={14} className="animate-spin text-emerald-500" />
                 ) : (
                   <ArrowUp size={16} />
                 )}
@@ -758,7 +758,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
         </div>
 
         {/* ── 4. Footer Micro-Caption ─────────────────────────────────────── */}
-        <div className="text-[11px] text-slate-400 pb-3 text-center">
+        <div className="text-[11px] text-text-muted pb-3 text-center">
           OHMni can make mistakes. Review important details.
         </div>
       </div>

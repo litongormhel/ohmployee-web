@@ -104,6 +104,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings?.themeMode]);
 
+  // Synchronize remote or local font preference with document attribute
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const activeFont = settings?.fontFamily || localStorage.getItem("ohm_font_preference");
+      if (activeFont) {
+        document.documentElement.setAttribute("data-font", activeFont);
+      }
+    }
+  }, [settings?.fontFamily]);
+
   // Synchronize DOM attributes and classList with theme & resolvedTheme
   useEffect(() => {
     applyThemeToDocument(theme, resolvedTheme);

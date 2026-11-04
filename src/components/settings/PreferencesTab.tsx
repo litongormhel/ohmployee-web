@@ -34,6 +34,11 @@ export function PreferencesTab() {
   const handleUpdate = async (field: keyof UserSettingsData, value: unknown) => {
     setPendingOverrides((prev) => ({ ...prev, [field]: value }));
 
+    if (field === "fontFamily" && typeof window !== "undefined" && typeof value === "string") {
+      localStorage.setItem("ohm_font_preference", value);
+      document.documentElement.setAttribute("data-font", value);
+    }
+
     try {
       await updateSettingsMutation.mutateAsync({
         [field]: value,
@@ -312,20 +317,25 @@ export function PreferencesTab() {
           {/* Font Family */}
           <div>
             <label className="block text-xs font-semibold text-text-secondary">
-              Font Family
+              Font Family (UI Sans)
             </label>
             <select
               value={formState.fontFamily ?? "Inter"}
               onChange={(e) => handleUpdate("fontFamily", e.target.value)}
               className="mt-1.5 w-full rounded-lg border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
-              <option value="Inter">Inter (System Default)</option>
-              <option value="SF Pro">SF Pro</option>
-              <option value="Helvetica Neue">Helvetica Neue</option>
+              <option value="Inter">Inter (Antigravity Sans UI / Default)</option>
+              <option value="Geist Sans">Geist Sans (Linear / Modern Tech)</option>
+              <option value="DM Sans">DM Sans (Standard)</option>
               <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
               <option value="Manrope">Manrope</option>
+              <option value="SF Pro">SF Pro (Apple System)</option>
+              <option value="Helvetica Neue">Helvetica Neue</option>
               <option value="System Default">System Default</option>
             </select>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Technical tokens (IDs, codes, timestamps) pair with <code className="tech-token text-[10px]">JetBrains Mono</code>.
+            </p>
           </div>
 
           {/* Motion Experience Control (Full / Lite / Off) */}
