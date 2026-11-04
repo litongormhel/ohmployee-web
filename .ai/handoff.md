@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Fix Supabase Migration `20261014193500` Drop View 42P16 Error (ohm#fix-mig-42p16)
+
+**Status: COMPLETE ON MAIN; MIGRATION `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` SURGICALLY PATCHED WITH `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;`; ZERO DEPENDENT VIEWS IN SCHEMA; GRANTS RESTORED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `42P16`
+- **Reported Error**: Supabase database deployment failed with `cannot drop columns from view (SQLSTATE 42P16)` at statement 0 in `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` when executing `CREATE OR REPLACE VIEW public.vw_vacancy_list`.
+- **Root Cause**: PostgreSQL's `CREATE OR REPLACE VIEW` command disallows dropping or reordering columns from an existing view definition. If a pre-existing view on the database environment possesses additional columns, recreating it without dropping it first causes PostgreSQL to reject the DDL with `SQLSTATE 42P16`.
+
+### 2. Dependency Analysis & Surgical Fix
+1. **Schema Dependency Analysis**:
+   - Evaluated all views across `supabase/migrations/*.sql` using AST/regex query body analysis.
+   - Confirmed **zero (0)** views depend on or query `public.vw_vacancy_list` (`vw_vacancy_detail` queries base tables directly, and shadow views only reference it in documentation comments).
+   - Confirmed PL/pgSQL functions (`list_web_vacancies`, `get_web_vacancy_summary`) query `vw_vacancy_list` dynamically; PL/pgSQL function bodies are not catalog-bound dropped by `DROP VIEW CASCADE`, and both functions are re-created in Section 2 and Section 3 of the same migration file.
+   - Permissions are explicitly re-asserted immediately following the view definition (`GRANT ALL ON public.vw_vacancy_list TO authenticated, postgres, service_role;` on line 90).
+2. **Surgical DDL Patch**:
+   - Inserted `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;` immediately prior to `CREATE OR REPLACE VIEW public.vw_vacancy_list AS` in `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+### 4. Files Modified
+- `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` (added `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;`)
+- `.ai/briefing.md` (updated Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+---
+
 ## Execution Report — Synchronize `pnpm-lock.yaml` with `package.json` Dependencies for Vercel CI Deployments (ohm#syncpnpm)
 
 **Status: COMPLETE ON MAIN; `package.json` PINNED TO `pnpm@10.29.3`; `pnpm-lock.yaml` SYNCHRONIZED WITH `@ai-sdk/google`, `@ai-sdk/react`, `ai`, `zod`; FROZEN-LOCKFILE CI VALIDATION SUCCEEDED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, `pnpm build`: 20/20 ROUTES SUCCEEDED)**

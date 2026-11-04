@@ -12,6 +12,7 @@
 --   4. Ensure handle_closure_approval resets has_pending_closure and closure_request_status appropriately on review.
 
 -- 1. Update vw_vacancy_list
+DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_list AS
  WITH applicant_stats AS (
          SELECT a.vacancy_vcode,
