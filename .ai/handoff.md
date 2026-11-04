@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Fix Migration `20262606000079` Column `updated_at` on `employee_store_allocations` (ohm#fix-mig-42703-esa)
+
+**Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (REMOVED INVALID `updated_at = now()` REFERENCES FROM `employee_store_allocations` UPDATES); ADDED `DROP FUNCTION IF EXISTS public.plantilla_update_separation` GUARDS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `42703` on `employee_store_allocations`
+- **Reported Error**: During `npx supabase db push --include-all` against Production (`rwxelulyapjgaarlwkus`), migration `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` failed at statement 1:
+  `ERROR: column "updated_at" of relation "employee_store_allocations" does not exist (SQLSTATE 42703)`
+- **Root Cause**: `public.employee_store_allocations` is an append-only historical audit table with schema `(id, plantilla_id, employee_no, roving_group_id, store_id, vcode, store_name, account_id, group_id, filled_hc, active_store_count, effective_start, effective_end, is_active, source_import_batch_id, created_at, created_by)`. It intentionally has no `updated_at` column.
+- **Surgical Patch**:
+  1. Line 14: Removed `updated_at = now()` from the inactive personnel deactivation `UPDATE public.employee_store_allocations esa` query.
+  2. Line 233: Removed `updated_at = NOW()` from the deactivation query inside `public.plantilla_update_separation`.
+  3. Preceded `CREATE OR REPLACE FUNCTION public.plantilla_update_separation` with `DROP FUNCTION IF EXISTS public.plantilla_update_separation(uuid, text, date, text);` and `DROP FUNCTION IF EXISTS public.plantilla_update_separation;` and restored execute grants.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Fix Supabase Migrations 42P13 & 42P16 Idempotency for Production Push (ohm#fix-mig-42p13-prod)
 
 **Status: COMPLETE ON MAIN; ALL PENDING PROD MIGRATIONS SURGICALLY HARDENED WITH `DROP FUNCTION IF EXISTS` AND `DROP VIEW IF EXISTS ... CASCADE`; ROLLBACK SCRIPT RELOCATED OUT OF MIGRATIONS DIRECTORY; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

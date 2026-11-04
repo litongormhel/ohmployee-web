@@ -10,8 +10,7 @@ BEGIN;
 -- A. Deactivate orphan active store allocations for inactive employees
 UPDATE public.employee_store_allocations esa
 SET is_active = false,
-    effective_end = COALESCE(p.date_of_separation, CURRENT_DATE),
-    updated_at = now()
+    effective_end = COALESCE(p.date_of_separation, CURRENT_DATE)
 FROM public.plantilla p
 WHERE (esa.plantilla_id = p.id OR (esa.employee_no = p.employee_no AND p.employee_no IS NOT NULL))
   AND esa.is_active = true
@@ -172,6 +171,8 @@ BEGIN
 END $$;
 
 -- ── 2. Update plantilla_update_separation to Permanently Enforce Synchronization
+DROP FUNCTION IF EXISTS public.plantilla_update_separation(uuid, text, date, text);
+DROP FUNCTION IF EXISTS public.plantilla_update_separation;
 CREATE OR REPLACE FUNCTION public.plantilla_update_separation(
   p_plantilla_id    uuid,
   p_separation_status text,
@@ -229,8 +230,7 @@ BEGIN
   -- Deactivate active store allocations
   UPDATE public.employee_store_allocations
      SET is_active = false,
-         effective_end = p_effective_date,
-         updated_at = NOW()
+         effective_end = p_effective_date
    WHERE (plantilla_id = p_plantilla_id OR (employee_no = v_row.employee_no AND v_row.employee_no IS NOT NULL))
      AND is_active = true;
 
@@ -267,5 +267,8 @@ BEGIN
   RETURN v_row;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.plantilla_update_separation(uuid, text, date, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.plantilla_update_separation(uuid, text, date, text) TO authenticated, service_role;
 
 COMMIT;
