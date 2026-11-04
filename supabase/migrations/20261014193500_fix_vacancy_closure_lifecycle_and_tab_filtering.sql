@@ -782,6 +782,7 @@ END;
 $function$;
 
 -- 6. Update vw_vacancy_detail
+DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_detail AS
  WITH applicant_stats AS (
          SELECT a.vacancy_vcode,

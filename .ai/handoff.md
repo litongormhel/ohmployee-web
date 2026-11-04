@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Fix Supabase Migration `20261014193500` Drop `vw_vacancy_detail` 42P16 Error (ohm#fix-mig-42p16-detail)
+
+**Status: COMPLETE ON MAIN; MIGRATION `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` SURGICALLY PATCHED WITH `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;`; ZERO DEPENDENT VIEWS IN SCHEMA; GRANTS RESTORED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `42P16` on `vw_vacancy_detail`
+- **Reported Error**: Supabase database deployment failed with `cannot drop columns from view (SQLSTATE 42P16)` at statement 8 in `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` when executing `CREATE OR REPLACE VIEW public.vw_vacancy_detail AS`.
+- **Root Cause**: In PostgreSQL, `CREATE OR REPLACE VIEW` cannot drop or reorder columns if the replacement view schema differs from the existing view in the target database.
+
+### 2. Dependency Analysis & Surgical Fix
+1. **Schema Dependency Analysis**:
+   - Evaluated all views across `supabase/migrations/*.sql` using AST/regex query body analysis.
+   - Confirmed **zero (0)** views depend on or query `public.vw_vacancy_detail`.
+   - Confirmed PL/pgSQL function `get_web_vacancy_detail(p_vacancy_id uuid)` queries `vw_vacancy_detail` dynamically; PL/pgSQL functions are not dropped by `DROP VIEW CASCADE`, and the function is re-created in Section 7 of the same migration file.
+   - Permissions are explicitly re-asserted immediately following the view definition (`GRANT ALL ON public.vw_vacancy_detail TO authenticated, postgres, service_role;` on line 867).
+2. **Surgical DDL Patch**:
+   - Inserted `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;` immediately prior to `CREATE OR REPLACE VIEW public.vw_vacancy_detail AS` (Section 6) in `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+### 4. Files Modified
+- `supabase/migrations/20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` (added `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;`)
+- `.ai/briefing.md` (updated Last Completed Tasks)
+- `.ai/handoff.md` (prepended this handoff entry)
+
+---
+
 ## Execution Report — Fix Supabase Migration `20261014193500` Drop View 42P16 Error (ohm#fix-mig-42p16)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` SURGICALLY PATCHED WITH `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;`; ZERO DEPENDENT VIEWS IN SCHEMA; GRANTS RESTORED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
