@@ -5,6 +5,8 @@
 --          Restores h.position AS position_title.
 -- ====================================================================
 
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
   p_queue text DEFAULT NULL::text,
   p_status text DEFAULT NULL::text,

@@ -19,6 +19,7 @@ BEGIN;
 --      while preserving RETURNS TABLE shapes byte-for-byte.
 -- ============================================================================
 
+DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_list AS
 WITH applicant_stats AS (
   SELECT a_1.vacancy_vcode,
@@ -238,6 +239,7 @@ ALTER VIEW public.vw_vacancy_list OWNER TO postgres;
 GRANT SELECT ON public.vw_vacancy_list TO authenticated, service_role;
 
 
+DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_detail AS
 WITH applicant_stats AS (
   SELECT a_1.vacancy_vcode,
@@ -481,6 +483,8 @@ ALTER VIEW public.vw_vacancy_detail OWNER TO postgres;
 GRANT SELECT ON public.vw_vacancy_detail TO authenticated, service_role;
 
 
+DROP FUNCTION IF EXISTS public.list_web_vacancies(text, uuid, uuid, text, text, text, text, date, date, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_vacancies;
 CREATE OR REPLACE FUNCTION public.list_web_vacancies(
   p_status text DEFAULT NULL::text,
   p_account_id uuid DEFAULT NULL::uuid,
@@ -811,6 +815,8 @@ END;
 $function$;
 
 
+DROP FUNCTION IF EXISTS public.get_web_vacancy_summary(text, uuid, uuid, text, text, text, date, date);
+DROP FUNCTION IF EXISTS public.get_web_vacancy_summary;
 CREATE OR REPLACE FUNCTION public.get_web_vacancy_summary(
   p_status text DEFAULT NULL::text,
   p_account_id uuid DEFAULT NULL::uuid,
@@ -1042,5 +1048,11 @@ BEGIN
   LEFT JOIN applicant_rollup ar ON ar.vacancy_id = f.vacancy_id;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.list_web_vacancies(text, uuid, uuid, text, text, text, text, date, date, integer, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_web_vacancies(text, uuid, uuid, text, text, text, text, date, date, integer, integer, text, text) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.get_web_vacancy_summary(text, uuid, uuid, text, text, text, date, date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_web_vacancy_summary(text, uuid, uuid, text, text, text, date, date) TO authenticated, service_role;
 
 COMMIT;

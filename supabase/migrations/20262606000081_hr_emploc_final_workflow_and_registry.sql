@@ -1866,6 +1866,8 @@ EXECUTE FUNCTION public.trg_sync_deployed_employee_no_fn();
 -- SECTION 9: LIST_WEB_HR_EMPLOCS (PRESERVING LIVE BODY, UPDATING QUEUE & CAPABILITIES)
 -- ====================================================================
 
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
   p_queue text DEFAULT NULL::text,
   p_status text DEFAULT NULL::text,
@@ -2265,6 +2267,8 @@ GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uui
 -- SECTION 10: GET_WEB_HR_EMPLOC_SUMMARY (PRESERVING EXACT TABLE RETURN SIGNATURE & NEW DEPLOYED LOGIC)
 -- ====================================================================
 
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary;
 CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(
   p_queue text DEFAULT NULL::text,
   p_status text DEFAULT NULL::text,

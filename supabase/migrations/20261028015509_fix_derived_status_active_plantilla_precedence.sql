@@ -5,6 +5,7 @@
 -- Stamped by apply_migration on staging: 20261028015509
 -- ============================================================================
 
+DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_list AS
 WITH applicant_stats AS (
   SELECT a_1.vacancy_vcode,
@@ -226,6 +227,7 @@ ALTER VIEW public.vw_vacancy_list OWNER TO postgres;
 GRANT SELECT ON public.vw_vacancy_list TO authenticated, service_role;
 
 
+DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;
 CREATE OR REPLACE VIEW public.vw_vacancy_detail AS
 WITH applicant_stats AS (
   SELECT a_1.vacancy_vcode,

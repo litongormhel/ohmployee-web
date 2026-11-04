@@ -2,6 +2,8 @@
 -- Description: Increase p_limit ceiling in public.list_web_plantilla_employees from 200 to 5000
 -- to support full-roster fetching for accounts with 750+ personnel without client-side row truncation.
 
+DROP FUNCTION IF EXISTS public.list_web_plantilla_employees(text, uuid, uuid, uuid, text, text, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_plantilla_employees;
 CREATE OR REPLACE FUNCTION public.list_web_plantilla_employees(
   p_search            text    DEFAULT NULL,
   p_account_id        uuid    DEFAULT NULL,
@@ -314,3 +316,6 @@ $$;
 COMMENT ON FUNCTION public.list_web_plantilla_employees(
   text, uuid, uuid, uuid, text, text, text, integer, integer, text, text
 ) IS 'Lists plantilla employees with client filtering, role-scoped security, masking metadata, and pagination support up to 5000 rows.';
+
+REVOKE ALL ON FUNCTION public.list_web_plantilla_employees(text, uuid, uuid, uuid, text, text, text, integer, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_web_plantilla_employees(text, uuid, uuid, uuid, text, text, text, integer, integer, text, text) TO authenticated, service_role;

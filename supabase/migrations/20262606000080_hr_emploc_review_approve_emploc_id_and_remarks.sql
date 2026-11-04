@@ -392,6 +392,8 @@ GRANT  EXECUTE ON FUNCTION public.review_web_hr_emploc_correction(uuid, text, js
 -- SECTION 3: Update list_web_hr_emplocs to expose ops_remarks
 -- ====================================================================
 
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(p_queue text DEFAULT NULL::text, p_status text DEFAULT NULL::text, p_deficiency text DEFAULT NULL::text, p_sla_filter text DEFAULT NULL::text, p_account_id uuid DEFAULT NULL::uuid, p_group_id uuid DEFAULT NULL::uuid, p_search text DEFAULT NULL::text, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0, p_sort_by text DEFAULT 'date_requested'::text, p_sort_dir text DEFAULT 'desc'::text)
  RETURNS TABLE(hr_emploc_id uuid, applicant_name text, vcode text, account_id uuid, account_name text, group_id uuid, group_name text, store_id uuid, store_name text, position_title text, hr_status text, status text, emploc_no text, employee_no text, date_requested timestamp with time zone, created_at timestamp with time zone, hired_date date, assignment_type text, roving_assignment_id uuid, aging_days integer, sla_breached boolean, sla_status text, sla_deadline timestamp with time zone, deficiency_summary jsonb, is_pending_deletion boolean, row_capabilities jsonb, total_count bigint)
  LANGUAGE plpgsql

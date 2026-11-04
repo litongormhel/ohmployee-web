@@ -24,6 +24,8 @@ BEGIN;
 -- =============================================================================
 -- 1A-1. public.get_web_hr_emploc_summary
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary;
 CREATE OR REPLACE FUNCTION public.get_web_hr_emploc_summary(
   p_queue      text DEFAULT NULL::text,
   p_status     text DEFAULT NULL::text,
@@ -188,6 +190,8 @@ $function$;
 -- =============================================================================
 -- 1A-2. public.list_web_hr_emplocs
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_hr_emplocs;
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(
   p_queue      text DEFAULT NULL::text,
   p_status     text DEFAULT NULL::text,
@@ -606,6 +610,8 @@ $function$;
 -- =============================================================================
 -- 1B-1. public.get_web_plantilla_summary
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.get_web_plantilla_summary(text, uuid, uuid);
+DROP FUNCTION IF EXISTS public.get_web_plantilla_summary;
 CREATE OR REPLACE FUNCTION public.get_web_plantilla_summary(
   p_search     text DEFAULT NULL::text,
   p_account_id uuid DEFAULT NULL::uuid,
@@ -873,6 +879,8 @@ $function$;
 -- =============================================================================
 -- 1B-2. public.list_web_plantilla_store_staffing
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.list_web_plantilla_store_staffing(text, uuid, uuid, text, integer, integer, text, text);
+DROP FUNCTION IF EXISTS public.list_web_plantilla_store_staffing;
 CREATE OR REPLACE FUNCTION public.list_web_plantilla_store_staffing(
   p_search      text DEFAULT NULL::text,
   p_account_id  uuid DEFAULT NULL::uuid,
@@ -1224,5 +1232,17 @@ BEGIN
   OFFSET v_offset;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.get_web_plantilla_summary(text, uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_web_plantilla_summary(text, uuid, uuid) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.list_web_plantilla_store_staffing(text, uuid, uuid, text, integer, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_web_plantilla_store_staffing(text, uuid, uuid, text, integer, integer, text, text) TO authenticated, service_role;
 
 COMMIT;

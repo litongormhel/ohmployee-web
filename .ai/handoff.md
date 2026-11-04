@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Fix Supabase Migrations 42P13 & 42P16 Idempotency for Production Push (ohm#fix-mig-42p13-prod)
+
+**Status: COMPLETE ON MAIN; ALL PENDING PROD MIGRATIONS SURGICALLY HARDENED WITH `DROP FUNCTION IF EXISTS` AND `DROP VIEW IF EXISTS ... CASCADE`; ROLLBACK SCRIPT RELOCATED OUT OF MIGRATIONS DIRECTORY; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause Resolution for Supabase Migration Error `42P13` on `list_web_plantilla_store_staffing`
+- **Reported Error**: During `npx supabase db push --include-all` against Production (`rwxelulyapjgaarlwkus`), migration `20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql` failed at statement 4:
+  `ERROR: cannot change return type of existing function (SQLSTATE 42P13)`
+  `Row type defined by OUT parameters is different.`
+- **Root Cause**: In PostgreSQL, `CREATE OR REPLACE FUNCTION` will fail if the return table definition (OUT parameters) differs in column names, types, or order from the pre-existing function in the remote catalog. To replace a table-returning function whose return row structure differs from what exists in Production, `DROP FUNCTION IF EXISTS ...` must precede the `CREATE OR REPLACE FUNCTION`.
+
+### 2. Full Batch Sanity Check & Comprehensive Hardening
+A full audit of all 24 pending migrations in the push batch was performed to ensure zero subsequent errors:
+1. **`20261027091040_fix_plantilla_summary_slot_counts_and_emploc_deleted_filter.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.list_web_plantilla_store_staffing(...)` and `DROP FUNCTION IF EXISTS public.list_web_plantilla_store_staffing;`.
+   - Added `DROP FUNCTION IF EXISTS` for `get_web_hr_emploc_summary`, `list_web_hr_emplocs`, and `get_web_plantilla_summary`.
+   - Restored explicit `GRANT EXECUTE` permissions to `authenticated` and `service_role` for all 4 functions before `COMMIT;`.
+2. **`20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`**:
+   - Added `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;` and `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;` (protecting against `42P16` column modification errors).
+   - Added `DROP FUNCTION IF EXISTS public.list_web_vacancies(...)` and `DROP FUNCTION IF EXISTS public.get_web_vacancy_summary(...)` with grants restored.
+3. **`20261028015509_fix_derived_status_active_plantilla_precedence.sql`**:
+   - Added `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE;` and `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;`.
+4. **`20261028020000_increase_plantilla_list_limit.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.list_web_plantilla_employees(...)` with grants restored.
+5. **`20262606000075_friendly_hr_emploc_activity_timeline.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.get_correction_timeline(uuid);`.
+6. **`20262606000078_super_admin_plantilla_employee_rls.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.get_web_plantilla_detail(uuid);`.
+7. **`20262606000080_hr_emploc_review_approve_emploc_id_and_remarks.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(...)`.
+8. **`20262606000081_hr_emploc_final_workflow_and_registry.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(...)` and `public.get_web_hr_emploc_summary(...)`.
+9. **`20262606000082_fix_list_web_hr_emplocs_position_column.sql`**:
+   - Added `DROP FUNCTION IF EXISTS public.list_web_hr_emplocs(...)`.
+10. **`supabase/migrations/rollback_20262606000081.sql`**:
+    - Moved to `supabase/rollbacks/rollback_20262606000081.sql` to avoid CLI file pattern skip notices.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Fix Supabase Migration `20261014193500` Drop `vw_vacancy_detail` 42P16 Error (ohm#fix-mig-42p16-detail)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` SURGICALLY PATCHED WITH `DROP VIEW IF EXISTS public.vw_vacancy_detail CASCADE;`; ZERO DEPENDENT VIEWS IN SCHEMA; GRANTS RESTORED; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

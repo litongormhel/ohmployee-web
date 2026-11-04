@@ -74,6 +74,7 @@ USING (
 -- ----------------------------------------------------------------------------
 -- 4. RPC: get_web_plantilla_detail Super Admin & Direct Table Fallback
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_web_plantilla_detail(uuid);
 CREATE OR REPLACE FUNCTION public.get_web_plantilla_detail(p_employee_id uuid)
 RETURNS TABLE (
   plantilla_id                uuid,

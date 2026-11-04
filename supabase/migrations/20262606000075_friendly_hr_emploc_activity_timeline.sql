@@ -10,6 +10,7 @@
 --     public.hr_emploc_deletion_requests and shown in the trail.
 --   Function signature (RETURNS TABLE) is unchanged, so get_web_hr_emploc_detail keeps working.
 
+DROP FUNCTION IF EXISTS public.get_correction_timeline(uuid);
 CREATE OR REPLACE FUNCTION public.get_correction_timeline(p_correction_request_id uuid)
 RETURNS TABLE(
   event_id uuid,
