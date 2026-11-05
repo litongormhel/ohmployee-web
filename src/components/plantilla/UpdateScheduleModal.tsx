@@ -39,21 +39,6 @@ export interface UpdateScheduleModalProps {
 const DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 type DayCode = (typeof DAYS_OF_WEEK)[number];
 
-const TIME_PRESETS = [
-  "08:00 AM - 05:00 PM",
-  "09:00 AM - 06:00 PM",
-  "07:00 AM - 04:00 PM",
-  "10:00 AM - 07:00 PM",
-  "FLEXI (8 HRS)",
-];
-
-const SCHEDULE_PRESETS = [
-  { label: "MON-SAT", days: ["MON", "TUE", "WED", "THU", "FRI", "SAT"] },
-  { label: "MON-FRI", days: ["MON", "TUE", "WED", "THU", "FRI"] },
-  { label: "MON-WED", days: ["MON", "TUE", "WED"] },
-  { label: "THU-SAT", days: ["THU", "FRI", "SAT"] },
-];
-
 function parseDayoffString(raw?: string | null): DayCode[] {
   if (!raw || !raw.trim()) return ["SUN"];
   const dayMap: Record<string, DayCode> = {
@@ -381,30 +366,9 @@ export function UpdateScheduleModal({
 
                   {/* Duty Days Selector */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-2xs font-bold text-text-secondary">
-                        DUTY DAYS
-                      </label>
-                      {/* Quick Presets */}
-                      <div className="flex items-center gap-1">
-                        {SCHEDULE_PRESETS.map((preset) => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() =>
-                              updateAllocation(idx, { scheduleDays: preset.label })
-                            }
-                            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border transition cursor-pointer ${
-                              alloc.scheduleDays === preset.label
-                                ? "bg-brand-primary text-white border-brand-primary"
-                                : "bg-surface-muted text-text-secondary hover:text-text-primary border-border-subtle"
-                            }`}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <label className="block text-2xs font-bold text-text-secondary mb-1.5">
+                      DUTY DAYS
+                    </label>
 
                     {/* Day Pill Toggles */}
                     <div className="grid grid-cols-7 gap-1">
@@ -437,32 +401,13 @@ export function UpdateScheduleModal({
                     <label className="block text-2xs font-bold text-text-secondary mb-1">
                       SHIFT TIME WINDOW
                     </label>
-                    <div className="space-y-1.5">
-                      <input
-                        type="text"
-                        value={alloc.scheduleTime || ""}
-                        onChange={(e) => updateAllocation(idx, { scheduleTime: e.target.value })}
-                        placeholder="e.g. 08:00 AM - 05:00 PM"
-                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary"
-                      />
-                      {/* Common Time Presets */}
-                      <div className="flex flex-wrap gap-1">
-                        {TIME_PRESETS.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => updateAllocation(idx, { scheduleTime: t })}
-                            className={`px-2 py-0.5 text-[10px] font-mono rounded border transition cursor-pointer ${
-                              alloc.scheduleTime === t
-                                ? "bg-brand-primary text-white border-brand-primary font-bold"
-                                : "bg-surface-muted hover:bg-surface-base border-border-subtle text-text-secondary hover:text-text-primary"
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <input
+                      type="text"
+                      value={alloc.scheduleTime || ""}
+                      onChange={(e) => updateAllocation(idx, { scheduleTime: e.target.value })}
+                      placeholder="00:00 AM/PM - 00:00 AM/PM"
+                      className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary"
+                    />
                   </div>
                 </div>
               );

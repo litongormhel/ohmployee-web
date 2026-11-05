@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
+
+**Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Duty Days Header Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed the preset buttons (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) across from the `DUTY DAYS` label.
+   - Cleaned up the section header to display a simple, clear `<label>DUTY DAYS</label>` followed by the 7 interactive day pill toggles (`MON` through `SUN`).
+2. **Shift Time Window Input Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed all time preset buttons (`08:00 AM - 05:00 PM`, etc.) below the input field.
+   - Simplified to a single clean text input field with placeholder `00:00 AM/PM - 00:00 AM/PM`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
 
 **Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4718,6 +4737,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
+
+**Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Duty Days Header Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed the preset buttons (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) across from the `DUTY DAYS` label.
+   - Cleaned up the section header to display a simple, clear `<label>DUTY DAYS</label>` followed by the 7 interactive day pill toggles (`MON` through `SUN`).
+2. **Shift Time Window Input Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed all time preset buttons (`08:00 AM - 05:00 PM`, etc.) below the input field.
+   - Simplified to a single clean text input field with placeholder `00:00 AM/PM - 00:00 AM/PM`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
 
 **Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5419,6 +5457,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
+
+**Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Duty Days Header Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed the preset buttons (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) across from the `DUTY DAYS` label.
+   - Cleaned up the section header to display a simple, clear `<label>DUTY DAYS</label>` followed by the 7 interactive day pill toggles (`MON` through `SUN`).
+2. **Shift Time Window Input Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed all time preset buttons (`08:00 AM - 05:00 PM`, etc.) below the input field.
+   - Simplified to a single clean text input field with placeholder `00:00 AM/PM - 00:00 AM/PM`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
 
@@ -6145,6 +6202,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
+
+**Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Duty Days Header Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed the preset buttons (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) across from the `DUTY DAYS` label.
+   - Cleaned up the section header to display a simple, clear `<label>DUTY DAYS</label>` followed by the 7 interactive day pill toggles (`MON` through `SUN`).
+2. **Shift Time Window Input Streamlining (`UpdateScheduleModal.tsx`)**:
+   - Removed all time preset buttons (`08:00 AM - 05:00 PM`, etc.) below the input field.
+   - Simplified to a single clean text input field with placeholder `00:00 AM/PM - 00:00 AM/PM`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
 
