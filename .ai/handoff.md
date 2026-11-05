@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
+
+**Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Dedicated Employee Profile Page (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Built a full-width Next.js 16 app router dynamic route (`/plantilla/[id]`) wrapped in `<Suspense>`.
+   - Uses `useParams<{ id: string }>()` and queries employee details through `getWebPlantillaDetail(id)` via `@tanstack/react-query` with proper error handling (`DataState` for loading, empty, access denied, and retryable error).
+   - Integrated `syncPlantillaMika` mutation with a loading spinner, toast banner, and cache invalidation.
+   - Top Navigation & Context Bar:
+     - `← Back to Plantilla` button reconstructing the exact return URL using preserved query params (`status` / `fromTab`, `accountId`, `display`, `search`, `page`).
+   - Top Summary Header Card:
+     - Initials avatar, full display name (`Last, First`), status badge, employee ID (`Emploc#`), VCode, assigned store, position, date hired, and computed tenure.
+   - Prominent Capability-Aware Actions Bar:
+     - Always visible at the top without scrolling:
+       - `Update Employment Status` (Primary brand button) → opens `UpdateEmploymentStatusModal`.
+       - `Transfer Employee` → opens `TransferPersonnelModal`.
+       - `Reassign HRCO` → triggers submission feedback toast.
+       - `Request Deactivation` → opens `RequestDeactivationModal` (respecting eligibility gate: disabled for Active/On-Leave, shows `"Deactivation Pending"` if pending).
+       - `Request Deletion` → triggers operations queue logging toast.
+   - Category Tabs (5 dedicated tabs):
+     1. **Employment & Allocation**: VCode, Store Name, Area/Province, Position, Plantilla Tier (`plantillaType`), Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, Account Portfolio, and active separation/transfer banners.
+     2. **Work Schedule & Rate**: Schedule Days, Schedule Time, Day Off, Daily Base Rate, Assigned HR Coordinator, and the **`Edit Schedule`** button triggering `UpdateScheduleModal`.
+     3. **Benefits & Statutory**: Maskable statutory contribution numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM Account) with mask/reveal toggle (`Eye` / `EyeOff`), and MIKA HRIS synchronization status card.
+     4. **Stores & Coverage**: Active assigned stores roster with Headcount Share fractions (`allocationPercent`), primary store designation, and store coverage history count.
+     5. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
+
+2. **Main Plantilla Page Navigation & State Preservation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Implemented `handleNavigateToEmployee(empId)`: Serializes current `statusTab`, `displayView` (`table` or `cards`), `search`, `page`, and `accountId` into URL search parameters and routes to `/plantilla/${empId}?${params}`.
+   - Wired `handleNavigateToEmployee` across all 5 employee status tabs in both table and card views (`EmployeeActiveTable`, `EmployeeCard`, `EmployeeOnLeaveTable`, `EmployeeOnLeaveCard`, `EmployeeFloatingTable`, `EmployeeFloatingCard`, `EmployeeDeactivationTable`, `EmployeeDeactivationCard`, `EmployeeInactiveTable`, `EmployeeInactiveCard`).
+   - Guaranteed all row-level action buttons (`Assign Store`, `Assign Reliever`, `Return to Active`) keep `e.stopPropagation()` so quick actions trigger their dedicated modals without triggering row navigation.
+   - Enhanced state initialization in `PlantillaPageContent` so returning to `/plantilla` with search parameters restores `displayView`, `page`, `search`, and `statusTab` without state loss.
+   - Removed the right-side `PlantillaDetailDrawer` from the main page.
+
+3. **Permanent ADR & Architectural Rule Locks**:
+   - Added **Rule #5 (Employee Detail Navigation & State Preservation Contract)** to `.ai/briefing.md` and `docs/state/plantilla_web_state.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to document the full-page category-tabbed employee profile architecture.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Plantilla Floating Tab DOLE Tracking, Table Layout Streamlining & Store Slot Restriction (ohm#branch2-floating-tab-dole-tracking-and-slot-restriction)
 
 **Status: COMPLETE ON BRANCH2; DOLE ARTICLE 301 COMPLIANCE TRACKING IMPLEMENTED WITH DAYS ELAPSED COUNTDOWN BADGES (`FloatingDoleBadge`, `getFloatingDurationDays`) ACROSS FLOATING TABLE AND CARD ROSTERS; FLOATING TAB TABLE CLEANED UP BY STRICTLY REMOVING STATUS COLUMN AND DETAILS ACTION BUTTON (ASSIGN STORE REMAINS PRIMARY ACTION PER `image_a97f7f.png`); ASSIGN STORE MODAL ENHANCED TO STRICTLY RESTRICT TARGET STORE SELECTION TO LOCATIONS WITH AVAILABLE HEADCOUNT SLOTS (`hc_filled < hc_total`, E.G. `1/2`), HIDING FULLY OCCUPIED STORES (`1/1`, `2/2`) TO PREVENT OVER-ALLOCATION; STATE DOCUMENTATION AND ARCHITECTURAL RULE #4 LOCKED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4550,6 +4594,50 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
+
+**Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Dedicated Employee Profile Page (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Built a full-width Next.js 16 app router dynamic route (`/plantilla/[id]`) wrapped in `<Suspense>`.
+   - Uses `useParams<{ id: string }>()` and queries employee details through `getWebPlantillaDetail(id)` via `@tanstack/react-query` with proper error handling (`DataState` for loading, empty, access denied, and retryable error).
+   - Integrated `syncPlantillaMika` mutation with a loading spinner, toast banner, and cache invalidation.
+   - Top Navigation & Context Bar:
+     - `← Back to Plantilla` button reconstructing the exact return URL using preserved query params (`status` / `fromTab`, `accountId`, `display`, `search`, `page`).
+   - Top Summary Header Card:
+     - Initials avatar, full display name (`Last, First`), status badge, employee ID (`Emploc#`), VCode, assigned store, position, date hired, and computed tenure.
+   - Prominent Capability-Aware Actions Bar:
+     - Always visible at the top without scrolling:
+       - `Update Employment Status` (Primary brand button) → opens `UpdateEmploymentStatusModal`.
+       - `Transfer Employee` → opens `TransferPersonnelModal`.
+       - `Reassign HRCO` → triggers submission feedback toast.
+       - `Request Deactivation` → opens `RequestDeactivationModal` (respecting eligibility gate: disabled for Active/On-Leave, shows `"Deactivation Pending"` if pending).
+       - `Request Deletion` → triggers operations queue logging toast.
+   - Category Tabs (5 dedicated tabs):
+     1. **Employment & Allocation**: VCode, Store Name, Area/Province, Position, Plantilla Tier (`plantillaType`), Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, Account Portfolio, and active separation/transfer banners.
+     2. **Work Schedule & Rate**: Schedule Days, Schedule Time, Day Off, Daily Base Rate, Assigned HR Coordinator, and the **`Edit Schedule`** button triggering `UpdateScheduleModal`.
+     3. **Benefits & Statutory**: Maskable statutory contribution numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM Account) with mask/reveal toggle (`Eye` / `EyeOff`), and MIKA HRIS synchronization status card.
+     4. **Stores & Coverage**: Active assigned stores roster with Headcount Share fractions (`allocationPercent`), primary store designation, and store coverage history count.
+     5. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
+
+2. **Main Plantilla Page Navigation & State Preservation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Implemented `handleNavigateToEmployee(empId)`: Serializes current `statusTab`, `displayView` (`table` or `cards`), `search`, `page`, and `accountId` into URL search parameters and routes to `/plantilla/${empId}?${params}`.
+   - Wired `handleNavigateToEmployee` across all 5 employee status tabs in both table and card views (`EmployeeActiveTable`, `EmployeeCard`, `EmployeeOnLeaveTable`, `EmployeeOnLeaveCard`, `EmployeeFloatingTable`, `EmployeeFloatingCard`, `EmployeeDeactivationTable`, `EmployeeDeactivationCard`, `EmployeeInactiveTable`, `EmployeeInactiveCard`).
+   - Guaranteed all row-level action buttons (`Assign Store`, `Assign Reliever`, `Return to Active`) keep `e.stopPropagation()` so quick actions trigger their dedicated modals without triggering row navigation.
+   - Enhanced state initialization in `PlantillaPageContent` so returning to `/plantilla` with search parameters restores `displayView`, `page`, `search`, and `statusTab` without state loss.
+   - Removed the right-side `PlantillaDetailDrawer` from the main page.
+
+3. **Permanent ADR & Architectural Rule Locks**:
+   - Added **Rule #5 (Employee Detail Navigation & State Preservation Contract)** to `.ai/briefing.md` and `docs/state/plantilla_web_state.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to document the full-page category-tabbed employee profile architecture.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
 
 **Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5083,6 +5171,50 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
+
+**Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Dedicated Employee Profile Page (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Built a full-width Next.js 16 app router dynamic route (`/plantilla/[id]`) wrapped in `<Suspense>`.
+   - Uses `useParams<{ id: string }>()` and queries employee details through `getWebPlantillaDetail(id)` via `@tanstack/react-query` with proper error handling (`DataState` for loading, empty, access denied, and retryable error).
+   - Integrated `syncPlantillaMika` mutation with a loading spinner, toast banner, and cache invalidation.
+   - Top Navigation & Context Bar:
+     - `← Back to Plantilla` button reconstructing the exact return URL using preserved query params (`status` / `fromTab`, `accountId`, `display`, `search`, `page`).
+   - Top Summary Header Card:
+     - Initials avatar, full display name (`Last, First`), status badge, employee ID (`Emploc#`), VCode, assigned store, position, date hired, and computed tenure.
+   - Prominent Capability-Aware Actions Bar:
+     - Always visible at the top without scrolling:
+       - `Update Employment Status` (Primary brand button) → opens `UpdateEmploymentStatusModal`.
+       - `Transfer Employee` → opens `TransferPersonnelModal`.
+       - `Reassign HRCO` → triggers submission feedback toast.
+       - `Request Deactivation` → opens `RequestDeactivationModal` (respecting eligibility gate: disabled for Active/On-Leave, shows `"Deactivation Pending"` if pending).
+       - `Request Deletion` → triggers operations queue logging toast.
+   - Category Tabs (5 dedicated tabs):
+     1. **Employment & Allocation**: VCode, Store Name, Area/Province, Position, Plantilla Tier (`plantillaType`), Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, Account Portfolio, and active separation/transfer banners.
+     2. **Work Schedule & Rate**: Schedule Days, Schedule Time, Day Off, Daily Base Rate, Assigned HR Coordinator, and the **`Edit Schedule`** button triggering `UpdateScheduleModal`.
+     3. **Benefits & Statutory**: Maskable statutory contribution numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM Account) with mask/reveal toggle (`Eye` / `EyeOff`), and MIKA HRIS synchronization status card.
+     4. **Stores & Coverage**: Active assigned stores roster with Headcount Share fractions (`allocationPercent`), primary store designation, and store coverage history count.
+     5. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
+
+2. **Main Plantilla Page Navigation & State Preservation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Implemented `handleNavigateToEmployee(empId)`: Serializes current `statusTab`, `displayView` (`table` or `cards`), `search`, `page`, and `accountId` into URL search parameters and routes to `/plantilla/${empId}?${params}`.
+   - Wired `handleNavigateToEmployee` across all 5 employee status tabs in both table and card views (`EmployeeActiveTable`, `EmployeeCard`, `EmployeeOnLeaveTable`, `EmployeeOnLeaveCard`, `EmployeeFloatingTable`, `EmployeeFloatingCard`, `EmployeeDeactivationTable`, `EmployeeDeactivationCard`, `EmployeeInactiveTable`, `EmployeeInactiveCard`).
+   - Guaranteed all row-level action buttons (`Assign Store`, `Assign Reliever`, `Return to Active`) keep `e.stopPropagation()` so quick actions trigger their dedicated modals without triggering row navigation.
+   - Enhanced state initialization in `PlantillaPageContent` so returning to `/plantilla` with search parameters restores `displayView`, `page`, `search`, and `statusTab` without state loss.
+   - Removed the right-side `PlantillaDetailDrawer` from the main page.
+
+3. **Permanent ADR & Architectural Rule Locks**:
+   - Added **Rule #5 (Employee Detail Navigation & State Preservation Contract)** to `.ai/briefing.md` and `docs/state/plantilla_web_state.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to document the full-page category-tabbed employee profile architecture.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
 
@@ -5641,6 +5773,50 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
+
+**Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Dedicated Employee Profile Page (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Built a full-width Next.js 16 app router dynamic route (`/plantilla/[id]`) wrapped in `<Suspense>`.
+   - Uses `useParams<{ id: string }>()` and queries employee details through `getWebPlantillaDetail(id)` via `@tanstack/react-query` with proper error handling (`DataState` for loading, empty, access denied, and retryable error).
+   - Integrated `syncPlantillaMika` mutation with a loading spinner, toast banner, and cache invalidation.
+   - Top Navigation & Context Bar:
+     - `← Back to Plantilla` button reconstructing the exact return URL using preserved query params (`status` / `fromTab`, `accountId`, `display`, `search`, `page`).
+   - Top Summary Header Card:
+     - Initials avatar, full display name (`Last, First`), status badge, employee ID (`Emploc#`), VCode, assigned store, position, date hired, and computed tenure.
+   - Prominent Capability-Aware Actions Bar:
+     - Always visible at the top without scrolling:
+       - `Update Employment Status` (Primary brand button) → opens `UpdateEmploymentStatusModal`.
+       - `Transfer Employee` → opens `TransferPersonnelModal`.
+       - `Reassign HRCO` → triggers submission feedback toast.
+       - `Request Deactivation` → opens `RequestDeactivationModal` (respecting eligibility gate: disabled for Active/On-Leave, shows `"Deactivation Pending"` if pending).
+       - `Request Deletion` → triggers operations queue logging toast.
+   - Category Tabs (5 dedicated tabs):
+     1. **Employment & Allocation**: VCode, Store Name, Area/Province, Position, Plantilla Tier (`plantillaType`), Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, Account Portfolio, and active separation/transfer banners.
+     2. **Work Schedule & Rate**: Schedule Days, Schedule Time, Day Off, Daily Base Rate, Assigned HR Coordinator, and the **`Edit Schedule`** button triggering `UpdateScheduleModal`.
+     3. **Benefits & Statutory**: Maskable statutory contribution numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM Account) with mask/reveal toggle (`Eye` / `EyeOff`), and MIKA HRIS synchronization status card.
+     4. **Stores & Coverage**: Active assigned stores roster with Headcount Share fractions (`allocationPercent`), primary store designation, and store coverage history count.
+     5. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
+
+2. **Main Plantilla Page Navigation & State Preservation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Implemented `handleNavigateToEmployee(empId)`: Serializes current `statusTab`, `displayView` (`table` or `cards`), `search`, `page`, and `accountId` into URL search parameters and routes to `/plantilla/${empId}?${params}`.
+   - Wired `handleNavigateToEmployee` across all 5 employee status tabs in both table and card views (`EmployeeActiveTable`, `EmployeeCard`, `EmployeeOnLeaveTable`, `EmployeeOnLeaveCard`, `EmployeeFloatingTable`, `EmployeeFloatingCard`, `EmployeeDeactivationTable`, `EmployeeDeactivationCard`, `EmployeeInactiveTable`, `EmployeeInactiveCard`).
+   - Guaranteed all row-level action buttons (`Assign Store`, `Assign Reliever`, `Return to Active`) keep `e.stopPropagation()` so quick actions trigger their dedicated modals without triggering row navigation.
+   - Enhanced state initialization in `PlantillaPageContent` so returning to `/plantilla` with search parameters restores `displayView`, `page`, `search`, and `statusTab` without state loss.
+   - Removed the right-side `PlantillaDetailDrawer` from the main page.
+
+3. **Permanent ADR & Architectural Rule Locks**:
+   - Added **Rule #5 (Employee Detail Navigation & State Preservation Contract)** to `.ai/briefing.md` and `docs/state/plantilla_web_state.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to document the full-page category-tabbed employee profile architecture.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
 

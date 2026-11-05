@@ -13,6 +13,7 @@ This document specifies the target architecture, visual structures, data contrac
 2. **Rule #2 (Safe Audit Logging):** Audit log triggers (`fn_audit_log`) and audit log callers (`log_audit_event`) must always use safe actor ID resolution (`resolve_audit_actor_id`) with fallbacks to `NULL` on `foreign_key_violation`. In addition, a universal trigger (`trg_safe_audit_logs_actor_id` on `public.audit_logs`) guarantees that any unresolvable actor ID not found in `auth.users` is automatically converted to `NULL` before constraint evaluation, permanently preventing operational mutation failures (e.g. during employment status updates, Floating, Resigned, AWOL, Terminated) due to missing auth users or FK constraints. 
 3. **Rule #3 (Plantilla Table & Universal Cards Contract):** The Deactivation Tab roster strictly enforces column layout `Emploc# / Member / VCode / Store / Position / Assignment / Status` (with Actions column completely removed); the Inactive Tab roster strictly removes `Clearance Status` and dynamically resolves operational/separation remarks from `plantilla.remarks` with waterfall fallback to `audit_logs`; and the `Table / Cards` view toggle must remain fully supported and crash-free across all status tabs (Active, On-Leave, Vacancy, Floating, Deactivation, Inactive).
 4. **Rule #4 (Floating Compliance, Layout & Store Slot Restriction):** Floating records must continuously track duration and days elapsed for DOLE compliance monitoring (Article 301 maximum 180-day temporary layoff limit) via reactive countdown badges across table and card views. The Floating tab table strictly excludes the `Details` action button and the `Status` column, maintaining `Assign Store` as the single primary action. Store assignments for floating personnel in `AssignStoreModal` are strictly restricted to locations with open or available slots (`hc_filled < hc_total`, e.g., `1/2`), with fully occupied stores (`1/1`, `2/2`) filtered out and hidden to prevent over-allocation. 
+5. **Rule #5 (Employee Detail Navigation & State Preservation Contract):** Clicking an employee record across all status tabs (Active, On-Leave, Floating, Deactivation, Inactive) in both table and card views navigates to the dedicated full-page Employee Profile view (`/plantilla/[id]`), replacing the cramped right-side `PlantillaDetailDrawer`. The full-page view organizes employee data into 5 dedicated category tabs (Employment & Allocation, Work Schedule & Rate, Benefits & Statutory, Stores & Coverage, Activity & System Info) and features an always-visible top summary card and capability-aware actions bar (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`). The return navigation link (`← Back to Plantilla`) strictly preserves the originating context (status tab, view mode `table` vs `cards`, search filter, account scope, and pagination page) via URL parameters, guaranteeing zero disruption of operational context when returning to the plantilla roster. 
 
 The **Plantilla** module is the final authority and active directory for all deployed personnel across the organization. In the operational hiring and deployment pipeline, a record progresses through the following canonical stages:
 
@@ -361,71 +362,32 @@ Retailers often require temporary, seasonal, or campaign-based personnel who sit
 
 ---
 
-## 8. Plantilla Detail Drawer UX & Content Structure
+## 8. Dedicated Employee Profile View (`/plantilla/[id]`) & Navigation Contract
 
-When a row is clicked in the main grid, the Plantilla Detail Drawer slides overlaying the list from the right. It utilizes the `DetailDrawer` shared container, locked to `drawer-width-lg` (`640px`) to handle dense layouts.
+Per **Rule #5 (Employee Detail Navigation & State Preservation Contract)**, clicking any employee row or card across the 5 employee status tabs (Active, On-Leave, Floating, Deactivation, Inactive) navigates to a dedicated full-page Employee Profile view at `/plantilla/[id]`, replacing the cramped slide-over drawer (`PlantillaDetailDrawer`).
 
-```
-+-----------------------------------------------------------------------+
-|  Account / Location Hierarchy Breadcrumbs                        [X]  |
-|                                                                       |
-|  [H1] SANTOS, MARIA                                                   |
-|  Employee ID: EMP-001042 (Monospace Badge)                            |
-|  Type: [Budgeted]        Status: [Active (success)]                    |
-+-----------------------------------------------------------------------+
-|  Employment & Allocation (Grid)                                       |
-|  - Date Deployed: 2025-01-15     - Position: Field Merchandiser       |
-|  - Account: Cebu Regional Account- Primary Store: Cebu Mall           |
-|  - Base Rate: ₱560.00 / day      - Tenure: 1 Year, 4 Months           |
-+-----------------------------------------------------------------------+
-|  Roving Coverage Assignments                                          |
-|  [Assignment: Roving]                                                 |
-|  - Cebu Mall (Primary - 60% Allocation)                               |
-|  - Cebu Plaza Store (Roving - 20% Allocation)                         |
-|  - Mandaue Hub (Roving - 20% Allocation)                              |
-+-----------------------------------------------------------------------+
-|  Clearance & Offboarding Audits                                       |
-|  [Status: Pending Separation (resignation)]                            |
-|  [ ] Uniform Returned            [x] Company ID Card Surrendered      |
-|  [ ] SIM/Device Returned         [x] Handover Document Uploaded       |
-|  HR Remarks: "Awaiting uniform return from HRCO before final archive" |
-+-----------------------------------------------------------------------+
-|  SLA & Transition Performance                                         |
-|  - Pending Separation Age: 4 Days                                     |
-|  - [!] SLA Breach: Clearance approval has exceeded the 48h SLA window.|
-+-----------------------------------------------------------------------+
-|  Roster Audit History                                                 |
-|  o [Separation Requested] - 4 days ago by Santos, Maria (HRCO)        |
-|  o [Transfer Approved]    - 6 months ago by Dela Cruz, Ana (HeadAdmin)|
-|  o [Deployed to Plantilla]- 1.3 years ago by System Automatic Trigger |
-+-----------------------------------------------------------------------+
-|  Capability-Aware Actions (Sticky Bottom)                             |
-|  [ Transfer Personnel ]  [ Initiate Separation ]  [ Complete Clearance]|
-+-----------------------------------------------------------------------+
-```
+### A. Navigation & URL State Preservation
+- **State Continuity**: On row or card click, the parent page context is preserved in URL query parameters (`status` or `fromTab`, `display` mode `table` or `cards`, `page`, `search`, `accountId`).
+- **Return Contract**: Clicking the top **`← Back to Plantilla`** link returns the operator to the exact status tab, display view mode, search filter query, and pagination page they originated from.
 
-### Drawer Layout Components:
-1. **Header Identification Area**:
-   - Employee primary display name (`last_name, first_name`).
-   - `employee_no` rendered as a prominent monospace badge.
-   - Status Badge and Plantilla Type pill (`Budgeted` vs. `AH`).
-   - Location breadcrumbs (`Account / Primary Store / Regional Group`).
-2. **Employment Details Grid**:
-   - Dynamic data fields: `date_deployed`, `position_title`, `tenure` (calculated dynamically as `now() - date_deployed`), and `base_rate` (rendered as `₱***.**` or fully visible depending on role capability).
-3. **Roving Coverage Component**:
-   - Displayed only if `assignment_type == 'Roving'`.
-   - Renders a micro-grid of covered stores extracted from the `roving_stores` array.
-   - Lists the allocation weight (e.g., `60% primary`, `20% secondary`) or active weekly roster coverage.
-4. **Clearance Panel**:
-   - Active only when `plantilla_status == 'Pending Separation'`.
-   - Renders checklist checkboxes, file attachments for signed clearances, and HR coordinator notes.
-5. **SLA Warning Block**:
-   - Highlighted in soft red if active transitions (like transfers or separations) breach standard operational SLAs.
-6. **Roster Audit History Timeline**:
-   - Collapsible micro-list of chronological movements, promotions, and changes captured from the database audit log table (`plantilla_audit_logs`).
-7. **Capability-Controlled Action Bar**:
-   - Uses the shared `CapabilityActionBar` to display context actions dynamically based on resolved `row_capabilities`.
-   - Displays actions such as: `Initiate Transfer`, `Initiate Separation`, `Edit Roving Stores`, `Approve Clearance`, and `Toggle Suspend`.
+### B. Layout Architecture: Top Header & Prominent Action Bar
+- **Top Summary Card**:
+  - Avatar initials, Employee Full Name, Semantic Status Badge (`Active`, `On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+  - Metadata strip: Employee ID (`Emploc#`), VCode, Assigned Store, Position, Date Hired, and dynamic Tenure calculation.
+- **Always-Visible Personnel Actions Bar**:
+  - `Update Employment Status` (Primary brand button) → Opens `UpdateEmploymentStatusModal`.
+  - `Transfer Employee` → Opens `TransferPersonnelModal`.
+  - `Reassign HRCO` → Submits HR coordinator assignment review.
+  - `Request Deactivation` → Opens `RequestDeactivationModal` (disabled for Active/On-Leave; shows `"Deactivation Pending"` if pending).
+  - `Request Deletion` → Routes deletion request to operations queue.
+
+### C. Category Tabs Structure
+The full-width content area is structured into 5 clean, uncluttered Category Tabs:
+1. **Employment & Allocation**: VCode, Store Name, Area/Province, Position, Plantilla Tier (`plantillaType`), Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, and DOLE floating compliance countdown (if floating).
+2. **Work Schedule & Rate**: Schedule Days, Schedule Time, Day Off, Daily Base Wage Rate, Assigned HR Coordinator, and the **`Edit Schedule`** button triggering `UpdateScheduleModal`.
+3. **Benefits & Statutory**: Maskable government statutory IDs (SSS, PhilHealth, Pag-IBIG, TIN, ATM Payroll Account) with mask/reveal toggle (`Eye` / `EyeOff`), plus MIKA HRIS master synchronization trigger card.
+4. **Stores & Coverage**: Active assigned stores roster with Headcount Share fractions (`allocationPercent`), primary store designation, and store coverage history count.
+5. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
 
 ---
 

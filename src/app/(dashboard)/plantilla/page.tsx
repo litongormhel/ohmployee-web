@@ -64,7 +64,6 @@ import {
   formatAccountName,
   formatDisplayText,
 } from "@/lib/utils/displayText";
-import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 import { MosesHqPoolView } from "@/components/plantilla/MosesHqPoolView";
@@ -538,7 +537,8 @@ function PlantillaPageContent() {
   const [internalStatusTab, setInternalStatusTab] = useState<StatusSubTab>("active");
   const urlStatusParam = (
     searchParams.get("status") ||
-    searchParams.get("statusTab")
+    searchParams.get("statusTab") ||
+    searchParams.get("fromTab")
   )?.toLowerCase();
   const statusTab: StatusSubTab =
     urlStatusParam &&
@@ -549,22 +549,50 @@ function PlantillaPageContent() {
       : internalStatusTab;
 
   const [vacancySubFilter, setVacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
-  const [displayView, setDisplayView] = useState<DisplayView>("table");
+
+  const urlDisplayParam = (
+    searchParams.get("display") ||
+    searchParams.get("displayView") ||
+    searchParams.get("viewMode")
+  )?.toLowerCase();
+  const [displayView, setDisplayView] = useState<DisplayView>(
+    urlDisplayParam === "cards" ? "cards" : "table"
+  );
+
+  function handleSetDisplayView(view: DisplayView) {
+    setDisplayView(view);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("display", view);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   function handleSelectStatusTab(tab: StatusSubTab) {
     setInternalStatusTab(tab);
     setPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("status", tab);
+    params.delete("page");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  // Table pagination state
-  const [page, setPage] = useState(1);
+  // Table pagination state with URL synchronization
+  const urlPageParam = searchParams.get("page");
+  const initialPage = urlPageParam ? Math.max(1, parseInt(urlPageParam, 10) || 1) : 1;
+  const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState<number>(10);
 
+  function handlePageChange(newPage: number) {
+    setPage(newPage);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) {
+      params.set("page", newPage.toString());
+    } else {
+      params.delete("page");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   // Detail drawers and modals
-  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
 
@@ -631,8 +659,9 @@ function PlantillaPageContent() {
     }, 4500);
   }, [setToastMessage, setToastVariant]);
 
-  // Directory filter state
-  const [search, setSearch] = useState("");
+  // Directory filter state with URL restoration
+  const urlSearchParam = searchParams.get("search") ?? "";
+  const [search, setSearch] = useState(urlSearchParam);
   const [areaCityFilter, setAreaCityFilter] = useState(""); // "" | "area:Name" | "city:Name"
   const [assignmentType, setAssignmentType] = useState(""); // "" | "stationary" | "roving"
 
@@ -693,6 +722,27 @@ function PlantillaPageContent() {
     return "";
   }, [hasAllScope, allowedAccountsQuery.data]);
   const accountId = urlAccountId || singleScopedId;
+
+  // Navigation to Dedicated Full-Page Employee Profile (/plantilla/[id]) with context preservation
+  const handleNavigateToEmployee = useCallback((empId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("status", statusTab);
+    params.set("display", displayView);
+    if (page > 1) {
+      params.set("page", page.toString());
+    } else {
+      params.delete("page");
+    }
+    if (search.trim()) {
+      params.set("search", search.trim());
+    } else {
+      params.delete("search");
+    }
+    if (accountId) {
+      params.set("accountId", accountId);
+    }
+    router.push(`/plantilla/${empId}?${params.toString()}`);
+  }, [searchParams, statusTab, displayView, page, search, accountId, router]);
 
   // Verify that accountId is authorized for the current user
   const isAccountAuthorized = useMemo(() => {
@@ -2344,7 +2394,7 @@ function PlantillaPageContent() {
                 <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
                   <button
                     type="button"
-                    onClick={() => setDisplayView("table")}
+                    onClick={() => handleSetDisplayView("table")}
                     aria-label="Table View"
                     title="Table View"
                     className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
@@ -2358,7 +2408,7 @@ function PlantillaPageContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDisplayView("cards")}
+                    onClick={() => handleSetDisplayView("cards")}
                     aria-label="Cards View"
                     title="Cards View"
                     className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
@@ -2503,7 +2553,7 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <EmployeeActiveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                 />
               ) : (
@@ -2513,7 +2563,7 @@ function PlantillaPageContent() {
                       <EmployeeCard
                         key={row.id}
                         row={row}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                       />
                     ))}
@@ -2532,7 +2582,7 @@ function PlantillaPageContent() {
                 <EmployeeOnLeaveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
                   activeCoverageMap={activeCoverageMap}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                   onAssignReliever={(emp) => {
                     const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
@@ -2570,7 +2620,7 @@ function PlantillaPageContent() {
                         key={row.id}
                         row={row}
                         coverageItem={activeCoverageMap.get(row.id)}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                         onAssignReliever={(emp) => {
                           const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
@@ -2706,7 +2756,7 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <EmployeeFloatingTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                   onAssignStore={(emp) => {
                     setAssignStoreTargetEmployee({
@@ -2725,7 +2775,7 @@ function PlantillaPageContent() {
                       <EmployeeFloatingCard
                         key={row.id}
                         row={row}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                         onAssignStore={(emp) => {
                           setAssignStoreTargetEmployee({
@@ -2752,7 +2802,7 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <EmployeeDeactivationTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                 />
               ) : (
@@ -2762,7 +2812,7 @@ function PlantillaPageContent() {
                       <EmployeeDeactivationCard
                         key={row.id}
                         row={row}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                       />
                     ))}
@@ -2780,7 +2830,7 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <EmployeeInactiveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                 />
               ) : (
@@ -2790,7 +2840,7 @@ function PlantillaPageContent() {
                       <EmployeeInactiveCard
                         key={row.id}
                         row={row}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                       />
                     ))}
@@ -2807,7 +2857,7 @@ function PlantillaPageContent() {
                 pageSize={pageSize}
                 totalCount={currentTotalCount}
                 pageSizeOptions={[10, 25, 50]}
-                onPageChange={(p) => setPage(p)}
+                onPageChange={handlePageChange}
                 onPageSizeChange={(newPageSize) => {
                   setPageSize(newPageSize);
                   setPage(1);
@@ -2819,12 +2869,6 @@ function PlantillaPageContent() {
           </div>
 
           {/* Drawers & Modals */}
-          <PlantillaDetailDrawer
-            plantillaId={selectedPlantillaId}
-            onClose={() => setSelectedPlantillaId(null)}
-            onNavigateStatusTab={(tab) => handleSelectStatusTab(tab)}
-          />
-
           <VacancyDetailDrawer
             vacancyId={selectedVacancyId}
             onClose={() => {
