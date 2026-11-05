@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { WebCurrentUserContext } from "@/lib/auth";
@@ -2274,6 +2275,87 @@ export function useTransferPersonnel() {
     onSuccess: (_, variables) => {
       invalidatePlantillaCaches(queryClient, variables.plantillaId);
     },
+  });
+}
+
+export function usePlantillaInactiveRemarks(employeeIds: string[]) {
+  const supabase = createClient();
+  const sortedIds = useMemo(
+    () => Array.from(new Set(employeeIds)).filter(Boolean).sort(),
+    [employeeIds]
+  );
+
+  return useQuery({
+    queryKey: ["plantilla", "inactive-remarks", sortedIds],
+    queryFn: async (): Promise<Map<string, string>> => {
+      const remarksMap = new Map<string, string>();
+      if (sortedIds.length === 0) return remarksMap;
+
+      const chunkSize = 100;
+
+      // 1. Fetch remarks from public.plantilla
+      for (let i = 0; i < sortedIds.length; i += chunkSize) {
+        const chunk = sortedIds.slice(i, i + chunkSize);
+        try {
+          const { data: plantillaRows, error: pErr } = await supabase
+            .from("plantilla")
+            .select("id, remarks")
+            .in("id", chunk);
+
+          if (!pErr && Array.isArray(plantillaRows)) {
+            for (const row of plantillaRows) {
+              const r = asString(row.remarks)?.trim();
+              if (r) {
+                remarksMap.set(row.id as string, r);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Failed fetching plantilla remarks chunk:", err);
+        }
+      }
+
+      // 2. For IDs that still have no remarks, check audit_logs (new_data->remarks / notes / reason)
+      const missingIds = sortedIds.filter((id) => !remarksMap.has(id));
+      if (missingIds.length > 0) {
+        for (let i = 0; i < missingIds.length; i += chunkSize) {
+          const chunk = missingIds.slice(i, i + chunkSize);
+          try {
+            const { data: auditRows, error: aErr } = await supabase
+              .from("audit_logs")
+              .select("record_id, new_data, timestamp")
+              .in("record_id", chunk)
+              .order("timestamp", { ascending: false });
+
+            if (!aErr && Array.isArray(auditRows)) {
+              for (const aRow of auditRows) {
+                const recId = asString(aRow.record_id);
+                if (recId && !remarksMap.has(recId)) {
+                  const newData = asObject(aRow.new_data);
+                  const rem = asString(
+                    newData.remarks ??
+                    newData.p_remarks ??
+                    newData.separation_remarks ??
+                    newData.separationRemarks ??
+                    newData.notes ??
+                    newData.reason
+                  )?.trim();
+                  if (rem) {
+                    remarksMap.set(recId, rem);
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("Failed fetching audit_logs remarks chunk:", err);
+          }
+        }
+      }
+
+      return remarksMap;
+    },
+    enabled: sortedIds.length > 0,
+    staleTime: 60000,
   });
 }
 

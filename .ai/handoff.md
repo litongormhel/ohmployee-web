@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
+
+**Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Deactivation Tab Table Columns (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed the `Actions` column (`<th>` and `<td>` containing the "Details" button). The entire row remains clickable and keyboard accessible (`role="button"`, `onKeyDown`).
+   - Reordered columns to strictly follow: `Emploc# / Member / VCode / Store / Position / Assignment / Status`.
+   - Formatted `Emploc#` as a dedicated monospace column, followed by `Member` (initials avatar + display name), dedicated monospace `VCode` (`row.vcode || row.cgCode || "—"`), `Store` (with location badge), `Position` (with plantilla tier), `Assignment` (`Roving` / `Stationary`), and `Status` (`Pending for Deactivation` / `Deactivated`).
+
+2. **Inactive Tab Table Columns & Remarks Dynamic Resolution (`src/app/(dashboard)/plantilla/page.tsx` & `src/lib/queries/plantilla.ts`)**:
+   - Removed the `Clearance Status` column header and data cells from `EmployeeInactiveTable`.
+   - Table columns now sequence as: `Member / Employee / Last Store Branch / Area & City / Position / Separation Type / Separation Date / Remarks`.
+   - Implemented `usePlantillaInactiveRemarks` in `src/lib/queries/plantilla.ts`:
+     - Queries `public.plantilla` directly for `id, remarks` in chunks for inactive IDs.
+     - For records with empty/null remarks, falls back to querying `public.audit_logs` (`record_id`, `new_data->remarks`, `notes`, or `reason`).
+     - Enriches `inactiveEmployees` before pagination so that both Table and Cards view display authentic operational/separation remarks rather than defaulting to blank `—`.
+
+3. **Universal Cards View Support Across All 6 Status Tabs (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - The view switch toggle (`displayView: "table" | "cards"`) now seamlessly toggles views across all 6 status tabs without view restrictions or fallback crashes:
+     - **Active**: `EmployeeCard` (green accent border, avatar, position, store, status).
+     - **On-Leave**: `EmployeeOnLeaveCard` (amber accent border, leave details, reliever coverage box indicating assigned vs unassigned status, and "Assign Reliever" & "Return to Active" quick actions).
+     - **Vacancy**: `VacancyCard` (sky accent border, VCode, store branch, position, dynamic slot capacity e.g. `1 Vacant (0/1)`, stage badge, aging days, applicant name if attached).
+     - **Floating**: `EmployeeFloatingCard` (indigo accent border, avatar, position, "Floating" badge, and "Assign Store" quick action).
+     - **Deactivation**: `EmployeeDeactivationCard` (rose accent border, avatar, Emploc#, VCode, store, position, and deactivation status badge).
+     - **Inactive**: `EmployeeInactiveCard` (slate accent border, avatar, Emploc#, last store, separation type badge, separation date, and resolved separation remarks box).
+   - Card views implement a responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
+
+4. **Architectural Enshrinement (ADR & State Lockdown)**:
+   - Added Rule #3 to `.ai/briefing.md` under **Permanent Architectural Rule Locks**.
+   - Updated `docs/state/plantilla_web_state.md` to document the exact 7-column Deactivation layout, the 7-column Inactive layout with dynamic remarks resolution, and the universal cards view support contract.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on `Branch2` (no commits to `main`).
+
+---
+
 ## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
 
 **Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4474,6 +4512,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
+
+**Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Deactivation Tab Table Columns (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed the `Actions` column (`<th>` and `<td>` containing the "Details" button). The entire row remains clickable and keyboard accessible (`role="button"`, `onKeyDown`).
+   - Reordered columns to strictly follow: `Emploc# / Member / VCode / Store / Position / Assignment / Status`.
+   - Formatted `Emploc#` as a dedicated monospace column, followed by `Member` (initials avatar + display name), dedicated monospace `VCode` (`row.vcode || row.cgCode || "—"`), `Store` (with location badge), `Position` (with plantilla tier), `Assignment` (`Roving` / `Stationary`), and `Status` (`Pending for Deactivation` / `Deactivated`).
+
+2. **Inactive Tab Table Columns & Remarks Dynamic Resolution (`src/app/(dashboard)/plantilla/page.tsx` & `src/lib/queries/plantilla.ts`)**:
+   - Removed the `Clearance Status` column header and data cells from `EmployeeInactiveTable`.
+   - Table columns now sequence as: `Member / Employee / Last Store Branch / Area & City / Position / Separation Type / Separation Date / Remarks`.
+   - Implemented `usePlantillaInactiveRemarks` in `src/lib/queries/plantilla.ts`:
+     - Queries `public.plantilla` directly for `id, remarks` in chunks for inactive IDs.
+     - For records with empty/null remarks, falls back to querying `public.audit_logs` (`record_id`, `new_data->remarks`, `notes`, or `reason`).
+     - Enriches `inactiveEmployees` before pagination so that both Table and Cards view display authentic operational/separation remarks rather than defaulting to blank `—`.
+
+3. **Universal Cards View Support Across All 6 Status Tabs (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - The view switch toggle (`displayView: "table" | "cards"`) now seamlessly toggles views across all 6 status tabs without view restrictions or fallback crashes:
+     - **Active**: `EmployeeCard` (green accent border, avatar, position, store, status).
+     - **On-Leave**: `EmployeeOnLeaveCard` (amber accent border, leave details, reliever coverage box indicating assigned vs unassigned status, and "Assign Reliever" & "Return to Active" quick actions).
+     - **Vacancy**: `VacancyCard` (sky accent border, VCode, store branch, position, dynamic slot capacity e.g. `1 Vacant (0/1)`, stage badge, aging days, applicant name if attached).
+     - **Floating**: `EmployeeFloatingCard` (indigo accent border, avatar, position, "Floating" badge, and "Assign Store" quick action).
+     - **Deactivation**: `EmployeeDeactivationCard` (rose accent border, avatar, Emploc#, VCode, store, position, and deactivation status badge).
+     - **Inactive**: `EmployeeInactiveCard` (slate accent border, avatar, Emploc#, last store, separation type badge, separation date, and resolved separation remarks box).
+   - Card views implement a responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
+
+4. **Architectural Enshrinement (ADR & State Lockdown)**:
+   - Added Rule #3 to `.ai/briefing.md` under **Permanent Architectural Rule Locks**.
+   - Updated `docs/state/plantilla_web_state.md` to document the exact 7-column Deactivation layout, the 7-column Inactive layout with dynamic remarks resolution, and the universal cards view support contract.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on `Branch2` (no commits to `main`).
+
+---
+
 ## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
 
 **Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4969,6 +5045,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
+
+**Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Deactivation Tab Table Columns (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed the `Actions` column (`<th>` and `<td>` containing the "Details" button). The entire row remains clickable and keyboard accessible (`role="button"`, `onKeyDown`).
+   - Reordered columns to strictly follow: `Emploc# / Member / VCode / Store / Position / Assignment / Status`.
+   - Formatted `Emploc#` as a dedicated monospace column, followed by `Member` (initials avatar + display name), dedicated monospace `VCode` (`row.vcode || row.cgCode || "—"`), `Store` (with location badge), `Position` (with plantilla tier), `Assignment` (`Roving` / `Stationary`), and `Status` (`Pending for Deactivation` / `Deactivated`).
+
+2. **Inactive Tab Table Columns & Remarks Dynamic Resolution (`src/app/(dashboard)/plantilla/page.tsx` & `src/lib/queries/plantilla.ts`)**:
+   - Removed the `Clearance Status` column header and data cells from `EmployeeInactiveTable`.
+   - Table columns now sequence as: `Member / Employee / Last Store Branch / Area & City / Position / Separation Type / Separation Date / Remarks`.
+   - Implemented `usePlantillaInactiveRemarks` in `src/lib/queries/plantilla.ts`:
+     - Queries `public.plantilla` directly for `id, remarks` in chunks for inactive IDs.
+     - For records with empty/null remarks, falls back to querying `public.audit_logs` (`record_id`, `new_data->remarks`, `notes`, or `reason`).
+     - Enriches `inactiveEmployees` before pagination so that both Table and Cards view display authentic operational/separation remarks rather than defaulting to blank `—`.
+
+3. **Universal Cards View Support Across All 6 Status Tabs (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - The view switch toggle (`displayView: "table" | "cards"`) now seamlessly toggles views across all 6 status tabs without view restrictions or fallback crashes:
+     - **Active**: `EmployeeCard` (green accent border, avatar, position, store, status).
+     - **On-Leave**: `EmployeeOnLeaveCard` (amber accent border, leave details, reliever coverage box indicating assigned vs unassigned status, and "Assign Reliever" & "Return to Active" quick actions).
+     - **Vacancy**: `VacancyCard` (sky accent border, VCode, store branch, position, dynamic slot capacity e.g. `1 Vacant (0/1)`, stage badge, aging days, applicant name if attached).
+     - **Floating**: `EmployeeFloatingCard` (indigo accent border, avatar, position, "Floating" badge, and "Assign Store" quick action).
+     - **Deactivation**: `EmployeeDeactivationCard` (rose accent border, avatar, Emploc#, VCode, store, position, and deactivation status badge).
+     - **Inactive**: `EmployeeInactiveCard` (slate accent border, avatar, Emploc#, last store, separation type badge, separation date, and resolved separation remarks box).
+   - Card views implement a responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
+
+4. **Architectural Enshrinement (ADR & State Lockdown)**:
+   - Added Rule #3 to `.ai/briefing.md` under **Permanent Architectural Rule Locks**.
+   - Updated `docs/state/plantilla_web_state.md` to document the exact 7-column Deactivation layout, the 7-column Inactive layout with dynamic remarks resolution, and the universal cards view support contract.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on `Branch2` (no commits to `main`).
+
+---
 
 ## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
 
@@ -5489,6 +5603,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
+
+**Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Deactivation Tab Table Columns (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed the `Actions` column (`<th>` and `<td>` containing the "Details" button). The entire row remains clickable and keyboard accessible (`role="button"`, `onKeyDown`).
+   - Reordered columns to strictly follow: `Emploc# / Member / VCode / Store / Position / Assignment / Status`.
+   - Formatted `Emploc#` as a dedicated monospace column, followed by `Member` (initials avatar + display name), dedicated monospace `VCode` (`row.vcode || row.cgCode || "—"`), `Store` (with location badge), `Position` (with plantilla tier), `Assignment` (`Roving` / `Stationary`), and `Status` (`Pending for Deactivation` / `Deactivated`).
+
+2. **Inactive Tab Table Columns & Remarks Dynamic Resolution (`src/app/(dashboard)/plantilla/page.tsx` & `src/lib/queries/plantilla.ts`)**:
+   - Removed the `Clearance Status` column header and data cells from `EmployeeInactiveTable`.
+   - Table columns now sequence as: `Member / Employee / Last Store Branch / Area & City / Position / Separation Type / Separation Date / Remarks`.
+   - Implemented `usePlantillaInactiveRemarks` in `src/lib/queries/plantilla.ts`:
+     - Queries `public.plantilla` directly for `id, remarks` in chunks for inactive IDs.
+     - For records with empty/null remarks, falls back to querying `public.audit_logs` (`record_id`, `new_data->remarks`, `notes`, or `reason`).
+     - Enriches `inactiveEmployees` before pagination so that both Table and Cards view display authentic operational/separation remarks rather than defaulting to blank `—`.
+
+3. **Universal Cards View Support Across All 6 Status Tabs (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - The view switch toggle (`displayView: "table" | "cards"`) now seamlessly toggles views across all 6 status tabs without view restrictions or fallback crashes:
+     - **Active**: `EmployeeCard` (green accent border, avatar, position, store, status).
+     - **On-Leave**: `EmployeeOnLeaveCard` (amber accent border, leave details, reliever coverage box indicating assigned vs unassigned status, and "Assign Reliever" & "Return to Active" quick actions).
+     - **Vacancy**: `VacancyCard` (sky accent border, VCode, store branch, position, dynamic slot capacity e.g. `1 Vacant (0/1)`, stage badge, aging days, applicant name if attached).
+     - **Floating**: `EmployeeFloatingCard` (indigo accent border, avatar, position, "Floating" badge, and "Assign Store" quick action).
+     - **Deactivation**: `EmployeeDeactivationCard` (rose accent border, avatar, Emploc#, VCode, store, position, and deactivation status badge).
+     - **Inactive**: `EmployeeInactiveCard` (slate accent border, avatar, Emploc#, last store, separation type badge, separation date, and resolved separation remarks box).
+   - Card views implement a responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
+
+4. **Architectural Enshrinement (ADR & State Lockdown)**:
+   - Added Rule #3 to `.ai/briefing.md` under **Permanent Architectural Rule Locks**.
+   - Updated `docs/state/plantilla_web_state.md` to document the exact 7-column Deactivation layout, the 7-column Inactive layout with dynamic remarks resolution, and the universal cards view support contract.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on `Branch2` (no commits to `main`).
+
+---
 
 ## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
 
