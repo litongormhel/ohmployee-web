@@ -380,10 +380,16 @@ function PlantillaEmployeeDetailContent() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <h1 className="text-xl font-bold text-text-primary tracking-tight truncate">
-                        {displayName}
+                      <h1 className="text-xl font-bold text-text-primary tracking-tight truncate flex items-center gap-2">
+                        <span>{displayName}</span>
+                        {status === "active" && (
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0"
+                            title="Active Employee"
+                          />
+                        )}
                       </h1>
-                      {data.plantillaStatus && (
+                      {status !== "active" && data.plantillaStatus && (
                         <StatusBadge
                           variant={statusVariant(data.plantillaStatus)}
                           text={data.plantillaStatus}
@@ -394,15 +400,6 @@ function PlantillaEmployeeDetailContent() {
                       <span className="flex items-center gap-1 font-mono text-text-primary">
                         <IdCard className="w-3.5 h-3.5 text-brand-primary" />
                         ID: {data.employeeNo || "—"}
-                      </span>
-                      {data.vcode && (
-                        <span className="flex items-center gap-1 font-mono text-brand-primary font-bold">
-                          <span>VCode:</span> {data.vcode}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Store className="w-3.5 h-3.5 text-text-muted" />
-                        {data.primaryStoreName || "Store Unassigned"}
                       </span>
                       <span className="flex items-center gap-1">
                         <Briefcase className="w-3.5 h-3.5 text-text-muted" />

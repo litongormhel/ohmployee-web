@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
+
+**Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Active Status Dot Indicator (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced the bulky `Active` badge pill with a green dot indicator right beside the employee's name (`status === "active"`).
+   - Preserved semantic status badges for non-active states (`On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+2. **Metadata Strip Streamlining (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed `VCode: ...` from the top header metadata strip.
+   - Removed Store (`primaryStoreName`) from beside Position, leaving a clean 3-part metadata strip:
+     - `ID: {employeeNo}`
+     - `[Briefcase icon] {positionTitle}`
+     - `[Calendar icon] Hired: {date} ({tenure})`
+   - Store assignments and VCode remain fully documented in Tab 1 (Employment & Allocation) and Tab 4 (Stores & Coverage).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
 
 **Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4628,6 +4650,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
+
+**Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Active Status Dot Indicator (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced the bulky `Active` badge pill with a green dot indicator right beside the employee's name (`status === "active"`).
+   - Preserved semantic status badges for non-active states (`On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+2. **Metadata Strip Streamlining (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed `VCode: ...` from the top header metadata strip.
+   - Removed Store (`primaryStoreName`) from beside Position, leaving a clean 3-part metadata strip:
+     - `ID: {employeeNo}`
+     - `[Briefcase icon] {positionTitle}`
+     - `[Calendar icon] Hired: {date} ({tenure})`
+   - Store assignments and VCode remain fully documented in Tab 1 (Employment & Allocation) and Tab 4 (Stores & Coverage).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
 
 **Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5239,6 +5283,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
+
+**Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Active Status Dot Indicator (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced the bulky `Active` badge pill with a green dot indicator right beside the employee's name (`status === "active"`).
+   - Preserved semantic status badges for non-active states (`On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+2. **Metadata Strip Streamlining (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed `VCode: ...` from the top header metadata strip.
+   - Removed Store (`primaryStoreName`) from beside Position, leaving a clean 3-part metadata strip:
+     - `ID: {employeeNo}`
+     - `[Briefcase icon] {positionTitle}`
+     - `[Calendar icon] Hired: {date} ({tenure})`
+   - Store assignments and VCode remain fully documented in Tab 1 (Employment & Allocation) and Tab 4 (Stores & Coverage).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
 
@@ -5875,6 +5941,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
+
+**Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Active Status Dot Indicator (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced the bulky `Active` badge pill with a green dot indicator right beside the employee's name (`status === "active"`).
+   - Preserved semantic status badges for non-active states (`On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+2. **Metadata Strip Streamlining (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed `VCode: ...` from the top header metadata strip.
+   - Removed Store (`primaryStoreName`) from beside Position, leaving a clean 3-part metadata strip:
+     - `ID: {employeeNo}`
+     - `[Briefcase icon] {positionTitle}`
+     - `[Calendar icon] Hired: {date} ({tenure})`
+   - Store assignments and VCode remain fully documented in Tab 1 (Employment & Allocation) and Tab 4 (Stores & Coverage).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
 
