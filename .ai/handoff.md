@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Execution Report — Fix Audit Log Foreign Key Constraint Error & Retain Inactive Tab Visibility (ohm#branch2-fix-audit-logs-fk-and-inactive-retention)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); IMPLEMENTED `public.resolve_audit_actor_id(uuid)` WITH SAFE `pg_constraint` DYNAMIC TARGET LOOKUP AND FALLBACK TO `NULL`; HARDENED `public.fn_audit_log()` WITH SAFE ACTOR RESOLUTION AND EXCEPTION TRAP ON `foreign_key_violation` GUARANTEEING ZERO STATUS UPDATE ABORTS ON SEPARATIONS (RESIGNED, AWOL, TERMINATED); REVERTED STRICT EXCLUSIVITY CHECK IN `isInactiveRecord` IN `src/app/(dashboard)/plantilla/page.tsx` SO SEPARATED AND DEACTIVATION-PENDING EMPLOYEES REMAIN PERMANENTLY VISIBLE IN THE INACTIVE TAB ROSTER; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Issue 1 (Audit Log FK Violation)**:
+  - **Error Seen**: `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"` when updating an employee's status to Resigned, AWOL, or Terminated.
+  - **Root Cause**: Status updates via `plantilla_update_separation` update `plantilla`, `vacancies`, and `applicants`, firing trigger function `fn_audit_log()`. `fn_audit_log()` inserted unverified `auth.uid()` directly into `audit_logs.actor_id`. In staging/test/admin contexts where the actor's UUID was not present in `auth.users`, PostgreSQL raised error 23503 and aborted the entire separation transaction.
+  - **Fix Applied**: 
+    - Created and applied migration `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` to live Staging (`qqiiznmqxfoamqytjica`).
+    - Implemented `public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL) RETURNS UUID`: dynamically resolves the foreign key target on `audit_logs_actor_id_fkey` (`auth.users`, `public.users_profile`, or `public.profiles`), checks validity, and falls back to `NULL` for unresolvable/orphaned IDs.
+    - Updated `public.fn_audit_log()` to resolve `v_resolved_actor := public.resolve_audit_actor_id(auth.uid());` and wrapped the insertion in a `BEGIN ... EXCEPTION WHEN foreign_key_violation THEN ... INSERT with NULL actor_id ... EXCEPTION WHEN OTHERS THEN NULL; END;` block, permanently immunizing employee status updates from audit log constraint aborts.
+
+- **Issue 2 (Inactive Tab Retention for Separated & Deactivation-Pending Employees)**:
+  - **Problem**: Separated employees (Resigned, AWOL, Terminated) and employees requested for deactivation were disappearing from the **Inactive Tab** because of strict exclusivity gating (`if (isDeactivationRecord(emp)) return false;` in `isInactiveRecord`).
+  - **Fix Applied**:
+    - Reverted the strict exclusivity check in `src/app/(dashboard)/plantilla/page.tsx` by removing `if (isDeactivationRecord(emp)) return false;` from `isInactiveRecord`.
+    - Expanded `isInactiveRecord` so that separated statuses (`Resigned`, `AWOL`, `Terminated`, `Separated`), inactive records (`isActive === false`), and pending-deactivation records remain visible inside the **Inactive Tab** for historical and reporting continuity.
+    - Preserved `isDeactivationRecord` for the dedicated **Deactivation Tab** queue and kept the drawer UI state changes (`"Deactivation Pending"` disabled button state and status badge in `PlantillaDetailDrawer.tsx`).
+
+### 2. Verification & Mechanical Gates
+- `supabase apply_migration`: Applied `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution` successfully on Staging (`qqiiznmqxfoamqytjica`) with result `{"success": true}`.
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Git Branch: Isolated cleanly on `Branch2`.
+
+---
+
 ## Execution Report — Fix Plantilla Deactivation Tab Routing, Auto-Navigate & Drawer State (ohm#branch2-deactivation-tab-routing-and-drawer-state)
 
 **Status: COMPLETE ON BRANCH2; PRIORITIZED `isDeactivationRecord` TO CORRECTLY ROUTE PENDING/ACTIVE DEACTIVATION RECORDS TO DEACTIVATION TAB (`Deactivation 1`, `Inactive 0`); ADDED `onNavigateStatusTab` TO `RequestDeactivationModal.tsx` & `PlantillaDetailDrawer.tsx` FOR AUTOMATIC SUBMIT NAVIGATION; UPDATED DRAWER BUTTON TO DISPLAY `"Deactivation Pending"` (DISABLED) AND SUPPRESSED INACTIVE/FLOATING PREREQUISITE WARNING ON PENDING EMPLOYEES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

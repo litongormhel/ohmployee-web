@@ -95,7 +95,7 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
    - **Columns**: `Member` | `Store` | `Position` | `Assignment` | `Status` (`Pending for Deactivation` amber badge) | `Actions` (`Details` button).
 
 6. **Tab 6: Inactive** (Historical & Attrition Archive)
-   - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`. When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`.
+   - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`, as well as personnel undergoing deactivation / separation (`isActive === false` or deactivation/separation statuses). When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`. Personnel requested for deactivation remain permanently visible in this tab for historical and reporting continuity even while actively tracked in Tab 5.
    - **Columns (8 Recommended Schema Columns)**:
      1. `Member / Employee`: Avatar initials, employee name, monospace employee ID.
      2. `Last Store Branch`: Store branch name + `VCode`/`CGCode`, with `Roving` badge if roving.

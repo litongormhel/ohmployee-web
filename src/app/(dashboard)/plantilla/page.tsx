@@ -414,22 +414,35 @@ function isFloatingRecord(emp: PlantillaEmployeeListItem) {
   return s === "floating" || sep === "floating";
 }
 
-// Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
+// Helper check for inactive / separated employees (Resigned, AWOL, Terminated, Deactivation)
 function isInactiveRecord(emp: PlantillaEmployeeListItem) {
-  if (isDeactivationRecord(emp)) return false;
   if (isFloatingRecord(emp)) return false;
   const s = (emp.plantillaStatus || "").toLowerCase().trim();
   const sep = (emp.separationType || "").toLowerCase().trim();
+  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
   return (
     s === "resigned" ||
     s === "awol" ||
     s === "terminated" ||
     s === "inactive" ||
     s === "separated" ||
+    s === "pending for deactivation" ||
+    s === "pending_for_deactivation" ||
+    s === "pending deactivation" ||
+    s === "pending_deactivation" ||
+    s === "for deactivation" ||
+    s === "pending separation" ||
+    s === "pending_separation" ||
+    s === "deactivated" ||
     sep === "resigned" ||
     sep === "awol" ||
     sep === "terminated" ||
     sep === "separated" ||
+    sep === "pending deactivation" ||
+    sep === "pending_deactivation" ||
+    sep === "for deactivation" ||
+    sep === "deactivated" ||
+    overlay.isPendingSeparation ||
     emp.isActive === false
   );
 }
