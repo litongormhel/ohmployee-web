@@ -31,8 +31,6 @@ import {
   type HrEmplocDetailItem,
   type HrEmplocAuditLogItem,
 } from "@/lib/queries/hr_emploc";
-import { useCurrentUser } from "@/lib/auth";
-import { normalizeRole, AppRole, hasFullAccess } from "@/lib/rbac";
 
 export type HrEmplocDetailDrawerProps = {
   hrEmplocId: string | null;
@@ -215,7 +213,6 @@ export function HrEmplocDetailDrawer({
   onClose,
 }: HrEmplocDetailDrawerProps) {
   const queryClient = useQueryClient();
-  const currentUser = useCurrentUser();
 
   // Inline deletion form state (Available Actions)
   const [isRequestingDeletion, setIsRequestingDeletion] = useState(false);
@@ -264,14 +261,10 @@ export function HrEmplocDetailDrawer({
         Boolean(detail.employeeNo))
   );
 
-  // RBAC for Available Actions: Only Ops (OM - HRCO) and Super Admin
-  const userRole = normalizeRole(currentUser?.roleName || currentUser?.roleKey);
-  const isSuperAdmin =
-    hasFullAccess(currentUser) ||
-    userRole === AppRole.SUPER_ADMIN ||
-    userRole === AppRole.HEAD_ADMIN;
-  const isOpsRole = userRole === AppRole.OM || userRole === AppRole.HRCO;
-  const canManageDeletion = isSuperAdmin || isOpsRole;
+  // Capability-driven permission: strictly from row_capabilities.can_request_deletion
+  const canManageDeletion =
+    detail?.rowCapabilities?.can_request_deletion === true ||
+    detail?.rowCapabilities?.canRequestDeletion === true;
 
   const handleConfirmDeletionRequest = async () => {
     if (!detail) return;

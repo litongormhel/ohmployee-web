@@ -11,6 +11,7 @@
     "build:prod": "node scripts/switch-env.js prod && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --test src/lib/utils/__tests__/*.test.mjs src/lib/queries/__tests__/*.test.mjs",
     "finish": "node scripts/finish.js"
   },
   "dependencies": {

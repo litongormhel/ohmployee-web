@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { HrEmplocQueue } from "@/lib/queries/hr_emploc";
+import type { HrEmplocQueue } from "../../lib/queries/hr_emploc";
 
 export interface HrEmplocFilterState {
   queue: HrEmplocQueue;
@@ -20,7 +20,7 @@ export interface HrEmplocSavedView {
 
 const STORAGE_KEY = "ohm_hr_emploc_saved_views_v1";
 
-function normalizeQueue(q: unknown): HrEmplocQueue {
+export function normalizeQueue(q: unknown): HrEmplocQueue {
   if (q === "ready" || q === "complete") return "deployed";
   if (q === "deficiency") return "correction";
   if (

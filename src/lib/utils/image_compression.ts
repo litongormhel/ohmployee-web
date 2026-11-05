@@ -13,6 +13,31 @@ export interface CompressionOptions {
   quality?: number;
 }
 
+export function calculateTargetDimensions(
+  width: number,
+  height: number,
+  maxDimension = 1600
+): { width: number; height: number; scaled: boolean } {
+  if (width <= 0 || height <= 0) {
+    return { width: 0, height: 0, scaled: false };
+  }
+  if (width <= maxDimension && height <= maxDimension) {
+    return { width, height, scaled: false };
+  }
+  if (width >= height) {
+    return {
+      width: maxDimension,
+      height: Math.round((height * maxDimension) / width),
+      scaled: true,
+    };
+  }
+  return {
+    width: Math.round((width * maxDimension) / height),
+    height: maxDimension,
+    scaled: true,
+  };
+}
+
 export async function compressDocumentFile(
   file: File,
   options: CompressionOptions = {}

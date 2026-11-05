@@ -32,6 +32,7 @@ export function DocumentPreviewModal({
     Math.max(0, Math.min(initialIndex, Math.max(0, attachments.length - 1)))
   );
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(isOpen && attachments[currentIndex]));
   const [error, setError] = useState<string | null>(null);
 
@@ -41,18 +42,60 @@ export function DocumentPreviewModal({
 
   const currentDoc = attachments[currentIndex];
 
+  const isPdf = Boolean(
+    (currentDoc?.file_type && currentDoc.file_type.toLowerCase().includes("pdf")) ||
+    currentDoc?.file_name.toLowerCase().endsWith(".pdf")
+  );
+
+  // Keyboard navigation & Esc handler
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowLeft") {
+        setCurrentIndex((i) => Math.max(0, i - 1));
+      } else if (e.key === "ArrowRight") {
+        setCurrentIndex((i) => Math.min(attachments.length - 1, i + 1));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, attachments.length, onClose]);
+
   useEffect(() => {
     if (!isOpen || !currentDoc) {
       return;
     }
 
     let isCancelled = false;
+    let createdBlobUrl: string | null = null;
     const path = currentDoc.object_path || currentDoc.storage_path;
 
     getHrEmplocDocSignedUrl(path, { expiresIn: 600 })
-      .then((url) => {
+      .then(async (url) => {
+        if (isCancelled) return;
+        setSignedUrl(url);
+
+        if (isPdf) {
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            if (isCancelled) return;
+            createdBlobUrl = URL.createObjectURL(blob);
+            setBlobUrl(createdBlobUrl);
+          } catch {
+            // Fallback to direct signedUrl if blob fetch fails
+            if (!isCancelled) setBlobUrl(null);
+          }
+        } else {
+          setBlobUrl(null);
+        }
+
         if (!isCancelled) {
-          setSignedUrl(url);
           setIsLoading(false);
         }
       })
@@ -65,18 +108,18 @@ export function DocumentPreviewModal({
 
     return () => {
       isCancelled = true;
+      if (createdBlobUrl) {
+        URL.revokeObjectURL(createdBlobUrl);
+      }
     };
-  }, [isOpen, currentDoc]);
+  }, [isOpen, currentDoc, isPdf]);
 
   if (!isOpen || !currentDoc) return null;
-
-  const isPdf =
-    (currentDoc.file_type && currentDoc.file_type.toLowerCase().includes("pdf")) ||
-    currentDoc.file_name.toLowerCase().endsWith(".pdf");
 
   const selectDoc = (idx: number) => {
     setCurrentIndex(idx);
     setSignedUrl(null);
+    setBlobUrl(null);
     setIsLoading(true);
     setError(null);
     setScale(1);
@@ -275,9 +318,9 @@ export function DocumentPreviewModal({
                 Download Original File
               </button>
             </div>
-          ) : isPdf && signedUrl ? (
+          ) : isPdf && (blobUrl || signedUrl) ? (
             <iframe
-              src={signedUrl}
+              src={blobUrl || signedUrl || ""}
               className="h-full w-full rounded-lg border border-border-subtle bg-white shadow-xs"
               title={currentDoc.file_name}
             />

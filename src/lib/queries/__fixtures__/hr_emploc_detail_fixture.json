@@ -1,0 +1,250 @@
+{
+  "account_id": "4fba7c47-f19e-47fb-9074-6acab754721f",
+  "account_name": "ACTISERVE",
+  "aging_days": 16,
+  "applicant_name": "DELA CRUZ, JAN YAP",
+  "assignment_type": "Stationary",
+  "birthdate_snapshot": null,
+  "civil_status_snapshot": null,
+  "correction_attachments": [
+    {
+      "can_remove": false,
+      "created_at": "2026-11-05T13:16:02.505254+00:00",
+      "id": "8c8ad774-c69a-4c0d-9426-1628875f6872",
+      "mime_type": "application/pdf",
+      "object_path": "7e6913e8-b2a5-4bd6-b147-33950ea4080f.pdf",
+      "original_filename": "Share_History_2026-11-04 (18).pdf",
+      "size_bytes": 4248,
+      "stage": "correction",
+      "storage_path": "hr-corrections/7e6913e8-b2a5-4bd6-b147-33950ea4080f.pdf",
+      "uploaded_at": "2026-11-04T06:36:28.659561+00:00",
+      "uploaded_by": "b865eef6-ebac-4bd3-84b5-482c00774565"
+    },
+    {
+      "can_remove": false,
+      "created_at": "2026-11-05T13:16:02.505254+00:00",
+      "id": "bf8f85a6-99b1-4f8b-89a1-9cfe94266f0c",
+      "mime_type": "image/jpeg",
+      "object_path": "b8be26a2-04c3-42c8-a776-f58840adf6cb.jpg",
+      "original_filename": "camp-netanya.jpg",
+      "size_bytes": 66803,
+      "stage": "correction",
+      "storage_path": "hr-corrections/b8be26a2-04c3-42c8-a776-f58840adf6cb.jpg",
+      "uploaded_at": "2026-10-28T09:05:57.934573+00:00",
+      "uploaded_by": "b865eef6-ebac-4bd3-84b5-482c00774565"
+    }
+  ],
+  "correction_reason": [
+    {
+      "code": "INVALID_SSS",
+      "comment": ""
+    },
+    {
+      "code": "INVALID_PAGIBIG",
+      "comment": ""
+    },
+    {
+      "code": "INVALID_PHILHEALTH",
+      "comment": ""
+    },
+    {
+      "code": "INCOMPLETE_REQUIREMENT",
+      "comment": "Submit new file"
+    }
+  ],
+  "covered_stores": [],
+  "created_at": "2026-10-20T06:54:14.026289+00:00",
+  "date_requested": "2026-10-20T06:54:14.026289+00:00",
+  "deficiency_summary": {
+    "active_count": 4,
+    "issues": [
+      {
+        "code": "INVALID_SSS",
+        "comment": "",
+        "label": "Invalid SSS"
+      },
+      {
+        "code": "INVALID_PAGIBIG",
+        "comment": "",
+        "label": "Invalid Pag-Ibig"
+      },
+      {
+        "code": "INVALID_PHILHEALTH",
+        "comment": "",
+        "label": "Invalid PhilHealth"
+      },
+      {
+        "code": "INCOMPLETE_REQUIREMENT",
+        "comment": "Submit new file",
+        "label": "Incomplete Requirement"
+      }
+    ]
+  },
+  "deletion_request": null,
+  "deployed_by_user_id": "b865eef6-ebac-4bd3-84b5-482c00774565",
+  "emploc_no": null,
+  "employee_lookup_found": false,
+  "employee_lookup_remarks": null,
+  "employee_lookup_synced_at": null,
+  "employee_name_snapshot": null,
+  "employee_no": null,
+  "group_id": "04c045bd-a5ba-4d14-afdc-65f0bf38493b",
+  "group_name": "Group 5",
+  "hired_date": "2026-10-20",
+  "hr_emploc_id": "12c44858-aaaa-4428-8076-fe91dab005f1",
+  "hr_rejection_reason": "Submit new docs",
+  "hr_remarks": "Submit new docs",
+  "hr_reviewed_at": "2026-11-04T06:32:55.714125+00:00",
+  "hr_reviewed_by": "Litong, Ohm",
+  "hr_status": "For Review",
+  "hrco_name": null,
+  "hrco_user_id_snapshot": null,
+  "ops_remarks": "Eto na",
+  "position_id_snapshot": null,
+  "position_title": "Cashier",
+  "requirement_overall_status": "Incomplete",
+  "roving_assignment_id": null,
+  "row_capabilities": {
+    "can_approve_correction": true,
+    "can_approve_deletion": false,
+    "can_assign_employee_no": false,
+    "can_edit_emploc": false,
+    "can_move_to_plantilla": false,
+    "can_reject_deletion": false,
+    "can_request_deletion": true,
+    "can_revert_correction": true,
+    "can_revert_to_pending": false,
+    "can_review_correction": true,
+    "can_review_deletion": false,
+    "can_submit_correction": false,
+    "can_submit_requirements": false,
+    "can_tag_deficiency": false,
+    "can_upload_docs": false,
+    "can_view_detail": true,
+    "can_view_docs": true,
+    "can_withdraw_deletion_request": false
+  },
+  "sla_breached": true,
+  "sla_deadline": "2026-10-23T06:54:14.026289+00:00",
+  "sla_status": "breached",
+  "status": "For Compliance",
+  "store_id": "2a7d9c8d-3d6c-40b9-a4c9-477c8d1ce568",
+  "store_name": "Market Market",
+  "timeline": [
+    {
+      "actor_id": "71d245b9-10b1-42b9-ad9e-253f999daf6d",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-10-20T06:54:14.026289+00:00",
+      "event_id": "9b84e0a5-f4d9-4655-ab66-5ec715647756",
+      "event_label": "Record Created",
+      "event_type": "record_created",
+      "has_attachment": false,
+      "remarks": null,
+      "status_from": null,
+      "status_to": "Pending"
+    },
+    {
+      "actor_id": "71d245b9-10b1-42b9-ad9e-253f999daf6d",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-10-28T08:44:57.223139+00:00",
+      "event_id": "5c44399c-d02e-4ac7-9ca0-87f9724556ab",
+      "event_label": "Flagged for Correction",
+      "event_type": "flagged_for_correction",
+      "has_attachment": false,
+      "remarks": "Litong, Ohm flagged Dela Cruz, Jan Yap for correction: Submit new file.",
+      "status_from": "Pending",
+      "status_to": "For Correction"
+    },
+    {
+      "actor_id": "b865eef6-ebac-4bd3-84b5-482c00774565",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": "camp-netanya.jpg",
+      "attachment_size_bytes": 66803,
+      "created_at": "2026-10-28T09:05:57.934573+00:00",
+      "event_id": "bf8f85a6-99b1-4f8b-89a1-9cfe94266f0c",
+      "event_label": "Attachment Uploaded",
+      "event_type": "attachment_uploaded",
+      "has_attachment": true,
+      "remarks": "Litong, Ohm uploaded camp-netanya.jpg for Dela Cruz, Jan Yap.",
+      "status_from": null,
+      "status_to": null
+    },
+    {
+      "actor_id": "71d245b9-10b1-42b9-ad9e-253f999daf6d",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-10-28T09:05:58.086235+00:00",
+      "event_id": "d744e258-6b90-4f69-8e78-b7e3c29344ca",
+      "event_label": "Correction Submitted",
+      "event_type": "correction_submitted",
+      "has_attachment": false,
+      "remarks": "Litong, Ohm submitted the correction of Dela Cruz, Jan Yap for review: Submit new file.",
+      "status_from": "For Correction",
+      "status_to": "For Review"
+    },
+    {
+      "actor_id": null,
+      "actor_name": null,
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-10-28T09:22:09.239505+00:00",
+      "event_id": "e255c956-f488-4064-9eba-0fe797248eaa",
+      "event_label": "Status Updated",
+      "event_type": "status_updated",
+      "has_attachment": false,
+      "remarks": " changed the status of Dela Cruz, Jan Yap from For Compliance to For Compliance.",
+      "status_from": "For Review",
+      "status_to": "For Review"
+    },
+    {
+      "actor_id": "71d245b9-10b1-42b9-ad9e-253f999daf6d",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-11-04T06:32:55.714125+00:00",
+      "event_id": "a0a4f6c5-c80b-4529-a98f-4b0d5ac86568",
+      "event_label": "Correction Rejected",
+      "event_type": "rejected",
+      "has_attachment": false,
+      "remarks": "Litong, Ohm sent Dela Cruz, Jan Yap back for correction: Submit new docs.",
+      "status_from": "For Review",
+      "status_to": "For Correction"
+    },
+    {
+      "actor_id": "b865eef6-ebac-4bd3-84b5-482c00774565",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": "Share_History_2026-11-04 (18).pdf",
+      "attachment_size_bytes": 4248,
+      "created_at": "2026-11-04T06:36:28.659561+00:00",
+      "event_id": "8c8ad774-c69a-4c0d-9426-1628875f6872",
+      "event_label": "Attachment Uploaded",
+      "event_type": "attachment_uploaded",
+      "has_attachment": true,
+      "remarks": "Litong, Ohm uploaded Share_History_2026-11-04 (18).pdf for Dela Cruz, Jan Yap.",
+      "status_from": null,
+      "status_to": null
+    },
+    {
+      "actor_id": "71d245b9-10b1-42b9-ad9e-253f999daf6d",
+      "actor_name": "Litong, Ohm",
+      "attachment_filename": null,
+      "attachment_size_bytes": null,
+      "created_at": "2026-11-04T06:36:28.788527+00:00",
+      "event_id": "7eeed51a-9ddd-4888-a7c1-e06ae0fa4af6",
+      "event_label": "Correction Submitted",
+      "event_type": "correction_submitted",
+      "has_attachment": false,
+      "remarks": "Litong, Ohm submitted the correction of Dela Cruz, Jan Yap for review: Submit new docs.",
+      "status_from": "For Correction",
+      "status_to": "For Review"
+    }
+  ],
+  "vacancy_code_snapshot": "ACT-G5-006",
+  "vacancy_id": "21fbfa01-a64a-44c0-ba65-0a3bb7690707",
+  "vcode": "ACT-G5-006"
+}

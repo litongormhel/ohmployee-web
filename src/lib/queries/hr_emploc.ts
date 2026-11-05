@@ -289,7 +289,7 @@ function asCount(value: unknown): number {
   return Math.max(0, Math.trunc(asNumber(value) ?? 0));
 }
 
-function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
+export function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
   const raw = Object.fromEntries(
     Object.entries(asObject(value))
       .filter(([, item]) => typeof item === "boolean")
@@ -399,7 +399,7 @@ function summarizeDeficiency(value: unknown): string | null {
   return labels.length > 0 ? labels.join(", ") : `${activeCount} issue${activeCount > 1 ? "s" : ""}`;
 }
 
-function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
+export function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
   const id = asString(row.id ?? row.hr_emploc_id);
 
   if (!id) {
@@ -519,7 +519,7 @@ function normalizeCoveredStore(item: unknown): CoveredStoreItem {
   };
 }
 
-function normalizeAttachment(item: unknown): CorrectionAttachmentItem {
+export function normalizeAttachment(item: unknown): CorrectionAttachmentItem {
   const obj = asObject(item);
   return {
     attachmentId: asString(obj.id ?? obj.attachment_id ?? obj.attachmentId) ?? "",
@@ -559,7 +559,7 @@ function normalizeDeletionRequest(item: unknown): DeletionRequestItem | null {
   };
 }
 
-function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
+export function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
   const id = asString(row.id ?? row.hr_emploc_id);
 
   if (!id) {
@@ -642,7 +642,7 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
   };
 }
 
-function normalizeSummary(data: unknown): HrEmplocSummary {
+export function normalizeSummary(data: unknown): HrEmplocSummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
   const pending = asCount(row.pending_count ?? row.pending ?? row.total_pending ?? row.totalPending ?? row.total_processing);
@@ -801,7 +801,7 @@ export async function reviewWebHrEmplocCorrection(
   const supabase = createClient();
   const { data, error } = await supabase.rpc("review_web_hr_emploc_correction", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_action: params.decision,
+    p_decision: params.decision,
     p_resolved_keys: params.resolvedKeys ?? [],
     p_remarks: params.remarks ?? null,
     p_employee_no: params.employeeNo?.trim() || null,
@@ -1052,7 +1052,7 @@ export async function approveHrEmplocReview(params: {
 
   const { error } = await supabase.rpc("review_web_hr_emploc_correction", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_action: "approve",
+    p_decision: "approve",
     p_resolved_keys: params.resolvedKeys ?? [],
     p_remarks: params.remarks?.trim() || null,
     p_employee_no: params.employeeNo.trim(),
