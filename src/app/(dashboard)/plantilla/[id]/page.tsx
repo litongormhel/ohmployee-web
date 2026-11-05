@@ -28,7 +28,6 @@ import {
   AlertTriangle,
   FileText,
   Building2,
-  ChevronRight,
 } from "lucide-react";
 import {
   getWebPlantillaDetail,
@@ -291,37 +290,15 @@ function PlantillaEmployeeDetailContent() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-background text-text-primary">
-      {/* Top Breadcrumb & Return Context Bar */}
-      <div className="bg-surface-base border-b border-border-default px-6 py-3.5 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 text-xs">
-          <Link
-            href={returnHref}
-            className="inline-flex items-center gap-1.5 font-medium text-text-secondary hover:text-brand-primary transition px-2.5 py-1 rounded-md hover:bg-surface-muted"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Plantilla</span>
-          </Link>
-          <ChevronRight className="w-3 h-3 text-text-muted" />
-          <span className="font-semibold text-text-primary truncate max-w-xs">
-            {data ? displayName : "Employee Record"}
-          </span>
-        </div>
-
-        {/* Sync MIKA Quick Trigger */}
-        {data && (
-          <button
-            type="button"
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border-default bg-surface hover:bg-surface-muted text-text-secondary hover:text-brand-primary transition shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Fetch latest details from MIKA HRIS"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`}
-            />
-            <span>{syncMutation.isPending ? "Syncing…" : "Sync MIKA"}</span>
-          </button>
-        )}
+      {/* Top Return Navigation */}
+      <div className="px-6 pt-5 pb-0 shrink-0 max-w-7xl w-full mx-auto">
+        <Link
+          href={returnHref}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-brand-primary transition px-2.5 py-1.5 rounded-lg hover:bg-surface-muted"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Plantilla</span>
+        </Link>
       </div>
 
       {/* Main Content Area */}

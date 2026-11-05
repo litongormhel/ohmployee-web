@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
+
+**Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Top Navigation Cleanup (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the top-right `Sync MIKA` button from the top navigation bar. (MIKA HRIS synchronization remains fully accessible in its primary home under the `Benefits & Statutory` tab).
+   - Removed the `<ChevronRight />` breadcrumb icon and duplicate employee name (`displayName`) label.
+   - Removed the full-width border divider (`border-b border-border-default`) and wrapping background, leaving a clean, lightweight `← Back to Plantilla` button aligned with page padding.
+   - Removed unused `ChevronRight` import from `lucide-react`.
+   - Guaranteed return URL query parameters (`returnHref`) remain 100% intact so operators return to their exact originating status tab, view mode, search filter, and page.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
 
 **Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4594,6 +4612,24 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
+
+**Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Top Navigation Cleanup (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the top-right `Sync MIKA` button from the top navigation bar. (MIKA HRIS synchronization remains fully accessible in its primary home under the `Benefits & Statutory` tab).
+   - Removed the `<ChevronRight />` breadcrumb icon and duplicate employee name (`displayName`) label.
+   - Removed the full-width border divider (`border-b border-border-default`) and wrapping background, leaving a clean, lightweight `← Back to Plantilla` button aligned with page padding.
+   - Removed unused `ChevronRight` import from `lucide-react`.
+   - Guaranteed return URL query parameters (`returnHref`) remain 100% intact so operators return to their exact originating status tab, view mode, search filter, and page.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
 
 **Status: COMPLETE ON BRANCH2; DEDICATED FULL-PAGE EMPLOYEE PROFILE VIEW (`/plantilla/[id]`) IMPLEMENTED WITH 5 CLEAN CATEGORY TABS (EMPLOYMENT & ALLOCATION, WORK SCHEDULE & RATE, BENEFITS & STATUTORY, STORES & COVERAGE, ACTIVITY & SYSTEM INFO), REPLACING THE SLIDE-OVER `PlantillaDetailDrawer`; TOP SUMMARY CARD AND PROMINENT CAPABILITY-AWARE ACTIONS BAR (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) PERMANENTLY VISIBLE AT TOP; BIDIRECTIONAL URL STATE PRESERVATION (STATUS TAB, DISPLAY MODE `TABLE` VS `CARDS`, SEARCH QUERY, ACCOUNT SCOPE, PAGINATION PAGE) FULLY PRESERVED WHEN NAVIGATING AND RETURNING VIA `← Back to Plantilla`; ROW QUICK ACTIONS (`Assign Store`, `Assign Reliever`, `Return to Active`) PRESERVED WITH STOPPROPAGATION; ARCHITECTURAL RULE #5 RECORDED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5171,6 +5207,24 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
+
+**Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Top Navigation Cleanup (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the top-right `Sync MIKA` button from the top navigation bar. (MIKA HRIS synchronization remains fully accessible in its primary home under the `Benefits & Statutory` tab).
+   - Removed the `<ChevronRight />` breadcrumb icon and duplicate employee name (`displayName`) label.
+   - Removed the full-width border divider (`border-b border-border-default`) and wrapping background, leaving a clean, lightweight `← Back to Plantilla` button aligned with page padding.
+   - Removed unused `ChevronRight` import from `lucide-react`.
+   - Guaranteed return URL query parameters (`returnHref`) remain 100% intact so operators return to their exact originating status tab, view mode, search filter, and page.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
 
@@ -5773,6 +5827,24 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
+
+**Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Top Navigation Cleanup (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the top-right `Sync MIKA` button from the top navigation bar. (MIKA HRIS synchronization remains fully accessible in its primary home under the `Benefits & Statutory` tab).
+   - Removed the `<ChevronRight />` breadcrumb icon and duplicate employee name (`displayName`) label.
+   - Removed the full-width border divider (`border-b border-border-default`) and wrapping background, leaving a clean, lightweight `← Back to Plantilla` button aligned with page padding.
+   - Removed unused `ChevronRight` import from `lucide-react`.
+   - Guaranteed return URL query parameters (`returnHref`) remain 100% intact so operators return to their exact originating status tab, view mode, search filter, and page.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Plantilla Dedicated Full-Page Employee Profile (`/plantilla/[id]`) with Category Tabs & State Preservation (ohm#branch2-plantilla-dedicated-employee-profile-and-category-tabs)
 
