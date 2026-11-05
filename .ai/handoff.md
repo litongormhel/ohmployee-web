@@ -1,8 +1,8 @@
 # AI Handoff
 
-## Execution Report — Fix Audit Log Foreign Key Constraint Error & Retain Inactive Tab Visibility (ohm#branch2-fix-audit-logs-fk-and-inactive-retention)
+## Execution Report — Fix Audit Log Foreign Key Constraint Error, Retain Inactive Tab Visibility & Lock Architectural Rules (ohm#branch2-fix-audit-logs-fk-and-inactive-retention)
 
-**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); IMPLEMENTED `public.resolve_audit_actor_id(uuid)` WITH SAFE `pg_constraint` DYNAMIC TARGET LOOKUP AND FALLBACK TO `NULL`; HARDENED `public.fn_audit_log()` WITH SAFE ACTOR RESOLUTION AND EXCEPTION TRAP ON `foreign_key_violation` GUARANTEEING ZERO STATUS UPDATE ABORTS ON SEPARATIONS (RESIGNED, AWOL, TERMINATED); REVERTED STRICT EXCLUSIVITY CHECK IN `isInactiveRecord` IN `src/app/(dashboard)/plantilla/page.tsx` SO SEPARATED AND DEACTIVATION-PENDING EMPLOYEES REMAIN PERMANENTLY VISIBLE IN THE INACTIVE TAB ROSTER; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); IMPLEMENTED `public.resolve_audit_actor_id(uuid)` WITH SAFE `pg_constraint` DYNAMIC TARGET LOOKUP AND FALLBACK TO `NULL`; HARDENED `public.fn_audit_log()` WITH SAFE ACTOR RESOLUTION AND EXCEPTION TRAP ON `foreign_key_violation` GUARANTEEING ZERO STATUS UPDATE ABORTS ON SEPARATIONS (RESIGNED, AWOL, TERMINATED); REVERTED STRICT EXCLUSIVITY CHECK IN `isInactiveRecord` IN `src/app/(dashboard)/plantilla/page.tsx` SO SEPARATED AND DEACTIVATION-PENDING EMPLOYEES REMAIN PERMANENTLY VISIBLE IN THE INACTIVE TAB ROSTER; FORMALIZED NON-NEGOTIABLE ARCHITECTURAL RULE #1 AND RULE #2 IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
 
 ### 1. Root Cause & Alignment
 - **Issue 1 (Audit Log FK Violation)**:
@@ -19,6 +19,11 @@
     - Reverted the strict exclusivity check in `src/app/(dashboard)/plantilla/page.tsx` by removing `if (isDeactivationRecord(emp)) return false;` from `isInactiveRecord`.
     - Expanded `isInactiveRecord` so that separated statuses (`Resigned`, `AWOL`, `Terminated`, `Separated`), inactive records (`isActive === false`), and pending-deactivation records remain visible inside the **Inactive Tab** for historical and reporting continuity.
     - Preserved `isDeactivationRecord` for the dedicated **Deactivation Tab** queue and kept the drawer UI state changes (`"Deactivation Pending"` disabled button state and status badge in `PlantillaDetailDrawer.tsx`).
+
+- **Permanent Architectural Rule Locks (ADR Lockdown)**:
+  - Enshrined non-negotiable architectural rules in `.ai/briefing.md` and `docs/state/plantilla_web_state.md`:
+    1. **Rule #1 (Inactive Roster Persistence):** Employees who are disengaged, separated, or pending deactivation (`Resigned`, `AWOL`, `Terminated`) must **always** remain visible in the Inactive Tab for historical and reporting continuity. They must never be filtered out or hidden into isolated views that remove them from historical logs. Tab 5 (Deactivation) operates as a transactional queue for offboarding approval; Tab 6 (Inactive) serves as the persistent historical roster.
+    2. **Rule #2 (Safe Audit Logging):** Audit log triggers (`fn_audit_log`) must always use safe actor ID resolution (`resolve_audit_actor_id`) with fallbacks to `NULL` on `foreign_key_violation` to permanently prevent operational mutation failures (e.g. during employment status updates, resignations, AWOL, terminations) due to missing user profiles or FK constraints.
 
 ### 2. Verification & Mechanical Gates
 - `supabase apply_migration`: Applied `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution` successfully on Staging (`qqiiznmqxfoamqytjica`) with result `{"success": true}`.
