@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
+
+**Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Strictly Constrained `TimeSegmentInput` Control (`UpdateScheduleModal.tsx`)**:
+   - Replaced plain text input inside each fieldset (`Time-in` and `Time-out`) with segmented sub-inputs:
+     - **Hours**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits (`replace(/\D/g, '')`), clamps to valid hours (1–12), and auto-advances focus to the minute segment when 2 digits are entered or when `:` is typed.
+     - **Colon**: Non-editable fixed separator.
+     - **Minutes**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits, clamps to valid minutes (0–59), and returns focus to hours on Backspace when empty.
+     - **Period (AM/PM)**: One-click toggle pill button (`AM` / `PM`), also toggleable by typing `A` or `P`.
+     - **Clock Icon**: Clickable icon with native time picker overlay that populates hours, minutes, and period.
+2. **Controlled Architecture**:
+   - Component is 100% controlled from parent state (`useMemo` parsing), eliminating synchronous effect-driven `setState` and cascading re-renders.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
 
 **Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4777,6 +4799,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
+
+**Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Strictly Constrained `TimeSegmentInput` Control (`UpdateScheduleModal.tsx`)**:
+   - Replaced plain text input inside each fieldset (`Time-in` and `Time-out`) with segmented sub-inputs:
+     - **Hours**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits (`replace(/\D/g, '')`), clamps to valid hours (1–12), and auto-advances focus to the minute segment when 2 digits are entered or when `:` is typed.
+     - **Colon**: Non-editable fixed separator.
+     - **Minutes**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits, clamps to valid minutes (0–59), and returns focus to hours on Backspace when empty.
+     - **Period (AM/PM)**: One-click toggle pill button (`AM` / `PM`), also toggleable by typing `A` or `P`.
+     - **Clock Icon**: Clickable icon with native time picker overlay that populates hours, minutes, and period.
+2. **Controlled Architecture**:
+   - Component is 100% controlled from parent state (`useMemo` parsing), eliminating synchronous effect-driven `setState` and cascading re-renders.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
 
 **Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5537,6 +5581,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
+
+**Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Strictly Constrained `TimeSegmentInput` Control (`UpdateScheduleModal.tsx`)**:
+   - Replaced plain text input inside each fieldset (`Time-in` and `Time-out`) with segmented sub-inputs:
+     - **Hours**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits (`replace(/\D/g, '')`), clamps to valid hours (1–12), and auto-advances focus to the minute segment when 2 digits are entered or when `:` is typed.
+     - **Colon**: Non-editable fixed separator.
+     - **Minutes**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits, clamps to valid minutes (0–59), and returns focus to hours on Backspace when empty.
+     - **Period (AM/PM)**: One-click toggle pill button (`AM` / `PM`), also toggleable by typing `A` or `P`.
+     - **Clock Icon**: Clickable icon with native time picker overlay that populates hours, minutes, and period.
+2. **Controlled Architecture**:
+   - Component is 100% controlled from parent state (`useMemo` parsing), eliminating synchronous effect-driven `setState` and cascading re-renders.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
 
@@ -6322,6 +6388,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
+
+**Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Strictly Constrained `TimeSegmentInput` Control (`UpdateScheduleModal.tsx`)**:
+   - Replaced plain text input inside each fieldset (`Time-in` and `Time-out`) with segmented sub-inputs:
+     - **Hours**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits (`replace(/\D/g, '')`), clamps to valid hours (1–12), and auto-advances focus to the minute segment when 2 digits are entered or when `:` is typed.
+     - **Colon**: Non-editable fixed separator.
+     - **Minutes**: Numeric-only input (`inputMode="numeric"`, `pattern="[0-9]*"`, `maxLength={2}`) with `--` placeholder. Automatically filters non-digits, clamps to valid minutes (0–59), and returns focus to hours on Backspace when empty.
+     - **Period (AM/PM)**: One-click toggle pill button (`AM` / `PM`), also toggleable by typing `A` or `P`.
+     - **Clock Icon**: Clickable icon with native time picker overlay that populates hours, minutes, and period.
+2. **Controlled Architecture**:
+   - Component is 100% controlled from parent state (`useMemo` parsing), eliminating synchronous effect-driven `setState` and cascading re-renders.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
 

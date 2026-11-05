@@ -104,27 +104,178 @@ function parseShiftWindow(raw?: string | null): { timeIn: string; timeOut: strin
   return { timeIn: raw, timeOut: "" };
 }
 
-function to24h(time12?: string): string {
-  if (!time12) return "";
-  const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return "";
-  let hours = parseInt(match[1], 10);
-  const minutes = match[2];
-  const ampm = (match[3] || "AM").toUpperCase();
-  if (ampm === "PM" && hours < 12) hours += 12;
-  if (ampm === "AM" && hours === 12) hours = 0;
-  return `${String(hours).padStart(2, "0")}:${minutes}`;
+function parse12HourTime(raw?: string): { hours: string; minutes: string; period: "AM" | "PM" } {
+  if (!raw || !raw.trim()) {
+    return { hours: "", minutes: "", period: "AM" };
+  }
+  const match = raw.match(/(\d{1,2}|--):(\d{2}|--)\s*(AM|PM)?/i);
+  if (!match) {
+    return { hours: "", minutes: "", period: "AM" };
+  }
+  return {
+    hours: match[1] === "--" ? "" : match[1],
+    minutes: match[2] === "--" ? "" : match[2],
+    period: (match[3] || "AM").toUpperCase() === "PM" ? "PM" : "AM",
+  };
 }
 
-function to12h(time24?: string): string {
-  if (!time24) return "";
-  const [h, m] = time24.split(":");
-  let hours = parseInt(h, 10);
-  const minutes = m || "00";
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
+interface TimeSegmentInputProps {
+  label: "Time-in" | "Time-out";
+  value?: string;
+  onChange: (val: string) => void;
+}
+
+function TimeSegmentInput({ label, value, onChange }: TimeSegmentInputProps) {
+  const { hours, minutes, period } = useMemo(() => parse12HourTime(value), [value]);
+
+  const hoursRef = React.useRef<HTMLInputElement>(null);
+  const minutesRef = React.useRef<HTMLInputElement>(null);
+
+  const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+    const num = parseInt(raw, 10);
+    let finalH = raw;
+    if (num > 12) finalH = "12";
+    if (num === 0 && raw.length === 2) finalH = "12";
+    onChange(`${finalH || "--"}:${minutes || "--"} ${period}`);
+    if (raw.length === 2 || num > 1) {
+      minutesRef.current?.focus();
+      minutesRef.current?.select();
+    }
+  };
+
+  const handleHoursBlur = () => {
+    if (!hours) return;
+    const num = parseInt(hours, 10);
+    let finalH = hours;
+    if (isNaN(num) || num === 0) finalH = "12";
+    else if (num > 12) finalH = "12";
+    onChange(`${finalH.padStart(2, "0")}:${minutes || "--"} ${period}`);
+  };
+
+  const handleMinutesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+    const num = parseInt(raw, 10);
+    let finalM = raw;
+    if (num > 59) finalM = "59";
+    onChange(`${hours || "--"}:${finalM || "--"} ${period}`);
+  };
+
+  const handleMinutesBlur = () => {
+    if (!minutes) return;
+    const num = parseInt(minutes, 10);
+    let finalM = minutes;
+    if (isNaN(num)) finalM = "00";
+    else if (num > 59) finalM = "59";
+    onChange(`${hours || "--"}:${finalM.padStart(2, "0")} ${period}`);
+  };
+
+  const handleHoursKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === ":" || e.key === "Enter" || e.key === "ArrowRight") {
+      e.preventDefault();
+      minutesRef.current?.focus();
+      minutesRef.current?.select();
+    }
+  };
+
+  const handleMinutesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !minutes) {
+      e.preventDefault();
+      hoursRef.current?.focus();
+      hoursRef.current?.select();
+    } else if (e.key === "a" || e.key === "A") {
+      e.preventDefault();
+      onChange(`${hours || "--"}:${minutes || "--"} AM`);
+    } else if (e.key === "p" || e.key === "P") {
+      e.preventDefault();
+      onChange(`${hours || "--"}:${minutes || "--"} PM`);
+    }
+  };
+
+  const togglePeriod = () => {
+    const next = period === "AM" ? "PM" : "AM";
+    onChange(`${hours || "--"}:${minutes || "--"} ${next}`);
+  };
+
+  const handleNativePicker = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.value) return;
+    const [h24, m] = e.target.value.split(":");
+    let hNum = parseInt(h24, 10);
+    const p: "AM" | "PM" = hNum >= 12 ? "PM" : "AM";
+    hNum = hNum % 12;
+    if (hNum === 0) hNum = 12;
+    const h12 = String(hNum).padStart(2, "0");
+    onChange(`${h12}:${m} ${p}`);
+  };
+
+  const nativeTime24 = useMemo(() => {
+    if (!hours || !minutes || hours === "--" || minutes === "--") return "";
+    let hNum = parseInt(hours, 10);
+    if (isNaN(hNum)) return "";
+    if (period === "PM" && hNum < 12) hNum += 12;
+    if (period === "AM" && hNum === 12) hNum = 0;
+    return `${String(hNum).padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+  }, [hours, minutes, period]);
+
+  return (
+    <fieldset className="rounded-xl border border-border-default px-3 pt-0.5 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-surface">
+      <legend className="px-1 text-[11px] font-medium text-text-secondary select-none">
+        {label}
+      </legend>
+      <div className="flex items-center justify-between gap-1.5 mt-0.5">
+        <div className="flex items-center gap-1 font-mono text-sm font-semibold text-text-primary">
+          <input
+            ref={hoursRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
+            value={hours}
+            onChange={handleHoursChange}
+            onBlur={handleHoursBlur}
+            onKeyDown={handleHoursKeyDown}
+            placeholder="--"
+            className="w-6 text-center bg-transparent focus:outline-none focus:bg-brand-50/50 dark:focus:bg-brand-950/40 rounded py-0.5 selection:bg-brand-primary selection:text-white"
+            aria-label={`${label} Hours`}
+          />
+          <span className="text-text-muted select-none font-bold">:</span>
+          <input
+            ref={minutesRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
+            value={minutes}
+            onChange={handleMinutesChange}
+            onBlur={handleMinutesBlur}
+            onKeyDown={handleMinutesKeyDown}
+            placeholder="--"
+            className="w-6 text-center bg-transparent focus:outline-none focus:bg-brand-50/50 dark:focus:bg-brand-950/40 rounded py-0.5 selection:bg-brand-primary selection:text-white"
+            aria-label={`${label} Minutes`}
+          />
+          <button
+            type="button"
+            onClick={togglePeriod}
+            className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded bg-surface-muted hover:bg-surface-base border border-border-default text-brand-primary transition cursor-pointer select-none"
+            title="Click to toggle AM / PM"
+          >
+            {period}
+          </button>
+        </div>
+
+        <label className="relative cursor-pointer text-text-muted hover:text-text-primary transition shrink-0 p-1 rounded-md hover:bg-surface-muted">
+          <Clock className="w-4 h-4" />
+          <input
+            type="time"
+            value={nativeTime24}
+            onChange={handleNativePicker}
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            title={`Pick ${label}`}
+          />
+        </label>
+      </div>
+    </fieldset>
+  );
 }
 
 export function UpdateScheduleModal({
@@ -464,63 +615,16 @@ export function UpdateScheduleModal({
                       SHIFT TIME WINDOW
                     </label>
                     <div className="grid grid-cols-2 gap-3">
-                      {/* Time-in */}
-                      <fieldset className="rounded-xl border border-border-default px-3.5 pt-0.5 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-surface">
-                        <legend className="px-1 text-[11px] font-medium text-text-secondary">
-                          Time-in
-                        </legend>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <input
-                            type="text"
-                            value={shiftTimes.timeIn}
-                            onChange={(e) => handleTimeInChange(idx, e.target.value)}
-                            placeholder="--:-- --"
-                            className="w-full bg-transparent text-xs font-mono font-semibold text-text-primary focus:outline-none"
-                          />
-                          <label className="relative cursor-pointer text-text-muted hover:text-text-primary transition shrink-0 p-0.5">
-                            <Clock className="w-3.5 h-3.5" />
-                            <input
-                              type="time"
-                              value={to24h(shiftTimes.timeIn)}
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleTimeInChange(idx, to12h(e.target.value));
-                                }
-                              }}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
-                          </label>
-                        </div>
-                      </fieldset>
-
-                      {/* Time-out */}
-                      <fieldset className="rounded-xl border border-border-default px-3.5 pt-0.5 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-surface">
-                        <legend className="px-1 text-[11px] font-medium text-text-secondary">
-                          Time-out
-                        </legend>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <input
-                            type="text"
-                            value={shiftTimes.timeOut}
-                            onChange={(e) => handleTimeOutChange(idx, e.target.value)}
-                            placeholder="--:-- --"
-                            className="w-full bg-transparent text-xs font-mono font-semibold text-text-primary focus:outline-none"
-                          />
-                          <label className="relative cursor-pointer text-text-muted hover:text-text-primary transition shrink-0 p-0.5">
-                            <Clock className="w-3.5 h-3.5" />
-                            <input
-                              type="time"
-                              value={to24h(shiftTimes.timeOut)}
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleTimeOutChange(idx, to12h(e.target.value));
-                                }
-                              }}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
-                          </label>
-                        </div>
-                      </fieldset>
+                      <TimeSegmentInput
+                        label="Time-in"
+                        value={shiftTimes.timeIn}
+                        onChange={(val) => handleTimeInChange(idx, val)}
+                      />
+                      <TimeSegmentInput
+                        label="Time-out"
+                        value={shiftTimes.timeOut}
+                        onChange={(val) => handleTimeOutChange(idx, val)}
+                      />
                     </div>
                   </div>
                 </div>
