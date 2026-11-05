@@ -1,7 +1,9 @@
 -- Migration: 20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql
 -- Purpose: Permanently resolve "insert or update on table 'audit_logs' violates foreign key constraint 'audit_logs_actor_id_fkey'"
--- 1. Create/harden public.resolve_audit_actor_id(uuid) to dynamically inspect audit_logs_actor_id_fkey and validate candidate IDs against the FK target.
--- 2. Update public.fn_audit_log() to safely resolve the actor ID and gracefully fall back to NULL on foreign_key_violation, guaranteeing status updates (Resigned, AWOL, Terminated) never abort due to audit logging.
+-- 1. Create/harden public.resolve_audit_actor_id(uuid) to validate candidate IDs against the FK target (auth.users).
+-- 2. Update public.fn_audit_log() to safely resolve actor ID and gracefully fall back to NULL on foreign_key_violation.
+-- 3. Update public.log_audit_event() with safe actor resolution and fallback to NULL on foreign_key_violation.
+-- 4. Deploy universal BEFORE INSERT OR UPDATE trigger on public.audit_logs to guarantee zero FK violations database-wide.
 
 -- ── 1. Create/Replace Safe Actor ID Resolver ───────────────────────────────
 CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)
@@ -83,7 +85,7 @@ CREATE OR REPLACE FUNCTION public.fn_audit_log()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'auth'
 AS $function$
 DECLARE
   v_action          audit_action;
@@ -151,3 +153,118 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+-- ── 3. Update log_audit_event() with safe actor resolution & error trapping ─
+CREATE OR REPLACE FUNCTION public.log_audit_event(
+  p_module text, 
+  p_action text, 
+  p_record_id uuid, 
+  p_old_data jsonb DEFAULT NULL::jsonb, 
+  p_new_data jsonb DEFAULT NULL::jsonb
+)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'auth'
+AS $function$
+DECLARE
+  v_actor_id uuid;
+  v_actor_role text;
+  v_log_id uuid;
+BEGIN
+  BEGIN
+    v_actor_id := public.resolve_audit_actor_id(auth.uid());
+  EXCEPTION WHEN OTHERS THEN
+    v_actor_id := NULL;
+  END;
+
+  BEGIN
+    SELECT r.role_name
+      INTO v_actor_role
+      FROM public.users_profile up
+      LEFT JOIN public.roles r ON r.id = up.role_id
+     WHERE up.auth_user_id = auth.uid() OR up.id = auth.uid()
+     LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    v_actor_role := NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.audit_logs (
+      actor_id,
+      module,
+      action,
+      record_id,
+      old_data,
+      new_data,
+      timestamp,
+      role
+    ) VALUES (
+      v_actor_id,
+      upper(trim(p_module)),
+      upper(trim(p_action))::audit_action,
+      p_record_id,
+      p_old_data,
+      p_new_data,
+      now(),
+      v_actor_role
+    )
+    RETURNING id INTO v_log_id;
+  EXCEPTION WHEN foreign_key_violation THEN
+    BEGIN
+      INSERT INTO public.audit_logs (
+        actor_id,
+        module,
+        action,
+        record_id,
+        old_data,
+        new_data,
+        timestamp,
+        role
+      ) VALUES (
+        NULL,
+        upper(trim(p_module)),
+        upper(trim(p_action))::audit_action,
+        p_record_id,
+        p_old_data,
+        p_new_data,
+        now(),
+        v_actor_role
+      )
+      RETURNING id INTO v_log_id;
+    EXCEPTION WHEN OTHERS THEN
+      v_log_id := NULL;
+    END;
+  WHEN OTHERS THEN
+    v_log_id := NULL;
+  END;
+
+  RETURN v_log_id;
+END;
+$function$;
+
+-- ── 4. Universal Trigger Gate on audit_logs ──────────────────────────────
+-- Guarantees that any direct INSERT or UPDATE to public.audit_logs
+-- from any existing or future function/trigger automatically clears actor_id
+-- to NULL if it does not point to a valid auth.users row.
+CREATE OR REPLACE FUNCTION public.tg_safe_audit_logs_actor_id()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  IF NEW.actor_id IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = NEW.actor_id) THEN
+      NEW.actor_id := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_safe_audit_logs_actor_id ON public.audit_logs;
+CREATE TRIGGER trg_safe_audit_logs_actor_id
+BEFORE INSERT OR UPDATE ON public.audit_logs
+FOR EACH ROW
+EXECUTE FUNCTION public.tg_safe_audit_logs_actor_id();

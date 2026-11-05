@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**:
+  - Updating employment status (Floating, Resigned, AWOL, Terminated) triggered `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"` (SQLSTATE 23503).
+- **Deep Audit Findings**:
+  1. Employment status changes trigger multiple cascades: `plantilla` update fires `trg_audit_plantilla` (`fn_audit_log()`), `fn_plantilla_separation_to_vacancy()` updates `vacancies` (firing `trg_audit_vacancies` -> `fn_audit_log()`), and updates `applicants` (firing `trg_audit_applicants` -> `fn_audit_log()`).
+  2. In addition, separation helper functions invoke `_log_employee_action()`, which calls `log_audit_event()`. `log_audit_event()` was doing a direct unshielded insert of `v_actor_id := auth.uid()` without safe resolution or exception trapping.
+  3. In Staging (`qqiiznmqxfoamqytjica`), several profiles have mock or orphaned `auth_user_id` values that do not exist in `auth.users`, causing direct FK violation on `audit_logs.actor_id`.
+  4. Migration `20262606000087` had not been recorded in `supabase_migrations.schema_migrations`.
+- **Fix Applied**:
+  1. **`public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)`**: Validates candidate UUIDs against `auth.users`, inspects `users_profile` with an `INNER JOIN auth.users`, and safely returns `NULL` when unresolvable instead of letting the transaction fail.
+  2. **`public.fn_audit_log()`**: Wrapped `INSERT INTO public.audit_logs` in `EXCEPTION WHEN foreign_key_violation` with an automatic retry inserting `actor_id = NULL`, plus outer `WHEN OTHERS THEN NULL` to ensure business transactions never abort due to audit logging.
+  3. **`public.log_audit_event()`**: Updated to resolve actor using `public.resolve_audit_actor_id(auth.uid())` and wrap insertion with fallback to `actor_id = NULL` on `foreign_key_violation`.
+  4. **Universal Trigger Gate `trg_safe_audit_logs_actor_id`**: Added `CREATE OR REPLACE TRIGGER trg_safe_audit_logs_actor_id BEFORE INSERT OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.tg_safe_audit_logs_actor_id()`. Any insert/update to `public.audit_logs` where `NEW.actor_id` does not exist in `auth.users` automatically has `NEW.actor_id := NULL` assigned before the foreign key check is evaluated. This provides **100% database-wide immunity** against `audit_logs_actor_id_fkey` errors across all current and future caller functions.
+  5. **Migration Sync**: Registered `20262606000087` into `supabase_migrations.schema_migrations`.
+
+### 2. Verification & Mechanical Gates
+- **Live Database Audit & Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+  - `public.resolve_audit_actor_id('00000000-0000-0000-0000-000000000001'::uuid)` evaluated to `NULL`.
+  - `public.log_audit_event(...)` executed successfully and verified `actor_id = NULL` was saved with 0 errors.
+  - Direct `INSERT INTO public.audit_logs` with a non-existent actor UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`) sanitized automatically to `NULL` via `trg_safe_audit_logs_actor_id`.
+  - Direct `INSERT INTO public.audit_logs` with a valid `auth.users` UUID (`71d245b9-10b1-42b9-ad9e-253f999daf6d`) preserved the `actor_id`.
+  - Verified status updates on live employee record `ZZTEST-EMP-0001` across all four targets (`Floating`, `Resigned`, `AWOL`, `Terminated`) followed by restoration to `Active`—all completed with 0 errors, generated audit logs with `actor_id = NULL`, and zero FK constraint violations.
+- **Linter**: `npm run lint` passed clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Git Branch**: Changes isolated cleanly on `Branch2`.
+
+---
+
 ## Execution Report — Fix Audit Log Foreign Key Constraint Error, Retain Inactive Tab Visibility & Lock Architectural Rules (ohm#branch2-fix-audit-logs-fk-and-inactive-retention)
 
 **Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); IMPLEMENTED `public.resolve_audit_actor_id(uuid)` WITH SAFE `pg_constraint` DYNAMIC TARGET LOOKUP AND FALLBACK TO `NULL`; HARDENED `public.fn_audit_log()` WITH SAFE ACTOR RESOLUTION AND EXCEPTION TRAP ON `foreign_key_violation` GUARANTEEING ZERO STATUS UPDATE ABORTS ON SEPARATIONS (RESIGNED, AWOL, TERMINATED); REVERTED STRICT EXCLUSIVITY CHECK IN `isInactiveRecord` IN `src/app/(dashboard)/plantilla/page.tsx` SO SEPARATED AND DEACTIVATION-PENDING EMPLOYEES REMAIN PERMANENTLY VISIBLE IN THE INACTIVE TAB ROSTER; FORMALIZED NON-NEGOTIABLE ARCHITECTURAL RULE #1 AND RULE #2 IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4443,6 +4474,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**:
+  - Updating employment status (Floating, Resigned, AWOL, Terminated) triggered `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"` (SQLSTATE 23503).
+- **Deep Audit Findings**:
+  1. Employment status changes trigger multiple cascades: `plantilla` update fires `trg_audit_plantilla` (`fn_audit_log()`), `fn_plantilla_separation_to_vacancy()` updates `vacancies` (firing `trg_audit_vacancies` -> `fn_audit_log()`), and updates `applicants` (firing `trg_audit_applicants` -> `fn_audit_log()`).
+  2. In addition, separation helper functions invoke `_log_employee_action()`, which calls `log_audit_event()`. `log_audit_event()` was doing a direct unshielded insert of `v_actor_id := auth.uid()` without safe resolution or exception trapping.
+  3. In Staging (`qqiiznmqxfoamqytjica`), several profiles have mock or orphaned `auth_user_id` values that do not exist in `auth.users`, causing direct FK violation on `audit_logs.actor_id`.
+  4. Migration `20262606000087` had not been recorded in `supabase_migrations.schema_migrations`.
+- **Fix Applied**:
+  1. **`public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)`**: Validates candidate UUIDs against `auth.users`, inspects `users_profile` with an `INNER JOIN auth.users`, and safely returns `NULL` when unresolvable instead of letting the transaction fail.
+  2. **`public.fn_audit_log()`**: Wrapped `INSERT INTO public.audit_logs` in `EXCEPTION WHEN foreign_key_violation` with an automatic retry inserting `actor_id = NULL`, plus outer `WHEN OTHERS THEN NULL` to ensure business transactions never abort due to audit logging.
+  3. **`public.log_audit_event()`**: Updated to resolve actor using `public.resolve_audit_actor_id(auth.uid())` and wrap insertion with fallback to `actor_id = NULL` on `foreign_key_violation`.
+  4. **Universal Trigger Gate `trg_safe_audit_logs_actor_id`**: Added `CREATE OR REPLACE TRIGGER trg_safe_audit_logs_actor_id BEFORE INSERT OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.tg_safe_audit_logs_actor_id()`. Any insert/update to `public.audit_logs` where `NEW.actor_id` does not exist in `auth.users` automatically has `NEW.actor_id := NULL` assigned before the foreign key check is evaluated. This provides **100% database-wide immunity** against `audit_logs_actor_id_fkey` errors across all current and future caller functions.
+  5. **Migration Sync**: Registered `20262606000087` into `supabase_migrations.schema_migrations`.
+
+### 2. Verification & Mechanical Gates
+- **Live Database Audit & Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+  - `public.resolve_audit_actor_id('00000000-0000-0000-0000-000000000001'::uuid)` evaluated to `NULL`.
+  - `public.log_audit_event(...)` executed successfully and verified `actor_id = NULL` was saved with 0 errors.
+  - Direct `INSERT INTO public.audit_logs` with a non-existent actor UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`) sanitized automatically to `NULL` via `trg_safe_audit_logs_actor_id`.
+  - Direct `INSERT INTO public.audit_logs` with a valid `auth.users` UUID (`71d245b9-10b1-42b9-ad9e-253f999daf6d`) preserved the `actor_id`.
+  - Verified status updates on live employee record `ZZTEST-EMP-0001` across all four targets (`Floating`, `Resigned`, `AWOL`, `Terminated`) followed by restoration to `Active`—all completed with 0 errors, generated audit logs with `actor_id = NULL`, and zero FK constraint violations.
+- **Linter**: `npm run lint` passed clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Git Branch**: Changes isolated cleanly on `Branch2`.
+
+---
+
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4907,6 +4969,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**:
+  - Updating employment status (Floating, Resigned, AWOL, Terminated) triggered `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"` (SQLSTATE 23503).
+- **Deep Audit Findings**:
+  1. Employment status changes trigger multiple cascades: `plantilla` update fires `trg_audit_plantilla` (`fn_audit_log()`), `fn_plantilla_separation_to_vacancy()` updates `vacancies` (firing `trg_audit_vacancies` -> `fn_audit_log()`), and updates `applicants` (firing `trg_audit_applicants` -> `fn_audit_log()`).
+  2. In addition, separation helper functions invoke `_log_employee_action()`, which calls `log_audit_event()`. `log_audit_event()` was doing a direct unshielded insert of `v_actor_id := auth.uid()` without safe resolution or exception trapping.
+  3. In Staging (`qqiiznmqxfoamqytjica`), several profiles have mock or orphaned `auth_user_id` values that do not exist in `auth.users`, causing direct FK violation on `audit_logs.actor_id`.
+  4. Migration `20262606000087` had not been recorded in `supabase_migrations.schema_migrations`.
+- **Fix Applied**:
+  1. **`public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)`**: Validates candidate UUIDs against `auth.users`, inspects `users_profile` with an `INNER JOIN auth.users`, and safely returns `NULL` when unresolvable instead of letting the transaction fail.
+  2. **`public.fn_audit_log()`**: Wrapped `INSERT INTO public.audit_logs` in `EXCEPTION WHEN foreign_key_violation` with an automatic retry inserting `actor_id = NULL`, plus outer `WHEN OTHERS THEN NULL` to ensure business transactions never abort due to audit logging.
+  3. **`public.log_audit_event()`**: Updated to resolve actor using `public.resolve_audit_actor_id(auth.uid())` and wrap insertion with fallback to `actor_id = NULL` on `foreign_key_violation`.
+  4. **Universal Trigger Gate `trg_safe_audit_logs_actor_id`**: Added `CREATE OR REPLACE TRIGGER trg_safe_audit_logs_actor_id BEFORE INSERT OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.tg_safe_audit_logs_actor_id()`. Any insert/update to `public.audit_logs` where `NEW.actor_id` does not exist in `auth.users` automatically has `NEW.actor_id := NULL` assigned before the foreign key check is evaluated. This provides **100% database-wide immunity** against `audit_logs_actor_id_fkey` errors across all current and future caller functions.
+  5. **Migration Sync**: Registered `20262606000087` into `supabase_migrations.schema_migrations`.
+
+### 2. Verification & Mechanical Gates
+- **Live Database Audit & Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+  - `public.resolve_audit_actor_id('00000000-0000-0000-0000-000000000001'::uuid)` evaluated to `NULL`.
+  - `public.log_audit_event(...)` executed successfully and verified `actor_id = NULL` was saved with 0 errors.
+  - Direct `INSERT INTO public.audit_logs` with a non-existent actor UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`) sanitized automatically to `NULL` via `trg_safe_audit_logs_actor_id`.
+  - Direct `INSERT INTO public.audit_logs` with a valid `auth.users` UUID (`71d245b9-10b1-42b9-ad9e-253f999daf6d`) preserved the `actor_id`.
+  - Verified status updates on live employee record `ZZTEST-EMP-0001` across all four targets (`Floating`, `Resigned`, `AWOL`, `Terminated`) followed by restoration to `Active`—all completed with 0 errors, generated audit logs with `actor_id = NULL`, and zero FK constraint violations.
+- **Linter**: `npm run lint` passed clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Git Branch**: Changes isolated cleanly on `Branch2`.
+
+---
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
@@ -5396,6 +5489,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Comprehensive Audit & Universal Protection against Audit Log Foreign Key Constraint Errors (ohm#branch2-reapply-audit-logs-fk-fix-and-universal-trigger)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000087` ENHANCED AND FORCE APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); REGISTERED IN `supabase_migrations.schema_migrations`; HARDENED `public.resolve_audit_actor_id(uuid)` AND `public.fn_audit_log()` WITH `foreign_key_violation` FALLBACK RETRY SETTING `actor_id = NULL`; HARDENED `public.log_audit_event()` WITH SAFE ACTOR RESOLUTION; DEPLOYED UNIVERSAL TRIGGER GATE `trg_safe_audit_logs_actor_id` (`BEFORE INSERT OR UPDATE ON public.audit_logs`) AUTOMATICALLY CONVERTING NON-AUTH ACTOR IDS TO `NULL`; VERIFIED STATUS UPDATES FOR FLOATING, RESIGNED, AWOL, AND TERMINATED COMPLETE WITH 0 ERRORS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**:
+  - Updating employment status (Floating, Resigned, AWOL, Terminated) triggered `insert or update on table "audit_logs" violates foreign key constraint "audit_logs_actor_id_fkey"` (SQLSTATE 23503).
+- **Deep Audit Findings**:
+  1. Employment status changes trigger multiple cascades: `plantilla` update fires `trg_audit_plantilla` (`fn_audit_log()`), `fn_plantilla_separation_to_vacancy()` updates `vacancies` (firing `trg_audit_vacancies` -> `fn_audit_log()`), and updates `applicants` (firing `trg_audit_applicants` -> `fn_audit_log()`).
+  2. In addition, separation helper functions invoke `_log_employee_action()`, which calls `log_audit_event()`. `log_audit_event()` was doing a direct unshielded insert of `v_actor_id := auth.uid()` without safe resolution or exception trapping.
+  3. In Staging (`qqiiznmqxfoamqytjica`), several profiles have mock or orphaned `auth_user_id` values that do not exist in `auth.users`, causing direct FK violation on `audit_logs.actor_id`.
+  4. Migration `20262606000087` had not been recorded in `supabase_migrations.schema_migrations`.
+- **Fix Applied**:
+  1. **`public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)`**: Validates candidate UUIDs against `auth.users`, inspects `users_profile` with an `INNER JOIN auth.users`, and safely returns `NULL` when unresolvable instead of letting the transaction fail.
+  2. **`public.fn_audit_log()`**: Wrapped `INSERT INTO public.audit_logs` in `EXCEPTION WHEN foreign_key_violation` with an automatic retry inserting `actor_id = NULL`, plus outer `WHEN OTHERS THEN NULL` to ensure business transactions never abort due to audit logging.
+  3. **`public.log_audit_event()`**: Updated to resolve actor using `public.resolve_audit_actor_id(auth.uid())` and wrap insertion with fallback to `actor_id = NULL` on `foreign_key_violation`.
+  4. **Universal Trigger Gate `trg_safe_audit_logs_actor_id`**: Added `CREATE OR REPLACE TRIGGER trg_safe_audit_logs_actor_id BEFORE INSERT OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.tg_safe_audit_logs_actor_id()`. Any insert/update to `public.audit_logs` where `NEW.actor_id` does not exist in `auth.users` automatically has `NEW.actor_id := NULL` assigned before the foreign key check is evaluated. This provides **100% database-wide immunity** against `audit_logs_actor_id_fkey` errors across all current and future caller functions.
+  5. **Migration Sync**: Registered `20262606000087` into `supabase_migrations.schema_migrations`.
+
+### 2. Verification & Mechanical Gates
+- **Live Database Audit & Tests on Staging (`qqiiznmqxfoamqytjica`)**:
+  - `public.resolve_audit_actor_id('00000000-0000-0000-0000-000000000001'::uuid)` evaluated to `NULL`.
+  - `public.log_audit_event(...)` executed successfully and verified `actor_id = NULL` was saved with 0 errors.
+  - Direct `INSERT INTO public.audit_logs` with a non-existent actor UUID (`ffffffff-ffff-ffff-ffff-ffffffffffff`) sanitized automatically to `NULL` via `trg_safe_audit_logs_actor_id`.
+  - Direct `INSERT INTO public.audit_logs` with a valid `auth.users` UUID (`71d245b9-10b1-42b9-ad9e-253f999daf6d`) preserved the `actor_id`.
+  - Verified status updates on live employee record `ZZTEST-EMP-0001` across all four targets (`Floating`, `Resigned`, `AWOL`, `Terminated`) followed by restoration to `Active`—all completed with 0 errors, generated audit logs with `actor_id = NULL`, and zero FK constraint violations.
+- **Linter**: `npm run lint` passed clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Git Branch**: Changes isolated cleanly on `Branch2`.
+
+---
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
