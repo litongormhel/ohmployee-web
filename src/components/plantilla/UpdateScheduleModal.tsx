@@ -58,17 +58,31 @@ function parseDayoffString(raw?: string | null): DayCode[] {
   return ["SUN"];
 }
 
-function parseDaysToSet(daysStr?: string | null): Set<string> {
-  const set = new Set<string>();
+function parseDaysToSet(daysStr?: string | null): Set<DayCode> {
+  const set = new Set<DayCode>();
   if (!daysStr) return set;
   const upper = daysStr.toUpperCase().trim();
-  if (upper === "MON-SAT") return new Set(["MON", "TUE", "WED", "THU", "FRI", "SAT"]);
-  if (upper === "MON-FRI") return new Set(["MON", "TUE", "WED", "THU", "FRI"]);
-  if (upper === "MON-WED") return new Set(["MON", "TUE", "WED"]);
-  if (upper === "THU-SAT") return new Set(["THU", "FRI", "SAT"]);
-  DAYS_OF_WEEK.forEach((d) => {
-    if (upper.includes(d)) set.add(d);
-  });
+  if (upper === "MON-SAT") return new Set<DayCode>(["MON", "TUE", "WED", "THU", "FRI", "SAT"]);
+  if (upper === "MON-FRI") return new Set<DayCode>(["MON", "TUE", "WED", "THU", "FRI"]);
+  if (upper === "MON-WED") return new Set<DayCode>(["MON", "TUE", "WED"]);
+  if (upper === "THU-SAT") return new Set<DayCode>(["THU", "FRI", "SAT"]);
+
+  const tokens = upper.split(/[,/&\s]+/).map((t) => t.trim()).filter(Boolean);
+  for (const token of tokens) {
+    if (token === "MON-SAT") {
+      ["MON", "TUE", "WED", "THU", "FRI", "SAT"].forEach((d) => set.add(d as DayCode));
+    } else if (token === "MON-FRI") {
+      ["MON", "TUE", "WED", "THU", "FRI"].forEach((d) => set.add(d as DayCode));
+    } else if (token === "MON-WED") {
+      ["MON", "TUE", "WED"].forEach((d) => set.add(d as DayCode));
+    } else if (token === "THU-SAT") {
+      ["THU", "FRI", "SAT"].forEach((d) => set.add(d as DayCode));
+    } else {
+      DAYS_OF_WEEK.forEach((d) => {
+        if (token === d) set.add(d);
+      });
+    }
+  }
   return set;
 }
 
@@ -78,7 +92,7 @@ function formatDaysFromSet(days: Set<string>): string {
   if (ordered.length === 5 && !days.has("SAT") && !days.has("SUN")) return "MON-FRI";
   if (ordered.length === 3 && days.has("MON") && days.has("TUE") && days.has("WED")) return "MON-WED";
   if (ordered.length === 3 && days.has("THU") && days.has("FRI") && days.has("SAT")) return "THU-SAT";
-  return ordered.join("-");
+  return ordered.join(", ");
 }
 
 export function UpdateScheduleModal({
@@ -280,9 +294,6 @@ export function UpdateScheduleModal({
 
           {/* Multi-Select Rest Day Pills */}
           <div>
-            <p className="text-2xs text-text-muted mb-2">
-              Select one or more weekly rest days (e.g. Saturday & Sunday for standard 5-day work week):
-            </p>
             <div className="grid grid-cols-7 gap-1.5">
               {DAYS_OF_WEEK.map((d) => {
                 const isSelected = selectedDayoffs.includes(d);

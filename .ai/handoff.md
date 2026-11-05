@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
+
+**Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Independent Duty Days Toggling (`UpdateScheduleModal.tsx`)**:
+   - Updated `formatDaysFromSet` so that non-consecutive day selections (e.g. `MON` and `WED`) are formatted as comma-separated lists (`MON, WED`) rather than hyphenated ranges (`MON-WED`). True hyphenated ranges are only produced when all intermediate days in a 3+ day sequence are active (`MON, TUE, WED` → `MON-WED`).
+   - Updated `parseDaysToSet` to safely tokenize comma-separated day lists without interpreting endpoints as inclusive ranges.
+   - Verified that clicking `MON` and `WED` leaves `TUE` unselected and independent.
+2. **Rest Days Subtitle Removal (`UpdateScheduleModal.tsx`)**:
+   - Removed the explanatory text paragraph (`Select one or more weekly rest days...`), leaving a clean header and day pill toggle layout.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
 
 **Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4737,6 +4756,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
+
+**Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Independent Duty Days Toggling (`UpdateScheduleModal.tsx`)**:
+   - Updated `formatDaysFromSet` so that non-consecutive day selections (e.g. `MON` and `WED`) are formatted as comma-separated lists (`MON, WED`) rather than hyphenated ranges (`MON-WED`). True hyphenated ranges are only produced when all intermediate days in a 3+ day sequence are active (`MON, TUE, WED` → `MON-WED`).
+   - Updated `parseDaysToSet` to safely tokenize comma-separated day lists without interpreting endpoints as inclusive ranges.
+   - Verified that clicking `MON` and `WED` leaves `TUE` unselected and independent.
+2. **Rest Days Subtitle Removal (`UpdateScheduleModal.tsx`)**:
+   - Removed the explanatory text paragraph (`Select one or more weekly rest days...`), leaving a clean header and day pill toggle layout.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
 
 **Status: COMPLETE ON BRANCH2; STREAMLINED `UpdateScheduleModal.tsx` PER OPERATIONAL DESIGN FEEDBACK; REMOVED DUTY DAYS PRESET BUTTONS (`MON-SAT`, `MON-FRI`, `MON-WED`, `THU-SAT`) ACROSS FROM THE LABEL, RETAINING THE DEDICATED 7-DAY PILL TOGGLES (`MON`–`SUN`); REMOVED ALL PRESET TIME BUTTONS BELOW SHIFT TIME WINDOW, REPLACING THEM WITH A SINGLE CLEAN, DIRECT INPUT FIELD WITH PLACEHOLDER `00:00 AM/PM - 00:00 AM/PM`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5457,6 +5495,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
+
+**Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Independent Duty Days Toggling (`UpdateScheduleModal.tsx`)**:
+   - Updated `formatDaysFromSet` so that non-consecutive day selections (e.g. `MON` and `WED`) are formatted as comma-separated lists (`MON, WED`) rather than hyphenated ranges (`MON-WED`). True hyphenated ranges are only produced when all intermediate days in a 3+ day sequence are active (`MON, TUE, WED` → `MON-WED`).
+   - Updated `parseDaysToSet` to safely tokenize comma-separated day lists without interpreting endpoints as inclusive ranges.
+   - Verified that clicking `MON` and `WED` leaves `TUE` unselected and independent.
+2. **Rest Days Subtitle Removal (`UpdateScheduleModal.tsx`)**:
+   - Removed the explanatory text paragraph (`Select one or more weekly rest days...`), leaving a clean header and day pill toggle layout.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
 
@@ -6202,6 +6259,25 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
+
+**Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Independent Duty Days Toggling (`UpdateScheduleModal.tsx`)**:
+   - Updated `formatDaysFromSet` so that non-consecutive day selections (e.g. `MON` and `WED`) are formatted as comma-separated lists (`MON, WED`) rather than hyphenated ranges (`MON-WED`). True hyphenated ranges are only produced when all intermediate days in a 3+ day sequence are active (`MON, TUE, WED` → `MON-WED`).
+   - Updated `parseDaysToSet` to safely tokenize comma-separated day lists without interpreting endpoints as inclusive ranges.
+   - Verified that clicking `MON` and `WED` leaves `TUE` unselected and independent.
+2. **Rest Days Subtitle Removal (`UpdateScheduleModal.tsx`)**:
+   - Removed the explanatory text paragraph (`Select one or more weekly rest days...`), leaving a clean header and day pill toggle layout.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Streamline Duty Days and Shift Time Window Inputs (ohm#branch2-streamline-duty-days-and-shift-window-inputs)
 
