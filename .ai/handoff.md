@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
+
+**Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Reset Trigger & Confirmation Modal (`UpdateScheduleModal.tsx`)**:
+   - Added a `Reset Schedule` button (with `RotateCcw` icon and danger-accent styling) on the left side of the modal footer.
+   - Built a nested confirmation modal (`isConfirmResetOpen`) that asks: "Are you sure you want to reset the schedule for [Employee Name]?" with clear notice that store allocations remain locked and blank schedules cannot be saved.
+   - Confirming reset clears: `selectedDayoffs` (`[]`), each store's `scheduleDays` (`""`), and `scheduleTime` (`""`).
+2. **Strict Save Blocking on Blank/Incomplete Schedules (`UpdateScheduleModal.tsx`)**:
+   - Implemented `isScheduleComplete` validation:
+     - Requires at least 1 designated rest day (`selectedDayoffs.length > 0`).
+     - Requires every store to have duty days assigned (`alloc.scheduleDays`).
+     - Requires every store to have complete `timeIn` and `timeOut` values (no placeholder `--` or blank).
+   - The Save button (`Save Schedule & Work Terms`) is disabled whenever `!isScheduleComplete`.
+   - Displays a dynamic warning banner: `⚠️ Schedule incomplete (cannot be saved while blank)` to guide operators.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
 
 **Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4799,6 +4823,30 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
+
+**Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Reset Trigger & Confirmation Modal (`UpdateScheduleModal.tsx`)**:
+   - Added a `Reset Schedule` button (with `RotateCcw` icon and danger-accent styling) on the left side of the modal footer.
+   - Built a nested confirmation modal (`isConfirmResetOpen`) that asks: "Are you sure you want to reset the schedule for [Employee Name]?" with clear notice that store allocations remain locked and blank schedules cannot be saved.
+   - Confirming reset clears: `selectedDayoffs` (`[]`), each store's `scheduleDays` (`""`), and `scheduleTime` (`""`).
+2. **Strict Save Blocking on Blank/Incomplete Schedules (`UpdateScheduleModal.tsx`)**:
+   - Implemented `isScheduleComplete` validation:
+     - Requires at least 1 designated rest day (`selectedDayoffs.length > 0`).
+     - Requires every store to have duty days assigned (`alloc.scheduleDays`).
+     - Requires every store to have complete `timeIn` and `timeOut` values (no placeholder `--` or blank).
+   - The Save button (`Save Schedule & Work Terms`) is disabled whenever `!isScheduleComplete`.
+   - Displays a dynamic warning banner: `⚠️ Schedule incomplete (cannot be saved while blank)` to guide operators.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
 
 **Status: COMPLETE ON BRANCH2; UPGRADED `TimeSegmentInput` IN `UpdateScheduleModal.tsx` TO A STRICTLY CONSTRAINED NUMERIC CONTROL ENFORCING `--:-- --` STRUCTURE; BLOCKS ALL NON-DIGIT CHARACTERS FOR HOURS AND MINUTES; CLAMPS HOURS TO `01`–`12` WITH AUTO-ADVANCE TO MINUTES ON 2 DIGITS OR COLON; CLAMPS MINUTES TO `00`–`59` WITH AUTO-RETURN FOCUS TO HOURS ON BACKSPACE; PROVIDES AM/PM TOGGLE WITH KEYBOARD SHORTCUTS (`A`/`P`); INCLUDES CLICKABLE CLOCK PICKER OVERLAY; FULLY DECLARATIVE WITH ZERO CASCADING RENDERS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5581,6 +5629,30 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
+
+**Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Reset Trigger & Confirmation Modal (`UpdateScheduleModal.tsx`)**:
+   - Added a `Reset Schedule` button (with `RotateCcw` icon and danger-accent styling) on the left side of the modal footer.
+   - Built a nested confirmation modal (`isConfirmResetOpen`) that asks: "Are you sure you want to reset the schedule for [Employee Name]?" with clear notice that store allocations remain locked and blank schedules cannot be saved.
+   - Confirming reset clears: `selectedDayoffs` (`[]`), each store's `scheduleDays` (`""`), and `scheduleTime` (`""`).
+2. **Strict Save Blocking on Blank/Incomplete Schedules (`UpdateScheduleModal.tsx`)**:
+   - Implemented `isScheduleComplete` validation:
+     - Requires at least 1 designated rest day (`selectedDayoffs.length > 0`).
+     - Requires every store to have duty days assigned (`alloc.scheduleDays`).
+     - Requires every store to have complete `timeIn` and `timeOut` values (no placeholder `--` or blank).
+   - The Save button (`Save Schedule & Work Terms`) is disabled whenever `!isScheduleComplete`.
+   - Displays a dynamic warning banner: `⚠️ Schedule incomplete (cannot be saved while blank)` to guide operators.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
 
@@ -6388,6 +6460,30 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
+
+**Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Reset Trigger & Confirmation Modal (`UpdateScheduleModal.tsx`)**:
+   - Added a `Reset Schedule` button (with `RotateCcw` icon and danger-accent styling) on the left side of the modal footer.
+   - Built a nested confirmation modal (`isConfirmResetOpen`) that asks: "Are you sure you want to reset the schedule for [Employee Name]?" with clear notice that store allocations remain locked and blank schedules cannot be saved.
+   - Confirming reset clears: `selectedDayoffs` (`[]`), each store's `scheduleDays` (`""`), and `scheduleTime` (`""`).
+2. **Strict Save Blocking on Blank/Incomplete Schedules (`UpdateScheduleModal.tsx`)**:
+   - Implemented `isScheduleComplete` validation:
+     - Requires at least 1 designated rest day (`selectedDayoffs.length > 0`).
+     - Requires every store to have duty days assigned (`alloc.scheduleDays`).
+     - Requires every store to have complete `timeIn` and `timeOut` values (no placeholder `--` or blank).
+   - The Save button (`Save Schedule & Work Terms`) is disabled whenever `!isScheduleComplete`.
+   - Displays a dynamic warning banner: `⚠️ Schedule incomplete (cannot be saved while blank)` to guide operators.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Structured Numeric Time Segment Input (ohm#branch2-structured-numeric-time-segment-input)
 

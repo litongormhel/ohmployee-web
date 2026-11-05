@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
+  RotateCcw,
 } from "lucide-react";
 import { updatePlantillaSchedule, type StoreAllocationInput } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
@@ -326,6 +327,32 @@ export function UpdateScheduleModal({
   const [allocations, setAllocations] = useState<StoreAllocationItem[]>(defaultAllocations);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+
+  const handleResetSchedule = () => {
+    setSelectedDayoffs([]);
+    setAllocations((prev) =>
+      prev.map((a) => ({
+        ...a,
+        scheduleDays: "",
+        scheduleTime: "",
+      }))
+    );
+    setIsConfirmResetOpen(false);
+  };
+
+  const isScheduleComplete = useMemo(() => {
+    if (selectedDayoffs.length === 0) return false;
+    return allocations.every((a) => {
+      const days = (a.scheduleDays || "").trim();
+      const time = (a.scheduleTime || "").trim();
+      if (!days) return false;
+      if (!time || time.includes("--") || time === "-") return false;
+      const parts = time.split("-").map((p) => p.trim());
+      if (parts.length < 2 || !parts[0] || !parts[1]) return false;
+      return true;
+    });
+  }, [selectedDayoffs, allocations]);
 
   const isRoving = allocations.length > 1;
 
@@ -642,13 +669,39 @@ export function UpdateScheduleModal({
         </div>
 
         {/* Modal Actions Footer */}
-        <div className="pt-4 border-t border-border-default flex items-center justify-between">
-          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Schedule terms ready to save</span>
+        <div className="pt-4 border-t border-border-default flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsConfirmResetOpen(true)}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-danger-border bg-danger-bg/40 text-danger-text hover:bg-danger-bg transition cursor-pointer disabled:opacity-50"
+              title="Reset all duty days, shift times, and rest days"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Schedule</span>
+            </button>
+
+            <div className="text-xs">
+              {!isScheduleComplete ? (
+                <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Schedule incomplete (cannot be saved while blank)</span>
+                </span>
+              ) : !isHcValid ? (
+                <span className="text-danger-text font-bold">
+                  ⚠️ Sum is {totalHcShare} HC. Must equal 1.00 HC.
+                </span>
+              ) : (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Schedule terms ready to save</span>
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -659,7 +712,7 @@ export function UpdateScheduleModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isScheduleComplete || !isHcValid}
               className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {isSubmitting ? (
@@ -674,6 +727,49 @@ export function UpdateScheduleModal({
           </div>
         </div>
       </form>
+
+      {/* Reset Confirmation Dialog */}
+      {isConfirmResetOpen && (
+        <Modal
+          isOpen={isConfirmResetOpen}
+          onClose={() => setIsConfirmResetOpen(false)}
+          title="Reset Schedule & Work Terms?"
+          subtitle="All duty days, shift time windows, and rest days will be cleared."
+          icon={AlertTriangle}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Are you sure you want to reset the schedule for{" "}
+              <strong className="text-text-primary">{employeeName || "this employee"}</strong>? All
+              duty days, shift times, and designated rest days will become blank so you can re-enter
+              them easily.
+            </p>
+            <div className="rounded-lg bg-surface-muted p-2.5 text-2xs text-text-muted border border-border-subtle">
+              ⚠️ <strong>Strict Guardrail:</strong> Store allocations and Headcount (HC) Shares will
+              remain locked. The schedule cannot be saved while empty until you assign new duty days,
+              shift times, and at least 1 rest day.
+            </div>
+            <div className="pt-3 border-t border-border-default flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmResetOpen(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResetSchedule}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-danger-bg text-danger-text border border-danger-border hover:bg-danger-bg/80 cursor-pointer transition flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Yes, Reset All</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }
