@@ -712,14 +712,16 @@ function PlantillaEmployeeDetailContent() {
                     </div>
 
                     <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Designated Day Off</span>
-                      <p className="font-bold text-text-primary text-base mt-1 flex items-center gap-2">
+                      <span className="text-text-secondary font-medium">Designated Rest Days</span>
+                      <p className="font-bold text-text-primary text-base mt-1 flex flex-wrap items-center gap-2">
                         <span>{data.dayoff || "Sunday"}</span>
                         <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface border border-border-default text-text-secondary">
-                          1 Rest Day / Wk
+                          {(data.dayoff || "").includes(",")
+                            ? `${(data.dayoff || "").split(",").length} Rest Days / Wk`
+                            : "1 Rest Day / Wk"}
                         </span>
                       </p>
-                      <span className="text-[11px] text-text-muted mt-1 block">DOLE standard rest day</span>
+                      <span className="text-[11px] text-text-muted mt-1 block">Designated weekly rest schedule</span>
                     </div>
 
                     <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">

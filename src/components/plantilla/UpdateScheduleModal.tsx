@@ -6,10 +6,9 @@ import {
   Loader2,
   Calendar,
   Building2,
-  Plus,
-  Trash2,
   AlertTriangle,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 import { updatePlantillaSchedule, type StoreAllocationInput } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
@@ -38,6 +37,7 @@ export interface UpdateScheduleModalProps {
 }
 
 const DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+type DayCode = (typeof DAYS_OF_WEEK)[number];
 
 const TIME_PRESETS = [
   "08:00 AM - 05:00 PM",
@@ -46,6 +46,55 @@ const TIME_PRESETS = [
   "10:00 AM - 07:00 PM",
   "FLEXI (8 HRS)",
 ];
+
+const SCHEDULE_PRESETS = [
+  { label: "MON-SAT", days: ["MON", "TUE", "WED", "THU", "FRI", "SAT"] },
+  { label: "MON-FRI", days: ["MON", "TUE", "WED", "THU", "FRI"] },
+  { label: "MON-WED", days: ["MON", "TUE", "WED"] },
+  { label: "THU-SAT", days: ["THU", "FRI", "SAT"] },
+];
+
+function parseDayoffString(raw?: string | null): DayCode[] {
+  if (!raw || !raw.trim()) return ["SUN"];
+  const dayMap: Record<string, DayCode> = {
+    MONDAY: "MON", MON: "MON",
+    TUESDAY: "TUE", TUE: "TUE",
+    WEDNESDAY: "WED", WED: "WED",
+    THURSDAY: "THU", THU: "THU",
+    FRIDAY: "FRI", FRI: "FRI",
+    SATURDAY: "SAT", SAT: "SAT",
+    SUNDAY: "SUN", SUN: "SUN",
+  };
+  const parts = raw.toUpperCase().split(/[,/&\s-]+/).map((p) => p.trim()).filter(Boolean);
+  const matched = parts.map((p) => dayMap[p]).filter((d): d is DayCode => Boolean(d));
+  if (matched.length > 0) {
+    return Array.from(new Set(matched));
+  }
+  return ["SUN"];
+}
+
+function parseDaysToSet(daysStr?: string | null): Set<string> {
+  const set = new Set<string>();
+  if (!daysStr) return set;
+  const upper = daysStr.toUpperCase().trim();
+  if (upper === "MON-SAT") return new Set(["MON", "TUE", "WED", "THU", "FRI", "SAT"]);
+  if (upper === "MON-FRI") return new Set(["MON", "TUE", "WED", "THU", "FRI"]);
+  if (upper === "MON-WED") return new Set(["MON", "TUE", "WED"]);
+  if (upper === "THU-SAT") return new Set(["THU", "FRI", "SAT"]);
+  DAYS_OF_WEEK.forEach((d) => {
+    if (upper.includes(d)) set.add(d);
+  });
+  return set;
+}
+
+function formatDaysFromSet(days: Set<string>): string {
+  const ordered = DAYS_OF_WEEK.filter((d) => days.has(d));
+  if (ordered.length === 6 && !days.has("SUN")) return "MON-SAT";
+  if (ordered.length === 5 && !days.has("SAT") && !days.has("SUN")) return "MON-FRI";
+  if (ordered.length === 3 && days.has("MON") && days.has("TUE") && days.has("WED")) return "MON-WED";
+  if (ordered.length === 3 && days.has("THU") && days.has("FRI") && days.has("SAT")) return "THU-SAT";
+  return ordered.join("-");
+}
 
 export function UpdateScheduleModal({
   isOpen,
@@ -57,18 +106,14 @@ export function UpdateScheduleModal({
   initialScheduleTime,
   initialDayoff,
   initialStoreAllocations,
-  availableStores = [],
   onSuccess,
 }: UpdateScheduleModalProps) {
-  // Global terms
-  const [dayoff, setDayoff] = useState<string>(
-    initialDayoff ? initialDayoff.trim().toUpperCase() : "SUN"
-  );
-  const [globalShiftTime, setGlobalShiftTime] = useState<string>(
-    initialScheduleTime ?? "08:00 AM - 05:00 PM"
+  // Multi-select designated rest days
+  const [selectedDayoffs, setSelectedDayoffs] = useState<DayCode[]>(() =>
+    parseDayoffString(initialDayoff)
   );
 
-  // Store allocations matrix
+  // Store allocations matrix (strictly read-only for store identity and HC share)
   const defaultAllocations: StoreAllocationItem[] = useMemo(() => {
     if (initialStoreAllocations && initialStoreAllocations.length > 0) {
       return initialStoreAllocations.map((a) => ({
@@ -77,7 +122,11 @@ export function UpdateScheduleModal({
         vcode: a.vcode ?? "",
         scheduleDays: a.scheduleDays ?? initialScheduleDays ?? "MON-SAT",
         scheduleTime: a.scheduleTime ?? initialScheduleTime ?? "08:00 AM - 05:00 PM",
-        allocationPercent: a.allocationPercent ?? (initialStoreAllocations.length > 1 ? Math.round(100 / initialStoreAllocations.length) : 100),
+        allocationPercent:
+          a.allocationPercent ??
+          (initialStoreAllocations.length > 1
+            ? Math.round(100 / initialStoreAllocations.length)
+            : 100),
       }));
     }
     return [
@@ -96,29 +145,40 @@ export function UpdateScheduleModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Total HC calculation & validation
-  const totalPercent = useMemo(() => {
-    return allocations.reduce((sum, item) => sum + (Number(item.allocationPercent) || 0), 0);
-  }, [allocations]);
+  const isRoving = allocations.length > 1;
 
-  const totalHcShare = (totalPercent / 100).toFixed(2);
-  const isHcValid = Math.abs(totalPercent - 100) < 0.01;
-
-  // Check if any allocation day conflicts with rest day
-  const hasRestDayConflict = useMemo(() => {
-    return allocations.some((item) => {
-      const days = (item.scheduleDays || "").toUpperCase();
-      return days.includes(dayoff);
+  // Toggle multi-select rest days
+  const handleToggleDayoff = (day: DayCode) => {
+    setSelectedDayoffs((prev) => {
+      if (prev.includes(day)) {
+        if (prev.length === 1) return prev; // Keep at least 1 rest day
+        return prev.filter((d) => d !== day);
+      }
+      return [...prev, day];
     });
-  }, [allocations, dayoff]);
+  };
+
+  // Check if any allocation day conflicts with rest days
+  const conflictingDays = useMemo(() => {
+    const conflicts = new Set<string>();
+    allocations.forEach((item) => {
+      const daysStr = (item.scheduleDays || "").toUpperCase();
+      selectedDayoffs.forEach((d) => {
+        if (daysStr.includes(d)) conflicts.add(d);
+      });
+    });
+    return Array.from(conflicts);
+  }, [allocations, selectedDayoffs]);
 
   const isDirty = useMemo(() => {
-    if (dayoff !== (initialDayoff ?? "SUN")) return true;
-    if (allocations.length !== defaultAllocations.length) return true;
+    const initialDayoffs = parseDayoffString(initialDayoff);
+    const dayoffsChanged =
+      selectedDayoffs.length !== initialDayoffs.length ||
+      selectedDayoffs.some((d) => !initialDayoffs.includes(d));
+    if (dayoffsChanged) return true;
+
     for (let i = 0; i < allocations.length; i++) {
       if (
-        allocations[i].storeName !== defaultAllocations[i]?.storeName ||
-        allocations[i].allocationPercent !== defaultAllocations[i]?.allocationPercent ||
         allocations[i].scheduleDays !== defaultAllocations[i]?.scheduleDays ||
         allocations[i].scheduleTime !== defaultAllocations[i]?.scheduleTime
       ) {
@@ -126,90 +186,63 @@ export function UpdateScheduleModal({
       }
     }
     return false;
-  }, [dayoff, initialDayoff, allocations, defaultAllocations]);
+  }, [selectedDayoffs, initialDayoff, allocations, defaultAllocations]);
 
-  // Handle adding roving store
-  const handleAddStore = () => {
-    const nextCount = allocations.length + 1;
-    const splitPercent = Math.floor(100 / nextCount);
-    const remainder = 100 - splitPercent * nextCount;
-
-    const newAllocations = allocations.map((item, idx) => ({
-      ...item,
-      allocationPercent: idx === 0 ? splitPercent + remainder : splitPercent,
-    }));
-
-    newAllocations.push({
-      storeId: "",
-      storeName: `Coverage Branch ${nextCount}`,
-      vcode: "",
-      scheduleDays: "THU-SAT",
-      scheduleTime: globalShiftTime,
-      allocationPercent: splitPercent,
+  // Update allocation duty days / shift time
+  const updateAllocation = (index: number, updates: Partial<StoreAllocationItem>) => {
+    setAllocations((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], ...updates };
+      return copy;
     });
-
-    setAllocations(newAllocations);
   };
 
-  // Handle removing store
-  const handleRemoveStore = (indexToRemove: number) => {
-    if (allocations.length <= 1) return;
-    const remaining = allocations.filter((_, idx) => idx !== indexToRemove);
-    const splitPercent = Math.floor(100 / remaining.length);
-    const remainder = 100 - splitPercent * remaining.length;
-
-    setAllocations(
-      remaining.map((item, idx) => ({
-        ...item,
-        allocationPercent: idx === 0 ? splitPercent + remainder : splitPercent,
-      }))
-    );
-  };
-
-  // Update allocation field
-  const updateAllocation = (index: number, patch: Partial<StoreAllocationItem>) => {
-    setAllocations((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item))
-    );
+  // Toggle single duty day for a store
+  const toggleStoreDay = (index: number, day: string) => {
+    const alloc = allocations[index];
+    const daySet = parseDaysToSet(alloc.scheduleDays);
+    if (daySet.has(day)) {
+      daySet.delete(day);
+    } else {
+      daySet.add(day);
+    }
+    updateAllocation(index, { scheduleDays: formatDaysFromSet(daySet) });
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isHcValid) {
-      setErrorMessage("Total Headcount (HC) Share across all assigned stores must equal exactly 1.00 (100%).");
-      return;
-    }
-
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
+      const primaryScheduleDays = allocations[0]?.scheduleDays || "MON-SAT";
+      const primaryScheduleTime = allocations[0]?.scheduleTime || "08:00 AM - 05:00 PM";
+      const dayoffString = selectedDayoffs.join(", ");
+
       const storeAllocationsPayload: StoreAllocationInput[] = allocations.map((a) => ({
-        storeId: a.storeId || null,
+        storeId: a.storeId,
         storeName: a.storeName,
-        vcode: a.vcode || null,
-        scheduleDays: a.scheduleDays || null,
-        scheduleTime: a.scheduleTime || globalShiftTime,
+        vcode: a.vcode,
+        scheduleDays: a.scheduleDays,
+        scheduleTime: a.scheduleTime,
         allocationPercent: a.allocationPercent,
       }));
-
-      // Derive primary store schedule for the top-level plantilla row
-      const primaryScheduleDays = allocations[0]?.scheduleDays || "MON-SAT";
-      const primaryScheduleTime = allocations[0]?.scheduleTime || globalShiftTime;
 
       await updatePlantillaSchedule({
         plantillaId,
         employeeNo,
         scheduleDays: primaryScheduleDays,
         scheduleTime: primaryScheduleTime,
-        dayoff,
+        dayoff: dayoffString,
         storeAllocations: storeAllocationsPayload,
       });
 
       onSuccess();
       onClose();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to update schedule and allocations.");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to update schedule and allocations."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -219,11 +252,11 @@ export function UpdateScheduleModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit Schedule & Store Allocation"
+      title="Edit Schedule & Work Terms"
       subtitle={
         employeeName ? (
           <span className="text-text-secondary text-xs">
-            Configuring per-store shift schedules and headcount share for{" "}
+            Configuring rest days, per-store duty days, and shift time windows for{" "}
             <strong className="text-text-primary font-semibold">{employeeName}</strong>
             {employeeNo && <span className="font-mono ml-1">({employeeNo})</span>}
           </span>
@@ -248,29 +281,31 @@ export function UpdateScheduleModal({
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* SECTION 1: GLOBAL TERMS */}
+        {/* SECTION 1: GLOBAL WORK TERMS & REST DAYS */}
         <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-default space-y-4">
-          <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-brand-primary" />
-            <span>Global Work Terms & Rest Day</span>
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-brand-primary" />
+              <span>Designated Rest Days (Day Off)</span>
+            </h4>
+            <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-surface border border-border-default text-text-secondary">
+              {selectedDayoffs.length} {selectedDayoffs.length === 1 ? "Rest Day" : "Rest Days"} Selected
+            </span>
+          </div>
 
-          {/* Designated Day Off (1 Rest Day per week) */}
+          {/* Multi-Select Rest Day Pills */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-2xs font-bold text-text-secondary">
-                DESIGNATED DAY OFF (1 REST DAY / WEEK)
-              </label>
-              <span className="text-2xs text-text-muted">Mandated weekly rest day</span>
-            </div>
+            <p className="text-2xs text-text-muted mb-2">
+              Select one or more weekly rest days (e.g. Saturday & Sunday for standard 5-day work week):
+            </p>
             <div className="grid grid-cols-7 gap-1.5">
               {DAYS_OF_WEEK.map((d) => {
-                const isSelected = dayoff === d;
+                const isSelected = selectedDayoffs.includes(d);
                 return (
                   <button
                     key={d}
                     type="button"
-                    onClick={() => setDayoff(d)}
+                    onClick={() => handleToggleDayoff(d)}
                     className={`py-2 text-xs font-bold rounded-lg border transition cursor-pointer text-center ${
                       isSelected
                         ? "bg-brand-primary text-white border-brand-primary shadow-xs"
@@ -282,241 +317,172 @@ export function UpdateScheduleModal({
                 );
               })}
             </div>
-            {hasRestDayConflict && (
+            {conflictingDays.length > 0 && (
               <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Notice: One or more store schedules include {dayoff}, which is the designated day off.</span>
+                <span>
+                  Notice: Store duty schedules include {conflictingDays.join(", ")}, which is marked as a designated rest day.
+                </span>
               </p>
             )}
           </div>
-
-          {/* Default Shift Time Preset */}
-          <div>
-            <label className="block text-2xs font-bold text-text-secondary mb-1">
-              STANDARD DUTY HOURS
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {TIME_PRESETS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setGlobalShiftTime(t)}
-                  className={`px-2.5 py-1 text-xs rounded-md border transition cursor-pointer font-mono ${
-                    globalShiftTime === t
-                      ? "bg-brand-50 border-brand-primary text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 font-bold"
-                      : "bg-surface border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-muted"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* SECTION 2: PER-STORE SCHEDULE & HC SHARE MATRIX */}
+        {/* SECTION 2: PER-STORE SCHEDULE & DUTY HOURS */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-brand-primary" />
-                <span>Store Deployments & Headcount (HC) Share Allocation</span>
+                <span>Store Deployments & Shift Time Windows</span>
               </h4>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                Configure visit days, time windows, and fractional headcount allocation for each store.
+                {isRoving
+                  ? "Roving personnel: Configure duty days and shift hours for each assigned store."
+                  : "Stationary personnel: Standard 8-hour shift and duty days schedule."}
               </p>
-            </div>
-
-            {/* Total HC Meter Badge */}
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border ${
-                isHcValid
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                  : "bg-danger-bg text-danger-text border-danger-border animate-pulse"
-              }`}
-            >
-              {isHcValid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-              <span>Total HC: {totalHcShare} / 1.00</span>
             </div>
           </div>
 
-          {/* Store Allocations List */}
+          {/* Store Deployment Cards */}
           <div className="space-y-3">
-            {allocations.map((alloc, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-xl border border-border-default bg-surface shadow-2xs space-y-3 relative"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-brand-200 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs font-bold text-text-primary">
-                      {idx === 0 ? "Primary Store Deployment" : `Roving Deployment #${idx + 1}`}
-                    </span>
-                  </div>
+            {allocations.map((alloc, idx) => {
+              const currentDaySet = parseDaysToSet(alloc.scheduleDays);
+              const hcFraction = (alloc.allocationPercent / 100).toFixed(2);
 
-                  {allocations.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveStore(idx)}
-                      className="text-text-muted hover:text-danger-text p-1 transition cursor-pointer"
-                      title="Remove store allocation"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+              return (
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl border border-border-default bg-surface shadow-2xs space-y-3.5"
+                >
+                  {/* Card Header: Locked Store Identity & HC Share */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border-subtle">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-brand-50 text-brand-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-brand-200 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
+                        {idx + 1}
+                      </span>
+                      <h5 className="text-xs font-bold text-text-primary truncate">
+                        {alloc.storeName}
+                      </h5>
+                      {alloc.vcode && (
+                        <span className="font-mono text-[11px] font-bold text-brand-primary bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 px-2 py-0.2 rounded">
+                          {alloc.vcode}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                  {/* Store Name / Branch */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="block text-2xs font-bold text-text-secondary mb-1">
-                      STORE BRANCH NAME
-                    </label>
-                    {availableStores.length > 0 ? (
-                      <select
-                        value={alloc.storeId || ""}
-                        onChange={(e) => {
-                          const matched = availableStores.find((s) => s.id === e.target.value);
-                          updateAllocation(idx, {
-                            storeId: e.target.value,
-                            storeName: matched?.name || alloc.storeName,
-                            vcode: matched?.vcode || alloc.vcode,
-                          });
-                        }}
-                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs focus:ring-1 focus:ring-brand-primary"
-                      >
-                        <option value="">{alloc.storeName || "Select Store Location"}</option>
-                        {availableStores.map((st) => (
-                          <option key={st.id} value={st.id}>
-                            {st.name} {st.vcode ? `(${st.vcode})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={alloc.storeName}
-                        onChange={(e) => updateAllocation(idx, { storeName: e.target.value })}
-                        placeholder="e.g. Puregold Shaw"
-                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-medium focus:ring-1 focus:ring-brand-primary"
-                      />
-                    )}
-                  </div>
-
-                  {/* VCode */}
-                  <div>
-                    <label className="block text-2xs font-bold text-text-secondary mb-1">
-                      VCODE
-                    </label>
-                    <input
-                      type="text"
-                      value={alloc.vcode || ""}
-                      onChange={(e) => updateAllocation(idx, { vcode: e.target.value.toUpperCase() })}
-                      placeholder="e.g. PG001"
-                      className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary uppercase"
-                    />
-                  </div>
-
-                  {/* HC Share */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-2xs font-bold text-text-secondary">
-                        HC SHARE
-                      </label>
-                      <span className="font-mono text-2xs font-bold text-brand-primary">
-                        {(alloc.allocationPercent / 100).toFixed(2)} HC
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-medium text-text-muted">HC Share:</span>
+                      <span className="font-mono text-xs font-bold text-brand-primary bg-surface-muted border border-border-default px-2 py-0.5 rounded-md">
+                        {hcFraction} HC ({alloc.allocationPercent}%)
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        step="5"
-                        value={alloc.allocationPercent}
-                        onChange={(e) => {
-                          const val = Math.max(1, Math.min(100, Number(e.target.value) || 0));
-                          updateAllocation(idx, { allocationPercent: val });
-                        }}
-                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono font-bold focus:ring-1 focus:ring-brand-primary"
-                      />
-                      <span className="text-xs text-text-muted">%</span>
+                  </div>
+
+                  {/* Duty Days Selector */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-2xs font-bold text-text-secondary">
+                        DUTY DAYS
+                      </label>
+                      {/* Quick Presets */}
+                      <div className="flex items-center gap-1">
+                        {SCHEDULE_PRESETS.map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() =>
+                              updateAllocation(idx, { scheduleDays: preset.label })
+                            }
+                            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border transition cursor-pointer ${
+                              alloc.scheduleDays === preset.label
+                                ? "bg-brand-primary text-white border-brand-primary"
+                                : "bg-surface-muted text-text-secondary hover:text-text-primary border-border-subtle"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Day Pill Toggles */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {DAYS_OF_WEEK.map((d) => {
+                        const isDayActive = currentDaySet.has(d);
+                        const isRestDay = selectedDayoffs.includes(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => toggleStoreDay(idx, d)}
+                            className={`py-1 text-[11px] font-bold rounded border transition cursor-pointer text-center ${
+                              isDayActive
+                                ? "bg-brand-50 border-brand-primary text-brand-700 dark:bg-brand-950/50 dark:text-brand-300 shadow-2xs font-extrabold"
+                                : isRestDay
+                                ? "bg-surface-muted/40 border-border-subtle text-text-muted/60"
+                                : "bg-surface border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-muted"
+                            }`}
+                            title={isRestDay ? `${d} is marked as rest day` : undefined}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Schedule Days */}
-                  <div className="col-span-1 sm:col-span-2">
+                  {/* Shift Time Window */}
+                  <div>
                     <label className="block text-2xs font-bold text-text-secondary mb-1">
-                      SCHEDULE DAYS
+                      SHIFT TIME WINDOW
                     </label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="space-y-1.5">
                       <input
                         type="text"
-                        value={alloc.scheduleDays || ""}
-                        onChange={(e) => updateAllocation(idx, { scheduleDays: e.target.value.toUpperCase() })}
-                        placeholder="e.g. MON-WED or MON,WED,FRI"
-                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-medium focus:ring-1 focus:ring-brand-primary uppercase"
+                        value={alloc.scheduleTime || ""}
+                        onChange={(e) => updateAllocation(idx, { scheduleTime: e.target.value })}
+                        placeholder="e.g. 08:00 AM - 05:00 PM"
+                        className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary"
                       />
-                      <div className="flex gap-1 shrink-0">
-                        {["MON-WED", "THU-SAT", "MON-SAT"].map((preset) => (
+                      {/* Common Time Presets */}
+                      <div className="flex flex-wrap gap-1">
+                        {TIME_PRESETS.map((t) => (
                           <button
-                            key={preset}
+                            key={t}
                             type="button"
-                            onClick={() => updateAllocation(idx, { scheduleDays: preset })}
-                            className="px-1.5 py-1 text-[10px] font-semibold rounded bg-surface-muted hover:bg-surface-base border border-border-default text-text-secondary hover:text-text-primary cursor-pointer"
+                            onClick={() => updateAllocation(idx, { scheduleTime: t })}
+                            className={`px-2 py-0.5 text-[10px] font-mono rounded border transition cursor-pointer ${
+                              alloc.scheduleTime === t
+                                ? "bg-brand-primary text-white border-brand-primary font-bold"
+                                : "bg-surface-muted hover:bg-surface-base border-border-subtle text-text-secondary hover:text-text-primary"
+                            }`}
                           >
-                            {preset}
+                            {t}
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
-
-                  {/* Shift Time */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="block text-2xs font-bold text-text-secondary mb-1">
-                      SHIFT TIME WINDOW
-                    </label>
-                    <input
-                      type="text"
-                      value={alloc.scheduleTime || ""}
-                      onChange={(e) => updateAllocation(idx, { scheduleTime: e.target.value })}
-                      placeholder="e.g. 08:00 AM - 05:00 PM"
-                      className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary"
-                    />
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Add Roving Store Trigger */}
-          <button
-            type="button"
-            onClick={handleAddStore}
-            className="w-full py-2.5 rounded-xl border-2 border-dashed border-border-default hover:border-brand-primary text-text-secondary hover:text-brand-primary transition text-xs font-bold flex items-center justify-center gap-2 cursor-pointer bg-surface/50 hover:bg-surface-muted/50"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Roving Store Allocation</span>
-          </button>
+          {/* Allocation Governance Notice */}
+          <div className="rounded-xl border border-border-subtle bg-surface-muted/40 p-3 flex items-start gap-2.5 text-xs text-text-secondary">
+            <ShieldAlert className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed">
+              Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Store allocations cannot be added or deleted from this schedule window.
+            </p>
+          </div>
         </div>
 
         {/* Modal Actions Footer */}
         <div className="pt-4 border-t border-border-default flex items-center justify-between">
-          <div className="text-xs">
-            {!isHcValid ? (
-              <span className="text-danger-text font-bold">
-                ⚠️ Sum is {totalHcShare} HC. Must equal 1.00 HC.
-              </span>
-            ) : (
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Valid headcount allocation (1.00 HC)</span>
-              </span>
-            )}
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Schedule terms ready to save</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -530,7 +496,7 @@ export function UpdateScheduleModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !isHcValid}
+              disabled={isSubmitting}
               className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {isSubmitting ? (
@@ -539,7 +505,7 @@ export function UpdateScheduleModal({
                   <span>Saving…</span>
                 </>
               ) : (
-                <span>Save Schedule & Allocations</span>
+                <span>Save Schedule & Work Terms</span>
               )}
             </button>
           </div>

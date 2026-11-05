@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
+
+**Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Multi-Select Designated Rest Days (`UpdateScheduleModal.tsx`)**:
+   - Upgraded day off selection to support multi-select pill buttons across all 7 days (`MON` through `SUN`), enabling employees to have 2 or more rest days (e.g. Saturday and Sunday for a standard 5-day work week).
+   - Added rest day conflict detection that warns operators if any store's duty schedule overlaps with marked rest days.
+   - Updated display in `/plantilla/[id]` to dynamically render rest day count badge (`2 Rest Days / Wk` vs `1 Rest Day / Wk`).
+2. **Store Field Locking & Guardrails (`UpdateScheduleModal.tsx`)**:
+   - Store Name is strictly read-only (bold label).
+   - VCode is strictly read-only (monospace badge).
+   - Headcount (HC) Share is strictly read-only (`0.50 HC (50%)` badge), permanently preventing operators from corrupting authorized HC allocations during schedule updates.
+3. **Removal of Store Mutation Controls (`UpdateScheduleModal.tsx`)**:
+   - Completely removed the `+ Add Roving Store Allocation` button.
+   - Completely removed delete/trash buttons from store deployment cards.
+   - Added a clear governance notice: "Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Store allocations cannot be added or deleted from this schedule window."
+4. **Per-Store Duty Days & Shift Time Windows (`UpdateScheduleModal.tsx`)**:
+   - Provided interactive day-by-day toggle pills (`MON`–`SUN`) per store card, plus quick presets (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`).
+   - Provided editable shift time window inputs per store card with quick standard/flexi presets (`08:00 AM - 05:00 PM`, `09:00 AM - 06:00 PM`, `07:00 AM - 04:00 PM`, `10:00 AM - 07:00 PM`, `FLEXI (8 HRS)`).
+5. **Documentation & ADR Update**:
+   - Recorded refinements in Rule #6 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
 
 **Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4688,6 +4718,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
+
+**Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Multi-Select Designated Rest Days (`UpdateScheduleModal.tsx`)**:
+   - Upgraded day off selection to support multi-select pill buttons across all 7 days (`MON` through `SUN`), enabling employees to have 2 or more rest days (e.g. Saturday and Sunday for a standard 5-day work week).
+   - Added rest day conflict detection that warns operators if any store's duty schedule overlaps with marked rest days.
+   - Updated display in `/plantilla/[id]` to dynamically render rest day count badge (`2 Rest Days / Wk` vs `1 Rest Day / Wk`).
+2. **Store Field Locking & Guardrails (`UpdateScheduleModal.tsx`)**:
+   - Store Name is strictly read-only (bold label).
+   - VCode is strictly read-only (monospace badge).
+   - Headcount (HC) Share is strictly read-only (`0.50 HC (50%)` badge), permanently preventing operators from corrupting authorized HC allocations during schedule updates.
+3. **Removal of Store Mutation Controls (`UpdateScheduleModal.tsx`)**:
+   - Completely removed the `+ Add Roving Store Allocation` button.
+   - Completely removed delete/trash buttons from store deployment cards.
+   - Added a clear governance notice: "Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Store allocations cannot be added or deleted from this schedule window."
+4. **Per-Store Duty Days & Shift Time Windows (`UpdateScheduleModal.tsx`)**:
+   - Provided interactive day-by-day toggle pills (`MON`–`SUN`) per store card, plus quick presets (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`).
+   - Provided editable shift time window inputs per store card with quick standard/flexi presets (`08:00 AM - 05:00 PM`, `09:00 AM - 06:00 PM`, `07:00 AM - 04:00 PM`, `10:00 AM - 07:00 PM`, `FLEXI (8 HRS)`).
+5. **Documentation & ADR Update**:
+   - Recorded refinements in Rule #6 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
 
 **Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5359,6 +5419,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
+
+**Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Multi-Select Designated Rest Days (`UpdateScheduleModal.tsx`)**:
+   - Upgraded day off selection to support multi-select pill buttons across all 7 days (`MON` through `SUN`), enabling employees to have 2 or more rest days (e.g. Saturday and Sunday for a standard 5-day work week).
+   - Added rest day conflict detection that warns operators if any store's duty schedule overlaps with marked rest days.
+   - Updated display in `/plantilla/[id]` to dynamically render rest day count badge (`2 Rest Days / Wk` vs `1 Rest Day / Wk`).
+2. **Store Field Locking & Guardrails (`UpdateScheduleModal.tsx`)**:
+   - Store Name is strictly read-only (bold label).
+   - VCode is strictly read-only (monospace badge).
+   - Headcount (HC) Share is strictly read-only (`0.50 HC (50%)` badge), permanently preventing operators from corrupting authorized HC allocations during schedule updates.
+3. **Removal of Store Mutation Controls (`UpdateScheduleModal.tsx`)**:
+   - Completely removed the `+ Add Roving Store Allocation` button.
+   - Completely removed delete/trash buttons from store deployment cards.
+   - Added a clear governance notice: "Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Store allocations cannot be added or deleted from this schedule window."
+4. **Per-Store Duty Days & Shift Time Windows (`UpdateScheduleModal.tsx`)**:
+   - Provided interactive day-by-day toggle pills (`MON`–`SUN`) per store card, plus quick presets (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`).
+   - Provided editable shift time window inputs per store card with quick standard/flexi presets (`08:00 AM - 05:00 PM`, `09:00 AM - 06:00 PM`, `07:00 AM - 04:00 PM`, `10:00 AM - 07:00 PM`, `FLEXI (8 HRS)`).
+5. **Documentation & ADR Update**:
+   - Recorded refinements in Rule #6 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
 
@@ -6055,6 +6145,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Refine Schedule Modal Guardrails, Multi-Select Rest Days & Per-Store Shift Windows (ohm#branch2-refine-schedule-modal-guardrails-and-multi-restdays)
+
+**Status: COMPLETE ON BRANCH2; REFINED `UpdateScheduleModal` AND `Schedule & Store Coverage` TAB IN `/plantilla/[id]`; ADDED MULTI-SELECT REST DAYS (SUPPORTING 2 OR MORE REST DAYS PER WEEK, E.G. SATURDAY AND SUNDAY) WITH COLLISION DETECTION WARNING; STRICTLY LOCKED STORE NAME, VCODE, AND HEADCOUNT (HC) SHARE AS READ-ONLY BADGES TO PREVENT ENCODING DISCREPANCIES; COMPLETELY REMOVED `+ Add Roving Store Allocation` AND DELETE TRASH BUTTONS (STORE ASSIGNMENTS ARE GOVERNED STRICTLY BY OFFICIAL PLANTILLA / MOVEMENT APPROVALS); ADDED PER-STORE DUTY DAY TOGGLES WITH PRESETS (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`) AND EDITABLE SHIFT TIME WINDOWS WITH PRESETS (`08:00 AM - 05:00 PM`, ETC.); UPDATED RULE #6 IN STATE DOCS AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Multi-Select Designated Rest Days (`UpdateScheduleModal.tsx`)**:
+   - Upgraded day off selection to support multi-select pill buttons across all 7 days (`MON` through `SUN`), enabling employees to have 2 or more rest days (e.g. Saturday and Sunday for a standard 5-day work week).
+   - Added rest day conflict detection that warns operators if any store's duty schedule overlaps with marked rest days.
+   - Updated display in `/plantilla/[id]` to dynamically render rest day count badge (`2 Rest Days / Wk` vs `1 Rest Day / Wk`).
+2. **Store Field Locking & Guardrails (`UpdateScheduleModal.tsx`)**:
+   - Store Name is strictly read-only (bold label).
+   - VCode is strictly read-only (monospace badge).
+   - Headcount (HC) Share is strictly read-only (`0.50 HC (50%)` badge), permanently preventing operators from corrupting authorized HC allocations during schedule updates.
+3. **Removal of Store Mutation Controls (`UpdateScheduleModal.tsx`)**:
+   - Completely removed the `+ Add Roving Store Allocation` button.
+   - Completely removed delete/trash buttons from store deployment cards.
+   - Added a clear governance notice: "Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Store allocations cannot be added or deleted from this schedule window."
+4. **Per-Store Duty Days & Shift Time Windows (`UpdateScheduleModal.tsx`)**:
+   - Provided interactive day-by-day toggle pills (`MON`–`SUN`) per store card, plus quick presets (`MON-WED`, `THU-SAT`, `MON-FRI`, `MON-SAT`).
+   - Provided editable shift time window inputs per store card with quick standard/flexi presets (`08:00 AM - 05:00 PM`, `09:00 AM - 06:00 PM`, `07:00 AM - 04:00 PM`, `10:00 AM - 07:00 PM`, `FLEXI (8 HRS)`).
+5. **Documentation & ADR Update**:
+   - Recorded refinements in Rule #6 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
 
