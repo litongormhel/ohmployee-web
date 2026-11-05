@@ -384,52 +384,62 @@ export default function PlantillaPage() {
   );
 }
 
-// Helper check for floating status
-function isFloatingRecord(emp: PlantillaEmployeeListItem) {
-  const s = (emp.plantillaStatus || "").toLowerCase();
-  const sep = (emp.separationType || "").toLowerCase();
-  return s === "floating" || sep === "floating";
-}
-
-// Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
-function isInactiveRecord(emp: PlantillaEmployeeListItem) {
-  if (isFloatingRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
-  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-  return (
-    s === "resigned" ||
-    s === "awol" ||
-    s === "terminated" ||
-    s === "inactive" ||
-    s === "separated" ||
-    overlay.showDeactivatedBanner ||
-    emp.isActive === false
-  );
-}
-
-// Helper check for deactivation statuses (pending offboarding approval)
+// Helper check for deactivation statuses (pending offboarding approval or deactivated archive)
 function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
-  if (isFloatingRecord(emp)) return false;
-  if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
   const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
   return (
     overlay.isPendingSeparation ||
     s === "pending for deactivation" ||
     s === "pending_for_deactivation" ||
     s === "pending deactivation" ||
+    s === "pending_deactivation" ||
     s === "for deactivation" ||
     s === "pending separation" ||
     s === "pending_separation" ||
-    s === "deactivated"
+    s === "deactivated" ||
+    sep === "pending deactivation" ||
+    sep === "pending_deactivation" ||
+    sep === "for deactivation" ||
+    sep === "deactivated"
+  );
+}
+
+// Helper check for floating status
+function isFloatingRecord(emp: PlantillaEmployeeListItem) {
+  if (isDeactivationRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
+  return s === "floating" || sep === "floating";
+}
+
+// Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
+function isInactiveRecord(emp: PlantillaEmployeeListItem) {
+  if (isDeactivationRecord(emp)) return false;
+  if (isFloatingRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
+  return (
+    s === "resigned" ||
+    s === "awol" ||
+    s === "terminated" ||
+    s === "inactive" ||
+    s === "separated" ||
+    sep === "resigned" ||
+    sep === "awol" ||
+    sep === "terminated" ||
+    sep === "separated" ||
+    emp.isActive === false
   );
 }
 
 // Helper check for on-leave status
 function isOnLeaveRecord(emp: PlantillaEmployeeListItem) {
+  if (isDeactivationRecord(emp)) return false;
   if (isFloatingRecord(emp)) return false;
   if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
   return s === "on leave" || s === "on_leave";
 }
 

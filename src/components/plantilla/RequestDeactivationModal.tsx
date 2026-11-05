@@ -12,6 +12,7 @@ export interface RequestDeactivationModalProps {
   employeeName: string;
   employeeNo: string;
   currentStatus?: string | null;
+  onNavigateStatusTab?: (tab: string) => void;
   onSuccess?: () => void;
 }
 
@@ -30,6 +31,7 @@ export function RequestDeactivationModal({
   employeeName,
   employeeNo,
   currentStatus,
+  onNavigateStatusTab,
   onSuccess,
 }: RequestDeactivationModalProps) {
   const [reason, setReason] = useState<string>(DEACTIVATION_REASONS[0]);
@@ -52,6 +54,7 @@ export function RequestDeactivationModal({
       },
       {
         onSuccess: () => {
+          onNavigateStatusTab?.("deactivation");
           onSuccess?.();
           onClose();
         },

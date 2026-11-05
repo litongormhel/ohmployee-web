@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Fix Plantilla Deactivation Tab Routing, Auto-Navigate & Drawer State (ohm#branch2-deactivation-tab-routing-and-drawer-state)
+
+**Status: COMPLETE ON BRANCH2; PRIORITIZED `isDeactivationRecord` TO CORRECTLY ROUTE PENDING/ACTIVE DEACTIVATION RECORDS TO DEACTIVATION TAB (`Deactivation 1`, `Inactive 0`); ADDED `onNavigateStatusTab` TO `RequestDeactivationModal.tsx` & `PlantillaDetailDrawer.tsx` FOR AUTOMATIC SUBMIT NAVIGATION; UPDATED DRAWER BUTTON TO DISPLAY `"Deactivation Pending"` (DISABLED) AND SUPPRESSED INACTIVE/FLOATING PREREQUISITE WARNING ON PENDING EMPLOYEES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**:
+  1. Record `VCAG5_0056` (`DELA FUENTE, JAYDEN UY` under `ACTISERVE`) was separated, then **Request Deactivation** was submitted. While the database updated to `status = 'Pending Deactivation'`, the employee stayed in the **Inactive** tab (`Inactive 1`) and did not route to the **Deactivation** tab (`Deactivation 0`).
+  2. Submitting Request Deactivation did not auto-switch the UI view to the **Deactivation** tab.
+  3. Inside `PlantillaDetailDrawer.tsx`, the bottom helper text erroneously stated `"Employee must be set to Floating or Inactive before requesting deactivation."` because `status` was `"pending deactivation"`, making `isDeactivationEligible` false.
+- **Root Cause**:
+  - In `src/app/(dashboard)/plantilla/page.tsx`, `isInactiveRecord(emp)` evaluated `emp.isActive === false`. Because separating or requesting deactivation sets `date_of_separation`, `is_active` in PostgreSQL is `false`, so `isInactiveRecord` matched first. Furthermore, `isDeactivationRecord` contained `if (isInactiveRecord(emp)) return false;`, preventing pending deactivation records from ever reaching `deactivationEmployees`.
+  - `RequestDeactivationModal.tsx` was not receiving or calling `onNavigateStatusTab?.("deactivation")`.
+  - In `PlantillaDetailDrawer.tsx`, the helper text condition did not check `!isPendingDeactivation`, and the button text did not reflect the pending state.
+- **Solution Implementation**:
+  1. **`src/app/(dashboard)/plantilla/page.tsx`**:
+     - Updated `isDeactivationRecord(emp)` to directly match pending and approved deactivation statuses (`pending deactivation`, `for deactivation`, `deactivated`, etc.) without yielding to `isInactiveRecord`.
+     - Updated `isInactiveRecord(emp)`, `isFloatingRecord(emp)`, and `isOnLeaveRecord(emp)` to yield immediately when `isDeactivationRecord(emp)` is true (`if (isDeactivationRecord(emp)) return false;`).
+  2. **`src/components/plantilla/RequestDeactivationModal.tsx`**:
+     - Added `onNavigateStatusTab?: (tab: string) => void;` prop and invoked `onNavigateStatusTab?.("deactivation")` on mutation success before closing.
+  3. **`src/components/plantilla/PlantillaDetailDrawer.tsx`**:
+     - Passed `onNavigateStatusTab={onNavigateStatusTab}` to `RequestDeactivationModal`.
+     - Changed action button text to `"Deactivation Pending"` (disabled) when `isPendingDeactivation` is true.
+     - Guarded the inactive/floating requirement note to only render when `!isPendingDeactivation && !isDeactivationEligible`.
+     - Rendered an amber notice when `isPendingDeactivation` is true: `"Deactivation request submitted and pending review."`
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Git Branch: Isolated cleanly on `Branch2`.
+
+---
+
 ## Execution Report — Plantilla Separation Vacancy Reopening & Applicant Archiving (ohm#branch2-separation-vacancy-reopen-applicant-archive)
 
 **Status: COMPLETE ON BRANCH2; MIGRATION `20262606000086` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); AUTO-ARCHIVED PRIOR APPLICANTS ON REOPENED BACKFILL VACANCIES; RESTORED `VCTG2_0005` TO CLEAN UNOCCUPIED STATE (`derived_status = 'Open'`, `confirmed_onboard_count = 0`); HISTORICAL ASSIGNMENTS ON `public.plantilla` PRESERVED FOR INACTIVE TAB; CAPABILITY-AWARE DEACTIVATION ACTION GATED ON OPERATIONAL STATUS IN `PlantillaDetailDrawer.tsx`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

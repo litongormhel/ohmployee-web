@@ -641,12 +641,15 @@ export function PlantillaDetailDrawer({
                         disabled={!isAuthorized || isPendingDeactivation || !isDeactivationEligible}
                         className="bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
                         title={
-                          !isDeactivationEligible
+                          isPendingDeactivation
+                            ? "A deactivation request is already pending review."
+                            : !isDeactivationEligible
                             ? "Employee must be set to Floating or Inactive before requesting deactivation."
                             : undefined
                         }
                       >
-                        <UserMinus className="w-3.5 h-3.5 text-text-secondary" /> Request Deactivation
+                        <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
+                        {isPendingDeactivation ? "Deactivation Pending" : "Request Deactivation"}
                       </button>
                       <button
                         type="button"
@@ -669,7 +672,12 @@ export function PlantillaDetailDrawer({
                       >
                         <UserCheck className="w-3.5 h-3.5" /> Update Employment Status
                       </button>
-                      {!isDeactivationEligible && (
+                      {isPendingDeactivation && (
+                        <p className="col-span-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium italic text-center">
+                          Deactivation request submitted and pending review.
+                        </p>
+                      )}
+                      {!isPendingDeactivation && !isDeactivationEligible && (
                         <p className="col-span-2 text-[11px] text-text-muted italic text-center">
                           Employee must be set to Floating or Inactive before requesting deactivation.
                         </p>
@@ -942,6 +950,7 @@ export function PlantillaDetailDrawer({
           employeeName={displayName}
           employeeNo={data.employeeNo}
           currentStatus={data.plantillaStatus}
+          onNavigateStatusTab={onNavigateStatusTab}
           onSuccess={() => {
             detailQuery.refetch();
           }}
