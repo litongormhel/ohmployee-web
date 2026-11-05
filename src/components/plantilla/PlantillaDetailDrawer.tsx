@@ -179,6 +179,7 @@ type TabKey = "profile" | "benefits" | "stores" | "activity";
 export interface PlantillaDetailDrawerProps {
   plantillaId: string | null;
   onClose: () => void;
+  onNavigateStatusTab?: (tab: "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive") => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +189,7 @@ export interface PlantillaDetailDrawerProps {
 export function PlantillaDetailDrawer({
   plantillaId,
   onClose,
+  onNavigateStatusTab,
 }: PlantillaDetailDrawerProps) {
   const isOpen = Boolean(plantillaId);
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
@@ -910,6 +912,7 @@ export function PlantillaDetailDrawer({
           employeeName={displayName}
           employeeNo={data.employeeNo}
           currentStatus={data.plantillaStatus}
+          onNavigateStatusTab={onNavigateStatusTab}
           onSuccess={() => {
             detailQuery.refetch();
           }}

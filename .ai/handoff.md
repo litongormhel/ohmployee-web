@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Plantilla Floating Status Routing, Deactivation Validation & NSR Data Team Review Workflow (Branch2)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000085` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); FIXED 42703 `is_roving` ERROR; ROUTED FLOATING RECORDS TO FLOATING TAB; REMOVED GRAY NOTICES & MADE REMARKS OPTIONAL IN MODALS; IMPLEMENTED NSR TWO-TIER DATA TEAM WORKFLOW; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Solution Details
+- **Fix `column "is_roving" does not exist` (SQLSTATE 42703)**:
+  - Cause: Trigger function `fn_plantilla_separation_to_vacancy()` was checking and inserting `is_roving` into `public.vacancies`, but `vacancies` uses `employment_type = 'Roving'` (only `plantilla_slots` has an `is_roving` boolean).
+  - Fix: Migration `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` patched `fn_plantilla_separation_to_vacancy()` to query `COALESCE(employment_type, '') = 'Roving'` and insert `employment_type = 'Roving'` on `public.vacancies`.
+- **Floating Status Routing (`plantilla/page.tsx` & `UpdateEmploymentStatusModal.tsx`)**:
+  - Cause: In `plantilla/page.tsx`, `isFloatingRecord(emp)` previously evaluated `if (isInactiveRecord(emp)) return false;`. Because setting an employee to `Floating` sets `status = 'Inactive'`, `isInactiveRecord` captured them first, hiding them from the Floating tab.
+  - Fix: Updated `isFloatingRecord` to check `plantillaStatus === "floating" || separationType === "floating"`, and updated `isInactiveRecord`, `isDeactivationRecord`, and `isOnLeaveRecord` to yield to `isFloatingRecord(emp)`. Added `onNavigateStatusTab?.("floating")` callback so saving a floating status immediately switches the active tab view to Floating.
+- **Smart Toggle & Notice Removal (`UpdateEmploymentStatusModal.tsx`)**:
+  - Hid `Active` under Operational Duty Status when the employee's current status is already Active. `Active` only renders when current status is `On Leave` or `Floating`.
+  - Removed gray info notice boxes across all statuses (`Setting this employee to Floating...` box and `ADR-001 Slot Vacation Notice:` wrapper/box for `Resigned`, `AWOL`, `Terminated`).
+  - Rendered `Effective Separation Date *` date picker as a clean standalone field right above `Operational Remarks (Optional)`.
+  - Updated `Floating` card copy to indicate routing to the Floating tab.
+- **Request Deactivation Modal (`RequestDeactivationModal.tsx`)**:
+  - Made remarks optional: updated `CreateDeactivationRequestParams.remarks?: string | null;` in `src/lib/queries/plantilla.ts`, removed required red asterisk, removed `(required)` placeholder text, removed `if (!remarks.trim())` submit validation, and removed button disabled constraint.
+  - Completely removed the gray `Standard 15-Day Clearance Notice` banner box at the top.
+- **Request Headcount & NSR Submission Modals**:
+  - In `RequestHeadcountModal.tsx`, replaced unstyled/white-on-white button with high-contrast navy styling: `bg-brand-600 text-white shadow-xs hover:bg-brand-700`.
+  - In `NewStoreRequestModal.tsx`, updated confirmation copy to state that the request was submitted for Data Team review.
+- **New Store Request Two-Tier Review Workflow (`/approvals`)**:
+  - Migration `20262606000085` updated `nsr_status_chk` to include `pending_super_admin`, granted Data Team (`role_level >= 30`) SELECT RLS, allowed Data Team to approve/reject `pending` requests, created `public.forward_new_store_request_to_super_admin(uuid, text)` to record Data Team verification metadata and transition status to `pending_super_admin`, and updated `submit_new_store_request` notifications to include Data Team (`Encoder`).
+  - Updated `src/lib/rbac.ts` and `src/lib/queries/requests.ts` with `canForwardNewStoreRequests`, `useForwardNewStoreRequest()`, and multi-status query support (`pending,pending_super_admin`).
+  - Updated `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx` with dynamic status badges (`Pending Data Team Review`, `Pending Super Admin Sign-off`), Data Team validation notes banner, and two-tier actions:
+    - In `pending` status: reviewers can "Reject", "Approve & Forward to Super Admin", or "Approve Store" (direct sign-off).
+    - In `pending_super_admin` status: displays Data Team verification notes; Super Admin / Head Admin can perform final "Approve Store" or "Reject".
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Staging database `qqiiznmqxfoamqytjica`: Migration `20262606000085` applied and verified via Supabase MCP tool.
+- Git Branch: Isolated cleanly to branch `Branch2`.
+
+---
+
 ## Execution Report — Fix Migration `20262606000079` Null `slot_ordinal` in `plantilla_slots` (ohm#fix-mig-23502-slot-ordinal)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `slot_ordinal` WITH CANONICAL DERIVATION `COALESCE(MAX(slot_ordinal), 0) + 1` TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

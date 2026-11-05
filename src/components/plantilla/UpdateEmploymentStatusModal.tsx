@@ -27,6 +27,7 @@ export interface UpdateEmploymentStatusModalProps {
   employeeNo: string;
   currentStatus?: string | null;
   onSuccess?: () => void;
+  onNavigateStatusTab?: (tab: "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive") => void;
 }
 
 interface StatusOptionItem {
@@ -58,7 +59,7 @@ const STATUS_OPTIONS: StatusOptionItem[] = [
   {
     value: "Floating",
     label: "Floating",
-    description: "Temporarily unassigned/floating inactive; triggers deactivation request readiness",
+    description: "Temporarily unassigned/floating employee; vacates assigned slot and routes record to Floating tab",
     icon: PauseCircle,
     colorClass: "text-text-primary border-border-default bg-surface-muted",
     category: "operational",
@@ -97,14 +98,13 @@ export function UpdateEmploymentStatusModal({
   employeeNo,
   currentStatus,
   onSuccess,
+  onNavigateStatusTab,
 }: UpdateEmploymentStatusModalProps) {
   const normalizedCurrent = (currentStatus ?? "").trim().toLowerCase();
   const defaultTarget: EmploymentStatusTarget =
-    normalizedCurrent === "on leave"
+    normalizedCurrent === "on leave" || normalizedCurrent === "floating"
       ? "Active"
-      : normalizedCurrent === "active"
-      ? "On Leave"
-      : "Active";
+      : "On Leave";
 
   const [targetStatus, setTargetStatus] = useState<EmploymentStatusTarget>(defaultTarget);
   const [leaveReason, setLeaveReason] = useState<string>("");
@@ -151,6 +151,9 @@ export function UpdateEmploymentStatusModal({
       {
         onSuccess: () => {
           onSuccess?.();
+          if (targetStatus === "Floating") {
+            onNavigateStatusTab?.("floating");
+          }
           onClose();
         },
         onError: (err) => {
@@ -226,7 +229,13 @@ export function UpdateEmploymentStatusModal({
               Operational Duty Status
             </span>
             <div className="grid gap-2">
-              {STATUS_OPTIONS.filter((opt) => opt.category === "operational").map(renderStatusOption)}
+              {STATUS_OPTIONS.filter((opt) => {
+                if (opt.category !== "operational") return false;
+                if (opt.value === "Active") {
+                  return normalizedCurrent === "on leave" || normalizedCurrent === "floating";
+                }
+                return true;
+              }).map(renderStatusOption)}
             </div>
           </div>
 
@@ -243,14 +252,7 @@ export function UpdateEmploymentStatusModal({
 
         {/* Conditional Fields: On Leave */}
         {targetStatus === "On Leave" && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3.5 animate-in fade-in duration-150">
-            <div className="flex items-start gap-2">
-              <Clock className="h-4 w-4 text-pct-warn-text mt-0.5 shrink-0" />
-              <p className="text-xs text-text-primary leading-relaxed font-medium">
-                On-Leave personnel remain in the active directory roster with an On Leave indicator, enabling Moses HQ Reliever Endorsements.
-              </p>
-            </div>
-
+          <div className="space-y-3 animate-in fade-in duration-150">
             <div className="space-y-1">
               <label htmlFor="leave-reason" className="block text-xs font-medium text-text-secondary">
                 Leave Reason / Type
@@ -288,58 +290,22 @@ export function UpdateEmploymentStatusModal({
           </div>
         )}
 
-        {/* Conditional Fields: Floating */}
-        {targetStatus === "Floating" && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3 animate-in fade-in duration-150">
-            <div className="flex items-start gap-2">
-              <PauseCircle className="h-4 w-4 text-text-secondary mt-0.5 shrink-0" />
-              <p className="text-xs text-text-primary leading-relaxed font-medium">
-                Setting this employee to Floating vacates their current slot and moves their record to the Inactive tab with a Floating designation. You will be able to file a formal Deactivation Request subsequently.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Conditional Fields: Personnel Separation (Resigned, AWOL, Terminated) */}
+        {/* Conditional Fields: Personnel Separation Effective Date (Standalone) */}
         {isSeparation && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-3.5 animate-in fade-in duration-150">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-text-secondary mt-0.5 shrink-0" />
-              <div className="text-xs text-text-primary leading-relaxed">
-                <span className="font-semibold text-text-primary">ADR-001 Slot Vacation Notice:</span>
-                <p className="mt-0.5 text-text-secondary">
-                  Marking this employee as <strong className="text-text-primary">{targetStatus}</strong> will set their status to <strong>Inactive</strong> and automatically vacate their assigned workforce slot. Under ADR-001 Slot-First Architecture, the slot returns immediately to the <strong>Vacancy Open</strong> recruitment queue, and this employee is archived under the <strong>Inactive</strong> tab.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="separation-effective-date" className="block text-xs font-semibold text-text-secondary">
-                Effective Separation Date <span className="text-danger-text">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  id="separation-effective-date"
-                  type="date"
-                  value={effectiveDate}
-                  onChange={(e) => setEffectiveDate(e.target.value)}
-                  className="w-full rounded-md border border-border-default bg-surface px-3 py-1.5 pl-8 text-xs text-text-primary shadow-xs focus:border-brand-primary focus:outline-hidden"
-                  required
-                />
-                <Calendar className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-text-muted" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Conditional Fields: Active Return */}
-        {targetStatus === "Active" && normalizedCurrent === "on leave" && (
-          <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-2 animate-in fade-in duration-150">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-pct-good-text mt-0.5 shrink-0" />
-              <p className="text-xs text-text-primary leading-relaxed font-medium">
-                Returning to Active status will restore normal duty and release any temporary reliever coverage assignment linked to this slot.
-              </p>
+          <div className="space-y-1 animate-in fade-in duration-150">
+            <label htmlFor="separation-effective-date" className="block text-xs font-semibold text-text-secondary">
+              Effective Separation Date <span className="text-danger-text">*</span>
+            </label>
+            <div className="relative">
+              <input
+                id="separation-effective-date"
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                className="w-full rounded-md border border-border-default bg-surface px-3 py-1.5 pl-8 text-xs text-text-primary shadow-xs focus:border-brand-primary focus:outline-hidden"
+                required
+              />
+              <Calendar className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-text-muted" />
             </div>
           </div>
         )}

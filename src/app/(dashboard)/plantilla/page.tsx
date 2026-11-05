@@ -384,8 +384,16 @@ export default function PlantillaPage() {
   );
 }
 
+// Helper check for floating status
+function isFloatingRecord(emp: PlantillaEmployeeListItem) {
+  const s = (emp.plantillaStatus || "").toLowerCase();
+  const sep = (emp.separationType || "").toLowerCase();
+  return s === "floating" || sep === "floating";
+}
+
 // Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
 function isInactiveRecord(emp: PlantillaEmployeeListItem) {
+  if (isFloatingRecord(emp)) return false;
   const s = (emp.plantillaStatus || "").toLowerCase();
   const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
   return (
@@ -401,6 +409,7 @@ function isInactiveRecord(emp: PlantillaEmployeeListItem) {
 
 // Helper check for deactivation statuses (pending offboarding approval)
 function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
+  if (isFloatingRecord(emp)) return false;
   if (isInactiveRecord(emp)) return false;
   const s = (emp.plantillaStatus || "").toLowerCase();
   const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
@@ -416,15 +425,9 @@ function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
   );
 }
 
-// Helper check for floating status
-function isFloatingRecord(emp: PlantillaEmployeeListItem) {
-  if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
-  return s === "floating";
-}
-
 // Helper check for on-leave status
 function isOnLeaveRecord(emp: PlantillaEmployeeListItem) {
+  if (isFloatingRecord(emp)) return false;
   if (isInactiveRecord(emp)) return false;
   const s = (emp.plantillaStatus || "").toLowerCase();
   return s === "on leave" || s === "on_leave";
@@ -2549,6 +2552,7 @@ function PlantillaPageContent() {
           <PlantillaDetailDrawer
             plantillaId={selectedPlantillaId}
             onClose={() => setSelectedPlantillaId(null)}
+            onNavigateStatusTab={(tab) => handleSelectStatusTab(tab)}
           />
 
           <VacancyDetailDrawer

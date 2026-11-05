@@ -865,6 +865,11 @@ export type ApproveNewStoreParams = {
   requestId: string;
 };
 
+export type ForwardNewStoreParams = {
+  requestId: string;
+  notes?: string | null;
+};
+
 export type RejectNewStoreParams = {
   requestId: string;
   reason: string;
@@ -1010,7 +1015,7 @@ export async function fetchNewStoreRequests(
     `);
 
   if (tab === "pending") {
-    query = query.ilike("status", "pending");
+    query = query.or("status.ilike.pending,status.ilike.pending_super_admin");
   } else if (tab === "approved") {
     query = query.or("status.ilike.approved,status.ilike.completed");
   } else if (tab === "rejected") {
@@ -1089,7 +1094,7 @@ export async function fetchNewStoreCounts(): Promise<RequestStatusCounts> {
   let rejected = 0;
   for (const row of data) {
     const s = (row.status || "").toLowerCase();
-    if (s === "pending") pending++;
+    if (s === "pending" || s === "pending_super_admin") pending++;
     else if (s === "approved" || s === "completed") approved++;
     else if (s === "rejected" || s === "cancelled") rejected++;
   }
@@ -1106,7 +1111,33 @@ export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParam
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
-        error.message || "Unauthorized: Only Head Admin or Super Admin may approve new store requests."
+        error.message || "Unauthorized: Only Data Team, Head Admin, or Super Admin may approve new store requests."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    if (error.code === "P0002") {
+      throw new RequestDataError("not_found", error.message || "New store request not found.");
+    }
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return data;
+}
+
+export async function forwardNewStoreRequest({ requestId, notes }: ForwardNewStoreParams) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("forward_new_store_request_to_super_admin", {
+    p_request_id: requestId,
+    p_notes: notes?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message || "Unauthorized: Only Data Team, Head Admin, or Super Admin may forward new store requests."
       );
     }
     if (error.code === "P0001" || error.code === "22023") {
@@ -1137,7 +1168,7 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
-        error.message || "Unauthorized: Only Head Admin or Super Admin may reject new store requests."
+        error.message || "Unauthorized: Only Data Team, Head Admin, or Super Admin may reject new store requests."
       );
     }
     if (error.code === "P0001" || error.code === "22023") {
@@ -1183,6 +1214,20 @@ export function useApproveNewStoreRequest() {
       queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
       queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export function useForwardNewStoreRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ForwardNewStoreParams) => forwardNewStoreRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
     },
   });
 }

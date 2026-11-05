@@ -10,6 +10,7 @@ import {
   MapPin,
   MessageSquare,
   RefreshCw,
+  Send,
   Store,
   User,
   X,
@@ -18,9 +19,11 @@ import {
 import { Modal } from "@/components/shared/Modal";
 import {
   useApproveNewStoreRequest,
+  useForwardNewStoreRequest,
   useRejectNewStoreRequest,
   type NewStoreRequestItem,
 } from "@/lib/queries/requests";
+import { useCurrentUser } from "@/lib/auth";
 
 interface NewStoreApprovalCardProps {
   request: NewStoreRequestItem;
@@ -44,12 +47,19 @@ function formatDate(dateStr: string | null): string {
 export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [isForwardOpen, setIsForwardOpen] = useState(false);
+  const [forwardNotes, setForwardNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectReasonError, setRejectReasonError] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const approveMutation = useApproveNewStoreRequest();
   const rejectMutation = useRejectNewStoreRequest();
+  const forwardMutation = useForwardNewStoreRequest();
+
+  const currentUser = useCurrentUser();
+  const userRoleLevel = currentUser?.role_level ?? 0;
+  const isSuperOrHeadAdmin = userRoleLevel >= 90;
 
   const handleOpenApprove = () => {
     setActionError(null);
@@ -61,6 +71,12 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
     setRejectionReason("");
     setRejectReasonError(false);
     setIsRejectOpen(true);
+  };
+
+  const handleOpenForward = () => {
+    setActionError(null);
+    setForwardNotes("");
+    setIsForwardOpen(true);
   };
 
   const handleConfirmApprove = async () => {
@@ -94,7 +110,22 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
     }
   };
 
-  const isBusy = approveMutation.isPending || rejectMutation.isPending;
+  const handleConfirmForward = async () => {
+    setActionError(null);
+    try {
+      await forwardMutation.mutateAsync({
+        requestId: request.id,
+        notes: forwardNotes.trim() || undefined,
+      });
+      setIsForwardOpen(false);
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to forward new store request."
+      );
+    }
+  };
+
+  const isBusy = approveMutation.isPending || rejectMutation.isPending || forwardMutation.isPending;
   const location = [request.city, request.province].filter(Boolean).join(", ") || "Location unspecified";
   const displayRequester = (() => {
     const raw = (request.requestedByName || "").trim();
@@ -117,9 +148,19 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
             <span className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
               {request.accountName || "Unassigned Account"}
             </span>
-            <span className="inline-flex items-center rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-secondary">
-              Pending Verification
-            </span>
+            {request.status === "pending_super_admin" ? (
+              <span className="inline-flex items-center rounded-md bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 text-xs font-semibold">
+                Pending Super Admin Sign-off
+              </span>
+            ) : request.status === "pending" ? (
+              <span className="inline-flex items-center rounded-md bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs font-semibold">
+                Pending Data Team Review
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-md bg-surface-subtle border border-border-default px-2 py-0.5 text-xs font-medium text-text-secondary capitalize">
+                {request.status}
+              </span>
+            )}
           </div>
 
           <h3 className="flex items-center gap-1.5 text-base font-semibold text-text-primary">
@@ -130,24 +171,64 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleOpenReject}
-            disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
-          >
-            <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Reject</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenApprove}
-            disabled={isBusy}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Approve Store</span>
-          </button>
+          {request.status === "pending_super_admin" ? (
+            isSuperOrHeadAdmin ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenReject}
+                  disabled={isBusy}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
+                >
+                  <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Reject</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenApprove}
+                  disabled={isBusy}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Approve Store</span>
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center rounded-md bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 border border-purple-200">
+                Awaiting Super Admin Sign-off
+              </span>
+            )
+          ) : request.status === "pending" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleOpenReject}
+                disabled={isBusy}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-danger/40 bg-surface-subtle px-3 text-xs font-medium text-text-danger shadow-2xs hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
+              >
+                <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Reject</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenForward}
+                disabled={isBusy}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 text-xs font-medium shadow-2xs disabled:opacity-50 transition cursor-pointer"
+              >
+                <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Approve &amp; Forward</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenApprove}
+                disabled={isBusy}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Approve Store</span>
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -218,6 +299,29 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
           {request.reason ? request.reason : <span className="italic text-text-muted">No justification remarks provided.</span>}
         </p>
       </div>
+
+      {/* Data Team Validation Banner for forwarded requests */}
+      {(request.status === "pending_super_admin" || (request.reviewedByName && request.reviewReason)) && (
+        <div className="mt-3 rounded-md border border-purple-200 bg-purple-50/50 p-3 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="font-semibold text-purple-900">
+              {request.status === "pending_super_admin"
+                ? "Forwarded by Data Team for Executive Sign-off"
+                : "Data Team Review Notes"}
+            </span>
+            {request.reviewedByName && (
+              <span className="text-2xs text-purple-700">
+                Verified by {request.reviewedByName} {request.reviewedAt ? `• ${formatDate(request.reviewedAt)}` : ""}
+              </span>
+            )}
+          </div>
+          {request.reviewReason && (
+            <p className="mt-1.5 text-purple-800 leading-relaxed whitespace-pre-wrap font-sans">
+              {request.reviewReason}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Approve Confirmation Modal ────────────────────────────────────────── */}
       {isApproveOpen && (
@@ -356,6 +460,86 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                   <>
                     <XCircle className="h-3.5 w-3.5" />
                     <span>Reject Request</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* ── Forward to Super Admin Dialog ────────────────────────────────────── */}
+      {isForwardOpen && (
+        <Modal
+          isOpen={isForwardOpen}
+          onClose={() => setIsForwardOpen(false)}
+          title="Approve & Forward to Super Admin"
+          subtitle={`Validate masterlist details for ${request.storeName} and route to Super Admin for final sign-off`}
+          icon={Send}
+          isSubmitting={forwardMutation.isPending}
+          disableBackdropClick={forwardMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-text-muted">Store Name:</span>
+                <span className="font-semibold text-text-primary">{request.storeName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-muted">Account:</span>
+                <span className="font-medium text-text-primary">{request.accountName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-muted">Location:</span>
+                <span className="font-medium text-text-primary">{location}</span>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor={`forward-notes-${request.id}`}
+                className="block text-xs font-medium text-text-primary"
+              >
+                Data Team Validation Notes (Optional)
+              </label>
+              <textarea
+                id={`forward-notes-${request.id}`}
+                rows={3}
+                placeholder="Confirm masterlist verification, geographical tags, or operational notes for Super Admin..."
+                value={forwardNotes}
+                onChange={(e) => setForwardNotes(e.target.value)}
+                className="mt-1.5 w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+
+            <p className="text-2xs text-text-muted">
+              This request will be marked as &quot;Pending Super Admin Sign-off&quot; and routed to executive review with your validation notes.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
+              <button
+                type="button"
+                onClick={() => setIsForwardOpen(false)}
+                disabled={forwardMutation.isPending}
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmForward}
+                disabled={forwardMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-purple-600 hover:bg-purple-700 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+              >
+                {forwardMutation.isPending ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Forwarding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Approve &amp; Forward</span>
                   </>
                 )}
               </button>

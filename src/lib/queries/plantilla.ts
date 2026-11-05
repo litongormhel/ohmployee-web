@@ -1883,7 +1883,7 @@ export interface UpdateEmploymentStatusParams {
 export interface CreateDeactivationRequestParams {
   plantillaId: string;
   reason?: string | null;
-  remarks: string;
+  remarks?: string | null;
 }
 
 export type TransferReasonType =

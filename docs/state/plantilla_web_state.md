@@ -841,6 +841,31 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Table Column Header Renaming**:
     - Renamed Vacancy table column header from `"Status"` to `"Stage"` in `StoreVacancyTable`.
 
+- **Plantilla Floating Routing, Deactivation Optional Remarks & NSR Data Team Workflow (`Branch2` — 2026-11-05)**:
+  - **Fixed 42703 `column "is_roving" does not exist` on Status Changes**:
+    - Created & applied migration `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`.
+    - Patched `fn_plantilla_separation_to_vacancy()` to replace invalid `vacancies.is_roving` checks with `COALESCE(employment_type, '') = 'Roving'` and set `employment_type = 'Roving'` in `INSERT INTO public.vacancies`.
+  - **Floating Status Routing (`plantilla/page.tsx` & `UpdateEmploymentStatusModal.tsx`)**:
+    - Updated `isFloatingRecord()` to evaluate both `emp.plantillaStatus` and `emp.separationType`.
+    - Updated `isInactiveRecord()`, `isDeactivationRecord()`, and `isOnLeaveRecord()` with defensive `if (isFloatingRecord(emp)) return false;` guards so floating personnel route directly to Tab 4 `[ Floating ]` rather than getting captured by `isInactiveRecord` (`isActive === false` / `status === 'Inactive'`).
+    - Wired `onNavigateStatusTab?.("floating")` callback from `UpdateEmploymentStatusModal` via `PlantillaDetailDrawer` so setting an employee to Floating navigates directly to the Floating Tab.
+  - **Smart Toggle & Clean UI in `UpdateEmploymentStatusModal.tsx`**:
+    - Hid `Active` option under Operational Duty Status when the employee is already Active; only rendered `Active` when current status is `On Leave` or `Floating`.
+    - Removed verbose gray notice boxes across all statuses (`Setting this employee to Floating...` box and `ADR-001 Slot Vacation Notice:` wrapper/box for `Resigned`, `AWOL`, `Terminated`).
+    - Kept `Effective Separation Date *` date picker as a clean standalone field directly above `Operational Remarks (Optional)`.
+  - **Deactivation Remarks Optional (`RequestDeactivationModal.tsx` & `queries/plantilla.ts`)**:
+    - Updated `CreateDeactivationRequestParams.remarks` to optional `remarks?: string | null;`.
+    - Removed mandatory `if (!remarks.trim())` validation block and submit button disable constraint.
+    - Removed the gray `Standard 15-Day Clearance Notice` banner box at the top.
+  - **New Store Request (NSR) Two-Tier Review Workflow & High-Contrast Button**:
+    - In `RequestHeadcountModal.tsx`, fixed the "Request New Store" button in the Store Not Found card to high-contrast navy styling `bg-brand-600 text-white hover:bg-brand-700`.
+    - In `NewStoreRequestModal.tsx`, updated confirmation copy to state submission for Data Team review.
+    - Updated NSR schema constraint `nsr_status_chk` to include `'pending_super_admin'`.
+    - Updated RLS `nsr_select` on `public.new_store_requests` to grant read access to Data Team (`role_level >= 30`).
+    - Updated `public.approve_new_store_request` and `public.reject_new_store_request` to allow Data Team (`role_level >= 30`) and accept status `pending` or `pending_super_admin`.
+    - Added `public.forward_new_store_request_to_super_admin(uuid, text)` to set `status = 'pending_super_admin'`, record Data Team review metadata, and notify executive sign-off roles.
+    - Updated `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx` with dynamic status badges (`Pending Data Team Review`, `Pending Super Admin Sign-off`), Data Team validation notes, and two-tier actions (Approve Store / Reject / Approve & Forward to Super Admin).
+
 - **Employment Status & Separation Workflow Integration (`ohm#plan05`)**:
   - Integrated separation statuses (`Resigned`, `AWOL`, `Terminated`) into `UpdateEmploymentStatusModal.tsx` grouped into Operational Duty Status (`Active`, `On Leave`, `Floating`) vs Personnel Separation (`Resigned`, `AWOL`, `Terminated`).
   - Added conditional effective separation date picker and ADR-001 slot vacation notice.

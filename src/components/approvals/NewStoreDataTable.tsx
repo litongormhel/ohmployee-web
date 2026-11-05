@@ -8,6 +8,7 @@ import {
   Layers,
   MapPin,
   RefreshCw,
+  Send,
   X,
   XCircle,
 } from "lucide-react";
@@ -15,10 +16,12 @@ import { Modal } from "@/components/shared/Modal";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveNewStoreRequest,
+  useForwardNewStoreRequest,
   useRejectNewStoreRequest,
   type NewStoreRequestItem,
   type ApprovalStatusTab,
 } from "@/lib/queries/requests";
+import { useCurrentUser } from "@/lib/auth";
 
 interface NewStoreDataTableProps {
   requests: NewStoreRequestItem[];
@@ -68,6 +71,9 @@ export function NewStoreDataTable({
     useState<NewStoreRequestItem | null>(null);
   const [selectedRejectRequest, setSelectedRejectRequest] =
     useState<NewStoreRequestItem | null>(null);
+  const [selectedForwardRequest, setSelectedForwardRequest] =
+    useState<NewStoreRequestItem | null>(null);
+  const [forwardNotes, setForwardNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectReasonError, setRejectReasonError] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -86,6 +92,11 @@ export function NewStoreDataTable({
 
   const approveMutation = useApproveNewStoreRequest();
   const rejectMutation = useRejectNewStoreRequest();
+  const forwardMutation = useForwardNewStoreRequest();
+
+  const currentUser = useCurrentUser();
+  const userRoleLevel = currentUser?.role_level ?? 0;
+  const isSuperOrHeadAdmin = userRoleLevel >= 90;
 
   const isAllSelected =
     paginatedRequests.length > 0 && paginatedRequests.every((r) => selectedIds.has(r.id));
@@ -162,6 +173,30 @@ export function NewStoreDataTable({
         err instanceof Error
           ? err.message
           : "Failed to reject new store request."
+      );
+    }
+  };
+
+  const handleOpenForward = (req: NewStoreRequestItem) => {
+    setActionError(null);
+    setForwardNotes("");
+    setSelectedForwardRequest(req);
+  };
+
+  const handleConfirmForward = async () => {
+    if (!selectedForwardRequest) return;
+    setActionError(null);
+    try {
+      await forwardMutation.mutateAsync({
+        requestId: selectedForwardRequest.id,
+        notes: forwardNotes.trim() || undefined,
+      });
+      setSelectedForwardRequest(null);
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Failed to forward new store request."
       );
     }
   };
@@ -258,7 +293,7 @@ export function NewStoreDataTable({
     }
   };
 
-  const isBusy = approveMutation.isPending || rejectMutation.isPending || isBulkProcessing;
+  const isBusy = approveMutation.isPending || rejectMutation.isPending || forwardMutation.isPending || isBulkProcessing;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -439,7 +474,20 @@ export function NewStoreDataTable({
 
                     {/* STORE NAME */}
                     <td className="px-4 py-2.5 font-medium text-text-primary text-sm whitespace-nowrap align-middle">
-                      {request.storeName}
+                      <div className="flex flex-col">
+                        <span>{request.storeName}</span>
+                        {request.status === "pending_super_admin" ? (
+                          <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-purple-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                            Pending Super Admin Sign-off
+                          </span>
+                        ) : request.status === "pending" ? (
+                          <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-amber-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                            Pending Data Team Review
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* LOCATION */}
@@ -481,23 +529,61 @@ export function NewStoreDataTable({
                           )}
                         </div>
                       ) : isPending ? (
-                        <div className="inline-flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenReject(request)}
-                            disabled={isBusy}
-                            className="inline-flex h-7 items-center justify-center rounded-lg border border-border-danger bg-transparent px-2.5 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
-                          >
-                            <span>Reject</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenApprove(request)}
-                            disabled={isBusy}
-                            className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
-                          >
-                            <span>Approve Store</span>
-                          </button>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {request.status === "pending_super_admin" ? (
+                            isSuperOrHeadAdmin ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenReject(request)}
+                                  disabled={isBusy}
+                                  className="inline-flex h-7 items-center justify-center rounded-lg border border-border-danger bg-transparent px-2.5 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
+                                >
+                                  <span>Reject</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenApprove(request)}
+                                  disabled={isBusy}
+                                  className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+                                >
+                                  <span>Approve Store</span>
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-2xs font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                Awaiting Super Admin
+                              </span>
+                            )
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenReject(request)}
+                                disabled={isBusy}
+                                className="inline-flex h-7 items-center justify-center rounded-lg border border-border-danger bg-transparent px-2 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
+                              >
+                                <span>Reject</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenForward(request)}
+                                disabled={isBusy}
+                                className="inline-flex h-7 items-center justify-center rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700 px-2.5 text-xs font-medium shadow-2xs disabled:opacity-50 transition cursor-pointer"
+                              >
+                                <Send className="h-3 w-3 mr-1" />
+                                <span>Forward</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenApprove(request)}
+                                disabled={isBusy}
+                                className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+                              >
+                                <span>Approve Store</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : isApproved ? (
                         <div className="inline-flex flex-col items-end gap-0.5">
@@ -797,6 +883,95 @@ export function NewStoreDataTable({
                   <>
                     <XCircle className="h-3.5 w-3.5" />
                     <span>Confirm Bulk Reject</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Single Forward to Super Admin Dialog ──────────────────────────────── */}
+      {selectedForwardRequest && (
+        <Modal
+          isOpen={Boolean(selectedForwardRequest)}
+          onClose={() => setSelectedForwardRequest(null)}
+          title="Approve & Forward to Super Admin"
+          subtitle={`Validate masterlist details for ${selectedForwardRequest.storeName} and route to Super Admin for final sign-off`}
+          icon={Send}
+          isSubmitting={forwardMutation.isPending}
+          disableBackdropClick={forwardMutation.isPending}
+          maxWidthClass="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-text-muted">Store Name:</span>
+                <span className="font-semibold text-text-primary">
+                  {selectedForwardRequest.storeName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-muted">Account:</span>
+                <span className="font-medium text-text-primary">
+                  {selectedForwardRequest.accountName || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-muted">Location:</span>
+                <span className="font-medium text-text-primary">
+                  {[selectedForwardRequest.city, selectedForwardRequest.province]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor={`forward-notes-table-${selectedForwardRequest.id}`}
+                className="block text-xs font-medium text-text-primary mb-1"
+              >
+                Data Team Validation Notes (Optional)
+              </label>
+              <textarea
+                id={`forward-notes-table-${selectedForwardRequest.id}`}
+                rows={3}
+                placeholder="Confirm masterlist verification, geographical tags, or operational notes for Super Admin..."
+                value={forwardNotes}
+                onChange={(e) => setForwardNotes(e.target.value)}
+                className="w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
+              />
+            </div>
+
+            <p className="text-2xs text-text-muted">
+              This request will be marked as &quot;Pending Super Admin Sign-off&quot; and routed to executive review with your validation notes.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
+              <button
+                type="button"
+                onClick={() => setSelectedForwardRequest(null)}
+                disabled={forwardMutation.isPending}
+                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmForward}
+                disabled={forwardMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-purple-600 hover:bg-purple-700 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+              >
+                {forwardMutation.isPending ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Forwarding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" />
+                    <span>Approve &amp; Forward</span>
                   </>
                 )}
               </button>

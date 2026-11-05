@@ -379,6 +379,7 @@ export function getAllowedApprovalCategories(
 
   if (role === AppRole.ENCODER || level === 30) {
     return [
+      "new_stores",
       "headcount",
       "plantilla_approvals",
       "applicant_movements",
@@ -489,7 +490,7 @@ export const DRAWER_ACTION_RULES: Record<DrawerActionItem, number[]> = {
   "Submit New Store Opening Request": [100, 70, 45, 42, 41],
 
   // Approvals
-  "Approve / Reject New Store Requests": [100, 90],
+  "Approve / Reject New Store Requests": [100, 90, 30],
   "Approve / Reject Headcount Adjustments": [100, 90, 30],
   "Approve / Reject Plantilla Reassignments": [100, 90, 30],
   "Approve / Reject User Signup Requests": [100, 90],
@@ -566,6 +567,10 @@ export const canSubmitNewStoreRequest = (u?: RoleIdentifiable | string | null) =
 // Approvals
 export const canApproveNewStoreRequests = (u?: RoleIdentifiable | string | null) =>
   canPerformDrawerAction("Approve / Reject New Store Requests", u);
+export const canForwardNewStoreRequests = (u?: RoleIdentifiable | string | null) => {
+  const level = getRoleLevel(u);
+  return level >= 30;
+};
 export const canApproveHeadcountAdjustments = (u?: RoleIdentifiable | string | null) =>
   canPerformDrawerAction("Approve / Reject Headcount Adjustments", u);
 export const canApprovePlantillaReassignments = (u?: RoleIdentifiable | string | null) =>
