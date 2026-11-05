@@ -492,16 +492,11 @@ function PlantillaEmployeeDetailContent() {
                 </div>
               </div>
 
-              {/* Status Notice Callout if pending deactivation or not eligible */}
+              {/* Status Notice Callout if pending deactivation */}
               {isPendingDeactivation && (
                 <div className="mt-4 pt-3 border-t border-border-subtle flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 font-medium">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>Deactivation request submitted and pending operations review.</span>
-                </div>
-              )}
-              {!isPendingDeactivation && !isDeactivationEligible && (
-                <div className="mt-4 pt-3 border-t border-border-subtle text-[11px] text-text-muted italic">
-                  Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation.
                 </div>
               )}
             </div>

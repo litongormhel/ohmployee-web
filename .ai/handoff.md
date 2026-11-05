@@ -1,5 +1,21 @@
 # AI Handoff
 
+## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
+
+**Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Header Cleanup in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the italic text callout: `Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`.
+   - Preserved the button's native disabled state and hover tooltip (`title`) when an employee is in an active or on-leave state, preventing accidental deactivation requests without visual text clutter.
+   - Preserved the amber notification banner when deactivation is submitted and pending operations review (`isPendingDeactivation`).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
 
 **Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4612,6 +4628,22 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
+
+**Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Header Cleanup in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the italic text callout: `Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`.
+   - Preserved the button's native disabled state and hover tooltip (`title`) when an employee is in an active or on-leave state, preventing accidental deactivation requests without visual text clutter.
+   - Preserved the amber notification banner when deactivation is submitted and pending operations review (`isPendingDeactivation`).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 ## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
 
 **Status: COMPLETE ON BRANCH2; TOP NAVIGATION IN `/plantilla/[id]` SIMPLIFIED BY REMOVING REDUNDANT `Sync MIKA` BUTTON (CENTRALIZED UNDER BENEFITS & STATUTORY TAB), REMOVING CHEVRON DIVIDER AND DUPLICATE EMPLOYEE NAME BREADCRUMB, AND ELIMINATING HORIZONTAL BORDER CLUTTER; CLEAN `← Back to Plantilla` BUTTON RETAINED WITH COMPLETE URL RETURN STATE PRESERVATION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5207,6 +5239,22 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
+
+**Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Header Cleanup in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the italic text callout: `Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`.
+   - Preserved the button's native disabled state and hover tooltip (`title`) when an employee is in an active or on-leave state, preventing accidental deactivation requests without visual text clutter.
+   - Preserved the amber notification banner when deactivation is submitted and pending operations review (`isPendingDeactivation`).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
 
@@ -5827,6 +5875,22 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Remove Ineligible Deactivation Note Banner from Dedicated Employee Detail Page (ohm#branch2-remove-deactivation-note-banner)
+
+**Status: COMPLETE ON BRANCH2; STATIC INELIGIBLE DEACTIVATION NOTE CALLOUT (`Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`) REMOVED FROM THE TOP SUMMARY CARD IN `/plantilla/[id]`; HEADER SURFACE CLEANED UP WHILE RETAINING NATIVE DISABLED STATE AND HOVER TOOLTIPS ON THE ACTION BUTTON; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Header Cleanup in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the italic text callout: `Note: Employee must be moved to Floating or Inactive status before requesting official plantilla deactivation`.
+   - Preserved the button's native disabled state and hover tooltip (`title`) when an employee is in an active or on-leave state, preventing accidental deactivation requests without visual text clutter.
+   - Preserved the amber notification banner when deactivation is submitted and pending operations review (`isPendingDeactivation`).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
 
 ## Execution Report — Simplify Top Navigation Bar in Dedicated Employee Detail Page (ohm#branch2-simplify-employee-detail-top-nav)
 
