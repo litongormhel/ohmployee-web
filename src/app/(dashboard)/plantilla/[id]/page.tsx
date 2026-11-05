@@ -183,9 +183,8 @@ function formatBenefitValue(
 
 type CategoryTab =
   | "employment"
-  | "schedule"
+  | "schedule_stores"
   | "benefits"
-  | "stores"
   | "activity";
 
 // ---------------------------------------------------------------------------
@@ -517,17 +516,17 @@ function PlantillaEmployeeDetailContent() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab("schedule")}
+                onClick={() => setActiveTab("schedule_stores")}
                 role="tab"
-                aria-selected={activeTab === "schedule"}
+                aria-selected={activeTab === "schedule_stores"}
                 className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-                  activeTab === "schedule"
+                  activeTab === "schedule_stores"
                     ? "border-brand-primary text-brand-primary"
                     : "border-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
                 <Clock className="w-4 h-4" />
-                <span>Work Schedule & Rate</span>
+                <span>Schedule & Store Coverage</span>
               </button>
 
               <button
@@ -543,21 +542,6 @@ function PlantillaEmployeeDetailContent() {
               >
                 <Shield className="w-4 h-4" />
                 <span>Benefits & Statutory</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("stores")}
-                role="tab"
-                aria-selected={activeTab === "stores"}
-                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-                  activeTab === "stores"
-                    ? "border-brand-primary text-brand-primary"
-                    : "border-transparent text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <Store className="w-4 h-4" />
-                <span>Stores & Coverage</span>
               </button>
 
               <button
@@ -691,58 +675,184 @@ function PlantillaEmployeeDetailContent() {
               </div>
             )}
 
-            {/* TAB 2: WORK SCHEDULE & RATE */}
-            {activeTab === "schedule" && (
+            {/* TAB 2: SCHEDULE & STORE COVERAGE */}
+            {activeTab === "schedule_stores" && (
               <div className="space-y-6">
-                <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-brand-primary" />
-                      <span>Work Schedule & Compensation Metadata</span>
-                    </h3>
+                {/* Top Summary Bar: Global Employee Terms */}
+                <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-border-subtle">
+                    <div>
+                      <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-brand-primary" />
+                        <span>Global Work Terms & Rate</span>
+                      </h3>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Base remuneration rate, designated mandatory weekly rest day, and HR management assignment.
+                      </p>
+                    </div>
                     {isAuthorized && (
                       <button
                         type="button"
                         onClick={() => setIsScheduleModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-brand-primary transition shadow-2xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        <span>Edit Schedule</span>
+                        <span>Edit Schedule & Allocations</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
-                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Schedule Days</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.scheduleDays || "Mon - Sat"}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Schedule Time</span>
-                      <p className="font-bold text-text-primary text-sm mt-1 font-mono">
-                        {data.scheduleTime || "08:00 AM - 05:00 PM"}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Designated Day Off</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.dayoff || "Sunday"}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                     <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
                       <span className="text-text-secondary font-medium">Daily Wage / Base Rate</span>
-                      <p className="font-bold text-text-primary text-sm mt-1 font-mono">
+                      <p className="font-bold text-text-primary text-base mt-1 font-mono">
                         {data.dailyRate || data.maskedFields?.baseRateMasked || "—"}
                       </p>
+                      <span className="text-[11px] text-text-muted mt-1 block">Standard daily statutory rate</span>
                     </div>
-                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle col-span-1 md:col-span-2">
+
+                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                      <span className="text-text-secondary font-medium">Designated Day Off</span>
+                      <p className="font-bold text-text-primary text-base mt-1 flex items-center gap-2">
+                        <span>{data.dayoff || "Sunday"}</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface border border-border-default text-text-secondary">
+                          1 Rest Day / Wk
+                        </span>
+                      </p>
+                      <span className="text-[11px] text-text-muted mt-1 block">DOLE standard rest day</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-surface-muted/50 border border-border-subtle">
                       <span className="text-text-secondary font-medium">Assigned HR Coordinator</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
+                      <p className="font-bold text-text-primary text-base mt-1 truncate">
                         {data.coordinator || data.hrcoName || "Unassigned Coordinator"}
                       </p>
+                      <span className="text-[11px] text-text-muted mt-1 block">Operations Supervisor</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Store Schedule & Headcount Allocation Matrix */}
+                <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-brand-primary" />
+                        <span>Store Schedule & Headcount Allocation Matrix</span>
+                      </h3>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Breakdown of per-store duty days, shift times, and headcount (HC) share distribution.
+                      </p>
+                    </div>
+
+                    {/* Total HC Meter */}
+                    <div className="flex items-center gap-2 bg-surface-muted px-3 py-1.5 rounded-lg border border-border-default self-start sm:self-auto shrink-0">
+                      <span className="text-xs text-text-secondary font-medium">Total Allocation:</span>
+                      <span className="font-mono font-bold text-xs text-brand-primary">
+                        {(
+                          (data.coveredStores && data.coveredStores.length > 0
+                            ? data.coveredStores.reduce((sum, s) => sum + (s.allocationPercent ?? 0), 0)
+                            : 100) / 100
+                        ).toFixed(2)}{" "}
+                        / 1.00 HC
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Store Allocation Cards / Table */}
+                  <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
+                    {(data.coveredStores && data.coveredStores.length > 0
+                      ? data.coveredStores
+                      : [
+                          {
+                            storeId: data.storeId || "primary",
+                            storeName: data.primaryStoreName || "Primary Store Assignment",
+                            vcode: data.vcode || "—",
+                            scheduleDays: data.scheduleDays || "Mon - Sat",
+                            scheduleTime: data.scheduleTime || "08:00 AM - 05:00 PM",
+                            allocationPercent: 100,
+                            area: data.area,
+                            province: data.province,
+                            stableKey: "fallback-primary",
+                          },
+                        ]
+                    ).map((store) => {
+                      const hcShare =
+                        store.allocationPercent != null
+                          ? (store.allocationPercent / 100).toFixed(2)
+                          : "1.00";
+                      const storeDays = store.scheduleDays || data.scheduleDays || "Mon - Sat";
+                      const storeTime =
+                        store.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM";
+                      const locationStr = [
+                        store.area || data.area,
+                        store.province || data.province,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ");
+
+                      return (
+                        <div
+                          key={store.stableKey}
+                          className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-surface-muted/30 transition"
+                        >
+                          {/* Store Details */}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                              <h4 className="font-bold text-text-primary text-sm truncate">
+                                {store.storeName}
+                              </h4>
+                              {store.vcode && (
+                                <span className="font-mono text-xs font-bold text-brand-primary bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 px-2 py-0.5 rounded">
+                                  {store.vcode}
+                                </span>
+                              )}
+                              {/* External visibility presence badge */}
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-surface-muted border border-border-default text-text-secondary">
+                                <Clock className="w-3 h-3 text-text-muted" />
+                                <span>
+                                  {storeDays} • {hcShare} HC
+                                </span>
+                              </span>
+                            </div>
+                            {locationStr && (
+                              <p className="text-xs text-text-secondary pl-5">
+                                {locationStr}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Schedule & HC Details */}
+                          <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 md:pt-0 border-t md:border-t-0 border-border-subtle shrink-0 text-xs">
+                            <div className="space-y-0.5">
+                              <span className="text-[11px] font-medium text-text-muted block">
+                                Duty Days
+                              </span>
+                              <span className="font-semibold text-text-primary">
+                                {storeDays}
+                              </span>
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[11px] font-medium text-text-muted block">
+                                Shift Window
+                              </span>
+                              <span className="font-mono font-semibold text-text-primary">
+                                {storeTime}
+                              </span>
+                            </div>
+                            <div className="text-right pl-3 border-l border-border-subtle">
+                              <span className="text-[11px] font-semibold text-text-muted block">
+                                HC Share
+                              </span>
+                              <p className="font-mono font-extrabold text-brand-primary text-base leading-none mt-0.5">
+                                {hcShare}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -881,99 +991,7 @@ function PlantillaEmployeeDetailContent() {
               </div>
             )}
 
-            {/* TAB 4: STORES & COVERAGE */}
-            {activeTab === "stores" && (
-              <div className="space-y-6">
-                {/* Store Allocation Summary Stat Cards */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs text-center">
-                    <p className="text-2xl font-extrabold text-brand-primary">
-                      {data.coveredStores && data.coveredStores.length > 0
-                        ? data.coveredStores.length
-                        : 1}
-                    </p>
-                    <p className="text-xs font-semibold text-text-secondary mt-1">
-                      Active Assigned Stores
-                    </p>
-                  </div>
-                  <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs text-center">
-                    <p className="text-2xl font-extrabold text-text-muted">
-                      0
-                    </p>
-                    <p className="text-xs font-semibold text-text-secondary mt-1">
-                      Past Store History
-                    </p>
-                  </div>
-                </div>
-
-                {/* Covered Stores Roster */}
-                <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-                  <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-brand-primary" />
-                    <span>Store Deployments & Headcount Split</span>
-                  </h3>
-
-                  <div className="space-y-3">
-                    {data.coveredStores && data.coveredStores.length > 0 ? (
-                      data.coveredStores.map((store) => (
-                        <div
-                          key={store.stableKey}
-                          className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-center justify-between gap-4"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 mt-1 shrink-0" />
-                            <div>
-                              <h4 className="font-bold text-text-primary text-sm">
-                                {store.storeName}
-                              </h4>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary mt-1">
-                                <span className="font-mono text-brand-primary font-bold">
-                                  {data.vcode || "—"}
-                                </span>
-                                <span>•</span>
-                                <span>Area: {[data.area, data.province].filter(Boolean).join(", ") || "—"}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-[11px] font-semibold text-text-muted">HC Share</span>
-                            <p className="font-mono font-bold text-brand-primary text-sm">
-                              {store.allocationPercent != null
-                                ? (store.allocationPercent / 100).toFixed(2)
-                                : "1.00"}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-center justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 mt-1 shrink-0" />
-                          <div>
-                            <h4 className="font-bold text-text-primary text-sm">
-                              {data.primaryStoreName || "Primary Store Assignment"}
-                            </h4>
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary mt-1">
-                              <span className="font-mono text-brand-primary font-bold">
-                                {data.vcode || "—"}
-                              </span>
-                              <span>•</span>
-                              <span>Area: {[data.area, data.province].filter(Boolean).join(", ") || "—"}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-[11px] font-semibold text-text-muted">HC Share</span>
-                          <p className="font-mono font-bold text-brand-primary text-sm">1.00</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 5: ACTIVITY & SYSTEM INFO */}
+            {/* TAB 4: ACTIVITY & SYSTEM INFO */}
             {activeTab === "activity" && (
               <div className="space-y-6">
                 {/* Audit Timeline */}
@@ -1162,6 +1180,31 @@ function PlantillaEmployeeDetailContent() {
           initialScheduleDays={data.scheduleDays}
           initialScheduleTime={data.scheduleTime}
           initialDayoff={data.dayoff}
+          initialStoreAllocations={
+            data.coveredStores && data.coveredStores.length > 0
+              ? data.coveredStores.map((st) => ({
+                  storeId: st.storeId,
+                  storeName: st.storeName,
+                  vcode: st.vcode || data.vcode || "",
+                  scheduleDays: st.scheduleDays || data.scheduleDays || "MON-SAT",
+                  scheduleTime: st.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM",
+                  allocationPercent:
+                    st.allocationPercent ??
+                    (data.coveredStores.length > 1
+                      ? Math.round(100 / data.coveredStores.length)
+                      : 100),
+                }))
+              : [
+                  {
+                    storeId: data.storeId || "primary",
+                    storeName: data.primaryStoreName || "Primary Store Assignment",
+                    vcode: data.vcode || "",
+                    scheduleDays: data.scheduleDays || "MON-SAT",
+                    scheduleTime: data.scheduleTime || "08:00 AM - 05:00 PM",
+                    allocationPercent: 100,
+                  },
+                ]
+          }
           onSuccess={() => {
             detailQuery.refetch();
           }}

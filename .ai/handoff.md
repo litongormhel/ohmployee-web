@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
+
+**Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Tab Consolidation in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced previous separate "Work Schedule & Rate" and "Stores & Coverage" tabs with a unified **`Schedule & Store Coverage`** tab (`activeTab === "schedule_stores"`), reducing total tabs to 4 clean categories (`Employment & Allocation`, `Schedule & Store Coverage`, `Benefits & Statutory`, `Activity & System Info`).
+   - Built the **Top Summary Bar (Global Terms)** displaying:
+     - Base Daily Wage / Statutory Rate (`data.dailyRate` or masked rate).
+     - Designated Day Off (with DOLE standard "1 Rest Day / Wk" indicator).
+     - Assigned HR Coordinator (`data.coordinator` / `data.hrcoName`).
+     - `Edit Schedule & Allocations` action button opening the upgraded modal.
+   - Built the **Store Schedule & Headcount Allocation Matrix**:
+     - Visual breakdown of each assigned store deployment.
+     - Displays Store Branch Name, Location/Province, VCode badge, Duty Days (e.g. `MON-TUE-WED`), Shift Time Window (e.g. `08:00 AM - 05:00 PM`), and Headcount (HC) Share (e.g. `0.50 HC`).
+     - Added external visibility presence badge (`[Clock icon] DAYS • HC Share`) on each row.
+     - Rendered a live Headcount Allocation Balance meter (`1.00 / 1.00 HC`).
+2. **Interactive Editing Modal (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Re-architected modal to configure both global terms (Designated Weekly Rest Day, Standard Duty Hours presets) and per-store schedule configurations.
+   - Supports per-store duty days toggling (`MON` through `SUN`) and shift time presets/custom inputs.
+   - Allows dynamically adding and removing roving store allocations with automatic equal fractional HC share redistribution.
+   - Enforced strict validation guardrail: Save button is disabled and alert is displayed unless the sum of HC shares equals exactly 1.00 (100%).
+   - Added collision detection warning when any store duty day conflicts with the designated weekly rest day.
+3. **Data Layer Queries (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaCoveredStore` type with `vcode`, `scheduleDays`, `scheduleTime`, `area`, `city`, and `province`.
+   - Updated `getWebPlantillaDetail` to join active `employee_store_allocations` records (`schedule_days`, `schedule_time`, `filled_hc`, `vcode`) into `coveredStores` with automatic fallback to primary store when single-store or unallocated.
+   - Upgraded `updatePlantillaSchedule` mutation to accept an array of `storeAllocations`, updating `plantilla` (`assignment_type` to Roving or Stationary, schedule, schedule_time, dayoff) and upserting/syncing `employee_store_allocations`.
+4. **Permanent Architectural Lock & Documentation**:
+   - Added **Rule #6 (Store-Level Schedule & HC Allocation Matrix)** to `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to reflect the 4 category tabs layout and the comprehensive `Schedule & Store Coverage` specifications.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
 
 **Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4650,6 +4688,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
+
+**Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Tab Consolidation in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced previous separate "Work Schedule & Rate" and "Stores & Coverage" tabs with a unified **`Schedule & Store Coverage`** tab (`activeTab === "schedule_stores"`), reducing total tabs to 4 clean categories (`Employment & Allocation`, `Schedule & Store Coverage`, `Benefits & Statutory`, `Activity & System Info`).
+   - Built the **Top Summary Bar (Global Terms)** displaying:
+     - Base Daily Wage / Statutory Rate (`data.dailyRate` or masked rate).
+     - Designated Day Off (with DOLE standard "1 Rest Day / Wk" indicator).
+     - Assigned HR Coordinator (`data.coordinator` / `data.hrcoName`).
+     - `Edit Schedule & Allocations` action button opening the upgraded modal.
+   - Built the **Store Schedule & Headcount Allocation Matrix**:
+     - Visual breakdown of each assigned store deployment.
+     - Displays Store Branch Name, Location/Province, VCode badge, Duty Days (e.g. `MON-TUE-WED`), Shift Time Window (e.g. `08:00 AM - 05:00 PM`), and Headcount (HC) Share (e.g. `0.50 HC`).
+     - Added external visibility presence badge (`[Clock icon] DAYS • HC Share`) on each row.
+     - Rendered a live Headcount Allocation Balance meter (`1.00 / 1.00 HC`).
+2. **Interactive Editing Modal (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Re-architected modal to configure both global terms (Designated Weekly Rest Day, Standard Duty Hours presets) and per-store schedule configurations.
+   - Supports per-store duty days toggling (`MON` through `SUN`) and shift time presets/custom inputs.
+   - Allows dynamically adding and removing roving store allocations with automatic equal fractional HC share redistribution.
+   - Enforced strict validation guardrail: Save button is disabled and alert is displayed unless the sum of HC shares equals exactly 1.00 (100%).
+   - Added collision detection warning when any store duty day conflicts with the designated weekly rest day.
+3. **Data Layer Queries (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaCoveredStore` type with `vcode`, `scheduleDays`, `scheduleTime`, `area`, `city`, and `province`.
+   - Updated `getWebPlantillaDetail` to join active `employee_store_allocations` records (`schedule_days`, `schedule_time`, `filled_hc`, `vcode`) into `coveredStores` with automatic fallback to primary store when single-store or unallocated.
+   - Upgraded `updatePlantillaSchedule` mutation to accept an array of `storeAllocations`, updating `plantilla` (`assignment_type` to Roving or Stationary, schedule, schedule_time, dayoff) and upserting/syncing `employee_store_allocations`.
+4. **Permanent Architectural Lock & Documentation**:
+   - Added **Rule #6 (Store-Level Schedule & HC Allocation Matrix)** to `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to reflect the 4 category tabs layout and the comprehensive `Schedule & Store Coverage` specifications.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
 
 **Status: COMPLETE ON BRANCH2; EMPLOYEE PROFILE HEADER CARD IN `/plantilla/[id]` STREAMLINED PER USER REVIEW (`media_1793863882648_b10d93c6.png`); REPLACED `Active` BADGE PILL WITH A CLEAN GREEN STATUS DOT (`w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20`) BESIDE EMPLOYEE NAME; REMOVED REDUNDANT `VCode` AND `Store` STRIPS FROM TOP METADATA ROW (RETAINING `ID`, `Position`, AND `Hired / Tenure`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5283,6 +5359,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
+
+**Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Tab Consolidation in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced previous separate "Work Schedule & Rate" and "Stores & Coverage" tabs with a unified **`Schedule & Store Coverage`** tab (`activeTab === "schedule_stores"`), reducing total tabs to 4 clean categories (`Employment & Allocation`, `Schedule & Store Coverage`, `Benefits & Statutory`, `Activity & System Info`).
+   - Built the **Top Summary Bar (Global Terms)** displaying:
+     - Base Daily Wage / Statutory Rate (`data.dailyRate` or masked rate).
+     - Designated Day Off (with DOLE standard "1 Rest Day / Wk" indicator).
+     - Assigned HR Coordinator (`data.coordinator` / `data.hrcoName`).
+     - `Edit Schedule & Allocations` action button opening the upgraded modal.
+   - Built the **Store Schedule & Headcount Allocation Matrix**:
+     - Visual breakdown of each assigned store deployment.
+     - Displays Store Branch Name, Location/Province, VCode badge, Duty Days (e.g. `MON-TUE-WED`), Shift Time Window (e.g. `08:00 AM - 05:00 PM`), and Headcount (HC) Share (e.g. `0.50 HC`).
+     - Added external visibility presence badge (`[Clock icon] DAYS • HC Share`) on each row.
+     - Rendered a live Headcount Allocation Balance meter (`1.00 / 1.00 HC`).
+2. **Interactive Editing Modal (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Re-architected modal to configure both global terms (Designated Weekly Rest Day, Standard Duty Hours presets) and per-store schedule configurations.
+   - Supports per-store duty days toggling (`MON` through `SUN`) and shift time presets/custom inputs.
+   - Allows dynamically adding and removing roving store allocations with automatic equal fractional HC share redistribution.
+   - Enforced strict validation guardrail: Save button is disabled and alert is displayed unless the sum of HC shares equals exactly 1.00 (100%).
+   - Added collision detection warning when any store duty day conflicts with the designated weekly rest day.
+3. **Data Layer Queries (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaCoveredStore` type with `vcode`, `scheduleDays`, `scheduleTime`, `area`, `city`, and `province`.
+   - Updated `getWebPlantillaDetail` to join active `employee_store_allocations` records (`schedule_days`, `schedule_time`, `filled_hc`, `vcode`) into `coveredStores` with automatic fallback to primary store when single-store or unallocated.
+   - Upgraded `updatePlantillaSchedule` mutation to accept an array of `storeAllocations`, updating `plantilla` (`assignment_type` to Roving or Stationary, schedule, schedule_time, dayoff) and upserting/syncing `employee_store_allocations`.
+4. **Permanent Architectural Lock & Documentation**:
+   - Added **Rule #6 (Store-Level Schedule & HC Allocation Matrix)** to `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to reflect the 4 category tabs layout and the comprehensive `Schedule & Store Coverage` specifications.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
 
@@ -5941,6 +6055,44 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Store-Level Schedule and Headcount Share Allocation Matrix (ohm#branch2-store-level-schedule-and-hc-allocation-matrix)
+
+**Status: COMPLETE ON BRANCH2; CONSOLIDATED SEPARATE 'WORK SCHEDULE & RATE' AND 'STORES & COVERAGE' TABS INTO A UNIFIED 'SCHEDULE & STORE COVERAGE' TAB IN `/plantilla/[id]`; IMPLEMENTED TOP GLOBAL TERMS BAR (DAILY WAGE, MANDATORY 1-DAY/WEEK REST DAY, ASSIGNED HRCO) AND STORE SCHEDULE & HEADCOUNT (HC) ALLOCATION MATRIX (BRANCH, VCODE, DUTY DAYS, SHIFT WINDOW, HC SHARE, PRESENCE BADGES `DAYS • HC Share`); UPGRADED `UpdateScheduleModal` AND `updatePlantillaSchedule` WITH DYNAMIC ROVING STORES, FRACTIONAL REDISTRIBUTION, AND STRICT HEADCOUNT CONSERVATION GUARDRAILS ($\sum \text{HC Share} = 1.00$); RECORDED RULE #6 IN ADR AND BRIEFING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Tab Consolidation in Dedicated Profile View (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Replaced previous separate "Work Schedule & Rate" and "Stores & Coverage" tabs with a unified **`Schedule & Store Coverage`** tab (`activeTab === "schedule_stores"`), reducing total tabs to 4 clean categories (`Employment & Allocation`, `Schedule & Store Coverage`, `Benefits & Statutory`, `Activity & System Info`).
+   - Built the **Top Summary Bar (Global Terms)** displaying:
+     - Base Daily Wage / Statutory Rate (`data.dailyRate` or masked rate).
+     - Designated Day Off (with DOLE standard "1 Rest Day / Wk" indicator).
+     - Assigned HR Coordinator (`data.coordinator` / `data.hrcoName`).
+     - `Edit Schedule & Allocations` action button opening the upgraded modal.
+   - Built the **Store Schedule & Headcount Allocation Matrix**:
+     - Visual breakdown of each assigned store deployment.
+     - Displays Store Branch Name, Location/Province, VCode badge, Duty Days (e.g. `MON-TUE-WED`), Shift Time Window (e.g. `08:00 AM - 05:00 PM`), and Headcount (HC) Share (e.g. `0.50 HC`).
+     - Added external visibility presence badge (`[Clock icon] DAYS • HC Share`) on each row.
+     - Rendered a live Headcount Allocation Balance meter (`1.00 / 1.00 HC`).
+2. **Interactive Editing Modal (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Re-architected modal to configure both global terms (Designated Weekly Rest Day, Standard Duty Hours presets) and per-store schedule configurations.
+   - Supports per-store duty days toggling (`MON` through `SUN`) and shift time presets/custom inputs.
+   - Allows dynamically adding and removing roving store allocations with automatic equal fractional HC share redistribution.
+   - Enforced strict validation guardrail: Save button is disabled and alert is displayed unless the sum of HC shares equals exactly 1.00 (100%).
+   - Added collision detection warning when any store duty day conflicts with the designated weekly rest day.
+3. **Data Layer Queries (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaCoveredStore` type with `vcode`, `scheduleDays`, `scheduleTime`, `area`, `city`, and `province`.
+   - Updated `getWebPlantillaDetail` to join active `employee_store_allocations` records (`schedule_days`, `schedule_time`, `filled_hc`, `vcode`) into `coveredStores` with automatic fallback to primary store when single-store or unallocated.
+   - Upgraded `updatePlantillaSchedule` mutation to accept an array of `storeAllocations`, updating `plantilla` (`assignment_type` to Roving or Stationary, schedule, schedule_time, dayoff) and upserting/syncing `employee_store_allocations`.
+4. **Permanent Architectural Lock & Documentation**:
+   - Added **Rule #6 (Store-Level Schedule & HC Allocation Matrix)** to `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+   - Updated Section 8 in `docs/state/plantilla_web_state.md` to reflect the 4 category tabs layout and the comprehensive `Schedule & Store Coverage` specifications.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Streamline Employee Detail Header Metadata & Add Active Green Dot Indicator (ohm#branch2-streamline-employee-header-metadata-and-active-dot)
 

@@ -129,6 +129,12 @@ export type PlantillaCoveredStore = {
   storeName: string;
   allocationPercent: number | null;
   isPrimary: boolean;
+  vcode?: string | null;
+  scheduleDays?: string | null;
+  scheduleTime?: string | null;
+  area?: string | null;
+  city?: string | null;
+  province?: string | null;
 };
 
 export type PlantillaGovernmentIds = {
@@ -583,6 +589,12 @@ function normalizeCoveredStore(item: unknown, index: number): PlantillaCoveredSt
     storeName,
     allocationPercent: asNumber(obj.allocation_percent ?? obj.allocationPercent),
     isPrimary: asBoolean(obj.is_primary ?? obj.isPrimary),
+    vcode: asString(obj.vcode ?? obj.store_code ?? obj.storeCode),
+    scheduleDays: asString(obj.schedule_days ?? obj.scheduleDays ?? obj.schedule),
+    scheduleTime: asString(obj.schedule_time ?? obj.scheduleTime),
+    area: asString(obj.area),
+    city: asString(obj.city),
+    province: asString(obj.province),
   };
 }
 
@@ -1831,6 +1843,46 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
   }
 
+  // Augment store-level schedules and headcount share allocations from employee_store_allocations
+  try {
+    const { data: allocRows } = await supabase
+      .from("employee_store_allocations")
+      .select("id, store_id, store_name, vcode, filled_hc, schedule_days, schedule_time")
+      .or(`plantilla_id.eq.${normalized.id},employee_no.eq.${normalized.employeeNo}`)
+      .eq("is_active", true);
+
+    if (allocRows && allocRows.length > 0) {
+      normalized.coveredStores = allocRows.map((al, idx) => ({
+        stableKey: `alloc-${al.id || idx}`,
+        storeId: al.store_id || "",
+        storeName: al.store_name || "Assigned Store",
+        vcode: al.vcode || normalized?.vcode,
+        allocationPercent: al.filled_hc != null ? Math.round(Number(al.filled_hc) * 100) : Math.round(100 / allocRows.length),
+        isPrimary: idx === 0,
+        scheduleDays: al.schedule_days || normalized?.scheduleDays || "MON-SAT",
+        scheduleTime: al.schedule_time || normalized?.scheduleTime || "08:00 AM - 05:00 PM",
+      }));
+    }
+  } catch {
+    // Graceful fallback to existing coveredStores
+  }
+
+  // Fallback: If coveredStores is still empty, populate primary store record
+  if (!normalized.coveredStores || normalized.coveredStores.length === 0) {
+    normalized.coveredStores = [
+      {
+        stableKey: `primary-store-${normalized.id}`,
+        storeId: normalized.storeId || "",
+        storeName: normalized.primaryStoreName || "Primary Store Assignment",
+        vcode: normalized.vcode,
+        allocationPercent: 100,
+        isPrimary: true,
+        scheduleDays: normalized.scheduleDays || "MON-SAT",
+        scheduleTime: normalized.scheduleTime || "08:00 AM - 05:00 PM",
+      },
+    ];
+  }
+
   return normalized;
 }
 
@@ -2027,12 +2079,22 @@ export async function updatePlantillaEmploymentStatus(params: UpdateEmploymentSt
   throw new PlantillaDataError("retryable", `Unsupported employment status target: ${params.targetStatus}`);
 }
 
+export interface StoreAllocationInput {
+  storeId?: string | null;
+  storeName: string;
+  vcode?: string | null;
+  scheduleDays?: string | null;
+  scheduleTime?: string | null;
+  allocationPercent: number; // e.g. 50 = 0.50 HC, 100 = 1.00 HC
+}
+
 export interface UpdatePlantillaScheduleParams {
   plantillaId: string;
   employeeNo?: string | null;
   scheduleDays?: string | null;
   scheduleTime?: string | null;
   dayoff?: string | null;
+  storeAllocations?: StoreAllocationInput[];
 }
 
 export async function updatePlantillaSchedule(params: UpdatePlantillaScheduleParams): Promise<void> {
@@ -2045,6 +2107,16 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
     updated_at: new Date().toISOString(),
   };
 
+  if (params.storeAllocations && params.storeAllocations.length > 0) {
+    if (params.storeAllocations.length > 1) {
+      updatePayload.assignment_type = "Roving";
+      updatePayload.deployment_type = "Roving";
+    } else {
+      updatePayload.assignment_type = "Stationary";
+      updatePayload.deployment_type = "Stationary";
+    }
+  }
+
   const { error } = await supabase
     .from("plantilla")
     .update(updatePayload)
@@ -2054,14 +2126,35 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
     throwPlantillaError(error);
   }
 
-  // Also update employee_store_allocations if employeeNo is present
-  if (params.employeeNo) {
+  // Update employee_store_allocations
+  if (params.storeAllocations && params.storeAllocations.length > 0 && params.employeeNo) {
+    for (const alloc of params.storeAllocations) {
+      const filledHc = Number((alloc.allocationPercent / 100).toFixed(4));
+      let query = supabase
+        .from("employee_store_allocations")
+        .update({
+          filled_hc: filledHc,
+          schedule_days: alloc.scheduleDays ?? params.scheduleDays ?? null,
+          schedule_time: alloc.scheduleTime ?? params.scheduleTime ?? null,
+          vcode: alloc.vcode ?? null,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (alloc.storeId) {
+        query = query.eq("store_id", alloc.storeId);
+      } else {
+        query = query.eq("store_name", alloc.storeName);
+      }
+      query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
+      await query;
+    }
+  } else if (params.employeeNo) {
     await supabase
       .from("employee_store_allocations")
       .update({
         schedule_days: params.scheduleDays ?? null,
         schedule_time: params.scheduleTime ?? null,
-        dayoff: params.dayoff ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq("employee_no", params.employeeNo);
