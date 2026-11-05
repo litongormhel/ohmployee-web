@@ -11,6 +11,8 @@ This document specifies the target architecture, visual structures, data contrac
 ### Permanent Architectural Rule Locks
 1. **Rule #1 (Inactive Roster Persistence):** Employees who are disengaged, separated, or pending deactivation (`Resigned`, `AWOL`, `Terminated`) must **always** remain visible in the Inactive Tab for historical and reporting continuity. They must never be filtered out or hidden into isolated views that remove them from historical logs. Tab 5 (Deactivation) serves as an action queue for pending deactivation processing, while Tab 6 (Inactive) is the persistent historical roster.
 2. **Rule #2 (Safe Audit Logging):** Audit log triggers (`fn_audit_log`) and audit log callers (`log_audit_event`) must always use safe actor ID resolution (`resolve_audit_actor_id`) with fallbacks to `NULL` on `foreign_key_violation`. In addition, a universal trigger (`trg_safe_audit_logs_actor_id` on `public.audit_logs`) guarantees that any unresolvable actor ID not found in `auth.users` is automatically converted to `NULL` before constraint evaluation, permanently preventing operational mutation failures (e.g. during employment status updates, Floating, Resigned, AWOL, Terminated) due to missing auth users or FK constraints. 
+3. **Rule #3 (Plantilla Table & Universal Cards Contract):** The Deactivation Tab roster strictly enforces column layout `Emploc# / Member / VCode / Store / Position / Assignment / Status` (with Actions column completely removed); the Inactive Tab roster strictly removes `Clearance Status` and dynamically resolves operational/separation remarks from `plantilla.remarks` with waterfall fallback to `audit_logs`; and the `Table / Cards` view toggle must remain fully supported and crash-free across all status tabs (Active, On-Leave, Vacancy, Floating, Deactivation, Inactive).
+4. **Rule #4 (Floating Compliance, Layout & Store Slot Restriction):** Floating records must continuously track duration and days elapsed for DOLE compliance monitoring (Article 301 maximum 180-day temporary layoff limit) via reactive countdown badges across table and card views. The Floating tab table strictly excludes the `Details` action button and the `Status` column, maintaining `Assign Store` as the single primary action. Store assignments for floating personnel in `AssignStoreModal` are strictly restricted to locations with open or available slots (`hc_filled < hc_total`, e.g., `1/2`), with fully occupied stores (`1/1`, `2/2`) filtered out and hidden to prevent over-allocation. 
 
 The **Plantilla** module is the final authority and active directory for all deployed personnel across the organization. In the operational hiring and deployment pipeline, a record progresses through the following canonical stages:
 
@@ -92,7 +94,15 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
 
 4. **Tab 4: Floating** (All Floating Employees Only)
    - **Filter**: Employees with status `Floating` (active employees temporarily awaiting store redeployment).
-   - **Columns**: `Member` | `Store` (`Unassigned` + Area/City) | `Position` | `Assignment` | `Status` (`Floating` blue badge) | `Actions`: `Assign Store` button (opens `AssignStoreModal` prioritizing vacant stores) + `Details` button.
+   - **DOLE Compliance Tracking**: Every floating record tracks days elapsed since effective separation/floating date (`separationDate` with fallback to `updatedAt` / `createdAt`) and renders a prominent color-coded countdown badge against the DOLE Article 301 180-day statutory temporary layoff ceiling (<30d: Fresh, 30–60d: Active aging, 60–120d: Elevated risk, >120d: Critical, ≥180d: DOLE Breach).
+   - **Columns (Strict 5-Column Sequence, Status column and Details action removed)**:
+     1. `Member`: Avatar initials, display name, monospace employee/VCode ID, and inline `FloatingDoleBadge`.
+     2. `Store`: Muted italic `Unassigned` with store area/city location pill.
+     3. `Position`: Position title with plantilla tier tag.
+     4. `Assignment`: `Roving` or `Stationary` assignment badge.
+     5. `Actions`: Dedicated `Assign Store` action button only (`Details` button and `Status` column are strictly removed).
+   - **Store Slot Restriction**: The `Assign Store` modal filters stores strictly to those with available headcount slots (`hc_filled < hc_total` or open vacancy slots > 0). Fully occupied stores (`1/1`, `2/2`) are hidden to prevent over-allocation.
+   - **Row Interaction**: The entire row is clickable (`cursor: pointer`), triggering the interactive `PlantillaDetailDrawer`.
 
 5. **Tab 5: Deactivation** (Pending Offboarding & Deactivation Requests)
    - **Filter**: Employees with pending/for-approval offboarding or deactivation requests (`pending for deactivation`, `for deactivation`).

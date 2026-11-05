@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — Plantilla Floating Tab DOLE Tracking, Table Layout Streamlining & Store Slot Restriction (ohm#branch2-floating-tab-dole-tracking-and-slot-restriction)
+
+**Status: COMPLETE ON BRANCH2; DOLE ARTICLE 301 COMPLIANCE TRACKING IMPLEMENTED WITH DAYS ELAPSED COUNTDOWN BADGES (`FloatingDoleBadge`, `getFloatingDurationDays`) ACROSS FLOATING TABLE AND CARD ROSTERS; FLOATING TAB TABLE CLEANED UP BY STRICTLY REMOVING STATUS COLUMN AND DETAILS ACTION BUTTON (ASSIGN STORE REMAINS PRIMARY ACTION PER `image_a97f7f.png`); ASSIGN STORE MODAL ENHANCED TO STRICTLY RESTRICT TARGET STORE SELECTION TO LOCATIONS WITH AVAILABLE HEADCOUNT SLOTS (`hc_filled < hc_total`, E.G. `1/2`), HIDING FULLY OCCUPIED STORES (`1/1`, `2/2`) TO PREVENT OVER-ALLOCATION; STATE DOCUMENTATION AND ARCHITECTURAL RULE #4 LOCKED IN `.ai/briefing.md` AND `docs/state/plantilla_web_state.md`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **DOLE Article 301 Compliance Tracking (`src/lib/queries/plantilla.ts` & `src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `createdAt` and `updatedAt` to `PlantillaEmployeeListItem` and enhanced `separationDate` resolution in `normalizeEmployeeListRow`.
+   - Implemented `getFloatingDurationDays(emp)` to compute duration in days elapsed since effective separation/floating date (`separationDate` -> `updatedAt` -> `createdAt`).
+   - Implemented `FloatingDoleBadge`:
+     - Evaluates days elapsed against the Philippine Labor Code Art. 301 6-month / 180-day statutory temporary layoff limit.
+     - Color-coded severity tiers: `<30d`: Fresh (`{days}d • {remaining}d left`, emerald/slate), `30–60d`: Active floating (blue), `60–120d`: Aged warning (amber), `>120d`: Critical threshold warning (rose), and `≥180d`: DOLE Breach alert (`{days}d • DOLE Breach`, pulsing red).
+     - Rendered inline in `EmployeeFloatingTable` next to employee ID / vcode and prominently in `EmployeeFloatingCard` body.
+     - Rendered in `AssignStoreModal` under Floating Personnel Summary for deployment awareness.
+
+2. **Floating Tab Table Column Cleanup (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed the `Status` column header and `Status` data cells from `EmployeeFloatingTable`, matching the clean design requested in `image_a97f7f.png`.
+   - In the `Actions` column, removed the `Details` action button (`<Eye ...> Details`), leaving strictly `Assign Store` as the sole primary action.
+   - Row-click interaction (`onRowClick(row.id)`) remains intact and accessible so operators can still open the detail drawer by clicking the row.
+   - Formatted the final 5-column layout: `Member / Store / Position / Assignment / Actions`.
+
+3. **Store Slot Restriction for Floating Store Assignment (`src/components/plantilla/AssignStoreModal.tsx` & `src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `page.tsx`, computed `storesWithAvailableSlots` combining `storesUnderAccountQuery`, `storeCapacityRows`, and `allVacancies` to evaluate each store's `hcFilled`, `hcTotal`, and `openSlots`.
+   - Filtered store list strictly to locations where `hc_filled < hc_total` or `openSlots > 0`. Fully occupied stores (`1/1`, `2/2`, etc.) are hidden to prevent over-allocation.
+   - In `AssignStoreModal`:
+     - Added double-gate filtering ensuring only stores with available slots are shown in the dropdown.
+     - Option labels display slot capacity breakdown: `${name} (${location}) • ${hcFilled}/${hcTotal} slots (${openSlots} open)`.
+     - Added an informative alert banner and disabled submit button when an account has zero stores with open slots.
+
+4. **Permanent ADR & Architectural Rule Locks**:
+   - Added **Rule #4 (Floating Compliance, Layout & Store Slot Restriction)** to `.ai/briefing.md` and `docs/state/plantilla_web_state.md`.
+   - Updated Section 2.A Item 4 (Tab 4: Floating) in `docs/state/plantilla_web_state.md` to reflect the 5-column layout, DOLE tracking badges, and open-slot store assignment restriction.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2` (no commits to `main`).
+
+---
+
 ## Execution Report — Plantilla UI Table Column Adjustments, Remarks Dynamic Resolution & Universal Cards View Support (ohm#branch2-plantilla-ui-table-columns-and-universal-cards)
 
 **Status: COMPLETE ON BRANCH2; DEACTIVATION TAB TABLE COLUMN ORDER STRICTLY FORMATTED TO `Emploc# / Member / VCode / Store / Position / Assignment / Status` WITH ACTIONS COLUMN FULLY REMOVED; INACTIVE TAB TABLE COLUMN ROSTER ADJUSTED BY REMOVING CLEARANCE STATUS AND IMPLEMENTING DYNAMIC REMARKS RESOLUTION (`usePlantillaInactiveRemarks` IN `src/lib/queries/plantilla.ts` QUERYING `plantilla.remarks` WITH WATERFALL FALLBACK TO `audit_logs.new_data`), PREVENTING BLANK `—` REMARKS; UNIVERSAL CARDS VIEW TOGGLE FULLY ENABLED ACROSS ALL 6 STATUS TABS (ACTIVE, ON-LEAVE, VACANCY, FLOATING, DEACTIVATION, INACTIVE) USING DEDICATED, ACCESSIBLE CARD COMPONENTS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

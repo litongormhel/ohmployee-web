@@ -251,6 +251,8 @@ export type PlantillaEmployeeListItem = {
   isActive?: boolean;
   rowCapabilities: PlantillaRowCapabilities;
   totalCount: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type PlantillaStoreStaffingRow = {
@@ -688,12 +690,22 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     baseRateMasked: asString(row.base_rate_masked),
     slaBreached: asBoolean(row.sla_breached),
     separationType: asString(row.separation_type ?? row.separationType ?? row.attrition_type ?? row.separation_status),
-    separationDate: asString(row.separation_date ?? row.separationDate ?? row.date_separated ?? row.resignation_date ?? row.date_of_separation),
+    separationDate: asString(
+      row.separation_date ??
+      row.separationDate ??
+      row.date_separated ??
+      row.resignation_date ??
+      row.date_of_separation ??
+      row.inactive_at ??
+      row.updated_at
+    ),
     clearanceStatus: asString(row.clearance_status ?? row.clearanceStatus),
     separationRemarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
     isActive: isActiveBool,
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
+    createdAt: asString(row.created_at ?? row.createdAt),
+    updatedAt: asString(row.updated_at ?? row.updatedAt),
   };
 }
 
@@ -925,6 +937,23 @@ function clampPage(page: number, pageSize: number) {
 function getEmployeeTotalCount(rows: PlantillaEmployeeListItem[]): number {
   const totalCount = rows[0]?.totalCount ?? 0;
   return totalCount > 0 ? totalCount : rows.length;
+}
+
+/**
+ * Calculates days elapsed in floating status since the effective separation/floating date.
+ * Fallback priority: separationDate -> updatedAt -> createdAt.
+ */
+export function getFloatingDurationDays(emp: {
+  separationDate?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}): number {
+  const dateStr = emp.separationDate || emp.updatedAt || emp.createdAt;
+  if (!dateStr) return 0;
+  const start = new Date(dateStr).getTime();
+  if (isNaN(start)) return 0;
+  const diffMs = Date.now() - start;
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 function getStoreTotalCount(rows: PlantillaStoreStaffingRow[]): number {

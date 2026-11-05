@@ -48,6 +48,7 @@ import {
   fetchPlantillaScopedAccounts,
   deriveDeactivationOverlay,
   usePlantillaInactiveRemarks,
+  getFloatingDurationDays,
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
 } from "@/lib/queries/plantilla";
@@ -419,6 +420,69 @@ function isFloatingRecord(emp: PlantillaEmployeeListItem) {
   return s === "floating" || sep === "floating";
 }
 
+// DOLE Art. 301 compliance countdown badge (180-day maximum floating status / temporary layoff period)
+function FloatingDoleBadge({ days }: { days: number }) {
+  const remaining = Math.max(0, 180 - days);
+
+  if (days >= 180) {
+    return (
+      <span
+        title="DOLE Art. 301 limit breached (maximum 180-day floating period exceeded). Immediate recall or statutory separation required."
+        className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 border border-red-300 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
+        <span>{days}d • DOLE Breach</span>
+      </span>
+    );
+  }
+
+  if (days >= 120) {
+    return (
+      <span
+        title={`Critical aging: ${days} days floating (${remaining} days remaining until DOLE 180-day temporary layoff maximum).`}
+        className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  if (days >= 60) {
+    return (
+      <span
+        title={`Aged floating: ${days} days in pool (${remaining} days until DOLE 180-day limit).`}
+        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  if (days >= 30) {
+    return (
+      <span
+        title={`Active floating: ${days} days (${remaining} days until DOLE 180-day limit).`}
+        className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      title={`Fresh floating: ${days} days elapsed (${remaining} days until DOLE 180-day limit).`}
+      className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 shrink-0"
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      <span>{days}d • {remaining}d left</span>
+    </span>
+  );
+}
+
 // Helper check for inactive / separated employees (Resigned, AWOL, Terminated, Deactivation)
 function isInactiveRecord(emp: PlantillaEmployeeListItem) {
   if (isFloatingRecord(emp)) return false;
@@ -532,6 +596,7 @@ function PlantillaPageContent() {
     displayName: string;
     employeeNo: string;
     positionTitle?: string | null;
+    floatingDays?: number;
   } | null>(null);
 
   // Search query specifically for the account selector list
@@ -1244,6 +1309,65 @@ function PlantillaPageContent() {
       return true;
     });
   }, [storeCapacityRows, search, areaCityFilter]);
+
+  // Stores with open/available slots for AssignStoreModal (strictly hc_filled < hc_total).
+  // Fully occupied stores (1/1, 2/2) are filtered out and hidden to prevent over-allocation.
+  const storesWithAvailableSlots = useMemo(() => {
+    const rawStores = storesUnderAccountQuery.data ?? [];
+    const capacityMap = new Map<string, (typeof storeCapacityRows)[0]>();
+    storeCapacityRows.forEach((row) => {
+      capacityMap.set(row.id, row);
+      capacityMap.set(row.storeBranch.toLowerCase().trim(), row);
+    });
+
+    const storeVacancyMap = new Map<string, { filled: number; total: number; remaining: number }>();
+    allVacancies.forEach((v) => {
+      const keys = [v.storeId, v.storeName?.toLowerCase().trim()].filter(Boolean) as string[];
+      const total = v.hcTotal ?? v.headcount ?? 1;
+      const filled = v.hcFilled ?? 0;
+      const remaining = getVacancyRemainingCapacity(v);
+      keys.forEach((k) => {
+        const prev = storeVacancyMap.get(k) ?? { filled: 0, total: 0, remaining: 0 };
+        storeVacancyMap.set(k, {
+          filled: prev.filled + filled,
+          total: prev.total + total,
+          remaining: prev.remaining + remaining,
+        });
+      });
+    });
+
+    return rawStores
+      .map((st) => {
+        const key = st.name.toLowerCase().trim();
+        const cap = capacityMap.get(st.id) ?? capacityMap.get(key);
+        const vac = storeVacancyMap.get(st.id) ?? storeVacancyMap.get(key);
+
+        let hcFilled = cap?.activeDeployed ?? vac?.filled ?? 0;
+        let hcTotal = cap?.plantillaRequired ?? vac?.total ?? 1;
+        let openSlots = cap?.openVacancy ?? vac?.remaining ?? Math.max(0, hcTotal - hcFilled);
+
+        if (vac && vac.remaining > 0) {
+          openSlots = Math.max(openSlots, vac.remaining);
+          hcFilled = vac.filled;
+          hcTotal = vac.total;
+        }
+
+        return {
+          id: st.id,
+          name: st.name,
+          city: st.city,
+          province: st.province,
+          code: st.code,
+          hcFilled,
+          hcTotal,
+          openSlots,
+        };
+      })
+      .filter((st) => {
+        // Strictly filter to stores that have open or available slots (hc_filled < hc_total or openSlots > 0)
+        return st.openSlots > 0 || st.hcFilled < st.hcTotal;
+      });
+  }, [storesUnderAccountQuery.data, storeCapacityRows, allVacancies]);
 
   // Derived counts for KPI cards and badges
   const summaryData = summaryQuery.data;
@@ -2590,6 +2714,7 @@ function PlantillaPageContent() {
                       displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
                       employeeNo: emp.employeeNo,
                       positionTitle: emp.positionTitle,
+                      floatingDays: getFloatingDurationDays(emp),
                     });
                   }}
                 />
@@ -2608,6 +2733,7 @@ function PlantillaPageContent() {
                             displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
                             employeeNo: emp.employeeNo,
                             positionTitle: emp.positionTitle,
+                            floatingDays: getFloatingDurationDays(emp),
                           });
                         }}
                       />
@@ -2758,7 +2884,7 @@ function PlantillaPageContent() {
               isOpen={Boolean(assignStoreTargetEmployee)}
               onClose={() => setAssignStoreTargetEmployee(null)}
               employee={assignStoreTargetEmployee}
-              stores={storesUnderAccountQuery.data ?? []}
+              stores={storesWithAvailableSlots}
               vacantStoreIds={vacantStoreIds}
               onSuccess={() => {
                 employeeQuery.refetch();
@@ -3354,9 +3480,6 @@ function EmployeeFloatingTable({
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
-              </th>
               <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
@@ -3377,6 +3500,7 @@ function EmployeeFloatingTable({
                 ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
                 : null;
               const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+              const floatingDays = getFloatingDurationDays(row);
 
               return (
                 <tr
@@ -3396,8 +3520,11 @@ function EmployeeFloatingTable({
                         <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
-                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-[11px] text-table-text-muted">
+                            {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
+                          </span>
+                          <FloatingDoleBadge days={floatingDays} />
                         </div>
                       </div>
                     </div>
@@ -3432,36 +3559,18 @@ function EmployeeFloatingTable({
                     </span>
                   </td>
 
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                      Floating
-                    </span>
-                  </td>
-
                   <td className="px-3.5 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAssignStore(row);
                         }}
-                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
                       >
                         <Building2 className="h-3 w-3" />
                         <span>Assign Store</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRowClick(row.id);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                        aria-label={`View details for ${displayName}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>Details</span>
                       </button>
                     </div>
                   </td>
@@ -4303,8 +4412,9 @@ function EmployeeFloatingCard({
           </div>
         </div>
 
-        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/40 px-3 py-2 text-xs text-text-muted">
-          Personnel awaiting store assignment
+        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/40 px-3 py-2 text-xs flex items-center justify-between gap-2">
+          <span className="text-text-muted text-[11px]">DOLE Tracking:</span>
+          <FloatingDoleBadge days={getFloatingDurationDays(row)} />
         </div>
       </div>
 
