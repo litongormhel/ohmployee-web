@@ -73,11 +73,15 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 
 ---
 
-## 5. Archival, QA Reset & Rollback Filtering Contract
-- **Operational Queues Swept**: `account_group_transfers`, `applicant_movements`, `coverage`, `deactivations`, `headcount`, `hr_emploc_deletions`, `new_stores`, `relievers`, `vacancy_closures`.
-- **Gated Predicates**: All operational queue queries and badge counters enforce `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
+## 5. Archival, QA Reset & Filtering Contract
+- **Operational Tables with Dedicated Archival Flags**:
+  - `new_store_requests` & `headcount_requests`: enforce `is_archived = false`.
+  - `coverage_requests`: enforces `archived_at IS NULL`.
+  - `v_deactivation_requests`: database view definition natively encapsulates `WHERE is_archived = false`.
+- **Self-Contained Lifecycle Queues**:
+  - `account_group_transfer_requests`, `applicant_movement_requests` (`vw_amr_list`), `vacancy_closure_requests`, `hr_emploc_deletion_requests`, and `v_workforce_assignment_request_queue`: lifecycle status columns (`status IN ('pending', 'approved', 'rejected', ...)`) manage queue retention without invalid synthetic `suppressed_by_batch_id` / `is_archived` filters.
 - **Preserved Queues**: `account_requests` (Account Sign-Ups) are explicitly preserved and never archived or suppressed during QA Reset cycles.
-- **Rollback Behavior**: Batch rollback restores active requests to `is_archived = false` and clears `suppressed_by_batch_id = NULL` on pre-archived items without reopening closed records.
+- **Auto-Scrolling Navigation**: `RequestCategoryNavigation` automatically keeps the active category tab in view via `activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })`.
 
 ---
 

@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { useEffect, useRef, type ComponentType } from "react";
 import {
   Archive,
   ArrowLeftRight,
@@ -54,6 +54,18 @@ export function RequestCategoryNavigation({
     ? REQUEST_CATEGORIES.filter((cat) => allowedCategories.includes(cat.key))
     : REQUEST_CATEGORIES;
 
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [selectedCategory]);
+
   return (
     <nav
       aria-label="Approval types"
@@ -71,6 +83,7 @@ export function RequestCategoryNavigation({
         return (
           <button
             key={cat.key}
+            ref={isSelected ? activeTabRef : undefined}
             type="button"
             role="tab"
             aria-selected={isSelected}

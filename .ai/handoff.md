@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — Approvals Module: Permanent Root-Cause Fix for All Approval Queues & Active Tab Auto-Scroll (ohm#fix-approval-queues-root-cause)
+
+**Status: COMPLETE ON LOCAL main; ALL REMAINING QUEUES FIXED AT THE ROOT CAUSE, AUTO-SCROLL IMPLEMENTED, VERIFIED CLEAN (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**
+
+### 1. Summary of Changes Implemented
+- **Item 1: HR Emploc Deletions (`src/lib/queries/hr_emploc.ts`)**:
+  - Removed non-existent embedded join on `account_name` in `hr_emploc:hr_emploc!hr_emploc_id` (table `hr_emploc` does not have `account_name`).
+  - Removed non-existent filters `.or("is_archived.is.null,is_archived.eq.false").is("suppressed_by_batch_id", null)` from `fetchEmplocDeletionRequests` (neither column exists on `hr_emploc_deletion_requests`). Aligned 1:1 with `fetchEmplocDeletionCounts`.
+- **Item 2: New Stores (`src/lib/queries/requests.ts`)**:
+  - Removed non-existent filter `.is("suppressed_by_batch_id", null)` from `fetchNewStoreRequests` and `countPromises` (table `new_store_requests` has `is_archived` but does not have `suppressed_by_batch_id`).
+- **Item 3: Vacancy Closures (`src/lib/queries/requests.ts`)**:
+  - Removed non-existent filters `.eq("is_archived", false).is("suppressed_by_batch_id", null)` from `fetchVacancyClosureRequests` and `countPromises` (neither column exists on `vacancy_closure_requests`).
+- **Item 4: Headcount (`src/lib/queries/requests.ts`)**:
+  - Removed non-existent filter `.is("suppressed_by_batch_id", null)` from `fetchHeadcountRequests` and `countPromises` (table `headcount_requests` has `is_archived` but does not have `suppressed_by_batch_id`).
+- **Item 5: Active Tab Pill Auto-Scroll (`src/components/approvals/RequestCategoryNavigation.tsx`)**:
+  - Added `activeTabRef` and `useEffect` to trigger `.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })` on tab change. Ensures the selected tab pill is always centered/visible and never horizontally clipped or hidden.
+- **Item 6: Verification**:
+  - Executed automated schema AST verification script against Supabase endpoints; all queries compiled cleanly with zero 42703 column errors.
+  - `npx tsc --noEmit` passed with 0 errors.
+  - `npm run lint` passed with 0 errors.
+  - `npm run build` completed successfully (all 20/20 Next.js routes passing).
+
+### 2. Files Modified
+- `src/lib/queries/hr_emploc.ts`
+- `src/lib/queries/requests.ts`
+- `src/components/approvals/RequestCategoryNavigation.tsx`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Approvals Module: Fix PostgREST Query Errors Across All Approval Tabs & Remove Plantilla Placements (ohm#fix-approval-queries-remove-plantilla)
 
 **Status: COMPLETE ON LOCAL main; ALL REMAINING QUEUES FIXED, PLANTILLA PLACEMENTS EXCISED, VERIFIED CLEAN (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**

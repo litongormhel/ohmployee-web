@@ -1638,8 +1638,7 @@ export async function fetchEmplocDeletionRequests(
         employee_no,
         store_name,
         position,
-        vcode,
-        account_name
+        vcode
       )
     `);
 
@@ -1650,10 +1649,6 @@ export async function fetchEmplocDeletionRequests(
   } else if (tab === "rejected") {
     query = query.or("status.ilike.rejected,status.ilike.withdrawn");
   }
-
-  query = query
-    .or("is_archived.is.null,is_archived.eq.false")
-    .is("suppressed_by_batch_id", null);
 
   let orderedQuery = query.order("created_at", { ascending: false });
   if (pagination?.page && pagination?.limit) {
@@ -1694,7 +1689,7 @@ export async function fetchEmplocDeletionRequests(
       reviewedBy: asString(row.reviewed_by),
       reviewedAt: asString(row.reviewed_at),
       reviewerRemarks: asString(row.reviewer_remarks),
-      accountName: asString(emploc.account_name) ?? null,
+      accountName: null,
       groupName: null,
     };
   });

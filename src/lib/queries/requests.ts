@@ -215,8 +215,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("new_store_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
+        .eq("is_archived", false)
     ),
 
     // 2. Headcount
@@ -226,7 +225,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("headcount_requests")
         .select("id", { count: "exact", head: true })
         .eq("is_archived", false)
-        .is("suppressed_by_batch_id", null)
         .or("status.ilike.pending,status.ilike.under_review")
     ),
 
@@ -265,8 +263,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .from("vacancy_closure_requests")
         .select("id", { count: "exact", head: true })
         .ilike("status", "pending")
-        .or("is_archived.is.null,is_archived.eq.false")
-        .is("suppressed_by_batch_id", null)
     ),
 
     // 7. HR Emploc Deletions
@@ -370,8 +366,7 @@ export async function fetchHeadcountRequests(
       created_vcodes,
       vacancy_created
     `)
-    .eq("is_archived", false)
-    .is("suppressed_by_batch_id", null);
+    .eq("is_archived", false);
 
   if (tab === "pending") {
     query = query.or("status.ilike.pending,status.ilike.under_review");
@@ -384,7 +379,6 @@ export async function fetchHeadcountRequests(
   const { data, error } = await applyPagination(
     query
       .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
       .order("created_at", { ascending: false }),
     pagination
   );
@@ -1007,7 +1001,6 @@ export async function fetchNewStoreRequests(
   const { data, error } = await applyPagination(
     query
       .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
       .order("requested_at", { ascending: false }),
     pagination
   );
@@ -1345,8 +1338,6 @@ export async function fetchVacancyClosureRequests(
 
   const { data, error } = await applyPagination(
     query
-      .eq("is_archived", false)
-      .is("suppressed_by_batch_id", null)
       .order("created_at", { ascending: false }),
     pagination
   );
