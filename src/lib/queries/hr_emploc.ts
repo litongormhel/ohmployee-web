@@ -1,9 +1,10 @@
-import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
+import { parseHrEmplocError, type ParsedHrEmplocError } from "@/lib/utils/hr_emploc_errors";
 
 export type HrEmplocQueue =
   | "pending"
+  | "for_emploc"
   | "correction"
   | "review"
   | "deployed"
@@ -13,19 +14,53 @@ export type HrEmplocQueue =
   | "deletion_pending"
   | "all";
 
+export interface HrEmplocAttachment {
+  id: string;
+  storage_path: string;
+  object_path: string;
+  file_name: string;
+  file_size?: number;
+  file_type?: string;
+  stage: "initial_requirements" | "correction";
+  uploaded_at: string | null;
+  uploaded_by?: string | null;
+  can_remove?: boolean;
+}
+
 export type HrEmplocRowCapabilities = {
+  // DB-projected capability keys (migration 84)
+  can_upload_docs: boolean;
+  can_submit_requirements: boolean;
+  can_assign_employee_no: boolean;
+  can_tag_deficiency: boolean;
+  can_submit_correction: boolean;
+  can_review_approve: boolean;
+  can_review_return: boolean;
+  can_revert_to_pending: boolean;
+  can_edit_emploc_no: boolean;
+  can_request_deletion: boolean;
+  can_view_docs: boolean;
+  can_edit_profile?: boolean;
+
+  // CamelCase backward compatibility accessors
+  canUploadDocs: boolean;
+  canSubmitRequirements: boolean;
+  canAssignEmployeeNo: boolean;
+  canTagDeficiency: boolean;
+  canSubmitCorrection: boolean;
+  canReviewApprove: boolean;
+  canReviewReturn: boolean;
+  canRevertToPending: boolean;
+  canEditEmplocNo: boolean;
+  canRequestDeletion: boolean;
+  canViewDocs: boolean;
   canViewDetail: boolean;
-  canTagDeficiency: boolean;      // For HR Personnel
-  canReviewCorrection: boolean;   // For HR Personnel — For Review records only
-  canAssignEmployeeNo: boolean;   // For Encoder & Super Admin (Blocked for Head Admin)
-  canMoveToPlantilla: boolean;    // For Encoder, Head Admin & Super Admin
-  canRequestDeletion: boolean;    // For Ops roles (om, hrco, atl, tl)
-  canReviewDeletion: boolean;     // For Encoder, Head Admin & Super Admin
-  canSubmitCorrection: boolean;   // For HRCO / Super Admin in Correction
-  canApproveCorrection: boolean;  // For HR Personnel / Super Admin in Review
-  canRevertCorrection: boolean;   // For HR Personnel / Super Admin in Review
-  canEditEmploc: boolean;         // For Super Admin, Data Team, and HR Personnel
-  canRevertToPending: boolean;    // For Super Admin, Data Team, and HR Personnel
+  canReviewCorrection: boolean;
+  canMoveToPlantilla: boolean;
+  canReviewDeletion: boolean;
+  canApproveCorrection: boolean;
+  canRevertCorrection: boolean;
+  canEditEmploc: boolean;
   raw: Record<string, boolean>;
 };
 
@@ -62,6 +97,8 @@ export type HrEmplocListItem = {
   attachmentUrl: string | null;
   attachmentFileName: string | null;
   attachmentMetadata: Record<string, unknown> | null;
+  attachments: HrEmplocAttachment[];
+  docCount: number;
   hiredDate: string | null;
   dateRequested: string | null;
   slaBreached: boolean;
@@ -129,6 +166,8 @@ export type HrEmplocDetailItem = {
   requirementOverallStatus: string | null;
   correctionReason: Record<string, unknown>;
   uploadedAttachments: CorrectionAttachmentItem[];
+  attachments: HrEmplocAttachment[];
+  docCount: number;
   slaBreached: boolean;
   slaElapsedDays: number;
   auditLogsTimeline: HrEmplocAuditLogItem[];
@@ -151,9 +190,11 @@ export type HrEmplocListParams = {
 
 export type HrEmplocSummary = {
   pending: number;          // hr_status = 'Pending'
+  forEmploc: number;        // hr_status = 'For Emploc'
+  for_emploc_count?: number; // DB alias
   correction: number;       // hr_status = 'For Correction'
   review: number;           // hr_status = 'For Review'
-  ready: number;            // hr_status = 'Complete'
+  ready: number;            // hr_status = 'Complete' / Deployed
   deployed: number;         // status = 'Moved to Plantilla' / Deployed
   totalPending: number;     // legacy alias
   actionNeeded: number;     // legacy alias
@@ -166,12 +207,50 @@ export type HrEmplocDataErrorKind = "access_denied" | "invalid_state" | "retryab
 
 export class HrEmplocDataError extends Error {
   kind: HrEmplocDataErrorKind;
+  parsedError: ParsedHrEmplocError;
 
-  constructor(kind: HrEmplocDataErrorKind, message: string) {
+  constructor(kind: HrEmplocDataErrorKind, message: string, parsed?: ParsedHrEmplocError) {
     super(message);
     this.name = "HrEmplocDataError";
     this.kind = kind;
+    this.parsedError = parsed || {
+      code: "GENERAL_ERROR",
+      title: "Operation Failed",
+      message,
+      rawMessage: message,
+    };
   }
+}
+
+/**
+ * Standardized remarks normalizer for HR Emploc:
+ * Takes the first NON-EMPTY trimmed value checking ops_remarks first,
+ * then caps.remarks, row.remarks, and hr_remarks.
+ */
+export function normalizeHrEmplocRemarks(row?: unknown, caps?: unknown): string | null {
+  const r = asObject(row);
+  const c = asObject(caps);
+  const candidates = [
+    r.ops_remarks,
+    r.opsRemarks,
+    c.ops_remarks,
+    c.opsRemarks,
+    c.remarks,
+    r.remarks,
+    r.hr_remarks,
+    r.hrRemarks,
+    c.hr_remarks,
+    r.hrco_remarks,
+    r.hrcoRemarks,
+    r.notes,
+    c.notes,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+  return null;
 }
 
 type HrEmplocRpcRow = Record<string, unknown>;
@@ -217,19 +296,52 @@ function normalizeCapabilities(value: unknown): HrEmplocRowCapabilities {
       .map(([key, item]) => [key, item === true]),
   );
 
+  const can_upload_docs = raw.can_upload_docs === true;
+  const can_submit_requirements = raw.can_submit_requirements === true;
+  const can_assign_employee_no = raw.can_assign_employee_no === true;
+  const can_tag_deficiency = raw.can_tag_deficiency === true;
+  const can_submit_correction = raw.can_submit_correction === true;
+  const can_review_approve = raw.can_review_approve === true;
+  const can_review_return = raw.can_review_return === true;
+  const can_revert_to_pending = raw.can_revert_to_pending === true;
+  const can_edit_emploc_no = raw.can_edit_emploc_no === true;
+  const can_request_deletion = raw.can_request_deletion === true;
+  const can_view_docs = raw.can_view_docs === true;
+
   return {
-    canViewDetail: raw.can_view_detail === true || raw.can_view === true,
-    canTagDeficiency: raw.can_tag_deficiency === true,
-    canReviewCorrection: raw.can_review_correction === true || raw.can_approve_correction === true,
-    canAssignEmployeeNo: raw.can_assign_employee_no === true,
-    canMoveToPlantilla: raw.can_move_to_plantilla === true,
-    canRequestDeletion: raw.can_request_deletion === true,
+    // Database canonical keys
+    can_upload_docs,
+    can_submit_requirements,
+    can_assign_employee_no,
+    can_tag_deficiency,
+    can_submit_correction,
+    can_review_approve,
+    can_review_return,
+    can_revert_to_pending,
+    can_edit_emploc_no,
+    can_request_deletion,
+    can_view_docs,
+    can_edit_profile: raw.can_edit_profile === true,
+
+    // Backward compatibility aliases
+    canUploadDocs: can_upload_docs,
+    canSubmitRequirements: can_submit_requirements,
+    canAssignEmployeeNo: can_assign_employee_no,
+    canTagDeficiency: can_tag_deficiency,
+    canSubmitCorrection: can_submit_correction,
+    canReviewApprove: can_review_approve,
+    canReviewReturn: can_review_return,
+    canRevertToPending: can_revert_to_pending,
+    canEditEmplocNo: can_edit_emploc_no,
+    canRequestDeletion: can_request_deletion,
+    canViewDocs: can_view_docs,
+    canViewDetail: true,
+    canReviewCorrection: can_review_approve || can_review_return,
+    canMoveToPlantilla: can_assign_employee_no,
     canReviewDeletion: raw.can_review_deletion === true,
-    canSubmitCorrection: raw.can_submit_correction === true,
-    canApproveCorrection: raw.can_approve_correction === true || raw.can_review_correction === true,
-    canRevertCorrection: raw.can_revert_correction === true,
-    canEditEmploc: raw.can_edit_emploc === true,
-    canRevertToPending: raw.can_revert_to_pending === true,
+    canApproveCorrection: can_review_approve,
+    canRevertCorrection: can_review_return,
+    canEditEmploc: can_edit_emploc_no,
     raw,
   };
 }
@@ -238,34 +350,37 @@ function getTotalCount(rows: HrEmplocListItem[]): number {
   return rows[0]?.totalCount ?? 0;
 }
 
-function getErrorKind(error: PostgrestError): HrEmplocDataErrorKind {
-  const combined = `${error.code ?? ""} ${error.message ?? ""} ${error.details ?? ""}`
-    .toLowerCase()
-    .trim();
+function throwHrEmplocError(error: unknown): never {
+  const parsed = parseHrEmplocError(error);
+  let kind: HrEmplocDataErrorKind = "retryable";
 
   if (
-    combined.includes("permission denied") ||
-    combined.includes("not authorized") ||
-    combined.includes("unauthorized") ||
-    combined.includes("forbidden") ||
-    combined.includes("rls") ||
-    error.code === "42501"
+    parsed.code === "FORBIDDEN_ROLE_OR_SCOPE" ||
+    parsed.code === "FORBIDDEN_NOT_UPLOADER" ||
+    parsed.code === "FORBIDDEN_REVERT" ||
+    parsed.sqlstate === "42501"
   ) {
-    return "access_denied";
+    kind = "access_denied";
+  } else if (
+    parsed.code.startsWith("INVALID_") ||
+    parsed.code === "REQUIREMENTS_DOCS_MISSING" ||
+    parsed.code === "ACTION_LOCKED_PENDING_DELETION" ||
+    parsed.code === "REHIRE_CONFIRM_REQUIRED" ||
+    parsed.code === "MIDDLE_NAME_CONFIRM_REQUIRED" ||
+    parsed.code === "POSSIBLE_DUPLICATE_PERSON" ||
+    parsed.code === "EMPLOYEE_ALREADY_ACTIVE" ||
+    parsed.code === "EMPLOYEE_NO_ALREADY_ASSIGNED" ||
+    parsed.code === "FIELD_REQUIRED_MISSING" ||
+    parsed.code === "SLOT_UNAVAILABLE" ||
+    parsed.code === "REVERT_GRACE_EXPIRED" ||
+    parsed.sqlstate === "22023" ||
+    parsed.sqlstate === "23505" ||
+    parsed.sqlstate === "P0001"
+  ) {
+    kind = "invalid_state";
   }
 
-  if (error.code === "P0001" || error.code === "22023") {
-    return "invalid_state";
-  }
-
-  return "retryable";
-}
-
-function throwHrEmplocError(error: PostgrestError): never {
-  const message = [error.message, error.details, error.hint]
-    .filter(Boolean)
-    .join(" — ") || "Database error";
-  throw new HrEmplocDataError(getErrorKind(error), message);
+  throw new HrEmplocDataError(kind, parsed.message, parsed);
 }
 
 function summarizeDeficiency(value: unknown): string | null {
@@ -313,20 +428,7 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     caps.hr_reviewed_by
   );
 
-  const hrcoRemarks = asString(
-    caps.ops_remarks ??
-    caps.opsRemarks ??
-    row.ops_remarks ??
-    row.opsRemarks ??
-    caps.remarks ??
-    row.remarks ??
-    row.hrco_remarks ??
-    row.hrcoRemarks ??
-    row.notes ??
-    caps.hrco_remarks ??
-    caps.notes ??
-    caps.hr_remarks
-  );
+  const hrcoRemarks = normalizeHrEmplocRemarks(row, caps);
 
   const attachmentUrl = asString(
     row.attachment_url ??
@@ -343,6 +445,26 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
   );
 
   const attachmentMetadata = (row.attachment_metadata ?? row.attachmentMetadata ?? caps.attachment_metadata ?? caps.attachmentMetadata) as Record<string, unknown> | null;
+
+  const rawAttachments = Array.isArray(row.attachments) ? row.attachments : [];
+  const attachments: HrEmplocAttachment[] = rawAttachments.map((att) => {
+    const a = asObject(att);
+    const storagePath = asString(a.storage_path) || "";
+    const objectPath = asString(a.object_path) || storagePath.replace(/^hr-corrections\//, "");
+    return {
+      id: asString(a.id) || "",
+      storage_path: storagePath,
+      object_path: objectPath,
+      file_name: asString(a.file_name ?? a.fileName ?? a.original_filename) || "document",
+      file_size: asNumber(a.file_size ?? a.size_bytes) ?? undefined,
+      file_type: asString(a.file_type ?? a.mime_type) ?? undefined,
+      stage: (asString(a.stage) === "correction" ? "correction" : "initial_requirements") as "initial_requirements" | "correction",
+      uploaded_at: asString(a.uploaded_at),
+      uploaded_by: asString(a.uploaded_by),
+      can_remove: a.can_remove === true,
+    };
+  });
+  const docCount = asCount(row.doc_count ?? attachments.length);
 
   return {
     id,
@@ -376,6 +498,8 @@ function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
     attachmentUrl,
     attachmentFileName,
     attachmentMetadata,
+    attachments,
+    docCount,
     hiredDate: asString(row.hired_date ?? row.hiredDate),
     dateRequested: asString(row.date_requested ?? row.dateRequested),
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
@@ -445,8 +569,31 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
   const rawCovered = Array.isArray(row.covered_stores) ? row.covered_stores : [];
   const coveredStores = rawCovered.map(normalizeCoveredStore);
 
-  const rawAttachments = Array.isArray(row.correction_attachments) ? row.correction_attachments : [];
+  const rawAttachments: unknown[] = Array.isArray(row.attachments)
+    ? (row.attachments as unknown[])
+    : Array.isArray(row.correction_attachments)
+    ? (row.correction_attachments as unknown[])
+    : [];
   const uploadedAttachments = rawAttachments.map(normalizeAttachment);
+
+  const attachments: HrEmplocAttachment[] = rawAttachments.map((att: unknown) => {
+    const a = asObject(att);
+    const storagePath = asString(a.storage_path) || "";
+    const objectPath = asString(a.object_path) || storagePath.replace(/^hr-corrections\//, "");
+    return {
+      id: asString(a.id) || "",
+      storage_path: storagePath,
+      object_path: objectPath,
+      file_name: asString(a.file_name ?? a.fileName ?? a.original_filename) || "document",
+      file_size: asNumber(a.file_size ?? a.size_bytes) ?? undefined,
+      file_type: asString(a.file_type ?? a.mime_type) ?? undefined,
+      stage: (asString(a.stage) === "correction" ? "correction" : "initial_requirements") as "initial_requirements" | "correction",
+      uploaded_at: asString(a.uploaded_at),
+      uploaded_by: asString(a.uploaded_by),
+      can_remove: a.can_remove === true,
+    };
+  });
+  const docCount = asCount(row.doc_count ?? attachments.length);
 
   const rawTimeline = Array.isArray(row.timeline) ? row.timeline : [];
   const auditLogsTimeline = rawTimeline.map(normalizeAuditLog);
@@ -457,6 +604,9 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
     latestDeletionRequest && latestDeletionRequest.status.trim().toLowerCase() === "pending"
       ? latestDeletionRequest
       : null;
+
+  const caps = asObject(row.row_capabilities ?? row.rowCapabilities);
+  const opsRemarks = normalizeHrEmplocRemarks(row, caps);
 
   return {
     id,
@@ -476,17 +626,19 @@ function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | null {
     hiredDate: asString(row.hired_date ?? row.hiredDate) ?? null,
     dateRequested: asString(row.date_requested ?? row.dateRequested) ?? null,
     hrcoName: asString(row.hrco_name ?? row.hrcoName) ?? null,
-    opsRemarks: asString(row.ops_remarks ?? row.opsRemarks) ?? null,
+    opsRemarks,
     hrRemarks: asString(row.hr_remarks ?? row.hrRemarks) ?? null,
     requestedByName: asString(row.hr_reviewed_by ?? row.hrReviewedBy ?? row.requested_by_name ?? row.requestedByName) ?? null,
     requirementOverallStatus: asString(row.requirement_overall_status ?? row.requirementOverallStatus) ?? null,
     correctionReason: asObject(row.correction_reason ?? row.correctionReason),
     uploadedAttachments,
+    attachments,
+    docCount,
     slaBreached: asBoolean(row.sla_breached ?? row.slaBreached),
     slaElapsedDays: asCount(row.aging_days ?? row.sla_elapsed_days ?? row.slaElapsedDays),
     auditLogsTimeline,
     activeDeletionRequest,
-    rowCapabilities: normalizeCapabilities(row.row_capabilities ?? row.rowCapabilities),
+    rowCapabilities: normalizeCapabilities(caps),
   };
 }
 
@@ -494,6 +646,7 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
   const row = Array.isArray(data) ? asObject(data[0]) : asObject(data);
 
   const pending = asCount(row.pending_count ?? row.pending ?? row.total_pending ?? row.totalPending ?? row.total_processing);
+  const forEmploc = asCount(row.for_emploc_count ?? row.for_emploc ?? row.forEmploc);
   const correction = asCount(row.correction_count ?? row.correction ?? row.action_needed ?? row.actionNeeded ?? row.action_needed_count);
   const review = asCount(row.review_count ?? row.review);
   const ready = asCount(row.ready_count ?? row.ready ?? row.ready_to_deploy ?? row.readyToDeploy ?? row.ready_to_deploy_count);
@@ -501,6 +654,8 @@ function normalizeSummary(data: unknown): HrEmplocSummary {
 
   return {
     pending,
+    forEmploc,
+    for_emploc_count: forEmploc,
     correction,
     review,
     ready,
@@ -627,6 +782,8 @@ export type ReviewCorrectionParams = {
   resolvedKeys?: string[] | null;
   remarks?: string | null;
   employeeNo?: string | null;
+  confirmReuse?: boolean;
+  reuseReason?: string | null;
 };
 
 export type ReviewCorrectionResult = {
@@ -644,10 +801,12 @@ export async function reviewWebHrEmplocCorrection(
   const supabase = createClient();
   const { data, error } = await supabase.rpc("review_web_hr_emploc_correction", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_decision: params.decision,
-    p_resolved_keys: params.resolvedKeys ?? null,
+    p_action: params.decision,
+    p_resolved_keys: params.resolvedKeys ?? [],
     p_remarks: params.remarks ?? null,
     p_employee_no: params.employeeNo?.trim() || null,
+    p_confirm_reuse: params.confirmReuse === true,
+    p_reuse_reason: params.reuseReason?.trim() || null,
   });
 
   if (error) {
@@ -721,109 +880,144 @@ export function isBenefitsOnlyCorrection(
   });
 }
 
-/**
- * Uploads a correction compliance attachment to the private 'hr-corrections' Supabase storage bucket
- * and registers metadata in public.hr_emploc_correction_attachments.
- */
-export async function uploadCorrectionAttachment(params: {
+// ─── Scoped Document Lifecycle (Stage 2b) ────────────────────────────────────
+
+export type AuthorizeDocUploadParams = {
   hrEmplocId: string;
-  file: File;
-}): Promise<{ id: string; storagePath: string; fileName: string }> {
-  const allowed = ["image/jpeg", "image/png", "application/pdf"];
-  if (!allowed.includes(params.file.type)) {
-    throw new HrEmplocDataError(
-      "invalid_state",
-      `Unsupported file type: ${params.file.type}. Allowed formats are JPG, PNG, and PDF.`
-    );
-  }
-  if (params.file.size > 5 * 1024 * 1024) {
-    throw new HrEmplocDataError(
-      "invalid_state",
-      `File exceeds 5 MB limit: ${params.file.name}`
-    );
-  }
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+};
 
+export type AuthorizeDocUploadResult = {
+  authorized: boolean;
+  bucket: string;
+  object_path: string;
+  storage_path: string;
+};
+
+export async function authorizeHrEmplocDocUpload(
+  params: AuthorizeDocUploadParams
+): Promise<AuthorizeDocUploadResult> {
   const supabase = createClient();
-  const ext = params.file.name.split(".").pop() || "jpg";
-  const uniqueId =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2);
-  const objectPath = `${uniqueId}.${ext}`;
-  const fullStoragePath = `hr-corrections/${objectPath}`;
+  const { data, error } = await supabase.rpc("authorize_hr_emploc_doc_upload", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_file_name: params.fileName,
+    p_mime_type: params.mimeType,
+    p_file_size: params.fileSize,
+  });
 
-  const { error: uploadError } = await supabase.storage
-    .from("hr-corrections")
-    .upload(objectPath, params.file, {
-      contentType: params.file.type,
-      upsert: false,
-    });
-
-  if (uploadError) {
-    throw new HrEmplocDataError(
-      "retryable",
-      `Storage upload failed: ${uploadError.message}`
-    );
+  if (error) {
+    throwHrEmplocError(error);
   }
 
-  const { data: row, error: insertError } = await supabase
-    .from("hr_emploc_correction_attachments")
-    .insert({
-      hr_emploc_id: params.hrEmplocId,
-      storage_path: fullStoragePath,
-      original_filename: params.file.name,
-      mime_type: params.file.type,
-      size_bytes: params.file.size,
-    })
-    .select("id, storage_path, original_filename")
-    .single();
-
-  if (insertError) {
-    try {
-      await supabase.storage.from("hr-corrections").remove([objectPath]);
-    } catch {
-      // Ignored orphan cleanup
-    }
-    throwHrEmplocError(insertError);
-  }
-
+  const res = asObject(data);
   return {
-    id: row.id,
-    storagePath: row.storage_path,
-    fileName: row.original_filename,
+    authorized: res.authorized === true,
+    bucket: asString(res.bucket) || "hr-corrections",
+    object_path: asString(res.object_path) || "",
+    storage_path: asString(res.storage_path) || "",
   };
 }
 
-/**
- * Creates a 1-hour signed URL for an attachment in the private 'hr-corrections' bucket.
- */
-export async function getCorrectionAttachmentSignedUrl(
-  storagePath: string
+export type RegisterDocParams = {
+  hrEmplocId: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  stage?: "initial_requirements" | "correction";
+};
+
+export async function registerHrEmplocDocument(
+  params: RegisterDocParams
+): Promise<HrEmplocAttachment> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("register_hr_emploc_document", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_storage_path: params.storagePath,
+    p_file_name: params.fileName,
+    p_mime_type: params.mimeType,
+    p_file_size: params.fileSize,
+    p_stage: params.stage || null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+
+  const row = asObject(data);
+  const storagePath = asString(row.storage_path) || params.storagePath;
+  const objectPath = asString(row.object_path) || storagePath.replace(/^hr-corrections\//, "");
+
+  return {
+    id: asString(row.id) || "",
+    storage_path: storagePath,
+    object_path: objectPath,
+    file_name: asString(row.original_filename ?? row.file_name) || params.fileName,
+    file_size: asNumber(row.size_bytes ?? row.file_size) ?? params.fileSize,
+    file_type: asString(row.mime_type ?? row.file_type) || params.mimeType,
+    stage: (asString(row.stage) === "correction" ? "correction" : "initial_requirements") as "initial_requirements" | "correction",
+    uploaded_at: asString(row.uploaded_at),
+    uploaded_by: asString(row.uploaded_by),
+    can_remove: row.can_remove === true,
+  };
+}
+
+export async function removeHrEmplocDocument(attachmentId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("remove_hr_emploc_document", {
+    p_attachment_id: attachmentId,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export async function submitHrEmplocRequirements(params: {
+  hrEmplocId: string;
+  notes?: string | null;
+}): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("submit_hr_emploc_requirements", {
+    p_hr_emploc_id: params.hrEmplocId,
+    p_notes: params.notes?.trim() || null,
+  });
+
+  if (error) {
+    throwHrEmplocError(error);
+  }
+}
+
+export async function getHrEmplocDocSignedUrl(
+  path: string,
+  options?: { download?: boolean; expiresIn?: number }
 ): Promise<string> {
   const supabase = createClient();
-  const objectPath = storagePath.startsWith("hr-corrections/")
-    ? storagePath.replace("hr-corrections/", "")
-    : storagePath;
+  const objectPath = path.replace(/^hr-corrections\//, "");
+  const expiresIn = options?.expiresIn ?? 300; // 5-minute short TTL
 
   const { data, error } = await supabase.storage
     .from("hr-corrections")
-    .createSignedUrl(objectPath, 3600, {
-      download: true,
+    .createSignedUrl(objectPath, expiresIn, {
+      download: options?.download ?? false,
     });
 
   if (error || !data?.signedUrl) {
     throw new HrEmplocDataError(
       "retryable",
-      `Failed to generate signed download link: ${error?.message || "File unavailable"}`
+      `Failed to generate document link: ${error?.message || "File unavailable"}`
     );
   }
 
   return data.signedUrl;
 }
 
+export const getCorrectionAttachmentSignedUrl = getHrEmplocDocSignedUrl;
+
 /**
- * Submits HRCO correction notes (and uploads any provided attachments),
- * transitioning the record from 'For Correction' to 'For Review'.
+ * Submits HRCO correction notes, transitioning the record from 'For Correction' to 'For Review'.
  */
 export async function submitHrcoCorrection(params: {
   hrEmplocId: string;
@@ -831,17 +1025,8 @@ export async function submitHrcoCorrection(params: {
   attachments?: File[];
 }): Promise<void> {
   const trimmedNotes = params.hrcoNotes?.trim() || null;
-
-  if (params.attachments && params.attachments.length > 0) {
-    for (const file of params.attachments) {
-      await uploadCorrectionAttachment({
-        hrEmplocId: params.hrEmplocId,
-        file,
-      });
-    }
-  }
-
   const supabase = createClient();
+
   const { error } = await supabase.rpc("submit_hrco_correction_update", {
     p_correction_request_id: params.hrEmplocId,
     p_hrco_notes: trimmedNotes,
@@ -853,22 +1038,26 @@ export async function submitHrcoCorrection(params: {
 }
 
 /**
- * Approves a record currently in Review, assigning Employee Number, resolving deficiencies, and moving it to Complete/Ready.
+ * Approves a record currently in Review, assigning Employee Number, resolving deficiencies, and moving it to Plantilla.
  */
 export async function approveHrEmplocReview(params: {
   hrEmplocId: string;
   employeeNo: string;
   resolvedKeys?: string[];
   remarks?: string;
+  confirmReuse?: boolean;
+  reuseReason?: string | null;
 }): Promise<void> {
   const supabase = createClient();
 
   const { error } = await supabase.rpc("review_web_hr_emploc_correction", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_decision: "approve",
+    p_action: "approve",
     p_resolved_keys: params.resolvedKeys ?? [],
     p_remarks: params.remarks?.trim() || null,
     p_employee_no: params.employeeNo.trim(),
+    p_confirm_reuse: params.confirmReuse === true,
+    p_reuse_reason: params.reuseReason?.trim() || null,
   });
 
   if (error) {
@@ -892,24 +1081,13 @@ export async function revertHrEmplocReview(params: {
   }
 
   const supabase = createClient();
-
-  // Prefer reject_correction_request (exact Mobile counterpart)
-  const { error: rejectError } = await supabase.rpc("reject_correction_request", {
+  const { error } = await supabase.rpc("reject_correction_request", {
     p_correction_request_id: params.hrEmplocId,
     p_hr_remarks: trimmed,
   });
 
-  if (rejectError) {
-    // Fallback to review_web_hr_emploc_correction return
-    const { error: returnError } = await supabase.rpc("review_web_hr_emploc_correction", {
-      p_hr_emploc_id: params.hrEmplocId,
-      p_decision: "return",
-      p_resolved_keys: [],
-      p_remarks: trimmed,
-    });
-    if (returnError) {
-      throwHrEmplocError(returnError);
-    }
+  if (error) {
+    throwHrEmplocError(error);
   }
 }
 
@@ -936,110 +1114,13 @@ export async function getWebHrEmplocDetail(hrEmplocId: string): Promise<HrEmploc
   return normalized;
 }
 
-// ─── Slot Availability Checker (ADR-001) ────────────────────────────────────
-
-export async function fetchAvailableSlotsForVcode(vcode: string): Promise<number> {
-  const cleanVcode = vcode.trim();
-  if (!cleanVcode) return 1;
-
-  const supabase = createClient();
-
-  // 1. Try checking plantilla_slots for stationary/roving slots
-  try {
-    const { data: slotRows, error: slotError } = await supabase
-      .from("plantilla_slots")
-      .select("id, slot_status")
-      .eq("legacy_vcode", cleanVcode);
-
-    if (!slotError && Array.isArray(slotRows) && slotRows.length > 0) {
-      let available = 0;
-      const hrProcessingSlotIds: string[] = [];
-
-      for (const r of slotRows) {
-        const status = (asString(r.slot_status) ?? "").toLowerCase();
-        const id = asString(r.id);
-        if (status === "open") {
-          available++;
-        } else if (status === "hr_processing" && id) {
-          hrProcessingSlotIds.push(id);
-        }
-      }
-
-      if (hrProcessingSlotIds.length > 0) {
-        const { data: reservedRows } = await supabase
-          .from("hr_emploc")
-          .select("slot_id")
-          .in("slot_id", hrProcessingSlotIds)
-          .is("deleted_at", null)
-          .is("moved_to_plantilla_at", null);
-
-        if (Array.isArray(reservedRows)) {
-          const uniqueReserved = new Set(
-            reservedRows.map((row) => asString(row.slot_id)).filter(Boolean)
-          );
-          available += uniqueReserved.size;
-        }
-      }
-
-      return available;
-    }
-  } catch {
-    // Continue to pool check
-  }
-
-  // 2. Try checking workforce_pool_slots for pool vacancies
-  try {
-    const { data: poolRows, error: poolError } = await supabase
-      .from("workforce_pool_slots")
-      .select("id, status")
-      .eq("vcode", cleanVcode)
-      .eq("is_active", true)
-      .is("deleted_at", null);
-
-    if (!poolError && Array.isArray(poolRows) && poolRows.length > 0) {
-      let available = 0;
-      const hrProcessingPoolIds: string[] = [];
-
-      for (const r of poolRows) {
-        const status = (asString(r.status) ?? "").toLowerCase();
-        const id = asString(r.id);
-        if (status === "open") {
-          available++;
-        } else if (status === "hr_processing" && id) {
-          hrProcessingPoolIds.push(id);
-        }
-      }
-
-      if (hrProcessingPoolIds.length > 0) {
-        const { data: reservedPoolRows } = await supabase
-          .from("hr_emploc")
-          .select("pool_slot_id")
-          .in("pool_slot_id", hrProcessingPoolIds)
-          .is("deleted_at", null)
-          .is("moved_to_plantilla_at", null);
-
-        if (Array.isArray(reservedPoolRows)) {
-          const uniqueReservedPool = new Set(
-            reservedPoolRows.map((row) => asString(row.pool_slot_id)).filter(Boolean)
-          );
-          available += uniqueReservedPool.size;
-        }
-      }
-
-      return available;
-    }
-  } catch {
-    // Fallback
-  }
-
-  return 1;
-}
-
 // ─── Lifecycle Mutation Actions ──────────────────────────────────────────────
 
 export type AssignEmployeeNoParams = {
   hrEmplocId: string;
   employeeNo: string;
+  confirmReuse?: boolean;
+  reuseReason?: string | null;
 };
 
 export async function assignHrEmplocNumber(params: AssignEmployeeNoParams): Promise<void> {
@@ -1052,32 +1133,8 @@ export async function assignHrEmplocNumber(params: AssignEmployeeNoParams): Prom
   const { error } = await supabase.rpc("assign_hr_emploc_number", {
     p_id: params.hrEmplocId,
     p_employee_no: normalizedEmployeeNo,
-  });
-
-  if (error) {
-    throwHrEmplocError(error);
-  }
-}
-
-export type MoveToPlantillaParams = {
-  hrEmplocId: string;
-  vcode?: string;
-};
-
-export async function moveToPlantilla(params: MoveToPlantillaParams): Promise<void> {
-  if (params.vcode?.trim()) {
-    const availableSlots = await fetchAvailableSlotsForVcode(params.vcode.trim());
-    if (availableSlots <= 0) {
-      throw new HrEmplocDataError(
-        "invalid_state",
-        "No available slot capacity found for VCode " + params.vcode.trim() + "."
-      );
-    }
-  }
-
-  const supabase = createClient();
-  const { error } = await supabase.rpc("move_to_plantilla", {
-    p_id: params.hrEmplocId,
+    p_confirm_reuse: params.confirmReuse === true,
+    p_reuse_reason: params.reuseReason?.trim() || null,
   });
 
   if (error) {
@@ -1171,6 +1228,61 @@ export async function withdrawEmplocDeletionRequest(
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export function useAuthorizeDocUpload() {
+  return useMutation({
+    mutationFn: (params: AuthorizeDocUploadParams) => authorizeHrEmplocDocUpload(params),
+  });
+}
+
+export function useRegisterDoc() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: RegisterDocParams) => registerHrEmplocDocument(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+    },
+  });
+}
+
+export function useRemoveDoc() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (attachmentId: string) => removeHrEmplocDocument(attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail"] });
+    },
+  });
+}
+
+export function useSubmitHrEmplocRequirements() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { hrEmplocId: string; notes?: string | null }) =>
+      submitHrEmplocRequirements(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
+      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
+    },
+  });
+}
+
 export function useAssignEmployeeNo() {
   const queryClient = useQueryClient();
 
@@ -1183,26 +1295,11 @@ export function useAssignEmployeeNo() {
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
       queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
-    },
-  });
-}
-
-export function useMoveToPlantilla() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params: MoveToPlantillaParams) => moveToPlantilla(params),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["hr_emplocs"] });
-      queryClient.invalidateQueries({ queryKey: ["hr-emploc-list"] });
-      queryClient.invalidateQueries({ queryKey: ["hr_emploc_summary"] });
-      queryClient.invalidateQueries({ queryKey: ["hr-emploc-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["hr_emploc_detail", variables.hrEmplocId] });
-      queryClient.invalidateQueries({ queryKey: ["hr-emploc-detail", variables.hrEmplocId] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }

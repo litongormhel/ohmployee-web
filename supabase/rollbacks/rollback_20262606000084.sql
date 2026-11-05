@@ -17,7 +17,6 @@ END $$;
 -- 2. Drop trigger trg_enqueue_emploc_docs_cleanup
 DROP TRIGGER IF EXISTS trg_enqueue_emploc_docs_cleanup ON public.hr_emploc;
 
-
 -- 4. Drop storage_cleanup_queue table
 DROP TABLE IF EXISTS public.storage_cleanup_queue CASCADE;
 
@@ -128,6 +127,7 @@ CREATE POLICY correction_attach_update
   WITH CHECK (true);
 
 DROP INDEX IF EXISTS public.idx_hr_emploc_docs_active;
+DROP INDEX IF EXISTS public.uq_hr_emploc_correction_attachments_active;
 ALTER TABLE public.hr_emploc_correction_attachments
   DROP COLUMN IF EXISTS stage,
   DROP COLUMN IF EXISTS created_at,
@@ -1207,6 +1207,177 @@ BEGIN
     'hr_emploc_id', p_hr_emploc_id,
     'message', 'Record reverted to Pending Emploc'
   );
+END;
+$function$
+
+;
+
+CREATE OR REPLACE FUNCTION public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys jsonb DEFAULT NULL::jsonb, p_remarks text DEFAULT NULL::text, p_employee_no text DEFAULT NULL::text, p_confirm_reuse boolean DEFAULT false, p_reuse_reason text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_auth_uid          uuid := auth.uid();
+  v_profile_id        uuid := public.get_my_profile_id();
+  v_actor_name        text := public.get_my_full_name();
+  v_old               public.hr_emploc;
+  v_new               public.hr_emploc;
+  v_decision          text;
+  v_clean_remarks     text;
+  v_clean_employee_no text;
+  v_pl                public.plantilla;
+BEGIN
+  IF v_auth_uid IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated: correction review requires a valid session'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Gate: HR Personnel (+SA) ONLY. Head Admin and Encoder NOT allowed.
+  IF NOT public.can_tag_or_review_hr_emploc() THEN
+    RAISE EXCEPTION 'forbidden: HR Personnel or Super Admin role required for correction review'
+      USING ERRCODE = '42501';
+  END IF;
+
+  v_decision := lower(btrim(coalesce(p_decision, '')));
+  IF v_decision NOT IN ('approve', 'return') THEN
+    RAISE EXCEPTION 'invalid decision: must be "approve" or "return"'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_old FROM public.hr_emploc WHERE id = p_hr_emploc_id FOR UPDATE;
+  IF NOT FOUND OR v_old.deleted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'forbidden: hr_emploc record not found or archived'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Pending deletion lock
+  IF EXISTS (
+    SELECT 1 FROM public.hr_emploc_deletion_requests dr
+    WHERE dr.hr_emploc_id = p_hr_emploc_id AND dr.status = 'Pending'
+  ) THEN
+    RAISE EXCEPTION 'action locked: a pending deletion request exists for this record'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF v_old.hr_status <> 'For Review' THEN
+    RAISE EXCEPTION 'invalid state: record hr_status is "%", expected "For Review"', v_old.hr_status
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_clean_remarks := NULLIF(btrim(coalesce(p_remarks, '')), '');
+
+  IF v_decision = 'approve' THEN
+    v_clean_employee_no := NULLIF(btrim(coalesce(p_employee_no, '')), '');
+    IF v_clean_employee_no IS NULL THEN
+      RAISE EXCEPTION 'EMPLOYEE_NO_REQUIRED: Employee ID is required to approve correction and deploy to Plantilla'
+        USING ERRCODE = '22023';
+    END IF;
+
+    -- Clear deficiencies and update review metadata
+    UPDATE public.hr_emploc
+       SET correction_reason      = NULL,
+           hr_remarks             = v_clean_remarks,
+           hr_reviewed_at         = now(),
+           hr_reviewed_by         = v_actor_name,
+           hr_reviewed_by_user_id = v_profile_id,
+           updated_at             = now(),
+           updated_by             = v_profile_id
+     WHERE id = p_hr_emploc_id;
+
+    -- Delegate to core: validates format, registry, required Plantilla fields, slot, and deploys atomically
+    v_pl := public._assign_and_deploy_emploc_core(
+      p_hr_emploc_id     => p_hr_emploc_id,
+      p_employee_no      => v_clean_employee_no,
+      p_confirm_reuse    => p_confirm_reuse,
+      p_reuse_reason     => p_reuse_reason,
+      p_actor_profile_id => v_profile_id,
+      p_source_fn        => 'review_web_hr_emploc_correction_approve'
+    );
+
+    SELECT * INTO v_new FROM public.hr_emploc WHERE id = p_hr_emploc_id;
+
+    RETURN jsonb_build_object(
+      'status', 'ok',
+      'decision', 'approve',
+      'hr_emploc_id', p_hr_emploc_id,
+      'hr_status', v_new.hr_status,
+      'deployment_status', v_new.status,
+      'employee_no', v_new.employee_no,
+      'plantilla_id', v_pl.id
+    );
+
+  ELSE -- decision = 'return'
+    IF v_clean_remarks IS NULL THEN
+      RAISE EXCEPTION 'remarks are required when returning a correction'
+        USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.hr_emploc
+       SET hr_status              = 'For Correction',
+           hr_remarks             = v_clean_remarks,
+           hr_reviewed_at         = now(),
+           hr_reviewed_by         = v_actor_name,
+           hr_reviewed_by_user_id = v_profile_id,
+           updated_at             = now(),
+           updated_by             = v_profile_id
+     WHERE id = p_hr_emploc_id
+     RETURNING * INTO v_new;
+
+    PERFORM public.log_audit_event(
+      'hr_emploc',
+      'UPDATE',
+      p_hr_emploc_id,
+      to_jsonb(v_old),
+      jsonb_build_object(
+        'action', 'return_to_correction',
+        'actor_name', v_actor_name,
+        'actor_id', v_profile_id,
+        'remarks', v_clean_remarks,
+        'log_message', format('Returned correction to Ops with remarks: %s', v_clean_remarks)
+      )
+    );
+
+    RETURN jsonb_build_object(
+      'status', 'ok',
+      'decision', 'return',
+      'hr_emploc_id', p_hr_emploc_id,
+      'hr_status', v_new.hr_status,
+      'deployment_status', v_new.status
+    );
+  END IF;
+END;
+$function$
+
+;
+
+CREATE OR REPLACE FUNCTION public.assign_hr_emploc_number(p_id uuid, p_employee_no text, p_confirm_reuse boolean DEFAULT false, p_reuse_reason text DEFAULT NULL::text)
+ RETURNS hr_emploc
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_res public.hr_emploc;
+BEGIN
+  -- Gate: HR Personnel, Head Admin, Encoder, Super Admin
+  IF NOT public.can_assign_pending_hr_emploc() THEN
+    RAISE EXCEPTION 'forbidden: HR Personnel, Head Admin, Encoder, or Super Admin role required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM public._assign_and_deploy_emploc_core(
+    p_hr_emploc_id     => p_id,
+    p_employee_no      => p_employee_no,
+    p_confirm_reuse    => p_confirm_reuse,
+    p_reuse_reason     => p_reuse_reason,
+    p_actor_profile_id => public.get_my_profile_id(),
+    p_source_fn        => 'assign_hr_emploc_number'
+  );
+
+  SELECT * INTO v_res FROM public.hr_emploc WHERE id = p_id;
+  RETURN v_res;
 END;
 $function$
 
@@ -3134,7 +3305,7 @@ CREATE OR REPLACE VIEW public.headcount_summary AS
   ORDER BY g.group_name, a.account_name;
 ;
 
--- 3. Drop new 2b-DB functions
+-- 9. Drop new 2b-DB functions
 DROP FUNCTION IF EXISTS public.process_storage_cleanup_queue(integer);
 DROP FUNCTION IF EXISTS public.sweep_orphan_emploc_storage_objects();
 DROP FUNCTION IF EXISTS public.tg_enqueue_emploc_docs_cleanup_fn();

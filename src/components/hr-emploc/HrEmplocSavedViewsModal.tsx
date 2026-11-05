@@ -30,6 +30,7 @@ export interface HrEmplocSavedViewsModalProps {
 
 const QUEUE_LABELS: Record<HrEmplocQueue, string> = {
   pending: "Pending",
+  for_emploc: "For Emploc",
   correction: "Correction",
   review: "Review",
   deployed: "Deployed",

@@ -1,5 +1,113 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Stage 2b-Web + 2b-DB Closure on STAGING (ohm#q3v8n2kd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-WEB IMPLEMENTED & VERIFIED (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING, 12/12 NODE ERROR MAPPER UNIT TESTS PASSING); 2b-DB CLOSURE EVIDENCE COMPLETED ON STAGING (REHEARSAL ROLLBACK/RE-APPLY PASS, 31-TEST SUITE 100% PASS, 5/5 MISSING TESTS PASS, OVERLOAD AUDIT 23/23 COUNT 1, STORAGE ORPHAN REPORT CAPTURED, PROD DRY RUN ON 93 ROWS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; LOCAL COMMIT ON `main`; STOPPED FOR REVIEW**
+
+### 1. Summary of Implementations & Verifications
+
+#### Part 0 & Part 0.5 — Contract Freeze & Database Hardening (Staging)
+1. **Contract Freeze**:
+   - Captured RPC identity signatures and return types for 23 functions across lifecycle.
+   - Captured real `row_capabilities` and `attachments` JSON across all 5 queues (`pending`, `for_emploc`, `correction`, `review`, `deployed`) for 5 key roles (HRCO in scope, HR Personnel, Encoder, Head Admin, Super Admin).
+   - Captured raw error responses for 19 error cases on Staging.
+2. **Database Hardening (`20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`)**:
+   - **Partial Unique Index**: Added `uq_hr_emploc_correction_attachments_active` on `(hr_emploc_id, storage_path)` where `is_deleted = false AND deleted_at IS NULL`.
+   - **Idempotent Register**: `register_hr_emploc_document` returns existing row with `is_duplicate: true` on repeated path submission.
+   - **Server-Derived Stage**: Derived `v_stage` strictly from record state (`initial_requirements` for Pending, `correction` for For Correction).
+   - **Canonical Storage Path**: Stored paths prefixed with `hr-corrections/` internally while exposing clean `object_path` (`emploc-docs/{id}/...`) in `row_capabilities.attachments`.
+   - **Standardized Error Tokens**: Every error message carries a machine-readable token prefix (`TOKEN: ...`) and DETAIL JSON `{"code": "<TOKEN>", ...}`.
+   - **Rollback Regenerated**: `supabase/rollbacks/rollback_20262606000084.sql` regenerated and verified.
+
+#### Part 1 — Stage 2b-Web Implementation
+1. **`src/lib/queries/hr_emploc.ts`**:
+   - Added queue `for_emploc`, `HrEmplocQueue` union, `for_emploc_count` in summary type.
+   - Extended types with `HrEmplocAttachment` and full `row_capabilities`.
+   - Built TanStack hooks: `useAuthorizeHrEmplocDocUpload`, `useRegisterHrEmplocDocument`, `useRemoveHrEmplocDocument`, `useSubmitHrEmplocRequirements`, `getHrEmplocDocSignedUrl` (5-10m TTL).
+   - Remarks normalizer: `normalizeHrEmplocRemarks` takes first non-empty trimmed value prioritizing `ops_remarks` first.
+   - Multi-query invalidation across `hr_emplocs`, `hr-emploc-list`, `hr_emploc_summary`, `hr-emploc-summary`, `hr_emploc_detail`, `plantilla`, `vacancies`, `dashboard`.
+   - Completely excised obsolete `useMoveToPlantilla`, `moveToPlantilla`, `fetchAvailableSlotsForVcode`, and direct table-insert fallbacks.
+2. **Error Mapper (`src/lib/utils/hr_emploc_errors.ts`)**:
+   - Multi-tier error parser: DETAIL `code` first, message token prefix second, SQLSTATE fallback third.
+   - Unit-tested via Node native test runner (`node --experimental-strip-types --test`); 12/12 unit tests pass in 109ms.
+3. **Canvas Image Compression (`src/lib/utils/image_compression.ts`)**:
+   - Client-side Canvas downscaling for JPEG, PNG, WEBP (max 1600px width/height, 0.75 quality, no upscale, falls back to original if compressed file is larger; PDFs bypass untouched).
+4. **Tabs in `page.tsx`**:
+   - 5 queue tabs: `Pending | For Emploc | Correction | Review | Deployed` with live summary badge counts.
+   - Graceful degradation for legacy saved views (`ready`, `complete` -> `deployed`, `deficiency` -> `correction`).
+   - CSV export enabled for `for_emploc`.
+5. **Table Architecture (`HrEmplocTable.tsx`)**:
+   - Eliminated horizontal clipping on wide screens with `sticky right-0` Actions column.
+   - Per-tab columns:
+     - Pending: Applicant, Account/Store, Position, HRCO, SLA, Docs (N + View), Actions: `Upload Docs`.
+     - For Emploc: Group, Account, Applicant, Position, HRCO, SLA, Docs (View + Count), Actions: `+ Add Emploc` and `! For Correction`.
+     - Correction & Review: Position and HRCO columns removed; Reasons rendered in `flex-wrap gap-1.5` without clipping; Remarks rendered with `ops_remarks` top priority; Attachment View button.
+     - Deployed: Employee ID, Applicant, Account/Store, Position, Date Hired, Actions: `Edit Emploc #` / `Revert to Pending` in overflow menu.
+   - 100% capability-driven: actions strictly read `row.capabilities` without role-name checks.
+6. **Modals (`UploadDocsModal.tsx`, `DocumentPreviewModal.tsx`, `AddEmplocModal.tsx`)**:
+   - `UploadDocsModal`: Multi-file dropzone (PDF, JPEG, PNG, WEBP <= 10MB), Canvas compression, sequential authorize -> storage upload -> register flow, idempotent retry tracking, unverified document deletion (`can_remove`), Pending mode ("Submit & Move to For Emploc") and Correction mode ("Submit Correction").
+   - `DocumentPreviewModal`: Multi-file thumbnail switcher, zoom (0.5x to 3.0x), 90° rotation, PDF iframe embed, direct download with short TTL signed URL.
+   - `AddEmplocModal`: Single-RPC deployment (`assign_hr_emploc_number` or `review_web_hr_emploc_correction` approve); interactive confirmation sub-dialog for `REHIRE_CONFIRM_REQUIRED`, `POSSIBLE_DUPLICATE_PERSON`, and `MIDDLE_NAME_CONFIRM_REQUIRED` prompting for reason and retrying with `confirmReuse: true`.
+7. **Dead Code Excised**:
+   - Deleted 5 obsolete modals: `DeployToPlantillaModal.tsx`, `AssignEmployeeNoModal.tsx`, `UploadAttachmentModal.tsx`, `SubmitCorrectionModal.tsx`, `ReviewApproveModal.tsx`.
+
+#### Part 2 — 2b-DB Closure Evidence
+1. **2.1 Object MD5 Comparison Table (PROD vs Staging)**:
+   - 23 functions audited: 14 functions modified/enhanced by 83/84 differ between Staging and PROD; 2 functions (`can_assign_pending_hr_emploc`, `fn_adr001_smoke`) match byte-identically (`8cfcbf17a3faa444cbb85e68a52d8eb0`, `6f1b8fa7c391344d848eb1a45ac07a85`); 7 functions created in 84 are present on Staging and absent on PROD awaiting promotion.
+2. **2.2 `schema_migrations` Alignment**:
+   - PROD: last migration is `20262606000082` (`fix_list_web_hr_emplocs_position_column`). Migrations `83` and `84` are strictly ABSENT from PROD.
+   - Staging: migrations `83` (`hr_emploc_phase2a_fix_delta`) and `84` (`hr_emploc_for_emploc_and_scoped_docs`) are applied and verified.
+3. **2.3 Overload Audit**:
+   - Verified across all 23 functions in `public` schema: every single function has `overload_count = 1` (zero legacy or duplicate signatures).
+4. **2.4 Staging Rehearsal**:
+   - Full cycle executed: `rollback 84` -> `rollback 83` -> `apply 83` -> `apply 84`.
+   - `fn_adr001_smoke()` executed.
+   - 31-test suite (`sec3_full_test_suite.sql`) executed: 31 of 31 tests passed (100% pass rate).
+5. **2.5 Real PROD Dry-Run**:
+   - Read-only simulation on PROD's 93 `hr_emploc` rows (`26 Pending`, `4 For Correction`, `5 For Review`, `7 Complete`, `51 Transferred/Archived`). Zero unexpected modifications.
+6. **2.6 Storage Orphan Report**:
+   - Staging (8 objects in `hr-corrections`): 8 of 8 have matching rows in `hr_emploc_correction_attachments` (0 orphans).
+   - PROD (18 objects in `hr-corrections`): 16 objects created on May 15, 2026 have no parent record (true orphans from legacy testing); 2 objects (May 27 and Sep 30) are valid active attachments.
+7. **2.7 Purge Executor Transparency**:
+   - `process_storage_cleanup_queue(50)` audited: consumes Vault secrets `supabase_project_url` and `supabase_service_role_key`, invokes `net.http_delete`, updates cleanup queue and attachments. Cron schedule: `*/15 * * * *` (jobid 11).
+8. **2.8 Missing Test Suite**:
+   - Executed rollback-wrapped tests on Staging for 5 missing areas: T1 Byte limit (>10MB rejected), T2 Idempotent duplicate register, T3 Non-uploader remove blocked (`FORBIDDEN_NOT_UPLOADER`), T4 Uploader remove allowed & scheduled for purge, T5 SLA transition sets `hr_status = 'For Emploc'`. 5 of 5 tests passed (100% pass rate).
+
+### 2. Files Modified & Created
+- `src/app/(dashboard)/hr-emploc/page.tsx`
+- `src/components/hr-emploc/HrEmplocTable.tsx`
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`
+- `src/components/hr-emploc/HrEmplocSavedViewsModal.tsx`
+- `src/components/hr-emploc/useHrEmplocSavedViews.ts`
+- `src/components/hr-emploc/AddEmplocModal.tsx` (created)
+- `src/components/hr-emploc/UploadDocsModal.tsx` (created)
+- `src/components/hr-emploc/DocumentPreviewModal.tsx` (created)
+- `src/lib/queries/hr_emploc.ts`
+- `src/lib/utils/hr_emploc_errors.ts` (created)
+- `src/lib/utils/__tests__/hr_emploc_errors.test.mjs` (created)
+- `src/lib/utils/image_compression.ts` (created)
+- `supabase/migrations/20262606000084_hr_emploc_for_emploc_and_scoped_docs.sql`
+- `supabase/rollbacks/rollback_20262606000084.sql`
+- `docs/state/hr_emploc_web_state.md`
+- `docs/proposals/adr-001-workflow-update.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### 3. Deleted Obsolete Files
+- `src/components/hr-emploc/DeployToPlantillaModal.tsx`
+- `src/components/hr-emploc/AssignEmployeeNoModal.tsx`
+- `src/components/hr-emploc/UploadAttachmentModal.tsx`
+- `src/components/hr-emploc/SubmitCorrectionModal.tsx`
+- `src/components/hr-emploc/ReviewApproveModal.tsx`
+
+### 4. Verification Gates
+- `npx tsc --noEmit`: 0 errors (clean).
+- `node --experimental-strip-types --test src/lib/utils/__tests__/hr_emploc_errors.test.mjs`: 12/12 pass (100%).
+- `npm run lint`: 0 errors (clean).
+- `npm run build`: 0 errors (clean 20/20 routes compiled and prerendered).
+
+---
+
 ## Execution Report — Approvals Module: Permanent Root-Cause Fix for All Approval Queues & Active Tab Auto-Scroll (ohm#fix-approval-queues-root-cause)
 
 **Status: COMPLETE ON LOCAL main; ALL REMAINING QUEUES FIXED AT THE ROOT CAUSE, AUTO-SCROLL IMPLEMENTED, VERIFIED CLEAN (npm run lint 0 ERRORS, npm run build CLEAN 20/20 ROUTES)**

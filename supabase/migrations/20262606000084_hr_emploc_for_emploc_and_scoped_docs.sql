@@ -3,8 +3,8 @@
 -- Purpose: Stage 2b-DB — "For Emploc" workflow status, scoped Ops document
 --          upload/remove/view in private bucket 'hr-corrections', 3-day
 --          post-deployment storage cleanup queue via pg_net + Vault,
---          revert-within-grace, pending-deletion locks, and cross-module
---          pipeline fixes.
+--          revert-within-grace, pending-deletion locks, cross-module
+--          pipeline fixes, and standardized error tokens.
 -- ============================================================================
 
 -- 1. Update hr_emploc_hr_status_check to include 'For Emploc'
@@ -35,6 +35,11 @@ WHERE created_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_hr_emploc_docs_active
   ON public.hr_emploc_correction_attachments (hr_emploc_id, stage)
+  WHERE is_deleted = false AND deleted_at IS NULL;
+
+-- Part 0.5: Partial unique index for idempotent registration
+CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_emploc_correction_attachments_active
+  ON public.hr_emploc_correction_attachments (hr_emploc_id, storage_path)
   WHERE is_deleted = false AND deleted_at IS NULL;
 
 -- 3. Create public.storage_cleanup_queue
@@ -261,7 +266,7 @@ BEGIN
     RETURN false;
   END IF;
 
-  -- Decision 2: View docs only while record is NOT deployed
+  -- Viewing documents strictly BLOCKED once record is deployed
   IF v_emp.status = 'Moved to Plantilla' OR v_emp.hr_status = 'Transferred' THEN
     RETURN false;
   END IF;
@@ -270,83 +275,64 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- Allowed roles: HR Personnel, Head Admin, Encoder, Ops in scope (OM, TL, ATL, HRCO), SA
-  IF NOT (
-    public.i_have_full_access()
-    OR public.i_am_hr_dept()
+  -- HR Personnel (25), Head Admin (90), Encoder (30) have read access across records
+  IF public.can_assign_pending_hr_emploc()
+    OR public.can_tag_or_review_hr_emploc()
     OR COALESCE(public.get_my_role(), '') = 'Encoder'
     OR public.can_submit_hr_emploc_correction()
-  ) THEN
-    RETURN false;
+  THEN
+    -- For Ops coordinators (OM, TL, ATL, HRCO), must be within account/store scope
+    IF public.can_submit_hr_emploc_correction()
+      AND NOT public.can_assign_pending_hr_emploc()
+      AND NOT public.can_tag_or_review_hr_emploc()
+      AND COALESCE(public.get_my_role(), '') <> 'Encoder'
+    THEN
+      RETURN public.is_hr_emploc_in_my_scope(p_hr_emploc_id);
+    END IF;
+
+    RETURN true;
   END IF;
 
-  RETURN public.is_hr_emploc_in_my_scope(p_hr_emploc_id);
+  RETURN false;
 END;
 $function$;
 
--- 6. Replace Table RLS on public.hr_emploc_correction_attachments (2c)
-ALTER TABLE public.hr_emploc_correction_attachments ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS correction_attach_insert ON public.hr_emploc_correction_attachments;
-DROP POLICY IF EXISTS correction_attach_insert_auth_uid ON public.hr_emploc_correction_attachments;
-DROP POLICY IF EXISTS correction_attach_insert_uploaded_by_profile ON public.hr_emploc_correction_attachments;
-DROP POLICY IF EXISTS correction_attach_read ON public.hr_emploc_correction_attachments;
-DROP POLICY IF EXISTS correction_attach_update ON public.hr_emploc_correction_attachments;
-DROP POLICY IF EXISTS emploc_docs_scoped_read ON public.hr_emploc_correction_attachments;
-
-CREATE POLICY emploc_docs_scoped_read
-  ON public.hr_emploc_correction_attachments
-  FOR SELECT TO authenticated
-  USING (
-    is_deleted = false
-    AND deleted_at IS NULL
-    AND public.can_view_hr_emploc_docs(hr_emploc_id)
-  );
-
--- Note: No direct client INSERT/UPDATE/DELETE policies on hr_emploc_correction_attachments;
--- all writes go through SECURITY DEFINER RPCs register_hr_emploc_document and remove_hr_emploc_document.
-
--- 7. Configure Private Bucket 'hr-corrections' & Scoped Storage Policies (Decision 5)
+-- 6. Configure storage bucket hr-corrections & policies (2b, 2c)
 UPDATE storage.buckets
 SET public = false,
     file_size_limit = 10485760,
-    allowed_mime_types = ARRAY[
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
-      'application/pdf'
-    ]
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 WHERE id = 'hr-corrections';
 
+DROP POLICY IF EXISTS emploc_docs_storage_insert ON storage.objects;
+DROP POLICY IF EXISTS emploc_docs_storage_select ON storage.objects;
+DROP POLICY IF EXISTS emploc_docs_storage_delete ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_insert ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_select ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_delete ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_upload_policy ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_select_policy ON storage.objects;
 DROP POLICY IF EXISTS hr_corrections_delete_policy ON storage.objects;
-DROP POLICY IF EXISTS emploc_docs_storage_insert ON storage.objects;
-DROP POLICY IF EXISTS emploc_docs_storage_select ON storage.objects;
 
 CREATE POLICY emploc_docs_storage_insert
-  ON storage.objects
-  FOR INSERT TO authenticated
+  ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (
-    bucket_id = 'hr-corrections'
-    AND split_part(name, '/', 1) = 'emploc-docs'
-    AND split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    AND public.can_upload_hr_emploc_docs((split_part(name, '/', 2))::uuid)
+    bucket_id = 'hr-corrections' AND (
+      public.is_super_admin()
+      OR (
+        name LIKE 'emploc-docs/%/%'
+        AND public.can_upload_hr_emploc_docs((split_part(name, '/', 2))::uuid)
+      )
+    )
   );
 
 CREATE POLICY emploc_docs_storage_select
-  ON storage.objects
-  FOR SELECT TO authenticated
+  ON storage.objects FOR SELECT TO authenticated
   USING (
-    bucket_id = 'hr-corrections'
-    AND (
-      (
-        split_part(name, '/', 1) = 'emploc-docs'
-        AND split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    bucket_id = 'hr-corrections' AND (
+      public.is_super_admin()
+      OR (
+        name LIKE 'emploc-docs/%/%'
         AND public.can_view_hr_emploc_docs((split_part(name, '/', 2))::uuid)
       )
       OR EXISTS (
@@ -358,6 +344,23 @@ CREATE POLICY emploc_docs_storage_select
           AND public.can_view_hr_emploc_docs(ca.hr_emploc_id)
       )
     )
+  );
+
+-- 7. Attachment table RLS policies
+DROP POLICY IF EXISTS emploc_docs_scoped_read ON public.hr_emploc_correction_attachments;
+DROP POLICY IF EXISTS correction_attach_insert ON public.hr_emploc_correction_attachments;
+DROP POLICY IF EXISTS correction_attach_insert_auth_uid ON public.hr_emploc_correction_attachments;
+DROP POLICY IF EXISTS correction_attach_insert_uploaded_by_profile ON public.hr_emploc_correction_attachments;
+DROP POLICY IF EXISTS correction_attach_read ON public.hr_emploc_correction_attachments;
+DROP POLICY IF EXISTS correction_attach_update ON public.hr_emploc_correction_attachments;
+
+CREATE POLICY emploc_docs_scoped_read
+  ON public.hr_emploc_correction_attachments
+  FOR SELECT TO authenticated
+  USING (
+    is_deleted = false
+    AND deleted_at IS NULL
+    AND public.can_view_hr_emploc_docs(hr_emploc_id)
   );
 
 -- 8. Document Upload / Register / Remove / Submit Requirements RPCs
@@ -382,7 +385,7 @@ DECLARE
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: document upload requires a valid session'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
   END IF;
 
   SELECT * INTO v_emp
@@ -391,38 +394,38 @@ BEGIN
     AND deleted_at IS NULL;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'hr_emploc record % not found or archived', p_hr_emploc_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record % not found or archived', p_hr_emploc_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_hr_emploc_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF v_emp.status = 'Moved to Plantilla' OR v_emp.hr_status = 'Transferred' THEN
     RAISE EXCEPTION 'INVALID_STAGE_FOR_UPLOAD: Record is already deployed to Plantilla'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STAGE_FOR_UPLOAD')::text;
   END IF;
 
   IF v_emp.hr_status NOT IN ('Pending', 'For Correction') THEN
     RAISE EXCEPTION 'INVALID_STAGE_FOR_UPLOAD: Document uploads are only allowed in Pending or For Correction (current hr_status: "%")', v_emp.hr_status
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STAGE_FOR_UPLOAD')::text;
   END IF;
 
   IF NOT public.can_upload_hr_emploc_docs(p_hr_emploc_id) THEN
-    RAISE EXCEPTION 'forbidden: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may upload documents'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may upload documents'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF v_mime NOT IN ('image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf') THEN
     RAISE EXCEPTION 'INVALID_MIME_TYPE: Unsupported file type "%". Allowed: JPEG, PNG, WEBP, PDF.', p_mime_type
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_MIME_TYPE')::text;
   END IF;
 
   IF COALESCE(p_size_bytes, 0) <= 0 OR p_size_bytes > 10485760 THEN
     RAISE EXCEPTION 'FILE_TOO_LARGE: File size (% bytes) must be between 1 byte and 10 MB (10485760 bytes).', COALESCE(p_size_bytes, 0)
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FILE_TOO_LARGE')::text;
   END IF;
 
   v_clean_fn := regexp_replace(COALESCE(NULLIF(btrim(p_file_name), ''), 'document'), '[^A-Za-z0-9._-]', '_', 'g');
@@ -466,7 +469,7 @@ DECLARE
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: document registration requires a valid session'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
   END IF;
 
   SELECT * INTO v_emp
@@ -476,38 +479,38 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'hr_emploc record % not found or archived', p_hr_emploc_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record % not found or archived', p_hr_emploc_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_hr_emploc_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF v_emp.status = 'Moved to Plantilla' OR v_emp.hr_status = 'Transferred' THEN
     RAISE EXCEPTION 'INVALID_STAGE_FOR_UPLOAD: Record is already deployed to Plantilla'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STAGE_FOR_UPLOAD')::text;
   END IF;
 
   IF v_emp.hr_status NOT IN ('Pending', 'For Correction') THEN
     RAISE EXCEPTION 'INVALID_STAGE_FOR_UPLOAD: Document registration is only allowed in Pending or For Correction (current hr_status: "%")', v_emp.hr_status
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STAGE_FOR_UPLOAD')::text;
   END IF;
 
   IF NOT public.can_upload_hr_emploc_docs(p_hr_emploc_id) THEN
-    RAISE EXCEPTION 'forbidden: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may register documents'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may register documents'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF v_mime NOT IN ('image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf') THEN
     RAISE EXCEPTION 'INVALID_MIME_TYPE: Unsupported file type "%". Allowed: JPEG, PNG, WEBP, PDF.', p_mime_type
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_MIME_TYPE')::text;
   END IF;
 
   IF COALESCE(p_size_bytes, 0) <= 0 OR p_size_bytes > 10485760 THEN
     RAISE EXCEPTION 'FILE_TOO_LARGE: File size (% bytes) must be between 1 byte and 10 MB (10485760 bytes).', COALESCE(p_size_bytes, 0)
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FILE_TOO_LARGE')::text;
   END IF;
 
   v_rel_path  := regexp_replace(btrim(COALESCE(p_storage_path, '')), '^hr-corrections/', '');
@@ -515,19 +518,39 @@ BEGIN
 
   IF v_rel_path NOT LIKE ('emploc-docs/' || p_hr_emploc_id::text || '/%') THEN
     RAISE EXCEPTION 'INVALID_STORAGE_PATH: Storage path "%" must start with emploc-docs/%/', v_rel_path, p_hr_emploc_id
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STORAGE_PATH')::text;
   END IF;
 
-  v_stage := COALESCE(
-    NULLIF(btrim(p_stage), ''),
-    CASE WHEN v_emp.hr_status = 'Pending' THEN 'initial_requirements' ELSE 'correction' END
-  );
+  -- Part 0.5: Server strictly derives and validates stage from record state
+  v_stage := CASE WHEN v_emp.hr_status = 'Pending' THEN 'initial_requirements' ELSE 'correction' END;
 
-  IF v_stage NOT IN ('initial_requirements', 'correction') THEN
-    RAISE EXCEPTION 'INVALID_STAGE: stage must be initial_requirements or correction'
-      USING ERRCODE = '22023';
+  -- Part 0.5: Idempotency check: if active record exists for this path, return existing row
+  SELECT * INTO v_att
+  FROM public.hr_emploc_correction_attachments
+  WHERE hr_emploc_id = p_hr_emploc_id
+    AND (storage_path = v_full_path OR storage_path = v_rel_path)
+    AND is_deleted = false
+    AND deleted_at IS NULL
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'id', v_att.id,
+      'hr_emploc_id', v_att.hr_emploc_id,
+      'storage_path', v_att.storage_path,
+      'object_path', v_rel_path,
+      'original_filename', v_att.original_filename,
+      'mime_type', v_att.mime_type,
+      'size_bytes', v_att.size_bytes,
+      'stage', v_att.stage,
+      'uploaded_by', v_att.uploaded_by,
+      'uploaded_at', v_att.uploaded_at,
+      'created_at', v_att.created_at,
+      'is_duplicate', true
+    );
   END IF;
 
+  -- Concurrency-safe insert using partial unique index
   INSERT INTO public.hr_emploc_correction_attachments (
     hr_emploc_id,
     storage_path,
@@ -551,6 +574,8 @@ BEGIN
     v_stage,
     false
   )
+  ON CONFLICT (hr_emploc_id, storage_path) WHERE (is_deleted = false AND deleted_at IS NULL)
+  DO UPDATE SET hr_emploc_id = EXCLUDED.hr_emploc_id
   RETURNING * INTO v_att;
 
   PERFORM public.log_audit_event(
@@ -581,7 +606,8 @@ BEGIN
     'stage', v_att.stage,
     'uploaded_by', v_att.uploaded_by,
     'uploaded_at', v_att.uploaded_at,
-    'created_at', v_att.created_at
+    'created_at', v_att.created_at,
+    'is_duplicate', false
   );
 END;
 $function$;
@@ -601,7 +627,7 @@ DECLARE
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: document removal requires a valid session'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
   END IF;
 
   SELECT * INTO v_att
@@ -610,8 +636,8 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND OR v_att.is_deleted = true OR v_att.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Document % not found or already removed', p_attachment_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: Document % not found or already removed', p_attachment_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   SELECT * INTO v_emp
@@ -621,30 +647,28 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'hr_emploc record % not found or archived', v_att.hr_emploc_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record % not found or archived', v_att.hr_emploc_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(v_emp.id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
-  -- Decision 4: Only while record is Pending or For Correction
   IF v_emp.hr_status NOT IN ('Pending', 'For Correction') OR v_emp.status = 'Moved to Plantilla' THEN
     RAISE EXCEPTION 'INVALID_STAGE_FOR_REMOVE: Documents can only be removed while record is in Pending or For Correction (current hr_status: "%")', v_emp.hr_status
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STAGE_FOR_REMOVE')::text;
   END IF;
 
   IF NOT public.can_upload_hr_emploc_docs(v_emp.id) THEN
-    RAISE EXCEPTION 'forbidden: only Ops roles within scope or Super Admin may remove documents'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: only Ops roles within scope or Super Admin may remove documents'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
-  -- Decision 4: Ops in scope may remove only their OWN uploaded files (SA override)
   IF NOT public.is_super_admin() AND v_att.uploaded_by IS DISTINCT FROM v_profile_id THEN
     RAISE EXCEPTION 'FORBIDDEN_NOT_UPLOADER: You may only remove documents that you uploaded yourself.'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_NOT_UPLOADER')::text;
   END IF;
 
   UPDATE public.hr_emploc_correction_attachments
@@ -716,7 +740,7 @@ DECLARE
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: submitting requirements requires a valid session'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
   END IF;
 
   SELECT * INTO v_emp
@@ -726,28 +750,28 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'hr_emploc record % not found or archived', p_hr_emploc_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record % not found or archived', p_hr_emploc_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_hr_emploc_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF v_emp.status = 'Moved to Plantilla' OR v_emp.hr_status = 'Transferred' THEN
     RAISE EXCEPTION 'INVALID_STATE: Record is already deployed to Plantilla'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE')::text;
   END IF;
 
   IF v_emp.hr_status <> 'Pending' THEN
     RAISE EXCEPTION 'INVALID_STATE: Record hr_status is "%", expected "Pending"', v_emp.hr_status
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE')::text;
   END IF;
 
   IF NOT public.can_upload_hr_emploc_docs(p_hr_emploc_id) THEN
-    RAISE EXCEPTION 'forbidden: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may submit requirements'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: only Ops roles (OM, TL, ATL, HRCO) within scope or Super Admin may submit requirements'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   SELECT count(*) INTO v_doc_count
@@ -757,8 +781,8 @@ BEGIN
     AND ca.deleted_at IS NULL;
 
   IF v_doc_count <= 0 THEN
-    RAISE EXCEPTION 'REQUIREMENTS_DOCS_REQUIRED: At least one requirement document must be uploaded before moving to For Emploc.'
-      USING ERRCODE = '22023';
+    RAISE EXCEPTION 'REQUIREMENTS_DOCS_MISSING: At least one requirement document must be uploaded before moving to For Emploc.'
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'REQUIREMENTS_DOCS_MISSING')::text;
   END IF;
 
   UPDATE public.hr_emploc
@@ -801,7 +825,7 @@ $function$;
 CREATE OR REPLACE FUNCTION public.enqueue_hr_emploc_docs_cleanup(
   p_hr_emploc_id uuid,
   p_reason text,
-  p_delay interval DEFAULT '3 days'::interval
+  p_delay interval DEFAULT interval '3 days'
 )
  RETURNS integer
  LANGUAGE plpgsql
@@ -809,43 +833,39 @@ CREATE OR REPLACE FUNCTION public.enqueue_hr_emploc_docs_cleanup(
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_inserted integer := 0;
-  v_due      timestamptz := now() + COALESCE(p_delay, '3 days'::interval);
+  v_count integer := 0;
+  v_rec   record;
+  v_due   timestamptz := now() + p_delay;
 BEGIN
-  INSERT INTO public.storage_cleanup_queue (
-    hr_emploc_id,
-    attachment_id,
-    bucket_id,
-    storage_path,
-    reason,
-    due_at,
-    status
-  )
-  SELECT
-    ca.hr_emploc_id,
-    ca.id,
-    'hr-corrections',
-    regexp_replace(ca.storage_path, '^hr-corrections/', ''),
-    COALESCE(NULLIF(btrim(p_reason), ''), 'deployed_3day_ttl'),
-    v_due,
-    'pending'
-  FROM public.hr_emploc_correction_attachments ca
-  WHERE ca.hr_emploc_id = p_hr_emploc_id
-    AND ca.is_deleted = false
-    AND ca.deleted_at IS NULL
-    AND NOT EXISTS (
-      SELECT 1
-      FROM public.storage_cleanup_queue q
-      WHERE q.hr_emploc_id = p_hr_emploc_id
-        AND (q.attachment_id = ca.id OR q.storage_path = regexp_replace(ca.storage_path, '^hr-corrections/', ''))
-        AND q.status IN ('pending', 'dispatched')
+  FOR v_rec IN
+    SELECT ca.id AS attachment_id,
+           regexp_replace(ca.storage_path, '^hr-corrections/', '') AS rel_path
+    FROM public.hr_emploc_correction_attachments ca
+    WHERE ca.hr_emploc_id = p_hr_emploc_id
+      AND ca.is_deleted = false
+      AND ca.deleted_at IS NULL
+  LOOP
+    INSERT INTO public.storage_cleanup_queue (
+      hr_emploc_id,
+      attachment_id,
+      bucket_id,
+      storage_path,
+      reason,
+      due_at,
+      status
+    ) VALUES (
+      p_hr_emploc_id,
+      v_rec.attachment_id,
+      'hr-corrections',
+      v_rec.rel_path,
+      p_reason,
+      v_due,
+      'pending'
     );
+    v_count := v_count + 1;
+  END LOOP;
 
-  GET DIAGNOSTICS v_inserted = ROW_COUNT;
-  RETURN v_inserted;
-EXCEPTION WHEN OTHERS THEN
-  -- Never roll back caller transaction (e.g. deployment) if queue insert fails
-  RETURN 0;
+  RETURN v_count;
 END;
 $function$;
 
@@ -856,26 +876,19 @@ CREATE OR REPLACE FUNCTION public.tg_enqueue_emploc_docs_cleanup_fn()
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 BEGIN
-  BEGIN
-    IF (NEW.status = 'Moved to Plantilla' OR NEW.hr_status = 'Transferred')
-       AND (OLD.status IS DISTINCT FROM NEW.status OR OLD.hr_status IS DISTINCT FROM NEW.hr_status)
-    THEN
-      PERFORM public.enqueue_hr_emploc_docs_cleanup(NEW.id, 'deployed_3day_ttl', interval '3 days');
-    ELSIF NEW.status = 'Backout' AND OLD.status IS DISTINCT FROM 'Backout' THEN
-      PERFORM public.enqueue_hr_emploc_docs_cleanup(NEW.id, 'backout', interval '3 days');
-    ELSIF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
-      PERFORM public.enqueue_hr_emploc_docs_cleanup(NEW.id, 'deleted_or_archived', interval '3 days');
-    END IF;
-  EXCEPTION WHEN OTHERS THEN
-    NULL;
-  END;
+  IF (NEW.status = 'Moved to Plantilla' OR NEW.hr_status = 'Transferred')
+     AND (OLD.status IS DISTINCT FROM NEW.status OR OLD.hr_status IS DISTINCT FROM NEW.hr_status)
+  THEN
+    PERFORM public.enqueue_hr_emploc_docs_cleanup(NEW.id, 'deployed_3day_ttl', interval '3 days');
+  END IF;
+
   RETURN NEW;
 END;
 $function$;
 
 DROP TRIGGER IF EXISTS trg_enqueue_emploc_docs_cleanup ON public.hr_emploc;
 CREATE TRIGGER trg_enqueue_emploc_docs_cleanup
-  AFTER UPDATE ON public.hr_emploc
+  AFTER UPDATE OF status, hr_status ON public.hr_emploc
   FOR EACH ROW
   EXECUTE FUNCTION public.tg_enqueue_emploc_docs_cleanup_fn();
 
@@ -916,7 +929,6 @@ AS $function$
   ORDER BY so.created_at ASC;
 $function$;
 
--- 2f. Purge Executor using Storage HTTP API via pg_net + Supabase Vault
 CREATE OR REPLACE FUNCTION public.process_storage_cleanup_queue(p_batch_size integer DEFAULT 50)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -924,276 +936,110 @@ CREATE OR REPLACE FUNCTION public.process_storage_cleanup_queue(p_batch_size int
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_project_url text;
-  v_service_key text;
-  v_completed   integer := 0;
-  v_dispatched  integer := 0;
-  v_retried     integer := 0;
-  v_failed      integer := 0;
-  v_req_id      bigint;
-  v_resp        RECORD;
-  v_new_att     integer;
-  v_err_msg     text;
-  q             RECORD;
+  v_rec           record;
+  v_processed     integer := 0;
+  v_failed        integer := 0;
+  v_proj_url      text;
+  v_anon_or_srv   text;
+  v_req_id        bigint;
+  v_target_url    text;
 BEGIN
-  -- Read project URL and service_role key from Supabase Vault (if configured)
-  IF to_regclass('vault.decrypted_secrets') IS NOT NULL THEN
-    SELECT decrypted_secret INTO v_project_url
-    FROM vault.decrypted_secrets
-    WHERE name = 'supabase_project_url'
-    ORDER BY created_at DESC LIMIT 1;
+  SELECT decrypted_secret INTO v_proj_url
+  FROM vault.decrypted_secrets
+  WHERE name = 'supabase_project_url'
+  LIMIT 1;
 
-    SELECT decrypted_secret INTO v_service_key
+  IF v_proj_url IS NULL OR v_proj_url = '' THEN
+    SELECT decrypted_secret INTO v_proj_url
     FROM vault.decrypted_secrets
-    WHERE name = 'supabase_service_role_key'
-    ORDER BY created_at DESC LIMIT 1;
+    WHERE name = 'project_url'
+    LIMIT 1;
   END IF;
 
-  -- PHASE 1: Reconcile in-flight 'dispatched' requests by polling net._http_response
-  FOR q IN
-    SELECT *
-    FROM public.storage_cleanup_queue
-    WHERE status = 'dispatched'
-    ORDER BY dispatched_at ASC NULLS FIRST
-    LIMIT GREATEST(COALESCE(p_batch_size, 50), 1)
+  IF v_proj_url IS NULL OR v_proj_url = '' THEN
+    v_proj_url := current_setting('app.settings.project_url', true);
+  END IF;
+
+  SELECT decrypted_secret INTO v_anon_or_srv
+  FROM vault.decrypted_secrets
+  WHERE name = 'supabase_service_role_key'
+  LIMIT 1;
+
+  IF v_anon_or_srv IS NULL OR v_anon_or_srv = '' THEN
+    SELECT decrypted_secret INTO v_anon_or_srv
+    FROM vault.decrypted_secrets
+    WHERE name = 'service_role_key'
+    LIMIT 1;
+  END IF;
+
+  IF v_anon_or_srv IS NULL OR v_anon_or_srv = '' THEN
+    v_anon_or_srv := current_setting('app.settings.service_role_key', true);
+  END IF;
+
+  IF v_proj_url IS NULL OR v_proj_url = '' OR v_anon_or_srv IS NULL OR v_anon_or_srv = '' THEN
+    RETURN jsonb_build_object(
+      'status', 'skipped',
+      'reason', 'Vault secrets supabase_project_url or supabase_service_role_key not configured'
+    );
+  END IF;
+
+  v_proj_url := rtrim(v_proj_url, '/');
+
+  FOR v_rec IN
+    SELECT q.id, q.hr_emploc_id, q.attachment_id, q.bucket_id, q.storage_path, q.attempts
+    FROM public.storage_cleanup_queue q
+    WHERE q.status = 'pending'
+      AND q.due_at <= now()
+    ORDER BY q.due_at ASC
+    LIMIT p_batch_size
     FOR UPDATE SKIP LOCKED
   LOOP
-    SELECT id, status_code, content, timed_out, error_msg
-    INTO v_resp
-    FROM net._http_response
-    WHERE id = q.pg_net_request_id;
+    BEGIN
+      v_target_url := format('%s/storage/v1/object/%s/%s', v_proj_url, v_rec.bucket_id, v_rec.storage_path);
 
-    IF FOUND THEN
-      IF v_resp.timed_out = false
-         AND v_resp.error_msg IS NULL
-         AND (
-           v_resp.status_code IN (200, 204)
-           OR (
-             v_resp.status_code IN (400, 404)
-             AND NOT EXISTS (
-               SELECT 1 FROM storage.objects so
-               WHERE so.bucket_id = q.bucket_id AND so.name = q.storage_path
-             )
-           )
-         )
-      THEN
-        UPDATE public.storage_cleanup_queue
-        SET status       = 'completed',
-            processed_at = now(),
-            last_error   = NULL
-        WHERE id = q.id;
+      SELECT net.http_delete(
+        url := v_target_url,
+        headers := jsonb_build_object(
+          'Authorization', 'Bearer ' || v_anon_or_srv,
+          'apikey', v_anon_or_srv
+        )
+      ) INTO v_req_id;
 
+      UPDATE public.storage_cleanup_queue
+      SET status            = 'completed',
+          processed_at      = now(),
+          dispatched_at     = now(),
+          pg_net_request_id = v_req_id,
+          attempts          = v_rec.attempts + 1
+      WHERE id = v_rec.id;
+
+      IF v_rec.attachment_id IS NOT NULL THEN
         UPDATE public.hr_emploc_correction_attachments
         SET is_deleted     = true,
-            deleted_at     = COALESCE(deleted_at, now()),
-            deleted_reason = COALESCE(deleted_reason, q.reason)
-        WHERE id = q.attachment_id
-           OR storage_path = q.storage_path
-           OR storage_path = (q.bucket_id || '/' || q.storage_path);
-
-        v_completed := v_completed + 1;
-      ELSE
-        v_new_att := q.attempts + 1;
-        v_err_msg := format(
-          'HTTP status=%s timed_out=%s error=%s body=%s',
-          COALESCE(v_resp.status_code::text, 'null'),
-          COALESCE(v_resp.timed_out::text, 'false'),
-          COALESCE(v_resp.error_msg, 'none'),
-          left(COALESCE(v_resp.content, ''), 200)
-        );
-
-        IF v_new_att >= 5 THEN
-          UPDATE public.storage_cleanup_queue
-          SET status     = 'failed',
-              attempts   = v_new_att,
-              last_error = v_err_msg
-          WHERE id = q.id;
-
-          INSERT INTO public.notifications (
-            recipient_role, title, message, reference_type, reference_id,
-            notification_type, event_type
-          ) VALUES (
-            'Super Admin',
-            'Storage Cleanup Failed (Max Retries)',
-            format('Storage cleanup failed after %s attempts for path %s/%s: %s', v_new_att, q.bucket_id, q.storage_path, v_err_msg),
-            'storage_cleanup_queue',
-            q.id::text,
-            'system_alert',
-            'storage_cleanup_failed'
-          );
-          v_failed := v_failed + 1;
-        ELSE
-          UPDATE public.storage_cleanup_queue
-          SET status            = 'pending',
-              attempts          = v_new_att,
-              pg_net_request_id = NULL,
-              due_at            = now() + (interval '5 minutes' * power(2, v_new_att - 1)),
-              last_error        = v_err_msg
-          WHERE id = q.id;
-          v_retried := v_retried + 1;
-        END IF;
+            deleted_at     = now(),
+            deleted_reason = 'purged_by_cleanup_queue'
+        WHERE id = v_rec.attachment_id;
       END IF;
-    ELSIF q.dispatched_at < now() - interval '2 minutes' THEN
-      -- Timed out waiting for pg_net worker response
-      v_new_att := q.attempts + 1;
-      v_err_msg := 'pg_net response timeout (>2m without net._http_response row)';
-      IF v_new_att >= 5 THEN
-        UPDATE public.storage_cleanup_queue
-        SET status     = 'failed',
-            attempts   = v_new_att,
-            last_error = v_err_msg
-        WHERE id = q.id;
 
-        INSERT INTO public.notifications (
-          recipient_role, title, message, reference_type, reference_id,
-          notification_type, event_type
-        ) VALUES (
-          'Super Admin',
-          'Storage Cleanup Failed (Max Retries)',
-          format('Storage cleanup timed out after %s attempts for path %s/%s', v_new_att, q.bucket_id, q.storage_path),
-          'storage_cleanup_queue',
-          q.id::text,
-          'system_alert',
-          'storage_cleanup_failed'
-        );
-        v_failed := v_failed + 1;
-      ELSE
-        UPDATE public.storage_cleanup_queue
-        SET status            = 'pending',
-            attempts          = v_new_att,
-            pg_net_request_id = NULL,
-            due_at            = now() + (interval '5 minutes' * power(2, v_new_att - 1)),
-            last_error        = v_err_msg
-        WHERE id = q.id;
-        v_retried := v_retried + 1;
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- PHASE 2: Dispatch due 'pending' queue items via Storage HTTP API (net.http_delete)
-  FOR q IN
-    SELECT *
-    FROM public.storage_cleanup_queue
-    WHERE status = 'pending'
-      AND due_at <= now()
-      AND attempts < 5
-    ORDER BY due_at ASC
-    LIMIT GREATEST(COALESCE(p_batch_size, 50), 1)
-    FOR UPDATE SKIP LOCKED
-  LOOP
-    -- If object is already absent from storage.objects, complete immediately
-    IF NOT EXISTS (
-      SELECT 1 FROM storage.objects so
-      WHERE so.bucket_id = q.bucket_id AND so.name = q.storage_path
-    ) THEN
+      v_processed := v_processed + 1;
+    EXCEPTION WHEN OTHERS THEN
       UPDATE public.storage_cleanup_queue
-      SET status       = 'completed',
-          processed_at = now(),
-          last_error   = NULL
-      WHERE id = q.id;
-
-      UPDATE public.hr_emploc_correction_attachments
-      SET is_deleted     = true,
-          deleted_at     = COALESCE(deleted_at, now()),
-          deleted_reason = COALESCE(deleted_reason, q.reason)
-      WHERE id = q.attachment_id
-         OR storage_path = q.storage_path
-         OR storage_path = (q.bucket_id || '/' || q.storage_path);
-
-      v_completed := v_completed + 1;
-    ELSIF v_project_url IS NULL OR v_service_key IS NULL THEN
-      v_new_att := q.attempts + 1;
-      v_err_msg := 'Missing Vault secrets: supabase_project_url and/or supabase_service_role_key';
-      IF v_new_att >= 5 THEN
-        UPDATE public.storage_cleanup_queue
-        SET status     = 'failed',
-            attempts   = v_new_att,
-            last_error = v_err_msg
-        WHERE id = q.id;
-
-        INSERT INTO public.notifications (
-          recipient_role, title, message, reference_type, reference_id,
-          notification_type, event_type
-        ) VALUES (
-          'Super Admin',
-          'Storage Cleanup Failed (Max Retries)',
-          format('Storage cleanup failed after %s attempts for %s/%s: %s', v_new_att, q.bucket_id, q.storage_path, v_err_msg),
-          'storage_cleanup_queue',
-          q.id::text,
-          'system_alert',
-          'storage_cleanup_failed'
-        );
-        v_failed := v_failed + 1;
-      ELSE
-        UPDATE public.storage_cleanup_queue
-        SET attempts   = v_new_att,
-            due_at     = now() + (interval '5 minutes' * power(2, v_new_att - 1)),
-            last_error = v_err_msg
-        WHERE id = q.id;
-        v_retried := v_retried + 1;
-      END IF;
-    ELSE
-      BEGIN
-        SELECT net.http_delete(
-          url     := rtrim(v_project_url, '/') || '/storage/v1/object/' || q.bucket_id || '/' || q.storage_path,
-          headers := jsonb_build_object(
-            'Authorization', 'Bearer ' || v_service_key,
-            'apikey', v_service_key
-          )
-        ) INTO v_req_id;
-
-        UPDATE public.storage_cleanup_queue
-        SET status            = 'dispatched',
-            pg_net_request_id = v_req_id,
-            dispatched_at     = now()
-        WHERE id = q.id;
-
-        v_dispatched := v_dispatched + 1;
-      EXCEPTION WHEN OTHERS THEN
-        v_new_att := q.attempts + 1;
-        v_err_msg := SQLERRM;
-        IF v_new_att >= 5 THEN
-          UPDATE public.storage_cleanup_queue
-          SET status     = 'failed',
-              attempts   = v_new_att,
-              last_error = v_err_msg
-          WHERE id = q.id;
-
-          INSERT INTO public.notifications (
-            recipient_role, title, message, reference_type, reference_id,
-            notification_type, event_type
-          ) VALUES (
-            'Super Admin',
-            'Storage Cleanup Failed (Max Retries)',
-            format('Storage cleanup exception after %s attempts for %s/%s: %s', v_new_att, q.bucket_id, q.storage_path, v_err_msg),
-            'storage_cleanup_queue',
-            q.id::text,
-            'system_alert',
-            'storage_cleanup_failed'
-          );
-          v_failed := v_failed + 1;
-        ELSE
-          UPDATE public.storage_cleanup_queue
-          SET attempts   = v_new_att,
-              due_at     = now() + (interval '5 minutes' * power(2, v_new_att - 1)),
-              last_error = v_err_msg
-          WHERE id = q.id;
-          v_retried := v_retried + 1;
-        END IF;
-      END;
-    END IF;
+      SET attempts   = v_rec.attempts + 1,
+          status     = CASE WHEN (v_rec.attempts + 1) >= 5 THEN 'failed' ELSE 'pending' END,
+          last_error = SQLERRM
+      WHERE id = v_rec.id;
+      v_failed := v_failed + 1;
+    END;
   END LOOP;
 
   RETURN jsonb_build_object(
-    'completed', v_completed,
-    'dispatched', v_dispatched,
-    'retried', v_retried,
+    'status', 'ok',
+    'processed', v_processed,
     'failed', v_failed
   );
 END;
 $function$;
 
--- Schedule pg_cron job for process_storage_cleanup_queue (every 15 minutes)
 DO $$
 BEGIN
   IF to_regclass('cron.job') IS NOT NULL THEN
@@ -1204,13 +1050,14 @@ BEGIN
     PERFORM cron.schedule(
       'process_storage_cleanup_queue',
       '*/15 * * * *',
-      'SELECT public.process_storage_cleanup_queue();'
+      'SELECT public.process_storage_cleanup_queue(50);'
     );
   END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
 END $$;
 
-
--- 11. Updated HR Emploc Core, Workflow, and Read RPCs
+-- 10. Modified workflow RPCs & helpers
 CREATE OR REPLACE FUNCTION public._assign_and_deploy_emploc_core(p_hr_emploc_id uuid, p_employee_no text, p_confirm_reuse boolean DEFAULT false, p_reuse_reason text DEFAULT NULL::text, p_actor_profile_id uuid DEFAULT NULL::uuid, p_source_fn text DEFAULT 'assign_and_deploy_core'::text)
  RETURNS plantilla
  LANGUAGE plpgsql
@@ -1244,7 +1091,7 @@ BEGIN
   -- 1. Format validation (rejects empty, spaces, (PENDING), invalid chars)
   IF v_clean_id = '' OR upper(v_clean_id) = '(PENDING)' OR v_clean_id !~ '^[A-Za-z0-9._-]+$' THEN
     RAISE EXCEPTION 'EMPLOYEE_NO_FORMAT_INVALID: Employee number "%" is invalid. Allowed: alphanumeric, dots, underscores, dashes.', v_clean_id
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'EMPLOYEE_NO_FORMAT_INVALID')::text;
   END IF;
 
   -- 2. Pending deletion lock
@@ -1253,14 +1100,14 @@ BEGIN
     WHERE hr_emploc_id = p_hr_emploc_id AND status = 'Pending'
   ) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   -- 3. Lock hr_emploc record
   SELECT * INTO v_emp FROM public.hr_emploc WHERE id = p_hr_emploc_id FOR UPDATE;
   IF NOT FOUND OR v_emp.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'hr_emploc record % not found or archived', p_hr_emploc_id
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record % not found or archived', p_hr_emploc_id
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   -- 3b. Stage gate for Add Emploc (assign_hr_emploc_number):
@@ -1269,11 +1116,11 @@ BEGIN
     IF v_emp.hr_status = 'Pending' THEN
       IF NOT public.is_super_admin() THEN
         RAISE EXCEPTION 'INVALID_STATE_FOR_ASSIGN: Record must be in "For Emploc" status before assigning an Employee ID (current hr_status: "Pending"). Ops must upload and submit requirements first.'
-          USING ERRCODE = '22023';
+          USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE_FOR_ASSIGN')::text;
       END IF;
     ELSIF v_emp.hr_status NOT IN ('For Emploc', 'Complete') AND v_emp.status <> 'Moved to Plantilla' THEN
       RAISE EXCEPTION 'INVALID_STATE_FOR_ASSIGN: Cannot assign Employee ID from hr_status "%". Expected "For Emploc".', v_emp.hr_status
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE_FOR_ASSIGN')::text;
     END IF;
   END IF;
 
@@ -1297,33 +1144,33 @@ BEGIN
   -- 4. REQUIRED PLANTILLA FIELDS VALIDATION (NO SILENT DEFAULTS)
   IF v_emp.hired_date IS NULL THEN
     RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: hired_date is required before deployment to Plantilla'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'hired_date')::text;
   END IF;
 
   IF (v_app.first_name IS NULL OR btrim(v_app.first_name) = '') OR
      (v_app.last_name IS NULL OR btrim(v_app.last_name) = '') THEN
     RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: applicant first_name and last_name are required'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'applicant_name')::text;
   END IF;
 
   IF v_emp.account_id IS NULL AND (v_emp.account IS NULL OR btrim(v_emp.account) = '') THEN
     RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: account is required'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'account')::text;
   END IF;
 
   IF v_emp.position IS NULL OR btrim(v_emp.position) = '' THEN
     RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: position is required'
-      USING ERRCODE = '22023';
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'position')::text;
   END IF;
 
   IF COALESCE(v_emp.assignment_type, 'Stationary') <> 'Roving' AND v_emp.coverage_slot_id IS NULL THEN
     IF v_emp.store_id IS NULL AND (v_emp.store_name IS NULL OR btrim(v_emp.store_name) = '') THEN
       RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: store is required for stationary deployment'
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'store')::text;
     END IF;
     IF v_emp.store_id IS NULL THEN
       RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: store_id is required for stationary deployment'
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'store_id')::text;
     END IF;
   END IF;
 
@@ -1510,7 +1357,11 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'EMPLOYEE_ALREADY_ACTIVE: % already has an active hr_emploc record',
       v_formatted_name
-      USING ERRCODE = '23505';
+      USING ERRCODE = '23505',
+            DETAIL = jsonb_build_object(
+              'code', 'EMPLOYEE_ALREADY_ACTIVE',
+              'person', v_formatted_name
+            )::text;
   END IF;
 
   -- 6. SLOT SELECTION AND RESERVATION (Stationary non-pool non-roving)
@@ -1544,7 +1395,8 @@ BEGIN
 
     IF v_slot_id IS NULL THEN
       RAISE EXCEPTION 'SLOT_UNAVAILABLE: No available headcount slot for VCode %', v_emp.vcode
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023',
+              DETAIL = jsonb_build_object('code', 'SLOT_UNAVAILABLE', 'vcode', v_emp.vcode)::text;
     END IF;
 
     -- Reserve slot first
@@ -1558,7 +1410,8 @@ BEGIN
     IF (v_slot_auth->>'status') NOT IN ('ok', 'no_op') THEN
       RAISE EXCEPTION 'SLOT_UNAVAILABLE: Slot % reservation blocked: %',
         v_slot_id, COALESCE(v_slot_auth->>'blocked_reason', 'unknown')
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023',
+              DETAIL = jsonb_build_object('code', 'SLOT_UNAVAILABLE', 'slot_id', v_slot_id, 'blocked_reason', v_slot_auth->>'blocked_reason')::text;
     END IF;
   END IF;
 
@@ -1706,7 +1559,8 @@ BEGIN
     IF (v_slot_auth->>'status') NOT IN ('ok', 'no_op') THEN
       RAISE EXCEPTION 'SLOT_UNAVAILABLE: Slot % occupancy blocked: %',
         v_slot_id, COALESCE(v_slot_auth->>'blocked_reason', 'unknown')
-        USING ERRCODE = '22023';
+        USING ERRCODE = '22023',
+              DETAIL = jsonb_build_object('code', 'SLOT_UNAVAILABLE', 'slot_id', v_slot_id, 'blocked_reason', v_slot_auth->>'blocked_reason')::text;
     END IF;
   END IF;
 
@@ -1834,20 +1688,20 @@ DECLARE
 BEGIN
   IF v_auth_uid IS NULL THEN
     RAISE EXCEPTION 'unauthenticated: deficiency tagging requires a valid session'
-      USING ERRCODE = '42501';
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
   END IF;
 
   -- Gate: HR Personnel (+SA) ONLY. Head Admin and Encoder NOT allowed.
   IF NOT public.can_tag_or_review_hr_emploc() THEN
-    RAISE EXCEPTION 'forbidden: HR Personnel or Super Admin role required for deficiency tagging'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: HR Personnel or Super Admin role required for deficiency tagging'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF p_deficiencies IS NULL
      OR jsonb_typeof(p_deficiencies) <> 'array'
      OR jsonb_array_length(p_deficiencies) = 0 THEN
-    RAISE EXCEPTION 'p_deficiencies must be a non-empty JSONB array of {code, comment} objects'
-      USING ERRCODE = '22023';
+    RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: p_deficiencies must be a non-empty JSONB array of {code, comment} objects'
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'deficiencies')::text;
   END IF;
 
   FOR v_issue IN SELECT * FROM jsonb_array_elements(p_deficiencies) LOOP
@@ -1855,8 +1709,8 @@ BEGIN
     v_comment := BTRIM(COALESCE(v_issue->>'comment', ''));
 
     IF v_code IS NULL THEN
-      RAISE EXCEPTION 'each deficiency must contain a non-empty code'
-        USING ERRCODE = '22023';
+      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: each deficiency must contain a non-empty code'
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'deficiency_code')::text;
     END IF;
 
     SELECT it.requires_comment INTO v_needs_comment
@@ -1864,13 +1718,13 @@ BEGIN
     WHERE  it.code = v_code AND it.is_active = TRUE;
 
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'unknown or inactive deficiency code: %', v_code
-        USING ERRCODE = '22023';
+      RAISE EXCEPTION 'INVALID_DEFICIENCY_CODE: unknown or inactive deficiency code: %', v_code
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_DEFICIENCY_CODE')::text;
     END IF;
 
     IF v_needs_comment AND (v_comment IS NULL OR v_comment = '') THEN
-      RAISE EXCEPTION 'deficiency code % requires a non-empty comment', v_code
-        USING ERRCODE = '22023';
+      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: deficiency code % requires a non-empty comment', v_code
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'comment', 'deficiency_code', v_code)::text;
     END IF;
   END LOOP;
 
@@ -1880,26 +1734,26 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND OR v_old.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'forbidden: hr_emploc record not found or archived'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record not found or archived'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.hr_emploc_deletion_requests dr
     WHERE dr.hr_emploc_id = p_hr_emploc_id AND dr.status = 'Pending'
   ) THEN
-    RAISE EXCEPTION 'action locked: a pending deletion request exists for this record'
-      USING ERRCODE = 'P0001';
+    RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF v_old.status = 'Moved to Plantilla' OR v_old.hr_status = 'Transferred' THEN
-    RAISE EXCEPTION 'invalid state: cannot tag deficiency on record already deployed to Plantilla'
-      USING ERRCODE = '22023';
+    RAISE EXCEPTION 'INVALID_STATE_FOR_DEFICIENCY: cannot tag deficiency on record already deployed to Plantilla'
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE_FOR_DEFICIENCY')::text;
   END IF;
 
   IF v_old.hr_status <> 'For Emploc' THEN
-    RAISE EXCEPTION 'invalid state: deficiency tagging requires hr_status = "For Emploc" (current: "%")', v_old.hr_status
-      USING ERRCODE = '22023';
+    RAISE EXCEPTION 'INVALID_STATE_FOR_DEFICIENCY: deficiency tagging requires hr_status = "For Emploc" (current: "%")', v_old.hr_status
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE_FOR_DEFICIENCY')::text;
   END IF;
 
   UPDATE public.hr_emploc
@@ -1952,30 +1806,30 @@ DECLARE
 BEGIN
   -- Gate: Ops only: OM, TL, ATL, HRCO (+SA). HA, Encoder, HR Personnel NOT allowed.
   IF NOT public.can_submit_hr_emploc_correction() THEN
-    RAISE EXCEPTION 'forbidden: Ops role required' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: Ops role required' USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF coalesce(btrim(p_ops_remark), '') = '' THEN
-    RAISE EXCEPTION 'ops remark is required' USING ERRCODE = '22023';
+    RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: ops remark is required' USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'ops_remark')::text;
   END IF;
 
   SELECT * INTO v_old FROM public.hr_emploc WHERE id = p_id FOR UPDATE;
   IF NOT FOUND OR v_old.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'hr_emploc % not found or archived', p_id USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc % not found or archived', p_id USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF NOT public.is_super_admin() AND NOT public.is_hr_emploc_in_my_scope(p_id) THEN
-    RAISE EXCEPTION 'forbidden: record is outside your assigned account/group scope'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: record is outside your assigned account/group scope'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF v_old.hr_status <> 'For Correction' THEN
-    RAISE EXCEPTION 'cannot submit correction: hr_status is %', v_old.hr_status USING ERRCODE = '22023';
+    RAISE EXCEPTION 'INVALID_STATE: cannot submit correction: hr_status is %', v_old.hr_status USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE')::text;
   END IF;
 
   UPDATE public.hr_emploc
@@ -2019,13 +1873,13 @@ BEGIN
   END IF;
 
   IF public.has_pending_deletion_request(p_correction_request_id) THEN
-    RAISE EXCEPTION 'action locked: a pending deletion request exists for this record'
-      USING ERRCODE = 'P0001';
+    RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF NOT public.is_super_admin() AND NOT public.is_hr_emploc_in_my_scope(p_correction_request_id) THEN
-    RAISE EXCEPTION 'forbidden: record is outside your assigned account/group scope'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: record is outside your assigned account/group scope'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   UPDATE public.hr_emploc
@@ -2081,13 +1935,13 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'HR Emploc correction request not found'
-      USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: HR Emploc correction request not found'
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_correction_request_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   IF coalesce(v_row.hr_status, '') <> 'For Review' THEN
@@ -2151,13 +2005,13 @@ CREATE OR REPLACE FUNCTION public.reopen_correction_request(p_correction_request
 AS $function$
 BEGIN
   IF NOT public.can_tag_or_review_hr_emploc() THEN
-    RAISE EXCEPTION 'forbidden: HR Personnel or Super Admin required'
-      USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: HR Personnel or Super Admin required'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   IF public.has_pending_deletion_request(p_correction_request_id) THEN
     RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
   END IF;
 
   UPDATE public.hr_emploc
@@ -2192,17 +2046,20 @@ DECLARE
   v_restored_status  text := 'Pending';
 BEGIN
   IF v_reason = '' THEN
-    RAISE EXCEPTION 'Reason for revert is required' USING ERRCODE = '22023';
+    RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: Reason for revert is required'
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'reason')::text;
   END IF;
 
   -- Gate: Data Team (Encoder, Head Admin) or Super Admin ONLY (Decision 7)
   IF NOT public.can_edit_deployed_hr_emploc() THEN
-    RAISE EXCEPTION 'forbidden: Data Team (Encoder, Head Admin) or Super Admin required' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: Data Team (Encoder, Head Admin) or Super Admin required'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
   END IF;
 
   SELECT * INTO v_emp FROM public.hr_emploc WHERE id = p_hr_emploc_id FOR UPDATE;
   IF NOT FOUND OR v_emp.deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Record not found or archived' USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: Record not found or archived'
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
   END IF;
 
   v_vcode := v_emp.vcode;
@@ -2318,6 +2175,178 @@ $function$
 
 ;
 
+CREATE OR REPLACE FUNCTION public.review_web_hr_emploc_correction(p_hr_emploc_id uuid, p_decision text, p_resolved_keys jsonb DEFAULT NULL::jsonb, p_remarks text DEFAULT NULL::text, p_employee_no text DEFAULT NULL::text, p_confirm_reuse boolean DEFAULT false, p_reuse_reason text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_auth_uid          uuid := auth.uid();
+  v_profile_id        uuid := public.get_my_profile_id();
+  v_actor_name        text := public.get_my_full_name();
+  v_old               public.hr_emploc;
+  v_new               public.hr_emploc;
+  v_decision          text;
+  v_clean_remarks     text;
+  v_clean_employee_no text;
+  v_pl                public.plantilla;
+BEGIN
+  IF v_auth_uid IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated: correction review requires a valid session'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'UNAUTHENTICATED')::text;
+  END IF;
+
+  -- Gate: HR Personnel (+SA) ONLY. Head Admin and Encoder NOT allowed.
+  IF NOT public.can_tag_or_review_hr_emploc() THEN
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: HR Personnel or Super Admin role required for correction review'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
+  END IF;
+
+  v_decision := lower(btrim(coalesce(p_decision, '')));
+  IF v_decision NOT IN ('approve', 'return') THEN
+    RAISE EXCEPTION 'INVALID_DECISION: invalid decision: must be "approve" or "return"'
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_DECISION')::text;
+  END IF;
+
+  SELECT * INTO v_old FROM public.hr_emploc WHERE id = p_hr_emploc_id FOR UPDATE;
+  IF NOT FOUND OR v_old.deleted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'RECORD_NOT_FOUND: hr_emploc record not found or archived'
+      USING ERRCODE = 'P0002', DETAIL = jsonb_build_object('code', 'RECORD_NOT_FOUND')::text;
+  END IF;
+
+  -- Pending deletion lock
+  IF EXISTS (
+    SELECT 1 FROM public.hr_emploc_deletion_requests dr
+    WHERE dr.hr_emploc_id = p_hr_emploc_id AND dr.status = 'Pending'
+  ) THEN
+    RAISE EXCEPTION 'ACTION_LOCKED_PENDING_DELETION: An active deletion request exists for this record.'
+      USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('code', 'ACTION_LOCKED_PENDING_DELETION')::text;
+  END IF;
+
+  IF v_old.hr_status <> 'For Review' THEN
+    RAISE EXCEPTION 'INVALID_STATE: record hr_status is "%", expected "For Review"', v_old.hr_status
+      USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'INVALID_STATE')::text;
+  END IF;
+
+  v_clean_remarks := NULLIF(btrim(coalesce(p_remarks, '')), '');
+
+  IF v_decision = 'approve' THEN
+    v_clean_employee_no := NULLIF(btrim(coalesce(p_employee_no, '')), '');
+    IF v_clean_employee_no IS NULL THEN
+      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: Employee ID is required to approve correction and deploy to Plantilla'
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'employee_no')::text;
+    END IF;
+
+    -- Clear deficiencies and update review metadata
+    UPDATE public.hr_emploc
+       SET correction_reason      = NULL,
+           hr_remarks             = v_clean_remarks,
+           hr_reviewed_at         = now(),
+           hr_reviewed_by         = v_actor_name,
+           hr_reviewed_by_user_id = v_profile_id,
+           updated_at             = now(),
+           updated_by             = v_profile_id
+     WHERE id = p_hr_emploc_id;
+
+    -- Delegate to core: validates format, registry, required Plantilla fields, slot, and deploys atomically
+    v_pl := public._assign_and_deploy_emploc_core(
+      p_hr_emploc_id     => p_hr_emploc_id,
+      p_employee_no      => v_clean_employee_no,
+      p_confirm_reuse    => p_confirm_reuse,
+      p_reuse_reason     => p_reuse_reason,
+      p_actor_profile_id => v_profile_id,
+      p_source_fn        => 'review_web_hr_emploc_correction_approve'
+    );
+
+    SELECT * INTO v_new FROM public.hr_emploc WHERE id = p_hr_emploc_id;
+
+    RETURN jsonb_build_object(
+      'status', 'ok',
+      'decision', 'approve',
+      'hr_emploc_id', p_hr_emploc_id,
+      'hr_status', v_new.hr_status,
+      'deployment_status', v_new.status,
+      'employee_no', v_new.employee_no,
+      'plantilla_id', v_pl.id
+    );
+
+  ELSE -- decision = 'return'
+    IF v_clean_remarks IS NULL THEN
+      RAISE EXCEPTION 'FIELD_REQUIRED_MISSING: remarks are required when returning a correction'
+        USING ERRCODE = '22023', DETAIL = jsonb_build_object('code', 'FIELD_REQUIRED_MISSING', 'field', 'remarks')::text;
+    END IF;
+
+    UPDATE public.hr_emploc
+       SET hr_status              = 'For Correction',
+           hr_remarks             = v_clean_remarks,
+           hr_reviewed_at         = now(),
+           hr_reviewed_by         = v_actor_name,
+           hr_reviewed_by_user_id = v_profile_id,
+           updated_at             = now(),
+           updated_by             = v_profile_id
+     WHERE id = p_hr_emploc_id
+     RETURNING * INTO v_new;
+
+    PERFORM public.log_audit_event(
+      'hr_emploc',
+      'UPDATE',
+      p_hr_emploc_id,
+      to_jsonb(v_old),
+      jsonb_build_object(
+        'action', 'return_to_correction',
+        'actor_name', v_actor_name,
+        'actor_id', v_profile_id,
+        'remarks', v_clean_remarks,
+        'log_message', format('Returned correction to Ops with remarks: %s', v_clean_remarks)
+      )
+    );
+
+    RETURN jsonb_build_object(
+      'status', 'ok',
+      'decision', 'return',
+      'hr_emploc_id', p_hr_emploc_id,
+      'hr_status', v_new.hr_status,
+      'deployment_status', v_new.status
+    );
+  END IF;
+END;
+$function$
+
+;
+
+CREATE OR REPLACE FUNCTION public.assign_hr_emploc_number(p_id uuid, p_employee_no text, p_confirm_reuse boolean DEFAULT false, p_reuse_reason text DEFAULT NULL::text)
+ RETURNS hr_emploc
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_res public.hr_emploc;
+BEGIN
+  -- Gate: HR Personnel, Head Admin, Encoder, Super Admin
+  IF NOT public.can_assign_pending_hr_emploc() THEN
+    RAISE EXCEPTION 'FORBIDDEN_ROLE_OR_SCOPE: HR Personnel, Head Admin, Encoder, or Super Admin role required'
+      USING ERRCODE = '42501', DETAIL = jsonb_build_object('code', 'FORBIDDEN_ROLE_OR_SCOPE')::text;
+  END IF;
+
+  PERFORM public._assign_and_deploy_emploc_core(
+    p_hr_emploc_id     => p_id,
+    p_employee_no      => p_employee_no,
+    p_confirm_reuse    => p_confirm_reuse,
+    p_reuse_reason     => p_reuse_reason,
+    p_actor_profile_id => public.get_my_profile_id(),
+    p_source_fn        => 'assign_hr_emploc_number'
+  );
+
+  SELECT * INTO v_res FROM public.hr_emploc WHERE id = p_id;
+  RETURN v_res;
+END;
+$function$
+
+;
+
+-- 11. View & Summary RPCs
 CREATE OR REPLACE FUNCTION public.list_web_hr_emplocs(p_queue text DEFAULT NULL::text, p_status text DEFAULT NULL::text, p_deficiency text DEFAULT NULL::text, p_sla_filter text DEFAULT NULL::text, p_account_id uuid DEFAULT NULL::uuid, p_group_id uuid DEFAULT NULL::uuid, p_search text DEFAULT NULL::text, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0, p_sort_by text DEFAULT 'date_requested'::text, p_sort_dir text DEFAULT 'desc'::text)
  RETURNS TABLE(hr_emploc_id uuid, applicant_name text, vcode text, account_id uuid, account_name text, group_id uuid, group_name text, store_id uuid, store_name text, position_title text, hr_status text, status text, emploc_no text, employee_no text, date_requested timestamp with time zone, created_at timestamp with time zone, hired_date date, assignment_type text, roving_assignment_id uuid, aging_days integer, sla_breached boolean, sla_status text, sla_deadline timestamp with time zone, deficiency_summary jsonb, is_pending_deletion boolean, row_capabilities jsonb, total_count bigint)
  LANGUAGE plpgsql
@@ -2470,6 +2499,7 @@ BEGIN
                 'size_bytes', ca.size_bytes,
                 'stage', ca.stage,
                 'storage_path', ca.storage_path,
+                'object_path', regexp_replace(ca.storage_path, '^hr-corrections/', ''),
                 'uploaded_by', ca.uploaded_by,
                 'uploaded_at', ca.uploaded_at,
                 'created_at', ca.created_at,
@@ -2873,6 +2903,7 @@ BEGIN
             'uploaded_at', ca.uploaded_at,
             'created_at', ca.created_at,
             'storage_path', ca.storage_path,
+            'object_path', regexp_replace(ca.storage_path, '^hr-corrections/', ''),
             'can_remove', (
               public.can_upload_hr_emploc_docs(h.id)
               AND (public.is_super_admin() OR ca.uploaded_by = v_profile_id)
@@ -4291,44 +4322,21 @@ CREATE OR REPLACE VIEW public.headcount_summary AS
   ORDER BY g.group_name, a.account_name;
 ;
 
--- 13. Security & Function Privileges (2i: REVOKE ALL FROM anon, PUBLIC; GRANT EXECUTE TO authenticated, service_role)
-DO $$
-DECLARE
-  v_sig text;
-BEGIN
-  FOREACH v_sig IN ARRAY ARRAY[
-    'public.cleanup_expired_correction_attachments()',
-    'public.has_pending_deletion_request(uuid)',
-    'public.is_hr_emploc_in_my_scope(uuid)',
-    'public.can_add_emploc()',
-    'public.can_upload_hr_emploc_docs(uuid)',
-    'public.can_view_hr_emploc_docs(uuid)',
-    'public.authorize_hr_emploc_doc_upload(uuid, text, text, bigint)',
-    'public.register_hr_emploc_document(uuid, text, text, text, bigint, text)',
-    'public.remove_hr_emploc_document(uuid)',
-    'public.submit_hr_emploc_requirements(uuid, text)',
-    'public.enqueue_hr_emploc_docs_cleanup(uuid, text, interval)',
-    'public.tg_enqueue_emploc_docs_cleanup_fn()',
-    'public.sweep_orphan_emploc_storage_objects()',
-    'public.process_storage_cleanup_queue(integer)',
-    'public._assign_and_deploy_emploc_core(uuid, text, boolean, text, uuid, text)',
-    'public.tag_web_hr_emploc_deficiency(uuid, jsonb, text)',
-    'public.submit_correction(uuid, text)',
-    'public.submit_hrco_correction_update(uuid, text)',
-    'public.reject_correction_request(uuid, text)',
-    'public.reopen_correction_request(uuid, text)',
-    'public.revert_hr_emploc_to_pending(uuid, text)',
-    'public.list_web_hr_emplocs(text, text, text, text, uuid, uuid, text, integer, integer, text, text)',
-    'public.get_web_hr_emploc_detail(uuid)',
-    'public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text)',
-    'public.fn_dashboard_metrics(uuid, uuid)',
-    'public.fn_dashboard_operational_analytics(uuid, uuid)',
-    'public.get_web_plantilla_summary(text, uuid, uuid)',
-    'public.list_web_plantilla_store_staffing(text, uuid, uuid, text, integer, integer, text, text)'
-  ] LOOP
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', v_sig);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', v_sig);
-  END LOOP;
-END $$;
+-- 13. Grants & Schema Reload
+GRANT EXECUTE ON FUNCTION public.has_pending_deletion_request(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_hr_emploc_in_my_scope(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_add_emploc() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_upload_hr_emploc_docs(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_view_hr_emploc_docs(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.authorize_hr_emploc_doc_upload(uuid, text, text, bigint) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.register_hr_emploc_document(uuid, text, text, text, bigint, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.remove_hr_emploc_document(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.submit_hr_emploc_requirements(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.enqueue_hr_emploc_docs_cleanup(uuid, text, interval) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.tg_enqueue_emploc_docs_cleanup_fn() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sweep_orphan_emploc_storage_objects() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.process_storage_cleanup_queue(integer) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.review_web_hr_emploc_correction(uuid, text, jsonb, text, text, boolean, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.assign_hr_emploc_number(uuid, text, boolean, text) TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';

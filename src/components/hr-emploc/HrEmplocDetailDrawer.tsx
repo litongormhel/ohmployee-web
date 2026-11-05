@@ -22,11 +22,11 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { InheritedHrcoBadge } from "@/components/hr-emploc/useInheritedHrco";
+import { DocumentPreviewModal } from "@/components/hr-emploc/DocumentPreviewModal";
 import {
   getWebHrEmplocDetail,
   useWithdrawEmplocDeletion,
   useRequestEmplocDeletion,
-  getCorrectionAttachmentSignedUrl,
   HrEmplocDataError,
   type HrEmplocDetailItem,
   type HrEmplocAuditLogItem,
@@ -224,6 +224,10 @@ export function HrEmplocDetailDrawer({
   const [originalRecordUuid, setOriginalRecordUuid] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Document preview modal state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
   const withdrawMutation = useWithdrawEmplocDeletion();
   const requestDeletionMutation = useRequestEmplocDeletion();
 
@@ -268,16 +272,6 @@ export function HrEmplocDetailDrawer({
     userRole === AppRole.HEAD_ADMIN;
   const isOpsRole = userRole === AppRole.OM || userRole === AppRole.HRCO;
   const canManageDeletion = isSuperAdmin || isOpsRole;
-
-  const handleOpenAttachment = async (pathOrUrl: string) => {
-    try {
-      const url = await getCorrectionAttachmentSignedUrl(pathOrUrl);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      console.error("Failed to open attachment:", err);
-      window.open(pathOrUrl, "_blank", "noopener,noreferrer");
-    }
-  };
 
   const handleConfirmDeletionRequest = async () => {
     if (!detail) return;
@@ -349,7 +343,8 @@ export function HrEmplocDetailDrawer({
   };
 
   return (
-    <DetailDrawer
+    <>
+      <DetailDrawer
       isOpen={!!hrEmplocId}
       onClose={onClose}
       widthClass="w-[var(--drawer-width-lg)] max-w-full"
@@ -590,92 +585,101 @@ export function HrEmplocDetailDrawer({
             )}
           </div>
 
-          {/* Section 6: Correction Submissions & Attachments Card (Section 5 removed) */}
-          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Correction Submissions & Attachments
-              </h3>
-              <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
-                {detail.uploadedAttachments.length} Files
-              </Badge>
-            </div>
-
-            {/* Remarks if any */}
-            {(detail.hrRemarks || detail.opsRemarks) && (
-              <div className="space-y-2 border-b border-border-subtle pb-3">
-                {detail.hrRemarks && (
-                  <div>
-                    <div className="text-[10px] font-semibold text-text-muted">
-                      HR Compliance Remarks
-                    </div>
-                    <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2 rounded border border-border-subtle italic">
-                      &quot;{detail.hrRemarks}&quot;
-                    </p>
-                  </div>
-                )}
-                {detail.opsRemarks && (
-                  <div>
-                    <div className="text-[10px] font-semibold text-text-muted">
-                      Ops Coordinator Remarks
-                    </div>
-                    <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2 rounded border border-border-subtle italic">
-                      &quot;{detail.opsRemarks}&quot;
-                    </p>
-                  </div>
-                )}
+          {/* Section 6: Documents & Attachments Card (Hidden once Deployed per Stage 2b rules) */}
+          {!isDeployed && detail.rowCapabilities.can_view_docs && (
+            <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                  Requirements & Attachments
+                </h3>
+                <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
+                  {(detail.attachments || []).length} Files
+                </Badge>
               </div>
-            )}
 
-            {detail.uploadedAttachments.length > 0 ? (
-              <div className="space-y-2">
-                {detail.uploadedAttachments.map((file, fileIdx) => (
-                  <div
-                    key={file.attachmentId || `attachment-${fileIdx}`}
-                    className="flex items-center justify-between rounded-md border border-border-subtle bg-surface-muted p-2.5 hover:bg-surface transition"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="p-1.5 bg-surface rounded border border-border-subtle text-brand-primary">
-                        <FileText className="h-4 w-4" />
+              {/* Remarks if any */}
+              {(detail.hrRemarks || detail.opsRemarks) && (
+                <div className="space-y-2 border-b border-border-subtle pb-3">
+                  {detail.hrRemarks && (
+                    <div>
+                      <div className="text-[10px] font-semibold text-text-muted">
+                        HR Compliance Remarks
                       </div>
-                      <div className="min-w-0">
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-brand-primary hover:underline truncate block text-left cursor-pointer"
-                          onClick={() => handleOpenAttachment(file.fileUrl)}
-                        >
-                          {file.fileName}
-                        </button>
-                        <div className="text-[10px] text-text-muted flex flex-wrap gap-x-2">
-                          <span>By: {file.uploadedBy}</span>
-                          <span>•</span>
-                          <span>{formatDate(file.uploadedAt)}</span>
-                          {file.fileSize && (
-                            <>
-                              <span>•</span>
-                              <span>{formatBytes(file.fileSize)}</span>
-                            </>
-                          )}
+                      <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2 rounded border border-border-subtle italic">
+                        &quot;{detail.hrRemarks}&quot;
+                      </p>
+                    </div>
+                  )}
+                  {detail.opsRemarks && (
+                    <div>
+                      <div className="text-[10px] font-semibold text-text-muted">
+                        Ops Coordinator Remarks
+                      </div>
+                      <p className="mt-1 text-xs text-text-primary leading-relaxed bg-surface-muted p-2 rounded border border-border-subtle italic">
+                        &quot;{detail.opsRemarks}&quot;
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(detail.attachments || []).length > 0 ? (
+                <div className="space-y-2">
+                  {(detail.attachments || []).map((file, fileIdx) => (
+                    <div
+                      key={file.id || `attachment-${fileIdx}`}
+                      className="flex items-center justify-between rounded-md border border-border-subtle bg-surface-muted p-2.5 hover:bg-surface transition"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 bg-surface rounded border border-border-subtle text-accent-primary">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-accent-primary hover:underline truncate block text-left cursor-pointer"
+                            onClick={() => {
+                              setPreviewIndex(fileIdx);
+                              setIsPreviewOpen(true);
+                            }}
+                          >
+                            {file.file_name}
+                          </button>
+                          <div className="text-[10px] text-text-muted flex flex-wrap gap-x-2">
+                            <span>Stage: {file.stage === "correction" ? "Correction" : "Requirement"}</span>
+                            <span>•</span>
+                            <span>{formatDate(file.uploaded_at)}</span>
+                            {file.file_size && (
+                              <>
+                                <span>•</span>
+                                <span>{formatBytes(file.file_size)}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        aria-label={`Preview file ${file.file_name}`}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border-default bg-surface text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
+                        onClick={() => {
+                          setPreviewIndex(fileIdx);
+                          setIsPreviewOpen(true);
+                        }}
+                        title="Preview Document"
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`Download file ${file.fileName}`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-border-default bg-surface text-text-muted hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
-                      onClick={() => handleOpenAttachment(file.fileUrl)}
-                    >
-                      <FileDown className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
-                No correction compliance files uploaded.
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
+                  No requirement or correction documents uploaded yet.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Section 7: Specific Activity History Trail Card */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
@@ -918,6 +922,15 @@ export function HrEmplocDetailDrawer({
         </div>
       )}
     </DetailDrawer>
+    {isPreviewOpen && detail?.attachments && (
+      <DocumentPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        attachments={detail.attachments}
+        initialIndex={previewIndex}
+      />
+    )}
+  </>
   );
 }
 

@@ -3,7 +3,7 @@
 ## Metadata
 - **Proposal ID**: `ohm#q3v8n2kd` (Continuation of `ohm#7k4w9xqn`)
 - **Date**: 2026-11-04
-- **Status**: Stage 2b-DB Implemented on STAGING (`qqiiznmqxfoamqytjica`); PROD (`rwxelulyapjgaarlwkus`) frozen read-only awaiting coordinated DB+web+mobile release
+- **Status**: Stage 2b-DB & Stage 2b-Web Implemented on STAGING (`qqiiznmqxfoamqytjica`); PROD (`rwxelulyapjgaarlwkus`) frozen read-only awaiting coordinated DB+web+mobile release
 - **Canonical Target File**: `.ai/architecture_locks/adr_001_coverage_architecture_v2.md` (currently located in mobile repo `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`; mobile repo is mid-rebase and untouched)
 
 ---

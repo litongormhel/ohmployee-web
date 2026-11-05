@@ -20,6 +20,23 @@ export interface HrEmplocSavedView {
 
 const STORAGE_KEY = "ohm_hr_emploc_saved_views_v1";
 
+function normalizeQueue(q: unknown): HrEmplocQueue {
+  if (q === "ready" || q === "complete") return "deployed";
+  if (q === "deficiency") return "correction";
+  if (
+    q === "pending" ||
+    q === "for_emploc" ||
+    q === "correction" ||
+    q === "review" ||
+    q === "deployed" ||
+    q === "deletion_pending" ||
+    q === "all"
+  ) {
+    return q;
+  }
+  return "deployed";
+}
+
 function loadSavedViewsFromStorage(): HrEmplocSavedView[] {
   if (typeof window === "undefined") return [];
   try {
@@ -27,7 +44,13 @@ function loadSavedViewsFromStorage(): HrEmplocSavedView[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed.map((v) => ({
+          ...v,
+          filters: {
+            ...v.filters,
+            queue: normalizeQueue(v.filters?.queue),
+          },
+        }));
       }
     }
   } catch (e) {

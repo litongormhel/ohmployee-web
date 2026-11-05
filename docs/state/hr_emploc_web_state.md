@@ -83,13 +83,39 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
    - If 'Roving', include a hoverable tooltip badge showing the count of stores listed in `covered_stores` (e.g., `Roving (3)`).
 5. **HR Status Badge**: Maps `hr_status` to a unified semantic color scheme using `StatusBadge`:
    - `Pending` / `For Review` → `info` (blue)
+   - `For Emploc` → `brand` / `info` (blue)
    - `For Correction` → `warning` (amber)
    - `Complete` → `success` (green)
    - `Pending Deletion` → `danger` (rose)
    - `Transferred` / `Rejected` → `neutral` (gray)
 6. **Deficiency Summary**: High-level text listing deficient items extracted from `correction_reason` JSONB.
 7. **SLA Counter**: Calculated days active since `coalesce(date_requested, created_at)`. If exceeding 3 days, it prints a rose alert badge (`text-red-700 bg-red-50 border-red-200`).
-8. **Actions Area**: Desktop actions per queue tab. In the Deployed tab, includes an icon-only `Edit Emploc` button (`<Edit3 className="h-3.5 w-3.5" />`) with tooltip and aria-label. In the Correction queue, uploading a compliance attachment via `UploadAttachmentModal` automatically calls `submit_hrco_correction_update` and advances the record to `For Review`. Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
+8. **Actions Area**: Desktop actions per queue tab, 100% driven by `row_capabilities`. Actions column uses `sticky right-0` to eliminate horizontal clipping on wide viewports:
+   - **Pending Tab**: `Upload Docs` (driven by `can_upload_docs`). `+ Add Emploc` / `! For Correction` are removed here; SA override `+ Add Emploc` resides in row overflow menu via `can_assign_employee_no`.
+   - **For Emploc Tab**: `+ Add Emploc` (driven by `can_assign_employee_no`) and `! For Correction` (driven by `can_tag_deficiency`).
+   - **Correction & Review Tabs**: Position and HRCO columns removed to allocate space for Reasons (rendered in flex-wrap gap-1.5 badges without truncation) and Remarks (rendered with Ops remark precedence). Attachment column provides `View` button with document count.
+   - **Deployed Tab**: Actions menu provides `Edit Emploc #` (driven by `can_edit_emploc_number`) and `Revert to Pending` (driven by `can_revert_to_pending`). Document viewing is hidden once deployed.
+   - Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
+
+### 4.1 Stage 2b-Web Implementation Details (ohm#q3v8n2kd)
+1. **Capability-Driven Architecture**:
+   - Zero hardcoded role name checks in frontend components; every action button and menu item strictly inspects `row.capabilities` (`can_upload_docs`, `can_assign_employee_no`, `can_tag_deficiency`, `can_edit_emploc_number`, `can_revert_to_pending`, `can_view_docs`).
+   - Missing capabilities default to `false`.
+2. **Sequential Multi-File Upload & Compression**:
+   - Implemented `UploadDocsModal.tsx` supporting PDF, JPEG, PNG, WEBP files up to 10MB each.
+   - Client-side Canvas image compression for JPEG/PNG/WEBP downscaling to max 1600px width/height at 0.75 quality without upscaling (PDFs bypass compression untouched).
+   - Sequential pipeline: `authorize_hr_emploc_doc_upload` -> Supabase Storage upload -> `register_hr_emploc_document` with server-derived stage (`initial_requirements` or `correction`).
+   - Idempotent upload tracking: duplicate registration returns existing row without error.
+   - Unverified document deletion: uploader can remove unverified uploads via `can_remove` flag.
+   - Advancing Pending to For Emploc via `submit_hr_emploc_requirements` requiring >= 1 uploaded document.
+3. **Multi-File Document Preview**:
+   - Implemented `DocumentPreviewModal.tsx` featuring multi-file thumbnail switcher, zoom (0.5x to 3.0x), 90-degree rotation, PDF iframe viewer, and short-TTL (5-10m) signed URL generation with direct download.
+4. **Single-RPC Deployment & Interactive Confirmation**:
+   - Replaced multi-step deployment with atomic single-RPC assignment (`assign_hr_emploc_number`).
+   - Interactive confirmation dialog for `REHIRE_CONFIRM_REQUIRED`, `POSSIBLE_DUPLICATE_PERSON`, and `MIDDLE_NAME_CONFIRM_REQUIRED` prompting user for reuse justification and retrying with `confirmReuse: true`.
+5. **Standardized Error Mapper (`hr_emploc_errors.ts`)**:
+   - Unified parser prioritizing Postgres `DETAIL` code first (`json.code`), message token prefix second (`TOKEN:`), and SQLSTATE fallback third.
+   - Unit-tested with 100% pass rate.
 
 ### Onboarding Compliance Requirements
 Only canonical statutory and documentation requirements are tracked for deficiency:

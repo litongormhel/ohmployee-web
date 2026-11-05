@@ -31,19 +31,16 @@ import {
   useBulkMoveToPlantilla,
   fetchHrEmplocsForExport,
   downloadCsv,
-  getCorrectionAttachmentSignedUrl,
-  isBenefitsOnlyCorrection,
   HrEmplocDataError,
   type HrEmplocListItem,
+  type HrEmplocAttachment,
   type BulkMoveResultItem,
 } from "@/lib/queries/hr_emploc";
-import { AssignEmployeeNoModal } from "@/components/hr-emploc/AssignEmployeeNoModal";
-import { DeployToPlantillaModal } from "@/components/hr-emploc/DeployToPlantillaModal";
+import { AddEmplocModal } from "@/components/hr-emploc/AddEmplocModal";
+import { UploadDocsModal } from "@/components/hr-emploc/UploadDocsModal";
+import { DocumentPreviewModal } from "@/components/hr-emploc/DocumentPreviewModal";
 import { EditEmplocModal } from "@/components/hr-emploc/EditEmplocModal";
 import { TagDeficiencyModal } from "@/components/hr-emploc/TagDeficiencyModal";
-import { UploadAttachmentModal } from "@/components/hr-emploc/UploadAttachmentModal";
-import { SubmitCorrectionModal } from "@/components/hr-emploc/SubmitCorrectionModal";
-import { ReviewApproveModal } from "@/components/hr-emploc/ReviewApproveModal";
 import { ReviewRevertModal } from "@/components/hr-emploc/ReviewRevertModal";
 import { HrEmplocSavedViewsModal } from "@/components/hr-emploc/HrEmplocSavedViewsModal";
 import {
@@ -66,6 +63,11 @@ const queueTabs: Array<{
     icon: Clock,
   },
   {
+    value: "for_emploc",
+    label: "For Emploc",
+    icon: FileText,
+  },
+  {
     value: "correction",
     label: "Correction",
     icon: AlertCircle,
@@ -73,7 +75,7 @@ const queueTabs: Array<{
   {
     value: "review",
     label: "Review",
-    icon: FileText,
+    icon: FileSearch,
   },
   {
     value: "deployed",
@@ -99,12 +101,13 @@ export default function HrEmplocPage() {
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
   const [editTarget, setEditTarget] = useState<HrEmplocListItem | null>(null);
-  const [deployTarget, setDeployTarget] = useState<HrEmplocListItem | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
   const [uploadTarget, setUploadTarget] = useState<HrEmplocListItem | null>(null);
-  const [submitCorrectionTarget, setSubmitCorrectionTarget] = useState<HrEmplocListItem | null>(null);
-  const [approveReviewTarget, setApproveReviewTarget] = useState<HrEmplocListItem | null>(null);
   const [revertReviewTarget, setRevertReviewTarget] = useState<HrEmplocListItem | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<{
+    attachments: HrEmplocAttachment[];
+    initialIndex?: number;
+  } | null>(null);
   const [bulkResultModal, setBulkResultModal] = useState<{
     isOpen: boolean;
     moved: number;
@@ -333,25 +336,6 @@ export default function HrEmplocPage() {
     }, 5000);
   }
 
-  async function handleDownloadAttachment(row: HrEmplocListItem) {
-    if (!row.attachmentUrl) return;
-    try {
-      const url = await getCorrectionAttachmentSignedUrl(row.attachmentUrl);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = row.attachmentFileName || "compliance-attachment";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("[hr-emploc attachment download error]", err);
-      const message = err instanceof Error ? err.message : "Failed to download attachment.";
-      setErrorToast({ message: `Attachment error: ${message}` });
-    }
-  }
-
   // Group filter parameters for list query
   const listParams = useMemo(
     () => ({
@@ -404,6 +388,7 @@ export default function HrEmplocPage() {
     const summary = summaryQuery.data;
     const counts: Record<HrEmplocQueue, number> = {
       pending: summary?.pending ?? 0,
+      for_emploc: summary?.forEmploc ?? summary?.for_emploc_count ?? 0,
       correction: summary?.correction ?? 0,
       review: summary?.review ?? 0,
       deployed: summary?.deployed ?? summary?.ready ?? 0,
@@ -425,7 +410,13 @@ export default function HrEmplocPage() {
   const totalMasterlistCount = useMemo(() => {
     const s = summaryQuery.data;
     if (!s) return 0;
-    return (s.pending ?? 0) + (s.correction ?? 0) + (s.review ?? 0) + (s.deployed ?? s.ready ?? 0);
+    return (
+      (s.pending ?? 0) +
+      (s.forEmploc ?? s.for_emploc_count ?? 0) +
+      (s.correction ?? 0) +
+      (s.review ?? 0) +
+      (s.deployed ?? s.ready ?? 0)
+    );
   }, [summaryQuery.data]);
 
   const isAnyFilterActive = Boolean(searchDraft.trim() || search || accountId || groupId);
@@ -778,13 +769,15 @@ export default function HrEmplocPage() {
         onAddEmploc={(row) => setAssignTarget(row)}
         onEditEmploc={(row) => setEditTarget(row)}
         onForCorrection={(row) => setCorrectionTarget(row)}
-        onAssignEmployeeNo={(row) => setAssignTarget(row)}
-        onMoveToPlantilla={(row) => setDeployTarget(row)}
-        onUploadAttachment={(row) => setUploadTarget(row)}
-        onSubmitCorrection={(row) => setSubmitCorrectionTarget(row)}
-        onApproveReview={(row) => setApproveReviewTarget(row)}
+        onUploadDocs={(row) => setUploadTarget(row)}
+        onApproveReview={(row) => setAssignTarget(row)}
         onRevertReview={(row) => setRevertReviewTarget(row)}
-        onDownloadAttachment={handleDownloadAttachment}
+        onRevertToPending={(row) => setEditTarget(row)}
+        onViewDocs={(row) => {
+          if (row.attachments && row.attachments.length > 0) {
+            setPreviewTarget({ attachments: row.attachments, initialIndex: 0 });
+          }
+        }}
         page={page}
         pageSize={pageSize}
         rows={rows}
@@ -802,13 +795,10 @@ export default function HrEmplocPage() {
 
       {/* Add Emploc / Placement Onboarding Modal */}
       {assignTarget && (
-        <AssignEmployeeNoModal
-          hrEmplocId={assignTarget.id}
-          candidateName={assignTarget.applicantName}
-          vcode={assignTarget.vcode}
-          accountName={assignTarget.accountName}
-          storeName={assignTarget.storeName}
-          currentEmployeeNo={assignTarget.employeeNo}
+        <AddEmplocModal
+          key={assignTarget.id}
+          isOpen={!!assignTarget}
+          row={assignTarget}
           onClose={() => setAssignTarget(null)}
           onSuccess={(msg) => {
             setAssignTarget(null);
@@ -839,27 +829,6 @@ export default function HrEmplocPage() {
         />
       )}
 
-      {/* Move to Plantilla Modal */}
-      {deployTarget && (
-        <DeployToPlantillaModal
-          hrEmplocId={deployTarget.id}
-          candidateName={deployTarget.applicantName}
-          vcode={deployTarget.vcode}
-          positionTitle={deployTarget.positionTitle}
-          storeName={deployTarget.storeName}
-          accountName={deployTarget.accountName}
-          employeeNo={deployTarget.employeeNo}
-          onClose={() => setDeployTarget(null)}
-          onSuccess={() => {
-            setDeployTarget(null);
-            setSuccessToast({
-              message: `Successfully deployed ${deployTarget.applicantName} to Plantilla.`,
-            });
-            retryQueryReads();
-          }}
-        />
-      )}
-
       {/* For Correction Modal (Tag Deficiency) */}
       {correctionTarget && (
         <TagDeficiencyModal
@@ -880,49 +849,20 @@ export default function HrEmplocPage() {
 
       {/* Upload Compliance Attachment Modal */}
       {uploadTarget && (
-        <UploadAttachmentModal
+        <UploadDocsModal
+          key={uploadTarget.id}
           isOpen={true}
           row={uploadTarget}
           onClose={() => setUploadTarget(null)}
           onSuccess={(msg) => {
             setUploadTarget(null);
             setSuccessToast({
-              message: msg || `Compliance attachment uploaded for ${uploadTarget.applicantName}.`,
+              message: msg || `Compliance attachment updated for ${uploadTarget.applicantName}.`,
             });
             retryQueryReads();
           }}
-        />
-      )}
-
-      {/* Submit Correction Modal (Transition to Review) */}
-      {submitCorrectionTarget && (
-        <SubmitCorrectionModal
-          isOpen={true}
-          row={submitCorrectionTarget}
-          canUploadAttachments={!isBenefitsOnlyCorrection(submitCorrectionTarget.deficiencyIssues)}
-          onClose={() => setSubmitCorrectionTarget(null)}
-          onSuccess={(msg) => {
-            setSubmitCorrectionTarget(null);
-            setSuccessToast({
-              message: msg || `Correction submitted to Review for ${submitCorrectionTarget.applicantName}.`,
-            });
-            retryQueryReads();
-          }}
-        />
-      )}
-
-      {/* Approve Review Modal (Transition to Ready) */}
-      {approveReviewTarget && (
-        <ReviewApproveModal
-          isOpen={true}
-          row={approveReviewTarget}
-          onClose={() => setApproveReviewTarget(null)}
-          onSuccess={(msg) => {
-            setApproveReviewTarget(null);
-            setSuccessToast({
-              message: msg || `Review approved for ${approveReviewTarget.applicantName}. Record is now Ready.`,
-            });
-            retryQueryReads();
+          onPreviewAttachment={(attachment) => {
+            setPreviewTarget({ attachments: [attachment], initialIndex: 0 });
           }}
         />
       )}
@@ -940,6 +880,17 @@ export default function HrEmplocPage() {
             });
             retryQueryReads();
           }}
+        />
+      )}
+
+      {/* Document Preview Modal */}
+      {previewTarget && (
+        <DocumentPreviewModal
+          key={previewTarget.attachments.map((a) => a.id).join("-")}
+          isOpen={!!previewTarget}
+          attachments={previewTarget.attachments}
+          initialIndex={previewTarget.initialIndex ?? 0}
+          onClose={() => setPreviewTarget(null)}
         />
       )}
 
