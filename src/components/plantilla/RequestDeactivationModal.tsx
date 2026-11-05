@@ -100,7 +100,7 @@ export function RequestDeactivationModal({
         {/* Remarks Textarea (Optional) */}
         <div className="space-y-1.5">
           <label htmlFor="deactivation-remarks" className="block text-xs font-semibold text-text-secondary">
-            Clearance Remarks / Operational Justification (Optional)
+            Remarks &amp; Clearance Notes (Optional)
           </label>
           <textarea
             id="deactivation-remarks"
