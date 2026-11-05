@@ -772,6 +772,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Right-side desktop drawer (`max-w-2xl bg-slate-50`) with deep blue banner (`bg-[#1e3a8a]`), circular initials avatar, employee ID (`IdCard`), deployed date (`Calendar`), and active status badge.
   - **4-Tab Navigation**:
     - **Profile**: 2-column Employment & Allocation grid (VCODE, Position, Store, Employment Type, Date Hired, Tenure computed via `computeTenure`), Work Schedule & Rate card (`Schedule Days`, `Schedule Time`, `Day Off`, `Daily Rate`, `Coordinator`) with modal launcher `UpdateScheduleModal`, System Information collapsible accordion, and Capability-Aware Personnel Actions toolbar (Transfer, Reassign HRCO, Request Deactivation, Request Deletion, Update Employment Status).
+      - *Deactivation Eligibility Gate*: The "Request Deactivation" button is strictly disabled when the employee is in an operational status (`Active` or `On Leave`). It is only enabled when the employee is already `Inactive` (Separated: `Resigned`, `AWOL`, `Terminated`) or `Floating` (`isDeactivationEligible = isInactive || status === "floating"`), accompanied by helper guidance: *"Employee must be set to Floating or Inactive before requesting deactivation."*
     - **Benefits**: SSS, PhilHealth, Pag-IBIG, and ATM Number with an interactive Eye toggle for masking (`••••-••••-1234` vs unmasked), plus MIKA sync card with timestamp and dedicated `syncPlantillaMika` RPC mutation with 5-minute cooldown handling.
     - **Stores**: Current Stores vs Past Stores count summary cards and active store allocation details with live status indicator, VCODE, Area, and HC Share.
     - **Activity**: Audit trail logs and deployment history with timestamps, profile actors, and snapshot details.
@@ -807,6 +808,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Client Error Hardening**:
     - `dataControl.ts`: `submitPlantillaBaselineImport` now wraps Postgrest error messages into `new Error(...)`.
     - `PlantillaImportModal.tsx`: catch block safely extracts `(err as { message?: string })?.message` fallback, preventing real database error messages from being swallowed by generic banner text.
+
+- **Vacancy Reopening On Separation: Applicant Archiving & Clean Unoccupied State (Migration `20262606000086`)**:
+  - **Prior Hire Archiving**: Updated `public.reopen_or_create_vacancy_for_plantilla` and `public.fn_plantilla_separation_to_vacancy` so that when a separated employee's slot reopens in the Vacancy Pending/Open Tab, any prior onboarded applicants under `vacancy_vcode` are automatically archived (`is_archived = true, archived_at = NOW()`).
+  - **Accurate Vacancy Metrics**: Archiving prior hires resets `confirmed_onboard_count` to 0, ensuring `vw_vacancy_list` accurately calculates `derived_status = 'Open'`, `hc_filled = 0`, and renders the vacancy as clean and unoccupied rather than tagging the resigned employee.
+  - **Plantilla Inactive History Preserved**: The separated employee's historical assignment record in `public.plantilla` (`status = 'Inactive'`, `separation_status = 'Resigned'|'AWOL'|'Terminated'`, `store_id`, `store_name`, `vcode`) remains 100% intact so the Inactive Tab retains complete historical audit context.
 
 - **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
   - **Database Migration (`20262606000062`) Applied to Live Staging**:

@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — Plantilla Separation Vacancy Reopening & Applicant Archiving (ohm#branch2-separation-vacancy-reopen-applicant-archive)
+
+**Status: COMPLETE ON BRANCH2; MIGRATION `20262606000086` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); AUTO-ARCHIVED PRIOR APPLICANTS ON REOPENED BACKFILL VACANCIES; RESTORED `VCTG2_0005` TO CLEAN UNOCCUPIED STATE (`derived_status = 'Open'`, `confirmed_onboard_count = 0`); HISTORICAL ASSIGNMENTS ON `public.plantilla` PRESERVED FOR INACTIVE TAB; CAPABILITY-AWARE DEACTIVATION ACTION GATED ON OPERATIONAL STATUS IN `PlantillaDetailDrawer.tsx`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Alignment
+- **Problem**: When an employee was marked `Resigned` (or `AWOL` / `Terminated` / `Floating`), the slot correctly moved to Vacancy, but the separated employee remained displayed/tagged as occupying the open vacancy (e.g., `VCTG2_0005` under `THREE` account).
+- **Diagnosis**:
+  - In `vw_vacancy_list`, `derived_status = 'Hired'` triggers when `confirmed_onboard_count >= required_headcount`.
+  - `confirmed_onboard_count` counts applicants under `vacancy_vcode` where `status = 'Confirmed Onboard'` and `is_archived = false`.
+  - When employee separation reopened the vacancy, the previous hired applicant row (`DELA CRUZ, JUAN SANTOS`, `id = c3f7a259-0dd3-4b53-89ab-3a417cb33696`) remained unarchived (`is_archived = false`), causing the vacancy to immediately calculate `confirmed_onboard_count = 1`, `derived_status = 'Hired'`, and `get_web_vacancy_detail` to display the separated employee as the active occupant.
+- **Solution Implementation**:
+  1. **Database Migration (`supabase/migrations/20262606000086_archive_previous_applicants_on_vacancy_reopen.sql`)**:
+     - Updated `public.reopen_or_create_vacancy_for_plantilla(uuid, date, text)` to execute:
+       `UPDATE public.applicants SET is_archived = true, archived_at = NOW() WHERE vacancy_vcode = v_plantilla.vcode AND COALESCE(is_archived, false) = false;`
+     - Updated trigger `public.fn_plantilla_separation_to_vacancy()` to archive prior applicants under the corresponding `vacancy_vcode` for both roving coverage groups and stationary slots.
+  2. **Safe Staging Backfill**:
+     - Archived `DELA CRUZ, JUAN SANTOS` on `VCTG2_0005` and any other unarchived onboarded applicants attached to open backfill vacancies from separated plantilla records.
+     - Verified live on Staging (`qqiiznmqxfoamqytjica`):
+       - `VCTG2_0005` in `vw_vacancy_list`: `status = 'Open'`, `derived_status = 'Open'`, `hc_filled = 0`, `confirmed_onboard_count = 0`, `active_applicant_count = 0`.
+       - Historical employee record on `public.plantilla`: `id = e7d9fa33-cf0c-44b4-886c-a5b3a3b78fb9`, `status = 'Inactive'`, `separation_status = 'Resigned'`, `store_id = adf73e4f-9264-4919-94ef-2509548111e0`, `vcode = 'VCTG2_0005'`. Intact for Inactive Tab viewing.
+  3. **Capability-Aware Personnel Actions (`PlantillaDetailDrawer.tsx`)**:
+     - Derived `isDeactivationEligible = isInactive || status === "floating"`.
+     - Disabled "Request Deactivation" when `!isDeactivationEligible` (when employee is `Active` or `On Leave`).
+     - Added disabled visual styling and helper guidance text: *"Employee must be set to Floating or Inactive before requesting deactivation."*
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- Staging database `qqiiznmqxfoamqytjica`: Migration `20262606000086` and backfill applied and verified.
+- Git Branch: Isolated cleanly on `Branch2`.
+
+---
+
 ## Execution Report — Plantilla Floating Status Routing, Deactivation Validation & NSR Data Team Review Workflow (Branch2)
 
 **Status: COMPLETE ON BRANCH2; MIGRATION `20262606000085` APPLIED TO LIVE STAGING (`qqiiznmqxfoamqytjica`); FIXED 42703 `is_roving` ERROR; ROUTED FLOATING RECORDS TO FLOATING TAB; REMOVED GRAY NOTICES & MADE REMARKS OPTIONAL IN MODALS; IMPLEMENTED NSR TWO-TIER DATA TEAM WORKFLOW; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

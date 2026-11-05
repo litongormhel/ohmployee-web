@@ -266,9 +266,14 @@ export function PlantillaDetailDrawer({
 
   const status = (data?.plantillaStatus ?? "").trim().toLowerCase();
   const isInactive =
-    status === "inactive" || status === "terminated" || status === "deactivated";
+    status === "inactive" ||
+    status === "terminated" ||
+    status === "resigned" ||
+    status === "awol" ||
+    status === "deactivated";
   const isPendingDeactivation =
     status === "pending deactivation" || status === "pending_deactivation";
+  const isDeactivationEligible = isInactive || status === "floating";
 
   if (!isOpen) return null;
 
@@ -633,8 +638,13 @@ export function PlantillaDetailDrawer({
                       <button
                         type="button"
                         onClick={() => setIsDeactivationModalOpen(true)}
-                        disabled={!isAuthorized || isPendingDeactivation}
+                        disabled={!isAuthorized || isPendingDeactivation || !isDeactivationEligible}
                         className="bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                        title={
+                          !isDeactivationEligible
+                            ? "Employee must be set to Floating or Inactive before requesting deactivation."
+                            : undefined
+                        }
                       >
                         <UserMinus className="w-3.5 h-3.5 text-text-secondary" /> Request Deactivation
                       </button>
@@ -659,6 +669,11 @@ export function PlantillaDetailDrawer({
                       >
                         <UserCheck className="w-3.5 h-3.5" /> Update Employment Status
                       </button>
+                      {!isDeactivationEligible && (
+                        <p className="col-span-2 text-[11px] text-text-muted italic text-center">
+                          Employee must be set to Floating or Inactive before requesting deactivation.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
