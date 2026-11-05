@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
+
+**Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Paired Floating-Label Time Input Cards (`UpdateScheduleModal.tsx`)**:
+   - Built a 2-column grid layout (`grid grid-cols-2 gap-3`) under `SHIFT TIME WINDOW`.
+   - Box 1 (`Time-in`): Styled container with embedded top-border legend `Time-in`, 12-hour formatted text input (`08:00 AM`), and right-aligned `Clock` icon triggering native HTML time selection.
+   - Box 2 (`Time-out`): Styled container with embedded top-border legend `Time-out`, 12-hour formatted text input (`05:00 PM` or placeholder `--:-- --`), and right-aligned `Clock` icon.
+2. **Bidirectional Serialization & Persistence**:
+   - Added `parseShiftWindow` to split stored range strings (e.g., `"08:00 AM - 05:00 PM"`) into distinct `timeIn` and `timeOut` values.
+   - Added `to12h` and `to24h` converters for bidirectional mapping with the clock picker overlay.
+   - Recombines values into `${timeIn} - ${timeOut}` on change, seamlessly preserving compatibility with backend queries and the `Schedule & Store Coverage` tab matrix.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
 
 **Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4756,6 +4777,27 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
+
+**Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Paired Floating-Label Time Input Cards (`UpdateScheduleModal.tsx`)**:
+   - Built a 2-column grid layout (`grid grid-cols-2 gap-3`) under `SHIFT TIME WINDOW`.
+   - Box 1 (`Time-in`): Styled container with embedded top-border legend `Time-in`, 12-hour formatted text input (`08:00 AM`), and right-aligned `Clock` icon triggering native HTML time selection.
+   - Box 2 (`Time-out`): Styled container with embedded top-border legend `Time-out`, 12-hour formatted text input (`05:00 PM` or placeholder `--:-- --`), and right-aligned `Clock` icon.
+2. **Bidirectional Serialization & Persistence**:
+   - Added `parseShiftWindow` to split stored range strings (e.g., `"08:00 AM - 05:00 PM"`) into distinct `timeIn` and `timeOut` values.
+   - Added `to12h` and `to24h` converters for bidirectional mapping with the clock picker overlay.
+   - Recombines values into `${timeIn} - ${timeOut}` on change, seamlessly preserving compatibility with backend queries and the `Schedule & Store Coverage` tab matrix.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
+
 ## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
 
 **Status: COMPLETE ON BRANCH2; FIXED DUTY DAYS TOGGLING BUG IN `UpdateScheduleModal.tsx` WHERE SELECTING NON-CONSECUTIVE DAYS (E.G. MON AND WED) ERRONEOUSLY ACTIVATED TUE DUE TO HYPHENATED JOINING; REPLACED NON-CONSECUTIVE JOINING WITH COMMA SEPARATION (`MON, WED`) SO DAYS REMAIN STRICTLY INDEPENDENT; REMOVED SUBTITLE TEXT UNDER DESIGNATED REST DAYS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5495,6 +5537,27 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
+
+**Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Paired Floating-Label Time Input Cards (`UpdateScheduleModal.tsx`)**:
+   - Built a 2-column grid layout (`grid grid-cols-2 gap-3`) under `SHIFT TIME WINDOW`.
+   - Box 1 (`Time-in`): Styled container with embedded top-border legend `Time-in`, 12-hour formatted text input (`08:00 AM`), and right-aligned `Clock` icon triggering native HTML time selection.
+   - Box 2 (`Time-out`): Styled container with embedded top-border legend `Time-out`, 12-hour formatted text input (`05:00 PM` or placeholder `--:-- --`), and right-aligned `Clock` icon.
+2. **Bidirectional Serialization & Persistence**:
+   - Added `parseShiftWindow` to split stored range strings (e.g., `"08:00 AM - 05:00 PM"`) into distinct `timeIn` and `timeOut` values.
+   - Added `to12h` and `to24h` converters for bidirectional mapping with the clock picker overlay.
+   - Recombines values into `${timeIn} - ${timeOut}` on change, seamlessly preserving compatibility with backend queries and the `Schedule & Store Coverage` tab matrix.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
 
@@ -6259,6 +6322,27 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Dedicated Time-in and Time-out Shift Pickers (ohm#branch2-paired-time-in-time-out-pickers)
+
+**Status: COMPLETE ON BRANCH2; REPLACED PLAIN TEXT SHIFT TIME INPUT IN `UpdateScheduleModal.tsx` WITH PAIRED 2-COLUMN NOTCHED FIELDSETS FOR `Time-in` AND `Time-out` PER DESIGN UPLOAD (`media_1793867989857_2eb21438.png`); SUPPORTS DIRECT 12-HOUR FORMAT EDITING (`00:00 AM/PM`) WITH `--:-- --` PLACEHOLDER AND INTERACTIVE CLOCK PICKER OVERLAYS WITH BIDIRECTIONAL 12H/24H PARSING; AUTOMATICALLY CONCATENATES INTO CANONICAL `${timeIn} - ${timeOut}` STRING FOR PERSISTENCE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Paired Floating-Label Time Input Cards (`UpdateScheduleModal.tsx`)**:
+   - Built a 2-column grid layout (`grid grid-cols-2 gap-3`) under `SHIFT TIME WINDOW`.
+   - Box 1 (`Time-in`): Styled container with embedded top-border legend `Time-in`, 12-hour formatted text input (`08:00 AM`), and right-aligned `Clock` icon triggering native HTML time selection.
+   - Box 2 (`Time-out`): Styled container with embedded top-border legend `Time-out`, 12-hour formatted text input (`05:00 PM` or placeholder `--:-- --`), and right-aligned `Clock` icon.
+2. **Bidirectional Serialization & Persistence**:
+   - Added `parseShiftWindow` to split stored range strings (e.g., `"08:00 AM - 05:00 PM"`) into distinct `timeIn` and `timeOut` values.
+   - Added `to12h` and `to24h` converters for bidirectional mapping with the clock picker overlay.
+   - Recombines values into `${timeIn} - ${timeOut}` on change, seamlessly preserving compatibility with backend queries and the `Schedule & Store Coverage` tab matrix.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly isolated on local branch `Branch2`.
+
+---
+
 
 ## Execution Report — Fix Independent Duty Days Toggling & Remove Rest Days Subtitle (ohm#branch2-fix-independent-duty-days-and-remove-restdays-subtitle)
 

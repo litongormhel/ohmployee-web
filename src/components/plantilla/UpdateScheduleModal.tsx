@@ -95,6 +95,38 @@ function formatDaysFromSet(days: Set<string>): string {
   return ordered.join(", ");
 }
 
+function parseShiftWindow(raw?: string | null): { timeIn: string; timeOut: string } {
+  if (!raw || !raw.trim()) return { timeIn: "08:00 AM", timeOut: "05:00 PM" };
+  const parts = raw.split("-").map((p) => p.trim());
+  if (parts.length >= 2) {
+    return { timeIn: parts[0] || "", timeOut: parts[1] || "" };
+  }
+  return { timeIn: raw, timeOut: "" };
+}
+
+function to24h(time12?: string): string {
+  if (!time12) return "";
+  const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) return "";
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = (match[3] || "AM").toUpperCase();
+  if (ampm === "PM" && hours < 12) hours += 12;
+  if (ampm === "AM" && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
+}
+
+function to12h(time24?: string): string {
+  if (!time24) return "";
+  const [h, m] = time24.split(":");
+  let hours = parseInt(h, 10);
+  const minutes = m || "00";
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
+}
+
 export function UpdateScheduleModal({
   isOpen,
   onClose,
@@ -206,6 +238,24 @@ export function UpdateScheduleModal({
       daySet.add(day);
     }
     updateAllocation(index, { scheduleDays: formatDaysFromSet(daySet) });
+  };
+
+  const handleTimeInChange = (idx: number, newTimeIn: string) => {
+    const current = parseShiftWindow(allocations[idx]?.scheduleTime);
+    const updated =
+      newTimeIn && current.timeOut
+        ? `${newTimeIn} - ${current.timeOut}`
+        : newTimeIn || current.timeOut;
+    updateAllocation(idx, { scheduleTime: updated });
+  };
+
+  const handleTimeOutChange = (idx: number, newTimeOut: string) => {
+    const current = parseShiftWindow(allocations[idx]?.scheduleTime);
+    const updated =
+      current.timeIn && newTimeOut
+        ? `${current.timeIn} - ${newTimeOut}`
+        : current.timeIn || newTimeOut;
+    updateAllocation(idx, { scheduleTime: updated });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -345,6 +395,7 @@ export function UpdateScheduleModal({
             {allocations.map((alloc, idx) => {
               const currentDaySet = parseDaysToSet(alloc.scheduleDays);
               const hcFraction = (alloc.allocationPercent / 100).toFixed(2);
+              const shiftTimes = parseShiftWindow(alloc.scheduleTime);
 
               return (
                 <div
@@ -407,18 +458,70 @@ export function UpdateScheduleModal({
                     </div>
                   </div>
 
-                  {/* Shift Time Window */}
+                  {/* Shift Time Window (Time-in & Time-out) */}
                   <div>
-                    <label className="block text-2xs font-bold text-text-secondary mb-1">
+                    <label className="block text-2xs font-bold text-text-secondary mb-1.5">
                       SHIFT TIME WINDOW
                     </label>
-                    <input
-                      type="text"
-                      value={alloc.scheduleTime || ""}
-                      onChange={(e) => updateAllocation(idx, { scheduleTime: e.target.value })}
-                      placeholder="00:00 AM/PM - 00:00 AM/PM"
-                      className="w-full px-3 py-1.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-xs font-mono focus:ring-1 focus:ring-brand-primary"
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Time-in */}
+                      <fieldset className="rounded-xl border border-border-default px-3.5 pt-0.5 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-surface">
+                        <legend className="px-1 text-[11px] font-medium text-text-secondary">
+                          Time-in
+                        </legend>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <input
+                            type="text"
+                            value={shiftTimes.timeIn}
+                            onChange={(e) => handleTimeInChange(idx, e.target.value)}
+                            placeholder="--:-- --"
+                            className="w-full bg-transparent text-xs font-mono font-semibold text-text-primary focus:outline-none"
+                          />
+                          <label className="relative cursor-pointer text-text-muted hover:text-text-primary transition shrink-0 p-0.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            <input
+                              type="time"
+                              value={to24h(shiftTimes.timeIn)}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleTimeInChange(idx, to12h(e.target.value));
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+                        </div>
+                      </fieldset>
+
+                      {/* Time-out */}
+                      <fieldset className="rounded-xl border border-border-default px-3.5 pt-0.5 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-surface">
+                        <legend className="px-1 text-[11px] font-medium text-text-secondary">
+                          Time-out
+                        </legend>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <input
+                            type="text"
+                            value={shiftTimes.timeOut}
+                            onChange={(e) => handleTimeOutChange(idx, e.target.value)}
+                            placeholder="--:-- --"
+                            className="w-full bg-transparent text-xs font-mono font-semibold text-text-primary focus:outline-none"
+                          />
+                          <label className="relative cursor-pointer text-text-muted hover:text-text-primary transition shrink-0 p-0.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            <input
+                              type="time"
+                              value={to24h(shiftTimes.timeOut)}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleTimeOutChange(idx, to12h(e.target.value));
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+                        </div>
+                      </fieldset>
+                    </div>
                   </div>
                 </div>
               );
