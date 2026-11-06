@@ -287,6 +287,13 @@ function PlantillaEmployeeDetailContent() {
     status === "pending deactivation" || status === "pending_deactivation";
   const isDeactivationEligible = isInactive || status === "floating";
 
+  const coveredStores = data?.coveredStores ?? [];
+  const hasMultiStores = coveredStores.length > 1;
+  const isRoving =
+    (data?.assignmentType ?? "").toLowerCase() === "roving" ||
+    (data?.employmentType ?? "").toLowerCase() === "roving" ||
+    hasMultiStores;
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-background text-text-primary">
       {/* Top Return Navigation */}
@@ -622,11 +629,72 @@ function PlantillaEmployeeDetailContent() {
                         {data.vcode || "—"}
                       </p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Assigned Primary Store</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.primaryStoreName || data.vcode || "—"}
-                      </p>
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-text-secondary font-medium">
+                            {hasMultiStores ? "Assigned Store Allocations" : "Assigned Primary Store"}
+                          </span>
+                          {isRoving && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
+                              Roving{hasMultiStores ? ` • ${coveredStores.length} Stores` : ""}
+                            </span>
+                          )}
+                        </div>
+
+                        {hasMultiStores ? (
+                          <div className="mt-2 space-y-1.5">
+                            {coveredStores.map((store, idx) => {
+                              const isPrimary = Boolean(store.isPrimary || idx === 0);
+                              const hcShare =
+                                store.allocationPercent != null
+                                  ? (store.allocationPercent / 100).toFixed(2)
+                                  : (1 / coveredStores.length).toFixed(2);
+                              return (
+                                <div
+                                  key={store.stableKey || `store-alloc-${idx}`}
+                                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface border border-border-default/70 shadow-2xs"
+                                >
+                                  <div className="min-w-0 flex items-center gap-2">
+                                    <span
+                                      className={`w-2 h-2 rounded-full shrink-0 ${
+                                        isPrimary ? "bg-emerald-500" : "bg-text-muted"
+                                      }`}
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span
+                                          className="font-bold text-text-primary text-xs truncate"
+                                          title={store.storeName}
+                                        >
+                                          {store.storeName}
+                                        </span>
+                                        {isPrimary && (
+                                          <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                                            Primary
+                                          </span>
+                                        )}
+                                      </div>
+                                      {store.vcode && (
+                                        <span className="font-mono text-[10px] text-text-muted block mt-0.5">
+                                          {store.vcode}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="font-mono font-bold text-xs text-brand-primary bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded border border-brand-200 dark:border-brand-800 shrink-0">
+                                    {hcShare} HC
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="font-bold text-text-primary text-sm mt-1">
+                            {data.primaryStoreName || data.vcode || "—"}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
                       <span className="text-text-secondary font-medium">Area / City / Province</span>
@@ -649,7 +717,7 @@ function PlantillaEmployeeDetailContent() {
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
                       <span className="text-text-secondary font-medium">Employment / Assignment Type</span>
                       <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.employmentType || data.assignmentType || "Stationary"}
+                        {isRoving ? "Roving" : (data.employmentType || data.assignmentType || "Stationary")}
                       </p>
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">

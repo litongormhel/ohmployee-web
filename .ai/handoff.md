@@ -1,5 +1,25 @@
 # AI Handoff
 
+## Execution Report — Multi-Store / Roving Display in Employment & Allocation Tab (ohm#branch2-multistore-roving-allocation-display)
+
+**Status: COMPLETE ON BRANCH2; UPDATED THE ASSIGNED STORE DISPLAY IN THE EMPLOYMENT & ALLOCATION TAB (`src/app/(dashboard)/plantilla/[id]/page.tsx`) TO DYNAMICALLY REFLECT MULTI-STORE / ROVING ALLOCATIONS; IF AN EMPLOYEE IS ROVING OR HAS MULTIPLE COVERED STORES, THE CARD ADAPTS FROM A SINGLE-STORE HEADER TO `Assigned Store Allocations` WITH A `Roving • N Stores` BADGE AND AN EXPLICIT LIST OF ALL ASSIGNED STORES WITH PRIMARY BADGES, VCODES, AND EXACT FRACTIONAL HC SHARES (E.G., 0.50 HC); SINGLE-STORE / STATIONARY PROFILES RETAIN THEIR CLEAN SINGLE-STORE DISPLAY; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Multi-Store Allocation Detection & State (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Added `coveredStores = data?.coveredStores ?? []`, `hasMultiStores = coveredStores.length > 1`, and `isRoving = data?.assignmentType?.toLowerCase() === "roving" || data?.employmentType?.toLowerCase() === "roving" || hasMultiStores`.
+2. **Dynamic Store Display in Tab 1 (Employment & Allocation)**:
+   - For employees with multi-store allocations (`hasMultiStores`), transformed the `Assigned Primary Store` card into an interactive allocation breakdown:
+     - Header: Displays `Assigned Store Allocations` alongside a `Roving • N Stores` pill badge.
+     - Store items: Lists each assigned store with a primary/secondary indicator dot, store name, `Primary` badge for the anchor location, monospace VCODE, and fractional HC share badge (`0.50 HC`).
+   - For single-store / stationary employees: Preserves the clean single primary store display (`data.primaryStoreName || data.vcode || "—"`).
+   - In `Employment / Assignment Type`: Automatically reflects `"Roving"` if multi-store allocations are present.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
 
 **Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
