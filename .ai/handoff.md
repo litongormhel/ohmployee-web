@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause Analysis
+- **PostgREST Column Schema Mismatch:** `directQuery` in `src/lib/queries/plantilla.ts` requested `civil_status_snapshot` and `coverage_group_code_snapshot` from table `public.plantilla`. These columns only exist on `hr_emploc` or `vacancies`, triggering PostgREST HTTP 400 errors.
+- **Nested Fallbacks:** Because `v_plantilla_safe` and `coverage_groups` lookups were previously nested inside `if (directData)`, the entire fallback mechanism was aborted when `directData` was null.
+
+### 2. Changes Implemented
+1. **Sanitized Table Query & Un-Nested Cascade (`src/lib/queries/plantilla.ts`)**:
+   - Cleaned `directQuery` on `public.plantilla` to only request verified columns: `vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, birthdate, coverage_group_id`.
+   - **Tier 2 (`v_plantilla_safe`)**: Runs un-nested fallback query for `civil_status` and `date_of_birth`.
+   - **Tier 3 (`hr_emploc`)**: Queries onboarding demographic snapshots (`civil_status_snapshot`, `birthdate_snapshot`, `contact_number_snapshot`, `residential_address_snapshot`) by `employee_no`.
+   - **Tier 4 (`employees`)**: Queries employee directory (`civil_status`, `date_of_birth`, `birthdate`, `contact_no`, `address`) by `employee_no`.
+   - **Tier 5 (`plantilla_import_rows`)**: Queries batch import raw data (`civil_status`, `birthdate_raw`, `contact_raw`, `address_raw`) by `employee_no`.
+   - Un-nested roving coverage group (`cgCode`) resolution so it always executes regardless of direct table query status.
+2. **Timezone-Safe Date Parsing & Formatting (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Refactored `formatBirthDateAndAge` to parse standard `YYYY-MM-DD` strings locally (`new Date(year, month - 1, day)`), preventing day off-by-one shifts from UTC midnight conversion.
+   - Formatted `civilStatus` with `.toUpperCase()` matching the system convention (e.g. `SINGLE`, `MARRIED`).
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Changes kept strictly isolated on `Branch2` per explicit user instruction (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Fail-Safe Demographic & CGCode Hydration Guard (ohm#branch2-demographic-and-cgcode-hydration-guard)
 
 **Status: COMPLETE ON BRANCH2; IMPLEMENTED AN AUTOMATIC FAIL-SAFE HYDRATION GUARD IN `getWebPlantillaDetail` (`src/lib/queries/plantilla.ts`); TRIGGERS WHENEVER DATE OF BIRTH, CIVIL STATUS, OR CGCode ARE MISSING FROM THE PRIMARY RPC RESPONSE; FALLS BACK DIRECTLY TO `public.plantilla` (`civil_status`, `civil_status_snapshot`, `date_of_birth`, `birthdate`, `coverage_group_code_snapshot`) WITH SECONDARY FAIL-SAFES TO `v_plantilla_safe` AND ACCOUNT COVERAGE GROUPS (`coverage_groups`); PERMANENTLY GUARDS AGAINST BLANK DEMOGRAPHIC PROFILE FIELDS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -4943,6 +4969,32 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause Analysis
+- **PostgREST Column Schema Mismatch:** `directQuery` in `src/lib/queries/plantilla.ts` requested `civil_status_snapshot` and `coverage_group_code_snapshot` from table `public.plantilla`. These columns only exist on `hr_emploc` or `vacancies`, triggering PostgREST HTTP 400 errors.
+- **Nested Fallbacks:** Because `v_plantilla_safe` and `coverage_groups` lookups were previously nested inside `if (directData)`, the entire fallback mechanism was aborted when `directData` was null.
+
+### 2. Changes Implemented
+1. **Sanitized Table Query & Un-Nested Cascade (`src/lib/queries/plantilla.ts`)**:
+   - Cleaned `directQuery` on `public.plantilla` to only request verified columns: `vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, birthdate, coverage_group_id`.
+   - **Tier 2 (`v_plantilla_safe`)**: Runs un-nested fallback query for `civil_status` and `date_of_birth`.
+   - **Tier 3 (`hr_emploc`)**: Queries onboarding demographic snapshots (`civil_status_snapshot`, `birthdate_snapshot`, `contact_number_snapshot`, `residential_address_snapshot`) by `employee_no`.
+   - **Tier 4 (`employees`)**: Queries employee directory (`civil_status`, `date_of_birth`, `birthdate`, `contact_no`, `address`) by `employee_no`.
+   - **Tier 5 (`plantilla_import_rows`)**: Queries batch import raw data (`civil_status`, `birthdate_raw`, `contact_raw`, `address_raw`) by `employee_no`.
+   - Un-nested roving coverage group (`cgCode`) resolution so it always executes regardless of direct table query status.
+2. **Timezone-Safe Date Parsing & Formatting (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Refactored `formatBirthDateAndAge` to parse standard `YYYY-MM-DD` strings locally (`new Date(year, month - 1, day)`), preventing day off-by-one shifts from UTC midnight conversion.
+   - Formatted `civilStatus` with `.toUpperCase()` matching the system convention (e.g. `SINGLE`, `MARRIED`).
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Changes kept strictly isolated on `Branch2` per explicit user instruction (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
 
 **Status: COMPLETE ON BRANCH2; ADDED `Reset Schedule` WORKFLOW IN `UpdateScheduleModal.tsx` ALLOWING OPERATORS TO WIPE ALL DUTY DAYS, SHIFT TIMES, AND REST DAYS CLEAN WITHOUT INDIVIDUALLY DESELECTING EACH FIELD; IMPLEMENTED A CONFIRMATION MODAL (`Reset Schedule & Work Terms?`) REQUIRING EXPLICIT OPERATOR CONFIRMATION BEFORE WIPING; STORE IDENTITY AND HC SHARES REMAIN STRICTLY LOCKED; ENFORCED STRICT SAVE BLOCKING (`isScheduleComplete`) DISABLING SAVE AND SHOWING A WARNING BANNER WHILE THE SCHEDULE IS BLANK OR INCOMPLETE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5749,6 +5801,32 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause Analysis
+- **PostgREST Column Schema Mismatch:** `directQuery` in `src/lib/queries/plantilla.ts` requested `civil_status_snapshot` and `coverage_group_code_snapshot` from table `public.plantilla`. These columns only exist on `hr_emploc` or `vacancies`, triggering PostgREST HTTP 400 errors.
+- **Nested Fallbacks:** Because `v_plantilla_safe` and `coverage_groups` lookups were previously nested inside `if (directData)`, the entire fallback mechanism was aborted when `directData` was null.
+
+### 2. Changes Implemented
+1. **Sanitized Table Query & Un-Nested Cascade (`src/lib/queries/plantilla.ts`)**:
+   - Cleaned `directQuery` on `public.plantilla` to only request verified columns: `vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, birthdate, coverage_group_id`.
+   - **Tier 2 (`v_plantilla_safe`)**: Runs un-nested fallback query for `civil_status` and `date_of_birth`.
+   - **Tier 3 (`hr_emploc`)**: Queries onboarding demographic snapshots (`civil_status_snapshot`, `birthdate_snapshot`, `contact_number_snapshot`, `residential_address_snapshot`) by `employee_no`.
+   - **Tier 4 (`employees`)**: Queries employee directory (`civil_status`, `date_of_birth`, `birthdate`, `contact_no`, `address`) by `employee_no`.
+   - **Tier 5 (`plantilla_import_rows`)**: Queries batch import raw data (`civil_status`, `birthdate_raw`, `contact_raw`, `address_raw`) by `employee_no`.
+   - Un-nested roving coverage group (`cgCode`) resolution so it always executes regardless of direct table query status.
+2. **Timezone-Safe Date Parsing & Formatting (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Refactored `formatBirthDateAndAge` to parse standard `YYYY-MM-DD` strings locally (`new Date(year, month - 1, day)`), preventing day off-by-one shifts from UTC midnight conversion.
+   - Formatted `civilStatus` with `.toUpperCase()` matching the system convention (e.g. `SINGLE`, `MARRIED`).
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Changes kept strictly isolated on `Branch2` per explicit user instruction (no push, no merge to `main`).
+
+---
 
 ## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
 
@@ -6580,6 +6658,32 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause Analysis
+- **PostgREST Column Schema Mismatch:** `directQuery` in `src/lib/queries/plantilla.ts` requested `civil_status_snapshot` and `coverage_group_code_snapshot` from table `public.plantilla`. These columns only exist on `hr_emploc` or `vacancies`, triggering PostgREST HTTP 400 errors.
+- **Nested Fallbacks:** Because `v_plantilla_safe` and `coverage_groups` lookups were previously nested inside `if (directData)`, the entire fallback mechanism was aborted when `directData` was null.
+
+### 2. Changes Implemented
+1. **Sanitized Table Query & Un-Nested Cascade (`src/lib/queries/plantilla.ts`)**:
+   - Cleaned `directQuery` on `public.plantilla` to only request verified columns: `vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, birthdate, coverage_group_id`.
+   - **Tier 2 (`v_plantilla_safe`)**: Runs un-nested fallback query for `civil_status` and `date_of_birth`.
+   - **Tier 3 (`hr_emploc`)**: Queries onboarding demographic snapshots (`civil_status_snapshot`, `birthdate_snapshot`, `contact_number_snapshot`, `residential_address_snapshot`) by `employee_no`.
+   - **Tier 4 (`employees`)**: Queries employee directory (`civil_status`, `date_of_birth`, `birthdate`, `contact_no`, `address`) by `employee_no`.
+   - **Tier 5 (`plantilla_import_rows`)**: Queries batch import raw data (`civil_status`, `birthdate_raw`, `contact_raw`, `address_raw`) by `employee_no`.
+   - Un-nested roving coverage group (`cgCode`) resolution so it always executes regardless of direct table query status.
+2. **Timezone-Safe Date Parsing & Formatting (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Refactored `formatBirthDateAndAge` to parse standard `YYYY-MM-DD` strings locally (`new Date(year, month - 1, day)`), preventing day off-by-one shifts from UTC midnight conversion.
+   - Formatted `civilStatus` with `.toUpperCase()` matching the system convention (e.g. `SINGLE`, `MARRIED`).
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Changes kept strictly isolated on `Branch2` per explicit user instruction (no push, no merge to `main`).
+
+---
 
 ## Execution Report — Reset Schedule with Confirmation Modal & Save Blocking (ohm#branch2-reset-schedule-with-confirmation-and-save-blocking)
 

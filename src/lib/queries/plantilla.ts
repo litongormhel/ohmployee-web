@@ -1805,7 +1805,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
   }
 
   // Guaranteed Hydration Guard: Ensures demographic, coverage group, remuneration, and store assignment fields
-  // are completely hydrated from public.plantilla and linked records whenever missing from RPC output.
+  // are completely hydrated across multiple resilient database tiers whenever missing from primary RPC output.
   const isMissingKeyFields =
     !normalized.birthDate ||
     !normalized.civilStatus ||
@@ -1819,73 +1819,72 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     !normalized.maskedFields.governmentIds.atmNumberMasked;
 
   if (isMissingKeyFields) {
-    let directQuery = supabase
-      .from("plantilla")
-      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, civil_status_snapshot, date_of_birth, birthdate, coverage_group_id, coverage_group_code_snapshot");
-    directQuery = isUuid ? directQuery.eq("id", plantillaId) : directQuery.eq("employee_no", plantillaId);
-    const { data: directData } = await directQuery.maybeSingle();
+    // Tier 1: public.plantilla direct table query (verified table columns only)
+    try {
+      let directQuery = supabase
+        .from("plantilla")
+        .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, birthdate, coverage_group_id");
+      directQuery = isUuid ? directQuery.eq("id", plantillaId) : directQuery.eq("employee_no", plantillaId);
+      const { data: directData } = await directQuery.maybeSingle();
 
-    if (directData) {
-      if (!normalized.vcode && directData.vcode) {
-        normalized.vcode = directData.vcode;
-      }
-      if (!normalized.primaryStoreName && (directData.store_name || directData.vcode)) {
-        normalized.primaryStoreName = directData.store_name || directData.vcode;
-      }
-      if (!normalized.dateDeployed && directData.date_hired) {
-        normalized.dateDeployed = directData.date_hired;
-      }
-      if (!normalized.dateHired && directData.date_hired) {
-        normalized.dateHired = directData.date_hired;
-      }
-      if (!normalized.coordinator && (directData.coordinator || directData.hrco_name)) {
-        normalized.coordinator = directData.coordinator || directData.hrco_name;
-      }
-      if (!normalized.area && directData.area) {
-        normalized.area = directData.area;
-      }
-      if (!normalized.lastMikaSyncedAt && directData.last_mika_synced_at) {
-        normalized.lastMikaSyncedAt = directData.last_mika_synced_at;
-      }
-      if (!normalized.lastMikaSyncedBy && directData.last_mika_synced_by) {
-        normalized.lastMikaSyncedBy = directData.last_mika_synced_by;
-      }
-      if (!normalized.dailyRate) {
-        if (directData.daily_rate != null) {
-          normalized.dailyRate = `₱${Number(directData.daily_rate).toFixed(2)}`;
-        } else if (directData.rate != null) {
-          normalized.dailyRate = `₱${Number(directData.rate).toFixed(2)}`;
+      if (directData) {
+        if (!normalized.vcode && directData.vcode) {
+          normalized.vcode = directData.vcode;
         }
-      }
-      if (!normalized.maskedFields.baseRateMasked) {
-        if (directData.rate != null) {
-          normalized.maskedFields.baseRateMasked = `₱${Number(directData.rate).toFixed(2)}`;
-        } else if (directData.daily_rate != null) {
-          normalized.maskedFields.baseRateMasked = `₱${Number(directData.daily_rate).toFixed(2)}`;
+        if (!normalized.primaryStoreName && (directData.store_name || directData.vcode)) {
+          normalized.primaryStoreName = directData.store_name || directData.vcode;
         }
-      }
-      if (!normalized.maskedFields.residentialAddress && directData.address) {
-        normalized.maskedFields.residentialAddress = directData.address;
-      }
-      if (!normalized.residentialAddress && directData.address) {
-        normalized.residentialAddress = directData.address;
-      }
-      if (!normalized.maskedFields.contactNumber && directData.contact_no) {
-        normalized.maskedFields.contactNumber = directData.contact_no;
-      }
-      if (!normalized.contactNumber && directData.contact_no) {
-        normalized.contactNumber = directData.contact_no;
-      }
-      if (!normalized.civilStatus) {
-        normalized.civilStatus = asString(directData.civil_status || directData.civil_status_snapshot);
-      }
-      if (!normalized.birthDate) {
-        normalized.birthDate = asString(directData.date_of_birth || directData.birthdate);
-      }
-      if (!normalized.cgCode) {
-        if (directData.coverage_group_code_snapshot) {
-          normalized.cgCode = asString(directData.coverage_group_code_snapshot);
-        } else if (directData.coverage_group_id) {
+        if (!normalized.dateDeployed && directData.date_hired) {
+          normalized.dateDeployed = directData.date_hired;
+        }
+        if (!normalized.dateHired && directData.date_hired) {
+          normalized.dateHired = directData.date_hired;
+        }
+        if (!normalized.coordinator && (directData.coordinator || directData.hrco_name)) {
+          normalized.coordinator = directData.coordinator || directData.hrco_name;
+        }
+        if (!normalized.area && directData.area) {
+          normalized.area = directData.area;
+        }
+        if (!normalized.lastMikaSyncedAt && directData.last_mika_synced_at) {
+          normalized.lastMikaSyncedAt = directData.last_mika_synced_at;
+        }
+        if (!normalized.lastMikaSyncedBy && directData.last_mika_synced_by) {
+          normalized.lastMikaSyncedBy = directData.last_mika_synced_by;
+        }
+        if (!normalized.dailyRate) {
+          if (directData.daily_rate != null) {
+            normalized.dailyRate = `₱${Number(directData.daily_rate).toFixed(2)}`;
+          } else if (directData.rate != null) {
+            normalized.dailyRate = `₱${Number(directData.rate).toFixed(2)}`;
+          }
+        }
+        if (!normalized.maskedFields.baseRateMasked) {
+          if (directData.rate != null) {
+            normalized.maskedFields.baseRateMasked = `₱${Number(directData.rate).toFixed(2)}`;
+          } else if (directData.daily_rate != null) {
+            normalized.maskedFields.baseRateMasked = `₱${Number(directData.daily_rate).toFixed(2)}`;
+          }
+        }
+        if (!normalized.maskedFields.residentialAddress && directData.address) {
+          normalized.maskedFields.residentialAddress = directData.address;
+        }
+        if (!normalized.residentialAddress && directData.address) {
+          normalized.residentialAddress = directData.address;
+        }
+        if (!normalized.maskedFields.contactNumber && directData.contact_no) {
+          normalized.maskedFields.contactNumber = directData.contact_no;
+        }
+        if (!normalized.contactNumber && directData.contact_no) {
+          normalized.contactNumber = directData.contact_no;
+        }
+        if (!normalized.civilStatus && directData.civil_status) {
+          normalized.civilStatus = asString(directData.civil_status);
+        }
+        if (!normalized.birthDate) {
+          normalized.birthDate = asString(directData.date_of_birth || directData.birthdate);
+        }
+        if (!normalized.cgCode && directData.coverage_group_id) {
           try {
             const { data: cgRow } = await supabase
               .from("coverage_groups")
@@ -1899,72 +1898,168 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
             // Graceful fallback
           }
         }
-      }
-
-      // Secondary fallback to v_plantilla_safe if civil_status or date_of_birth are still missing
-      if (!normalized.civilStatus || !normalized.birthDate) {
-        try {
-          const safeQuery = supabase
-            .from("v_plantilla_safe")
-            .select("civil_status, date_of_birth")
-            .eq(isUuid ? "id" : "employee_no", plantillaId);
-          const { data: safeRow } = await safeQuery.maybeSingle();
-          if (safeRow) {
-            if (!normalized.civilStatus && safeRow.civil_status) {
-              normalized.civilStatus = asString(safeRow.civil_status);
-            }
-            if (!normalized.birthDate && safeRow.date_of_birth) {
-              normalized.birthDate = asString(safeRow.date_of_birth);
-            }
-          }
-        } catch {
-          // Graceful fallback
+        if (!normalized.maskedFields.governmentIds.sss && directData.sss_no) {
+          normalized.maskedFields.governmentIds.sss = directData.sss_no;
+        }
+        if (!normalized.maskedFields.governmentIds.philhealth && directData.philhealth_no) {
+          normalized.maskedFields.governmentIds.philhealth = directData.philhealth_no;
+        }
+        if (!normalized.maskedFields.governmentIds.pagibig && directData.pagibig_no) {
+          normalized.maskedFields.governmentIds.pagibig = directData.pagibig_no;
+        }
+        if (!normalized.maskedFields.governmentIds.atmNumber && directData.atm_no) {
+          normalized.maskedFields.governmentIds.atmNumber = directData.atm_no;
+        }
+        if (!normalized.maskedFields.governmentIds.atmNumberMasked && directData.atm_no) {
+          const raw = directData.atm_no.trim();
+          normalized.maskedFields.governmentIds.atmNumberMasked =
+            raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
         }
       }
+    } catch (err) {
+      console.warn("[Plantilla] direct table query exception:", err);
+    }
 
-      // Secondary coverage group resolution for roving employees
-      if (
-        !normalized.cgCode &&
-        (normalized.coveredStores.length > 1 || normalized.assignmentType?.toLowerCase() === "roving") &&
-        normalized.accountId
-      ) {
+    // Tier 2: v_plantilla_safe view lookup
+    if (!normalized.civilStatus || !normalized.birthDate) {
+      try {
+        const safeQuery = supabase
+          .from("v_plantilla_safe")
+          .select("civil_status, date_of_birth")
+          .eq(isUuid ? "id" : "employee_no", plantillaId);
+        const { data: safeRow } = await safeQuery.maybeSingle();
+        if (safeRow) {
+          if (!normalized.civilStatus && safeRow.civil_status) {
+            normalized.civilStatus = asString(safeRow.civil_status);
+          }
+          if (!normalized.birthDate && safeRow.date_of_birth) {
+            normalized.birthDate = asString(safeRow.date_of_birth);
+          }
+        }
+      } catch (err) {
+        console.warn("[Plantilla] v_plantilla_safe query exception:", err);
+      }
+    }
+
+    // Tier 3: hr_emploc onboarding snapshots lookup
+    if (!normalized.civilStatus || !normalized.birthDate || !normalized.contactNumber || !normalized.residentialAddress) {
+      const empNo = normalized.employeeNo && normalized.employeeNo !== "Uncoded" ? normalized.employeeNo : null;
+      if (empNo) {
         try {
-          const { data: cgRows } = await supabase
-            .from("coverage_groups")
-            .select("coverage_code, coverage_group_stores(store_id)")
-            .eq("account_id", normalized.accountId)
-            .is("archived_at", null);
-          if (cgRows && cgRows.length > 0) {
-            const assignedStoreIds = new Set(normalized.coveredStores.map((s) => s.storeId).filter(Boolean));
-            for (const cg of cgRows as Array<Record<string, unknown>>) {
-              const cgs = Array.isArray(cg.coverage_group_stores) ? cg.coverage_group_stores : [];
-              const cgStoreIds = cgs.map((item: Record<string, unknown>) => item.store_id);
-              if (cgStoreIds.some((id) => assignedStoreIds.has(String(id)))) {
-                normalized.cgCode = asString(cg.coverage_code);
-                break;
-              }
+          const { data: emplocRow } = await supabase
+            .from("hr_emploc")
+            .select("civil_status_snapshot, birthdate_snapshot, contact_number_snapshot, residential_address_snapshot")
+            .eq("employee_no", empNo)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (emplocRow) {
+            if (!normalized.civilStatus && emplocRow.civil_status_snapshot) {
+              normalized.civilStatus = asString(emplocRow.civil_status_snapshot);
+            }
+            if (!normalized.birthDate && emplocRow.birthdate_snapshot) {
+              normalized.birthDate = asString(emplocRow.birthdate_snapshot);
+            }
+            if (!normalized.contactNumber && emplocRow.contact_number_snapshot) {
+              normalized.contactNumber = asString(emplocRow.contact_number_snapshot);
+            }
+            if (!normalized.residentialAddress && emplocRow.residential_address_snapshot) {
+              normalized.residentialAddress = asString(emplocRow.residential_address_snapshot);
             }
           }
-        } catch {
-          // Graceful fallback
+        } catch (err) {
+          console.warn("[Plantilla] hr_emploc demographic query exception:", err);
         }
       }
-      if (!normalized.maskedFields.governmentIds.sss && directData.sss_no) {
-        normalized.maskedFields.governmentIds.sss = directData.sss_no;
+    }
+
+    // Tier 4: employees master registry lookup
+    if (!normalized.civilStatus || !normalized.birthDate || !normalized.contactNumber || !normalized.residentialAddress) {
+      const empNo = normalized.employeeNo && normalized.employeeNo !== "Uncoded" ? normalized.employeeNo : null;
+      if (empNo) {
+        try {
+          const { data: empRow } = await supabase
+            .from("employees")
+            .select("civil_status, date_of_birth, birthdate, contact_no, address")
+            .eq("employee_no", empNo)
+            .maybeSingle();
+          if (empRow) {
+            if (!normalized.civilStatus && empRow.civil_status) {
+              normalized.civilStatus = asString(empRow.civil_status);
+            }
+            if (!normalized.birthDate && (empRow.date_of_birth || empRow.birthdate)) {
+              normalized.birthDate = asString(empRow.date_of_birth || empRow.birthdate);
+            }
+            if (!normalized.contactNumber && empRow.contact_no) {
+              normalized.contactNumber = asString(empRow.contact_no);
+            }
+            if (!normalized.residentialAddress && empRow.address) {
+              normalized.residentialAddress = asString(empRow.address);
+            }
+          }
+        } catch (err) {
+          console.warn("[Plantilla] employees demographic query exception:", err);
+        }
       }
-      if (!normalized.maskedFields.governmentIds.philhealth && directData.philhealth_no) {
-        normalized.maskedFields.governmentIds.philhealth = directData.philhealth_no;
+    }
+
+    // Tier 5: plantilla_import_rows raw batch import lookup
+    if (!normalized.civilStatus || !normalized.birthDate || !normalized.contactNumber || !normalized.residentialAddress) {
+      const empNo = normalized.employeeNo && normalized.employeeNo !== "Uncoded" ? normalized.employeeNo : null;
+      if (empNo) {
+        try {
+          const { data: importRow } = await supabase
+            .from("plantilla_import_rows")
+            .select("civil_status, birthdate_raw, contact_raw, address_raw")
+            .eq("employee_no", empNo)
+            .order("row_number", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (importRow) {
+            if (!normalized.civilStatus && importRow.civil_status) {
+              normalized.civilStatus = asString(importRow.civil_status);
+            }
+            if (!normalized.birthDate && importRow.birthdate_raw) {
+              normalized.birthDate = asString(importRow.birthdate_raw);
+            }
+            if (!normalized.contactNumber && importRow.contact_raw) {
+              normalized.contactNumber = asString(importRow.contact_raw);
+            }
+            if (!normalized.residentialAddress && importRow.address_raw) {
+              normalized.residentialAddress = asString(importRow.address_raw);
+            }
+          }
+        } catch (err) {
+          console.warn("[Plantilla] plantilla_import_rows demographic query exception:", err);
+        }
       }
-      if (!normalized.maskedFields.governmentIds.pagibig && directData.pagibig_no) {
-        normalized.maskedFields.governmentIds.pagibig = directData.pagibig_no;
-      }
-      if (!normalized.maskedFields.governmentIds.atmNumber && directData.atm_no) {
-        normalized.maskedFields.governmentIds.atmNumber = directData.atm_no;
-      }
-      if (!normalized.maskedFields.governmentIds.atmNumberMasked && directData.atm_no) {
-        const raw = directData.atm_no.trim();
-        normalized.maskedFields.governmentIds.atmNumberMasked =
-          raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
+    }
+
+    // Coverage group resolution for roving employees
+    if (
+      !normalized.cgCode &&
+      (normalized.coveredStores.length > 1 || normalized.assignmentType?.toLowerCase() === "roving") &&
+      normalized.accountId
+    ) {
+      try {
+        const { data: cgRows } = await supabase
+          .from("coverage_groups")
+          .select("coverage_code, coverage_group_stores(store_id)")
+          .eq("account_id", normalized.accountId)
+          .is("archived_at", null);
+        if (cgRows && cgRows.length > 0) {
+          const assignedStoreIds = new Set(normalized.coveredStores.map((s) => s.storeId).filter(Boolean));
+          for (const cg of cgRows as Array<Record<string, unknown>>) {
+            const cgs = Array.isArray(cg.coverage_group_stores) ? cg.coverage_group_stores : [];
+            const cgStoreIds = cgs.map((item: Record<string, unknown>) => item.store_id);
+            if (cgStoreIds.some((id) => assignedStoreIds.has(String(id)))) {
+              normalized.cgCode = asString(cg.coverage_code);
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Plantilla] coverage group store mapping query exception:", err);
       }
     }
   }

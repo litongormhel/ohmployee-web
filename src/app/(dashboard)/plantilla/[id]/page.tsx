@@ -91,11 +91,22 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 function formatBirthDateAndAge(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
+  if (!dateStr || dateStr.trim() === "") return "—";
+  const cleanStr = dateStr.trim();
   try {
-    const birth = new Date(dateStr);
-    if (isNaN(birth.getTime())) return dateStr;
-    const formatted = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" }).format(birth);
+    let birth: Date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) {
+      const [year, month, day] = cleanStr.split("-").map(Number);
+      birth = new Date(year, month - 1, day);
+    } else {
+      birth = new Date(cleanStr);
+    }
+    if (isNaN(birth.getTime())) return cleanStr;
+    const formatted = new Intl.DateTimeFormat("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(birth);
     const now = new Date();
     let age = now.getFullYear() - birth.getFullYear();
     const m = now.getMonth() - birth.getMonth();
@@ -107,7 +118,7 @@ function formatBirthDateAndAge(dateStr: string | null | undefined): string {
     }
     return formatted;
   } catch {
-    return dateStr;
+    return cleanStr;
   }
 }
 
@@ -781,8 +792,8 @@ function PlantillaEmployeeDetailContent() {
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
                       <span className="text-text-secondary font-medium">Civil Status</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.civilStatus || "—"}
+                      <p className="font-bold text-text-primary text-sm mt-1 uppercase">
+                        {data.civilStatus ? data.civilStatus.toUpperCase() : "—"}
                       </p>
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle md:col-span-2 lg:col-span-3">
