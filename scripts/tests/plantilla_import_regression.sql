@@ -86,6 +86,10 @@ DECLARE
   v_blocked_caught boolean := false;
   v_blocked_err text;
 
+  v_rov_rollback jsonb;
+  v_rollback_plantilla int;
+  v_rollback_allocations int;
+
   v_rej_submit jsonb;
   v_rej_batch_id uuid;
   v_rej_res jsonb;
@@ -200,6 +204,48 @@ BEGIN
   END IF;
 
   -- --------------------------------------------------------------------------
+  -- 3b. Test Rollback Readiness & Batch Rollback Execution (ADR-002 Invariant 10)
+  -- --------------------------------------------------------------------------
+  SELECT * INTO v_batch_rec
+    FROM public.plantilla_import_batches
+   WHERE id = v_rov_batch_id;
+
+  IF NOT COALESCE(v_batch_rec.rollback_ready, false) THEN
+    RAISE EXCEPTION 'ASSERTION_FAILED: approved batch rollback_ready expected true, got false';
+  END IF;
+
+  v_rov_rollback := public.rollback_plantilla_import_batch(
+    v_rov_batch_id,
+    'Regression test 72h rollback'
+  );
+
+  IF (v_rov_rollback->>'status') <> 'rolled_back' THEN
+    RAISE EXCEPTION 'ASSERTION_FAILED: rollback result status expected "rolled_back", got %',
+      v_rov_rollback->>'status';
+  END IF;
+
+  -- Verify active plantilla restored to baseline
+  SELECT count(*) INTO v_rollback_plantilla
+    FROM public.plantilla
+   WHERE account_id = v_account_id AND status = 'Active' AND is_deleted = false;
+
+  IF v_rollback_plantilla <> v_before_plantilla THEN
+    RAISE EXCEPTION 'ASSERTION_FAILED: active plantilla after rollback expected %, got %',
+      v_before_plantilla, v_rollback_plantilla;
+  END IF;
+
+  -- Verify active allocations restored to baseline
+  SELECT count(*) INTO v_rollback_allocations
+    FROM public.employee_store_allocations esa
+    JOIN public.plantilla p ON p.id = esa.plantilla_id
+   WHERE p.account_id = v_account_id AND esa.is_active = true;
+
+  IF v_rollback_allocations <> v_before_allocations THEN
+    RAISE EXCEPTION 'ASSERTION_FAILED: active allocations after rollback expected %, got %',
+      v_before_allocations, v_rollback_allocations;
+  END IF;
+
+  -- --------------------------------------------------------------------------
   -- 4. Test Hard-Blocked File Rejection
   -- --------------------------------------------------------------------------
   BEGIN
@@ -267,6 +313,8 @@ BEGIN
     'roving_employees_created', v_expected_emp_count,
     'roving_allocations_created', v_expected_store_count,
     'stationary_evaluation', 'PASS',
+    'roving_approval', 'PASS',
+    'batch_rollback', 'PASS',
     'blocked_rejection', 'PASS',
     'batch_rejection_audit', 'PASS',
     'timestamp', now()

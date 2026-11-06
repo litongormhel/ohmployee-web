@@ -1,5 +1,90 @@
 # AI Handoff
 
+## Execution Report — Plantilla Import: Fix Rollback Readiness & Store Closure Cascade Vacancies Trigger (ohm#r4t7y2bn — Mode: INVESTIGATION & REMEDIATION)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; INVESTIGATION COMPLETED & APPROVED; MIGRATION `20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql` AUTHORED & APPLIED TO STAGING; REGRESSION TEST SUITE (`scripts/tests/plantilla_import_regression.sql`) ENHANCED WITH STEP 3b AND ASSERTED WITH 100% PASS; MECHANICAL GATES CLEAN (`npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); PROD READ-ONLY & UNTOUCHED**
+
+### 1. Investigation Findings Summary
+
+#### A. Rollback (`rollback_ready` & `plantilla_import_commit_snapshots`)
+1. **Live State on Staging:**
+   - `approve_plantilla_import_batch` did NOT write to `plantilla_import_commit_snapshots` for plantilla, allocations, or slots, nor did it set `rollback_ready = true` on `plantilla_import_batches`.
+   - `plantilla_import_commit_snapshots` only captured updates/inserts on `stores`.
+   - Result: every approved batch retained `rollback_ready = false`. Attempting `rollback_plantilla_import_batch()` raised `ROLLBACK_NOT_READY: batch has no completed rollback lineage`.
+2. **Migration Lineage (The BUG-06 Pattern):**
+   - In migration `20262606000055_fix_plantilla_import_rollback_and_links.sql`, `approve_plantilla_import_batch` captured snapshots and explicitly set `rollback_ready = true`.
+   - In migration `20262606000059_fix_plantilla_import_commit_status.sql` (`ohm#f7m2w9x4`), the function was replaced via `CREATE OR REPLACE` using an older function body that lacked the commit snapshot loop and `rollback_ready = true`.
+   - Subsequent migrations `062` and `064` kept overwriting using the truncated definition without snapshots or `rollback_ready`.
+3. **ADR-002 Promises vs Staging vs PROD:**
+   - **ADR-002 (§4.4 Invariant 10):** Batches can be rolled back within a 72-hour window by Head Admin or Super Admin if no conflicting mutations have occurred.
+   - **Staging status:** Prior to this prompt, promise was broken because `rollback_ready` remained `false` and commit snapshots for plantilla/allocations/slots were omitted.
+   - **PROD status:** Per `docs/audit/migration_history_prod.txt`, PROD is frozen at migration `20260625000000`. Batches 55, 57, 59, 62, 64, 85, 86 are NOT applied on PROD.
+4. **PROD Risk Statement:**
+   - If an import is approved on PROD today, rollback cannot be executed through the ADR-002 rollback mechanism; any data correction would require manual SQL scripts or manual UI updates.
+
+#### B. Store Closure Cascade Trigger (`fn_trg_store_closure_cascade_vacancies`)
+1. **Live Definition & Missing Column:**
+   - `fn_trg_store_closure_cascade_vacancies()` attempted to run:
+     `UPDATE public.vacancies SET status = 'Archived', is_archived = true, closed_at = now() WHERE store_id = NEW.id;`
+   - `vacancies.closed_at` did not exist in `public.vacancies`.
+   - Introduced in migration `20262606000057_route_store_deletion_to_closure_tab.sql` from the mobile repository, which assumed `closed_at` existed on `vacancies` without authoring an `ALTER TABLE vacancies ADD COLUMN closed_at` statement.
+2. **User-Facing Impact:**
+   - Any action closing or archiving a store (updating `stores.status = 'closed'` or `'archived'`, or deactivating `is_active = false`) failed with Postgres error `42703: column "closed_at" of relation "vacancies" does not exist`.
+   - Blocked store closure in both web and mobile apps, as well as cleanup scripts attempting store archival.
+3. **PROD Status:**
+   - Not present on PROD (PROD does not have the trigger or the column).
+
+---
+
+### 2. Remediation Applied to Staging (`qqiiznmqxfoamqytjica`)
+
+- **Migration Authored & Applied:** `supabase/migrations/20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql`
+  - Added `closed_at timestamptz` to `public.vacancies` (`ALTER TABLE public.vacancies ADD COLUMN IF NOT EXISTS closed_at timestamptz`).
+  - Re-asserted `fn_trg_store_closure_cascade_vacancies()` with safe `IF EXISTS` trigger definition.
+  - Updated `public.approve_plantilla_import_batch`:
+    * Captures previous snapshots for `plantilla` (updates/inserts).
+    * Captures snapshots for `employee_store_allocations` (insert/update).
+    * Captures snapshots for Phase B1 / B2 `plantilla_slots` and `vacancies`.
+    * Populates batch summary metrics: `committed_stores`, `committed_employees`, `approved_by_name`.
+    * Sets `rollback_ready = true` and `rollback_window_expires_at = clock_timestamp() + interval '72 hours'`.
+  - Updated `public.rollback_plantilla_import_batch`:
+    * Restores/deactivates `employee_store_allocations` using snapshot lineage (omitting non-existent `updated_at`/`updated_by` columns).
+    * Restores/archives `plantilla` records without hard deletion.
+    * Closes/restores `plantilla_slots` and archives batch-created `vacancies`.
+    * Deactivates empty batch-created stores and archives empty roving groups.
+    * Transitions batch to `status = 'rolled_back'`.
+  - Backfilled existing approved batches on Staging: `UPDATE public.plantilla_import_batches SET rollback_ready = true WHERE status = 'approved' AND rollback_ready = false`.
+  - Logged migration entry `20262606000086` into `supabase_migrations.schema_migrations`.
+
+---
+
+### 3. Verification & Regression Testing
+
+1. **Store Closure Trigger Live Test:**
+   - Atomic verification block executed: created test store, test vacancy, updated store to `status = 'archived'`.
+   - Asserted `vacancy.status = 'Archived'`, `vacancy.closed_at IS NOT NULL`. Succeeded cleanly.
+2. **Self-Rolling-Back Regression Harness (`scripts/tests/plantilla_import_regression.sql`):**
+   - Executed against Staging inside an atomic DO block with 100% forced rollback.
+   - Assertions passed:
+     * `stationary_evaluation`: PASS (1.00 HC, not roving, valid)
+     * `roving_submission`: PASS (14 rows, 0 flagged, routes directly to `pending_approval`)
+     * `roving_approval`: PASS (4 distinct employees, 14 allocations created)
+     * `batch_rollback`: PASS (`rollback_ready = true`, 72h rollback restores active plantilla and allocations count 100% to baseline)
+     * `blocked_rejection`: PASS (middle initial hard-blocked with `BATCH_BLOCKED: ...`, 0 writes)
+     * `batch_rejection_audit`: PASS (`status = 'rejected'`, audit log recorded, 0 plantilla writes)
+   - Raised `REGRESSION_TEST_PASS: {"status": "ALL_ASSERTIONS_PASSED", ...}` aborting test transaction cleanly. Zero persistent test artifacts.
+3. **Frontend Quality Gates:**
+   - `npm run lint`: clean (0 errors, 4 existing warnings in VacancyTable.tsx).
+   - `npm run build`: clean (20/20 routes passing).
+
+---
+
+### 4. Known Gaps / Follow-Ups
+- PROD deployment pending: Migration `20262606000086` is staged in repo and verified on Staging. Awaiting Ohm's operational deployment window to Production along with preceding migrations.
+- Mobile repository alignment: Mobile repo should be informed that `vacancies.closed_at` is now canonically added to the database schema.
+
+---
+
 ## Execution Report — Plantilla Import: Staging State Audit, Cleanup Script, Idempotency & SQL Regression Test Harness (ohm#k6w3n8qd — Mode: CLEANUP + TEST HARNESS)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGING AUDIT RAW EVIDENCE GENERATED; CLEANUP SCRIPT `scripts/staging_cleanup_ohm_k6w3n8qd.sql` GENERATED (UNEXECUTED, NOT COMMITTED); IDEMPOTENCY TRANSACTION MEASURED WITH 100% ROLLBACK; REUSABLE SQL REGRESSION TEST `scripts/tests/plantilla_import_regression.sql` COMMITTED; MECHANICAL GATES CLEAN (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`**

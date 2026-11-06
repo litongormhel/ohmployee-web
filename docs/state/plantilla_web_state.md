@@ -932,6 +932,18 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Tests roving validation (14 rows -> valid, 0 flags, pending_approval), approval (14 stores, 14 slots, 14 allocations, 4 plantilla employees, 14 links), server-side blocking (`BATCH_BLOCKED: ...`), rejection state machine + audit trail, and rolls back 100% via `RAISE EXCEPTION`.
     - Proved idempotency on staging: re-submitting and re-approving the same 14 roving rows detects 14 existing stores, 0 new stores, and yields identical counts without duplication.
 
+- **Plantilla Baseline Import Rollback Readiness & Store Closure Trigger Fix (`ohm#r4t7y2bn` — 2026-11-06)**:
+  - **ADR-002 Invariant 10 Rollback Lineage & Migration 086 (`20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql`)**:
+    - **Root Cause & BUG-06 Overwrite Resolved**: Migration `20262606000059` (`ohm#f7m2w9x4`) had replaced `approve_plantilla_import_batch` with an older function template omitting `rollback_ready = true` and `plantilla_import_commit_snapshots` writes for plantilla/allocations/slots, carried forward into `062` and `064`.
+    - **Approval RPC Restored**: `approve_plantilla_import_batch` now captures previous snapshots for `plantilla` (updates/inserts), `employee_store_allocations` (insert/update), and Phase B1/B2 `plantilla_slots`/`vacancies`; sets `rollback_ready = true` and `rollback_window_expires_at = clock_timestamp() + interval '72 hours'`; populates `committed_stores`, `committed_employees`, and `approved_by_name`.
+    - **Rollback RPC Restored**: `rollback_plantilla_import_batch` safely restores/deactivates allocations (omitting non-existent `updated_at`/`updated_by` columns on `employee_store_allocations`), archives batch-created plantilla rows (`is_archived = true`, `status = 'Inactive'`), restores batch-updated plantilla/stores to prior snapshots, closes batch-created slots and restores claimed vacant slots, archives batch-created vacancies, deactivates empty batch-created stores, and archives empty roving groups.
+    - **Staging Batch Backfill**: Backfilled existing approved batches on Staging to `rollback_ready = true`.
+  - **Store Closure Cascade Vacancies Trigger (`fn_trg_store_closure_cascade_vacancies`)**:
+    - Added missing `closed_at timestamptz` column to `public.vacancies`.
+    - Resolved Postgres error `42703: column "closed_at" of relation "vacancies" does not exist` that previously crashed store archival and closure operations in web, mobile, and cleanup routines.
+  - **Regression Test Suite Step 3b (`scripts/tests/plantilla_import_regression.sql`)**:
+    - Enhanced test harness with Step 3b asserting `rollback_ready = true` on approved batch, calling `rollback_plantilla_import_batch()`, and asserting 100% restoration to baseline active plantilla count and allocations count. All 7 assertions verified passing on Staging.
+
 
 
 
