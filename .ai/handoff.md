@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Plantilla Vacancy Summary Slot Reconciliation & Floating VCode Binding (ohm#branch2-summary-slot-recon)
+
+**Status: COMPLETE ON BRANCH2; UNIFIED VACANCY REMAINING CAPACITY CALCULATION ACROSS TABLE, CARDS, AND KPI SUMMARIES VIA `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` WITH AN OPEN VACANCY CAPACITY SAFEGUARD GUARANTEEING MINIMUM 1 SLOT FOR OPEN REQUISITIONS; EXTENDED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) AND `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) TO PASS AND BIND `vcode: targetStore.code`, PREVENTING FLOATING DEPLOYMENTS FROM PERPETUATING PRIOR STORE VCODES; SANITIZED STAGING DATABASE RECORD FOR JOVEN ASANA (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) TO DIVIMART GENERAL TRIAS (`CPRVJV13`), RELEASING EMILUS ROSARIO (`CPSAJV31`) TO 0/1 FILLED (1 OPEN SLOT); RECONCILED KPI SUMMARY CARD, TAB BADGES, AND TABLE ROSTER TO 100% PARITY (3 OPEN SLOTS TOTAL FOR FOREVER OFFICE, 5 SLOTS TOTAL FOR ACTISERVE); RESTORED EMILUS ROSARIO INTO FLOATING STORE ASSIGNMENT DROPDOWN SELECTION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Audit Findings
+- **Decoupled Table vs Summary Logic:** `StoreVacancyTable` and `VacancyCard` previously used `remainingCapacity || 1`. When `remainingCapacity` evaluated to `0`, the table displayed `1`, while the KPI card (`openVacanciesSlots`) and tab badge (`totalVacanciesSlots`) summed up `Math.max(0, total - filled)` directly (which was `0`), producing `0 + 1 + 1 = 2 slots` across 3 distinct requisitions.
+- **Legacy VCode Retention Bug:** `assignFloatingEmployeeToStore` previously omitted `vcode`. When employee `ASAÑA, JOVEN CHAVEZ` was deployed from floating at `EMILUS ROSARIO` (`CPSAJV31`) to `DIVIMART GENERAL TRIAS`, his `store_id` and `store_name` were updated, but his `vcode` remained `CPSAJV31`.
+- **Occupancy Ghosting:** Because `ASAÑA` was active with `vcode = 'CPSAJV31'`, the backend view `vw_vacancy_list` (`active_plantilla_count`) evaluated `CPSAJV31` as `1/1` filled (`derived_status: "Hired"`).
+- **Missing Floating Store Selection:** Because `CPSAJV31` had `openSlots = 0` and was considered fully occupied (`1/1`), `storesWithAvailableSlots` filtered out `EMILUS ROSARIO` from the `AssignStoreModal` dropdown when assigning floating employees.
+
+### 2. Changes Implemented
+1. **Unified Vacancy Remaining Capacity & Open Safeguard (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated `getVacancyRemainingCapacity(v)` to strictly compute `Math.max(0, total - filled)` and added a resilient safeguard: if `remaining === 0` but the requisition is marked as an open vacancy (`stageBadge === "Vacancy - Open"` or `vacancyStatus === "Open"`), it returns `1`.
+   - Updated `StoreVacancyTable` and `VacancyCard` to use `getVacancyRemainingCapacity(row)` directly, removing the decoupled `remainingCapacity || 1` fallback.
+   - Updated `storesWithAvailableSlots` so stores with open vacancies derive `hcFilled = Math.max(0, hcTotal - openSlots)`, correctly surfacing open slots in `AssignStoreModal`.
+2. **Floating to Store VCode Reassignment (`src/lib/queries/plantilla.ts` & `src/components/plantilla/AssignStoreModal.tsx`)**:
+   - In `assignFloatingEmployeeToStore`, added `vcode?: string | null` to the input interface and updated the mutation payload to persist `updatePayload.vcode = vcode`.
+   - In `AssignStoreModal.tsx`, passed `vcode: targetStore.code || null` during store assignment, ensuring the employee takes the target store's vcode and completely frees up the originating store.
+3. **Staging Data Sanitization**:
+   - Updated `ASAÑA, JOVEN CHAVEZ` in `public.plantilla` (`id: '7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd'`) on staging (`qqiiznmqxfoamqytjica`) to set `vcode = 'CPRVJV13'` (matching his assigned store Divimart General Trias).
+   - Released `CPSAJV31` (`EMILUS ROSARIO`) in `vw_vacancy_list` to `0/1` filled (`derived_status: "Open"`), achieving 100% numerical parity (3 open slots) across KPI cards, tab badges, and table rosters.
+4. **Documentation Updates**:
+   - `.ai/briefing.md`: Prepended `ohm#branch2-summary-slot-recon` to Last Completed Tasks.
+   - `docs/state/plantilla_web_state.md`: Updated Rule #7 and section 900.
+   - `.ai/handoff.md`: Prepending this execution report.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Database Verification**: Verified `vw_vacancy_list` query returns `CPSAJV31` with `hc_filled: 0, hc_total: 1, hc_display: '0/1', derived_status: 'Open'`.
+- **Branch Policy**: Isolated strictly on `Branch2` per explicit prompt instructions (zero commit to `main`, zero push).
+
+---
+
 ## Execution Report — Plantilla Vacancy Slot Count Parity & Slot Column UI Refinement (ohm#branch2-vacancy-slot-recon)
 
 **Status: COMPLETE ON BRANCH2; FIXED ROOT CAUSE OF VACANCY SLOT COUNT DISCREPANCY BY REMOVING PREMATURE `hrProcessingCount` SUBTRACTION FROM `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` SO SLOT CAPACITY IS STRICTLY CALCULATED AS `Math.max(0, total - filled)` (`hc_total - hc_filled`); RECONCILED EMILUS ROSARIO STORE WITH TOTAL OPEN VACANCY METRICS, ACHIEVING 100% PARITY BETWEEN THE KPI SUMMARY CARDS, STATUS TAB COUNTERS, AND VACANCY TABLE ROSTER (3 SLOTS TOTAL); REFINED "SLOT" COLUMN CELL RENDERER IN BOTH `StoreVacancyTable` AND `VacancyCard` TO DISPLAY ONLY THE RAW NUMBER (`1`, `2`) IN RED BADGE STYLING, REMOVING THE WORD "VACANT" WHILE RETAINING RICH HOVER TOOLTIP BREAKDOWN; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5037,6 +5070,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla Vacancy Summary Slot Reconciliation & Floating VCode Binding (ohm#branch2-summary-slot-recon)
+
+**Status: COMPLETE ON BRANCH2; UNIFIED VACANCY REMAINING CAPACITY CALCULATION ACROSS TABLE, CARDS, AND KPI SUMMARIES VIA `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` WITH AN OPEN VACANCY CAPACITY SAFEGUARD GUARANTEEING MINIMUM 1 SLOT FOR OPEN REQUISITIONS; EXTENDED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) AND `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) TO PASS AND BIND `vcode: targetStore.code`, PREVENTING FLOATING DEPLOYMENTS FROM PERPETUATING PRIOR STORE VCODES; SANITIZED STAGING DATABASE RECORD FOR JOVEN ASANA (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) TO DIVIMART GENERAL TRIAS (`CPRVJV13`), RELEASING EMILUS ROSARIO (`CPSAJV31`) TO 0/1 FILLED (1 OPEN SLOT); RECONCILED KPI SUMMARY CARD, TAB BADGES, AND TABLE ROSTER TO 100% PARITY (3 OPEN SLOTS TOTAL FOR FOREVER OFFICE, 5 SLOTS TOTAL FOR ACTISERVE); RESTORED EMILUS ROSARIO INTO FLOATING STORE ASSIGNMENT DROPDOWN SELECTION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Audit Findings
+- **Decoupled Table vs Summary Logic:** `StoreVacancyTable` and `VacancyCard` previously used `remainingCapacity || 1`. When `remainingCapacity` evaluated to `0`, the table displayed `1`, while the KPI card (`openVacanciesSlots`) and tab badge (`totalVacanciesSlots`) summed up `Math.max(0, total - filled)` directly (which was `0`), producing `0 + 1 + 1 = 2 slots` across 3 distinct requisitions.
+- **Legacy VCode Retention Bug:** `assignFloatingEmployeeToStore` previously omitted `vcode`. When employee `ASAÑA, JOVEN CHAVEZ` was deployed from floating at `EMILUS ROSARIO` (`CPSAJV31`) to `DIVIMART GENERAL TRIAS`, his `store_id` and `store_name` were updated, but his `vcode` remained `CPSAJV31`.
+- **Occupancy Ghosting:** Because `ASAÑA` was active with `vcode = 'CPSAJV31'`, the backend view `vw_vacancy_list` (`active_plantilla_count`) evaluated `CPSAJV31` as `1/1` filled (`derived_status: "Hired"`).
+- **Missing Floating Store Selection:** Because `CPSAJV31` had `openSlots = 0` and was considered fully occupied (`1/1`), `storesWithAvailableSlots` filtered out `EMILUS ROSARIO` from the `AssignStoreModal` dropdown when assigning floating employees.
+
+### 2. Changes Implemented
+1. **Unified Vacancy Remaining Capacity & Open Safeguard (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated `getVacancyRemainingCapacity(v)` to strictly compute `Math.max(0, total - filled)` and added a resilient safeguard: if `remaining === 0` but the requisition is marked as an open vacancy (`stageBadge === "Vacancy - Open"` or `vacancyStatus === "Open"`), it returns `1`.
+   - Updated `StoreVacancyTable` and `VacancyCard` to use `getVacancyRemainingCapacity(row)` directly, removing the decoupled `remainingCapacity || 1` fallback.
+   - Updated `storesWithAvailableSlots` so stores with open vacancies derive `hcFilled = Math.max(0, hcTotal - openSlots)`, correctly surfacing open slots in `AssignStoreModal`.
+2. **Floating to Store VCode Reassignment (`src/lib/queries/plantilla.ts` & `src/components/plantilla/AssignStoreModal.tsx`)**:
+   - In `assignFloatingEmployeeToStore`, added `vcode?: string | null` to the input interface and updated the mutation payload to persist `updatePayload.vcode = vcode`.
+   - In `AssignStoreModal.tsx`, passed `vcode: targetStore.code || null` during store assignment, ensuring the employee takes the target store's vcode and completely frees up the originating store.
+3. **Staging Data Sanitization**:
+   - Updated `ASAÑA, JOVEN CHAVEZ` in `public.plantilla` (`id: '7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd'`) on staging (`qqiiznmqxfoamqytjica`) to set `vcode = 'CPRVJV13'` (matching his assigned store Divimart General Trias).
+   - Released `CPSAJV31` (`EMILUS ROSARIO`) in `vw_vacancy_list` to `0/1` filled (`derived_status: "Open"`), achieving 100% numerical parity (3 open slots) across KPI cards, tab badges, and table rosters.
+4. **Documentation Updates**:
+   - `.ai/briefing.md`: Prepended `ohm#branch2-summary-slot-recon` to Last Completed Tasks.
+   - `docs/state/plantilla_web_state.md`: Updated Rule #7 and section 900.
+   - `.ai/handoff.md`: Prepending this execution report.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Database Verification**: Verified `vw_vacancy_list` query returns `CPSAJV31` with `hc_filled: 0, hc_total: 1, hc_display: '0/1', derived_status: 'Open'`.
+- **Branch Policy**: Isolated strictly on `Branch2` per explicit prompt instructions (zero commit to `main`, zero push).
+
+---
+
 ## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
 
 **Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
@@ -5869,6 +5935,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Vacancy Summary Slot Reconciliation & Floating VCode Binding (ohm#branch2-summary-slot-recon)
+
+**Status: COMPLETE ON BRANCH2; UNIFIED VACANCY REMAINING CAPACITY CALCULATION ACROSS TABLE, CARDS, AND KPI SUMMARIES VIA `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` WITH AN OPEN VACANCY CAPACITY SAFEGUARD GUARANTEEING MINIMUM 1 SLOT FOR OPEN REQUISITIONS; EXTENDED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) AND `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) TO PASS AND BIND `vcode: targetStore.code`, PREVENTING FLOATING DEPLOYMENTS FROM PERPETUATING PRIOR STORE VCODES; SANITIZED STAGING DATABASE RECORD FOR JOVEN ASANA (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) TO DIVIMART GENERAL TRIAS (`CPRVJV13`), RELEASING EMILUS ROSARIO (`CPSAJV31`) TO 0/1 FILLED (1 OPEN SLOT); RECONCILED KPI SUMMARY CARD, TAB BADGES, AND TABLE ROSTER TO 100% PARITY (3 OPEN SLOTS TOTAL FOR FOREVER OFFICE, 5 SLOTS TOTAL FOR ACTISERVE); RESTORED EMILUS ROSARIO INTO FLOATING STORE ASSIGNMENT DROPDOWN SELECTION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Audit Findings
+- **Decoupled Table vs Summary Logic:** `StoreVacancyTable` and `VacancyCard` previously used `remainingCapacity || 1`. When `remainingCapacity` evaluated to `0`, the table displayed `1`, while the KPI card (`openVacanciesSlots`) and tab badge (`totalVacanciesSlots`) summed up `Math.max(0, total - filled)` directly (which was `0`), producing `0 + 1 + 1 = 2 slots` across 3 distinct requisitions.
+- **Legacy VCode Retention Bug:** `assignFloatingEmployeeToStore` previously omitted `vcode`. When employee `ASAÑA, JOVEN CHAVEZ` was deployed from floating at `EMILUS ROSARIO` (`CPSAJV31`) to `DIVIMART GENERAL TRIAS`, his `store_id` and `store_name` were updated, but his `vcode` remained `CPSAJV31`.
+- **Occupancy Ghosting:** Because `ASAÑA` was active with `vcode = 'CPSAJV31'`, the backend view `vw_vacancy_list` (`active_plantilla_count`) evaluated `CPSAJV31` as `1/1` filled (`derived_status: "Hired"`).
+- **Missing Floating Store Selection:** Because `CPSAJV31` had `openSlots = 0` and was considered fully occupied (`1/1`), `storesWithAvailableSlots` filtered out `EMILUS ROSARIO` from the `AssignStoreModal` dropdown when assigning floating employees.
+
+### 2. Changes Implemented
+1. **Unified Vacancy Remaining Capacity & Open Safeguard (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated `getVacancyRemainingCapacity(v)` to strictly compute `Math.max(0, total - filled)` and added a resilient safeguard: if `remaining === 0` but the requisition is marked as an open vacancy (`stageBadge === "Vacancy - Open"` or `vacancyStatus === "Open"`), it returns `1`.
+   - Updated `StoreVacancyTable` and `VacancyCard` to use `getVacancyRemainingCapacity(row)` directly, removing the decoupled `remainingCapacity || 1` fallback.
+   - Updated `storesWithAvailableSlots` so stores with open vacancies derive `hcFilled = Math.max(0, hcTotal - openSlots)`, correctly surfacing open slots in `AssignStoreModal`.
+2. **Floating to Store VCode Reassignment (`src/lib/queries/plantilla.ts` & `src/components/plantilla/AssignStoreModal.tsx`)**:
+   - In `assignFloatingEmployeeToStore`, added `vcode?: string | null` to the input interface and updated the mutation payload to persist `updatePayload.vcode = vcode`.
+   - In `AssignStoreModal.tsx`, passed `vcode: targetStore.code || null` during store assignment, ensuring the employee takes the target store's vcode and completely frees up the originating store.
+3. **Staging Data Sanitization**:
+   - Updated `ASAÑA, JOVEN CHAVEZ` in `public.plantilla` (`id: '7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd'`) on staging (`qqiiznmqxfoamqytjica`) to set `vcode = 'CPRVJV13'` (matching his assigned store Divimart General Trias).
+   - Released `CPSAJV31` (`EMILUS ROSARIO`) in `vw_vacancy_list` to `0/1` filled (`derived_status: "Open"`), achieving 100% numerical parity (3 open slots) across KPI cards, tab badges, and table rosters.
+4. **Documentation Updates**:
+   - `.ai/briefing.md`: Prepended `ohm#branch2-summary-slot-recon` to Last Completed Tasks.
+   - `docs/state/plantilla_web_state.md`: Updated Rule #7 and section 900.
+   - `.ai/handoff.md`: Prepending this execution report.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Database Verification**: Verified `vw_vacancy_list` query returns `CPSAJV31` with `hc_filled: 0, hc_total: 1, hc_display: '0/1', derived_status: 'Open'`.
+- **Branch Policy**: Isolated strictly on `Branch2` per explicit prompt instructions (zero commit to `main`, zero push).
+
+---
 
 ## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
 
@@ -6726,6 +6825,39 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Vacancy Summary Slot Reconciliation & Floating VCode Binding (ohm#branch2-summary-slot-recon)
+
+**Status: COMPLETE ON BRANCH2; UNIFIED VACANCY REMAINING CAPACITY CALCULATION ACROSS TABLE, CARDS, AND KPI SUMMARIES VIA `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` WITH AN OPEN VACANCY CAPACITY SAFEGUARD GUARANTEEING MINIMUM 1 SLOT FOR OPEN REQUISITIONS; EXTENDED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) AND `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) TO PASS AND BIND `vcode: targetStore.code`, PREVENTING FLOATING DEPLOYMENTS FROM PERPETUATING PRIOR STORE VCODES; SANITIZED STAGING DATABASE RECORD FOR JOVEN ASANA (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) TO DIVIMART GENERAL TRIAS (`CPRVJV13`), RELEASING EMILUS ROSARIO (`CPSAJV31`) TO 0/1 FILLED (1 OPEN SLOT); RECONCILED KPI SUMMARY CARD, TAB BADGES, AND TABLE ROSTER TO 100% PARITY (3 OPEN SLOTS TOTAL FOR FOREVER OFFICE, 5 SLOTS TOTAL FOR ACTISERVE); RESTORED EMILUS ROSARIO INTO FLOATING STORE ASSIGNMENT DROPDOWN SELECTION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Audit Findings
+- **Decoupled Table vs Summary Logic:** `StoreVacancyTable` and `VacancyCard` previously used `remainingCapacity || 1`. When `remainingCapacity` evaluated to `0`, the table displayed `1`, while the KPI card (`openVacanciesSlots`) and tab badge (`totalVacanciesSlots`) summed up `Math.max(0, total - filled)` directly (which was `0`), producing `0 + 1 + 1 = 2 slots` across 3 distinct requisitions.
+- **Legacy VCode Retention Bug:** `assignFloatingEmployeeToStore` previously omitted `vcode`. When employee `ASAÑA, JOVEN CHAVEZ` was deployed from floating at `EMILUS ROSARIO` (`CPSAJV31`) to `DIVIMART GENERAL TRIAS`, his `store_id` and `store_name` were updated, but his `vcode` remained `CPSAJV31`.
+- **Occupancy Ghosting:** Because `ASAÑA` was active with `vcode = 'CPSAJV31'`, the backend view `vw_vacancy_list` (`active_plantilla_count`) evaluated `CPSAJV31` as `1/1` filled (`derived_status: "Hired"`).
+- **Missing Floating Store Selection:** Because `CPSAJV31` had `openSlots = 0` and was considered fully occupied (`1/1`), `storesWithAvailableSlots` filtered out `EMILUS ROSARIO` from the `AssignStoreModal` dropdown when assigning floating employees.
+
+### 2. Changes Implemented
+1. **Unified Vacancy Remaining Capacity & Open Safeguard (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated `getVacancyRemainingCapacity(v)` to strictly compute `Math.max(0, total - filled)` and added a resilient safeguard: if `remaining === 0` but the requisition is marked as an open vacancy (`stageBadge === "Vacancy - Open"` or `vacancyStatus === "Open"`), it returns `1`.
+   - Updated `StoreVacancyTable` and `VacancyCard` to use `getVacancyRemainingCapacity(row)` directly, removing the decoupled `remainingCapacity || 1` fallback.
+   - Updated `storesWithAvailableSlots` so stores with open vacancies derive `hcFilled = Math.max(0, hcTotal - openSlots)`, correctly surfacing open slots in `AssignStoreModal`.
+2. **Floating to Store VCode Reassignment (`src/lib/queries/plantilla.ts` & `src/components/plantilla/AssignStoreModal.tsx`)**:
+   - In `assignFloatingEmployeeToStore`, added `vcode?: string | null` to the input interface and updated the mutation payload to persist `updatePayload.vcode = vcode`.
+   - In `AssignStoreModal.tsx`, passed `vcode: targetStore.code || null` during store assignment, ensuring the employee takes the target store's vcode and completely frees up the originating store.
+3. **Staging Data Sanitization**:
+   - Updated `ASAÑA, JOVEN CHAVEZ` in `public.plantilla` (`id: '7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd'`) on staging (`qqiiznmqxfoamqytjica`) to set `vcode = 'CPRVJV13'` (matching his assigned store Divimart General Trias).
+   - Released `CPSAJV31` (`EMILUS ROSARIO`) in `vw_vacancy_list` to `0/1` filled (`derived_status: "Open"`), achieving 100% numerical parity (3 open slots) across KPI cards, tab badges, and table rosters.
+4. **Documentation Updates**:
+   - `.ai/briefing.md`: Prepended `ohm#branch2-summary-slot-recon` to Last Completed Tasks.
+   - `docs/state/plantilla_web_state.md`: Updated Rule #7 and section 900.
+   - `.ai/handoff.md`: Prepending this execution report.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Database Verification**: Verified `vw_vacancy_list` query returns `CPSAJV31` with `hc_filled: 0, hc_total: 1, hc_display: '0/1', derived_status: 'Open'`.
+- **Branch Policy**: Isolated strictly on `Branch2` per explicit prompt instructions (zero commit to `main`, zero push).
+
+---
 
 ## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
 

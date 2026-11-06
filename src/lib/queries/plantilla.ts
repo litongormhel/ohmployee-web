@@ -3297,35 +3297,43 @@ export async function assignFloatingEmployeeToStore({
   storeName,
   area,
   assignmentType,
+  vcode,
 }: {
   plantillaId: string;
   storeId: string;
   storeName: string;
   area?: string | null;
   assignmentType: "Stationary" | "Roving";
+  vcode?: string | null;
 }) {
   const supabase = createClient();
+  const updatePayload: Record<string, unknown> = {
+    store_id: storeId,
+    store_name: storeName,
+    area: area || null,
+    deployment_type: assignmentType,
+    status: "Active",
+    separation_status: null,
+    inactive_at: null,
+    inactive_by: null,
+    date_of_separation: null,
+    resignation_date: null,
+    remarks: null,
+    deactivation_reason: null,
+    for_deactivation_at: null,
+    for_deactivation_by: null,
+    deactivated_at: null,
+    deactivated_by: null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (vcode !== undefined) {
+    updatePayload.vcode = vcode;
+  }
+
   const { data, error } = await supabase
     .from("plantilla")
-    .update({
-      store_id: storeId,
-      store_name: storeName,
-      area: area || null,
-      deployment_type: assignmentType,
-      status: "Active",
-      separation_status: null,
-      inactive_at: null,
-      inactive_by: null,
-      date_of_separation: null,
-      resignation_date: null,
-      remarks: null,
-      deactivation_reason: null,
-      for_deactivation_at: null,
-      for_deactivation_by: null,
-      deactivated_at: null,
-      deactivated_by: null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", plantillaId)
     .select()
     .single();

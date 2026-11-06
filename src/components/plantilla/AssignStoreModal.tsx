@@ -90,6 +90,7 @@ export function AssignStoreModal({
         storeName: targetStore.name,
         area: targetStore.province || targetStore.city || null,
         assignmentType,
+        vcode: targetStore.code || null,
       });
     },
     onSuccess: () => {

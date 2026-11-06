@@ -319,7 +319,18 @@ export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean 
 export function getVacancyRemainingCapacity(v: VacancyListItem): number {
   const total = v.hcTotal ?? v.headcount ?? 1;
   const filled = v.hcFilled ?? 0;
-  return Math.max(0, total - filled);
+  const remaining = Math.max(0, total - filled);
+  // An open vacancy requisition represents at least 1 unfilled slot
+  if (
+    remaining === 0 &&
+    (v.stageBadge === "Vacancy - Open" ||
+      v.pipelineStatus === "Vacancy - Open" ||
+      v.vacancyStatus === "Open" ||
+      v.derivedStatus === "Open")
+  ) {
+    return 1;
+  }
+  return remaining;
 }
 
 export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
@@ -1397,8 +1408,8 @@ function PlantillaPageContent() {
 
         if (vac && vac.remaining > 0) {
           openSlots = Math.max(openSlots, vac.remaining);
-          hcFilled = vac.filled;
           hcTotal = vac.total;
+          hcFilled = Math.max(0, hcTotal - openSlots);
         }
 
         return {
@@ -3412,8 +3423,8 @@ function StoreVacancyTable({
               const remarksText = row.closureReason?.trim() || "—";
               const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
               const rowHcFilled = row.hcFilled ?? 0;
-              const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
-              const slotDisplay = remainingCapacity || 1;
+              const remainingCapacity = getVacancyRemainingCapacity(row);
+              const slotDisplay = remainingCapacity;
 
               return (
                 <tr
@@ -4317,8 +4328,8 @@ function VacancyCard({
   const stage = resolveVacancyWorkflowStage(row);
   const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
   const rowHcFilled = row.hcFilled ?? 0;
-  const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
-  const slotDisplay = remainingCapacity || 1;
+  const remainingCapacity = getVacancyRemainingCapacity(row);
+  const slotDisplay = remainingCapacity;
 
   return (
     <div
