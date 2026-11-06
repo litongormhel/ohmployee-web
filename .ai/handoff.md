@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Execution Report — Floating to Active Transition Architecture & Mutation Fix (ohm#branch2-floating-to-active-transition)
+
+**Status: COMPLETE ON BRANCH2; ENSHRINED RULE #7 (FLOATING TO ACTIVE TRANSITION) IN `docs/state/plantilla_web_state.md` AND `.ai/briefing.md`; FIXED `assignFloatingEmployeeToStore` IN `src/lib/queries/plantilla.ts` TO EXPLICITLY SET STATUS TO "Active" AND COMPREHENSIVELY NULLIFY ALL PREVIOUS FLOATING AND SEPARATION TIMESTAMPS/REMARKS (`separation_status`, `inactive_at`, `inactive_by`, `date_of_separation`, `resignation_date`, `remarks`, `deactivation_reason`, `for_deactivation_at`, `for_deactivation_by`, `deactivated_at`, `deactivated_by`); EXTENDED REACT QUERY CACHE INVALIDATION IN `src/components/plantilla/AssignStoreModal.tsx` ACROSS PLANTILLA DETAILS, SUMMARY COUNTERS, AND VACANCIES; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Architectural Rule
+- **State Transition Bug:** When assigning a store to a floating employee, the employee previously retained inactive/separation dates (`inactive_at`, `date_of_separation`, `resignation_date`, `remarks`) or could fail to cleanly partition into the Active Tab because `list_web_plantilla_employees` computes `is_active = false` whenever `date_of_separation` or `inactive_at` is populated.
+- **Rule #7 Enshrined:** When assigning a store to a floating employee (selecting a vacant store with available slots), the system immediately sets the employee's status to **Active** (not Inactive), deploys them to the selected store, consumes the open vacancy slot, and clears all previous separation/floating timestamps and remarks.
+
+### 2. Changes Implemented
+1. **ADR & Architecture Specification Update (`docs/state/plantilla_web_state.md` & `.ai/briefing.md`)**:
+   - Enshrined Permanent Architectural Rule Lock **Rule #7 (Floating to Active Transition)** across both documentation files.
+2. **Assign Store Mutation Fix (`src/lib/queries/plantilla.ts`)**:
+   - In `assignFloatingEmployeeToStore`, updated the payload to explicitly set `status: "Active"`.
+   - Comprehensive nullification of all floating and separation timestamps and remarks on `public.plantilla`:
+     - `separation_status: null`
+     - `inactive_at: null`
+     - `inactive_by: null`
+     - `date_of_separation: null`
+     - `resignation_date: null`
+     - `remarks: null`
+     - `deactivation_reason: null`
+     - `for_deactivation_at: null`
+     - `for_deactivation_by: null`
+     - `deactivated_at: null`
+     - `deactivated_by: null`
+     - `updated_at: new Date().toISOString()`
+3. **Comprehensive Cache Invalidation (`src/components/plantilla/AssignStoreModal.tsx`)**:
+   - Invalidate `["plantilla"]`, `["plantilla", "detail", employee.id]`, `["plantilla-detail"]`, `["web-plantilla-summary"]`, `["store-staffing"]`, `["vacancies"]`, `["vacancy-list"]`, `["vacancy-summary"]`, `["plantilla", "summary"]`, `["plantilla", "account-allocation-kpi"]`.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Changes isolated on `Branch2` per explicit user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Multi-Tier Bulletproof Demographic Hydration Guard (ohm#branch2-multi-tier-demographic-hydration-guard)
 
 **Status: COMPLETE ON BRANCH2; RESOLVED ROOT CAUSE OF BLANK DATE OF BIRTH AND CIVIL STATUS BY SANITIZING `public.plantilla` DIRECT TABLE SELECT TO REMOVE NON-EXISTENT SNAPSHOT COLUMNS (`civil_status_snapshot`, `coverage_group_code_snapshot`) THAT PREVIOUSLY TRIGGERED POSTGREST 400 ERRORS; IMPLEMENTED AN UN-NESTED 5-TIER RESILIENT HYDRATION CASCADE (TIER 1: `plantilla`, TIER 2: `v_plantilla_safe`, TIER 3: `hr_emploc` ONBOARDING SNAPSHOTS, TIER 4: `employees` DIRECTORY, TIER 5: `plantilla_import_rows` BATCH ROWS); HARDENED `formatBirthDateAndAge` AGAINST UTC MIDNIGHT TIMEZONE SHIFTING; UPPERCASED CIVIL STATUS DISPLAY IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

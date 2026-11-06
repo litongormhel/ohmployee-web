@@ -94,7 +94,13 @@ export function AssignStoreModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla", "detail", employee.id] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla", "summary"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla", "account-allocation-kpi"] });
       onSuccess?.();

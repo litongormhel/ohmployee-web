@@ -3315,6 +3315,15 @@ export async function assignFloatingEmployeeToStore({
       status: "Active",
       separation_status: null,
       inactive_at: null,
+      inactive_by: null,
+      date_of_separation: null,
+      resignation_date: null,
+      remarks: null,
+      deactivation_reason: null,
+      for_deactivation_at: null,
+      for_deactivation_by: null,
+      deactivated_at: null,
+      deactivated_by: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", plantillaId)
