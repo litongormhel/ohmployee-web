@@ -1,5 +1,21 @@
 # AI Handoff
 
+## Execution Report — Remove System Record Metadata Card (ohm#branch2-remove-system-record-metadata)
+
+**Status: COMPLETE ON BRANCH2; REMOVED THE VERBOSE `System Record Metadata` CARD (PLANTILLA UUID, ACCOUNT ID, STORE UUID, ACCOUNT NAME, GEOGRAPHIC ISLAND GROUP, CLEARANCE WORKFLOW STATE) FROM THE ACTIVITY TAB IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; CLEANED UP THE UNUSED `Settings` ICON IMPORT; TAB NOW CLEANLY FOCUSES ON THE CORE LIFECYCLE EVENT LOG & AUDIT TIMELINE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Removed System Record Metadata Card (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the 6-grid system record metadata card displaying internal UUIDs, account ID, store UUID, and island groups.
+   - Removed unused `Settings` icon import from `lucide-react`.
+   - The Activity tab now highlights the operational **Lifecycle Event Log & Audit Timeline** without visual clutter.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Multi-Store / Roving Display in Employment & Allocation Tab (ohm#branch2-multistore-roving-allocation-display)
 
 **Status: COMPLETE ON BRANCH2; UPDATED THE ASSIGNED STORE DISPLAY IN THE EMPLOYMENT & ALLOCATION TAB (`src/app/(dashboard)/plantilla/[id]/page.tsx`) TO DYNAMICALLY REFLECT MULTI-STORE / ROVING ALLOCATIONS; IF AN EMPLOYEE IS ROVING OR HAS MULTIPLE COVERED STORES, THE CARD ADAPTS FROM A SINGLE-STORE HEADER TO `Assigned Store Allocations` WITH A `Roving • N Stores` BADGE AND AN EXPLICIT LIST OF ALL ASSIGNED STORES WITH PRIMARY BADGES, VCODES, AND EXACT FRACTIONAL HC SHARES (E.G., 0.50 HC); SINGLE-STORE / STATIONARY PROFILES RETAIN THEIR CLEAN SINGLE-STORE DISPLAY; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

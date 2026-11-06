@@ -18,7 +18,6 @@ import {
   IdCard,
   Pencil,
   RefreshCw,
-  Settings,
   Shield,
   ShieldCheck,
   Store,
@@ -1122,52 +1121,6 @@ function PlantillaEmployeeDetailContent() {
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-
-                {/* System Information Metadata */}
-                <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-                  <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-brand-primary" />
-                    <span>System Record Metadata</span>
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Plantilla UUID</span>
-                      <p className="font-mono text-text-primary text-xs mt-1 truncate select-all">
-                        {data.id}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Account ID</span>
-                      <p className="font-mono text-text-primary text-xs mt-1 truncate select-all">
-                        {data.accountId || "—"}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Store UUID</span>
-                      <p className="font-mono text-text-primary text-xs mt-1 truncate select-all">
-                        {data.storeId || "—"}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Account Name</span>
-                      <p className="font-semibold text-text-primary text-xs mt-1">
-                        {data.accountName || "—"}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Geographic Island Group</span>
-                      <p className="font-semibold text-text-primary text-xs mt-1">
-                        {data.islandGroup || "—"}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Clearance Workflow State</span>
-                      <p className="font-semibold text-text-primary text-xs mt-1">
-                        {data.clearanceStatus || "N/A (Active Deployed)"}
-                      </p>
-                    </div>
                   </div>
                 </div>
               </div>

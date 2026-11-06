@@ -390,7 +390,7 @@ The full-width content area is structured into 4 clean, uncluttered Category Tab
    - *Store Schedule & Headcount Allocation Matrix*: Breakdown of assigned stores with Store Branch Name, VCode, Duty Days (e.g. `MON-TUE-WED`), Shift Window (e.g. `08:00 AM - 05:00 PM`), Headcount (HC) Share (e.g. `0.50 HC`), and presence badge (`DAYS • HC Share`). Includes a live Total Allocation balance meter (`1.00 / 1.00 HC`).
    - *Edit Modal (`UpdateScheduleModal`)*: Interactive modal allowing adjustments to duty days (multi-select pill toggles + presets) and shift time windows per store card, plus multi-select designated rest days. Store Name, VCode, and Headcount (HC) Share are strictly read-only, and store mutation buttons (`+ Add Store`, `Delete Store`) are disabled/removed, ensuring store assignments remain strictly governed by official Plantilla / Movement approvals.
 3. **Benefits & Statutory**: Maskable government statutory IDs (SSS, PhilHealth, Pag-IBIG, TIN, ATM Payroll Account) with mask/reveal toggle (`Eye` / `EyeOff`), plus MIKA HRIS master synchronization trigger card.
-4. **Activity & System Info**: Chronological audit timeline (`auditTimeline`) with event labels, descriptions, timestamps, and actors, plus System Information metadata (Plantilla record UUID, Account ID, Store ID, Province, Island Group).
+4. **Activity & System Info**: Chronological audit timeline (`auditTimeline` / Lifecycle Event Log & Audit Timeline) with event labels, descriptions, timestamps, and actors (internal system record metadata card removed to maintain operational UI focus).
 
 ---
 
