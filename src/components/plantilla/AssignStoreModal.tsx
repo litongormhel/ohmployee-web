@@ -40,7 +40,6 @@ export function AssignStoreModal({
 }: AssignStoreModalProps) {
   const queryClient = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
-  const [assignmentType, setAssignmentType] = useState<"Stationary" | "Roving">("Stationary");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Strictly filter to stores that have open or available slots (hc_filled < hc_total or openSlots > 0).
@@ -89,7 +88,7 @@ export function AssignStoreModal({
         storeId: targetStore.id,
         storeName: targetStore.name,
         area: targetStore.province || targetStore.city || null,
-        assignmentType,
+        assignmentType: "Stationary",
         vcode: targetStore.code || null,
       });
     },
@@ -214,49 +213,6 @@ export function AssignStoreModal({
               </p>
             </>
           )}
-        </div>
-
-        {/* Assignment Type */}
-        <div>
-          <label className="text-xs font-semibold text-text-primary block mb-1">
-            Assignment Type <span className="text-red-500">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label
-              className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer text-xs transition-colors ${
-                assignmentType === "Stationary"
-                  ? "border-brand-600 bg-brand-50/50 text-brand-900 font-semibold dark:bg-brand-950/30 dark:text-brand-100"
-                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
-              }`}
-            >
-              <input
-                type="radio"
-                name="assignmentType"
-                value="Stationary"
-                checked={assignmentType === "Stationary"}
-                onChange={() => setAssignmentType("Stationary")}
-                className="h-3.5 w-3.5 text-brand-600 focus:ring-brand-500"
-              />
-              <span>Stationary</span>
-            </label>
-            <label
-              className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer text-xs transition-colors ${
-                assignmentType === "Roving"
-                  ? "border-brand-600 bg-brand-50/50 text-brand-900 font-semibold dark:bg-brand-950/30 dark:text-brand-100"
-                  : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover"
-              }`}
-            >
-              <input
-                type="radio"
-                name="assignmentType"
-                value="Roving"
-                checked={assignmentType === "Roving"}
-                onChange={() => setAssignmentType("Roving")}
-                className="h-3.5 w-3.5 text-brand-600 focus:ring-brand-500"
-              />
-              <span>Roving</span>
-            </label>
-          </div>
         </div>
 
         {/* Actions */}

@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Execution Report — Floating "Assign Store" Auto-Stationary Assignment & UI Simplification (ohm#branch2-floating-assign-stationary)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED LOGICAL MISMATCH IN FLOATING "ASSIGN STORE" FLOW BY COMPLETELY REMOVING ASSIGNMENT TYPE (STATIONARY / ROVING) RADIO BUTTONS FROM `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) AND AUTO-SETTING ASSIGNMENT TYPE STRICTLY TO "STATIONARY" BEHIND THE SCENES; HARDENED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) TO DEFAULT `assignmentType = "Stationary"` AND EXPLICITLY PERSIST BOTH `assignment_type: "Stationary"` AND `deployment_type: "Stationary"` IN DATABASE PAYLOAD; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Problem Statement
+- **Logical Data Mismatch:** In `AssignStoreModal.tsx`, users previously had the option to select "Roving" via radio buttons when assigning a floating personnel to a single selected store. This created an operational contradiction: an employee assigned to only 1 store could be stamped as "Roving", skewing roster reporting and store schedule expectations.
+- **Architectural Alignment:** Deployment from floating status to an active vacancy slot always represents an initial deployment to a single store, which is inherently `Stationary`. Any subsequent multi-store roving schedules are managed through dedicated movement or schedule allocations.
+
+### 2. Changes Implemented
+1. **Removed Assignment Type Selection UI (`src/components/plantilla/AssignStoreModal.tsx`)**:
+   - Removed `assignmentType` React state (`useState`).
+   - Completely deleted the "Assignment Type" form field / radio buttons (Stationary / Roving).
+   - In `mutationFn`, passed `assignmentType: "Stationary"` directly to `assignFloatingEmployeeToStore`.
+2. **Auto-Persisted Stationary Status (`src/lib/queries/plantilla.ts`)**:
+   - In `assignFloatingEmployeeToStore`, made `assignmentType` parameter optional with default `"Stationary"`.
+   - Updated `updatePayload` to set both `assignment_type: assignmentType || "Stationary"` and `deployment_type: assignmentType || "Stationary"`, guaranteeing complete database and view compatibility.
+3. **Documentation & Compliance**:
+   - Updated Rule #7 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
+   - Updated Last Completed Tasks in `.ai/briefing.md`.
+   - Prepending this handoff entry in `.ai/handoff.md`.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Branch Policy**: Isolated strictly on `Branch2` per explicit user request (no commit to `main`, no push).
+
+---
+
 ## Execution Report — Plantilla Vacancy Summary Slot Reconciliation & Floating VCode Binding (ohm#branch2-summary-slot-recon)
 
 **Status: COMPLETE ON BRANCH2; UNIFIED VACANCY REMAINING CAPACITY CALCULATION ACROSS TABLE, CARDS, AND KPI SUMMARIES VIA `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` WITH AN OPEN VACANCY CAPACITY SAFEGUARD GUARANTEEING MINIMUM 1 SLOT FOR OPEN REQUISITIONS; EXTENDED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) AND `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) TO PASS AND BIND `vcode: targetStore.code`, PREVENTING FLOATING DEPLOYMENTS FROM PERPETUATING PRIOR STORE VCODES; SANITIZED STAGING DATABASE RECORD FOR JOVEN ASANA (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) TO DIVIMART GENERAL TRIAS (`CPRVJV13`), RELEASING EMILUS ROSARIO (`CPSAJV31`) TO 0/1 FILLED (1 OPEN SLOT); RECONCILED KPI SUMMARY CARD, TAB BADGES, AND TABLE ROSTER TO 100% PARITY (3 OPEN SLOTS TOTAL FOR FOREVER OFFICE, 5 SLOTS TOTAL FOR ACTISERVE); RESTORED EMILUS ROSARIO INTO FLOATING STORE ASSIGNMENT DROPDOWN SELECTION; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

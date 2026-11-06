@@ -3296,14 +3296,14 @@ export async function assignFloatingEmployeeToStore({
   storeId,
   storeName,
   area,
-  assignmentType,
+  assignmentType = "Stationary",
   vcode,
 }: {
   plantillaId: string;
   storeId: string;
   storeName: string;
   area?: string | null;
-  assignmentType: "Stationary" | "Roving";
+  assignmentType?: "Stationary" | "Roving";
   vcode?: string | null;
 }) {
   const supabase = createClient();
@@ -3311,7 +3311,8 @@ export async function assignFloatingEmployeeToStore({
     store_id: storeId,
     store_name: storeName,
     area: area || null,
-    deployment_type: assignmentType,
+    assignment_type: assignmentType || "Stationary",
+    deployment_type: assignmentType || "Stationary",
     status: "Active",
     separation_status: null,
     inactive_at: null,
