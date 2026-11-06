@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Plantilla Vacancy Slot Count Parity & Slot Column UI Refinement (ohm#branch2-vacancy-slot-recon)
+
+**Status: COMPLETE ON BRANCH2; FIXED ROOT CAUSE OF VACANCY SLOT COUNT DISCREPANCY BY REMOVING PREMATURE `hrProcessingCount` SUBTRACTION FROM `getVacancyRemainingCapacity` IN `src/app/(dashboard)/plantilla/page.tsx` SO SLOT CAPACITY IS STRICTLY CALCULATED AS `Math.max(0, total - filled)` (`hc_total - hc_filled`); RECONCILED EMILUS ROSARIO STORE WITH TOTAL OPEN VACANCY METRICS, ACHIEVING 100% PARITY BETWEEN THE KPI SUMMARY CARDS, STATUS TAB COUNTERS, AND VACANCY TABLE ROSTER (3 SLOTS TOTAL); REFINED "SLOT" COLUMN CELL RENDERER IN BOTH `StoreVacancyTable` AND `VacancyCard` TO DISPLAY ONLY THE RAW NUMBER (`1`, `2`) IN RED BADGE STYLING, REMOVING THE WORD "VACANT" WHILE RETAINING RICH HOVER TOOLTIP BREAKDOWN; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Audit Findings
+- **Data Discrepancy Cause:** The Vacancy Tab header and the "OPEN VACANCIES" KPI card were displaying **2 slots** (and 3 approved requisitions), while the data table rendered **3 distinct records** (Emilus Rosario, Puregold Noveleta Oasis, and Smco Kawit) with 1 open slot each.
+- **Audit:** In `src/app/(dashboard)/plantilla/page.tsx`, `getVacancyRemainingCapacity(v)` previously subtracted `v.hrProcessingCount`:
+  ```ts
+  return Math.max(0, total - filled - hrProcessing);
+  ```
+  Because Emilus Rosario had an applicant in pipeline processing (`v.hrProcessingCount = 1`), `Math.max(0, 1 - 0 - 1)` returned `0`, prematurely zeroing out its slot contribution in `openVacanciesSlots` and `totalVacanciesSlots`. Meanwhile, the table view used `Math.max(0, rowHcTotal - rowHcFilled)`, yielding `1`.
+- **Operational Alignment:** Sourcing and pipeline vacancy slots remain officially vacant until a candidate is fully onboarded and actively deployed (`hc_filled`). Calculating capacity strictly via `Math.max(0, total - filled)` brings the KPI summary, tab header, and table roster into 100% numerical parity (3 open slots).
+
+### 2. Changes Implemented
+1. **Underlying Vacancy Capacity Calculation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Updated `getVacancyRemainingCapacity` to strictly return `Math.max(0, total - filled)`.
+   - Reconciled `openVacanciesSlots` and `totalVacanciesSlots` to count all 3 open store slots (Emilus Rosario: 1, Puregold Noveleta Oasis: 1, Smco Kawit: 1).
+   - Reconciled OPEN VACANCIES KPI card to display `3` slots with subtitle `"Approved open vacancy slots"` (eliminating the requisition vs slot divergence).
+   - Reconciled Vacancy Tab header badge to display `3`.
+2. **"Slot" Column Display Refinement (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - In `StoreVacancyTable`, updated cell renderer to display **only the raw number** (`slotDisplay = remainingCapacity || 1`, e.g. `1`, `2`) inside the existing red badge styling (`bg-red-50 text-red-700 border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800`), removing the word "Vacant". Added hover `title` attribute for detailed breakdown (e.g., `1 open slot` or `2 open slots (0/2 filled)`).
+   - In `VacancyCard`, updated card badge to also render the raw number (`slotDisplay`) with matching red badge styling.
+3. **Documentation Updates**:
+   - `.ai/briefing.md`: Prepended `ohm#branch2-vacancy-slot-recon` to Last Completed Tasks (trimmed to 5).
+   - `docs/state/plantilla_web_state.md`: Surgically updated Plantilla web slot-vacant capacity and UI display section.
+   - `.ai/handoff.md`: Added execution report.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Git / Branch Policy**: Isolated on `Branch2` per explicit prompt instructions (zero push, zero commit to `main`).
+
+---
+
 ## Execution Report — Floating to Active Transition Architecture & Mutation Fix (ohm#branch2-floating-to-active-transition)
 
 **Status: COMPLETE ON BRANCH2; ENSHRINED RULE #7 (FLOATING TO ACTIVE TRANSITION) IN `docs/state/plantilla_web_state.md` AND `.ai/briefing.md`; FIXED `assignFloatingEmployeeToStore` IN `src/lib/queries/plantilla.ts` TO EXPLICITLY SET STATUS TO "Active" AND COMPREHENSIVELY NULLIFY ALL PREVIOUS FLOATING AND SEPARATION TIMESTAMPS/REMARKS (`separation_status`, `inactive_at`, `inactive_by`, `date_of_separation`, `resignation_date`, `remarks`, `deactivation_reason`, `for_deactivation_at`, `for_deactivation_by`, `deactivated_at`, `deactivated_by`); EXTENDED REACT QUERY CACHE INVALIDATION IN `src/components/plantilla/AssignStoreModal.tsx` ACROSS PLANTILLA DETAILS, SUMMARY COUNTERS, AND VACANCIES; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

@@ -319,8 +319,7 @@ export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean 
 export function getVacancyRemainingCapacity(v: VacancyListItem): number {
   const total = v.hcTotal ?? v.headcount ?? 1;
   const filled = v.hcFilled ?? 0;
-  const hrProcessing = v.hrProcessingCount ?? 0;
-  return Math.max(0, total - filled - hrProcessing);
+  return Math.max(0, total - filled);
 }
 
 export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
@@ -3414,10 +3413,7 @@ function StoreVacancyTable({
               const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
               const rowHcFilled = row.hcFilled ?? 0;
               const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
-              const capacityBadgeText =
-                rowHcTotal > 1
-                  ? `${remainingCapacity} Vacant (${rowHcFilled}/${rowHcTotal})`
-                  : `${remainingCapacity || 1} Vacant`;
+              const slotDisplay = remainingCapacity || 1;
 
               return (
                 <tr
@@ -3474,8 +3470,15 @@ function StoreVacancyTable({
                     {row.position_title || "General Staff"}
                   </td>
                   <td className="px-3.5 py-2 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0">
-                      {capacityBadgeText}
+                    <span
+                      title={
+                        rowHcTotal > 1
+                          ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
+                          : `${slotDisplay} open slot`
+                      }
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
+                    >
+                      {slotDisplay}
                     </span>
                   </td>
                   <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>
@@ -4315,10 +4318,7 @@ function VacancyCard({
   const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
   const rowHcFilled = row.hcFilled ?? 0;
   const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
-  const capacityBadgeText =
-    rowHcTotal > 1
-      ? `${remainingCapacity} Vacant (${rowHcFilled}/${rowHcTotal})`
-      : `${remainingCapacity || 1} Vacant`;
+  const slotDisplay = remainingCapacity || 1;
 
   return (
     <div
@@ -4352,8 +4352,15 @@ function VacancyCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800">
-              {capacityBadgeText}
+            <span
+              title={
+                rowHcTotal > 1
+                  ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
+                  : `${slotDisplay} open slot`
+              }
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
+            >
+              {slotDisplay}
             </span>
             <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
           </div>
