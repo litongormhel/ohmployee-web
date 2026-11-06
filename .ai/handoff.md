@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Remove Plantilla Tier & Display Coverage Group Code (ohm#branch2-cgcode-and-remove-plantilla-tier)
+
+**Status: COMPLETE ON BRANCH2; REMOVED THE `Plantilla Tier` CARD FROM THE EMPLOYMENT & ALLOCATION TAB IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; UPDATED THE VCODE CARD TO DYNAMICALLY DISPLAY `Coverage Group Code (CGCode)` WITH `data.cgCode` FOR MULTI-STORE / ROVING STAFF COVERING > 1 STORE (ALLOWING VACANCY AND AGGREGATION TO USE CGCode WHILE PRESERVING INDIVIDUAL STORE VCODES IN ALLOCATION BADGES), WHILE RETAINING `Permanent VCODE` FOR STATIONARY SINGLE-STORE PERSONNEL; EXTENDED `PlantillaDetailItem` AND FALLBACK RESOLUTION IN `src/lib/queries/plantilla.ts`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Schema & Model Projection (`src/lib/queries/plantilla.ts`)**:
+   - Added `cgCode?: string | null;` to `PlantillaDetailItem`.
+   - In `normalizeDetailRow()`, extracted `cgCode` from `cg_code`, `coverage_group_code_snapshot`, `coverage_code`, or `vcode` (prefixed with `CG-`).
+   - In direct query fallback on `public.plantilla`, selected `coverage_group_id` and `coverage_group_code_snapshot` with dynamic lookup into `coverage_groups` to ensure `cgCode` is always populated.
+2. **UI Updates (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the **Plantilla Tier** card completely from *Employment & Placement Specifications*.
+   - Updated the top code card:
+     - For roving / multi-store personnel (`isRoving || hasMultiStores`):
+       - Label: **Coverage Group Code (CGCode)**
+       - Value: Displays `data.cgCode || (data.vcode?.startsWith("CG-") ? data.vcode : null) || "—"`.
+     - For stationary single-store personnel:
+       - Label: **Permanent VCODE**
+       - Value: Displays `data.vcode || "—"`.
+   - Each individual covered store continues to display its own store-specific VCode (e.g., `CPRVJV11`, `CPSAJV12`) inside each store item pill under *Assigned Store Allocations*.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Personal & Demographic Profile Section in Employment & Allocation Tab (ohm#branch2-personal-demographic-section)
 
 **Status: COMPLETE ON BRANCH2; ADDED A DEDICATED `Personal & Demographic Information` SECTION TO TAB 1 (EMPLOYMENT & ALLOCATION) IN `src/app/(dashboard)/plantilla/[id]/page.tsx` MATCHING THE 3-COLUMN CARD GRID; EXTENDED `PlantillaDetailItem` AND DATA NORMALIZATION IN `src/lib/queries/plantilla.ts` TO PROJECT `birthDate`, `civilStatus`, `contactNumber`, AND `residentialAddress` FROM RPC AND PUBLIC.PLANTILLA DIRECT FALLBACK; FORMATS DATE OF BIRTH WITH COMPUTED AGE (`Month Day, Year (XX yrs old)`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

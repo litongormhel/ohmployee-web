@@ -300,6 +300,7 @@ export type PlantillaDetailItem = {
   firstName: string | null;
   lastName: string | null;
   vcode?: string | null;
+  cgCode?: string | null;
   positionTitle: string | null;
   accountName: string | null;
   primaryStoreName: string | null;
@@ -786,6 +787,15 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
   const activeMovementRequest = normalizeMovementRequest(row.active_movement_req);
 
   const rawVcode = asString(row.vcode ?? rawMasked.vcode);
+  const rawCgCode = asString(
+    row.cg_code ??
+      row.coverage_group_code_snapshot ??
+      row.coverage_code ??
+      rawMasked.cg_code ??
+      rawMasked.coverage_group_code_snapshot
+  );
+  const isVcodeCg = rawVcode?.startsWith("CG-") || false;
+  const resolvedCgCode = rawCgCode || (isVcodeCg ? rawVcode : null);
   const rawRate = row.rate ?? rawMasked.rate;
   const rawDailyRate = row.daily_rate ?? rawMasked.daily_rate;
   const derivedRate =
@@ -832,6 +842,7 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     firstName: nameObj.firstName,
     lastName: nameObj.lastName,
     vcode: rawVcode,
+    cgCode: resolvedCgCode,
     positionTitle: asString(row.position_title),
     accountName: asString(row.account_name),
     primaryStoreName: asString(
@@ -1804,7 +1815,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
   ) {
     let directQuery = supabase
       .from("plantilla")
-      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth");
+      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth, coverage_group_id, coverage_group_code_snapshot");
     directQuery = isUuid ? directQuery.eq("id", plantillaId) : directQuery.eq("employee_no", plantillaId);
     const { data: directData } = await directQuery.maybeSingle();
 
@@ -1864,6 +1875,24 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
       if (!normalized.birthDate && directData.date_of_birth) {
         normalized.birthDate = directData.date_of_birth;
+      }
+      if (!normalized.cgCode) {
+        if (directData.coverage_group_code_snapshot) {
+          normalized.cgCode = asString(directData.coverage_group_code_snapshot);
+        } else if (directData.coverage_group_id) {
+          try {
+            const { data: cgRow } = await supabase
+              .from("coverage_groups")
+              .select("coverage_code")
+              .eq("id", directData.coverage_group_id)
+              .maybeSingle();
+            if (cgRow?.coverage_code) {
+              normalized.cgCode = asString(cgRow.coverage_code);
+            }
+          } catch {
+            // Graceful fallback
+          }
+        }
       }
       if (!normalized.maskedFields.governmentIds.sss && directData.sss_no) {
         normalized.maskedFields.governmentIds.sss = directData.sss_no;

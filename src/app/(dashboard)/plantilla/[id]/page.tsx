@@ -645,9 +645,13 @@ function PlantillaEmployeeDetailContent() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Permanent VCODE</span>
+                      <span className="text-text-secondary font-medium">
+                        {isRoving || hasMultiStores ? "Coverage Group Code (CGCode)" : "Permanent VCODE"}
+                      </span>
                       <p className="font-bold text-text-primary text-sm mt-1 font-mono">
-                        {data.vcode || "—"}
+                        {isRoving || hasMultiStores
+                          ? (data.cgCode || (data.vcode?.startsWith("CG-") ? data.vcode : null) || "—")
+                          : (data.vcode || "—")}
                       </p>
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between">
@@ -727,12 +731,6 @@ function PlantillaEmployeeDetailContent() {
                       <span className="text-text-secondary font-medium">Designated Position</span>
                       <p className="font-bold text-text-primary text-sm mt-1">
                         {data.positionTitle || "—"}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Plantilla Tier</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.plantillaType || "Standard Tier"}
                       </p>
                     </div>
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
