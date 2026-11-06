@@ -823,6 +823,12 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Preserved 100% of migration 65 performance optimizations (set-based CTEs, single bulk insert, `statement_timeout = '60s'`) and migration 66 multi-VCODE store name governance (`multiple_vcodes_per_store` as `flagged` advisory warning).
     - Applied and verified on both Production (`rwxelulyapjgaarlwkus`, tracking version `20262606000073`) and Staging (`qqiiznmqxfoamqytjica`, tracking version `20262606000073`).
 
+- **Plantilla Baseline Import Roving Validation & State Machine Approval Fix (`ohm#fix-plantilla-import-roving-invalid-state`)**:
+  - **Database Migration (`20262606000085_fix_plantilla_roving_validation_and_approval_state.sql`)**:
+    - **Roving Validation Correction**: Updated `submit_plantilla_baseline_import` to treat standard roving employee assignments (across 2..20 stores with fractional HC $1/N$) as valid (`validation_status = 'valid'`) rather than flagging them as advisory warnings (`validation_flags`). Retained advisory warnings solely for allocations exceeding 20 stores (`over_20_stores`).
+    - **Approval State Machine Expansion**: Expanded `approve_plantilla_import_batch` status check to accept batches in `'pending_review'` state in addition to `'pending_approval'` and `'commit_failed'`, curing `INVALID_STATE: only pending_approval or commit_failed can be approved (current=pending_review)`.
+    - **Batch & Row Reconciliation**: Included migration data reconciliation to clean up existing batches (such as Batch `#4898978`) and rows flagged solely due to `flag = 'roving'`, upgrading their status to `valid` / `pending_approval`.
+
 - **UI Standard & Motion System Alignment (Loop 6A, 6B, 6C: `ohm#l6a1m4w9`, `ohm#l6b2n7k4`, `ohm#l6c3w8m2`)**:
   - **Zero Color Literals**: Eliminated 100% of raw color literals (all 1,031 baseline occurrences across 19 files) down to 0, replacing them with standard design tokens (`bg-surface`, `bg-surface-muted`, `border-border-default`, `text-text-primary`, `text-text-secondary`, `text-accent`, `--pct-*`, and `--danger-*`).
   - **Drawer & Table Standardization (Loop 6A)**: Standardized `PlantillaDetailDrawer` (`drawer-width-lg`) and all 8 pool/store drawers with canonical `DetailDrawer`; strictly preserved table text floor $\ge 14\text{px}$ (`text-sm`) across members, vacancies, and store tables; preserved single-account auto-fire and ADR-001 account gate query rules.
