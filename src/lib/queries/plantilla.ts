@@ -332,6 +332,10 @@ export type PlantillaDetailItem = {
   scheduleDays?: string | null;
   scheduleTime?: string | null;
   dayoff?: string | null;
+  birthDate?: string | null;
+  civilStatus?: string | null;
+  contactNumber?: string | null;
+  residentialAddress?: string | null;
   rowCapabilities: PlantillaRowCapabilities;
 };
 
@@ -864,6 +868,32 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     scheduleDays: asString(row.schedule_days ?? row.schedule),
     scheduleTime: asString(row.schedule_time),
     dayoff: asString(row.dayoff ?? row.rest_day),
+    birthDate: asString(
+      row.birth_date ??
+        row.date_of_birth ??
+        row.birthdate ??
+        rawMasked.birth_date ??
+        rawMasked.date_of_birth ??
+        rawMasked.birthdate
+    ),
+    civilStatus: asString(
+      row.civil_status ??
+        rawMasked.civil_status
+    ),
+    contactNumber: asString(
+      row.contact_number ??
+        rawMasked.contact_number ??
+        row.contact_no ??
+        rawMasked.contact_no ??
+        row.phone ??
+        row.mobile_number
+    ),
+    residentialAddress: asString(
+      row.residential_address ??
+        rawMasked.residential_address ??
+        row.address ??
+        rawMasked.address
+    ),
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
   };
 }
@@ -1774,7 +1804,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
   ) {
     let directQuery = supabase
       .from("plantilla")
-      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area");
+      .select("vcode, store_name, rate, daily_rate, address, date_hired, contact_no, coordinator, hrco_name, schedule, rest_day, atm_no, sss_no, philhealth_no, pagibig_no, last_mika_synced_at, last_mika_synced_by, area, civil_status, date_of_birth");
     directQuery = isUuid ? directQuery.eq("id", plantillaId) : directQuery.eq("employee_no", plantillaId);
     const { data: directData } = await directQuery.maybeSingle();
 
@@ -1820,8 +1850,20 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       if (!normalized.maskedFields.residentialAddress && directData.address) {
         normalized.maskedFields.residentialAddress = directData.address;
       }
+      if (!normalized.residentialAddress && directData.address) {
+        normalized.residentialAddress = directData.address;
+      }
       if (!normalized.maskedFields.contactNumber && directData.contact_no) {
         normalized.maskedFields.contactNumber = directData.contact_no;
+      }
+      if (!normalized.contactNumber && directData.contact_no) {
+        normalized.contactNumber = directData.contact_no;
+      }
+      if (!normalized.civilStatus && directData.civil_status) {
+        normalized.civilStatus = directData.civil_status;
+      }
+      if (!normalized.birthDate && directData.date_of_birth) {
+        normalized.birthDate = directData.date_of_birth;
       }
       if (!normalized.maskedFields.governmentIds.sss && directData.sss_no) {
         normalized.maskedFields.governmentIds.sss = directData.sss_no;

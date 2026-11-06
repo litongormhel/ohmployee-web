@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Personal & Demographic Profile Section in Employment & Allocation Tab (ohm#branch2-personal-demographic-section)
+
+**Status: COMPLETE ON BRANCH2; ADDED A DEDICATED `Personal & Demographic Information` SECTION TO TAB 1 (EMPLOYMENT & ALLOCATION) IN `src/app/(dashboard)/plantilla/[id]/page.tsx` MATCHING THE 3-COLUMN CARD GRID; EXTENDED `PlantillaDetailItem` AND DATA NORMALIZATION IN `src/lib/queries/plantilla.ts` TO PROJECT `birthDate`, `civilStatus`, `contactNumber`, AND `residentialAddress` FROM RPC AND PUBLIC.PLANTILLA DIRECT FALLBACK; FORMATS DATE OF BIRTH WITH COMPUTED AGE (`Month Day, Year (XX yrs old)`); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Schema & Model Mapping (`src/lib/queries/plantilla.ts`)**:
+   - Extended `PlantillaDetailItem` interface with `birthDate`, `civilStatus`, `contactNumber`, and `residentialAddress`.
+   - Updated `normalizeDetailRow()` to parse these demographic values from either top-level row fields or `masked_fields` with fallbacks across field variants (`date_of_birth`, `birthdate`, `dob`, `contact_no`, `phone`, `address`).
+   - Updated direct table fallback queries to select `civil_status` and `date_of_birth` from `public.plantilla` when RPC returns partial payloads.
+2. **Personal & Demographic Profile Grid (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Added `formatBirthDateAndAge()` helper to format birth dates as e.g. `May 15, 1995 (30 yrs old)`.
+   - Added the dedicated **Personal & Demographic Information** card section to Tab 1 (Employment & Allocation) directly below *Employment & Placement Specifications*.
+   - Uses the identical 3-column card style:
+     - **Date of Birth**: Formatted date + age in years.
+     - **Contact Number**: Monospace contact number.
+     - **Civil Status**: Single / Married / Widowed etc.
+     - **Residential Address**: Responsive address box spanning the full card width (`md:col-span-2 lg:col-span-3`).
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Fix isHcValid ReferenceError in UpdateScheduleModal (ohm#branch2-fix-ishcvalid-referenceerror)
 
 **Status: COMPLETE ON BRANCH2; RESOLVED A RUNTIME `ReferenceError: isHcValid is not defined` IN `src/components/plantilla/UpdateScheduleModal.tsx` (LINE 691) TRIGGERED WHEN OPENING THE SCHEDULE MODAL; RESTORED THE MEMOIZED HEADCOUNT SUM CALCULATION (`totalPercent`), READABLE FRACTION (`totalHcShare`), AND VALIDATION FLAG (`isHcValid`); ENFORCES 1.00 HC INTEGRITY WITHOUT CRASHING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**

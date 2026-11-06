@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Store,
   Trash2,
+  User,
   UserCheck,
   UserMinus,
   AlertTriangle,
@@ -84,6 +85,27 @@ function formatDate(dateStr: string | null | undefined): string {
     return new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" }).format(
       new Date(dateStr)
     );
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatBirthDateAndAge(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    const birth = new Date(dateStr);
+    if (isNaN(birth.getTime())) return dateStr;
+    const formatted = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" }).format(birth);
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      age--;
+    }
+    if (age >= 0 && age < 130) {
+      return `${formatted} (${age} yrs old)`;
+    }
+    return formatted;
   } catch {
     return dateStr;
   }
@@ -735,6 +757,40 @@ function PlantillaEmployeeDetailContent() {
                       <span className="text-text-secondary font-medium">Account Portfolio</span>
                       <p className="font-bold text-text-primary text-sm mt-1">
                         {data.accountName || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal & Demographic Profile Section */}
+                <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
+                  <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
+                    <User className="w-4 h-4 text-brand-primary" />
+                    <span>Personal & Demographic Information</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                      <span className="text-text-secondary font-medium">Date of Birth</span>
+                      <p className="font-bold text-text-primary text-sm mt-1">
+                        {formatBirthDateAndAge(data.birthDate)}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                      <span className="text-text-secondary font-medium">Contact Number</span>
+                      <p className="font-bold text-text-primary text-sm mt-1 font-mono">
+                        {data.contactNumber || data.maskedFields?.contactNumber || "—"}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                      <span className="text-text-secondary font-medium">Civil Status</span>
+                      <p className="font-bold text-text-primary text-sm mt-1">
+                        {data.civilStatus || "—"}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle md:col-span-2 lg:col-span-3">
+                      <span className="text-text-secondary font-medium">Residential Address</span>
+                      <p className="font-bold text-text-primary text-sm mt-1">
+                        {data.residentialAddress || data.maskedFields?.residentialAddress || "—"}
                       </p>
                     </div>
                   </div>
