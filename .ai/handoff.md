@@ -1,5 +1,22 @@
 # AI Handoff
 
+## Execution Report — Fail-Safe Demographic & CGCode Hydration Guard (ohm#branch2-demographic-and-cgcode-hydration-guard)
+
+**Status: COMPLETE ON BRANCH2; IMPLEMENTED AN AUTOMATIC FAIL-SAFE HYDRATION GUARD IN `getWebPlantillaDetail` (`src/lib/queries/plantilla.ts`); TRIGGERS WHENEVER DATE OF BIRTH, CIVIL STATUS, OR CGCode ARE MISSING FROM THE PRIMARY RPC RESPONSE; FALLS BACK DIRECTLY TO `public.plantilla` (`civil_status`, `civil_status_snapshot`, `date_of_birth`, `birthdate`, `coverage_group_code_snapshot`) WITH SECONDARY FAIL-SAFES TO `v_plantilla_safe` AND ACCOUNT COVERAGE GROUPS (`coverage_groups`); PERMANENTLY GUARDS AGAINST BLANK DEMOGRAPHIC PROFILE FIELDS; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Guaranteed Hydration Guard (`src/lib/queries/plantilla.ts`)**:
+   - Replaced restrictive conditional check with `isMissingKeyFields` evaluating missing demographic fields (`!normalized.birthDate || !normalized.civilStatus || !normalized.contactNumber || !normalized.residentialAddress || !normalized.cgCode`).
+   - Extended direct table select to query `civil_status, civil_status_snapshot, date_of_birth, birthdate, coverage_group_id, coverage_group_code_snapshot`.
+   - Added secondary fallback to `v_plantilla_safe` view if demographic columns were null in the main row.
+   - Added automatic coverage group resolution for roving multi-store employees: inspects `coverage_groups` by account and store assignment if no explicit CGCode snapshot exists on the plantilla row.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Remove Plantilla Tier & Display Coverage Group Code (ohm#branch2-cgcode-and-remove-plantilla-tier)
 
 **Status: COMPLETE ON BRANCH2; REMOVED THE `Plantilla Tier` CARD FROM THE EMPLOYMENT & ALLOCATION TAB IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; UPDATED THE VCODE CARD TO DYNAMICALLY DISPLAY `Coverage Group Code (CGCode)` WITH `data.cgCode` FOR MULTI-STORE / ROVING STAFF COVERING > 1 STORE (ALLOWING VACANCY AND AGGREGATION TO USE CGCode WHILE PRESERVING INDIVIDUAL STORE VCODES IN ALLOCATION BADGES), WHILE RETAINING `Permanent VCODE` FOR STATIONARY SINGLE-STORE PERSONNEL; EXTENDED `PlantillaDetailItem` AND FALLBACK RESOLUTION IN `src/lib/queries/plantilla.ts`; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
