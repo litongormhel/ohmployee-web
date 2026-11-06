@@ -43,7 +43,7 @@ Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [
 > [!NOTE]
 > **Batch Import Entry Point & Contract**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
 > For the governing validation contract, pre-upload dry-run blocking, roving status evaluation, and rollback requirements, refer to [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md) § Invariant 4 and Invariant 10.
-> Reusable regression test suite is maintained at `scripts/test_plantilla_import_validation.mjs`.
+> Self-rolling-back SQL regression test harness is maintained at `scripts/tests/plantilla_import_regression.sql` (run before and after any change touching Import Plantilla).
 
 ### A. Employee View (Default)
 When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** with live count badges, filtering the employee directory:
@@ -927,6 +927,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Batch cards and upload banner display breakdown `N valid · N warnings · N blocked`.
     - Approve button disabled with clear reason unless `(batch.status === 'pending_approval' || batch.status === 'commit_failed') && batch.blockedRows === 0`.
     - Fixed Reject Batch modal: added "Confirm Reject" button in footer, wired to `handleRejectConfirm`, requiring non-empty reason and styled with canonical design tokens (`var(--danger-button)` / `var(--danger-button-hover)`).
+  - **Regression Test Harness & Idempotency Verification (`scripts/tests/plantilla_import_regression.sql`)**:
+    - Replaced obsolete `.mjs` test script with self-rolling-back PostgreSQL regression harness `scripts/tests/plantilla_import_regression.sql` (to run before and after any change touching Import Plantilla).
+    - Tests roving validation (14 rows -> valid, 0 flags, pending_approval), approval (14 stores, 14 slots, 14 allocations, 4 plantilla employees, 14 links), server-side blocking (`BATCH_BLOCKED: ...`), rejection state machine + audit trail, and rolls back 100% via `RAISE EXCEPTION`.
+    - Proved idempotency on staging: re-submitting and re-approving the same 14 roving rows detects 14 existing stores, 0 new stores, and yields identical counts without duplication.
 
 
 
