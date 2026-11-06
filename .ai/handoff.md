@@ -2,7 +2,7 @@
 
 ## Execution Report — Floating "Assign Store" Auto-Stationary Assignment & UI Simplification (ohm#branch2-floating-assign-stationary)
 
-**Status: COMPLETE ON BRANCH2; RESOLVED LOGICAL MISMATCH IN FLOATING "ASSIGN STORE" FLOW BY COMPLETELY REMOVING ASSIGNMENT TYPE (STATIONARY / ROVING) RADIO BUTTONS FROM `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) AND AUTO-SETTING ASSIGNMENT TYPE STRICTLY TO "STATIONARY" BEHIND THE SCENES; HARDENED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) TO DEFAULT `assignmentType = "Stationary"` AND EXPLICITLY PERSIST BOTH `assignment_type: "Stationary"` AND `deployment_type: "Stationary"` IN DATABASE PAYLOAD; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+**Status: COMPLETE ON BRANCH2; RESOLVED LOGICAL MISMATCH IN FLOATING "ASSIGN STORE" FLOW BY COMPLETELY REMOVING ASSIGNMENT TYPE (STATIONARY / ROVING) RADIO BUTTONS FROM `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) AND AUTO-SETTING ASSIGNMENT TYPE STRICTLY TO "STATIONARY" BEHIND THE SCENES; HARDENED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) TO DEFAULT `assignmentType = "Stationary"` AND EXPLICITLY PERSIST `deployment_type: "Stationary"` IN DATABASE PAYLOAD (OMITTING NON-EXISTENT `assignment_type` COLUMN TO PREVENT SCHEMA CACHE ERRORS); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
 
 ### 1. Root Cause & Problem Statement
 - **Logical Data Mismatch:** In `AssignStoreModal.tsx`, users previously had the option to select "Roving" via radio buttons when assigning a floating personnel to a single selected store. This created an operational contradiction: an employee assigned to only 1 store could be stamped as "Roving", skewing roster reporting and store schedule expectations.
@@ -15,7 +15,7 @@
    - In `mutationFn`, passed `assignmentType: "Stationary"` directly to `assignFloatingEmployeeToStore`.
 2. **Auto-Persisted Stationary Status (`src/lib/queries/plantilla.ts`)**:
    - In `assignFloatingEmployeeToStore`, made `assignmentType` parameter optional with default `"Stationary"`.
-   - Updated `updatePayload` to set both `assignment_type: assignmentType || "Stationary"` and `deployment_type: assignmentType || "Stationary"`, guaranteeing complete database and view compatibility.
+   - Updated `updatePayload` to set `deployment_type: assignmentType || "Stationary"`, omitting the non-existent `assignment_type` column to ensure error-free PostgREST execution against `public.plantilla`.
 3. **Documentation & Compliance**:
    - Updated Rule #7 in `docs/state/plantilla_web_state.md` and `.ai/briefing.md`.
    - Updated Last Completed Tasks in `.ai/briefing.md`.

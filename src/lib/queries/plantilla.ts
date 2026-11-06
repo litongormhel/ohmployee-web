@@ -3311,7 +3311,6 @@ export async function assignFloatingEmployeeToStore({
     store_id: storeId,
     store_name: storeName,
     area: area || null,
-    assignment_type: assignmentType || "Stationary",
     deployment_type: assignmentType || "Stationary",
     status: "Active",
     separation_status: null,
