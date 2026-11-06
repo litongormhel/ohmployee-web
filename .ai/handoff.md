@@ -1,40 +1,92 @@
 # AI Handoff
 
-## Execution Report — Plantilla Import: Fix Roving Validation Demotion & Approval State Machine Rejection (ohm#fix-plantilla-import-roving-invalid-state)
+## Execution Report — Plantilla Import: Roving Validation, Approval State Machine, Pre-Upload Blocking & Reject Modal (ohm#k6w3n8qd)
 
-**Status: COMPLETE ON LOCAL `main`; MIGRATION `20262606000085_fix_plantilla_roving_validation_and_approval_state.sql` CREATED & VERIFIED (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`; STOPPED FOR REVIEW**
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; MIGRATION `20262606000085_fix_plantilla_roving_validation_and_approval_state.sql` APPLIED TO STAGING; VERIFIED (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); FIXTURE PARITY & DB VALIDATION 100% PASS; LOCAL COMMIT ON `main`; STOPPED FOR REVIEW**
 
-### 1. Summary of Problem & Root Cause
-1. **Approval State Machine Failure (`INVALID_STATE`)**:
-   - In `approve_plantilla_import_batch`, line 401 strictly checked `IF v_batch.status NOT IN ('pending_approval', 'commit_failed') THEN RAISE EXCEPTION 'INVALID_STATE...'`.
-   - When a batch had advisory warning flags (`v_flagged > 0`), `submit_plantilla_baseline_import` assigned it the status `'pending_review'`.
-   - The UI correctly presented the "Approve & Apply" button for `'pending_review'` batches (when `blocked_rows = 0`), and the commit logic already supported committing both `valid` and `flagged` rows. However, the state machine guard rejected `'pending_review'`, causing the error banner `INVALID_STATE: only pending_approval or commit_failed can be approved (current=pending_review)`.
-2. **Roving Employee Validation Demotion (0 Valid Rows, 14 Flagged)**:
-   - In `submit_plantilla_baseline_import`, any roving employee assigned across `> 1` stores was pushed into `validation_flags` with the message `roving employee across %s stores (fractional HC %s)`.
-   - Row validation evaluated: `WHEN jsonb_array_length(validation_flags) > 0 THEN 'flagged'`.
-   - Even though roving across multiple stores with fractional headcount ($1/N$) is valid and designed behavior (ADR-002 Invariants 4 & 5), this flag demoted 100% of roving rows from `'valid'` to `'flagged'`. In Batch `#4898978`, all 14 rows were roving, causing `valid_rows = 0`, `flagged_rows = 14`, and setting batch status to `'pending_review'`.
+### 1. Architectural & Operational Notes (Mandatory)
+1. **Migration Push & Remote History Divergence**:
+   - `supabase db push` cannot run from the web repository because the remote staging history contains migrations originating from the mobile repository (e.g. versions `20262606000074` through `20262606000081`) that are intentionally absent in the web local migration folder.
+   - As authorized under Option 2, migration `20262606000085_fix_plantilla_roving_validation_and_approval_state.sql` was executed in a single atomic transaction and recorded into `supabase_migrations.schema_migrations`.
+   - Remote and Local now both report `20262606000085` applied with 0 pending migrations.
+2. **Mobile Follow-Up & Coordinated Release**:
+   - `submit_plantilla_baseline_import` now enforces server-side batch integrity by evaluating rows via shared helper `public._evaluate_plantilla_import_rows` and raising a structured exception `BATCH_BLOCKED: import contains % blocked row(s)...` if `blocked_rows > 0`.
+   - Mobile call sites in `OHMployee/lib/data/services/store_import_service.dart` wrap `submit_plantilla_baseline_import` in a try/catch. When an exception occurs, mobile displays a generic error snackbar/dialog. A mobile task should coordinate reading the structured `BATCH_BLOCKED` message prefix to show a friendly row-error summary.
 
-### 2. Changes Made
-1. **Database Migration (`supabase/migrations/20262606000085_fix_plantilla_roving_validation_and_approval_state.sql`)**:
-   - **Roving Validation Flag Correction in `submit_plantilla_baseline_import`**:
-     - Standard roving assignments across 2..20 stores with auto-computed fractional HC ($1/N$) are recognized as valid and are no longer pushed into `validation_flags`.
-     - Advisory warnings are retained strictly for extreme allocations exceeding 20 stores (`over_20_stores`).
-     - Roving metrics (`is_roving`, `roving_store_count`, `employment_type = 'roving'`, `required_hc_raw`, and `roving_detected`) remain fully populated.
-     - Valid roving rows evaluate to `validation_status = 'valid'`, ensuring accurate valid row counts and `pending_approval` status.
-   - **Approval State Expansion in `approve_plantilla_import_batch`**:
-     - Expanded the allowed statuses to include `'pending_review'`:
-       `IF v_batch.status NOT IN ('pending_approval', 'pending_review', 'commit_failed') THEN`
-     - Pre-commit guards remain fully intact: strictly blocks approval if hard-blocked rows exist (`v_blocked_cnt > 0`) or if committable rows equal 0.
-   - **Data Reconciliation**:
-     - Included SQL reconciliation to clean up existing batches (such as Batch `#4898978`) and rows flagged solely due to `flag = 'roving'`, resetting them to `valid` / `pending_approval`.
-2. **Documentation & State Specification**:
-   - Updated `.ai/briefing.md` (prepended completed prompt to "Last Completed Tasks").
-   - Updated `docs/state/plantilla_web_state.md` with roving validation fix and state machine expansion.
+---
 
-### 3. Verification Gates
-- `npx tsc --noEmit`: Clean (0 errors).
-- `npm run lint`: Clean (0 errors, 4 existing unrelated warnings in `VacancyTable.tsx`).
-- `npm run build`: Clean (20/20 Next.js routes compiled successfully).
+### 2. Implementation Summary
+
+#### A. Database Migration (`20262606000085_fix_plantilla_roving_validation_and_approval_state.sql`)
+1. **Shared Evaluation Function (`public._evaluate_plantilla_import_rows`)**:
+   - Acts as single source of truth for both pre-upload dry-run validation and server-side submission.
+   - Standard roving employee assignments ($N \ge 2$) evaluate to `valid` without flags and receive an advisory info note (`Roving · N stores · X.XX HC`). Valid roving assignments are NOT demoted to `flagged`.
+   - Conflicting store-to-VCODE mappings (e.g. `STORE_NAME is mapped to multiple different VCODEs in upload`) are promoted to `blocked` per Flags Policy A.
+   - Purely informational notes (e.g. `roving_info`, `duplicate_emp_vcode`) remain `valid` or `skipped`.
+   - Quoted `"position" text` in return table signature to resolve PostgreSQL reserved keyword syntax error `42601`.
+2. **Dry-Run Validation RPC (`public.validate_plantilla_baseline_import`)**:
+   - `STABLE SECURITY DEFINER` with fixed `search_path TO 'public'`, statement timeout 60s.
+   - RBAC gate: `fn_can_upload_plantilla_import() OR i_have_full_access() OR fn_is_admin() OR lower(v_role) IN ('om', 'operations manager', 'hrco', 'hr coordinator')`.
+   - Writes zero rows to `plantilla_import_batches` or `plantilla_import_rows`.
+   - Returns structured JSON payload with summary counts (`total_rows`, `valid_rows`, `flagged_rows`, `skipped_rows`, `blocked_rows`) and row-level details (`validation_status`, `validation_errors`, `validation_flags`).
+   - Permissions: `REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon; GRANT EXECUTE ... TO authenticated, service_role;`.
+3. **Submit RPC Hardening (`public.submit_plantilla_baseline_import`)**:
+   - Invokes `public._evaluate_plantilla_import_rows` directly to ensure 100% parity with dry-run validation.
+   - Evaluates `v_blocked`: if `v_blocked > 0`, immediately hard-refuses with `RAISE EXCEPTION 'BATCH_BLOCKED: import contains % blocked row(s)...' USING ERRCODE = '22023'`.
+   - Batches with 0 blocked rows and valid roving rows land strictly in `pending_approval`.
+4. **Approval State Machine (`public.approve_plantilla_import_batch`)**:
+   - Retained strict lock to `'pending_approval'` and `'commit_failed'` only, adhering to Amendment B.
+5. **Zero Data Writes to Old Batches**:
+   - All historical data repair scripts excised completely per Amendment C. Old test batches left for manual user rejection.
+
+#### B. Web Frontend Changes
+1. **Query & Type Layer (`src/lib/queries/dataControl.ts`)**:
+   - Added `ValidatePlantillaImportResult` and `PlantillaRowValidationError` interfaces.
+   - Added `validatePlantillaBaselineImport` RPC caller.
+   - Updated `PlantillaImportPreviewRow` interface with `isRoving` and `rovingStoreCount`.
+   - Formatted employee names consistently in "Last, First" format using `formatPersonName(firstName, lastName, middleName, rawFullName)` in `fetchPlantillaImportRows`.
+2. **Import Modal & UI Architecture (`src/components/more/PlantillaImportModal.tsx`)**:
+   - **Upload & Preview Dry-Run Validation**:
+     - Automatically calls `validatePlantillaBaselineImport` upon parsing the spreadsheet.
+     - Displays pre-upload summary alert banner with valid, warnings, and blocked counts.
+     - Filters table view by `All | Valid | Blocked | Skipped`.
+     - Displays row-level error badges with field and message.
+     - **Hard-blocks upload**: "Submit for Review" button is disabled whenever `blockedRows > 0` or during active validation.
+   - **Inspect Batch Rows**:
+     - Removed misleading "Needs HRCO" chip from rows.
+     - Renders neutral info pill `Roving · N stores · X.XX HC`.
+     - Displays formatted employee names in "Last, First" format.
+   - **Review Queue Governance**:
+     - Batch pills display breakdown `N valid · N warnings · N blocked`.
+     - "Approve & Apply" button disabled with tooltip/label explanation unless batch status is `pending_approval` or `commit_failed` AND `blockedRows === 0`.
+   - **Reject Batch Modal**:
+     - Added missing "Confirm Reject" button in `<Modal footer={...}>`.
+     - Disabled unless a non-empty rejection reason is entered.
+     - Styled with canonical design tokens: `bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white`.
+     - Successfully transitions batch to `rejected` with audit note and zero writes to `plantilla`.
+
+---
+
+### 3. Verification Gates & Evidence
+- **TypeScript Typecheck (`npx tsc --noEmit`)**: 0 errors.
+- **ESLint (`npm run lint`)**: 0 errors, 0 warnings in modified files (4 existing warnings in `VacancyTable.tsx`).
+- **Production Build (`npm run build`)**: 20/20 Next.js routes compiled successfully.
+- **Migration Status (`supabase migration list`)**:
+  - `20262606000085 | 20262606000085 | fix_plantilla_roving_validation_and_approval_state` present on BOTH Local and Remote.
+- **Database Function Grants**:
+  - `validate_plantilla_baseline_import`: `authenticated` and `postgres` only (zero grants to `PUBLIC` or `anon`).
+- **Fixture Evaluation (`plantilla_import_template (2) (1).xlsx`, 14 roving rows, APEX / Puregold)**:
+  - 14/14 rows evaluated to `validation_status = 'valid'`.
+  - `valid_rows = 14`, `flagged_rows = 0`, `blocked_rows = 0`.
+  - Neutral info notes generated:
+    * Rows 1–2: `Roving · 2 stores · 0.50 HC`
+    * Rows 3–5: `Roving · 3 stores · 0.33 HC`
+    * Rows 6–9: `Roving · 4 stores · 0.25 HC`
+    * Rows 10–14: `Roving · 5 stores · 0.20 HC`
+- **Invalid Row Blocking Verification**:
+  - Tested middle name initial violation (`"MIDDLE_NAME": "B"`): evaluated to `validation_status = 'blocked'` with error `MIDDLE_NAME must be at least 2 alpha characters or 'NA' (single-letter initials not accepted)`.
+  - Server-side submit hard-refuses with structured exception `BATCH_BLOCKED: import contains 1 blocked row(s)`.
+
 
 ---
 

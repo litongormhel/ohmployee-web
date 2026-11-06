@@ -41,7 +41,8 @@ Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [
 ```
 
 > [!NOTE]
-> **Batch Import Entry Point**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
+> **Batch Import Entry Point & Contract**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
+> For the governing validation contract, pre-upload dry-run blocking, roving status evaluation, and rollback requirements, refer to [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md) § Invariant 4 and Invariant 10.
 
 ### A. Employee View (Default)
 When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** with live count badges, filtering the employee directory:
@@ -910,6 +911,22 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Unmounted `PlantillaImportModal` and removed unused state (`isPlantillaImportOpen`), icon (`UploadCloud`), and imports from the Plantilla page.
     - Resolves broken inline overlay where `PlantillaImportModal` rendered inline and overlapped Plantilla content following its conversion to full-page `BatchImportPageShell`.
     - Plantilla baseline batch roster import operates exclusively under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`).
+
+- **Plantilla Baseline Import Roving Validation, Pre-Upload Blocking & Reject Modal Fix (`ohm#k6w3n8qd` — 2026-11-06)**:
+  - **ADR-002 Invariant 4 Alignment & Migration 085 (`20262606000085_fix_plantilla_roving_validation_and_approval_state.sql`)**:
+    - Standard roving employee assignments ($N \ge 2$) evaluate to `valid` without flags (no `over_20_stores` warning) and receive neutral note (`Roving · N stores · X.XX HC`), eliminating 0-valid rows demotion and invalid `pending_review` batches.
+    - Blocking errors (e.g. `multiple_vcodes_per_store`) promote to `blocked`. Purely informational notes stay `valid`. Batches without blocking errors land in `pending_approval`.
+    - Created shared row evaluation engine `public._evaluate_plantilla_import_rows` invoked by both dry-run RPC `validate_plantilla_baseline_import` and `submit_plantilla_baseline_import` for 100% mathematical parity.
+    - `submit_plantilla_baseline_import` enforces server-side validation and raises structured `RAISE EXCEPTION 'BATCH_BLOCKED: ...'` if `blocked_rows > 0`.
+    - `approve_plantilla_import_batch` left strictly locked to `pending_approval` and `commit_failed` only.
+  - **Web Pre-Upload Validation & UI Enhancements (`src/components/more/PlantillaImportModal.tsx`, `src/lib/queries/dataControl.ts`)**:
+    - Added dry-run pre-upload validation using `validatePlantillaBaselineImport` RPC as single source of truth; any blocked row hard-blocks the submission button with a visible error banner.
+    - Formatted employee names consistently as `Last, First` across preview and row inspection via `formatPersonName`.
+    - Removed misleading "Needs HRCO" chip from Inspect Batch Rows; renders neutral note `Roving · N stores · X.XX HC`.
+    - Batch cards and upload banner display breakdown `N valid · N warnings · N blocked`.
+    - Approve button disabled with clear reason unless `(batch.status === 'pending_approval' || batch.status === 'commit_failed') && batch.blockedRows === 0`.
+    - Fixed Reject Batch modal: added "Confirm Reject" button in footer, wired to `handleRejectConfirm`, requiring non-empty reason and styled with canonical design tokens (`var(--danger-button)` / `var(--danger-button-hover)`).
+
 
 
 

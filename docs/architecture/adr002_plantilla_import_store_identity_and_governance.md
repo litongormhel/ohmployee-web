@@ -41,6 +41,9 @@ Every store permanently retains its individual `VCODE` even when grouped into a 
 - **Assigned Employee** (`EMPLOYEE_NO` present): Distinct stores ($N$) assigned to that `EMPLOYEE_NO` across the batch and active allocations are evaluated:
   - If $N = 1 \implies$ `stationary` (`1.00` HC).
   - If $N > 1 \implies$ `roving`, and each assigned store is allocated fractional headcount $1 / N$ (e.g., 5 stores $\implies 0.20$ HC per store).
+  - Standard roving employee assignments ($N \ge 2$) evaluate to `validation_status = 'valid'` with fractional HC $1/N$ and a neutral advisory info note (`Roving · N stores · X.XX HC`). Valid roving assignments are NOT demoted to `flagged`.
+  - Batch-blocking errors (e.g. `multiple_vcodes_per_store`) are promoted to `validation_status = 'blocked'`. Purely informational notes remain `valid`. Submission no longer produces batches in `pending_review` status. Batches without blocking errors land directly in `pending_approval`.
+  - Pre-upload dry-run validation RPC (`validate_plantilla_baseline_import`) acts as the single source of truth for file validation. If any row is blocked (`blocked_rows > 0`), the entire file is blocked from submission at Upload & Preview. Server-side `submit_plantilla_baseline_import` re-validates the payload and hard-refuses (`RAISE EXCEPTION`) if `blocked_rows > 0`.
   - Data Team can attach or request a Coverage Group (`CGCODE`) overlay subsequently.
 
 ### Invariant 5 — Multi-Batch Existing `VCODE` Rule

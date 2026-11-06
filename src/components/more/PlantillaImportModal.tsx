@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -19,11 +19,10 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/shared/Modal";
 import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 import { useCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
 import { useUsersList } from "@/lib/queries/users";
 import {
   downloadPlantillaImportTemplate,
@@ -39,11 +38,14 @@ import {
   humanizeRollbackError,
   IMPORT_ROLLBACK_REASONS,
   PlantillaImportBatch,
+  PlantillaRowValidationError,
   rejectPlantillaImportBatch,
   rejectPlantillaImportRollback,
   requestPlantillaImportRollback,
   submitPlantillaBaselineImport,
   SubmitPlantillaImportResult,
+  validatePlantillaBaselineImport,
+  ValidatePlantillaImportResult,
   useDataControlAccounts,
   useDataControlGroups,
   usePlantillaImportBatches,
@@ -123,6 +125,11 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
   const [isParsing, setIsParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  // Dry-run Pre-Upload Validation state
+  const [validationResult, setValidationResult] = useState<ValidatePlantillaImportResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [uploadPreviewFilter, setUploadPreviewFilter] = useState<"all" | "blocked" | "valid" | "skipped">("all");
 
   // Review detail & action
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -220,33 +227,6 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
   const { data: previewRows = [], isLoading: isLoadingPreviewRows } = usePlantillaImportRows(selectedBatchId);
   const { data: historyRows = [], isLoading: isLoadingHistoryRows } = usePlantillaImportRows(historySelectedBatch?.id || null);
 
-  const selectedBatch = useMemo(
-    () => batches.find((b) => b.id === selectedBatchId),
-    [batches, selectedBatchId]
-  );
-
-  const { data: batchAccountHrco } = useQuery({
-    queryKey: ["plantilla-import-batch-account-hrco", selectedBatch?.accountId],
-    queryFn: async () => {
-      if (!selectedBatch?.accountId) return null;
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("accounts")
-        .select("hrco_user_id, hrco_name")
-        .eq("id", selectedBatch.accountId)
-        .single();
-      return data;
-    },
-    enabled: !!selectedBatch?.accountId,
-    staleTime: 60000,
-  });
-
-  const accountHasAssignedHrco = Boolean(
-    selectedBatch?.hrcoUserId ||
-    batchAccountHrco?.hrco_user_id ||
-    (batchAccountHrco?.hrco_name && batchAccountHrco.hrco_name.trim() !== "")
-  );
-
   const filteredPreviewRows = useMemo(() => {
     if (rowFilter === "all") return previewRows;
     return previewRows.filter((r) => r.validationStatus === rowFilter);
@@ -325,6 +305,51 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
     }
   };
 
+  // Run dry-run validation RPC as single source of truth when inputs are ready
+  useEffect(() => {
+    let isCancelled = false;
+    const runValidation = async () => {
+      if (!selectedGroupId || !selectedAccountId || parsedRows.length === 0 || !file) {
+        setValidationResult(null);
+        return;
+      }
+
+      setIsValidating(true);
+      setParseError(null);
+      try {
+        const res = await validatePlantillaBaselineImport({
+          fileName: file.name,
+          groupId: selectedGroupId,
+          accountId: selectedAccountId,
+          rows: parsedRows,
+        });
+        if (!isCancelled) {
+          setValidationResult(res);
+          if (res.blockedRows > 0) {
+            setUploadPreviewFilter("blocked");
+          } else {
+            setUploadPreviewFilter("all");
+          }
+        }
+      } catch (err: unknown) {
+        if (!isCancelled) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setParseError(`Validation check failed: ${msg}`);
+          setValidationResult(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsValidating(false);
+        }
+      }
+    };
+
+    runValidation();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedGroupId, selectedAccountId, parsedRows, file]);
+
   const handleSubmit = async () => {
     if (!selectedGroupId || !selectedAccountId || parsedRows.length === 0 || !file) {
       setParseError("Please select an operational Group, Account, and a valid spreadsheet.");
@@ -343,6 +368,13 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
       return;
     }
 
+    if (validationResult && validationResult.blockedRows > 0) {
+      setParseError(
+        `Cannot submit: file contains ${validationResult.blockedRows} blocked row(s). All blocking errors must be resolved before submission.`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     setParseError(null);
     setReviewNotice(null);
@@ -354,26 +386,19 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
         rows: parsedRows,
       });
 
-      if (result.status === "validation_failed" || result.blockedRows > 0) {
-        setSubmitSuccess(null);
-        setReviewNotice({
-          type: "error",
-          message: `Plantilla batch #${result.batchId.slice(0, 8)} uploaded but has ${result.blockedRows} row(s) failing validation. Review row details below.`,
-        });
-        setRowFilter("blocked");
-      } else {
-        setSubmitSuccess(
-          `Plantilla batch #${result.batchId} submitted successfully for review (${result.validRows} valid rows).`
-        );
-        setReviewNotice({
-          type: "success",
-          message: `Plantilla batch #${result.batchId.slice(0, 8)} submitted successfully for review (${result.validRows} valid rows).`,
-        });
-        setRowFilter("all");
-      }
+      const breakdownText = `${result.validRows} valid · ${result.flaggedRows} warnings · ${result.blockedRows} blocked`;
+      setSubmitSuccess(
+        `Plantilla batch #${result.batchId.slice(0, 8)} submitted successfully for review (${breakdownText}).`
+      );
+      setReviewNotice({
+        type: "success",
+        message: `Plantilla batch #${result.batchId.slice(0, 8)} submitted successfully for review (${breakdownText}).`,
+      });
+      setRowFilter("all");
 
       setFile(null);
       setParsedRows([]);
+      setValidationResult(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       refetchBatches();
       setActiveTab("review");
@@ -662,59 +687,212 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
               {/* Parsed Preview Table */}
               {parsedRows.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-[var(--foreground)]">
-                      File Preview ({parsedRows.length} total rows)
-                    </h3>
-                    <span className="text-sm text-[var(--foreground)] font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4 text-[var(--text-muted)]" /> All required headers present
-                    </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-[var(--foreground)]">
+                        File Preview & Pre-Upload Validation ({parsedRows.length} total rows)
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Validated server-side via single source of truth rules. All rows must be valid to submit.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isValidating ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] font-medium">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Validating with DB...
+                        </span>
+                      ) : validationResult ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setUploadPreviewFilter("all")}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition ${
+                              uploadPreviewFilter === "all"
+                                ? "bg-[var(--foreground)] text-[var(--background)]"
+                                : "bg-[var(--surface-muted)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                            }`}
+                          >
+                            All ({validationResult.totalRows})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setUploadPreviewFilter("valid")}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition ${
+                              uploadPreviewFilter === "valid"
+                                ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                                : "bg-[var(--surface-muted)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                            }`}
+                          >
+                            Valid ({validationResult.validRows})
+                          </button>
+                          {validationResult.blockedRows > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setUploadPreviewFilter("blocked")}
+                              className={`px-2 py-0.5 rounded text-xs font-semibold transition ${
+                                uploadPreviewFilter === "blocked"
+                                  ? "bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] font-bold"
+                                  : "bg-[var(--danger-bg)]/50 text-[var(--danger-text)] hover:opacity-90"
+                              }`}
+                            >
+                              Blocked ({validationResult.blockedRows})
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[var(--text-muted)]">Select Group and Account to validate</span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-x-auto">
+                  {validationResult && validationResult.blockedRows > 0 && (
+                    <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3.5 flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-[var(--danger-text)] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-[var(--danger-text)]">
+                          Pre-Upload Validation Failed ({validationResult.blockedRows} blocked rows)
+                        </p>
+                        <p className="text-xs text-[var(--danger-text)] mt-0.5">
+                          The entire file is blocked from reaching the review queue. Please fix the row errors highlighted below in your spreadsheet and re-upload.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {validationResult && validationResult.blockedRows === 0 && (
+                    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-[var(--foreground)] shrink-0" />
+                        <span className="text-xs font-semibold text-[var(--foreground)]">
+                          Validation Passed: {validationResult.validRows} valid rows ({validationResult.rows.filter((r) => r.isRoving).length} roving). Ready for HA/SA review.
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono text-[var(--text-muted)]">0 blocked</span>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-x-auto max-h-[380px]">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
+                      <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold z-10">
                         <tr>
                           <th className="py-2.5 px-3">#</th>
+                          <th className="py-2.5 px-3">Status</th>
                           <th className="py-2.5 px-3">VCode</th>
                           <th className="py-2.5 px-3">Store Name</th>
                           <th className="py-2.5 px-3">Position</th>
                           <th className="py-2.5 px-3">Emp No</th>
                           <th className="py-2.5 px-3">Employee Name</th>
-                          <th className="py-2.5 px-3">Date Hired</th>
+                          <th className="py-2.5 px-3">Details / Validation</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--border-subtle)]">
-                        {parsedRows.slice(0, 10).map((row, idx) => {
-                          const isVacant = !row.EMPLOYEE_NO && !row.LAST_NAME && !row.FIRST_NAME;
-                          return (
-                            <tr key={idx} className="hover:bg-[var(--surface-muted)]/50">
-                              <td className="py-2 px-3 text-[var(--text-muted)]">{idx + 1}</td>
-                              <td className="py-2 px-3 font-semibold text-[var(--foreground)]">{row.VCODE || "—"}</td>
-                              <td className="py-2 px-3 text-[var(--foreground)]">{row.STORE_NAME || "—"}</td>
-                              <td className="py-2 px-3 text-[var(--text-muted)]">{row.POSITION || "—"}</td>
-                              <td className="py-2 px-3 font-mono font-bold text-[var(--foreground)]">
-                                {row.EMPLOYEE_NO ? (
-                                  row.EMPLOYEE_NO
-                                ) : (
-                                  <span className="italic text-[var(--text-muted)] font-sans font-normal">(Vacant Slot)</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-3 font-medium text-[var(--foreground)]">
-                                {[row.LAST_NAME, row.FIRST_NAME, row.MIDDLE_NAME].filter(Boolean).join(", ") || (
-                                  isVacant ? <span className="italic text-[var(--text-muted)] font-normal">(Vacant Slot)</span> : "—"
-                                )}
-                              </td>
-                              <td className="py-2 px-3 text-[var(--text-muted)]">{row.DATE_HIRED || "—"}</td>
-                            </tr>
-                          );
-                        })}
+                        {(() => {
+                          const rowsToDisplay = validationResult
+                            ? uploadPreviewFilter === "all"
+                              ? validationResult.rows
+                              : validationResult.rows.filter((r) => r.validationStatus === uploadPreviewFilter)
+                            : parsedRows.map((r, idx) => ({
+                                rowNumber: idx + 1,
+                                vcode: r.VCODE || "",
+                                storeName: r.STORE_NAME || "",
+                                position: r.POSITION || "",
+                                employeeNo: r.EMPLOYEE_NO || "",
+                                employeeName: [r.LAST_NAME, r.FIRST_NAME, r.MIDDLE_NAME].filter(Boolean).join(", "),
+                                employmentType: "stationary",
+                                validationStatus: "pending",
+                                validationMessages: [] as string[],
+                                validationErrors: [] as PlantillaRowValidationError[],
+                                isRoving: false,
+                                rovingStoreCount: 0,
+                                requiredHc: "1.00",
+                              }));
+
+                          if (rowsToDisplay.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={8} className="py-6 text-center text-xs text-[var(--text-muted)]">
+                                  No rows matching &quot;{uploadPreviewFilter}&quot; filter.
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return rowsToDisplay.slice(0, 50).map((row, idx) => {
+                            const isBlocked = row.validationStatus === "blocked";
+                            const isRoving = row.isRoving || (row.rovingStoreCount && row.rovingStoreCount > 1);
+
+                            return (
+                              <tr
+                                key={idx}
+                                className={`hover:bg-[var(--surface-muted)]/50 ${
+                                  isBlocked ? "bg-[var(--danger-bg)]/20" : ""
+                                }`}
+                              >
+                                <td className="py-2 px-3 text-[var(--text-muted)]">{row.rowNumber}</td>
+                                <td className="py-2 px-3">
+                                  <span
+                                    className={`rounded px-1.5 py-0.5 text-xs font-bold leading-none uppercase ${
+                                      isBlocked
+                                        ? "bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]"
+                                        : row.validationStatus === "skipped"
+                                        ? "bg-[var(--surface-muted)] text-[var(--text-muted)] border border-[var(--border-subtle)]"
+                                        : "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                                    }`}
+                                  >
+                                    {row.validationStatus}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 font-semibold font-mono text-[var(--foreground)]">
+                                  {row.vcode || "—"}
+                                </td>
+                                <td className="py-2 px-3 text-[var(--foreground)]">{row.storeName || "—"}</td>
+                                <td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>
+                                <td className="py-2 px-3 font-mono font-bold text-[var(--foreground)]">
+                                  {row.employeeNo || (
+                                    <span className="italic text-[var(--text-muted)] font-sans font-normal">
+                                      (Vacant Slot)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 font-medium text-[var(--foreground)]">
+                                  {row.employeeName || (
+                                    <span className="italic text-[var(--text-muted)] font-normal">—</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3">
+                                  {isBlocked ? (
+                                    <div className="space-y-0.5 text-xs text-[var(--danger-text)]">
+                                      {row.validationErrors && row.validationErrors.length > 0 ? (
+                                        row.validationErrors.map((err: PlantillaRowValidationError, errIdx: number) => (
+                                          <div key={errIdx} className="font-semibold">
+                                            [{err.field || "Error"}]: {err.msg}
+                                          </div>
+                                        ))
+                                      ) : (
+                                        (row.validationMessages || []).map((msg: string, mIdx: number) => (
+                                          <div key={mIdx}>{msg}</div>
+                                        ))
+                                      )}
+                                    </div>
+                                  ) : isRoving ? (
+                                    <span className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                      Roving · {row.rovingStoreCount || 2} stores · {row.requiredHc ? Number(row.requiredHc).toFixed(2) : "0.50"} HC
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-[var(--text-muted)]">Stationary · 1.00 HC</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
-                  {parsedRows.length > 10 && (
+                  {parsedRows.length > 50 && (
                     <p className="text-xs text-[var(--text-muted)] text-right">
-                      Showing first 10 rows of {parsedRows.length}.
+                      Showing first 50 rows of {parsedRows.length}.
                     </p>
                   )}
 
@@ -722,13 +900,41 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={isSubmitting || !selectedGroupId || !selectedAccountId}
-                      className="inline-flex items-center gap-2 rounded-xl bg-brand-button hover:bg-brand-button-hover text-white font-semibold text-sm px-5 py-2.5 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                      disabled={
+                        isSubmitting ||
+                        isValidating ||
+                        !selectedGroupId ||
+                        !selectedAccountId ||
+                        !validationResult ||
+                        validationResult.blockedRows > 0
+                      }
+                      className={`inline-flex items-center gap-2 rounded-xl text-white font-semibold text-sm px-5 py-2.5 transition shadow-xs cursor-pointer ${
+                        validationResult && validationResult.blockedRows > 0
+                          ? "bg-surface-muted text-text-muted cursor-not-allowed opacity-50"
+                          : "bg-brand-button hover:bg-brand-button-hover disabled:opacity-50"
+                      }`}
+                      title={
+                        validationResult && validationResult.blockedRows > 0
+                          ? `Cannot submit: ${validationResult.blockedRows} row(s) are blocked.`
+                          : !validationResult
+                          ? "Validating rows..."
+                          : "Submit Batch for HA/SA Review"
+                      }
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Submitting Baseline Import...
+                        </>
+                      ) : isValidating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Validating File...
+                        </>
+                      ) : validationResult && validationResult.blockedRows > 0 ? (
+                        <>
+                          <AlertCircle className="h-4 w-4 text-[var(--danger-text)]" />
+                          Submit Blocked ({validationResult.blockedRows} errors)
                         </>
                       ) : (
                         <>
@@ -811,29 +1017,17 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-sm text-[var(--foreground)]">{batch.fileName}</span>
                               <span
-                                className={`rounded-md text-xs font-bold px-1.5 py-0.5  whitespace-nowrap leading-none ${
+                                className={`rounded-md text-xs font-bold px-1.5 py-0.5 whitespace-nowrap leading-none ${
                                   isValidationFailed
-                                    ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
+                                    ? "bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]"
                                     : "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
                                 }`}
                               >
                                 {batch.status.replace("_", " ")}
                               </span>
-                              {batch.blockedRows > 0 && (
-                                <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-1.5 py-0.5 border border-[var(--danger-border)] whitespace-nowrap leading-none">
-                                  {batch.blockedRows} Blocked
-                                </span>
-                              )}
-                              {batch.flaggedRows > 0 && (
-                                <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-semibold px-1.5 py-0.5 border border-[var(--border-subtle)] whitespace-nowrap leading-none">
-                                  {batch.flaggedRows} Flagged
-                                </span>
-                              )}
-                              {batch.validRows > 0 && (
-                                <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-semibold px-1.5 py-0.5 border border-[var(--border-subtle)] whitespace-nowrap leading-none">
-                                  {batch.validRows} Valid
-                                </span>
-                              )}
+                              <span className="rounded-md bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-semibold px-2 py-0.5 border border-[var(--border-subtle)] whitespace-nowrap leading-none">
+                                {batch.validRows} valid · {batch.flaggedRows} warnings · {batch.blockedRows} blocked
+                              </span>
                             </div>
 
                             <div className="text-xs text-[var(--text-muted)] flex flex-wrap gap-x-3 gap-y-1">
@@ -848,11 +1042,11 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                               if (errorEntries.length === 0) return null;
                               return (
                                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                  <span className="text-xs text-[var(--danger)] font-bold">Errors:</span>
+                                  <span className="text-xs text-[var(--danger-text)] font-bold">Errors:</span>
                                   {errorEntries.map(([f, cnt]) => (
                                     <span
                                       key={f}
-                                      className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)] text-xs font-mono font-semibold px-2 py-0.5"
+                                      className="rounded-md bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] text-xs font-mono font-semibold px-2 py-0.5"
                                     >
                                       {f}: {cnt}
                                     </span>
@@ -866,7 +1060,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                             <button
                               type="button"
                               onClick={() => setSelectedBatchId(isSelected ? null : batch.id)}
-                              className={`h-9 px-3 rounded-lg border text-sm font-semibold transition ${
+                              className={`h-9 px-3 rounded-lg border text-sm font-semibold transition cursor-pointer ${
                                 isSelected
                                   ? "bg-[var(--surface-muted)] text-[var(--foreground)] border-[var(--border-bold)]"
                                   : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-muted)]"
@@ -875,35 +1069,43 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                               {isSelected ? "Hide Rows" : "Inspect Rows"}
                             </button>
 
-                            {canApprove && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleApproveBatch(batch.id)}
-                                  disabled={isActionPending || isValidationFailed}
-                                  title={
-                                    isValidationFailed
-                                      ? `Cannot approve batch: ${batch.blockedRows} row(s) failed validation.`
-                                      : "Approve & Apply batch"
-                                  }
-                                  className={`h-9 px-3 rounded-lg text-sm font-semibold transition ${
-                                    isValidationFailed
-                                      ? "bg-surface-muted text-text-muted cursor-not-allowed opacity-50"
-                                      : "bg-brand-button text-white hover:bg-brand-button-hover disabled:opacity-50"
-                                  }`}
-                                >
-                                  Approve & Apply
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openRejectModal(batch)}
-                                  disabled={isActionPending}
-                                  className="h-9 px-3 rounded-lg bg-[var(--danger-bg)] hover:opacity-90 text-[var(--danger)] border border-[var(--danger-border)] text-sm font-semibold transition disabled:opacity-50"
-                                >
-                                  {isValidationFailed ? "Dismiss / Reject" : "Reject"}
-                                </button>
-                              </>
-                            )}
+                            {canApprove && (() => {
+                              const isApprovable =
+                                (batch.status === "pending_approval" || batch.status === "commit_failed") &&
+                                batch.blockedRows === 0;
+                              const disabledReason =
+                                batch.blockedRows > 0
+                                  ? `Cannot approve batch: ${batch.blockedRows} row(s) failed validation.`
+                                  : batch.status !== "pending_approval" && batch.status !== "commit_failed"
+                                  ? `Cannot approve batch: current status is ${batch.status.replace("_", " ")}.`
+                                  : undefined;
+
+                              return (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApproveBatch(batch.id)}
+                                    disabled={isActionPending || !isApprovable}
+                                    title={disabledReason || "Approve & Apply batch"}
+                                    className={`h-9 px-3 rounded-lg text-sm font-semibold transition ${
+                                      !isApprovable
+                                        ? "bg-surface-muted text-text-muted cursor-not-allowed opacity-50"
+                                        : "bg-brand-button text-white hover:bg-brand-button-hover disabled:opacity-50 cursor-pointer"
+                                    }`}
+                                  >
+                                    Approve & Apply
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openRejectModal(batch)}
+                                    disabled={isActionPending}
+                                    className="h-9 px-3 rounded-lg bg-[var(--danger-bg)] hover:opacity-90 text-[var(--danger-text)] border border-[var(--danger-border)] text-sm font-semibold transition disabled:opacity-50 cursor-pointer"
+                                  >
+                                    {isValidationFailed ? "Dismiss / Reject" : "Reject"}
+                                  </button>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1051,16 +1253,11 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                             {r.employeeNo || r.employeeName ? (
                                               <div className="space-y-0.5">
                                                 <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.employeeName || "—"}</div>
-                                                <div className="flex items-center gap-1.5 flex-wrap leading-tight">
-                                                  {r.employeeNo && (
+                                                {r.employeeNo && (
+                                                  <div className="flex items-center gap-1.5 flex-wrap leading-tight">
                                                     <span className="text-xs font-mono text-[var(--text-muted)] leading-tight">ID: {r.employeeNo}</span>
-                                                  )}
-                                                  {r.needsHrco && !accountHasAssignedHrco && !r.resolvedHrcoUserId && (!r.hrcoEmail || !r.hrcoEmail.trim()) && (
-                                                    <span className="rounded bg-[var(--surface-sunken)] text-[var(--foreground)] text-xs font-medium px-1.5 py-0.5 whitespace-nowrap leading-none border border-[var(--border-subtle)]">
-                                                      Needs HRCO
-                                                    </span>
-                                                  )}
-                                                </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             ) : (
                                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)] whitespace-nowrap leading-none">
@@ -1071,12 +1268,20 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                           <td className="px-2.5 py-1.5 align-middle text-[var(--text-muted)]">
                                             <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.position || "—"}</div>
                                             <div className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
-                                              {r.employmentType && (
+                                              {r.isRoving || (r.rovingStoreCount && r.rovingStoreCount > 1) ? (
                                                 <span className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
-                                                  {r.employmentType}
+                                                  Roving · {r.rovingStoreCount || 2} stores · {r.requiredHc ? Number(r.requiredHc).toFixed(2) : "0.50"} HC
                                                 </span>
+                                              ) : (
+                                                <>
+                                                  {r.employmentType && (
+                                                    <span className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                                      {r.employmentType}
+                                                    </span>
+                                                  )}
+                                                  {r.requiredHc !== undefined && <span>{r.requiredHc} HC</span>}
+                                                </>
                                               )}
-                                              {r.requiredHc !== undefined && <span>{r.requiredHc} HC</span>}
                                             </div>
                                             {(r.scheduleDays || r.scheduleTime || r.dayoff) && (
                                               <div
@@ -1094,15 +1299,15 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                                   r.validationErrors.map((err, errIdx) => (
                                                     <div
                                                       key={errIdx}
-                                                      className="flex items-start gap-1 text-[var(--danger)] leading-snug"
+                                                      className="flex items-start gap-1 text-[var(--danger-text)] leading-snug"
                                                     >
                                                       {err.conflictType && (
-                                                        <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-medium shrink-0 leading-none border border-[var(--danger-border)]">
+                                                        <span className="rounded bg-[var(--danger-bg)] text-[var(--danger-text)] px-1.5 py-0.5 text-xs font-mono font-medium shrink-0 leading-none border border-[var(--danger-border)]">
                                                           {err.conflictType}
                                                         </span>
                                                       )}
                                                       {!err.conflictType && err.field && (
-                                                        <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-medium shrink-0 leading-none border border-[var(--danger-border)]">
+                                                        <span className="rounded bg-[var(--danger-bg)] text-[var(--danger-text)] px-1.5 py-0.5 text-xs font-mono font-medium shrink-0 leading-none border border-[var(--danger-border)]">
                                                           {err.field}
                                                         </span>
                                                       )}
@@ -1812,7 +2017,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
           title={
             <span className="flex items-center gap-2">
               <span>Reject Plantilla Batch</span>
-              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
+              <span className="rounded-md bg-[var(--danger-bg)] text-[var(--danger-text)] text-xs font-semibold px-2 py-0.5 border border-[var(--danger-border)]">
                 Rejection
               </span>
             </span>
@@ -1823,6 +2028,32 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
           disableBackdropClick={isActionPending}
           isSubmitting={isActionPending}
           isDirty={Boolean(rejectionNote.trim())}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={closeRejectModal}
+                disabled={isActionPending}
+                className="px-3.5 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--surface-muted)] transition disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRejection}
+                disabled={isActionPending || !rejectionNote.trim()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white text-sm font-semibold transition disabled:opacity-50 cursor-pointer"
+              >
+                {isActionPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Rejecting...
+                  </>
+                ) : (
+                  "Confirm Reject"
+                )}
+              </button>
+            </>
+          }
         >
           <div className="space-y-4">
             {(rejectTargetBatch.groupName || rejectTargetBatch.accountName) && (
@@ -1834,7 +2065,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-[var(--foreground)] block">
-                Rejection Reason / Audit Remarks <span className="text-[var(--danger)]">*</span>
+                Rejection Reason / Audit Remarks <span className="text-[var(--danger-text)]">*</span>
               </label>
               <textarea
                 value={rejectionNote}
@@ -1845,39 +2076,14 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                 disabled={isActionPending}
                 placeholder="Please provide an audited reason note for rejection..."
                 rows={3}
-                className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-3 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-hidden focus:ring-2 focus:ring-[var(--danger)] resize-none"
+                className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--card)] p-3 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-hidden focus:ring-2 focus:ring-[var(--danger-button)] resize-none"
               />
               {rejectionNoteError && (
-                <div className="text-xs text-[var(--danger)] font-medium flex items-center gap-1.5 pt-1">
+                <div className="text-xs text-[var(--danger-text)] font-medium flex items-center gap-1.5 pt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   <span>{rejectionNoteError}</span>
                 </div>
               )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={closeRejectModal}
-                disabled={isActionPending}
-                className="px-3.5 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--surface-muted)] transition disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmRejection}
-                disabled={isActionPending}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[var(--danger)] hover:opacity-90 text-white text-sm font-semibold transition disabled:opacity-50"
-              >
-                {isActionPending ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Rejecting...
-                  </>
-                ) : (
-                  "Confirm Rejection"
-                )}
-              </button>
             </div>
           </div>
         </Modal>

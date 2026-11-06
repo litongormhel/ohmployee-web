@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { formatPersonName } from "@/lib/utils/formatName";
 
 // ============================================================================
 // Scopes & References (Plantilla, Vacancy, Accounts)
@@ -221,10 +222,23 @@ export interface PlantillaImportPreviewRow {
   needsHrco?: boolean;
   resolvedHrcoUserId?: string;
   hrcoEmail?: string;
+  isRoving?: boolean;
+  rovingStoreCount?: number;
   validationStatus: string;
   validationMessages: string[];
   validationErrors?: PlantillaRowValidationError[];
   validationFlags?: Array<{ flag?: string; msg?: string; conflictType?: string }>;
+}
+
+export interface ValidatePlantillaImportResult {
+  status: string;
+  totalRows: number;
+  validRows: number;
+  flaggedRows: number;
+  skippedRows: number;
+  blockedRows: number;
+  errorSummary?: Record<string, number>;
+  rows: PlantillaImportPreviewRow[];
 }
 
 export interface SubmitPlantillaImportResult {
@@ -383,12 +397,18 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
 
     const finalMessages = messages.length > 0 ? messages : fallbackList;
 
+    const firstName = row.first_name ? String(row.first_name) : null;
+    const lastName = row.last_name ? String(row.last_name) : null;
+    const middleName = row.middle_name ? String(row.middle_name) : null;
+    const rawFullName = row.employee_name ?? row.full_name ? String(row.employee_name ?? row.full_name) : null;
+    const employeeName = formatPersonName(firstName, lastName, middleName, rawFullName);
+
     return {
       rowNumber: Number(row.row_number ?? 0),
       vcode: String(row.vcode ?? ""),
       storeName: String(row.store_name ?? ""),
       employeeNo: String(row.employee_no ?? ""),
-      employeeName: String(row.employee_name ?? row.full_name ?? ""),
+      employeeName,
       position: String(row.position ?? ""),
       employmentType: String(row.employment_type ?? ""),
       requiredHc: row.required_hc !== undefined ? (row.required_hc as string | number) : undefined,
@@ -399,12 +419,134 @@ export async function fetchPlantillaImportRows(batchId: string): Promise<Plantil
       needsHrco: row.needs_hrco === true && !row.resolved_hrco_user_id && (!row.hrco_email_raw || String(row.hrco_email_raw).trim() === ""),
       resolvedHrcoUserId: row.resolved_hrco_user_id ? String(row.resolved_hrco_user_id) : undefined,
       hrcoEmail: row.hrco_email_raw ? String(row.hrco_email_raw) : undefined,
+      isRoving: row.is_roving === true,
+      rovingStoreCount: Number(row.roving_store_count ?? 0),
       validationStatus: String(row.validation_status ?? row.status ?? "valid"),
       validationMessages: finalMessages,
       validationErrors,
       validationFlags,
     };
   });
+}
+
+export async function validatePlantillaBaselineImport(params: {
+  fileName: string;
+  groupId: string;
+  accountId: string;
+  rows: Record<string, string>[];
+}): Promise<ValidatePlantillaImportResult> {
+  const supabase = createClient();
+  const rpcRows = params.rows.map((r) => ({
+    VCODE: r.VCODE ?? "",
+    STORE_NAME: r.STORE_NAME ?? "",
+    MOTHER_ACCOUNT: r.MOTHER_ACCOUNT ?? r.ACCOUNT_NAME ?? "",
+    AREA_PROVINCE: r.AREA_PROVINCE ?? "",
+    AREA_CITY: r.AREA_CITY ?? "",
+    POSITION: r.POSITION ?? "",
+    EMPLOYMENT_TYPE: r.EMPLOYMENT_TYPE ?? "stationary",
+    REQUIRED_HC: r.REQUIRED_HC ?? "1",
+    WITH_PENALTY: r.WITH_PENALTY ?? "false",
+    EMPLOYEE_NO: r.EMPLOYEE_NO ?? "",
+    LAST_NAME: r.LAST_NAME ?? "",
+    FIRST_NAME: r.FIRST_NAME ?? "",
+    MIDDLE_NAME: r.MIDDLE_NAME ?? "",
+    DATE_HIRED: r.DATE_HIRED ?? "",
+    CIVIL_STATUS: r.CIVIL_STATUS ?? "",
+    RATE: r.RATE ?? "",
+    DATE_OF_BIRTH: r.DATE_OF_BIRTH ?? r.BIRTHDATE ?? "",
+    CONTACT_NO: r.CONTACT_NO ?? r.CONTACT ?? "",
+    ADDRESS: r.ADDRESS ?? "",
+    SCHEDULE_DAYS: r.SCHEDULE_DAYS ?? r.SCHEDULE ?? "",
+    SCHEDULE_TIME: r.SCHEDULE_TIME ?? "",
+    DAYOFF: r.DAYOFF ?? "",
+    COORDINATOR: r.COORDINATOR ?? "",
+    HRCO_EMAIL: r.HRCO_EMAIL ?? "",
+  }));
+
+  const { data, error } = await supabase.rpc("validate_plantilla_baseline_import", {
+    p_file_name: params.fileName,
+    p_group_id: params.groupId,
+    p_account_id: params.accountId,
+    p_rows: rpcRows,
+  });
+
+  if (error) throw error;
+  const res = data as Record<string, unknown>;
+  const rawRows = Array.isArray(res.rows) ? (res.rows as Record<string, unknown>[]) : [];
+
+  const previewRows: PlantillaImportPreviewRow[] = rawRows.map((row) => {
+    const rawErrors = Array.isArray(row.validation_errors) ? row.validation_errors : [];
+    const validationErrors: PlantillaRowValidationError[] = rawErrors.map((e) => {
+      if (typeof e === "object" && e !== null) {
+        const item = e as Record<string, unknown>;
+        return {
+          field: item.field ? String(item.field) : undefined,
+          conflictType: item.conflict_type ? String(item.conflict_type) : undefined,
+          msg: String(item.msg ?? item.message ?? ""),
+        };
+      }
+      return { msg: String(e) };
+    });
+
+    const rawFlags = Array.isArray(row.validation_flags) ? row.validation_flags : [];
+    const validationFlags = rawFlags.map((f) => {
+      if (typeof f === "object" && f !== null) {
+        const item = f as Record<string, unknown>;
+        return {
+          flag: item.flag ? String(item.flag) : undefined,
+          conflictType: item.conflict_type ? String(item.conflict_type) : undefined,
+          msg: String(item.msg ?? item.message ?? ""),
+        };
+      }
+      return { msg: String(f) };
+    });
+
+    const messages: string[] = [
+      ...validationErrors.map((e) => (e.field ? `[${e.field}] ${e.msg}` : e.msg)),
+      ...validationFlags.map((f) => (f.flag ? `(Warning: ${f.flag}) ${f.msg}` : f.msg)),
+    ].filter((m) => m.trim().length > 0);
+
+    const firstName = row.first_name ? String(row.first_name) : null;
+    const lastName = row.last_name ? String(row.last_name) : null;
+    const middleName = row.middle_name ? String(row.middle_name) : null;
+    const rawFullName = row.employee_name ?? row.full_name ? String(row.employee_name ?? row.full_name) : null;
+    const employeeName = formatPersonName(firstName, lastName, middleName, rawFullName);
+
+    return {
+      rowNumber: Number(row.row_number ?? 0),
+      vcode: String(row.vcode ?? ""),
+      storeName: String(row.store_name ?? ""),
+      employeeNo: String(row.employee_no ?? ""),
+      employeeName,
+      position: String(row.position ?? ""),
+      employmentType: String(row.employment_type ?? ""),
+      requiredHc: row.required_hc !== undefined ? (row.required_hc as string | number) : undefined,
+      motherAccount: row.mother_account ? String(row.mother_account) : undefined,
+      scheduleDays: row.schedule_days ? String(row.schedule_days) : undefined,
+      scheduleTime: row.schedule_time ? String(row.schedule_time) : undefined,
+      dayoff: row.dayoff ? String(row.dayoff) : undefined,
+      needsHrco: row.needs_hrco === true,
+      resolvedHrcoUserId: row.resolved_hrco_user_id ? String(row.resolved_hrco_user_id) : undefined,
+      hrcoEmail: row.hrco_email_raw ? String(row.hrco_email_raw) : undefined,
+      isRoving: row.is_roving === true,
+      rovingStoreCount: Number(row.roving_store_count ?? 0),
+      validationStatus: String(row.validation_status ?? "valid"),
+      validationMessages: messages,
+      validationErrors,
+      validationFlags,
+    };
+  });
+
+  return {
+    status: String(res.status ?? "valid"),
+    totalRows: Number(res.total_rows ?? 0),
+    validRows: Number(res.valid_rows ?? 0),
+    flaggedRows: Number(res.flagged_rows ?? 0),
+    skippedRows: Number(res.skipped_rows ?? 0),
+    blockedRows: Number(res.blocked_rows ?? 0),
+    errorSummary: res.error_summary ? (res.error_summary as Record<string, number>) : undefined,
+    rows: previewRows,
+  };
 }
 
 export async function submitPlantillaBaselineImport(params: {
