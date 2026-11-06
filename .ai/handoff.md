@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Plantilla Import: Verification & Evidence Pass, Live E2E Staging Audit & Regression Test Suite (ohm#k6w3n8qd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; FULL EVIDENCE AUDIT COMPLETED; LIVE RPC E2E EXECUTION & ROLLBACK CLEANUP VERIFIED; ZERO LEAKS / ORPHANS CONFIRMED; REUSABLE REGRESSION SUITE COMMITTED (`scripts/test_plantilla_import_validation.mjs`); MECHANICAL GATES CLEAN (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`**
+
+### 1. Verification Pass Results & Evidence Matrix
+1. **ADR-002 Gate Check (PASS)**:
+   - Evaluated pre-edit ADR-002 via `git show 4c85914^:docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+   - Invariant 4 originally specified auto-computing `EMPLOYMENT_TYPE = roving` and fractional headcount $1/N$ ($N \ge 2$), but was completely silent regarding row validation statuses, flags, and `pending_review`.
+   - Verified that commit `4c85914` added 3 clarifying lines aligning row evaluation with standard valid status (`validation_status = 'valid'`) and neutral info note (`Roving · N stores · X.XX HC`). Zero locked requirements were violated or contradicted.
+2. **Missing Evidence Audit (PASS)**:
+   - **SHA256 of 085 File**: `C437A31768308CA0F8FCC4329C4D232041243EB61451899E201563CCE104D339`.
+   - **Exact Transaction Statement**: Executed via MCP `execute_sql` under `BEGIN; <migration-085-sql>; INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000085', 'fix_plantilla_roving_validation_and_approval_state'); COMMIT;`.
+   - **Live Function Definitions (`pg_get_functiondef`)**: Verified in public schema for `_evaluate_plantilla_import_rows` (12,910 chars), `validate_plantilla_baseline_import` (5,578 chars), and `submit_plantilla_baseline_import` (7,590 chars). Zero occurrences of `pending_review` or `over_20_stores`. Hardcoded `v_final := 'pending_approval'`.
+   - **Flags & Validation Status Emitted**: Live submit emits only 2 flag types in `validation_flags`: `roving_info` (status remains `valid`) and `duplicate_emp_vcode` (status `skipped`). Status CASE emits only `blocked`, `skipped`, or `valid`. No `flagged` status is possible.
+   - **Mobile RPC Handling**:
+     * Submit: `lib/data/services/store_import_service.dart:1186-1201` calls `submit_plantilla_baseline_import`. Handled in `lib/features/plantilla/store_import_screen.dart:521-547`. On success, navigates to Review Import tab. Does not inspect batch status (`blocked`/`partially_blocked`/`pending_review`). On exception, catches at line 543 and sets `_error = e.toString().replaceFirst('Exception: ', '')`.
+     * Detail & Approve: `store_import_screen.dart:1521-1528` (`_canApproveThisBatch`) enforces `status == 'pending_approval' && validRows > 0 && blockedRows == 0`. It does NOT permit approving `pending_review`. Approve call at lines 1890-1925 catches exception and logs to `logImportCommitFailure`.
+     * Reject: lines 1940-1970 catches error and displays snackbar `'Rejection failed: $raw'`.
+   - **`--danger` Non-Canonical Token Audit**: Standalone `--danger` is NOT defined in `globals.css` (canonical tokens are `--danger-text`, `--danger-bg`, `--danger-border`, `--danger-button`, `--danger-button-hover`). Undefined references exist in `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `RequestHeadcountModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `DataArchivalCenterModal.tsx`, `VacancyImportModal.tsx`, `CapabilityActionBar.tsx`, `DataState.tsx`, and `MetricCard.tsx`.
+   - **Fixture Headcount**: Verified via xlsx inspection: `plantilla_import_template (2) (1).xlsx` contains NO HC column. Headcount is 100% derived by database ($1/N$).
+   - **Commit Security & Secret Audit**: `git show --stat 4c85914` confirmed exactly 7 tracked files. Zero scratch files, zero credentials, zero rollback scripts, zero `.env` files. Grep for `password|secret|credential|service_role` returned zero leaks (only SQL GRANT syntax).
+3. **Live End-to-End Staging Execution (PASS)**:
+   - **BEFORE Counts (APEX / Group 4)**: `plantilla_active`: 5, `plantilla_slots_total`: 5, `plantilla_slots_occupied`: 5, `store_allocations_active`: 5, `active_stores`: 5.
+   - **Live Submit (Fixture)**: Created batch `84104869-acfb-4145-aa16-9df40fb9c5d5`. Status: `pending_approval`, `valid_rows`: 14, `flagged_rows`: 0, `blocked_rows`: 0, `skipped_rows`: 0.
+   - **Live Approve**: Called `approve_plantilla_import_batch` cleanly without `INVALID_STATE`. AFTER counts: `plantilla_active`: 9, `plantilla_slots_total`: 19, `plantilla_slots_occupied`: 19, `store_allocations_active`: 19, `active_stores`: 19 (exact 9 / 19 / 19 match with user prediction). Zero double-counting (1 row per employee). Correct unassigned HRCO behavior (`needs_hrco = true` because APEX has no assigned HRCO).
+   - **Re-Submit Idempotency**: Re-submitted same fixture. Batch `82ee6311-404f-4358-b4d8-3d45cf30641b` correctly detected `new_stores_count = 0` and `existing_stores_count = 14`. Approved cleanly.
+   - **Hard-Blocked File Test**: Submitted single-letter middle initial (`MIDDLE_NAME: "B"`). Hard-refused with `ERROR: 22000: BATCH_BLOCKED: import contains 1 blocked row(s)`. Verified 0 batches and 0 rows persisted.
+   - **Reject Test**: Submitted valid batch `c8a07202-4bd3-4612-a116-80150a26bc56`, called `reject_plantilla_import_batch`. Status transitioned to `rejected`, `audit_logs` record created, zero writes to `plantilla`.
+   - **Rollback Cleanup**: Documented that `rollback_plantilla_import_batch` requires `rollback_ready = true` and `plantilla_import_commit_snapshots` lineage (`ROLLBACK_NOT_READY: batch has no completed rollback lineage`). Executed manual cleanup returning active staging counts to original baseline (`plantilla_active`: 5, `store_allocations_active`: 5, `plantilla_slots_occupied`: 5, `v_plantilla_safe_active`: 5).
+4. **Regression Test Suite (`scripts/test_plantilla_import_validation.mjs`)**:
+   - Reusable script committed with 4 dynamic fixtures (Stationary, Roving, Blocked Initial, Blocked Store Conflict).
+   - Dynamically derives expected headcount ($1/N$) from fixture structure.
+   - Evaluated both offline mathematical derivation and live RBAC security gates.
+   - Not wired into `ai-finish.ps1` because finish script is restricted to git tree hygiene and avoids unprompted Supabase network execution.
+5. **Quality Gates**:
+   - `npx tsc --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+   - `npm run build`: 20/20 Next.js routes compiled and prerendered cleanly.
+
+---
+
 ## Execution Report — Plantilla Import: Roving Validation, Approval State Machine, Pre-Upload Blocking & Reject Modal (ohm#k6w3n8qd)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; MIGRATION `20262606000085_fix_plantilla_roving_validation_and_approval_state.sql` APPLIED TO STAGING; VERIFIED (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); FIXTURE PARITY & DB VALIDATION 100% PASS; LOCAL COMMIT ON `main`; STOPPED FOR REVIEW**
@@ -4824,6 +4865,47 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla Import: Verification & Evidence Pass, Live E2E Staging Audit & Regression Test Suite (ohm#k6w3n8qd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; FULL EVIDENCE AUDIT COMPLETED; LIVE RPC E2E EXECUTION & ROLLBACK CLEANUP VERIFIED; ZERO LEAKS / ORPHANS CONFIRMED; REUSABLE REGRESSION SUITE COMMITTED (`scripts/test_plantilla_import_validation.mjs`); MECHANICAL GATES CLEAN (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`**
+
+### 1. Verification Pass Results & Evidence Matrix
+1. **ADR-002 Gate Check (PASS)**:
+   - Evaluated pre-edit ADR-002 via `git show 4c85914^:docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+   - Invariant 4 originally specified auto-computing `EMPLOYMENT_TYPE = roving` and fractional headcount $1/N$ ($N \ge 2$), but was completely silent regarding row validation statuses, flags, and `pending_review`.
+   - Verified that commit `4c85914` added 3 clarifying lines aligning row evaluation with standard valid status (`validation_status = 'valid'`) and neutral info note (`Roving · N stores · X.XX HC`). Zero locked requirements were violated or contradicted.
+2. **Missing Evidence Audit (PASS)**:
+   - **SHA256 of 085 File**: `C437A31768308CA0F8FCC4329C4D232041243EB61451899E201563CCE104D339`.
+   - **Exact Transaction Statement**: Executed via MCP `execute_sql` under `BEGIN; <migration-085-sql>; INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000085', 'fix_plantilla_roving_validation_and_approval_state'); COMMIT;`.
+   - **Live Function Definitions (`pg_get_functiondef`)**: Verified in public schema for `_evaluate_plantilla_import_rows` (12,910 chars), `validate_plantilla_baseline_import` (5,578 chars), and `submit_plantilla_baseline_import` (7,590 chars). Zero occurrences of `pending_review` or `over_20_stores`. Hardcoded `v_final := 'pending_approval'`.
+   - **Flags & Validation Status Emitted**: Live submit emits only 2 flag types in `validation_flags`: `roving_info` (status remains `valid`) and `duplicate_emp_vcode` (status `skipped`). Status CASE emits only `blocked`, `skipped`, or `valid`. No `flagged` status is possible.
+   - **Mobile RPC Handling**:
+     * Submit: `lib/data/services/store_import_service.dart:1186-1201` calls `submit_plantilla_baseline_import`. Handled in `lib/features/plantilla/store_import_screen.dart:521-547`. On success, navigates to Review Import tab. Does not inspect batch status (`blocked`/`partially_blocked`/`pending_review`). On exception, catches at line 543 and sets `_error = e.toString().replaceFirst('Exception: ', '')`.
+     * Detail & Approve: `store_import_screen.dart:1521-1528` (`_canApproveThisBatch`) enforces `status == 'pending_approval' && validRows > 0 && blockedRows == 0`. It does NOT permit approving `pending_review`. Approve call at lines 1890-1925 catches exception and logs to `logImportCommitFailure`.
+     * Reject: lines 1940-1970 catches error and displays snackbar `'Rejection failed: $raw'`.
+   - **`--danger` Non-Canonical Token Audit**: Standalone `--danger` is NOT defined in `globals.css` (canonical tokens are `--danger-text`, `--danger-bg`, `--danger-border`, `--danger-button`, `--danger-button-hover`). Undefined references exist in `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `RequestHeadcountModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `DataArchivalCenterModal.tsx`, `VacancyImportModal.tsx`, `CapabilityActionBar.tsx`, `DataState.tsx`, and `MetricCard.tsx`.
+   - **Fixture Headcount**: Verified via xlsx inspection: `plantilla_import_template (2) (1).xlsx` contains NO HC column. Headcount is 100% derived by database ($1/N$).
+   - **Commit Security & Secret Audit**: `git show --stat 4c85914` confirmed exactly 7 tracked files. Zero scratch files, zero credentials, zero rollback scripts, zero `.env` files. Grep for `password|secret|credential|service_role` returned zero leaks (only SQL GRANT syntax).
+3. **Live End-to-End Staging Execution (PASS)**:
+   - **BEFORE Counts (APEX / Group 4)**: `plantilla_active`: 5, `plantilla_slots_total`: 5, `plantilla_slots_occupied`: 5, `store_allocations_active`: 5, `active_stores`: 5.
+   - **Live Submit (Fixture)**: Created batch `84104869-acfb-4145-aa16-9df40fb9c5d5`. Status: `pending_approval`, `valid_rows`: 14, `flagged_rows`: 0, `blocked_rows`: 0, `skipped_rows`: 0.
+   - **Live Approve**: Called `approve_plantilla_import_batch` cleanly without `INVALID_STATE`. AFTER counts: `plantilla_active`: 9, `plantilla_slots_total`: 19, `plantilla_slots_occupied`: 19, `store_allocations_active`: 19, `active_stores`: 19 (exact 9 / 19 / 19 match with user prediction). Zero double-counting (1 row per employee). Correct unassigned HRCO behavior (`needs_hrco = true` because APEX has no assigned HRCO).
+   - **Re-Submit Idempotency**: Re-submitted same fixture. Batch `82ee6311-404f-4358-b4d8-3d45cf30641b` correctly detected `new_stores_count = 0` and `existing_stores_count = 14`. Approved cleanly.
+   - **Hard-Blocked File Test**: Submitted single-letter middle initial (`MIDDLE_NAME: "B"`). Hard-refused with `ERROR: 22000: BATCH_BLOCKED: import contains 1 blocked row(s)`. Verified 0 batches and 0 rows persisted.
+   - **Reject Test**: Submitted valid batch `c8a07202-4bd3-4612-a116-80150a26bc56`, called `reject_plantilla_import_batch`. Status transitioned to `rejected`, `audit_logs` record created, zero writes to `plantilla`.
+   - **Rollback Cleanup**: Documented that `rollback_plantilla_import_batch` requires `rollback_ready = true` and `plantilla_import_commit_snapshots` lineage (`ROLLBACK_NOT_READY: batch has no completed rollback lineage`). Executed manual cleanup returning active staging counts to original baseline (`plantilla_active`: 5, `store_allocations_active`: 5, `plantilla_slots_occupied`: 5, `v_plantilla_safe_active`: 5).
+4. **Regression Test Suite (`scripts/test_plantilla_import_validation.mjs`)**:
+   - Reusable script committed with 4 dynamic fixtures (Stationary, Roving, Blocked Initial, Blocked Store Conflict).
+   - Dynamically derives expected headcount ($1/N$) from fixture structure.
+   - Evaluated both offline mathematical derivation and live RBAC security gates.
+   - Not wired into `ai-finish.ps1` because finish script is restricted to git tree hygiene and avoids unprompted Supabase network execution.
+5. **Quality Gates**:
+   - `npx tsc --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+   - `npm run build`: 20/20 Next.js routes compiled and prerendered cleanly.
+
+---
+
 ## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
 
 **Status: COMPLETE ON LOCAL `main`; 4/4 ITEMS IMPLEMENTED & VERIFIED (`npx tsc --noEmit` CLEAN, `npm run lint` 0 ERRORS, `npm run build` PRODUCTION COMPILED 20/20 ROUTES); AWAITING FINAL REVIEW / COMMIT**
@@ -5380,6 +5462,47 @@ When Web (`2b-Web`) and Mobile (Stage C) are complete:
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Import: Verification & Evidence Pass, Live E2E Staging Audit & Regression Test Suite (ohm#k6w3n8qd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; FULL EVIDENCE AUDIT COMPLETED; LIVE RPC E2E EXECUTION & ROLLBACK CLEANUP VERIFIED; ZERO LEAKS / ORPHANS CONFIRMED; REUSABLE REGRESSION SUITE COMMITTED (`scripts/test_plantilla_import_validation.mjs`); MECHANICAL GATES CLEAN (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`**
+
+### 1. Verification Pass Results & Evidence Matrix
+1. **ADR-002 Gate Check (PASS)**:
+   - Evaluated pre-edit ADR-002 via `git show 4c85914^:docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+   - Invariant 4 originally specified auto-computing `EMPLOYMENT_TYPE = roving` and fractional headcount $1/N$ ($N \ge 2$), but was completely silent regarding row validation statuses, flags, and `pending_review`.
+   - Verified that commit `4c85914` added 3 clarifying lines aligning row evaluation with standard valid status (`validation_status = 'valid'`) and neutral info note (`Roving · N stores · X.XX HC`). Zero locked requirements were violated or contradicted.
+2. **Missing Evidence Audit (PASS)**:
+   - **SHA256 of 085 File**: `C437A31768308CA0F8FCC4329C4D232041243EB61451899E201563CCE104D339`.
+   - **Exact Transaction Statement**: Executed via MCP `execute_sql` under `BEGIN; <migration-085-sql>; INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000085', 'fix_plantilla_roving_validation_and_approval_state'); COMMIT;`.
+   - **Live Function Definitions (`pg_get_functiondef`)**: Verified in public schema for `_evaluate_plantilla_import_rows` (12,910 chars), `validate_plantilla_baseline_import` (5,578 chars), and `submit_plantilla_baseline_import` (7,590 chars). Zero occurrences of `pending_review` or `over_20_stores`. Hardcoded `v_final := 'pending_approval'`.
+   - **Flags & Validation Status Emitted**: Live submit emits only 2 flag types in `validation_flags`: `roving_info` (status remains `valid`) and `duplicate_emp_vcode` (status `skipped`). Status CASE emits only `blocked`, `skipped`, or `valid`. No `flagged` status is possible.
+   - **Mobile RPC Handling**:
+     * Submit: `lib/data/services/store_import_service.dart:1186-1201` calls `submit_plantilla_baseline_import`. Handled in `lib/features/plantilla/store_import_screen.dart:521-547`. On success, navigates to Review Import tab. Does not inspect batch status (`blocked`/`partially_blocked`/`pending_review`). On exception, catches at line 543 and sets `_error = e.toString().replaceFirst('Exception: ', '')`.
+     * Detail & Approve: `store_import_screen.dart:1521-1528` (`_canApproveThisBatch`) enforces `status == 'pending_approval' && validRows > 0 && blockedRows == 0`. It does NOT permit approving `pending_review`. Approve call at lines 1890-1925 catches exception and logs to `logImportCommitFailure`.
+     * Reject: lines 1940-1970 catches error and displays snackbar `'Rejection failed: $raw'`.
+   - **`--danger` Non-Canonical Token Audit**: Standalone `--danger` is NOT defined in `globals.css` (canonical tokens are `--danger-text`, `--danger-bg`, `--danger-border`, `--danger-button`, `--danger-button-hover`). Undefined references exist in `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `RequestHeadcountModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `DataArchivalCenterModal.tsx`, `VacancyImportModal.tsx`, `CapabilityActionBar.tsx`, `DataState.tsx`, and `MetricCard.tsx`.
+   - **Fixture Headcount**: Verified via xlsx inspection: `plantilla_import_template (2) (1).xlsx` contains NO HC column. Headcount is 100% derived by database ($1/N$).
+   - **Commit Security & Secret Audit**: `git show --stat 4c85914` confirmed exactly 7 tracked files. Zero scratch files, zero credentials, zero rollback scripts, zero `.env` files. Grep for `password|secret|credential|service_role` returned zero leaks (only SQL GRANT syntax).
+3. **Live End-to-End Staging Execution (PASS)**:
+   - **BEFORE Counts (APEX / Group 4)**: `plantilla_active`: 5, `plantilla_slots_total`: 5, `plantilla_slots_occupied`: 5, `store_allocations_active`: 5, `active_stores`: 5.
+   - **Live Submit (Fixture)**: Created batch `84104869-acfb-4145-aa16-9df40fb9c5d5`. Status: `pending_approval`, `valid_rows`: 14, `flagged_rows`: 0, `blocked_rows`: 0, `skipped_rows`: 0.
+   - **Live Approve**: Called `approve_plantilla_import_batch` cleanly without `INVALID_STATE`. AFTER counts: `plantilla_active`: 9, `plantilla_slots_total`: 19, `plantilla_slots_occupied`: 19, `store_allocations_active`: 19, `active_stores`: 19 (exact 9 / 19 / 19 match with user prediction). Zero double-counting (1 row per employee). Correct unassigned HRCO behavior (`needs_hrco = true` because APEX has no assigned HRCO).
+   - **Re-Submit Idempotency**: Re-submitted same fixture. Batch `82ee6311-404f-4358-b4d8-3d45cf30641b` correctly detected `new_stores_count = 0` and `existing_stores_count = 14`. Approved cleanly.
+   - **Hard-Blocked File Test**: Submitted single-letter middle initial (`MIDDLE_NAME: "B"`). Hard-refused with `ERROR: 22000: BATCH_BLOCKED: import contains 1 blocked row(s)`. Verified 0 batches and 0 rows persisted.
+   - **Reject Test**: Submitted valid batch `c8a07202-4bd3-4612-a116-80150a26bc56`, called `reject_plantilla_import_batch`. Status transitioned to `rejected`, `audit_logs` record created, zero writes to `plantilla`.
+   - **Rollback Cleanup**: Documented that `rollback_plantilla_import_batch` requires `rollback_ready = true` and `plantilla_import_commit_snapshots` lineage (`ROLLBACK_NOT_READY: batch has no completed rollback lineage`). Executed manual cleanup returning active staging counts to original baseline (`plantilla_active`: 5, `store_allocations_active`: 5, `plantilla_slots_occupied`: 5, `v_plantilla_safe_active`: 5).
+4. **Regression Test Suite (`scripts/test_plantilla_import_validation.mjs`)**:
+   - Reusable script committed with 4 dynamic fixtures (Stationary, Roving, Blocked Initial, Blocked Store Conflict).
+   - Dynamically derives expected headcount ($1/N$) from fixture structure.
+   - Evaluated both offline mathematical derivation and live RBAC security gates.
+   - Not wired into `ai-finish.ps1` because finish script is restricted to git tree hygiene and avoids unprompted Supabase network execution.
+5. **Quality Gates**:
+   - `npx tsc --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+   - `npm run build`: 20/20 Next.js routes compiled and prerendered cleanly.
+
+---
 
 ## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
 
@@ -5961,6 +6084,47 @@ When Web (`2b-Web`) and Mobile (Stage C) are complete:
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Import: Verification & Evidence Pass, Live E2E Staging Audit & Regression Test Suite (ohm#k6w3n8qd)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; FULL EVIDENCE AUDIT COMPLETED; LIVE RPC E2E EXECUTION & ROLLBACK CLEANUP VERIFIED; ZERO LEAKS / ORPHANS CONFIRMED; REUSABLE REGRESSION SUITE COMMITTED (`scripts/test_plantilla_import_validation.mjs`); MECHANICAL GATES CLEAN (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); LOCAL COMMIT ON `main`**
+
+### 1. Verification Pass Results & Evidence Matrix
+1. **ADR-002 Gate Check (PASS)**:
+   - Evaluated pre-edit ADR-002 via `git show 4c85914^:docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+   - Invariant 4 originally specified auto-computing `EMPLOYMENT_TYPE = roving` and fractional headcount $1/N$ ($N \ge 2$), but was completely silent regarding row validation statuses, flags, and `pending_review`.
+   - Verified that commit `4c85914` added 3 clarifying lines aligning row evaluation with standard valid status (`validation_status = 'valid'`) and neutral info note (`Roving · N stores · X.XX HC`). Zero locked requirements were violated or contradicted.
+2. **Missing Evidence Audit (PASS)**:
+   - **SHA256 of 085 File**: `C437A31768308CA0F8FCC4329C4D232041243EB61451899E201563CCE104D339`.
+   - **Exact Transaction Statement**: Executed via MCP `execute_sql` under `BEGIN; <migration-085-sql>; INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000085', 'fix_plantilla_roving_validation_and_approval_state'); COMMIT;`.
+   - **Live Function Definitions (`pg_get_functiondef`)**: Verified in public schema for `_evaluate_plantilla_import_rows` (12,910 chars), `validate_plantilla_baseline_import` (5,578 chars), and `submit_plantilla_baseline_import` (7,590 chars). Zero occurrences of `pending_review` or `over_20_stores`. Hardcoded `v_final := 'pending_approval'`.
+   - **Flags & Validation Status Emitted**: Live submit emits only 2 flag types in `validation_flags`: `roving_info` (status remains `valid`) and `duplicate_emp_vcode` (status `skipped`). Status CASE emits only `blocked`, `skipped`, or `valid`. No `flagged` status is possible.
+   - **Mobile RPC Handling**:
+     * Submit: `lib/data/services/store_import_service.dart:1186-1201` calls `submit_plantilla_baseline_import`. Handled in `lib/features/plantilla/store_import_screen.dart:521-547`. On success, navigates to Review Import tab. Does not inspect batch status (`blocked`/`partially_blocked`/`pending_review`). On exception, catches at line 543 and sets `_error = e.toString().replaceFirst('Exception: ', '')`.
+     * Detail & Approve: `store_import_screen.dart:1521-1528` (`_canApproveThisBatch`) enforces `status == 'pending_approval' && validRows > 0 && blockedRows == 0`. It does NOT permit approving `pending_review`. Approve call at lines 1890-1925 catches exception and logs to `logImportCommitFailure`.
+     * Reject: lines 1940-1970 catches error and displays snackbar `'Rejection failed: $raw'`.
+   - **`--danger` Non-Canonical Token Audit**: Standalone `--danger` is NOT defined in `globals.css` (canonical tokens are `--danger-text`, `--danger-bg`, `--danger-border`, `--danger-button`, `--danger-button-hover`). Undefined references exist in `NewStoreRequestModal.tsx`, `RequestHeadcountAdjustmentModal.tsx`, `RequestHeadcountModal.tsx`, `ReviseHeadcountQuotaModal.tsx`, `DataArchivalCenterModal.tsx`, `VacancyImportModal.tsx`, `CapabilityActionBar.tsx`, `DataState.tsx`, and `MetricCard.tsx`.
+   - **Fixture Headcount**: Verified via xlsx inspection: `plantilla_import_template (2) (1).xlsx` contains NO HC column. Headcount is 100% derived by database ($1/N$).
+   - **Commit Security & Secret Audit**: `git show --stat 4c85914` confirmed exactly 7 tracked files. Zero scratch files, zero credentials, zero rollback scripts, zero `.env` files. Grep for `password|secret|credential|service_role` returned zero leaks (only SQL GRANT syntax).
+3. **Live End-to-End Staging Execution (PASS)**:
+   - **BEFORE Counts (APEX / Group 4)**: `plantilla_active`: 5, `plantilla_slots_total`: 5, `plantilla_slots_occupied`: 5, `store_allocations_active`: 5, `active_stores`: 5.
+   - **Live Submit (Fixture)**: Created batch `84104869-acfb-4145-aa16-9df40fb9c5d5`. Status: `pending_approval`, `valid_rows`: 14, `flagged_rows`: 0, `blocked_rows`: 0, `skipped_rows`: 0.
+   - **Live Approve**: Called `approve_plantilla_import_batch` cleanly without `INVALID_STATE`. AFTER counts: `plantilla_active`: 9, `plantilla_slots_total`: 19, `plantilla_slots_occupied`: 19, `store_allocations_active`: 19, `active_stores`: 19 (exact 9 / 19 / 19 match with user prediction). Zero double-counting (1 row per employee). Correct unassigned HRCO behavior (`needs_hrco = true` because APEX has no assigned HRCO).
+   - **Re-Submit Idempotency**: Re-submitted same fixture. Batch `82ee6311-404f-4358-b4d8-3d45cf30641b` correctly detected `new_stores_count = 0` and `existing_stores_count = 14`. Approved cleanly.
+   - **Hard-Blocked File Test**: Submitted single-letter middle initial (`MIDDLE_NAME: "B"`). Hard-refused with `ERROR: 22000: BATCH_BLOCKED: import contains 1 blocked row(s)`. Verified 0 batches and 0 rows persisted.
+   - **Reject Test**: Submitted valid batch `c8a07202-4bd3-4612-a116-80150a26bc56`, called `reject_plantilla_import_batch`. Status transitioned to `rejected`, `audit_logs` record created, zero writes to `plantilla`.
+   - **Rollback Cleanup**: Documented that `rollback_plantilla_import_batch` requires `rollback_ready = true` and `plantilla_import_commit_snapshots` lineage (`ROLLBACK_NOT_READY: batch has no completed rollback lineage`). Executed manual cleanup returning active staging counts to original baseline (`plantilla_active`: 5, `store_allocations_active`: 5, `plantilla_slots_occupied`: 5, `v_plantilla_safe_active`: 5).
+4. **Regression Test Suite (`scripts/test_plantilla_import_validation.mjs`)**:
+   - Reusable script committed with 4 dynamic fixtures (Stationary, Roving, Blocked Initial, Blocked Store Conflict).
+   - Dynamically derives expected headcount ($1/N$) from fixture structure.
+   - Evaluated both offline mathematical derivation and live RBAC security gates.
+   - Not wired into `ai-finish.ps1` because finish script is restricted to git tree hygiene and avoids unprompted Supabase network execution.
+5. **Quality Gates**:
+   - `npx tsc --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+   - `npm run build`: 20/20 Next.js routes compiled and prerendered cleanly.
+
+---
 
 ## Execution Report — Vacancy Module Refinements & System-Wide Red Asterisk (ohm#vac-ui-refinements)
 

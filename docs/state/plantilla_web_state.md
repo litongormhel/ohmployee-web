@@ -43,6 +43,7 @@ Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [
 > [!NOTE]
 > **Batch Import Entry Point & Contract**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
 > For the governing validation contract, pre-upload dry-run blocking, roving status evaluation, and rollback requirements, refer to [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md) § Invariant 4 and Invariant 10.
+> Reusable regression test suite is maintained at `scripts/test_plantilla_import_validation.mjs`.
 
 ### A. Employee View (Default)
 When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** with live count badges, filtering the employee directory:
