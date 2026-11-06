@@ -356,6 +356,17 @@ export function UpdateScheduleModal({
 
   const isRoving = allocations.length > 1;
 
+  // Total HC calculation & validation
+  const totalPercent = useMemo(() => {
+    return allocations.reduce(
+      (sum, item) => sum + (Number(item.allocationPercent) || 0),
+      0
+    );
+  }, [allocations]);
+
+  const totalHcShare = (totalPercent / 100).toFixed(2);
+  const isHcValid = Math.abs(totalPercent - 100) <= 1 || allocations.length === 1;
+
   // Toggle multi-select rest days
   const handleToggleDayoff = (day: DayCode) => {
     setSelectedDayoffs((prev) => {

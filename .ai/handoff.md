@@ -1,5 +1,22 @@
 # AI Handoff
 
+## Execution Report — Fix isHcValid ReferenceError in UpdateScheduleModal (ohm#branch2-fix-ishcvalid-referenceerror)
+
+**Status: COMPLETE ON BRANCH2; RESOLVED A RUNTIME `ReferenceError: isHcValid is not defined` IN `src/components/plantilla/UpdateScheduleModal.tsx` (LINE 691) TRIGGERED WHEN OPENING THE SCHEDULE MODAL; RESTORED THE MEMOIZED HEADCOUNT SUM CALCULATION (`totalPercent`), READABLE FRACTION (`totalHcShare`), AND VALIDATION FLAG (`isHcValid`); ENFORCES 1.00 HC INTEGRITY WITHOUT CRASHING; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Changes Implemented
+1. **Restored Headcount Allocation State (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Added `totalPercent = useMemo(() => allocations.reduce((sum, item) => sum + (Number(item.allocationPercent) || 0), 0), [allocations])`.
+   - Added `totalHcShare = (totalPercent / 100).toFixed(2)`.
+   - Added `isHcValid = Math.abs(totalPercent - 100) <= 1 || allocations.length === 1`.
+   - Completely resolved the Turbopack runtime `ReferenceError` when rendering the modal's validation status banner and save button.
+
+### 2. Verification & Mechanical Gates
+- **Linter**: `npm run lint` clean (0 errors, 4 pre-existing warnings in `VacancyTable.tsx`).
+- **Isolation**: Cleanly committed locally on `Branch2` per user instructions (no push, no merge to `main`).
+
+---
+
 ## Execution Report — Remove System Record Metadata Card (ohm#branch2-remove-system-record-metadata)
 
 **Status: COMPLETE ON BRANCH2; REMOVED THE VERBOSE `System Record Metadata` CARD (PLANTILLA UUID, ACCOUNT ID, STORE UUID, ACCOUNT NAME, GEOGRAPHIC ISLAND GROUP, CLEARANCE WORKFLOW STATE) FROM THE ACTIVITY TAB IN `src/app/(dashboard)/plantilla/[id]/page.tsx`; CLEANED UP THE UNUSED `Settings` ICON IMPORT; TAB NOW CLEANLY FOCUSES ON THE CORE LIFECYCLE EVENT LOG & AUDIT TIMELINE; MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
