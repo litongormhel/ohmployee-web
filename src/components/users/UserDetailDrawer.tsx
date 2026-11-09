@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import {
   User,
   Shield,
@@ -15,11 +15,13 @@ import {
   Check,
   Search,
   Clock,
+  ArrowRight,
 } from "lucide-react";
 import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { Modal } from "@/components/shared/Modal";
 import type {
   UserProfileItem,
+  AuditLogEntry,
 } from "@/lib/queries/users";
 import {
   useRolesQuery,
@@ -36,6 +38,100 @@ import {
 } from "@/lib/queries/users";
 import { useCurrentUser } from "@/lib/auth";
 import { TempPermissionModal } from "@/components/users/TempPermissionModal";
+import { formatPersonName } from "@/lib/utils/displayText";
+
+// Helper: Format audit timestamp to conversational style (e.g. "Nov 9, 2026 at 09:38 AM")
+function formatAuditTime(timestamp: string): string {
+  const d = new Date(timestamp);
+  if (isNaN(d.getTime())) return timestamp;
+  const month = d.toLocaleDateString("en-US", { month: "short" });
+  const day = d.getDate();
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  const formattedHours = String(hours).padStart(2, "0");
+  return `${month} ${day}, ${year} at ${formattedHours}:${minutes} ${ampm}`;
+}
+
+// Helper: Translate raw audit actions into conversational sentences
+function getAuditDescription(log: AuditLogEntry, targetUser: UserProfileItem | null): ReactNode {
+  const action = (log.action || "").toUpperCase();
+  const oldData = log.oldData || {};
+  const newData = log.newData || {};
+
+  if (action === "UPDATE_USER_ROLE" || action.includes("ROLE")) {
+    const oldRole =
+      (oldData.role_name as string) ||
+      (oldData.roleName as string) ||
+      (oldData.role as string) ||
+      "";
+    const newRole =
+      (newData.role_name as string) ||
+      (newData.roleName as string) ||
+      (newData.role as string) ||
+      targetUser?.roleName ||
+      "";
+
+    if (oldRole && newRole && oldRole !== newRole) {
+      return (
+        <>
+          changed the user&apos;s role from{" "}
+          <span className="font-semibold text-text-primary">{oldRole}</span> to{" "}
+          <span className="font-semibold text-text-primary">{newRole}</span>
+        </>
+      );
+    }
+    if (newRole) {
+      return (
+        <>
+          changed the user&apos;s role to{" "}
+          <span className="font-semibold text-text-primary">{newRole}</span>
+        </>
+      );
+    }
+    return <>changed the user&apos;s role</>;
+  }
+
+  if (action === "UPDATE_USER_STATUS" || action === "TOGGLE_USER_STATUS" || action.includes("STATUS")) {
+    const isActive = newData.is_active ?? newData.isActive;
+    if (isActive === true) {
+      return <>activated the user account</>;
+    }
+    if (isActive === false) {
+      return <>deactivated the user account</>;
+    }
+    return <>updated the user&apos;s account status</>;
+  }
+
+  if (action.includes("DEACTIVATE")) {
+    return <>deactivated the user account</>;
+  }
+
+  if (action.includes("ACTIVATE")) {
+    return <>activated the user account</>;
+  }
+
+  if (action === "RESET_PASSWORD" || action.includes("PASSWORD")) {
+    return <>dispatched password reset instructions for this user</>;
+  }
+
+  if (action === "ARCHIVE_USER" || action.includes("ARCHIVE")) {
+    return <>archived this user account</>;
+  }
+
+  if (action === "UPDATE_USER_SCOPES" || action.includes("SCOPE")) {
+    return <>updated assigned organizational group and account scopes</>;
+  }
+
+  if (action === "CREATE_USER" || action.includes("CREATE")) {
+    return <>created this user account</>;
+  }
+
+  const readable = log.action.replace(/_/g, " ").toLowerCase();
+  return <>performed {readable}</>;
+}
 
 
 export interface UserDetailDrawerProps {
@@ -75,6 +171,8 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
   const [resetPwConfirmOpen, setResetPwConfirmOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [saveDiffConfirmOpen, setSaveDiffConfirmOpen] = useState(false);
+  const [editRoleModalOpen, setEditRoleModalOpen] = useState(false);
+  const [pendingRoleId, setPendingRoleId] = useState<string>("");
   const [tempPermissionModalOpen, setTempPermissionModalOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -245,6 +343,45 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
     if (count <= 2) return `(${count}) ${firstTwo}`;
     return `(${count}) ${firstTwo}, +${count - 2} more`;
   }, [isGlobalHQSelected, selectedAccountIds, accounts]);
+
+  // Action: Save Role Change via Confirmation Modal
+  const handleSaveRole = async () => {
+    if (!user || isTargetLocked || !pendingRoleId) return;
+    setFeedbackNotice(null);
+
+    const sanitizedAccountIds = isGlobalHQSelected
+      ? []
+      : selectedAccountIds.filter((aid) => {
+          const gid = accountGroupRef.current.get(aid) || accounts.find((a) => a.id === aid)?.group_id;
+          return gid ? selectedGroupIds.includes(gid) : accounts.some((a) => a.id === aid);
+        });
+
+    try {
+      await upsertMutation.mutateAsync({
+        fullName: user.fullName,
+        email: user.email,
+        roleId: pendingRoleId,
+        groupIds: selectedGroupIds,
+        accountIds: sanitizedAccountIds,
+        existingProfileId: user.id,
+      });
+
+      const updatedRoleName = roles.find((r) => r.id === pendingRoleId)?.name || "selected role";
+      setSelectedRoleId(pendingRoleId);
+      setEditRoleModalOpen(false);
+      setFeedbackNotice({
+        type: "success",
+        text: `Role successfully changed to ${updatedRoleName}. Changes take effect immediately.`,
+      });
+      onSaved?.();
+    } catch (err) {
+      setFeedbackNotice({
+        type: "error",
+        text: friendlyUserError(err),
+      });
+      setEditRoleModalOpen(false);
+    }
+  };
 
   // Action: Save Changes
   const handleSave = async () => {
@@ -521,26 +658,31 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     <label className="block text-xs font-semibold text-text-primary mb-1">
                       Role Assignment
                     </label>
-                    {isTargetLocked ? (
-                      <input
-                        type="text"
-                        disabled
-                        value={user.roleName}
-                        className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-xs text-text-primary font-medium cursor-not-allowed opacity-80"
-                      />
-                    ) : (
-                      <select
-                        value={selectedRoleId}
-                        onChange={(e) => setSelectedRoleId(e.target.value)}
-                        className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-xs font-semibold text-text-primary outline-none focus:border-brand-500"
-                      >
-                        {assignableRoles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <div className="flex items-center justify-between rounded-lg border border-border-default bg-surface-muted/60 p-2.5">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-brand-primary" />
+                        <span className="text-xs font-bold text-text-primary">
+                          {user.roleName || "No Role"}
+                        </span>
+                      </div>
+                      {!isTargetLocked && (isSuperAdmin || isHeadAdmin) && !isSelf && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingRoleId(user.roleId);
+                            setEditRoleModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
+                        >
+                          <Shield className="h-3 w-3 text-text-secondary" />
+                          <span>Edit Role</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-1.5 flex items-center gap-1">
+                      <Lock className="h-3 w-3 shrink-0" />
+                      <span>Role assignment is restricted to Super Admin (SA) and Head Admin (HA) only.</span>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -871,40 +1013,41 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               {logsLoading ? (
                 <div className="p-8 text-center text-xs text-text-muted">Loading audit trail...</div>
               ) : auditLogs.length === 0 ? (
-                <div className="rounded-lg border border-border-default bg-surface-base p-8 text-center text-xs text-text-muted">
+                <div className="rounded-xl border border-border-default bg-surface-base p-8 text-center text-xs text-text-muted">
                   No activity logs recorded for this user.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {auditLogs.map((log) => {
-                    const date = new Date(log.timestamp);
-                    const formattedDate = !isNaN(date.getTime())
-                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-                          date.getDate(),
-                        ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
-                          date.getMinutes(),
-                        ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`
-                      : log.timestamp;
+                    const actorFullName = log.actorName ? formatPersonName(log.actorName) : "System Admin";
+                    const actorRoleText = log.actorRole || "Admin";
+                    const initials = (log.actorName || "SA")
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((p) => p[0]?.toUpperCase() || "")
+                      .join("") || "SA";
+                    const formattedDate = formatAuditTime(log.timestamp);
+                    const description = getAuditDescription(log, user);
 
                     return (
                       <div
                         key={log.id}
-                        className="rounded-xl border border-border-default bg-surface-base p-4 space-y-2.5 shadow-xs"
+                        className="flex items-start gap-3 rounded-xl border border-border-default bg-surface-base p-3.5 shadow-2xs"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center rounded-md border border-border-default bg-surface-subtle px-2.5 py-1 text-[11px] font-bold text-text-secondary">
-                            {log.action}
-                          </span>
-                          <span className="text-xs font-semibold text-text-muted">
+                        {/* Circular Avatar (Initials) */}
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-xs font-bold text-text-primary border border-border-default">
+                          {initials}
+                        </div>
+                        {/* Conversational Description */}
+                        <div className="min-w-0 flex-1 text-xs leading-relaxed text-text-secondary">
+                          <span className="font-semibold text-text-primary">{actorFullName}</span>{" "}
+                          <span className="text-text-muted">({actorRoleText})</span>{" "}
+                          <span>{description}</span>{" "}
+                          <span className="text-text-muted">on</span>{" "}
+                          <span className="font-medium text-text-primary whitespace-nowrap">
                             {formattedDate}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                          <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                          <span>
-                            By: <strong className="text-text-primary">{log.actorName || "System"}</strong> (
-                            {log.actorRole || "None"})
-                          </span>
+                          .
                         </div>
                       </div>
                     );
@@ -1107,7 +1250,77 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           Soft-archiving <strong>{user.fullName}</strong> will disable access and mark the profile as archived. This action will be audited.
         </p>
       </Modal>
-      {/* MODAL 5: Temporary Permission Overrides */}
+
+      {/* MODAL 5: Edit Role Confirmation Modal */}
+      <Modal
+        isOpen={editRoleModalOpen}
+        onClose={() => setEditRoleModalOpen(false)}
+        title="Edit User Role"
+        subtitle={`Update role assignment for ${user.fullName}`}
+        icon={Shield}
+        isSubmitting={upsertMutation.isPending}
+        disableBackdropClick={upsertMutation.isPending}
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditRoleModalOpen(false)}
+              className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveRole}
+              disabled={upsertMutation.isPending || !pendingRoleId || pendingRoleId === user.roleId}
+              className="rounded-lg bg-brand-500 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {upsertMutation.isPending ? "Updating Role..." : "Confirm & Save Role"}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="edit-role-select" className="block text-xs font-semibold text-text-primary mb-1">
+              Select New Role
+            </label>
+            <select
+              id="edit-role-select"
+              value={pendingRoleId}
+              onChange={(e) => setPendingRoleId(e.target.value)}
+              className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary outline-none focus:border-brand-500 cursor-pointer"
+            >
+              {assignableRoles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Role Diff Preview */}
+          <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 space-y-2">
+            <div className="text-xs font-semibold text-text-secondary">Role Assignment Diff:</div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-secondary border border-border-default">
+                {user.roleName || "Current"}
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
+              <span className="inline-flex items-center rounded-full bg-surface-selected px-2.5 py-0.5 text-xs font-bold text-brand-primary border border-border-default">
+                {roles.find((r) => r.id === pendingRoleId)?.name || "New Role"}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-text-secondary">
+            Role modifications immediately adjust operational authorization, access boundaries, and audit logging on subsequent user requests.
+          </p>
+        </div>
+      </Modal>
+
+      {/* MODAL 6: Temporary Permission Overrides */}
       <TempPermissionModal
         isOpen={tempPermissionModalOpen}
         onClose={() => setTempPermissionModalOpen(false)}

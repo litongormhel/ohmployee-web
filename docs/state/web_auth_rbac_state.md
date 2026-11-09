@@ -337,4 +337,30 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 - When a group is toggled off, `selectedAccountIds` immediately prunes accounts mapped to the deselected group.
 - Prior to submission in `handleSave` or `handleSubmit`, `accountIds` is sanitized to ensure only accounts belonging to active `selectedGroupIds` are passed to `upsert_user_profile_and_scopes`, preventing database Guard (c) violations.
 
+---
+
+## User Management Layout, Density & Activity Audit Standard (ohm#u3s8m2ql)
+
+### 1. Dashboard Layout & Filters
+- **Natural Document Scrolling:** Removed fixed `h-screen` or locked vertical overflow constraints, permitting natural page scrolling.
+- **Header Tabs (Compact KPIs):** Large metric cards replaced with unified `SegmentedTabs` displaying `All Users (${totalCount})` | `Active (${activeCount})` | `Inactive (${inactiveCount})`.
+- **Action Button Hierarchy:** Primary "Create User" (brand fill, SA only), accompanied by deprioritized secondary outlined actions: "Temporary Overrides" (with active badge) and "Account Requests".
+- **Unified Filter Bar:** Single horizontal filter row pairing search query, **Role Dropdown**, and **Group Dropdown** (`useGroupsQuery`) directly above the table with filter-change page resets.
+
+### 2. Data Table Specifications
+- **Header Structure:** `User` | `Role` | `Group` | `Account` | `Actions`.
+- **Density:** Compact row spacing (`px-4 py-2.5`).
+- **Cells:**
+  - `User`: Circular avatar with initials + Full Name formatted as "Last, First" (`formatPersonName`) with email below.
+  - `Role`: Pill tag with italicized `scoped` (or `global`) subtext.
+  - `Group` & `Account`: Plain text displaying assigned group/account name(s).
+  - `Actions`: Kebab menu (`...`) offering "Deactivate user" / "Activate user", "Reset password", and "Archive user" with modal confirmation gates.
+  - `Pagination`: Standard bottom `TablePagination` with rows-per-page selector (10, 25, 50).
+
+### 3. User Detail Drawer & Activity Log
+- **Overview Tab Role Assignment:** Read-only role display paired with "Edit Role" button restricted to SA and HA. Triggers an explicit `EditRoleConfirmationModal` with diff preview (`Current ➔ New`) before saving.
+- **Danger Zone Actions:** Matches table kebab menu items with status toggle, password reset, and soft archival.
+- **Activity Log Conversational Translation:** Raw action blocks (e.g. `UPDATE_USER_ROLE`, `TOGGLE_USER_STATUS`) translated into conversational sentences answering *what, who, and when* with circular initials avatar (e.g. *Avatar* `Litong, Ohm (Super Admin) changed the user's role from HR Personnel to HRCO on Nov 9, 2026 at 09:38 AM.`).
+
+
 

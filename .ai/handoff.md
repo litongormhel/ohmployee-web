@@ -1,5 +1,62 @@
 # AI Handoff
 
+## Execution Report — User Management Layout, Bottom Pagination, Filters & Conversational Activity Logs (ohm#u3s8m2ql)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED, ZERO COLOR LITERALS IN `users` MODULE); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **Dashboard Layout & Natural Scrolling:**
+   - Audited and verified no restrictive `h-screen`, `max-h-screen`, or locked vertical overflow constraints on `src/app/(dashboard)/users/page.tsx`. Page layout relies on natural document scrolling within `DashboardAuthShell`.
+2. **Compact KPI Header Tabs:**
+   - Excised large `<UserMetricsCards />` grid.
+   - Implemented compact unified `SegmentedTabs` displaying:
+     - `All Users (${totalCount})`
+     - `Active (${activeCount})`
+     - `Inactive (${inactiveCount})`
+   - Preserves instant tab-driven filtering and tabular counts with zero page reload.
+3. **Action Button Visual Hierarchy:**
+   - Primary: "Create User" with high-contrast brand button styling (`bg-brand-500 hover:bg-brand-600 text-white`, restricted to Super Admin).
+   - Secondary: "Temporary Overrides" (with active count pill) and "Account Requests" visually deprioritized with neutral bordered surfaces (`border-border-default bg-surface hover:bg-surface-hover text-text-secondary hover:text-text-primary`).
+4. **Unified Filter Row:**
+   - Grouped on a single horizontal row directly above the table via `AdminFilterBar`:
+     - Search Input (full name, email, role, scope)
+     - **Role Dropdown** (filtered to distinct roles in dataset)
+     - **Group Dropdown** (new filter powered by `useGroupsQuery()`, placed right next to Role)
+   - Filter changes automatically reset table pagination to page 1.
+5. **Data Table Specifications (`UsersTable.tsx`):**
+   - Header Structure: `User` | `Role` | `Group` | `Account` | `Actions`.
+   - Compact vertical row spacing (`px-4 py-2.5`) for high data density.
+   - `User`: Circular avatar with uppercase initials + full name ("Last, First" via `formatPersonName`) with email address underneath.
+   - `Role`: Pill tag (`rounded-full px-2.5 py-0.5 text-xs font-semibold`) with italicized subtext (`scoped` or `global`).
+   - `Group` & `Account`: Plain text displaying assigned group and account names (or summaries if multi-scoped).
+   - `Actions`: Kebab menu button (`...` / `MoreVertical`) with dropdown menu:
+     - "Deactivate user" / "Activate user" (triggers status toggle confirmation modal)
+     - "Reset password" (triggers password reset confirmation modal)
+     - "Archive user" (triggers soft archival confirmation modal, visible to Super Admin)
+   - `TablePagination`: Embedded standard bottom pagination control with `Prev | 1 2 3 ... N | Next`, records range counter, and rows-per-page selector (10, 25, 50).
+6. **User Detail Side Panel / Drawer (`UserDetailDrawer.tsx`):**
+   - **Role Assignment:** Replaced inline `<select>` dropdown with a read-only role display and an explicit "Edit Role" button accompanied by an SA/HA restriction notice.
+   - **Edit Role Confirmation Modal:** Dedicated confirmation modal with role selector, diff preview (`Current Role ➔ New Role`), and confirmation gate to prevent accidental edits.
+   - **Danger Zone:** Aligned actions with table kebab items ("Deactivate/Activate User", "Reset Password", "Archive Account").
+   - **Conversational Activity Log:** Replaced raw `UPDATE_USER_ROLE` pills with conversational, human-friendly sentences with actor initials avatar:
+     - Example format: `Litong, Ohm (Super Admin) changed the user's role from HR Personnel to HRCO on Nov 9, 2026 at 09:38 AM.`
+     - Handles role modifications, status toggles, password resets, archival, scope changes, and creation events.
+7. **Design System & Zero-Tolerance Tokens:**
+   - Conforms strictly to Deep Navy & light Beige/Off-white design tokens from `src/app/globals.css`.
+   - Zero color literals in `src/components/users/` and `src/app/(dashboard)/users/` verified via gate scanner.
+
+---
+
+### 2. Mechanical Verification Results
+
+- `gate.check_color_literals(['users'], check_entire_src=False)`: `(True, '')` (0 color literals in touched `users` module).
+- `npm run lint`: 0 errors.
+- `npx tsc --noEmit`: 0 errors (clean compilation).
+- `npm run build`: 20/20 static routes generated successfully in 6.3s.
+
+---
+
 ## Execution Report — Plantilla Import: Rollback Lineage Reset, Executor Lockdown & Protected Occupant Guard (ohm#r4t7y2bn — Phase 2: Implementation & Verification)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; PHASE 2 APPROVED SCOPE FULLY IMPLEMENTED; MIGRATION `20262606000087_reset_incomplete_plantilla_rollback_lineage_and_lock_executor.sql` AUTHORED & APPLIED TO STAGING; REGRESSION TEST SUITE (`scripts/tests/plantilla_import_regression.sql`) ENHANCED AND EXECUTED WITH 100% PASS (`ALL_ASSERTIONS_PASSED`); ZERO ROWS PERSISTED; PROD READ-ONLY & UNTOUCHED**
