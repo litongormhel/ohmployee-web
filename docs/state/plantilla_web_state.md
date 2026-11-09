@@ -57,17 +57,17 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
 
 1. **Tab 1: Active** (All Active Employees Only)
    - **Filter**: Employees with status `Active` (`employee != null` and `status == Active`).
-   - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role + Tier) | `Assignment` (Stationary/Roving) | `Status` (`Active` green badge) | `Actions` (`Details` button).
+   - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role) | `Assignment` (Stationary/Roving) | `Actions` (`Update` button opening `UpdateEmploymentStatusModal`). (Note: Redundant `Status` column, redundant Details button, and legacy "Standard Tier" subtitle under Position removed).
 
 2. **Tab 2: On-Leave** (All On-Leave Employees Only)
    - **Filter**: Employees on official approved leave (`On-Leave` or `On Leave`).
    - **Columns**:
      - `Member` (Avatar, Name, Emp No)
      - `Store` (Store Name + Area/City pill)
-     - `Position` (Role + Tier)
+     - `Position` (Role)
      - `Leave Details` (Leave Type e.g., Maternity/Medical Leave + Date Range)
      - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays muted italic `Unassigned` with a `+ Assign Reliever` action button opening `AssignRelieverModal`.
-     - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
+     - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`). Row click navigates to full profile view.
 
 3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)
    - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Vacancy - Open`) and onboarding candidates (`Status: Vacancy - Pipeline` or `HR Emploc - *`) until Day-1 store deployment. Loaded via `listVacancies` with `pageSize: 2000` (supported by `MAX_PAGE_SIZE = 5000` in `vacancy.ts`), with applicant and HR Emploc status enrichment. Requisitions with unfulfilled capacity (`v.hcFilled < v.hcTotal`) are protected from premature deduplication drops.

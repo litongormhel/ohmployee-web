@@ -14,7 +14,6 @@ import {
   RotateCcw,
   X,
   MapPin,
-  Eye,
   Briefcase,
   LayoutGrid,
   List,
@@ -71,6 +70,7 @@ import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalytic
 import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
+import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
 import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
@@ -635,6 +635,13 @@ function PlantillaPageContent() {
     employeeNo: string;
     positionTitle?: string | null;
     floatingDays?: number;
+  } | null>(null);
+
+  const [updateStatusTargetEmployee, setUpdateStatusTargetEmployee] = useState<{
+    id: string;
+    displayName: string;
+    employeeNo: string;
+    currentStatus?: string | null;
   } | null>(null);
 
   // Search query specifically for the account selector list
@@ -2565,6 +2572,14 @@ function PlantillaPageContent() {
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
                   onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
+                  onUpdateStatus={(emp) => {
+                    setUpdateStatusTargetEmployee({
+                      id: emp.id,
+                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                      employeeNo: emp.employeeNo,
+                      currentStatus: emp.plantillaStatus || "Active",
+                    });
+                  }}
                 />
               ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -2948,6 +2963,26 @@ function PlantillaPageContent() {
             />
           )}
 
+          {/* Update Employment Status Modal (from Active Tab) */}
+          {updateStatusTargetEmployee && (
+            <UpdateEmploymentStatusModal
+              isOpen={Boolean(updateStatusTargetEmployee)}
+              onClose={() => setUpdateStatusTargetEmployee(null)}
+              plantillaId={updateStatusTargetEmployee.id}
+              employeeName={updateStatusTargetEmployee.displayName}
+              employeeNo={updateStatusTargetEmployee.employeeNo}
+              currentStatus={updateStatusTargetEmployee.currentStatus}
+              onSuccess={() => {
+                employeeQuery.refetch();
+                summaryQuery.refetch();
+                vacancyListQuery.refetch();
+              }}
+              onNavigateStatusTab={(tab) => {
+                handleSelectStatusTab(tab);
+              }}
+            />
+          )}
+
         </>
       )}
 
@@ -3032,10 +3067,12 @@ function EmployeeActiveTable({
   rows,
   onRowClick,
   storeLookupMap,
+  onUpdateStatus,
 }: {
   rows: PlantillaEmployeeListItem[];
   onRowClick: (id: string) => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onUpdateStatus: (emp: PlantillaEmployeeListItem) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
@@ -3054,9 +3091,6 @@ function EmployeeActiveTable({
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
               </th>
               <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
@@ -3119,14 +3153,9 @@ function EmployeeActiveTable({
                   </td>
 
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   <td className="px-3.5 py-2">
@@ -3135,24 +3164,18 @@ function EmployeeActiveTable({
                     </span>
                   </td>
 
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
-                      Active
-                    </span>
-                  </td>
-
                   <td className="px-3.5 py-2 text-right">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRowClick(row.id);
+                        onUpdateStatus(row);
                       }}
                       className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                      aria-label={`View details for ${displayName}`}
+                      aria-label={`Update employment status for ${displayName}`}
                     >
-                      <Eye className="h-3 w-3" />
-                      <span>Details</span>
+                      <UserCheck className="h-3 w-3" />
+                      <span>Update</span>
                     </button>
                   </td>
                 </tr>
@@ -3270,14 +3293,9 @@ function EmployeeOnLeaveTable({
 
                   {/* 3. Position */}
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   {/* 4. Leave Details */}
@@ -3335,18 +3353,6 @@ function EmployeeOnLeaveTable({
                       >
                         <RotateCw className="h-3 w-3" />
                         <span>Return to Active</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRowClick(row.id);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                        aria-label={`View details for ${displayName}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>Details</span>
                       </button>
                     </div>
                   </td>
@@ -3601,14 +3607,9 @@ function EmployeeFloatingTable({
                   </td>
 
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   <td className="px-3.5 py-2">
@@ -3757,14 +3758,9 @@ function EmployeeDeactivationTable({
 
                   {/* 5. Position */}
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   {/* 6. Assignment */}
@@ -4577,8 +4573,6 @@ function EmployeeDeactivationCard({
 
         <div className="mt-2.5 text-xs text-text-secondary">
           <span className="font-medium text-text-secondary">{row.positionTitle || "General Staff"}</span>
-          <span className="text-text-muted/50 mx-1.5">•</span>
-          <span className="text-text-muted">{row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}</span>
         </div>
       </div>
 

@@ -1,5 +1,64 @@
 # AI Handoff
 
+## Execution Report — Active Tab "Update" Action Button & UpdateEmploymentStatusModal Wiring (ohm#branch2-active-update-status-action)
+
+**Status: COMPLETE ON BRANCH2; REPLACED REDUNDANT "Details" BUTTON AND EYE ICON IN `EmployeeActiveTable` (`src/app/(dashboard)/plantilla/page.tsx`) WITH AN "Update" ACTION BUTTON (`<UserCheck className="h-3 w-3" /> Update`), OPENING `UpdateEmploymentStatusModal` DIRECTLY TO ALLOW RAPID STATUS MUTATIONS WITHOUT DISRUPTING ROSTER NAVIGATION CONTEXT; WIRED STATE, CACHE INVALIDATION, AND RE-FETCHING IN `PlantillaPageContent`; ELIMINATED REDUNDANT EYE ICON AND DETAILS BUTTON FROM `EmployeeOnLeaveTable`; VERIFIED `npm run lint` CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Problem Statement
+- **Redundant Details Navigation**: Clicking any table row already navigates to the dedicated full-page Employee Profile (`/plantilla/[id]`) per Architectural Rule #5. Having a secondary "Details" button with an `Eye` icon in the Actions column was completely redundant and did not provide any distinct operational functionality.
+- **Operational Need for Fast Status Updates**: Admin users operating in the Active Tab frequently need to update an employee's employment status (e.g. initiating On-Leave, Floating, Resignation, AWOL, Termination) directly from the roster view without taking an unnecessary detour through the full employee profile page.
+
+### 2. Changes Implemented
+1. **Integrated `UpdateEmploymentStatusModal` in `PlantillaPageContent` (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `updateStatusTargetEmployee` state to hold `{ id, displayName, employeeNo, currentStatus }`.
+   - Passed `onUpdateStatus` callback to `EmployeeActiveTable`.
+   - Mounted `UpdateEmploymentStatusModal` with cache invalidation across `employeeQuery`, `summaryQuery`, and `vacancyListQuery`, plus automatic status sub-tab navigation via `handleSelectStatusTab`.
+2. **Replaced Details Button with Update Action in `EmployeeActiveTable`**:
+   - Replaced `<Eye /> Details` with `<UserCheck className="h-3 w-3" /> <span>Update</span>`.
+   - Encapsulated with `e.stopPropagation()` to trigger the update modal directly without bubbling up to the row's profile navigation.
+3. **Cleaned Up `EmployeeOnLeaveTable`**:
+   - Removed redundant `Details` button with `Eye` icon (keeping `Return to Active` as the primary operational action).
+   - Removed unused `Eye` import from `lucide-react`.
+4. **Documentation & Compliance**:
+   - Updated `docs/state/plantilla_web_state.md` (§ 2.A Employee View Tab 1 & Tab 2).
+   - Updated Last Completed Tasks in `.ai/briefing.md`.
+   - Prepend this handoff entry in `.ai/handoff.md`.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` exited clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Branch Policy**: Changes isolated on `Branch2`.
+
+---
+
+## Execution Report — Remove Redundant Status Column & Standard Tier Subtitles (ohm#branch2-remove-redundant-status-standard-tier)
+
+**Status: COMPLETE ON BRANCH2; REMOVED REDUNDANT `Status` COLUMN FROM THE ACTIVE ROSTER TABLE (`EmployeeActiveTable` IN `src/app/(dashboard)/plantilla/page.tsx`), STREAMLINING TABLE COLUMN HEADERS AND BODY CELLS (`Member | Store | Position | Assignment | Actions`); REMOVED REDUNDANT "Standard Tier" SUBTITLE UNDER POSITION ACROSS ALL ROSTER TABLES AND CARDS (`EmployeeActiveTable`, `EmployeeOnLeaveTable`, `EmployeeFloatingTable`, `EmployeeDeactivationTable`, AND `EmployeeDeactivationCard`), RESTORING A UNIFIED, CLEAN, SINGLE-LINE POSITION DISPLAY ACROSS ALL STATUS TABS; VERIFIED `npm run lint` CLEAN (0 ERRORS, 4 PRE-EXISTING WARNINGS)**
+
+### 1. Root Cause & Problem Statement
+- **Redundant Status Column**: In the Active Tab (`EmployeeActiveTable`), every row displayed an "Active" badge inside a dedicated "Status" column. Since the Active Tab already strictly filters and shows only active personnel, this column was redundant and consumed valuable horizontal layout space.
+- **Redundant "Standard Tier" Subtitle**: In the Position column across multiple tables (`EmployeeActiveTable`, `EmployeeOnLeaveTable`, `EmployeeFloatingTable`, `EmployeeDeactivationTable`) and in `EmployeeDeactivationCard`, a secondary subtitle `{row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}` was rendered below the primary job position title. This created visual noise and clutter without adding operational value.
+
+### 2. Changes Implemented
+1. **Removed Redundant `Status` Column (`EmployeeActiveTable`)**:
+   - Removed `<th ...>Status</th>` from table header.
+   - Removed `<td ...><span ...>Active</span></td>` cell from row rendering.
+   - Resulting table header and row cell layout: `Member | Store | Position | Assignment | Actions`.
+2. **Removed "Standard Tier" Subtitles Across All Tabs (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - `EmployeeActiveTable`: Updated Position cell to render `{row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}` directly without the nested subtitle div.
+   - `EmployeeOnLeaveTable`: Updated Position cell to single-line format matching the roster standard.
+   - `EmployeeFloatingTable`: Updated Position cell to single-line format.
+   - `EmployeeDeactivationTable`: Updated Position cell to single-line format.
+   - `EmployeeDeactivationCard`: Removed `• Standard Tier` subtitle below Position in the deactivation card view.
+3. **State Documentation & Briefing Updates**:
+   - Updated `docs/state/plantilla_web_state.md` (§ 2.A Employee View Tab 1: Active) reflecting the removal of the redundant Status column and Standard Tier subtitle.
+   - Prepend task entry to `.ai/briefing.md` Last Completed Tasks.
+
+### 3. Verification & Mechanical Gates
+- **Linter**: `npm run lint` exited clean with 0 errors (4 pre-existing warnings in `VacancyTable.tsx`).
+- **Branch Policy**: Changes isolated on `Branch2`.
+
+---
+
 ## Execution Report — Floating "Assign Store" Auto-Stationary Assignment & UI Simplification (ohm#branch2-floating-assign-stationary)
 
 **Status: COMPLETE ON BRANCH2; RESOLVED LOGICAL MISMATCH IN FLOATING "ASSIGN STORE" FLOW BY COMPLETELY REMOVING ASSIGNMENT TYPE (STATIONARY / ROVING) RADIO BUTTONS FROM `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) AND AUTO-SETTING ASSIGNMENT TYPE STRICTLY TO "STATIONARY" BEHIND THE SCENES; HARDENED `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) TO DEFAULT `assignmentType = "Stationary"` AND EXPLICITLY PERSIST `deployment_type: "Stationary"` IN DATABASE PAYLOAD (OMITTING NON-EXISTENT `assignment_type` COLUMN TO PREVENT SCHEMA CACHE ERRORS); MECHANICAL GATES VERIFIED CLEAN (`npm run lint`: 0 ERRORS, 4 PRE-EXISTING WARNINGS)**
