@@ -116,13 +116,13 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - `rejected`: Batches where `rollback_status IN ('rejected', 'failed')`.
 - **Review Queue (`RollbackDataTable`)**:
   - Filter tabs: `Pending`, `Approved`, `Rejected` with live counter badges.
-  - Columns: Batch #, Module (`Plantilla` | `Vacancy`), File Name, Scope (`Group / Account`), Rollback Reason / Note, Requester & Date, Governance Window / Countdown, and Actions.
+  - Columns: Batch #, Module (`Plantilla` | `Vacancy`), File Name, Scope (`Group / Account`), Rollback Reason / Note (reason code badge on top with note text stacked below), Requester & Date, Governance Window / Countdown, and Actions.
   - Search: Real-time client filter matching batch ID, file name, scope, uploader, requester, and reason note.
   - Pagination: Uses reusable `<Pagination />` component with page index, page size `[10, 25, 50]`, and range summary label.
 - **Administrative Actions**:
-  - **Approve & Execute Rollback**: Styled with solid danger button (`bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`). Opens confirmation modal summarizing irreversible impacts and invokes RPC `approve_plantilla_import_rollback` or `approve_vacancy_import_rollback`.
+  - **Approve Rollback**: Styled with solid danger button (`bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`). Opens confirmation modal summarizing irreversible impacts and invokes RPC `approve_plantilla_import_rollback` or `approve_vacancy_import_rollback`.
   - **Reject Rollback Request**: Opens rejection dialog requiring reviewer justification, invoking `reject_plantilla_import_rollback` or updating vacancy batch status with rejection remarks.
-  - **View Details**: Opens comprehensive batch detail `<Modal>` displaying metadata, headcount rows, rollback window status, and reason notes.
+  - **Row Inspection**: Clicking any row opens comprehensive batch detail `<Modal>` displaying metadata, headcount rows, rollback window status, and reason notes.
 
 ---
 

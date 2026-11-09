@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Approvals Rollback Queue: Streamline Action Buttons & Vertical Reason Note Layout (ohm#f4w9q1mt)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `npm run build` 20/20 STATIC ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **User Request Context:**
+   - User prompt: "in Actions Tab remove eye icon and View. Reject Approve only omit & Execute. put Note below Rolback reason" with screenshot showing `/approvals` -> `Rollbacks` queue.
+
+2. **Actions Column Streamlining (`src/components/approvals/RollbackDataTable.tsx`):**
+   - Removed the `<button>` with `<Eye /> <span>View</span>` and removed the unused `Eye` import from `lucide-react`. Native row click continues to open the complete batch details modal.
+   - Omitted `& Execute` from the approval button label, rendering it as `<span>Approve</span>` alongside `Reject`. Kept high-contrast solid danger token styling (`bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`).
+
+3. **Vertical Reason Code & Note Stacking (`src/components/approvals/RollbackDataTable.tsx`):**
+   - Refactored the "Rollback Reason / Note" table cell into a vertical container (`flex flex-col items-start gap-1`).
+   - The reason code badge (e.g. `wrong_vcode_list`, `wrong_group_account`) renders on top.
+   - The justification/note text renders directly underneath the reason code with two-line clamp and text-wrapping.
+
+4. **Quality Gates:**
+   - `npm run lint`: Clean (0 errors).
+   - `npm run build`: Clean (20/20 static routes generated successfully with Next.js Turbopack).
+   - 0 database writes, DDL, or RPC executions.
+
+---
+
 ## Execution Report — Approvals HR Emploc Deletions: Resolve Missing Group & Account Scope (ohm#k2v8m4sp)
 
 **Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `npm run build` 20/20 STATIC ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**

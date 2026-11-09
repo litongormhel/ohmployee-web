@@ -6,7 +6,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Eye,
   FileSpreadsheet,
   Layers,
   Loader2,
@@ -213,14 +212,19 @@ export function RollbackDataTable({
 
                   {/* Rollback Reason / Note */}
                   <td className="p-3 max-w-xs">
-                    {item.rollbackReasonCode && (
-                      <span className="inline-block rounded bg-danger-bg text-danger-text px-1.5 py-0.5 text-[10px] font-mono font-bold border border-danger-border mr-1.5">
-                        {item.rollbackReasonCode}
+                    <div className="flex flex-col items-start gap-1">
+                      {item.rollbackReasonCode && (
+                        <span className="inline-block rounded bg-danger-bg text-danger-text px-1.5 py-0.5 text-[10px] font-mono font-bold border border-danger-border">
+                          {item.rollbackReasonCode}
+                        </span>
+                      )}
+                      <span
+                        className="text-text-secondary text-xs leading-relaxed line-clamp-2 break-words"
+                        title={item.rollbackReasonNote || item.rollbackReason || undefined}
+                      >
+                        {item.rollbackReasonNote || item.rollbackReason || (item.rollbackReasonCode ? null : "No note provided")}
                       </span>
-                    )}
-                    <span className="text-text-secondary text-xs leading-relaxed" title={item.rollbackReasonNote || item.rollbackReason}>
-                      {item.rollbackReasonNote || item.rollbackReason || "No note provided"}
-                    </span>
+                    </div>
                   </td>
 
                   {/* Requester & Date */}
@@ -265,16 +269,6 @@ export function RollbackDataTable({
                   {/* Actions */}
                   <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDetailItem(item)}
-                        className="rounded-lg border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer flex items-center gap-1"
-                        title="View details"
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>View</span>
-                      </button>
-
                       {isPending && (
                         <>
                           <button
@@ -297,7 +291,7 @@ export function RollbackDataTable({
                             className="rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition cursor-pointer flex items-center gap-1"
                           >
                             <RotateCcw className="h-3 w-3" />
-                            <span>Approve & Execute</span>
+                            <span>Approve</span>
                           </button>
                         </>
                       )}
