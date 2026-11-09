@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Plantilla Import History: Modular Pagination & Modal Batch Detail View (ohm#p8m4v7xw)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **Reusable `<Pagination />` Component (`src/components/shared/Pagination.tsx`):**
+   - Implemented standard, modular `<Pagination />` component conforming to existing light-mode tokens and typography tokens.
+   - Includes Next / Previous controls, numerical page buttons with ellipsis handling (`...`), rows per page dropdown selector (`10`, `25`, `50`), and range label (`Showing X–Y of Z records`).
+   - Supports both `limit` and `pageSize` aliases for plug-and-play adoption across all modules.
+
+2. **Modular `usePagination` Hook (`src/hooks/usePagination.ts` & `src/components/shared/Pagination.tsx`):**
+   - Manages pagination state (`page`, `limit`, `offset`, `totalPages`).
+   - Computes safe derived page bounds (`safePage`) during rendering, eliminating cascading render warnings (`react-hooks/set-state-in-effect`).
+   - Exposes `paginate(items)` for in-memory array slicing, and `paginationParams: { page, limit, offset }` for seamless integration into TanStack Query / Supabase RPC hooks.
+   - Automatically resets page to 1 on limit/pageSize changes.
+
+3. **Import History Modal Detail View (`src/components/more/PlantillaImportModal.tsx`):**
+   - Removed inline bottom-of-page rendering of `DRAWER OPTION A` (error audit) and `DRAWER OPTION B` (rollback governance).
+   - Clicking any history table row (e.g. `Batch #6cc4d720`) opens a dedicated `<Modal />` (`max-w-4xl`) displaying full batch context:
+     - Header: `Batch #<short_id>` with status tag pill, file name subtitle, and spreadsheet icon.
+     - Summary KPI Grid: Status, Scope, Stores / Headcount, Uploaded By with date, Approver/Rejector.
+     - Validation Failure / Rejection Audit: Rejection reason remarks, field error badge list, and interactive row breakdown table filterable by status (`All`, `Blocked`, `Flagged`, `Valid`).
+     - Rollback Governance: Active 72h countdown window, failure/block error notices, and governance actions ("View Rollback History", "Request Rollback", "Approve & Execute Rollback", "Reject Rollback Request", "Emergency Rollback Override").
+
+4. **Import History Bottom Pagination (`src/components/more/PlantillaImportModal.tsx`):**
+   - Wired `usePagination` with `initialLimit: 10` for `historyBatches`.
+   - Rendered `<Pagination />` at the bottom of the table container.
+   - Paginates batches slice reactively.
+
+5. **Quality Gate Verification:**
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in unrelated vacancy files).
+   - `tsc --noEmit` & `npm run build`: Clean (20/20 static routes generated successfully in 53s compilation).
+   - 0 database DDL or writes performed; zero impact on external systems.
+
+---
+
 ## Execution Report — User Management Layout, Bottom Pagination, Filters & Conversational Activity Logs (ohm#u3s8m2ql)
 
 **Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED, ZERO COLOR LITERALS IN `users` MODULE); 0 DB WRITES/DDL; PROD UNTOUCHED**

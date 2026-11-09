@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/shared/Modal";
+import { Pagination, usePagination } from "@/components/shared/Pagination";
 import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 import { useCurrentUser } from "@/lib/auth";
 import { useUsersList } from "@/lib/queries/users";
@@ -274,6 +275,16 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
     () => batches.filter((b) => !reviewableStatuses.has(b.status)),
     [batches, reviewableStatuses]
   );
+
+  const historyPagination = usePagination({
+    initialPage: 1,
+    initialLimit: 10,
+    totalCount: historyBatches.length,
+  });
+
+  const paginatedHistoryBatches = useMemo(() => {
+    return historyPagination.paginate(historyBatches);
+  }, [historyPagination, historyBatches]);
 
   const handleGroupSelect = (gId: string) => {
     setSelectedGroupId(gId);
@@ -1416,7 +1427,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-subtle)]">
-                      {historyBatches.map((b) => {
+                      {paginatedHistoryBatches.map((b) => {
                         const isSelected = historySelectedBatch?.id === b.id;
                         const isApproved = b.status.toLowerCase().includes("approved");
                         const rawActor = b.approvedByName || b.approvedBy || b.rejectedByName || b.rejectedBy || null;
@@ -1426,7 +1437,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                         return (
                           <tr
                             key={b.id}
-                            onClick={() => setHistorySelectedBatch(isSelected ? null : b)}
+                            onClick={() => setHistorySelectedBatch(b)}
                             className={`cursor-pointer transition ${
                               isSelected ? "bg-[var(--surface-muted)]" : "hover:bg-[var(--surface-muted)]/50"
                             }`}
@@ -1523,491 +1534,514 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                       })}
                     </tbody>
                   </table>
+                  <Pagination
+                    page={historyPagination.page}
+                    limit={historyPagination.limit}
+                    totalCount={historyBatches.length}
+                    onPageChange={historyPagination.handlePageChange}
+                    onLimitChange={historyPagination.handleLimitChange}
+                  />
                 </div>
               )}
-
-              {/* DRAWER OPTION A: Import Failure Audit & Error Log Drawer for validation_failed or rejected batches */}
-              {historySelectedBatch &&
-                (historySelectedBatch.status === "validation_failed" ||
-                  historySelectedBatch.status === "rejected") && (
-                  <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)]/20 p-4 space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-[var(--danger)]" />
-                        <h4 className="text-sm font-bold text-[var(--foreground)]">
-                          Import Failure Audit & Error Log — #{historySelectedBatch.id.slice(0, 8)} (
-                          {historySelectedBatch.fileName})
-                        </h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setHistorySelectedBatch(null)}
-                        className="text-[var(--text-muted)] hover:text-[var(--foreground)] text-sm"
-                      >
-                        Close
-                      </button>
-                    </div>
-
-                    {/* Summary / Meta */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Batch Status</span>
-                        <span className="font-bold text-[var(--danger)] mt-0.5 block">
-                          {historySelectedBatch.status.replace("_", " ")}
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Scope</span>
-                        <span className="font-bold text-[var(--foreground)] mt-0.5 block truncate">
-                          {historySelectedBatch.groupName || "—"} / {historySelectedBatch.accountName || "—"}
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Failed / Blocked Rows</span>
-                        <span className="font-bold text-[var(--danger)] mt-0.5 block">
-                          {historySelectedBatch.blockedRows} / {historySelectedBatch.totalRows} rows
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Valid Rows</span>
-                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
-                          {historySelectedBatch.validRows} rows
-                        </span>
-                      </div>
-                    </div>
-
-                    {(historySelectedBatch.rejectionReasonNote ||
-                      historySelectedBatch.rejectionReason) && (
-                      <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] space-y-1">
-                        <div className="font-bold text-xs">Rejection Reason / Note:</div>
-                        <div>
-                          {historySelectedBatch.rejectionReasonNote ||
-                            historySelectedBatch.rejectionReason}
-                        </div>
-                      </div>
-                    )}
-
-                    {(() => {
-                      const errorEntries = getActualErrorEntries(historySelectedBatch.errorSummary);
-                      if (errorEntries.length === 0) return null;
-                      return (
-                        <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                          <span className="text-xs text-[var(--danger)] font-bold">
-                            Field error breakdown:
-                          </span>
-                          {errorEntries.map(([f, cnt]) => (
-                            <span
-                              key={f}
-                              className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)] text-xs font-mono font-semibold px-2 py-0.5"
-                            >
-                              {f}: {cnt}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Row Inspection in History */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <h5 className="text-sm font-bold text-[var(--foreground)]">
-                          Row Error Breakdown ({historyRows.length} total rows)
-                        </h5>
-
-                        {/* Quick Filter Pills */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-semibold text-[var(--text-muted)] mr-1">Filter:</span>
-                          <button
-                            type="button"
-                            onClick={() => setHistoryRowFilter("all")}
-                            className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
-                              historyRowFilter === "all"
-                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
-                                : "bg-surface-card border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
-                            }`}
-                          >
-                            All ({historyRows.length})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setHistoryRowFilter("blocked")}
-                            className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
-                              historyRowFilter === "blocked"
-                                ? "bg-danger-button text-white shadow-2xs"
-                                : "bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger)]"
-                            }`}
-                          >
-                            Blocked ({historyRows.filter((r) => r.validationStatus === "blocked").length})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setHistoryRowFilter("flagged")}
-                            className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
-                              historyRowFilter === "flagged"
-                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
-                                : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
-                            }`}
-                          >
-                            Flagged ({historyRows.filter((r) => r.validationStatus === "flagged").length})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setHistoryRowFilter("valid")}
-                            className={`px-2 py-0.5 rounded-md text-xs font-semibold transition ${
-                              historyRowFilter === "valid"
-                                ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
-                                : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
-                            }`}
-                          >
-                            Valid ({historyRows.filter((r) => r.validationStatus === "valid").length})
-                          </button>
-                        </div>
-                      </div>
-
-                      {isLoadingHistoryRows ? (
-                        <div className="flex justify-center p-6 text-sm text-[var(--text-muted)]">
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
-                        </div>
-                      ) : filteredHistoryRows.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-[var(--border-subtle)] p-6 text-center text-sm text-[var(--text-muted)]">
-                          No rows match the selected filter ({historyRowFilter}).
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
-                              <tr>
-                                <th className="py-2 px-2.5 w-10">#</th>
-                                <th className="py-2 px-2.5 w-24">Status</th>
-                                <th className="py-2 px-2.5 w-28">VCode</th>
-                                <th className="py-2 px-2.5">Store</th>
-                                <th className="py-2 px-2.5">Employee</th>
-                                <th className="py-2 px-2.5">Position</th>
-                                <th className="py-2 px-2.5">Validation Issues & Guidance</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-subtle)]">
-                              {filteredHistoryRows.map((r) => {
-                                const isRowBlocked = r.validationStatus === "blocked";
-                                const isRowFlagged = r.validationStatus === "flagged";
-                                const isRowValid = r.validationStatus === "valid";
-
-                                return (
-                                  <tr
-                                    key={r.rowNumber}
-                                    className={`${
-                                      isRowBlocked
-                                        ? "bg-[var(--danger-bg)]/40 hover:bg-[var(--danger-bg)]/60"
-                                        : isRowFlagged
-                                        ? "bg-[var(--surface-sunken)]/40 hover:bg-[var(--surface-sunken)]/60"
-                                        : "hover:bg-[var(--surface-muted)]/50"
-                                    }`}
-                                  >
-                                    <td className="py-2 px-2.5 font-mono text-sm text-[var(--text-muted)]">{r.rowNumber}</td>
-                                    <td className="py-2 px-2.5 whitespace-nowrap">
-                                      <span
-                                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold  whitespace-nowrap leading-none ${
-                                          isRowBlocked
-                                            ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
-                                            : isRowFlagged
-                                            ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
-                                            : isRowValid
-                                            ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
-                                            : "bg-[var(--surface-muted)] text-[var(--foreground)]"
-                                        }`}
-                                      >
-                                        {r.validationStatus}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 px-2.5 font-bold font-mono text-[var(--foreground)] text-sm whitespace-nowrap">
-                                      {r.vcode || "—"}
-                                    </td>
-                                    <td className="py-2 px-2.5">
-                                      <div className="font-semibold text-[var(--foreground)] text-sm leading-tight">{r.storeName || "—"}</div>
-                                    </td>
-                                    <td className="py-2 px-2.5">
-                                      {r.employeeNo || r.employeeName ? (
-                                        <div className="space-y-0.5">
-                                          <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.employeeName || "—"}</div>
-                                          {r.employeeNo && (
-                                            <div className="text-xs font-mono text-[var(--text-muted)] leading-tight">
-                                              ID: {r.employeeNo}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)] whitespace-nowrap leading-none">
-                                          (Vacant Slot)
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-2.5 text-[var(--text-muted)]">
-                                      <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.position || "—"}</div>
-                                      {r.employmentType && (
-                                        <div className="mt-0.5 leading-tight">
-                                          <span className="rounded px-1.5 py-0.5 text-xs font-bold whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
-                                            {r.employmentType}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td className="py-2 px-2.5">
-                                      {isRowBlocked && (
-                                        <div className="space-y-1">
-                                          {r.validationErrors && r.validationErrors.length > 0 ? (
-                                            r.validationErrors.map((err, errIdx) => (
-                                              <div
-                                                key={errIdx}
-                                                className="flex items-start gap-1.5 text-[var(--danger)] text-sm leading-tight"
-                                              >
-                                                {err.conflictType && (
-                                                  <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--danger-border)]">
-                                                    {err.conflictType}
-                                                  </span>
-                                                )}
-                                                {!err.conflictType && err.field && (
-                                                  <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--danger-border)]">
-                                                    {err.field}
-                                                  </span>
-                                                )}
-                                                <span className="font-medium break-words leading-tight">{err.msg}</span>
-                                              </div>
-                                            ))
-                                          ) : (
-                                            r.validationMessages.map((msg, mIdx) => (
-                                              <div key={mIdx} className="text-[var(--danger)] text-sm font-medium break-words leading-tight">
-                                                • {msg}
-                                              </div>
-                                            ))
-                                          )}
-                                        </div>
-                                      )}
-                                      {isRowFlagged && (
-                                        <div className="space-y-1">
-                                          {r.validationFlags && r.validationFlags.length > 0 ? (
-                                            r.validationFlags.map((flag, fIdx) => (
-                                              <div
-                                                key={fIdx}
-                                                className="flex items-start gap-1.5 text-[var(--foreground)] text-sm leading-tight"
-                                              >
-                                                {flag.flag && (
-                                                  <span className="rounded bg-[var(--surface-sunken)] text-[var(--foreground)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--border-subtle)]">
-                                                    {flag.flag}
-                                                  </span>
-                                                )}
-                                                <span className="font-medium break-words leading-tight">{flag.msg}</span>
-                                              </div>
-                                            ))
-                                          ) : (
-                                            r.validationMessages.map((msg, mIdx) => (
-                                              <div key={mIdx} className="text-[var(--foreground)] text-sm font-medium break-words leading-tight">
-                                                • {msg}
-                                              </div>
-                                            ))
-                                          )}
-                                        </div>
-                                      )}
-                                      {isRowValid && (
-                                        <span className="inline-flex items-center gap-1 text-[var(--foreground)] text-sm font-semibold leading-tight">
-                                          <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--text-muted)]" /> Valid slot
-                                        </span>
-                                      )}
-                                      {!isRowBlocked && !isRowFlagged && !isRowValid && (
-                                        <span className="text-[var(--text-muted)] text-sm leading-tight">Skipped</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* DRAWER OPTION B: Rollback Governance Drawer for approved / rolled back batches */}
-              {historySelectedBatch &&
-                historySelectedBatch.status !== "validation_failed" &&
-                historySelectedBatch.status !== "rejected" && (
-                  <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)]/40 p-4 space-y-4">
-                    <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                      <div className="flex items-center gap-2">
-                        <RotateCcw className="h-4 w-4 text-[var(--foreground)]" />
-                        <h4 className="text-sm font-bold text-[var(--foreground)]">
-                          Rollback Governance — #{historySelectedBatch.id.slice(0, 8)} (
-                          {historySelectedBatch.fileName})
-                        </h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setHistorySelectedBatch(null)}
-                        className="text-[var(--text-muted)] hover:text-[var(--foreground)] text-sm"
-                      >
-                        Close
-                      </button>
-                    </div>
-
-                    {/* Summary / Meta */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Batch Status</span>
-                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
-                          {historySelectedBatch.status}
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Rollback Status</span>
-                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
-                          {historySelectedBatch.rollbackStatus || "None"}
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Governance Window</span>
-                        <span className="font-semibold text-[var(--foreground)] mt-0.5 block">
-                          {historySelectedBatch.rollbackAllowed
-                            ? `Active (${formatRollbackRemaining(historySelectedBatch.rollbackRemainingSeconds)} left)`
-                            : "Expired / Inactive"}
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
-                        <span className="text-[var(--text-muted)] block">Total Headcount Rows</span>
-                        <span className="font-bold text-[var(--foreground)] mt-0.5 block">
-                          {historySelectedBatch.totalRows} rows
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Block / Notice Warnings */}
-                    {historySelectedBatch.rollbackBlockReason && (
-                      <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-start gap-2 font-medium">
-                        <AlertTriangle className="h-4 w-4 text-[var(--danger)] shrink-0 mt-0.5" />
-                        <div>{humanizeRollbackError(historySelectedBatch.rollbackBlockReason)}</div>
-                      </div>
-                    )}
-
-                    {historySelectedBatch.rollbackErrorDetail && (
-                      <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-[var(--danger)] shrink-0 mt-0.5" />
-                        <div>
-                          Rollback attempt failed:{" "}
-                          {humanizeRollbackError(historySelectedBatch.rollbackErrorDetail)}
-                        </div>
-                      </div>
-                    )}
-
-                    {rollbackActionSuccess && (
-                      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--foreground)] flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 shrink-0" />
-                        <span>{rollbackActionSuccess}</span>
-                      </div>
-                    )}
-
-                    {rollbackActionError && (
-                      <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-[var(--danger)] shrink-0" />
-                        <span>{rollbackActionError}</span>
-                      </div>
-                    )}
-
-                    {/* Actions Bar */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setIsRollbackHistoryOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition"
-                      >
-                        <History className="h-4 w-4 text-[var(--text-muted)]" />
-                        View Rollback History
-                      </button>
-
-                      {/* Step 1: Request Rollback Button */}
-                      {canRequestRollback &&
-                        historySelectedBatch.rollbackAllowed &&
-                        historySelectedBatch.rollbackStatus !== "requested" &&
-                        historySelectedBatch.rollbackStatus !== "completed" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedRollbackReason("wrong_batch");
-                              setRollbackRemarks("");
-                              setRollbackActionError(null);
-                              setIsRequestRollbackOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] text-sm font-semibold text-[var(--danger)] hover:opacity-90 transition"
-                          >
-                            <RotateCcw className="h-4 w-4 text-[var(--danger)]" />
-                            Request Rollback
-                          </button>
-                        )}
-
-                      {/* Step 2: Approve & Execute Rollback Button (Head Admin or Super Admin) */}
-                      {canApprove &&
-                        historySelectedBatch.status.toLowerCase().includes("approved") &&
-                        historySelectedBatch.rollbackStatus === "requested" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRollbackActionError(null);
-                                setIsApproveRollbackConfirmOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition"
-                            >
-                              <ShieldCheck className="h-4 w-4" />
-                              Approve & Execute Rollback
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                setRollbackActionBusy(true);
-                                setRollbackActionError(null);
-                                try {
-                                  await rejectPlantillaImportRollback({
-                                    batchId: historySelectedBatch.id,
-                                    reason: "Rejected by Administrator",
-                                  });
-                                  setRollbackActionSuccess("Rollback request rejected successfully.");
-                                  refetchBatches();
-                                } catch (err) {
-                                  setRollbackActionError(humanizeRollbackError(err instanceof Error ? err.message : String(err)));
-                                } finally {
-                                  setRollbackActionBusy(false);
-                                }
-                              }}
-                              disabled={rollbackActionBusy}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition"
-                            >
-                              <X className="h-4 w-4 text-[var(--text-muted)]" />
-                              Reject Rollback Request
-                            </button>
-                          </>
-                        )}
-
-                      {/* Emergency Rollback Override (Super Admin Only) */}
-                      {isSuperAdmin && historySelectedBatch.canEmergencyRollback && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmergencyReason("");
-                            setRollbackActionError(null);
-                            setIsEmergencyRollbackOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition"
-                        >
-                          <ShieldAlert className="h-4 w-4" />
-                          Emergency Rollback Override
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
             </div>
           )}
         </div>
       </BatchImportPageShell>
+
+      {/* BATCH DETAILS MODAL (Opens when clicking any row in Import History table) */}
+      {historySelectedBatch && (
+        <Modal
+          isOpen={Boolean(historySelectedBatch)}
+          onClose={() => setHistorySelectedBatch(null)}
+          title={
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>Batch #{historySelectedBatch.id.slice(0, 8)}</span>
+              <span
+                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                  historySelectedBatch.status.includes("rolled_back") ||
+                  historySelectedBatch.status.includes("reject") ||
+                  historySelectedBatch.status.includes("failed")
+                    ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
+                    : historySelectedBatch.status.toLowerCase().includes("approved")
+                    ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                    : "bg-[var(--surface-muted)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                }`}
+              >
+                {historySelectedBatch.status.replace("_", " ").toUpperCase()}
+              </span>
+            </div>
+          }
+          subtitle={`File: ${historySelectedBatch.fileName}`}
+          icon={FileSpreadsheet}
+          maxWidthClass="max-w-4xl"
+        >
+          <div className="space-y-4">
+            {/* If validation_failed or rejected: Failure Audit & Error Log */}
+            {(historySelectedBatch.status === "validation_failed" ||
+              historySelectedBatch.status === "rejected") && (
+              <div className="space-y-4">
+                {/* Summary / Meta */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-muted)] block">Batch Status</span>
+                    <span className="font-bold text-[var(--danger)] mt-0.5 block">
+                      {historySelectedBatch.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-muted)] block">Scope</span>
+                    <span className="font-bold text-[var(--foreground)] mt-0.5 block truncate">
+                      {historySelectedBatch.groupName || "—"} / {historySelectedBatch.accountName || "—"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-muted)] block">Failed / Blocked Rows</span>
+                    <span className="font-bold text-[var(--danger)] mt-0.5 block">
+                      {historySelectedBatch.blockedRows} / {historySelectedBatch.totalRows} rows
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-muted)] block">Valid Rows</span>
+                    <span className="font-bold text-[var(--foreground)] mt-0.5 block">
+                      {historySelectedBatch.validRows} rows
+                    </span>
+                  </div>
+                </div>
+
+                {(historySelectedBatch.rejectionReasonNote ||
+                  historySelectedBatch.rejectionReason) && (
+                  <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] space-y-1">
+                    <div className="font-bold text-xs">Rejection Reason / Note:</div>
+                    <div>
+                      {historySelectedBatch.rejectionReasonNote ||
+                        historySelectedBatch.rejectionReason}
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  const errorEntries = getActualErrorEntries(historySelectedBatch.errorSummary);
+                  if (errorEntries.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-xs text-[var(--danger)] font-bold">
+                        Field error breakdown:
+                      </span>
+                      {errorEntries.map(([f, cnt]) => (
+                        <span
+                          key={f}
+                          className="rounded-md bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)] text-xs font-mono font-semibold px-2 py-0.5"
+                        >
+                          {f}: {cnt}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Row Inspection in History */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h5 className="text-sm font-bold text-[var(--foreground)]">
+                      Row Error Breakdown ({historyRows.length} total rows)
+                    </h5>
+
+                    {/* Quick Filter Pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-semibold text-[var(--text-muted)] mr-1">Filter:</span>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryRowFilter("all")}
+                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          historyRowFilter === "all"
+                            ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
+                            : "bg-surface-card border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                        }`}
+                      >
+                        All ({historyRows.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryRowFilter("blocked")}
+                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          historyRowFilter === "blocked"
+                            ? "bg-danger-button text-white shadow-2xs"
+                            : "bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger)]"
+                        }`}
+                      >
+                        Blocked ({historyRows.filter((r) => r.validationStatus === "blocked").length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryRowFilter("flagged")}
+                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          historyRowFilter === "flagged"
+                            ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
+                            : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
+                        }`}
+                      >
+                        Flagged ({historyRows.filter((r) => r.validationStatus === "flagged").length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryRowFilter("valid")}
+                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          historyRowFilter === "valid"
+                            ? "bg-tab-active-bg text-tab-active-text border border-tab-active-border shadow-2xs"
+                            : "bg-[var(--surface-sunken)] border border-[var(--border-subtle)] text-[var(--foreground)]"
+                        }`}
+                      >
+                        Valid ({historyRows.filter((r) => r.validationStatus === "valid").length})
+                      </button>
+                    </div>
+                  </div>
+
+                  {isLoadingHistoryRows ? (
+                    <div className="flex justify-center p-6 text-sm text-[var(--text-muted)]">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading rows...
+                    </div>
+                  ) : filteredHistoryRows.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-[var(--border-subtle)] p-6 text-center text-sm text-[var(--text-muted)]">
+                      No rows match the selected filter ({historyRowFilter}).
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] overflow-x-auto max-h-72">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-[var(--surface-muted)] border-b border-[var(--border-subtle)] sticky top-0 text-xs text-[var(--text-muted)] font-bold">
+                          <tr>
+                            <th className="py-2 px-2.5 w-10">#</th>
+                            <th className="py-2 px-2.5 w-24">Status</th>
+                            <th className="py-2 px-2.5 w-28">VCode</th>
+                            <th className="py-2 px-2.5">Store</th>
+                            <th className="py-2 px-2.5">Employee</th>
+                            <th className="py-2 px-2.5">Position</th>
+                            <th className="py-2 px-2.5">Validation Issues & Guidance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-subtle)]">
+                          {filteredHistoryRows.map((r) => {
+                            const isRowBlocked = r.validationStatus === "blocked";
+                            const isRowFlagged = r.validationStatus === "flagged";
+                            const isRowValid = r.validationStatus === "valid";
+
+                            return (
+                              <tr
+                                key={r.rowNumber}
+                                className={`${
+                                  isRowBlocked
+                                    ? "bg-[var(--danger-bg)]/40 hover:bg-[var(--danger-bg)]/60"
+                                    : isRowFlagged
+                                    ? "bg-[var(--surface-sunken)]/40 hover:bg-[var(--surface-sunken)]/60"
+                                    : "hover:bg-[var(--surface-muted)]/50"
+                                }`}
+                              >
+                                <td className="py-2 px-2.5 font-mono text-sm text-[var(--text-muted)]">{r.rowNumber}</td>
+                                <td className="py-2 px-2.5 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold whitespace-nowrap leading-none ${
+                                      isRowBlocked
+                                        ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)]"
+                                        : isRowFlagged
+                                        ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                                        : isRowValid
+                                        ? "bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]"
+                                        : "bg-[var(--surface-muted)] text-[var(--foreground)]"
+                                    }`}
+                                  >
+                                    {r.validationStatus}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2.5 font-bold font-mono text-[var(--foreground)] text-sm whitespace-nowrap">
+                                  {r.vcode || "—"}
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div className="font-semibold text-[var(--foreground)] text-sm leading-tight">{r.storeName || "—"}</div>
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  {r.employeeNo || r.employeeName ? (
+                                    <div className="space-y-0.5">
+                                      <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.employeeName || "—"}</div>
+                                      {r.employeeNo && (
+                                        <div className="text-xs font-mono text-[var(--text-muted)] leading-tight">
+                                          ID: {r.employeeNo}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)] whitespace-nowrap leading-none">
+                                      (Vacant Slot)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2.5 text-[var(--text-muted)]">
+                                  <div className="font-medium text-[var(--foreground)] text-sm leading-tight">{r.position || "—"}</div>
+                                  {r.employmentType && (
+                                    <div className="mt-0.5 leading-tight">
+                                      <span className="rounded px-1.5 py-0.5 text-xs font-bold whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                        {r.employmentType}
+                                      </span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  {isRowBlocked && (
+                                    <div className="space-y-1">
+                                      {r.validationErrors && r.validationErrors.length > 0 ? (
+                                        r.validationErrors.map((err, errIdx) => (
+                                          <div
+                                            key={errIdx}
+                                            className="flex items-start gap-1.5 text-[var(--danger)] text-sm leading-tight"
+                                          >
+                                            {err.conflictType && (
+                                              <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--danger-border)]">
+                                                {err.conflictType}
+                                              </span>
+                                            )}
+                                            {!err.conflictType && err.field && (
+                                              <span className="rounded bg-[var(--danger-bg)] text-[var(--danger)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--danger-border)]">
+                                                {err.field}
+                                              </span>
+                                            )}
+                                            <span className="font-medium break-words leading-tight">{err.msg}</span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        r.validationMessages.map((msg, mIdx) => (
+                                          <div key={mIdx} className="text-[var(--danger)] text-sm font-medium break-words leading-tight">
+                                            • {msg}
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                                  {isRowFlagged && (
+                                    <div className="space-y-1">
+                                      {r.validationFlags && r.validationFlags.length > 0 ? (
+                                        r.validationFlags.map((flag, fIdx) => (
+                                          <div
+                                            key={fIdx}
+                                            className="flex items-start gap-1.5 text-[var(--foreground)] text-sm leading-tight"
+                                          >
+                                            {flag.flag && (
+                                              <span className="rounded bg-[var(--surface-sunken)] text-[var(--foreground)] px-1.5 py-0.5 text-xs font-mono font-bold shrink-0 leading-none border border-[var(--border-subtle)]">
+                                                {flag.flag}
+                                              </span>
+                                            )}
+                                            <span className="font-medium break-words leading-tight">{flag.msg}</span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        r.validationMessages.map((msg, mIdx) => (
+                                          <div key={mIdx} className="text-[var(--foreground)] text-sm font-medium break-words leading-tight">
+                                            • {msg}
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                                  {isRowValid && (
+                                    <span className="inline-flex items-center gap-1 text-[var(--foreground)] text-sm font-semibold leading-tight">
+                                      <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--text-muted)]" /> Valid slot
+                                    </span>
+                                  )}
+                                  {!isRowBlocked && !isRowFlagged && !isRowValid && (
+                                    <span className="text-[var(--text-muted)] text-sm leading-tight">Skipped</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* If approved or other: Rollback Governance */}
+            {historySelectedBatch.status !== "validation_failed" &&
+              historySelectedBatch.status !== "rejected" && (
+                <div className="space-y-4">
+                  {/* Summary / Meta */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Batch Status</span>
+                      <span className="font-bold text-[var(--foreground)] mt-0.5 block">
+                        {historySelectedBatch.status}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Rollback Status</span>
+                      <span className="font-bold text-[var(--foreground)] mt-0.5 block">
+                        {historySelectedBatch.rollbackStatus || "None"}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Governance Window</span>
+                      <span className="font-semibold text-[var(--foreground)] mt-0.5 block">
+                        {historySelectedBatch.rollbackAllowed
+                          ? `Active (${formatRollbackRemaining(historySelectedBatch.rollbackRemainingSeconds)} left)`
+                          : "Expired / Inactive"}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Total Headcount Rows</span>
+                      <span className="font-bold text-[var(--foreground)] mt-0.5 block">
+                        {historySelectedBatch.totalRows} rows
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Scope & Uploader Meta Card */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Scope</span>
+                      <span className="font-semibold text-[var(--foreground)] mt-0.5 block truncate">
+                        {historySelectedBatch.groupName || "—"} / {historySelectedBatch.accountName || "—"}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[var(--card)] border border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-muted)] block">Uploaded By</span>
+                      <span className="font-semibold text-[var(--foreground)] mt-0.5 block truncate">
+                        {formatActor(historySelectedBatch.uploadedBy)}
+                        {historySelectedBatch.uploadedAt && (
+                          <span className="text-[var(--text-muted)] font-normal ml-1">
+                            ({new Date(historySelectedBatch.uploadedAt).toLocaleString()})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Block / Notice Warnings */}
+                  {historySelectedBatch.rollbackBlockReason && (
+                    <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-start gap-2 font-medium">
+                      <AlertTriangle className="h-4 w-4 text-[var(--danger)] shrink-0 mt-0.5" />
+                      <div>{humanizeRollbackError(historySelectedBatch.rollbackBlockReason)}</div>
+                    </div>
+                  )}
+
+                  {historySelectedBatch.rollbackErrorDetail && (
+                    <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-[var(--danger)] shrink-0 mt-0.5" />
+                      <div>
+                        Rollback attempt failed:{" "}
+                        {humanizeRollbackError(historySelectedBatch.rollbackErrorDetail)}
+                      </div>
+                    </div>
+                  )}
+
+                  {rollbackActionSuccess && (
+                    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--foreground)] flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>{rollbackActionSuccess}</span>
+                    </div>
+                  )}
+
+                  {rollbackActionError && (
+                    <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-[var(--danger)] shrink-0" />
+                      <span>{rollbackActionError}</span>
+                    </div>
+                  )}
+
+                  {/* Actions Bar */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
+                    <button
+                      type="button"
+                      onClick={() => setIsRollbackHistoryOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
+                    >
+                      <History className="h-4 w-4 text-[var(--text-muted)]" />
+                      View Rollback History
+                    </button>
+
+                    {/* Step 1: Request Rollback Button */}
+                    {canRequestRollback &&
+                      historySelectedBatch.rollbackAllowed &&
+                      historySelectedBatch.rollbackStatus !== "requested" &&
+                      historySelectedBatch.rollbackStatus !== "completed" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRollbackReason("wrong_batch");
+                            setRollbackRemarks("");
+                            setRollbackActionError(null);
+                            setIsRequestRollbackOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] text-sm font-semibold text-[var(--danger)] hover:opacity-90 transition cursor-pointer"
+                        >
+                          <RotateCcw className="h-4 w-4 text-[var(--danger)]" />
+                          Request Rollback
+                        </button>
+                      )}
+
+                    {/* Step 2: Approve & Execute Rollback Button (Head Admin or Super Admin) */}
+                    {canApprove &&
+                      historySelectedBatch.status.toLowerCase().includes("approved") &&
+                      historySelectedBatch.rollbackStatus === "requested" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRollbackActionError(null);
+                              setIsApproveRollbackConfirmOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition cursor-pointer"
+                          >
+                            <ShieldCheck className="h-4 w-4" />
+                            Approve & Execute Rollback
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setRollbackActionBusy(true);
+                              setRollbackActionError(null);
+                              try {
+                                await rejectPlantillaImportRollback({
+                                  batchId: historySelectedBatch.id,
+                                  reason: "Rejected by Administrator",
+                                });
+                                setRollbackActionSuccess("Rollback request rejected successfully.");
+                                refetchBatches();
+                              } catch (err) {
+                                setRollbackActionError(humanizeRollbackError(err instanceof Error ? err.message : String(err)));
+                              } finally {
+                                setRollbackActionBusy(false);
+                              }
+                            }}
+                            disabled={rollbackActionBusy}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
+                          >
+                            <X className="h-4 w-4 text-[var(--text-muted)]" />
+                            Reject Rollback Request
+                          </button>
+                        </>
+                      )}
+
+                    {/* Emergency Rollback Override (Super Admin Only) */}
+                    {isSuperAdmin && historySelectedBatch.canEmergencyRollback && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmergencyReason("");
+                          setRollbackActionError(null);
+                          setIsEmergencyRollbackOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition cursor-pointer"
+                      >
+                        <ShieldAlert className="h-4 w-4" />
+                        Emergency Rollback Override
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+          </div>
+        </Modal>
+      )}
 
       {/* REJECTION REASON MODAL */}
       {isRejectModalOpen && rejectTargetBatch && (
