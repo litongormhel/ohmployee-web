@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Plantilla Import Batch Detail Modal: Fix Solid Danger Button Styling & Light/Dark Theme Tokens (ohm#t5k9w2rn)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **Root Cause Analysis (Light vs Dark Mode Button Invisibility):**
+   - The user provided two screenshots contrasting light mode (Image 1) and dark mode (Image 2) for the Import Batch Details Modal.
+   - In light mode, the primary action button `"Approve & Execute Rollback"` appeared missing, leaving an empty gap between `"View Rollback History"` and `"Reject Rollback Request"`.
+   - In dark mode, the button appeared as white text with a transparent background.
+   - Identified root cause: `PlantillaImportModal.tsx` styled the button with `bg-[var(--danger)] text-white`. In `globals.css`, `--danger-button` (`#b91c1c` in light, `#e11d48` in dark) exists, but `--danger` was undefined. In light mode, white text against a white modal was 100% invisible.
+
+2. **Modal & Sub-modal Button Styling (`src/components/more/PlantillaImportModal.tsx`):**
+   - Updated `Approve & Execute Rollback` button to standard high-contrast solid danger tokens:
+     `bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`
+   - Fixed all 4 matching occurrences across related sub-modals:
+     - `Emergency Rollback Override` button
+     - `Submit Request` in Request Rollback Modal
+     - `Approve & Execute` in Approve Rollback Confirm Modal
+     - `Execute Override` in Emergency Rollback Modal
+
+3. **Compatibility Design Tokens (`src/app/globals.css`):**
+   - Added `--danger: var(--danger-text);` to both light mode and dark mode compatibility token sections to guarantee safe fallback for any legacy CSS variables.
+
+4. **Quality Gates:**
+   - `npm run lint`: Clean (0 errors).
+   - `tsc --noEmit` & `npm run build`: Clean (20/20 static routes generated successfully in 19.1s compilation).
+   - 0 database writes, DDL, or RPC executions.
+
+---
+
 ## Execution Report — Plantilla Import History: Modular Pagination & Modal Batch Detail View (ohm#p8m4v7xw)
 
 **Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**

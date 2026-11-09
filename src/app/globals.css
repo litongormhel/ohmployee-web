@@ -126,6 +126,7 @@
   /* Compatibility aliases */
   --card: var(--surface-card);
   --primary: var(--brand-button);
+  --danger: var(--danger-text);
 
   /* Active tab / pill token pair */
   --tab-active-bg: #ffffff;
@@ -270,6 +271,7 @@
   /* Compatibility aliases */
   --card: var(--surface-card);
   --primary: var(--brand-button);
+  --danger: var(--danger-text);
 
   /* Active tab / pill token pair */
   --tab-active-bg: #18181B;

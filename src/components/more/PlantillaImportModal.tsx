@@ -1988,7 +1988,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                               setRollbackActionError(null);
                               setIsApproveRollbackConfirmOpen(true);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-sm font-semibold text-white shadow-2xs transition cursor-pointer"
                           >
                             <ShieldCheck className="h-4 w-4" />
                             Approve & Execute Rollback
@@ -2030,7 +2030,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                           setRollbackActionError(null);
                           setIsEmergencyRollbackOpen(true);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-sm font-semibold text-white shadow-2xs transition cursor-pointer"
                       >
                         <ShieldAlert className="h-4 w-4" />
                         Emergency Rollback Override
@@ -2213,7 +2213,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                 type="button"
                 onClick={handleDoRequestRollback}
                 disabled={rollbackActionBusy || rollbackRemarks.trim().length < 10}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-sm font-semibold text-white shadow-2xs transition disabled:opacity-50 cursor-pointer"
               >
                 {rollbackActionBusy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Submit Request
@@ -2290,7 +2290,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                 type="button"
                 onClick={handleDoApproveRollback}
                 disabled={rollbackActionBusy}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-sm font-semibold text-white shadow-2xs transition disabled:opacity-50 cursor-pointer"
               >
                 {rollbackActionBusy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Approve & Execute
@@ -2366,7 +2366,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                 type="button"
                 onClick={handleDoEmergencyRollback}
                 disabled={rollbackActionBusy || emergencyReason.trim().length < 50}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger)] text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-sm font-semibold text-white shadow-2xs transition disabled:opacity-50 cursor-pointer"
               >
                 {rollbackActionBusy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Execute Override
