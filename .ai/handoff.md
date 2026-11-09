@@ -17,10 +17,7 @@
    - Mobile callers: `rollbackPlantillaImportBatch` in `store_import_service.dart` (line 1360) is annotated `@Deprecated` and referenced by 0 screens in the mobile codebase.
    - Internal SQL caller: `approve_plantilla_import_rollback` is the sole active caller.
 3. **Snapshot Lineage Truth Statement:**
-   - Early migrations (`20260603000002` to `20260706000000`, `20260730000007` to `20261013000000`) wrote `allocation` snapshots (`update` and `insert`).
-   - Migration `20261017000000` and `20262606000008` dropped allocation snapshots.
-   - ADR-002 migration `20262606000053` through `20262606000064` introduced Phase B1 `slot` snapshots, but omitted `allocation` snapshots and Phase B2 `slot` snapshots.
-   - Migration `20262606000086` restored both `allocation` snapshots (`update` and `insert`) and Phase B2 `slot` snapshots (`update` and `insert`).
+   - Before 086, snapshots existed for store, plantilla and Phase B1 vacant slots. allocation (insert) snapshots and Phase B2 slot snapshots (occupied or claimed) were first written by 086. Legacy batches have allocation (update) snapshots only.
 4. **Rollback Expiry Decider:**
    - `finalize_expired_import_rollback_windows` checks: `COALESCE(rollback_expires_at, public.fn_import_rollback_deadline(approved_at, 72)) < now()`.
    - Neither web nor mobile UI screens read or display `rollback_expires_at`; it exists only in data models.
@@ -39,6 +36,12 @@
 - **File Created:** `supabase/migrations/20262606000087_reset_incomplete_plantilla_rollback_lineage_and_lock_executor.sql`
 - **SHA256:** `89AA33987541270019A11AD8CDAC77608CD3B2B321A5AAD158D954F8B36A3D13`
 - **Apply Method:** Applied on Staging (`qqiiznmqxfoamqytjica`) in a single transaction via MCP `execute_sql` along with `INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000087', 'reset_incomplete_plantilla_rollback_lineage_and_lock_executor')`.
+  - Verified Ledger Table Query (`SELECT version, name FROM supabase_migrations.schema_migrations WHERE version >= '20262606000085' ORDER BY version;`):
+    | version | name |
+    | :--- | :--- |
+    | `20262606000085` | `fix_plantilla_roving_validation_and_approval_state` |
+    | `20262606000086` | `fix_plantilla_import_rollback_ready_and_store_closure_trigger` |
+    | `20262606000087` | `reset_incomplete_plantilla_rollback_lineage_and_lock_executor` |
 - **A. Corrected Lineage Reset:**
   - Predicate:
     ```sql
@@ -121,23 +124,37 @@
   ```json
   {
     "status": "ALL_ASSERTIONS_PASSED",
-    "timestamp": "2026-11-09T01:59:08.48335+00:00",
-    "stationary_evaluation": "PASS",
-    "roving_approval": "PASS",
-    "vacant_only_immunity": "PASS",
-    "executor_lockdown": "PASS",
-    "protected_occupant_guard": "PASS",
-    "legacy_lineage_fail_closed": "PASS",
+    "timestamp": "2026-11-09T02:20:32.344664+00:00",
     "zero_edit_lock": "PASS",
-    "request_approve_flow": "PASS",
-    "6_table_baseline_parity": "PASS",
+    "roving_approval": "PASS",
     "blocked_rejection": "PASS",
-    "batch_rejection_audit": "PASS",
+    "executor_lockdown": "PASS",
     "roving_fixture_rows": 14,
+    "request_approve_flow": "PASS",
+    "vacant_only_immunity": "PASS",
+    "batch_rejection_audit": "PASS",
+    "stationary_evaluation": "PASS",
+    "6_table_baseline_parity": "PASS",
+    "protected_occupant_guard": "PASS",
     "roving_employees_created": 4,
+    "legacy_lineage_fail_closed": "PASS",
     "roving_allocations_created": 14
   }
   ```
+- **Harness Assertions Verified in SQL Test Execution:**
+  1. `stationary_evaluation` (PASS — lines 176–192)
+  2. `roving_submission` (PASS — lines 208–223; verified batch status `pending_approval`, 14 valid, 0 flagged, 0 blocked; not emitted as separate key in JSON)
+  3. `roving_approval` (PASS — lines 226–242)
+  4. `vacant_only_immunity` (PASS — lines 244–292)
+  5. `executor_lockdown` (PASS — lines 294–308)
+  6. `protected_occupant_guard` (PASS — lines 310–356)
+  7. `legacy_lineage_fail_closed` (PASS — lines 358–375)
+  8. `zero_edit_lock` (PASS — lines 397–425)
+  9. `request_approve_flow` (PASS — lines 382–396, 427–442)
+  10. `6_table_baseline_parity` (PASS — lines 444–514)
+  11. `blocked_rejection` (PASS — lines 516–538)
+  12. `batch_rejection_audit` (PASS — lines 540–573)
+  *72-hour window non-override expiry:* NOT RUN (not asserted in regression script).
 - **6-Table Baseline Equality Verified (BEFORE vs AFTER):**
   * `stores_active`: 19 -> 19 (PASS)
   * `slots_active`: 19 -> 19 (PASS)
@@ -164,9 +181,9 @@
    - `plantilla_import_commit_snapshots` only captured updates/inserts on `stores`.
    - Result: every approved batch retained `rollback_ready = false`. Attempting `rollback_plantilla_import_batch()` raised `ROLLBACK_NOT_READY: batch has no completed rollback lineage`.
 2. **Migration Lineage (The BUG-06 Pattern):**
-   - In migration `20262606000055_fix_plantilla_import_rollback_and_links.sql`, `approve_plantilla_import_batch` captured snapshots and explicitly set `rollback_ready = true`.
-   - In migration `20262606000059_fix_plantilla_import_commit_status.sql` (`ohm#f7m2w9x4`), the function was replaced via `CREATE OR REPLACE` using an older function body that lacked the commit snapshot loop and `rollback_ready = true`.
-   - Subsequent migrations `062` and `064` kept overwriting using the truncated definition without snapshots or `rollback_ready`.
+   - In migration `20262606000055_allow_flagged_rows_on_plantilla_import_approval.sql`, `approve_plantilla_import_batch` captured snapshots and explicitly set `rollback_ready = true`.
+   - In migration `20262606000059_fix_plantilla_field_inheritance_and_mapping.sql` (`ohm#f7m2w9x4`), the function was replaced via `CREATE OR REPLACE` using a function body that omitted `rollback_ready = true` (and `committed_stores`/`committed_employees`).
+   - Subsequent migrations `062` and `064` kept overwriting using the definition without `rollback_ready`. Before 086, snapshots existed for store, plantilla and Phase B1 vacant slots. allocation (insert) snapshots and Phase B2 slot snapshots (occupied or claimed) were first written by 086. Legacy batches have allocation (update) snapshots only.
 3. **ADR-002 Promises vs Staging vs PROD:**
    - **ADR-002 (§4.4 Invariant 10):** Batches can be rolled back within a 72-hour window by Head Admin or Super Admin if no conflicting mutations have occurred.
    - **Staging status:** Prior to this prompt, promise was broken because `rollback_ready` remained `false` and commit snapshots for plantilla/allocations/slots were omitted.
@@ -177,7 +194,7 @@
 #### B. Store Closure Cascade Trigger (`fn_trg_store_closure_cascade_vacancies`)
 1. **Live Definition & Missing Column:**
    - `fn_trg_store_closure_cascade_vacancies()` attempted to run:
-     `UPDATE public.vacancies SET status = 'Archived', is_archived = true, closed_at = now() WHERE store_id = NEW.id;`
+     `UPDATE public.vacancies SET status = 'Closed', is_archived = true, closed_at = now() WHERE store_id = NEW.id;`
    - `vacancies.closed_at` did not exist in `public.vacancies`.
    - Introduced in migration `20262606000057_route_store_deletion_to_closure_tab.sql` from the mobile repository, which assumed `closed_at` existed on `vacancies` without authoring an `ALTER TABLE vacancies ADD COLUMN closed_at` statement.
 2. **User-Facing Impact:**
@@ -198,7 +215,7 @@
     * Captures snapshots for `employee_store_allocations` (insert/update).
     * Captures snapshots for Phase B1 / B2 `plantilla_slots` and `vacancies`.
     * Populates batch summary metrics: `committed_stores`, `committed_employees`, `approved_by_name`.
-    * Sets `rollback_ready = true` and `rollback_window_expires_at = clock_timestamp() + interval '72 hours'`.
+    * Sets `rollback_ready = true` (with `rollback_expires_at` defaulting to `approved_at + INTERVAL '72 hours'`).
   - Updated `public.rollback_plantilla_import_batch`:
     * Restores/deactivates `employee_store_allocations` using snapshot lineage (omitting non-existent `updated_at`/`updated_by` columns).
     * Restores/archives `plantilla` records without hard deletion.
@@ -214,7 +231,7 @@
 
 1. **Store Closure Trigger Live Test:**
    - Atomic verification block executed: created test store, test vacancy, updated store to `status = 'archived'`.
-   - Asserted `vacancy.status = 'Archived'`, `vacancy.closed_at IS NOT NULL`. Succeeded cleanly.
+   - Asserted `vacancy.status = 'Closed'`, `vacancy.closed_at IS NOT NULL`. Succeeded cleanly.
 2. **Self-Rolling-Back Regression Harness (`scripts/tests/plantilla_import_regression.sql`):**
    - Executed against Staging inside an atomic DO block with 100% forced rollback.
    - Assertions passed:
