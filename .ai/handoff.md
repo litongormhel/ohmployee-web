@@ -1,5 +1,157 @@
 # AI Handoff
 
+## Execution Report — Plantilla Import: Rollback Lineage Reset, Executor Lockdown & Protected Occupant Guard (ohm#r4t7y2bn — Phase 2: Implementation & Verification)
+
+**Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; PHASE 2 APPROVED SCOPE FULLY IMPLEMENTED; MIGRATION `20262606000087_reset_incomplete_plantilla_rollback_lineage_and_lock_executor.sql` AUTHORED & APPLIED TO STAGING; REGRESSION TEST SUITE (`scripts/tests/plantilla_import_regression.sql`) ENHANCED AND EXECUTED WITH 100% PASS (`ALL_ASSERTIONS_PASSED`); ZERO ROWS PERSISTED; PROD READ-ONLY & UNTOUCHED**
+
+### 1. Pre-Checks Raw Evidence & Truth Verification
+
+1. **Security Wrappers & Executor ACLs:**
+   - `request_plantilla_import_rollback`: `SECURITY DEFINER`, owner: `postgres`, search_path: `public`.
+   - `approve_plantilla_import_rollback`: `SECURITY DEFINER`, owner: `postgres`, search_path: `public`, statement_timeout: `60s`. Calls `rollback_plantilla_import_batch`.
+   - `override_plantilla_import_rollback`: `SECURITY DEFINER`, owner: `postgres`, calls `emergency_rollback_plantilla_import`.
+   - `emergency_rollback_plantilla_import`: `SECURITY DEFINER`, owner: `postgres`, calls `approve_plantilla_import_rollback`.
+   - Executor `rollback_plantilla_import_batch` proacl BEFORE: `{postgres=X/postgres,authenticated=X/postgres}`.
+2. **Caller Audit:**
+   - Web callers: 0 web screens invoke `rollback_plantilla_import_batch` directly. Web uses `request_plantilla_import_rollback` and `approve_plantilla_import_rollback`.
+   - Mobile callers: `rollbackPlantillaImportBatch` in `store_import_service.dart` (line 1360) is annotated `@Deprecated` and referenced by 0 screens in the mobile codebase.
+   - Internal SQL caller: `approve_plantilla_import_rollback` is the sole active caller.
+3. **Snapshot Lineage Truth Statement:**
+   - Early migrations (`20260603000002` to `20260706000000`, `20260730000007` to `20261013000000`) wrote `allocation` snapshots (`update` and `insert`).
+   - Migration `20261017000000` and `20262606000008` dropped allocation snapshots.
+   - ADR-002 migration `20262606000053` through `20262606000064` introduced Phase B1 `slot` snapshots, but omitted `allocation` snapshots and Phase B2 `slot` snapshots.
+   - Migration `20262606000086` restored both `allocation` snapshots (`update` and `insert`) and Phase B2 `slot` snapshots (`update` and `insert`).
+4. **Rollback Expiry Decider:**
+   - `finalize_expired_import_rollback_windows` checks: `COALESCE(rollback_expires_at, public.fn_import_rollback_deadline(approved_at, 72)) < now()`.
+   - Neither web nor mobile UI screens read or display `rollback_expires_at`; it exists only in data models.
+5. **Staging Batch Audit:**
+   - Approved batches: Exactly 1 batch (`1dcb71eb-742d-4fbc-83a0-703cb57f64b5`), `employees_created = 5`, has 0 allocation insert snapshots and 0 slot snapshots.
+   - Finalized batches: 33 batches, 0 missing allocation insert snapshots, 10 missing slot snapshots.
+   - Rolled back: 13 batches, 0 missing allocation snapshots, 9 missing slot snapshots.
+   - Rollback failed: 4 batches, complete snapshots.
+6. **Vacancy Status Filter Treatment:**
+   - Web (`src/lib/queries/vacancy.ts`) and mobile (`vacancy_service.dart`) treat `'Closed'` and `'Archived'` identically by checking `is_archived = false` or `status IN ('Closed', 'Archived')`.
+
+---
+
+### 2. Approved Scope Implementation (Migration 20262606000087)
+
+- **File Created:** `supabase/migrations/20262606000087_reset_incomplete_plantilla_rollback_lineage_and_lock_executor.sql`
+- **SHA256:** `89AA33987541270019A11AD8CDAC77608CD3B2B321A5AAD158D954F8B36A3D13`
+- **Apply Method:** Applied on Staging (`qqiiznmqxfoamqytjica`) in a single transaction via MCP `execute_sql` along with `INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('20262606000087', 'reset_incomplete_plantilla_rollback_lineage_and_lock_executor')`.
+- **A. Corrected Lineage Reset:**
+  - Predicate:
+    ```sql
+    UPDATE public.plantilla_import_batches b
+       SET rollback_ready = false,
+           updated_at = now()
+     WHERE b.status = 'approved'
+       AND b.rollback_ready = true
+       AND (
+         (COALESCE(b.employees_created, 0) > 0 AND NOT EXISTS (
+            SELECT 1 FROM public.plantilla_import_commit_snapshots s
+             WHERE s.batch_id = b.id AND s.entity_type = 'allocation' AND s.action = 'insert'
+         ))
+         OR
+         (COALESCE(b.employees_created, 0) > 0 AND NOT EXISTS (
+            SELECT 1 FROM public.plantilla_import_commit_snapshots s
+             WHERE s.batch_id = b.id AND s.entity_type = 'slot'
+         ))
+       );
+    ```
+  - Staging Batches Touched: Exactly 1 batch (`1dcb71eb-742d-4fbc-83a0-703cb57f64b5`), reset from `rollback_ready = true` to `rollback_ready = false`.
+  - PROD Net Effect: 0 rows touched. On PROD, there are NO batches with `status = 'approved'` (all legacy batches are `finalized`, `rejected`, or `draft`).
+  - No-op guarantee: Batches approved by 086 approve (including vacant-only batches with `employees_created = 0`) evaluate to false and retain `rollback_ready = true`.
+- **B. Executor Lockdown:**
+  - `REVOKE EXECUTE ON FUNCTION public.rollback_plantilla_import_batch(uuid, text) FROM PUBLIC, anon, authenticated;`
+  - `GRANT EXECUTE ON FUNCTION public.rollback_plantilla_import_batch(uuid, text) TO service_role;`
+  - Direct execution via PostgREST RPC is hard-denied with error `42501` (insufficient privilege).
+  - `SECURITY DEFINER` wrappers (`approve_plantilla_import_rollback`, `emergency_rollback_plantilla_import`) execute as `postgres` and call the function with full privileges.
+  - ACLs:
+    * BEFORE: `{postgres=X/postgres,authenticated=X/postgres}`
+    * AFTER: `{postgres=X/postgres,service_role=X/postgres}`
+- **C. Protected Occupant Guard:**
+  - Added safety check in `rollback_plantilla_import_batch` before closing batch-created slots:
+    ```sql
+    SELECT ps.id,
+           COALESCE(st.store_name, ps.store_id::text),
+           COALESCE(p.employee_name, ps.current_occupant_plantilla_id::text),
+           ps.current_occupant_plantilla_id
+      INTO v_prot_slot_id, v_prot_store_name, v_prot_occupant_name, v_prot_occupant_id
+      FROM public.plantilla_slots ps
+      JOIN public.plantilla_import_commit_snapshots s
+        ON s.batch_id = p_batch_id
+       AND s.entity_type = 'slot'
+       AND s.action = 'insert'
+       AND s.entity_id = ps.id
+      LEFT JOIN public.stores st ON st.id = ps.store_id
+      LEFT JOIN public.plantilla p ON p.id = ps.current_occupant_plantilla_id
+     WHERE ps.current_occupant_plantilla_id IS NOT NULL
+       AND ps.current_occupant_plantilla_id NOT IN (
+         SELECT snap_p.entity_id
+           FROM public.plantilla_import_commit_snapshots snap_p
+          WHERE snap_p.batch_id = p_batch_id
+            AND snap_p.entity_type = 'plantilla'
+       )
+     LIMIT 1;
+
+    IF v_prot_slot_id IS NOT NULL THEN
+      RAISE EXCEPTION 'ROLLBACK_BLOCKED_PROTECTED_OCCUPANT: slot % (store %) is occupied by % which is not part of batch %',
+        v_prot_slot_id, v_prot_store_name, v_prot_occupant_name, p_batch_id
+        USING ERRCODE = '40001';
+    END IF;
+    ```
+  - Verified Live Function Definition Diff: Normalized diff between live `pg_get_functiondef('public.rollback_plantilla_import_batch'::regproc)` and migration 087 file is 100% identical.
+
+---
+
+### 3. Workflow Rules Added to Briefing Approval Gate
+
+1. **Scope-Expansion Rule:**
+   "If any later test or investigation shows a change is needed outside an approved plan (any function, table, file or migration not listed), STOP and present an amended plan. Do not extend scope."
+2. **Post-Migration Live Diff Rule:**
+   "After applying any migration to staging, diff live `pg_get_functiondef` vs the committed file for every touched function."
+
+---
+
+### 4. Regression Test Suite Execution Evidence
+
+- **File:** `scripts/tests/plantilla_import_regression.sql`
+- **Execution Output on Staging (`qqiiznmqxfoamqytjica`):**
+  ```json
+  {
+    "status": "ALL_ASSERTIONS_PASSED",
+    "timestamp": "2026-11-09T01:59:08.48335+00:00",
+    "stationary_evaluation": "PASS",
+    "roving_approval": "PASS",
+    "vacant_only_immunity": "PASS",
+    "executor_lockdown": "PASS",
+    "protected_occupant_guard": "PASS",
+    "legacy_lineage_fail_closed": "PASS",
+    "zero_edit_lock": "PASS",
+    "request_approve_flow": "PASS",
+    "6_table_baseline_parity": "PASS",
+    "blocked_rejection": "PASS",
+    "batch_rejection_audit": "PASS",
+    "roving_fixture_rows": 14,
+    "roving_employees_created": 4,
+    "roving_allocations_created": 14
+  }
+  ```
+- **6-Table Baseline Equality Verified (BEFORE vs AFTER):**
+  * `stores_active`: 19 -> 19 (PASS)
+  * `slots_active`: 19 -> 19 (PASS)
+  * `slots_occupied`: 5 -> 5 (PASS)
+  * `slots_open`: 14 -> 14 (PASS)
+  * `slots_closed_rollback`: 15 batch-created slots closed with `closure_reason_code = 'IMPORT_ROLLBACK'` (PASS)
+  * `allocations_active`: 5 -> 5 (PASS)
+  * `plantilla_active`: 5 -> 5 (PASS)
+  * `store_links`: 5 -> 5 (PASS)
+  * `vacancies`: 14 -> 14 (PASS)
+- **Zero Rows Persisted:** Self-rolling-back DO block cleanly aborted with `RAISE EXCEPTION 'REGRESSION_TEST_PASS: ...'`. Zero test records remain.
+
+---
+
 ## Execution Report — Plantilla Import: Fix Rollback Readiness & Store Closure Cascade Vacancies Trigger (ohm#r4t7y2bn — Mode: INVESTIGATION & REMEDIATION)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; INVESTIGATION COMPLETED & APPROVED; MIGRATION `20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql` AUTHORED & APPLIED TO STAGING; REGRESSION TEST SUITE (`scripts/tests/plantilla_import_regression.sql`) ENHANCED WITH STEP 3b AND ASSERTED WITH 100% PASS; MECHANICAL GATES CLEAN (`npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING); PROD READ-ONLY & UNTOUCHED**
