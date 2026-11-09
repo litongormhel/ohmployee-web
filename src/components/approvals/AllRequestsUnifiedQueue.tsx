@@ -378,7 +378,9 @@ export function AllRequestsUnifiedQueue({
           r.reason?.toLowerCase().includes(normalizedQuery) ||
           r.deletionType?.toLowerCase().includes(normalizedQuery) ||
           r.storeName?.toLowerCase().includes(normalizedQuery) ||
-          r.positionTitle?.toLowerCase().includes(normalizedQuery)
+          r.positionTitle?.toLowerCase().includes(normalizedQuery) ||
+          (r.accountName?.toLowerCase().includes(normalizedQuery) ?? false) ||
+          (r.groupName?.toLowerCase().includes(normalizedQuery) ?? false)
       ),
       account_archives: queues.account_archives.filter(
         (r) =>

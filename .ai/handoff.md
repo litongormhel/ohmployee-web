@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Approvals HR Emploc Deletions: Resolve Missing Group & Account Scope (ohm#k2v8m4sp)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `npm run build` 20/20 STATIC ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **User Request Context:**
+   - User prompt: "fIX THIS. Group and Account is missing." with screenshot showing `/approvals` -> `HR Emploc Deletions` where record `VCY61_0001` had empty/dash values (`—`) for Group and Account columns.
+
+2. **Root Cause Analysis:**
+   - In `src/lib/queries/hr_emploc.ts` inside `fetchEmplocDeletionRequests()`, lines 1789–1790 explicitly returned `accountName: null, groupName: null`.
+   - The Supabase `.select()` projection on `hr_emploc_deletion_requests` omitted the table's `account` column and failed to retrieve `account` or `account_id` from the joined `hr_emploc` relation.
+
+3. **Data Resolution & Multi-Tier Enrichment (`src/lib/queries/hr_emploc.ts`):**
+   - Added `account` to `hr_emploc_deletion_requests` projection and `account, account_id` to joined `hr_emploc`.
+   - Built a multi-tier lookup pipeline:
+     - Tier 1 (`accountByIdMap`): batch query to `accounts` (`id, account_name, groups(group_name)`) for all linked `account_id`s.
+     - Tier 2 (`accountByNameMap`): batch query to `accounts` matching raw `account` strings for direct name-to-group resolution.
+     - Tier 3 (`vcodeMap`): secondary fallback batch query to `vacancies` (`vcode, account, account_id, group_id, accounts(groups(group_name)), groups(group_name)`) by `vcode`, guaranteeing vacancy-linked deletions (such as `VCY61_0001`) resolve to their operational Group and Account even if the emploc record is unlinked or archived.
+     - Tier 4: Direct fallback to raw `account` string if group relation is unavailable.
+
+4. **Search Filter Enhancement (`ActiveQueueReviewPane.tsx` & `AllRequestsUnifiedQueue.tsx`):**
+   - Updated `filteredDeletionRequests` in `ActiveQueueReviewPane.tsx` and `AllRequestsUnifiedQueue.tsx` to search against `req.groupName` and `req.accountName`.
+
+5. **Modal UI Parity (`HrEmplocDeletionDataTable.tsx`):**
+   - Added `Scope: <Group> / <Account>` to the summary card in the Single Approve confirmation modal.
+
+6. **Quality Gates:**
+   - `npm run lint`: Clean (0 errors).
+   - `npm run build`: Clean (20/20 static routes generated successfully with Next.js Turbopack).
+   - 0 database writes, DDL, or RPC executions.
+
+---
+
 ## Execution Report — Approvals Module: Add Rollback Review Queue Tab for Import Batch Reversals (ohm#r7b3x9mq)
 
 **Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `npm run build` 20/20 STATIC ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**

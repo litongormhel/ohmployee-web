@@ -495,6 +495,8 @@ export function ActiveQueueReviewPane({
         req.vcode.toLowerCase().includes(q) ||
         req.storeName?.toLowerCase().includes(q) ||
         req.positionTitle?.toLowerCase().includes(q) ||
+        (req.groupName?.toLowerCase().includes(q) ?? false) ||
+        (req.accountName?.toLowerCase().includes(q) ?? false) ||
         req.requestedByName?.toLowerCase().includes(q) ||
         req.employeeNo?.toLowerCase().includes(q) ||
         (req.reviewerRemarks?.toLowerCase().includes(q) ?? false)

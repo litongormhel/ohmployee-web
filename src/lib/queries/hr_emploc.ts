@@ -1719,6 +1719,7 @@ export async function fetchEmplocDeletionRequests(
       hr_emploc_id,
       applicant_name,
       vcode,
+      account,
       reason,
       deletion_type,
       original_emploc_id,
@@ -1735,7 +1736,9 @@ export async function fetchEmplocDeletionRequests(
         employee_no,
         store_name,
         position,
-        vcode
+        vcode,
+        account,
+        account_id
       )
     `);
 
@@ -1765,10 +1768,213 @@ export async function fetchEmplocDeletionRequests(
     throw new HrEmplocDataError("retryable", error.message);
   }
 
-  return (data ?? []).map((row): EmplocDeletionRequestItem => {
+  const rawRows = data ?? [];
+
+  // Extract candidate account_ids, account names, and vcodes for batch lookup
+  const accountIds = Array.from(
+    new Set(
+      rawRows
+        .map((row) => {
+          const emploc = asObject(
+            Array.isArray(row.hr_emploc) ? row.hr_emploc[0] : row.hr_emploc
+          );
+          return asString(emploc.account_id);
+        })
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const accountNames = Array.from(
+    new Set(
+      rawRows
+        .flatMap((row) => {
+          const emploc = asObject(
+            Array.isArray(row.hr_emploc) ? row.hr_emploc[0] : row.hr_emploc
+          );
+          return [asString(row.account), asString(emploc.account)];
+        })
+        .filter((name): name is string => Boolean(name && name.trim()))
+    )
+  );
+
+  const vcodes = Array.from(
+    new Set(
+      rawRows
+        .flatMap((row) => {
+          const emploc = asObject(
+            Array.isArray(row.hr_emploc) ? row.hr_emploc[0] : row.hr_emploc
+          );
+          return [asString(emploc.vcode), asString(row.vcode)];
+        })
+        .filter((v): v is string => Boolean(v && v.trim()))
+    )
+  );
+
+  const accountByIdMap = new Map<string, { accountName: string; groupName: string | null }>();
+  const accountByNameMap = new Map<string, { accountName: string; groupName: string | null }>();
+
+  if (accountIds.length > 0 || accountNames.length > 0) {
+    try {
+      const promises: Promise<void>[] = [];
+
+      if (accountIds.length > 0) {
+        promises.push(
+          (async () => {
+            const { data: byId } = await supabase
+              .from("accounts")
+              .select(`
+                id,
+                account_name,
+                groups (
+                  group_name
+                )
+              `)
+              .in("id", accountIds);
+
+            for (const acc of byId ?? []) {
+              const groupRelation = acc.groups as unknown as
+                | { group_name?: string | null }
+                | { group_name?: string | null }[]
+                | null;
+              const groupName = Array.isArray(groupRelation)
+                ? groupRelation[0]?.group_name ?? null
+                : groupRelation?.group_name ?? null;
+
+              const info = { accountName: acc.account_name, groupName };
+              accountByIdMap.set(acc.id, info);
+              accountByNameMap.set(acc.account_name.toLowerCase(), info);
+            }
+          })()
+        );
+      }
+
+      if (accountNames.length > 0) {
+        promises.push(
+          (async () => {
+            const { data: byName } = await supabase
+              .from("accounts")
+              .select(`
+                id,
+                account_name,
+                groups (
+                  group_name
+                )
+              `)
+              .in("account_name", accountNames);
+
+            for (const acc of byName ?? []) {
+              const groupRelation = acc.groups as unknown as
+                | { group_name?: string | null }
+                | { group_name?: string | null }[]
+                | null;
+              const groupName = Array.isArray(groupRelation)
+                ? groupRelation[0]?.group_name ?? null
+                : groupRelation?.group_name ?? null;
+
+              const info = { accountName: acc.account_name, groupName };
+              accountByIdMap.set(acc.id, info);
+              accountByNameMap.set(acc.account_name.toLowerCase(), info);
+            }
+          })()
+        );
+      }
+
+      await Promise.allSettled(promises);
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  // Secondary fallback: lookup by VCODE in vacancies
+  const vcodeMap = new Map<string, { accountName: string | null; groupName: string | null }>();
+  if (vcodes.length > 0) {
+    try {
+      const { data: vacsData } = await supabase
+        .from("vacancies")
+        .select(`
+          vcode,
+          account,
+          account_id,
+          group_id,
+          accounts (
+            account_name,
+            groups (
+              group_name
+            )
+          ),
+          groups (
+            group_name
+          )
+        `)
+        .in("vcode", vcodes);
+
+      for (const vac of vacsData ?? []) {
+        const accRel = vac.accounts as unknown as
+          | { account_name?: string | null; groups?: { group_name?: string | null } | { group_name?: string | null }[] | null }
+          | null;
+        const grpRel = vac.groups as unknown as
+          | { group_name?: string | null }
+          | { group_name?: string | null }[]
+          | null;
+
+        const accountName =
+          accRel?.account_name ||
+          (typeof vac.account === "string" && vac.account.trim() ? vac.account : null);
+
+        const groupRelFromAcc = accRel?.groups;
+        const groupNameFromAcc = Array.isArray(groupRelFromAcc)
+          ? groupRelFromAcc[0]?.group_name
+          : groupRelFromAcc?.group_name;
+        const groupNameDirect = Array.isArray(grpRel)
+          ? grpRel[0]?.group_name
+          : grpRel?.group_name;
+        const groupName = groupNameDirect || groupNameFromAcc || null;
+
+        if (vac.vcode) {
+          vcodeMap.set(vac.vcode, { accountName: accountName ?? null, groupName: groupName ?? null });
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  return rawRows.map((row): EmplocDeletionRequestItem => {
     const emploc = asObject(
       Array.isArray(row.hr_emploc) ? row.hr_emploc[0] : row.hr_emploc
     );
+
+    const emplocAccountId = asString(emploc.account_id);
+    const directAccount = asString(row.account) || asString(emploc.account);
+    const rowVcode = asString(emploc.vcode) ?? asString(row.vcode) ?? "";
+
+    let resolvedAccount: string | null = null;
+    let resolvedGroup: string | null = null;
+
+    // 1. Try accountByIdMap
+    if (emplocAccountId && accountByIdMap.has(emplocAccountId)) {
+      const found = accountByIdMap.get(emplocAccountId)!;
+      resolvedAccount = found.accountName;
+      resolvedGroup = found.groupName;
+    }
+
+    // 2. Try accountByNameMap if group is missing
+    if (!resolvedGroup && directAccount && accountByNameMap.has(directAccount.toLowerCase())) {
+      const found = accountByNameMap.get(directAccount.toLowerCase())!;
+      resolvedAccount = resolvedAccount || found.accountName;
+      resolvedGroup = found.groupName;
+    }
+
+    // 3. Try vcodeMap if account or group is still missing
+    if ((!resolvedAccount || !resolvedGroup) && rowVcode && vcodeMap.has(rowVcode)) {
+      const found = vcodeMap.get(rowVcode)!;
+      resolvedAccount = resolvedAccount || found.accountName;
+      resolvedGroup = resolvedGroup || found.groupName;
+    }
+
+    // 4. Fallback to directAccount string
+    resolvedAccount = resolvedAccount || directAccount || null;
+
     return {
       id: asString(row.id) ?? "",
       hrEmplocId: asString(row.hr_emploc_id) ?? "",
@@ -1786,8 +1992,8 @@ export async function fetchEmplocDeletionRequests(
       reviewedBy: asString(row.reviewed_by),
       reviewedAt: asString(row.reviewed_at),
       reviewerRemarks: asString(row.reviewer_remarks),
-      accountName: null,
-      groupName: null,
+      accountName: resolvedAccount,
+      groupName: resolvedGroup,
     };
   });
 }

@@ -601,6 +601,14 @@ export function HrEmplocDeletionDataTable({
                   {selectedApproveRequest.deletionType}
                 </span>
               </div>
+              {(selectedApproveRequest.groupName || selectedApproveRequest.accountName) && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Scope:</span>
+                  <span className="font-semibold text-text-primary">
+                    {selectedApproveRequest.groupName || "—"} / {selectedApproveRequest.accountName || "—"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {selectedApproveRequest.deletionType.toLowerCase() === "backout" && (

@@ -124,3 +124,16 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - **Reject Rollback Request**: Opens rejection dialog requiring reviewer justification, invoking `reject_plantilla_import_rollback` or updating vacancy batch status with rejection remarks.
   - **View Details**: Opens comprehensive batch detail `<Modal>` displaying metadata, headcount rows, rollback window status, and reason notes.
 
+---
+
+## 8. HR Emploc Deletion Review Queue (`hr_emploc_deletions`)
+- **Access Control**: Visible to Super Admin (`level >= 100` / `isOwner`), Head Admin (`level === 90`), and Encoder (`level === 30`) via `getAllowedApprovalCategories` in `src/lib/rbac.ts`.
+- **Data Source & Resolution Contract (`fetchEmplocDeletionRequests`)**:
+  - Pulls records from `hr_emploc_deletion_requests` joined with `hr_emploc`.
+  - Scope Enrichment: Queries `accounts` (with `groups(group_name)`) by `account_id` and `account_name`, with secondary fallback to `vacancies` by `vcode` (`accounts(groups(group_name))` and `groups(group_name)`). Resolves full `groupName` and `accountName` to prevent empty/dash fields in UI.
+- **Review Queue (`HrEmplocDeletionDataTable`)**:
+  - Columns: Type, Group, Account, Emploc / VCODE, Applicant Name, Store / Position, Requested By, and Action / Rejection Reason.
+  - Search: Full text matching applicant name, vcode, store name, position title, group name, account name, requester, and employee number.
+  - Approve Modal: Summarizes applicant, VCODE, deletion type, and scope (`Group / Account`) with optional pipeline vacancy slot reopen toggle.
+
+
