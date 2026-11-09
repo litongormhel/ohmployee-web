@@ -75,7 +75,7 @@ export function UsersTable({
                   {/* User Column */}
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
                         {user.normalizedName ? user.normalizedName[0].toUpperCase() : "?"}
                       </div>
                       <div className="min-w-0">
@@ -86,7 +86,7 @@ export function UsersTable({
                           {!user.isLinked && (
                             <span
                               title="No active login linked"
-                              className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[10px] font-semibold text-text-secondary border border-border-default"
+                              className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[10px] font-semibold text-text-secondary border border-border-default dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
                             >
                               No login linked
                             </span>
@@ -100,15 +100,15 @@ export function UsersTable({
                   {/* Role Column */}
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-primary border border-border-default">
+                      <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-primary border border-border-default dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700">
                         {user.roleName || "No Role"}
                       </span>
                       {user.roleName === "HRCO" && (
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             user.hrcoGlobalVisibility
-                              ? "bg-brand-50 text-brand-700 border border-brand-200"
-                              : "bg-surface-subtle text-text-secondary border border-border-default"
+                              ? "bg-brand-50 text-brand-700 border border-brand-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                              : "bg-surface-subtle text-text-secondary border border-border-default dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
                           }`}
                         >
                           {user.hrcoGlobalVisibility ? "Global" : "Scoped"}

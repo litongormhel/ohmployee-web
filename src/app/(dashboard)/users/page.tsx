@@ -229,7 +229,7 @@ export default function UsersPage() {
               <span
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "active"
-                    ? "bg-brand-button text-white"
+                    ? "bg-brand-button text-white dark:text-zinc-950 font-semibold"
                     : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >
@@ -259,7 +259,7 @@ export default function UsersPage() {
               <span
                 className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                   activeTab === "inactive"
-                    ? "bg-brand-button text-white"
+                    ? "bg-brand-button text-white dark:text-zinc-950 font-semibold"
                     : "border border-border-default bg-surface-subtle text-text-secondary"
                 }`}
               >

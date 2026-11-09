@@ -157,7 +157,7 @@ export function InheritedHrcoBadge({
     return (
       <div className={`flex items-center gap-1.5 ${className}`} title={allNames}>
         <span className="text-table-text-sub truncate max-w-[120px]">{primaryName}</span>
-        <span className="shrink-0 rounded-full bg-brand-50 border border-brand-200 px-1.5 py-0.2 text-[10px] font-semibold text-brand-700 cursor-help">
+        <span className="shrink-0 rounded-full bg-brand-50 border border-brand-200 px-1.5 py-0.2 text-[10px] font-semibold text-brand-700 cursor-help dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
           +{resolvedHrcos.length - 1}
         </span>
       </div>

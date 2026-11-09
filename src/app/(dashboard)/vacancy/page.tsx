@@ -843,7 +843,7 @@ export default function VacancyPage() {
                 <span
                   className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
                     isActive
-                      ? "bg-brand-button text-white"
+                      ? "bg-brand-button text-white dark:text-zinc-950 font-semibold"
                       : "bg-surface-muted text-text-secondary border border-border-default"
                   }`}
                 >

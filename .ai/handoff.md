@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Dark Mode Contrast Fix for Action Buttons, Overflow Badges, Role Pills, and Pagination (ohm#darkmode-contrast-fix)
+
+**Status: COMPLETE ON BRANCH `darkmode`; 0 LINT ERRORS; 20/20 NEXT.JS ROUTES COMPILED CLEANLY; STOPPED FOR REVIEW**
+
+### 1. Summary of Changes
+1. **Action Buttons in Vacancy Management (`src/components/vacancy/VacancyTable.tsx`)**:
+   - `+ Applicant` button (Open tab): Added `dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-700`.
+   - `Approve` button (Pipeline tab, mark hired): Added semantic emerald styling `dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/25`.
+   - `Approve` button (Closure tab, review closure): Added semantic emerald styling `dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/25`.
+2. **Overflow Count Badges (`+X` / `+3` pills for Multiple HRCOs & Outlets)**:
+   - Outlet overflow pill in `VacancyTable.tsx`: Added `dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700`.
+   - HRCO overflow pill in `useInheritedHrco.tsx`: Added `dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700`.
+   - HRCO column in `VacancyTable.tsx`: Enhanced to detect and format multiple HRCOs / overflow counts (`+X`) with `dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700`.
+3. **Role Scope Badges in User Management (`src/components/users/UsersTable.tsx`)**:
+   - Updated `Scoped` and `Global` role badges, primary role badge, and user initial avatar with `dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700` (and `dark:text-zinc-200` for avatar/role).
+4. **Active Pagination & Tab Counter Pills**:
+   - Active page number in `src/components/shared/TablePagination.tsx`: Explicitly set `dark:text-zinc-950 font-semibold`.
+   - Active tab counter badges in `src/app/(dashboard)/vacancy/page.tsx`: Explicitly set `dark:text-zinc-950 font-semibold`.
+   - Active tab counter badges in `src/app/(dashboard)/users/page.tsx`: Explicitly set `dark:text-zinc-950 font-semibold`.
+
+### 2. Verification
+- `npm run lint`: Clean (0 errors, 4 warnings on pre-existing unused props).
+- `npm run build`: Clean (20/20 routes compiled with Turbopack).
+
 ## Execution Report — HR Emploc: Stage 2b-Web + 2b-DB Closure on STAGING (ohm#q3v8n2kd)
 
 **Status: COMPLETE ON STAGING (`qqiiznmqxfoamqytjica`) AND LOCAL `main`; STAGE 2b-WEB IMPLEMENTED & VERIFIED (`tsc --noEmit` 0 ERRORS, `npm run lint` 0 ERRORS, `npm run build` 20/20 ROUTES PASSING, 12/12 NODE ERROR MAPPER UNIT TESTS PASSING); 2b-DB CLOSURE EVIDENCE COMPLETED ON STAGING (REHEARSAL ROLLBACK/RE-APPLY PASS, 31-TEST SUITE 100% PASS, 5/5 MISSING TESTS PASS, OVERLOAD AUDIT 23/23 COUNT 1, STORAGE ORPHAN REPORT CAPTURED, PROD DRY RUN ON 93 ROWS); PROD (`rwxelulyapjgaarlwkus`) FROZEN READ-ONLY AWAITING COORDINATED RELEASE; LOCAL COMMIT ON `main`; STOPPED FOR REVIEW**
