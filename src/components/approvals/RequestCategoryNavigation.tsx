@@ -5,6 +5,7 @@ import {
   GitFork,
   Layers,
   MapPin,
+  RotateCcw,
   Store,
   UserCheck,
   UserMinus,
@@ -31,6 +32,7 @@ const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: str
   applicant_movements: ArrowLeftRight,
   account_group_transfers: GitFork,
   relievers: UserCheck,
+  rollbacks: RotateCcw,
 };
 
 interface RequestCategoryNavigationProps {

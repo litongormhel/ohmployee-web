@@ -12,6 +12,7 @@ import {
   Layers,
   MapPin,
   RefreshCw,
+  RotateCcw,
   Search,
   Store,
   UserCheck,
@@ -32,6 +33,7 @@ import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeleti
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
+import { RollbackDataTable } from "@/components/approvals/RollbackDataTable";
 import {
   type ApprovalStatusTab,
   type RequestCategoryKey,
@@ -44,6 +46,7 @@ import {
   type RelieverEndorsementItem,
   type CoverageGroupRequestItem,
   type AccountArchiveItem,
+  type RollbackApprovalItem,
   fetchHeadcountRequests,
   fetchNewStoreRequests,
   fetchVacancyClosureRequests,
@@ -53,6 +56,7 @@ import {
   fetchRelieverEndorsements,
   fetchCoverageRequests,
   fetchAccountArchiveRequests,
+  fetchRollbackApprovalRequests,
 } from "@/lib/queries/requests";
 import {
   fetchApprovalQueue,
@@ -81,6 +85,7 @@ interface UnifiedQueuesData {
   account_archives: AccountArchiveItem[];
   relievers: RelieverEndorsementItem[];
   vacancy_closures: VacancyClosureRequestItem[];
+  rollbacks: RollbackApprovalItem[];
   errors: Partial<Record<RequestCategoryKey, string>>;
 }
 
@@ -147,6 +152,11 @@ const CATEGORY_META: Record<
     description: "Position requisition retirement and closed-slot clearance requests",
     icon: Archive,
   },
+  rollbacks: {
+    label: "Rollbacks",
+    description: "Import batch rollback requests and operational reversal queue",
+    icon: RotateCcw,
+  },
 };
 
 const ALL_CATEGORY_KEYS: Array<Exclude<RequestCategoryKey, "all_requests">> = [
@@ -161,6 +171,7 @@ const ALL_CATEGORY_KEYS: Array<Exclude<RequestCategoryKey, "all_requests">> = [
   "account_archives",
   "relievers",
   "vacancy_closures",
+  "rollbacks",
 ];
 
 const PREVIEW_CAP = 5;
@@ -204,6 +215,7 @@ export function AllRequestsUnifiedQueue({
         account_archives: [],
         relievers: [],
         vacancy_closures: [],
+        rollbacks: [],
         errors: {},
       };
 
@@ -219,6 +231,7 @@ export function AllRequestsUnifiedQueue({
         archiveRes,
         relieverRes,
         closureRes,
+        rollbackRes,
       ] = await Promise.allSettled([
         fetchHeadcountRequests(currentTab),
         fetchDeactivationRequests(currentTab),
@@ -231,6 +244,7 @@ export function AllRequestsUnifiedQueue({
         fetchAccountArchiveRequests(currentTab).then((r) => r.data),
         fetchRelieverEndorsements(currentTab),
         fetchVacancyClosureRequests(currentTab),
+        fetchRollbackApprovalRequests(currentTab, { page: 1, limit: PREVIEW_CAP }).then((r) => r.data),
       ]);
 
       if (headcountRes.status === "fulfilled") results.headcount = headcountRes.value;
@@ -265,6 +279,9 @@ export function AllRequestsUnifiedQueue({
 
       if (closureRes.status === "fulfilled") results.vacancy_closures = closureRes.value;
       else results.errors.vacancy_closures = String(closureRes.reason);
+
+      if (rollbackRes.status === "fulfilled") results.rollbacks = rollbackRes.value;
+      else results.errors.rollbacks = String(rollbackRes.reason);
 
       return results;
     },
@@ -388,6 +405,16 @@ export function AllRequestsUnifiedQueue({
           r.account?.toLowerCase().includes(normalizedQuery) ||
           r.reason?.toLowerCase().includes(normalizedQuery)
       ),
+      rollbacks: queues.rollbacks.filter(
+        (r) =>
+          r.id?.toLowerCase().includes(normalizedQuery) ||
+          r.fileName?.toLowerCase().includes(normalizedQuery) ||
+          r.groupName?.toLowerCase().includes(normalizedQuery) ||
+          r.accountName?.toLowerCase().includes(normalizedQuery) ||
+          r.rollbackReasonNote?.toLowerCase().includes(normalizedQuery) ||
+          r.rollbackReason?.toLowerCase().includes(normalizedQuery) ||
+          r.rollbackRequestedBy?.toLowerCase().includes(normalizedQuery)
+      ),
       errors: queues.errors,
     };
   }, [queues, normalizedQuery]);
@@ -406,7 +433,8 @@ export function AllRequestsUnifiedQueue({
       filteredData.hr_emploc_deletions.length +
       filteredData.account_archives.length +
       filteredData.relievers.length +
-      filteredData.vacancy_closures.length
+      filteredData.vacancy_closures.length +
+      filteredData.rollbacks.length
     );
   }, [filteredData]);
 
@@ -762,6 +790,16 @@ export function AllRequestsUnifiedQueue({
                         {catKey === "vacancy_closures" && (
                           <VacancyClosureDataTable
                             requests={visibleItems as VacancyClosureRequestItem[]}
+                            tab={currentTab}
+                            page={1}
+                            pageSize={visibleItems.length}
+                            totalCount={visibleItems.length}
+                          />
+                        )}
+
+                        {catKey === "rollbacks" && (
+                          <RollbackDataTable
+                            requests={visibleItems as RollbackApprovalItem[]}
                             tab={currentTab}
                             page={1}
                             pageSize={visibleItems.length}

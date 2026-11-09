@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Execution Report — Approvals Module: Add Rollback Review Queue Tab for Import Batch Reversals (ohm#r7b3x9mq)
+
+**Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `npm run build` 20/20 STATIC ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**
+
+### 1. Scope & Implementation Details
+
+1. **User Request Context:**
+   - User prompt: "Add Rollback Tab to Approval Module. Wala pa kasi don para all Rollback Request don mapupunta"
+   - Objective: Route all Plantilla and Vacancy import batch rollback requests into a dedicated "Rollbacks" category tab inside the centralized Approvals Module (`/approvals`).
+
+2. **Query & Data Layer (`src/lib/queries/requests.ts`):**
+   - Added `"rollbacks"` to `RequestCategoryKey` union.
+   - Registered `REQUEST_CATEGORIES` entry: `{ key: "rollbacks", label: "Rollbacks", description: "Import batch rollback requests and operational reversal queue", tableName: "plantilla_import_batches" }`.
+   - Updated `fetchRequestCategoryCounts()` with parallel query across `plantilla_import_batches` and `vacancy_import_batches` where `rollback_status = 'requested'`.
+   - Defined `RollbackApprovalItem` interface capturing batch ID, module (`plantilla` | `vacancy`), file name, status, rollback status, scope, uploader, requester, timestamps, total rows, and governance window metadata.
+   - Implemented `fetchRollbackApprovalRequests(tab, pagination)`: queries batches, maps fields, filters by tab (`pending` -> `rollbackStatus === 'requested'`, `approved` -> `rollbackStatus === 'completed' || status === 'rolled_back'`, `rejected` -> `rollbackStatus IN ('rejected', 'failed')`), sorts descending by request timestamp, and handles pagination.
+   - Implemented `fetchRollbackApprovalCounts()` returning `{ pending, approved, rejected }`.
+   - Created TanStack Query hooks: `useRollbackApprovalRequests`, `useRollbackApprovalCounts`, `useApproveRollbackRequest`, and `useRejectRollbackRequest`.
+
+3. **RBAC Gatekeeper (`src/lib/rbac.ts`):**
+   - Added `"rollbacks"` to `getAllowedApprovalCategories()` for Super Admin (`isOwner || getRoleLevel >= 100`) and Head Admin (`role === AppRole.HEAD_ADMIN || level === 90`).
+
+4. **Page & Navigation Integration (`src/app/(dashboard)/approvals/page.tsx` & `RequestCategoryNavigation.tsx`):**
+   - Added `"rollbacks"` to `VALID_CATEGORIES` set and fallback `counts.rollbacks: 0`.
+   - Assigned icon `RotateCcw` to `CATEGORY_ICONS.rollbacks` in `RequestCategoryNavigation.tsx`.
+
+5. **Rollback Data Table Component (`src/components/approvals/RollbackDataTable.tsx`):**
+   - Created full-featured review table with columns: Batch #, Module Badge (`Plantilla` vs `Vacancy`), File Name, Scope (`Group / Account`), Rollback Reason / Note, Requester & Submitted Date, Window / Status (`Requested`, `Rolled Back`, `Rejected`), and Actions.
+   - Reusable `<Pagination />` integration with `[10, 25, 50]` rows-per-page options.
+   - Interactive Detail `<Modal>` displaying full batch metadata, governance window, scope, and reasons upon clicking row or "View" button.
+   - Approve Confirmation `<Modal>` invoking `useApproveRollbackRequest()` with solid danger action button (`bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`).
+   - Rejection `<Modal>` requiring administrative reason remarks and invoking `useRejectRollbackRequest()`.
+
+6. **Active Review Pane & Unified Command Center Integration (`ActiveQueueReviewPane.tsx` & `AllRequestsUnifiedQueue.tsx`):**
+   - In `ActiveQueueReviewPane.tsx`: wired `rollbackTab`, `rollbackSearchQuery`, live query hooks, search filter, and `<RollbackDataTable />`.
+   - In `AllRequestsUnifiedQueue.tsx`: integrated rollbacks into unified multi-category queue with parallel `Promise.allSettled()` fetch, category dynamic ordering, and previews.
+
+7. **Verification & Quality Gates:**
+   - `npm run lint`: Clean (0 errors, 4 pre-existing warnings in unrelated file).
+   - `npm run build`: Clean (20/20 static routes generated successfully with Next.js Turbopack).
+   - 0 database DDL or writes.
+
+---
+
 ## Execution Report — Plantilla Import Batch Detail Modal: Fix Solid Danger Button Styling & Light/Dark Theme Tokens (ohm#t5k9w2rn)
 
 **Status: COMPLETE ON LOCAL `main`; FULL APPROVED SCOPE IMPLEMENTED; ALL MECHANICAL QUALITY GATES GREEN (`npm run lint` 0 ERRORS, `tsc --noEmit` CLEAN, `npm run build` 20/20 ROUTES PASSED); 0 DB WRITES/DDL; PROD UNTOUCHED**

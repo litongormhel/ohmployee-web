@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
+import {
+  approvePlantillaImportRollback,
+  rejectPlantillaImportRollback,
+  approveVacancyImportRollback,
+  fetchPlantillaImportBatches,
+  fetchVacancyImportBatches,
+} from "@/lib/queries/dataControl";
 
 export type RequestCategoryKey =
   | "all_requests"
@@ -14,7 +21,8 @@ export type RequestCategoryKey =
   | "applicant_movements"
   | "account_group_transfers"
   | "relievers"
-  | "account_archives";
+  | "account_archives"
+  | "rollbacks";
 
 export interface RequestCategoryConfig {
   key: RequestCategoryKey;
@@ -89,6 +97,12 @@ export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
     label: "Relievers",
     description: "Temporary reliever pool deployments and workforce coverage",
     tableName: "v_workforce_assignment_request_queue",
+  },
+  {
+    key: "rollbacks",
+    label: "Rollbacks",
+    description: "Import batch rollback requests and operational reversal queue",
+    tableName: "plantilla_import_batches",
   },
   {
     key: "vacancy_closures",
@@ -193,6 +207,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     account_group_transfers: 0,
     relievers: 0,
     account_archives: 0,
+    rollbacks: 0,
   };
 
   const countItem = async (
@@ -309,6 +324,28 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .select("id", { count: "exact", head: true })
         .eq("event_type", "account_archive_request")
         .eq("is_archived", false)
+    ),
+
+    // 12. Rollbacks
+    countItem(
+      "rollbacks",
+      (async () => {
+        try {
+          const [pRes, vRes] = await Promise.all([
+            supabase
+              .from("plantilla_import_batches")
+              .select("id", { count: "exact", head: true })
+              .eq("rollback_status", "requested"),
+            supabase
+              .from("vacancy_import_batches")
+              .select("id", { count: "exact", head: true })
+              .eq("rollback_status", "requested"),
+          ]);
+          return { count: (pRes.count ?? 0) + (vRes.count ?? 0) };
+        } catch {
+          return { count: 0 };
+        }
+      })()
     ),
   ];
 
@@ -3771,6 +3808,254 @@ export function useRejectAccountArchive() {
       queryClient.invalidateQueries({ queryKey: ["account-archive-requests"] });
       queryClient.invalidateQueries({ queryKey: ["account-archive-counts"] });
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+// ─── Rollbacks Approval Queue ────────────────────────────────────────────────
+
+export interface RollbackApprovalItem {
+  id: string;
+  batchType: "plantilla" | "vacancy";
+  fileName: string;
+  status: string;
+  rollbackStatus?: string;
+  rollbackReason?: string;
+  rollbackReasonCode?: string;
+  rollbackReasonNote?: string;
+  rollbackRequestedBy?: string;
+  rollbackRequestedByName?: string;
+  rollbackRequestedAt?: string;
+  rollbackApprovedBy?: string;
+  rollbackApprovedByName?: string;
+  rollbackApprovedAt?: string;
+  rollbackRemainingSeconds?: number;
+  rollbackAllowed?: boolean;
+  rollbackBlockReason?: string;
+  canEmergencyRollback?: boolean;
+  groupName?: string;
+  accountName?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  totalRows?: number;
+  storesCount?: number;
+  validRows?: number;
+  blockedRows?: number;
+}
+
+export async function fetchRollbackApprovalRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams,
+): Promise<{
+  data: RollbackApprovalItem[];
+  totalCount: number;
+}> {
+  const [plantillaBatches, vacancyBatches] = await Promise.all([
+    fetchPlantillaImportBatches().catch(() => []),
+    fetchVacancyImportBatches().catch(() => []),
+  ]);
+
+  const items: RollbackApprovalItem[] = [];
+
+  for (const b of plantillaBatches) {
+    items.push({
+      id: b.id,
+      batchType: "plantilla",
+      fileName: b.fileName,
+      status: b.status,
+      rollbackStatus: b.rollbackStatus,
+      rollbackReason: b.rollbackReason,
+      rollbackReasonCode: b.rollbackReasonCode,
+      rollbackReasonNote: b.rollbackReasonNote,
+      rollbackRequestedBy: b.rollbackRequestedBy,
+      rollbackRequestedByName: b.rollbackRequestedBy,
+      rollbackRequestedAt: b.rollbackRequestedAt,
+      rollbackApprovedBy: b.rollbackApprovedBy,
+      rollbackApprovedByName: b.rollbackApprovedBy,
+      rollbackApprovedAt: b.rollbackApprovedAt,
+      rollbackRemainingSeconds: b.rollbackRemainingSeconds,
+      rollbackAllowed: b.rollbackAllowed,
+      rollbackBlockReason: b.rollbackBlockReason,
+      canEmergencyRollback: b.canEmergencyRollback,
+      groupName: b.groupName,
+      accountName: b.accountName,
+      uploadedBy: b.uploadedBy,
+      uploadedAt: b.uploadedAt,
+      approvedBy: b.approvedByName || b.approvedBy,
+      approvedAt: b.approvedAt,
+      totalRows: b.totalRows,
+      storesCount: b.committedStores ?? b.newStoresCount,
+      validRows: b.validRows,
+      blockedRows: b.blockedRows,
+    });
+  }
+
+  for (const b of vacancyBatches) {
+    items.push({
+      id: b.id,
+      batchType: "vacancy",
+      fileName: b.fileName,
+      status: b.status,
+      rollbackStatus: b.rollbackStatus,
+      rollbackReason: b.rollbackReason,
+      rollbackReasonCode: b.rollbackReasonCode,
+      rollbackReasonNote: b.rollbackReasonNote,
+      rollbackRequestedBy: b.rollbackRequestedBy,
+      rollbackRequestedByName: b.rollbackRequestedBy,
+      rollbackRequestedAt: b.rollbackRequestedAt,
+      rollbackApprovedBy: b.rollbackApprovedBy,
+      rollbackApprovedByName: b.rollbackApprovedBy,
+      rollbackApprovedAt: b.rollbackApprovedAt,
+      rollbackRemainingSeconds: b.rollbackRemainingSeconds,
+      rollbackAllowed: b.rollbackAllowed,
+      rollbackBlockReason: b.rollbackBlockReason,
+      canEmergencyRollback: b.canEmergencyRollback,
+      groupName: b.groupName,
+      accountName: b.accountName,
+      uploadedBy: b.uploadedBy,
+      uploadedAt: b.createdAt,
+      approvedBy: b.approvedBy,
+      approvedAt: b.approvedAt,
+      totalRows: b.totalRows,
+      storesCount: undefined,
+      validRows: b.validRows,
+      blockedRows: b.blockedRows,
+    });
+  }
+
+  const filtered = items.filter((item) => {
+    if (tab === "pending") {
+      return item.rollbackStatus === "requested";
+    }
+    if (tab === "approved") {
+      return item.rollbackStatus === "completed" || item.status === "rolled_back";
+    }
+    if (tab === "rejected") {
+      return item.rollbackStatus === "rejected" || item.rollbackStatus === "failed";
+    }
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    const timeA = new Date(a.rollbackRequestedAt || a.uploadedAt || 0).getTime();
+    const timeB = new Date(b.rollbackRequestedAt || b.uploadedAt || 0).getTime();
+    return timeB - timeA;
+  });
+
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.limit ?? 10;
+  const from = (page - 1) * pageSize;
+  const paginated = filtered.slice(from, from + pageSize);
+
+  return {
+    data: paginated,
+    totalCount: filtered.length,
+  };
+}
+
+export async function fetchRollbackApprovalCounts(): Promise<RequestStatusCounts> {
+  const supabase = createClient();
+  const [pBatches, vBatches] = await Promise.all([
+    supabase
+      .from("plantilla_import_batches")
+      .select("id, status, rollback_status"),
+    supabase
+      .from("vacancy_import_batches")
+      .select("id, status, rollback_status"),
+  ]);
+
+  let pending = 0;
+  let approved = 0;
+  let rejected = 0;
+
+  const countRow = (row: { status: string | null; rollback_status: string | null }) => {
+    if (row.rollback_status === "requested") {
+      pending++;
+    } else if (row.rollback_status === "completed" || row.status === "rolled_back") {
+      approved++;
+    } else if (row.rollback_status === "rejected" || row.rollback_status === "failed") {
+      rejected++;
+    }
+  };
+
+  (pBatches.data || []).forEach(countRow);
+  (vBatches.data || []).forEach(countRow);
+
+  return { pending, approved, rejected };
+}
+
+export function useRollbackApprovalRequests(
+  tab: ApprovalStatusTab = "pending",
+  pagination?: RequestPaginationParams,
+) {
+  return useQuery({
+    queryKey: ["rollback-approval-requests", tab, pagination?.page, pagination?.limit],
+    queryFn: () => fetchRollbackApprovalRequests(tab, pagination),
+    staleTime: 10_000,
+  });
+}
+
+export function useRollbackApprovalCounts() {
+  return useQuery({
+    queryKey: ["rollback-approval-counts"],
+    queryFn: fetchRollbackApprovalCounts,
+    staleTime: 10_000,
+  });
+}
+
+export function useApproveRollbackRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { id: string; batchType: "plantilla" | "vacancy" }) => {
+      if (params.batchType === "plantilla") {
+        return await approvePlantillaImportRollback(params.id);
+      } else {
+        return await approveVacancyImportRollback(params.id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["rollback-approval-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["rollback-approval-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-import-batches"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-import-batches"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+    },
+  });
+}
+
+export function useRejectRollbackRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { id: string; batchType: "plantilla" | "vacancy"; reason?: string }) => {
+      if (params.batchType === "plantilla") {
+        return await rejectPlantillaImportRollback({
+          batchId: params.id,
+          reason: params.reason || "Rejected by Administrator",
+        });
+      } else {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("vacancy_import_batches")
+          .update({
+            rollback_status: "rejected",
+            rollback_reason_note: params.reason || "Rejected by Administrator",
+          })
+          .eq("id", params.id);
+        if (error) throw error;
+        return { success: true };
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["rollback-approval-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["rollback-approval-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla-import-batches"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancy-import-batches"] });
     },
   });
 }

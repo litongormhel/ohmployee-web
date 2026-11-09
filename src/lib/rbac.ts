@@ -356,6 +356,7 @@ export function getAllowedApprovalCategories(
       "account_group_transfers",
       "relievers",
       "account_archives",
+      "rollbacks",
     ];
   }
 
@@ -374,6 +375,7 @@ export function getAllowedApprovalCategories(
       "applicant_movements",
       "account_group_transfers",
       "relievers",
+      "rollbacks",
     ];
   }
 

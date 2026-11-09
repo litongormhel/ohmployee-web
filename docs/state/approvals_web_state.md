@@ -13,7 +13,8 @@ The Approvals Module (`/approvals`) serves as the administrative hub and request
 8. `hr_emploc_deletions` — HR Emploc Deletion Requests
 9. `new_stores` — New Store Requests
 10. `relievers` — Reliever Coverage Endorsements
-11. `vacancy_closures` — Vacancy Closure Requests
+11. `rollbacks` — Import Batch Rollbacks & Reversal Queue (Super Admin & Head Admin)
+12. `vacancy_closures` — Vacancy Closure Requests
 
 ---
 
@@ -104,3 +105,22 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
     2. Leaves account active in `accounts` table.
     3. Logs audit trail in `public.audit_logs`.
     4. Invalidates TanStack Query keys to refresh counts and queue state.
+
+---
+
+## 7. Import Batch Rollback Review Queue (`rollbacks`)
+- **Access Control**: Visible to Super Admin (`level >= 100` / `isOwner`) and Head Admin (`level === 90`) via `getAllowedApprovalCategories` in `src/lib/rbac.ts`.
+- **Data Source**: Aggregates batch records from `plantilla_import_batches` and `vacancy_import_batches` via RPCs `get_plantilla_import_batches` and `get_vacancy_import_batches` alongside fast table counts:
+  - `pending`: Batches where `rollback_status = 'requested'`.
+  - `approved`: Batches where `rollback_status = 'completed'` or `status = 'rolled_back'`.
+  - `rejected`: Batches where `rollback_status IN ('rejected', 'failed')`.
+- **Review Queue (`RollbackDataTable`)**:
+  - Filter tabs: `Pending`, `Approved`, `Rejected` with live counter badges.
+  - Columns: Batch #, Module (`Plantilla` | `Vacancy`), File Name, Scope (`Group / Account`), Rollback Reason / Note, Requester & Date, Governance Window / Countdown, and Actions.
+  - Search: Real-time client filter matching batch ID, file name, scope, uploader, requester, and reason note.
+  - Pagination: Uses reusable `<Pagination />` component with page index, page size `[10, 25, 50]`, and range summary label.
+- **Administrative Actions**:
+  - **Approve & Execute Rollback**: Styled with solid danger button (`bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] text-white shadow-2xs`). Opens confirmation modal summarizing irreversible impacts and invokes RPC `approve_plantilla_import_rollback` or `approve_vacancy_import_rollback`.
+  - **Reject Rollback Request**: Opens rejection dialog requiring reviewer justification, invoking `reject_plantilla_import_rollback` or updating vacancy batch status with rejection remarks.
+  - **View Details**: Opens comprehensive batch detail `<Modal>` displaying metadata, headcount rows, rollback window status, and reason notes.
+

@@ -21,6 +21,7 @@ import { HrEmplocDeletionDataTable } from "@/components/approvals/HrEmplocDeleti
 import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
+import { RollbackDataTable } from "@/components/approvals/RollbackDataTable";
 import { AllRequestsUnifiedQueue } from "@/components/approvals/AllRequestsUnifiedQueue";
 import {
   REQUEST_CATEGORIES,
@@ -44,6 +45,8 @@ import {
   useCoverageCounts,
   useAccountArchiveRequests,
   useAccountArchiveCounts,
+  useRollbackApprovalRequests,
+  useRollbackApprovalCounts,
   type RequestCategoryCounts,
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
@@ -232,6 +235,7 @@ export function ActiveQueueReviewPane({
   const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
   const [accountTab, setAccountTab] = useState<AccountRequestStatus>("pending");
   const [archiveTab, setArchiveTab] = useState<ApprovalStatusTab>("pending");
+  const [rollbackTab, setRollbackTab] = useState<ApprovalStatusTab>("pending");
 
   // Search queries per queue
   const [searchQuery, setSearchQuery] = useState("");
@@ -245,6 +249,7 @@ export function ActiveQueueReviewPane({
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
+  const [rollbackSearchQuery, setRollbackSearchQuery] = useState("");
 
   // ── Unified Pagination State (Vacancy Parity) ───────────────────────────
   const [page, setPage] = useState(1);
@@ -429,6 +434,24 @@ export function ActiveQueueReviewPane({
 
   const archiveRequests = useMemo(() => archiveData?.data ?? [], [archiveData?.data]);
   const archiveTotalCount = archiveData?.totalCount ?? archiveRequests.length;
+
+  const {
+    data: rollbackData,
+    isLoading: isRollbackLoading,
+    isError: isRollbackError,
+    refetch: refetchRollback,
+    isRefetching: isRollbackRefetching,
+  } = useRollbackApprovalRequests(rollbackTab, { page, limit: pageSize });
+
+  const {
+    data: rollbackCounts,
+    isLoading: isRollbackCountsLoading,
+    isError: isRollbackCountsError,
+    refetch: refetchRollbackCounts,
+  } = useRollbackApprovalCounts();
+
+  const rollbackRequests = useMemo(() => rollbackData?.data ?? [], [rollbackData?.data]);
+  const rollbackTotalCount = rollbackData?.totalCount ?? rollbackRequests.length;
 
   const currentCategoryConfig = useMemo(() => {
     return (
@@ -640,6 +663,23 @@ export function ActiveQueueReviewPane({
     });
   }, [archiveRequests, archiveSearchQuery]);
 
+  const filteredRollbackRequests = useMemo(() => {
+    if (!rollbackSearchQuery.trim()) return rollbackRequests;
+    const q = rollbackSearchQuery.toLowerCase();
+    return rollbackRequests.filter((req) => {
+      return (
+        req.id.toLowerCase().includes(q) ||
+        req.fileName.toLowerCase().includes(q) ||
+        (req.groupName?.toLowerCase().includes(q) ?? false) ||
+        (req.accountName?.toLowerCase().includes(q) ?? false) ||
+        (req.uploadedBy?.toLowerCase().includes(q) ?? false) ||
+        (req.rollbackRequestedBy?.toLowerCase().includes(q) ?? false) ||
+        (req.rollbackReasonNote?.toLowerCase().includes(q) ?? false) ||
+        (req.rollbackReason?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [rollbackRequests, rollbackSearchQuery]);
+
   // ── Unified All Requests Command Center ─────────────────────────────────
   if (selectedCategory === "all_requests") {
     return (
@@ -722,6 +762,90 @@ export function ActiveQueueReviewPane({
               page={page}
               pageSize={pageSize}
               totalCount={archiveTotalCount}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Rollbacks Queue (SA / HA) ─────────────────────────────────────────────
+  if (selectedCategory === "rollbacks") {
+    const handleRefresh = () => {
+      refetchRollback();
+      refetchRollbackCounts();
+    };
+
+    return (
+      <div className="flex h-full flex-col">
+        <QueueToolbar
+          searchQuery={rollbackSearchQuery}
+          onSearchChange={(val) => {
+            setRollbackSearchQuery(val);
+            setPage(1);
+          }}
+          searchPlaceholder="Search batch #, file name, scope, requester, or rollback reason..."
+          currentTab={rollbackTab}
+          onTabChange={(tab) => {
+            setRollbackTab(tab);
+            setPage(1);
+          }}
+          counts={rollbackCounts}
+          isCountsLoading={isRollbackCountsLoading}
+          isCountsError={isRollbackCountsError}
+          onRefresh={handleRefresh}
+          isRefreshing={isRollbackRefetching}
+          isLoading={isRollbackLoading}
+        />
+
+        <div className="mt-4 flex-1 min-h-0 flex flex-col">
+          {isRollbackLoading ? (
+            <ApprovalsDataState
+              kind="loading"
+              title="Loading Rollback Requests"
+              description="Fetching import batch rollback requests and governance status..."
+            />
+          ) : isRollbackError ? (
+            <ApprovalsDataState
+              kind="error"
+              title="Failed to Load Rollback Queue"
+              description="An error occurred while fetching import batch rollback requests."
+              onRetry={handleRefresh}
+            />
+          ) : filteredRollbackRequests.length === 0 ? (
+            <ApprovalsDataState
+              kind="empty"
+              title={
+                rollbackSearchQuery
+                  ? "No Matching Requests"
+                  : rollbackTab === "pending"
+                  ? "No Pending Rollback Requests"
+                  : rollbackTab === "approved"
+                  ? "No Executed Rollbacks"
+                  : "No Rejected Rollback Requests"
+              }
+              description={
+                rollbackSearchQuery
+                  ? `No requests match "${rollbackSearchQuery}". Clear your search query to see all items.`
+                  : rollbackTab === "pending"
+                  ? "All import rollback requests have been reviewed and processed."
+                  : rollbackTab === "approved"
+                  ? "No executed import batch rollbacks found."
+                  : "No rejected rollback requests found in this queue."
+              }
+            />
+          ) : (
+            <RollbackDataTable
+              requests={filteredRollbackRequests}
+              tab={rollbackTab}
+              page={page}
+              pageSize={pageSize}
+              totalCount={rollbackTotalCount}
               onPageChange={setPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);
