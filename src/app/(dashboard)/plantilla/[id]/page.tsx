@@ -1230,15 +1230,14 @@ function PlantillaEmployeeDetailContent() {
                                   {item.eventDescription}
                                 </p>
                               )}
-                              <div className="flex items-center gap-2 mt-1.5 text-[11px] text-text-muted">
-                                {item.profileName && <span>By: {item.profileName}</span>}
-                                {data.vcode && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="font-mono text-brand-primary">{data.vcode}</span>
-                                  </>
-                                )}
-                              </div>
+                              {item.profileName && (
+                                <div className="flex items-center gap-1.5 mt-1.5 text-[11px]">
+                                  <span className="text-text-muted">
+                                    {item.eventLabel.toLowerCase().includes("request") ? "Initiated by:" : "Triggered by:"}
+                                  </span>
+                                  <span className="font-medium text-text-secondary">{item.profileName}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -1250,7 +1249,7 @@ function PlantillaEmployeeDetailContent() {
                         </div>
                         <div>
                           <h4 className="text-xs font-bold text-text-primary">
-                            Personnel deployed to Plantilla — {data.primaryStoreName || data.vcode || "Store"}
+                            Personnel deployed to Plantilla — {data.primaryStoreName || "Store"}
                           </h4>
                           <p className="text-[11px] text-text-muted mt-0.5 font-mono">
                             {formatEventDate(data.dateDeployed || data.dateHired)}

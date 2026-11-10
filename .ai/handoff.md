@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Display Initiator/Trigger Actor in Audit Timeline & Remove Irrelevant VCode Badge (ohm#u2p9k4x7)
+
+**Status: COMPLETE ON MAIN; AUDIT TIMELINE IN EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`) NOW RESOLVES AND DISPLAYS INITIATOR AND TRIGGER ACTOR NAMES (`Initiated by: {name}` FOR REQUESTS, `Triggered by: {name}` FOR DEACTIVATIONS, SEPARATIONS, AND DEPLOYMENTS); IRRELEVANT VCODE BADGE PERMANENTLY REMOVED FROM ALL TIMELINE CARDS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Actor Resolution in Resilient Audit Timeline Aggregator (`src/lib/queries/plantilla.ts`)**:
+   - In `getWebPlantillaDetail`, collected all actor/performer profile IDs across audit tiers:
+     - `employee_deactivation_audit_log.performed_by_profile_id`
+     - `employee_deactivation_requests.requestor_profile_id` and `processed_by_profile_id`
+     - `plantilla.for_deactivation_by`, `plantilla.deactivated_by`, and `plantilla.inactive_by`
+   - Queried `public.users_profile` for all candidate IDs with fallback to `auth_user_id` lookups, constructing a high-speed ID-to-full-name resolution map.
+   - Assigned resolved actor names to each timeline event (`Deactivation Requested`, `Personnel Deactivated`, `Personnel Separated`).
+   - For the initial deployment milestone (`Personnel deployed to Plantilla`), mapped `normalized.coordinator || normalized.hrcoName` as the triggering authority.
+2. **Timeline Item Card Attribution & VCode Removal (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Removed the `{data.vcode}` badge (`• {data.vcode}`) from timeline item cards as instructed by the user ("hindi naman sya relevant").
+   - Added clear, context-aware actor attribution:
+     - For request events (e.g., "Deactivation Requested"): rendered `Initiated by: {item.profileName}`.
+     - For execution/finalization events (e.g., "Personnel Deactivated", "Personnel Separated", "Personnel deployed to Plantilla"): rendered `Triggered by: {item.profileName}`.
+   - Cleaned up the empty-state fallback deployment label to avoid showing VCode.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Hydrate Deactivation & Separation Audit Events in Profile Lifecycle Timeline (ohm#a7m4p2k8)
 
 **Status: COMPLETE ON MAIN; LIFECYCLE AUDIT TIMELINE HYDRATED AND RESTORED FOR PROFILE ACTIVITY TAB (`/plantilla/[id]`); DEACTIVATION EVENTS (FROM `employee_deactivation_audit_log` / `employee_deactivation_requests` / DIRECT `plantilla` MILESTONES), SEPARATION EVENTS, AND DEPLOYMENT MILESTONES RENDER CHRONOLOGICALLY WITH COLOR-CODED ICONS AND JUSTIFICATION DETAILS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

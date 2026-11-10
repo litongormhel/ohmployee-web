@@ -2110,48 +2110,30 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
   // -------------------------------------------------------------------------
   try {
     const timelineItems: PlantillaAuditTimelineItem[] = [...normalized.auditTimeline];
+    const actorIds = new Set<string>();
 
     // 1. Check employee_deactivation_audit_log for authoritative deactivation trail
+    type DeactLogRow = {
+      id: string;
+      action: string;
+      performed_at: string;
+      metadata: Record<string, unknown> | null;
+      performed_by_profile_id: string | null;
+    };
+    let rawDeactLogs: DeactLogRow[] = [];
     try {
       const { data: deactLogs } = await supabase
         .from("employee_deactivation_audit_log")
-        .select("id, action, performed_at, metadata")
+        .select("id, action, performed_at, metadata, performed_by_profile_id")
         .eq("plantilla_id", normalized.id)
         .order("performed_at", { ascending: false });
 
       if (deactLogs && deactLogs.length > 0) {
-        for (const dLog of deactLogs) {
-          const action = asString(dLog.action);
-          let eventLabel = "Deactivation Event";
-          let eventDescription = "Personnel offboarding audit event.";
-          const meta = asObject(dLog.metadata);
-          const reason = asString(meta.reason ?? meta.deactivation_reason ?? meta.remarks);
-
-          if (action === "REQUEST_CREATED") {
-            eventLabel = "Deactivation Requested";
-            eventDescription = reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.";
-          } else if (action === "APPROVED") {
-            eventLabel = "Personnel Deactivated";
-            eventDescription = reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.";
-          } else if (action === "REJECTED") {
-            eventLabel = "Deactivation Request Rejected";
-            eventDescription = reason ? `Rejection rationale: ${reason}` : "Deactivation request was rejected.";
-          } else if (action === "RESUBMITTED") {
-            eventLabel = "Deactivation Request Resubmitted";
-            eventDescription = reason ? `Resubmission note: ${reason}` : "Deactivation request resubmitted.";
-          } else if (action === "ARCHIVED") {
-            eventLabel = "Personnel Archived";
-            eventDescription = "Personnel offboarding archive finalized.";
+        rawDeactLogs = deactLogs as unknown as DeactLogRow[];
+        for (const dLog of rawDeactLogs) {
+          if (dLog.performed_by_profile_id) {
+            actorIds.add(asString(dLog.performed_by_profile_id) || "");
           }
-
-          timelineItems.push({
-            stableKey: `deact-log-${dLog.id}`,
-            eventId: asString(dLog.id) || "",
-            eventLabel,
-            eventDescription,
-            createdAt: asString(dLog.performed_at),
-            profileName: asString(meta.performed_by_name ?? meta.performer_name),
-          });
         }
       }
     } catch (err) {
@@ -2159,40 +2141,29 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
 
     // 2. Check employee_deactivation_requests
+    type DeactReqRow = {
+      id: string;
+      status: string;
+      created_at: string;
+      updated_at: string | null;
+      reason: string | null;
+      remarks: string | null;
+      requestor_profile_id: string | null;
+      processed_by_profile_id: string | null;
+    };
+    let rawDeactReqs: DeactReqRow[] = [];
     try {
       const { data: deactReqs } = await supabase
         .from("employee_deactivation_requests")
-        .select("id, status, created_at, updated_at, reason, remarks")
+        .select("id, status, created_at, updated_at, reason, remarks, requestor_profile_id, processed_by_profile_id")
         .eq("plantilla_id", normalized.id)
         .order("created_at", { ascending: false });
 
       if (deactReqs && deactReqs.length > 0) {
-        for (const req of deactReqs) {
-          const reqStatus = asString(req.status);
-          const reason = asString(req.reason ?? req.remarks);
-          if (
-            (reqStatus === "Approved" || reqStatus === "Deactivated") &&
-            !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")
-          ) {
-            timelineItems.push({
-              stableKey: `deact-req-appr-${req.id}`,
-              eventId: asString(req.id) || "",
-              eventLabel: "Personnel Deactivated",
-              eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
-              createdAt: asString(req.updated_at ?? req.created_at),
-              profileName: null,
-            });
-          }
-          if (!timelineItems.some((t) => t.eventLabel === "Deactivation Requested")) {
-            timelineItems.push({
-              stableKey: `deact-req-${req.id}`,
-              eventId: asString(req.id) || "",
-              eventLabel: "Deactivation Requested",
-              eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
-              createdAt: asString(req.created_at),
-              profileName: null,
-            });
-          }
+        rawDeactReqs = deactReqs as unknown as DeactReqRow[];
+        for (const req of rawDeactReqs) {
+          if (req.requestor_profile_id) actorIds.add(asString(req.requestor_profile_id) || "");
+          if (req.processed_by_profile_id) actorIds.add(asString(req.processed_by_profile_id) || "");
         }
       }
     } catch (err) {
@@ -2200,64 +2171,209 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
 
     // 3. Fallback to direct plantilla record milestones (deactivated_at, for_deactivation_at, date_of_separation)
+    type PlantillaAuditRow = {
+      deactivated_at: string | null;
+      for_deactivation_at: string | null;
+      inactive_at: string | null;
+      date_of_separation: string | null;
+      separation_status: string | null;
+      remarks: string | null;
+      deactivation_reason: string | null;
+      status: string | null;
+      date_deployed: string | null;
+      date_hired: string | null;
+      updated_at: string | null;
+      for_deactivation_by: string | null;
+      deactivated_by: string | null;
+      inactive_by: string | null;
+    };
+    let rawPRec: PlantillaAuditRow | null = null;
     try {
       const { data: pRec } = await supabase
         .from("plantilla")
-        .select("deactivated_at, for_deactivation_at, inactive_at, date_of_separation, separation_status, remarks, deactivation_reason, status, date_deployed, date_hired, updated_at")
+        .select("deactivated_at, for_deactivation_at, inactive_at, date_of_separation, separation_status, remarks, deactivation_reason, status, date_deployed, date_hired, updated_at, for_deactivation_by, deactivated_by, inactive_by")
         .eq(isUuid ? "id" : "employee_no", plantillaId)
         .maybeSingle();
 
       if (pRec) {
-        const s = asString(pRec.status)?.toLowerCase() ?? "";
-        const isDeact = s === "deactivated" || s.includes("deactivated") || Boolean(pRec.deactivated_at);
-        const reason = asString(pRec.deactivation_reason ?? pRec.remarks);
-
-        // Deactivated milestone
-        if (isDeact && !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")) {
-          timelineItems.push({
-            stableKey: `plantilla-deact-${normalized.id}`,
-            eventId: "deactivated",
-            eventLabel: "Personnel Deactivated",
-            eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
-            createdAt: asString(pRec.deactivated_at ?? pRec.inactive_at ?? pRec.updated_at ?? normalized.dateDeployed ?? new Date().toISOString()),
-            profileName: null,
-          });
-        }
-
-        // Deactivation requested milestone
-        if (
-          (pRec.for_deactivation_at || s.includes("pending") || s.includes("for deactivation")) &&
-          !timelineItems.some((t) => t.eventLabel === "Deactivation Requested")
-        ) {
-          timelineItems.push({
-            stableKey: `plantilla-for-deact-${normalized.id}`,
-            eventId: "for-deactivation",
-            eventLabel: "Deactivation Requested",
-            eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
-            createdAt: asString(pRec.for_deactivation_at ?? pRec.inactive_at ?? normalized.dateDeployed),
-            profileName: null,
-          });
-        }
-
-        // Separation milestone
-        const sepStatus = asString(pRec.separation_status);
-        if (
-          (sepStatus || pRec.date_of_separation) &&
-          !timelineItems.some((t) => t.eventLabel.startsWith("Personnel Separated"))
-        ) {
-          const sepLabel = sepStatus || (s === "resigned" ? "Resigned" : s === "awol" ? "AWOL" : s === "terminated" ? "Terminated" : "Separated");
-          timelineItems.push({
-            stableKey: `plantilla-sep-${normalized.id}`,
-            eventId: "separated",
-            eventLabel: `Personnel Separated (${sepLabel})`,
-            eventDescription: reason ? `Remarks: ${reason}` : `Personnel marked as ${sepLabel}.`,
-            createdAt: asString(pRec.date_of_separation ?? pRec.inactive_at ?? pRec.deactivated_at),
-            profileName: null,
-          });
-        }
+        rawPRec = pRec as unknown as PlantillaAuditRow;
+        if (rawPRec.for_deactivation_by) actorIds.add(asString(rawPRec.for_deactivation_by) || "");
+        if (rawPRec.deactivated_by) actorIds.add(asString(rawPRec.deactivated_by) || "");
+        if (rawPRec.inactive_by) actorIds.add(asString(rawPRec.inactive_by) || "");
       }
     } catch (err) {
       console.warn("[Plantilla] direct plantilla audit query exception:", err);
+    }
+
+    // Resolve actor names from users_profile
+    const actorNameMap = new Map<string, string>();
+    const validActorIds = Array.from(actorIds).filter(Boolean);
+    if (validActorIds.length > 0) {
+      try {
+        const { data: userProfiles } = await supabase
+          .from("users_profile")
+          .select("id, full_name, email, auth_user_id")
+          .in("id", validActorIds);
+
+        if (userProfiles && userProfiles.length > 0) {
+          for (const p of userProfiles) {
+            const profileRec = p as { id?: string; full_name?: string | null; email?: string | null; auth_user_id?: string | null };
+            const name = profileRec.full_name || profileRec.email;
+            if (profileRec.id && name) actorNameMap.set(profileRec.id, name);
+            if (profileRec.auth_user_id && name) actorNameMap.set(profileRec.auth_user_id, name);
+          }
+        }
+
+        // Check if any actor ID was stored as auth_user_id
+        const missingActorIds = validActorIds.filter((id) => !actorNameMap.has(id));
+        if (missingActorIds.length > 0) {
+          const { data: authProfiles } = await supabase
+            .from("users_profile")
+            .select("id, full_name, email, auth_user_id")
+            .in("auth_user_id", missingActorIds);
+
+          if (authProfiles && authProfiles.length > 0) {
+            for (const p of authProfiles) {
+              const profileRec = p as { id?: string; full_name?: string | null; email?: string | null; auth_user_id?: string | null };
+              const name = profileRec.full_name || profileRec.email;
+              if (profileRec.auth_user_id && name) actorNameMap.set(profileRec.auth_user_id, name);
+              if (profileRec.id && name) actorNameMap.set(profileRec.id, name);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Plantilla] Error resolving actor profiles for timeline:", err);
+      }
+    }
+
+    // Populate timelineItems from employee_deactivation_audit_log
+    if (rawDeactLogs.length > 0) {
+      for (const dLog of rawDeactLogs) {
+        const action = asString(dLog.action);
+        let eventLabel = "Deactivation Event";
+        let eventDescription = "Personnel offboarding audit event.";
+        const meta = asObject(dLog.metadata);
+        const reason = asString(meta.reason ?? meta.deactivation_reason ?? meta.remarks);
+
+        if (action === "REQUEST_CREATED") {
+          eventLabel = "Deactivation Requested";
+          eventDescription = reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.";
+        } else if (action === "APPROVED") {
+          eventLabel = "Personnel Deactivated";
+          eventDescription = reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.";
+        } else if (action === "REJECTED") {
+          eventLabel = "Deactivation Request Rejected";
+          eventDescription = reason ? `Rejection rationale: ${reason}` : "Deactivation request was rejected.";
+        } else if (action === "RESUBMITTED") {
+          eventLabel = "Deactivation Request Resubmitted";
+          eventDescription = reason ? `Resubmission note: ${reason}` : "Deactivation request resubmitted.";
+        } else if (action === "ARCHIVED") {
+          eventLabel = "Personnel Archived";
+          eventDescription = "Personnel offboarding archive finalized.";
+        }
+
+        const performerId = asString(dLog.performed_by_profile_id);
+        const resolvedName =
+          asString(meta.performed_by_name ?? meta.performer_name) ||
+          (performerId ? actorNameMap.get(performerId) : null) ||
+          null;
+
+        timelineItems.push({
+          stableKey: `deact-log-${dLog.id}`,
+          eventId: asString(dLog.id) || "",
+          eventLabel,
+          eventDescription,
+          createdAt: asString(dLog.performed_at),
+          profileName: resolvedName,
+        });
+      }
+    }
+
+    // Populate timelineItems from employee_deactivation_requests
+    if (rawDeactReqs.length > 0) {
+      for (const req of rawDeactReqs) {
+        const reqStatus = asString(req.status);
+        const reason = asString(req.reason ?? req.remarks);
+        if (
+          (reqStatus === "Approved" || reqStatus === "Deactivated") &&
+          !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")
+        ) {
+          const processorId = asString(req.processed_by_profile_id);
+          timelineItems.push({
+            stableKey: `deact-req-appr-${req.id}`,
+            eventId: asString(req.id) || "",
+            eventLabel: "Personnel Deactivated",
+            eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
+            createdAt: asString(req.updated_at ?? req.created_at),
+            profileName: (processorId ? actorNameMap.get(processorId) : null) || null,
+          });
+        }
+        if (!timelineItems.some((t) => t.eventLabel === "Deactivation Requested")) {
+          const requestorId = asString(req.requestor_profile_id);
+          timelineItems.push({
+            stableKey: `deact-req-${req.id}`,
+            eventId: asString(req.id) || "",
+            eventLabel: "Deactivation Requested",
+            eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
+            createdAt: asString(req.created_at),
+            profileName: (requestorId ? actorNameMap.get(requestorId) : null) || null,
+          });
+        }
+      }
+    }
+
+    // Populate from direct plantilla record if milestones are not yet captured
+    if (rawPRec) {
+      const s = asString(rawPRec.status)?.toLowerCase() ?? "";
+      const isDeact = s === "deactivated" || s.includes("deactivated") || Boolean(rawPRec.deactivated_at);
+      const reason = asString(rawPRec.deactivation_reason ?? rawPRec.remarks);
+
+      // Deactivated milestone
+      if (isDeact && !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")) {
+        const deactId = asString(rawPRec.deactivated_by ?? rawPRec.inactive_by);
+        timelineItems.push({
+          stableKey: `plantilla-deact-${normalized.id}`,
+          eventId: "deactivated",
+          eventLabel: "Personnel Deactivated",
+          eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
+          createdAt: asString(rawPRec.deactivated_at ?? rawPRec.inactive_at ?? rawPRec.updated_at ?? normalized.dateDeployed ?? new Date().toISOString()),
+          profileName: (deactId ? actorNameMap.get(deactId) : null) || null,
+        });
+      }
+
+      // Deactivation requested milestone
+      if (
+        (rawPRec.for_deactivation_at || s.includes("pending") || s.includes("for deactivation")) &&
+        !timelineItems.some((t) => t.eventLabel === "Deactivation Requested")
+      ) {
+        const reqId = asString(rawPRec.for_deactivation_by);
+        timelineItems.push({
+          stableKey: `plantilla-for-deact-${normalized.id}`,
+          eventId: "for-deactivation",
+          eventLabel: "Deactivation Requested",
+          eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
+          createdAt: asString(rawPRec.for_deactivation_at ?? rawPRec.inactive_at ?? normalized.dateDeployed),
+          profileName: (reqId ? actorNameMap.get(reqId) : null) || null,
+        });
+      }
+
+      // Separation milestone
+      const sepStatus = asString(rawPRec.separation_status);
+      if (
+        (sepStatus || rawPRec.date_of_separation) &&
+        !timelineItems.some((t) => t.eventLabel.startsWith("Personnel Separated"))
+      ) {
+        const sepLabel = sepStatus || (s === "resigned" ? "Resigned" : s === "awol" ? "AWOL" : s === "terminated" ? "Terminated" : "Separated");
+        const sepActorId = asString(rawPRec.inactive_by ?? rawPRec.deactivated_by);
+        timelineItems.push({
+          stableKey: `plantilla-sep-${normalized.id}`,
+          eventId: "separated",
+          eventLabel: `Personnel Separated (${sepLabel})`,
+          eventDescription: reason ? `Remarks: ${reason}` : `Personnel marked as ${sepLabel}.`,
+          createdAt: asString(rawPRec.date_of_separation ?? rawPRec.inactive_at ?? rawPRec.deactivated_at),
+          profileName: (sepActorId ? actorNameMap.get(sepActorId) : null) || null,
+        });
+      }
     }
 
     // 4. Initial store deployment milestone
@@ -2265,10 +2381,10 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       timelineItems.push({
         stableKey: `deployed-${normalized.id}`,
         eventId: "deployed",
-        eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || normalized.vcode || "Store"}`,
+        eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || normalized.storeName || "Store"}`,
         eventDescription: "Initial operational deployment to store branch.",
         createdAt: asString(normalized.dateDeployed || normalized.dateHired),
-        profileName: null,
+        profileName: normalized.coordinator || normalized.hrcoName || null,
       });
     }
 
