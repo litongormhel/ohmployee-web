@@ -51,7 +51,7 @@ This document captures the current stable architecture and navigation contract f
        - `hr_emploc_import`: HR Emploc XLSX bulk import (`import=hr_emploc`).
        - `plantilla_import`: Plantilla batch import (`import=plantilla`). Internal rejection and rollback confirmation actions retain focused `<Modal>` dialogs.
        - `vacancy_import`: Vacancy batch import (`import=vacancy`). Internal rollback and rejection actions retain focused `<Modal>` dialogs.
-       - `mika_import`: Mika import (`import=mika`).
+       - `mika_import`: Mika import (`import=mika`). Uploads MIKA biometric / attendance sheets with cross-check detection against active Plantilla (clean, ghost employee isolation, blocked account mismatch). Ingestion maps spreadsheet `dateHired` to PostgreSQL column `date_hired` in `public.mika_import_rows` in 100-row chunks, automatically cleans up orphaned header logs upon ingestion failure, and propagates API error details cleanly to the review banner.
        - `payroll_import`: Payroll reconciliation import (`import=payroll`). Pure read-only checker with sticky review center handover trigger.
 
 ## Data Archival & Recovery Consolidation

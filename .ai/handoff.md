@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — Fix Column Mapping date_hired in MIKA Import Row Ingestion (ohm#m1k8f4p2)
+
+**Status: COMPLETE ON MAIN; RESOLVED MIKA IMPORT SUBMISSION FAILURE ("Failed to submit MIKA import log."); ROOT-CAUSED TO CAMELCASE `dateHired` COLUMN KEY BEING PASSED TO `public.mika_import_rows` INSERTION IN `submitMikaImport` (`src/lib/queries/dataControl.ts`), FAILING AGAINST POSTGRESQL SCHEMA COLUMN `date_hired`; SURGICALLY CORRECTED TO `date_hired: r.dateHired ?? null`; ADDED AUTOMATIC HEADER LOG CLEANUP (`await supabase.from("mika_import_logs").delete().eq("id", importLogId)`) TO PREVENT ORPHANED HEADER RECORDS ON INGESTION FAILURE; HARDENED ERROR EXTRACTION IN `src/components/more/MikaImportModal.tsx` TO TRANSPARENTLY SURFACE ERROR MESSAGES ACROSS `handleSubmit`, `handleApproveLog`, AND `handleRejectLog`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Column Name Mismatch on `mika_import_rows`**:
+   - Root cause: In `submitMikaImport` (`src/lib/queries/dataControl.ts`), parsed rows were mapped into the chunked payload with `dateHired: r.dateHired ?? null`.
+   - Inspection of `supabase/migrations/20260520012857_remote_schema.sql` (line 755) and database schema confirmed the column name is `date_hired` (snake_case).
+   - PostgREST rejected the insert payload with a 400 schema cache error (`PGRST204: Could not find the 'dateHired' column of 'mika_import_rows' in the schema cache`), terminating the submission.
+   - Resolution: Corrected the mapping to `date_hired: r.dateHired ?? null`, perfectly matching `fetchMikaImportRows` which already reads `row.date_hired`.
+2. **Orphaned Header Log Cleanup**:
+   - Root cause: When row batch insertion failed, the previously inserted header entry in `public.mika_import_logs` remained persisted in `Pending` status with 0 rows.
+   - Resolution: Added rollback cleanup in `submitMikaImport`: if `rowsError` occurs during chunked insertion, the created `importLogId` is deleted from `mika_import_logs` before re-throwing the error.
+3. **Resilient Error Propagation in Modal**:
+   - Root cause: `MikaImportModal.tsx` evaluated `err instanceof Error ? err.message : "Failed to submit MIKA import log."`. Non-Error PostgREST error objects caused the fallback string to be displayed instead of the actual error.
+   - Resolution: Updated error extractors in `handleSubmit`, `handleApproveLog`, and `handleRejectLog` to check `(err as { message?: string })?.message` to surface exact underlying error descriptions.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`; touched files `dataControl.ts` and `MikaImportModal.tsx` have 0 errors and 0 warnings).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
 
 **Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

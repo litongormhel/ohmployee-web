@@ -1263,12 +1263,15 @@ export async function submitMikaImport(params: {
         atm_no: r.atmNo ?? null,
         birthdate: r.birthdate ?? null,
         civil_status: r.civilStatus ?? null,
-        dateHired: r.dateHired ?? null,
+        date_hired: r.dateHired ?? null,
         flag_type: r.flagType,
         flag_reason: r.flagReason ?? null,
       }))
     );
-    if (rowsError) throw rowsError;
+    if (rowsError) {
+      await supabase.from("mika_import_logs").delete().eq("id", importLogId);
+      throw rowsError;
+    }
   }
 
   return importLogId;

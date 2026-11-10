@@ -215,7 +215,11 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
       setActiveTab("review");
       setSelectedLogId(logId);
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : "Failed to submit MIKA import log.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || "Failed to submit MIKA import log.";
+      setParseError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -235,7 +239,11 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
       setSelectedLogId(null);
       setActionRemarks("");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to approve MIKA import log.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || "Failed to approve MIKA import log.";
+      setActionError(msg);
     } finally {
       setIsActionPending(false);
     }
@@ -254,7 +262,11 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
       setSelectedLogId(null);
       setActionRemarks("");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to reject MIKA import log.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || "Failed to reject MIKA import log.";
+      setActionError(msg);
     } finally {
       setIsActionPending(false);
     }
