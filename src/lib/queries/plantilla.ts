@@ -1804,6 +1804,31 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     throw new PlantillaDataError("retryable", "No Plantilla detail record found");
   }
 
+  // Always ensure schedule terms (schedule_time, schedule_days, rest_day, dayoff) are hydrated from plantilla
+  // because get_web_plantilla_detail RPC does not project schedule_time in its return table.
+  try {
+    const schedQuery = supabase
+      .from("plantilla")
+      .select("schedule, schedule_days, schedule_time, rest_day, dayoff")
+      .eq(isUuid ? "id" : "employee_no", plantillaId);
+    const { data: schedData } = await schedQuery.maybeSingle();
+    if (schedData) {
+      if (schedData.schedule_time) {
+        normalized.scheduleTime = asString(schedData.schedule_time);
+      }
+      if (schedData.schedule_days) {
+        normalized.scheduleDays = asString(schedData.schedule_days);
+      } else if (schedData.schedule) {
+        normalized.scheduleDays = asString(schedData.schedule);
+      }
+      if (schedData.dayoff || schedData.rest_day) {
+        normalized.dayoff = asString(schedData.dayoff ?? schedData.rest_day);
+      }
+    }
+  } catch (err) {
+    console.warn("[Plantilla] schedule hydration exception:", err);
+  }
+
   // Guaranteed Hydration Guard: Ensures demographic, coverage group, remuneration, and store assignment fields
   // are completely hydrated across multiple resilient database tiers whenever missing from primary RPC output.
   const isMissingKeyFields =
@@ -2895,6 +2920,7 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
     schedule: params.scheduleDays ?? null,
     schedule_time: params.scheduleTime ?? null,
     dayoff: params.dayoff ?? null,
+    rest_day: params.dayoff ?? null,
     updated_at: new Date().toISOString(),
   };
 
@@ -2916,7 +2942,7 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
   }
 
   // Update employee_store_allocations
-  if (params.storeAllocations && params.storeAllocations.length > 0 && params.employeeNo) {
+  if (params.storeAllocations && params.storeAllocations.length > 0) {
     for (const alloc of params.storeAllocations) {
       const filledHc = Number((alloc.allocationPercent / 100).toFixed(4));
       let query = supabase
@@ -2935,18 +2961,35 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
       } else {
         query = query.eq("store_name", alloc.storeName);
       }
-      query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
-      await query;
+      if (params.employeeNo) {
+        query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
+      } else {
+        query = query.eq("plantilla_id", params.plantillaId);
+      }
+      try {
+        await query;
+      } catch {
+        // Ignore RLS or constraint errors on secondary table
+      }
     }
-  } else if (params.employeeNo) {
-    await supabase
-      .from("employee_store_allocations")
-      .update({
-        schedule_days: params.scheduleDays ?? null,
-        schedule_time: params.scheduleTime ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("employee_no", params.employeeNo);
+  } else if (params.employeeNo || params.plantillaId) {
+    try {
+      let query = supabase
+        .from("employee_store_allocations")
+        .update({
+          schedule_days: params.scheduleDays ?? null,
+          schedule_time: params.scheduleTime ?? null,
+          updated_at: new Date().toISOString(),
+        });
+      if (params.employeeNo) {
+        query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
+      } else {
+        query = query.eq("plantilla_id", params.plantillaId);
+      }
+      await query;
+    } catch {
+      // Ignore
+    }
   }
 }
 

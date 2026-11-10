@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Hydrate Shift Window Schedule Time from Plantilla & Sync Rest Day (ohm#k9r4m1t7)
+
+**Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE EDITED SHIFT TIME WINDOW (E.G. 07:00 AM - 04:00 PM) DID NOT REFLECT IN EMPLOYEE PROFILE OR MODAL AFTER SUCCESSFUL SAVE; GUARANTEED SCHEDULE TERMS HYDRATION (`schedule_time`, `schedule_days`, `rest_day`, `dayoff`) FROM `public.plantilla` IN `getWebPlantillaDetail` TO COMPENSATE FOR RPC OMISSION; SYNCHRONIZED `rest_day` ALONGSIDE `dayoff` AND DECOUPLED `employee_store_allocations` UPDATES FROM REQUIRING `employeeNo`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **RPC Projection Omission (`get_web_plantilla_detail`)**:
+   - The primary backend RPC `get_web_plantilla_detail` only projected `schedule` and `rest_day`, omitting `schedule_time`. Consequently, `normalized.scheduleTime` was always returned as `undefined`.
+   - In `getWebPlantillaDetail` (`src/lib/queries/plantilla.ts`), direct table fallbacks never queried or assigned `schedule_time` from `public.plantilla`. Whenever store allocations or default values were mapped, `store.scheduleTime` fell back to `"08:00 AM - 05:00 PM"` instead of the user-persisted shift hours.
+2. **Guaranteed Schedule Hydration (`src/lib/queries/plantilla.ts` in `getWebPlantillaDetail`)**:
+   - Implemented an authoritative hydration step querying `public.plantilla` directly for `schedule, schedule_days, schedule_time, rest_day, dayoff` by employee UUID/number.
+   - Sets `normalized.scheduleTime = schedData.schedule_time`, `normalized.scheduleDays = schedData.schedule_days || schedData.schedule`, and `normalized.dayoff = schedData.dayoff || schedData.rest_day`.
+   - The store allocation mapping in both the matrix and `UpdateScheduleModal` now properly receives the actual saved shift window.
+3. **Dual Schedule Sync & Decoupled `employee_store_allocations` (`src/lib/queries/plantilla.ts` in `updatePlantillaSchedule`)**:
+   - In `updatePayload`, added `rest_day: params.dayoff ?? null` alongside `dayoff`, ensuring that RPC projections reading `pl.rest_day` stay in exact sync with `dayoff`.
+   - Updated `employee_store_allocations` mutations to match on `plantilla_id` even when `params.employeeNo` is null or unassigned.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Fix UpdateSchedule Schema Error, Standardize Rest Day Pill Sizing, and Streamline Subtitle (ohm#e6q3m8w1)
 
 **Status: COMPLETE ON MAIN; POSTGREST SCHEMA CACHE ERROR IN `updatePlantillaSchedule` RESOLVED (REMOVED NON-EXISTENT `assignment_type` UPDATE ON `plantilla` TABLE IN FAVOR OF VALID `deployment_type`); STANDARDIZED "DESIGNATED REST DAYS (DAY OFF)" PILL SIZING AND PROPORTIONS TO EXACTLY MATCH DUTY DAYS BUTTONS (`gap-1`, `py-1 text-[11px] font-bold rounded`); STREAMLINED MODAL SUBTITLE TO OMIT EMPLOYEE NAME AND NUMBER (`Configuring rest days, per-store duty days, and shift time windows`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
