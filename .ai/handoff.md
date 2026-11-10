@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Redesign Inactive Table: Position beside Emploc ID, Area/City beside VCode, Status & Request Deactivation Action (ohm#r4d8n1k5)
+
+**Status: COMPLETE ON MAIN; INACTIVE EMPLOYEES TABLE & CARDS REDESIGNED (POSITION INTEGRATED BESIDE EMPLOC ID, AREA & CITY BESIDE VCODE, STATUS COLUMN ADDED FOR DEACTIVATION LIFECYCLE, AND ACTION COLUMN WIRED TO REQUEST DEACTIVATION MODAL WITH AUTOMATIC DISABLING FOR EXISTING REQUESTS); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Member / Employee Column Redesign (`EmployeeInactiveTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, moved `Position` into the `Member / Employee` column directly beside the Emploc ID:
+     - Line 1: `displayName` (e.g. `Abaincia, Arwin Arwin`)
+     - Line 2: Monospace `row.employeeNo` followed by `formatPosition(row.positionTitle)` (e.g. `2026-12247  Motorized Collector`).
+   - Removed the separate standalone `Position` column from the table headers and data rows.
+2. **Last Store Branch Column Redesign (`EmployeeInactiveTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, moved `Area & City` into the `Last Store Branch` column directly beside the VCode / CGCode:
+     - Line 1: Store branch name + `Roving` badge if roving (e.g. `Calbiga`).
+     - Line 2: Monospace `vcode` / `cgCode` beside the location tag pill (`@ CALBIGA - SAMAR`).
+   - Removed the separate standalone `Area & City` column from the table headers and data rows.
+3. **Dedicated Status Column Added (`EmployeeInactiveTable`)**:
+   - Added a dedicated `Status` column displaying the deactivation lifecycle status:
+     - `Pending for Deactivation` (amber badge) if the record has an in-flight deactivation request (`pending for deactivation`, `for deactivation`, `pending separation`).
+     - `Deactivated` (red badge) if the record has been officially deactivated.
+     - `Inactive` (neutral slate badge) if separated with no active deactivation request yet.
+4. **Action Column & Deactivation Request Modal (`EmployeeInactiveTable`)**:
+   - Added an `Action` column:
+     - If an existing deactivation request exists (`isPendingDeactivation || isDeactivated`), renders no action button (`—`).
+     - If no existing request, renders a `Request Deactivation` button (`UserMinus` icon). Clicking (`e.stopPropagation()`) opens `RequestDeactivationModal`.
+   - In `src/app/(dashboard)/plantilla/page.tsx`, mounted `<RequestDeactivationModal>` with `deactivationTargetEmployee` state, calling `useCreateDeactivationRequest()`. On submission success, query caches invalidate and the employee transitions cleanly to `Pending for Deactivation` (reflecting in Tab 5 and Tab 6).
+5. **Universal Cards View Parity (`EmployeeInactiveCard`)**:
+   - Updated `EmployeeInactiveCard` to display the deactivation `Status` badge alongside `Separation Type` and provided the `Request Deactivation` action button in the card footer when eligible, preserving Table and Cards view-mode parity (Permanent Architectural Rule #3).
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
 
 **Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

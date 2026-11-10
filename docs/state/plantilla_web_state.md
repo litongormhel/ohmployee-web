@@ -124,14 +124,14 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
 
 6. **Tab 6: Inactive** (Historical & Attrition Archive)
    - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`, as well as personnel undergoing deactivation / separation (`isActive === false` or deactivation/separation statuses). When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`. Personnel requested for deactivation remain permanently visible in this tab for historical and reporting continuity even while actively tracked in Tab 5.
-   - **Columns (Strict 7-Column Sequence, Clearance Status removed)**:
-     1. `Member / Employee`: Avatar initials, employee name, monospace employee ID.
-     2. `Last Store Branch`: Store branch name + `VCode`/`CGCode`, with `Roving` badge if roving.
-     3. `Area & City`: Store location badge.
-     4. `Position`: Last held position title.
-     5. `Separation Type`: Semantic status badge (`Resigned` warning, `AWOL` danger, `Terminated` danger).
-     6. `Separation Date`: Formatted separation date with relative time.
-     7. `Remarks`: Dynamically reflects the operational remarks / separation notes entered during employee status updates (resolved from `plantilla.remarks` with waterfall fallback to `audit_logs`), preventing default blank `—` displays.
+   - **Columns (Redesigned 7-Column Sequence with Deactivation Action)**:
+     1. `Member / Employee`: Avatar initials, employee name, monospace employee ID, and Position directly beside Emploc ID (`{employeeNo}  {positionTitle}`).
+     2. `Last Store Branch`: Store branch name (+ `Roving` badge if roving) with VCode/CGCode and Area & City location pill tag side by side below.
+     3. `Separation Type`: Semantic separation badge (`Resigned` warning, `AWOL` danger, `Terminated` danger).
+     4. `Separation Date`: Formatted separation date with tabular nums.
+     5. `Status`: Deactivation lifecycle status badge (`Pending for Deactivation` amber badge, `Deactivated` red badge, or `Inactive` neutral badge).
+     6. `Remarks`: Dynamically reflects operational remarks / separation notes resolved from `plantilla.remarks` with waterfall fallback to `audit_logs`.
+     7. `Action`: If no existing request, renders `Request Deactivation` action button opening `RequestDeactivationModal` (calls `useCreateDeactivationRequest`). If already pending deactivation or deactivated, renders no action button (`—`).
 
 ---
 
@@ -142,7 +142,7 @@ The `Table / Cards` view toggle (`displayView: "table" | "cards"`) is universall
 - **Vacancy**: Renders `VacancyCard` with VCode, store branch, position, dynamic slot capacity (`X Vacant`), workflow stage, aging days, and applicant badge.
 - **Floating**: Renders `EmployeeFloatingCard` with status badge and `Assign Store` action button.
 - **Deactivation**: Renders `EmployeeDeactivationCard` with Emploc#, VCode, store, position, and deactivation status badge.
-- **Inactive**: Renders `EmployeeInactiveCard` with separation type, separation date, and resolved operational/separation remarks.
+- **Inactive**: Renders `EmployeeInactiveCard` with separation type, deactivation status badge, separation date, resolved operational/separation remarks, and quick `Request Deactivation` action when eligible.
 
 All card views implement the responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
 

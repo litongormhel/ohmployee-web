@@ -74,6 +74,7 @@ import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploy
 import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
+import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
 import { Toast, type ToastVariant } from "@/components/shared/Toast";
 
 // ---------------------------------------------------------------------------
@@ -638,6 +639,13 @@ function PlantillaPageContent() {
   } | null>(null);
 
   const [updateStatusTargetEmployee, setUpdateStatusTargetEmployee] = useState<{
+    id: string;
+    displayName: string;
+    employeeNo: string;
+    currentStatus?: string | null;
+  } | null>(null);
+
+  const [deactivationTargetEmployee, setDeactivationTargetEmployee] = useState<{
     id: string;
     displayName: string;
     employeeNo: string;
@@ -2905,6 +2913,14 @@ function PlantillaPageContent() {
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
                   onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
+                  onRequestDeactivation={(emp) => {
+                    setDeactivationTargetEmployee({
+                      id: emp.id,
+                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                      employeeNo: emp.employeeNo,
+                      currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
+                    });
+                  }}
                 />
               ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -2915,6 +2931,14 @@ function PlantillaPageContent() {
                         row={row}
                         onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
+                        onRequestDeactivation={(emp) => {
+                          setDeactivationTargetEmployee({
+                            id: emp.id,
+                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                            employeeNo: emp.employeeNo,
+                            currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
+                          });
+                        }}
                       />
                     ))}
                   </div>
@@ -3024,6 +3048,25 @@ function PlantillaPageContent() {
                 employeeQuery.refetch();
                 summaryQuery.refetch();
                 vacancyListQuery.refetch();
+              }}
+              onNavigateStatusTab={(tab) => {
+                handleSelectStatusTab(tab);
+              }}
+            />
+          )}
+
+          {/* Request Deactivation Modal (from Inactive Tab) */}
+          {deactivationTargetEmployee && (
+            <RequestDeactivationModal
+              isOpen={Boolean(deactivationTargetEmployee)}
+              onClose={() => setDeactivationTargetEmployee(null)}
+              plantillaId={deactivationTargetEmployee.id}
+              employeeName={deactivationTargetEmployee.displayName}
+              employeeNo={deactivationTargetEmployee.employeeNo}
+              currentStatus={deactivationTargetEmployee.currentStatus}
+              onSuccess={() => {
+                employeeQuery.refetch();
+                summaryQuery.refetch();
               }}
               onNavigateStatusTab={(tab) => {
                 handleSelectStatusTab(tab);
@@ -3975,15 +4018,17 @@ function EmployeeInactiveTable({
   rows,
   onRowClick,
   storeLookupMap,
+  onRequestDeactivation,
 }: {
   rows: PlantillaEmployeeListItem[];
   onRowClick: (id: string) => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onRequestDeactivation?: (emp: PlantillaEmployeeListItem) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[1050px] text-left text-xs">
+        <table className="w-full min-w-[1100px] text-left text-xs">
           <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
             <tr className="border-b border-table-rule">
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
@@ -3993,19 +4038,19 @@ function EmployeeInactiveTable({
                 Last Store Branch
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Area & City
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Separation Type
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Separation Date
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Status
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Remarks
+              </th>
+              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Action
               </th>
             </tr>
           </thead>
@@ -4023,14 +4068,14 @@ function EmployeeInactiveTable({
               const locationDisplay =
                 storeInfo?.city && storeInfo?.province
                   ? `${storeInfo.city} • ${storeInfo.province}`
-                  : storeInfo?.province || storeInfo?.city || "Unassigned Area";
+                  : storeInfo?.province || storeInfo?.city || null;
 
               const isRoving = row.assignmentType?.toLowerCase() === "roving";
               const cleanStoreName = row.primaryStoreName
                 ? formatStoreName(row.primaryStoreName).replace(/\s*\([^)]*\)/g, "").trim()
                 : "Unassigned Store";
 
-              // 5. Separation Type Badge
+              // 3. Separation Type Badge
               const rawType = (row.separationType || row.plantillaStatus || "Resigned").toLowerCase();
               let sepBadgeVariant: "warning" | "danger" | "neutral" = "neutral";
               let sepLabel = "Separated";
@@ -4045,11 +4090,29 @@ function EmployeeInactiveTable({
                 sepLabel = "Terminated";
               }
 
-              // 6. Separation Date
+              // 4. Separation Date
               const sepDateRaw = row.separationDate || row.dateDeployed;
               const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
 
-              // 7. Remarks
+              // 5. Deactivation Status Resolution
+              const s = (row.plantillaStatus || "").toLowerCase().trim();
+              const sep = (row.separationType || "").toLowerCase().trim();
+              const isDeactivated = s === "deactivated" || sep === "deactivated";
+              const isPendingDeactivation =
+                s === "pending for deactivation" ||
+                s === "pending_for_deactivation" ||
+                s === "pending deactivation" ||
+                s === "pending_deactivation" ||
+                s === "for deactivation" ||
+                s === "pending separation" ||
+                s === "pending_separation" ||
+                sep === "pending deactivation" ||
+                sep === "pending_deactivation" ||
+                sep === "for deactivation";
+
+              const hasExistingRequest = isDeactivated || isPendingDeactivation;
+
+              // 6. Remarks
               const remarks = row.separationRemarks?.trim() || "—";
 
               return (
@@ -4067,24 +4130,31 @@ function EmployeeInactiveTable({
                   }}
                   aria-label={`View separation record for ${displayName}`}
                 >
-                  {/* 1. Member / Employee */}
+                  {/* 1. Member / Employee (Position beside emploc ID) */}
                   <td className="px-3.5 py-2 font-medium text-table-text">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-bold text-text-secondary border border-border-default">
                         {initials}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-text-primary text-xs truncate max-w-[170px]" title={displayName}>
+                        <span className="font-semibold text-text-primary text-xs truncate max-w-[190px]" title={displayName}>
                           {displayName}
                         </span>
-                        <span className="font-mono text-[10px] text-text-muted">
-                          {row.employeeNo}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted truncate">
+                          <span className="font-mono text-text-secondary font-medium">
+                            {row.employeeNo}
+                          </span>
+                          {row.positionTitle && (
+                            <span className="font-medium text-text-secondary truncate">
+                              {formatPosition(row.positionTitle)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
 
-                  {/* 2. Last Store Branch */}
+                  {/* 2. Last Store Branch (Area & City beside VCode) */}
                   <td className="px-3.5 py-2 font-medium text-table-text">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -4095,40 +4165,72 @@ function EmployeeInactiveTable({
                           </span>
                         )}
                       </div>
-                      {(row.vcode || row.cgCode) && (
-                        <span className="font-mono text-[10px] text-text-muted">
-                          {row.vcode || row.cgCode}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-0.5 flex-wrap">
+                        {(row.vcode || row.cgCode) && (
+                          <span className="font-mono text-[10px] text-text-muted">
+                            {row.vcode || row.cgCode}
+                          </span>
+                        )}
+                        {locationDisplay && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
+                            <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
+                            <span>{locationDisplay}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
-                  {/* 3. Area & City */}
-                  <td className="px-3.5 py-2 text-table-text whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-text-secondary border border-border-subtle">
-                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                      <span>{locationDisplay}</span>
-                    </span>
-                  </td>
-
-                  {/* 4. Position */}
-                  <td className="px-3.5 py-2 font-medium text-table-text text-xs whitespace-nowrap">
-                    {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                  </td>
-
-                  {/* 5. Separation Type */}
+                  {/* 3. Separation Type */}
                   <td className="px-3.5 py-2 whitespace-nowrap">
                     <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
                   </td>
 
-                  {/* 6. Separation Date */}
+                  {/* 4. Separation Date */}
                   <td className="px-3.5 py-2 font-mono text-xs text-text-secondary tabular-nums whitespace-nowrap">
                     {formattedDate}
                   </td>
 
-                  {/* 7. Remarks */}
-                  <td className="px-3.5 py-2 text-[11px] text-text-secondary max-w-[240px] truncate" title={remarks !== "—" ? remarks : undefined}>
+                  {/* 5. Status (Pending for Deactivation / Deactivated / Inactive) */}
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    {isDeactivated ? (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                        Deactivated
+                      </span>
+                    ) : isPendingDeactivation ? (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
+                        Pending for Deactivation
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-medium bg-surface-muted text-text-secondary border border-border-default">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
+
+                  {/* 6. Remarks */}
+                  <td className="px-3.5 py-2 text-[11px] text-text-secondary max-w-[200px] truncate" title={remarks !== "—" ? remarks : undefined}>
                     {remarks}
+                  </td>
+
+                  {/* 7. Action */}
+                  <td className="px-3.5 py-2 text-right whitespace-nowrap">
+                    {hasExistingRequest ? (
+                      <span className="text-text-muted text-xs">—</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRequestDeactivation?.(row);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer hover:border-brand-primary hover:text-brand-primary shadow-2xs"
+                        title={`Request deactivation for ${displayName}`}
+                      >
+                        <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
+                        <span>Request Deactivation</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
@@ -4825,10 +4927,12 @@ function EmployeeInactiveCard({
   row,
   onSelect,
   storeLookupMap,
+  onRequestDeactivation,
 }: {
   row: PlantillaEmployeeListItem;
   onSelect: () => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onRequestDeactivation?: (emp: PlantillaEmployeeListItem) => void;
 }) {
   const displayName =
     formatPersonName(
@@ -4857,6 +4961,24 @@ function EmployeeInactiveCard({
     sepBadgeVariant = "danger";
     sepLabel = "Terminated";
   }
+
+  // Deactivation Status Resolution
+  const s = (row.plantillaStatus || "").toLowerCase().trim();
+  const sep = (row.separationType || "").toLowerCase().trim();
+  const isDeactivated = s === "deactivated" || sep === "deactivated";
+  const isPendingDeactivation =
+    s === "pending for deactivation" ||
+    s === "pending_for_deactivation" ||
+    s === "pending deactivation" ||
+    s === "pending_deactivation" ||
+    s === "for deactivation" ||
+    s === "pending separation" ||
+    s === "pending_separation" ||
+    sep === "pending deactivation" ||
+    sep === "pending_deactivation" ||
+    sep === "for deactivation";
+
+  const hasExistingRequest = isDeactivated || isPendingDeactivation;
 
   const sepDateRaw = row.separationDate || row.dateDeployed;
   const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
@@ -4887,16 +5009,29 @@ function EmployeeInactiveCard({
             </h4>
 
             <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
-              <span className="text-text-muted/40">•</span>
-              <span className="font-semibold text-text-secondary truncate">
-                {row.positionTitle || "General Staff"}
-              </span>
+              <span className="font-mono text-text-secondary font-medium">{row.employeeNo || "—"}</span>
+              {row.positionTitle && (
+                <>
+                  <span className="text-text-muted/40">•</span>
+                  <span className="font-semibold text-text-secondary truncate">
+                    {formatPosition(row.positionTitle)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
+            {isDeactivated ? (
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                Deactivated
+              </span>
+            ) : isPendingDeactivation ? (
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
+                Pending Deact
+              </span>
+            ) : null}
             <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
           </div>
         </div>
@@ -4913,7 +5048,7 @@ function EmployeeInactiveCard({
       </div>
 
       <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[60%]">
+        <div className="flex items-center gap-1.5 truncate max-w-[55%]">
           <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
           <span className="truncate font-medium text-text-secondary">
             {formatStoreName(row.primaryStoreName || "—")}
@@ -4921,9 +5056,26 @@ function EmployeeInactiveCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] font-mono text-text-muted">
-          <Calendar className="h-3 w-3 text-text-muted shrink-0" />
-          <span>{formattedDate}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-[11px] font-mono text-text-muted">
+            <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+            <span>{formattedDate}</span>
+          </div>
+
+          {!hasExistingRequest && onRequestDeactivation && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestDeactivation(row);
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-[11px] font-semibold transition cursor-pointer hover:border-brand-primary hover:text-brand-primary shadow-2xs"
+              title={`Request deactivation for ${displayName}`}
+            >
+              <UserMinus className="w-3 h-3 text-text-secondary" />
+              <span>Request Deactivation</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
