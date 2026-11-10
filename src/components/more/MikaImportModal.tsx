@@ -28,6 +28,7 @@ import {
 } from "@/lib/queries/dataControl";
 import { createClient } from "@/lib/supabase/client";
 import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 export interface MikaImportModalProps {
   isOpen?: boolean;
@@ -60,6 +61,16 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
   const { data: pendingLogs = [], refetch: refetchPending, isLoading: isLoadingPending } = useMikaImportLogs("pending");
   const { data: historyLogs = [], isLoading: isLoadingHistory } = useMikaImportLogs("history");
   const { data: inspectRows = [], isLoading: isLoadingInspectRows } = useMikaImportRowsQuery(selectedLogId);
+
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 15;
+  const totalHistoryPages = Math.max(1, Math.ceil(historyLogs.length / HISTORY_PAGE_SIZE));
+  const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
+
+  const paginatedHistoryLogs = useMemo(() => {
+    const startIndex = (safeHistoryPage - 1) * HISTORY_PAGE_SIZE;
+    return historyLogs.slice(startIndex, startIndex + HISTORY_PAGE_SIZE);
+  }, [historyLogs, safeHistoryPage]);
 
   const canApprove = useMemo(() => {
     const role = (currentUser?.roleKey || currentUser?.roleName || "").toLowerCase();
@@ -706,6 +717,7 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                     <thead className="bg-surface-subtle border-b border-border-default text-xs text-text-muted font-bold">
                       <tr>
                         <th className="py-2.5 px-4">File Name</th>
+                        <th className="py-2.5 px-4">Uploaded Rows</th>
                         <th className="py-2.5 px-4">Status</th>
                         <th className="py-2.5 px-4">Uploaded By</th>
                         <th className="py-2.5 px-4">Approved By</th>
@@ -713,9 +725,12 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-subtle bg-surface-primary">
-                      {historyLogs.map((l) => (
+                      {paginatedHistoryLogs.map((l) => (
                         <tr key={l.id} className="hover:bg-surface-hover/50">
                           <td className="py-2.5 px-4 font-semibold text-text-primary">{l.fileName}</td>
+                          <td className="py-2.5 px-4 font-mono text-xs font-semibold text-text-primary">
+                            {l.totalRows} {l.totalRows === 1 ? "row" : "rows"}
+                          </td>
                           <td className="py-2.5 px-4">
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
@@ -736,6 +751,12 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                       ))}
                     </tbody>
                   </table>
+                  <TablePagination
+                    page={safeHistoryPage}
+                    pageSize={HISTORY_PAGE_SIZE}
+                    totalCount={historyLogs.length}
+                    onPageChange={setHistoryPage}
+                  />
                 </div>
               )}
             </div>

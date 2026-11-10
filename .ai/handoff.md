@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — MIKA Import History 15-Item Pagination & Uploaded Rows Column (ohm#h8p4m2x9)
+
+**Status: COMPLETE ON MAIN; ENHANCED MIKA IMPORT HISTORY VIEW (`src/components/more/MikaImportModal.tsx`); ADDED DEDICATED "Uploaded Rows" COLUMN TO THE IMPORT HISTORY TABLE DISPLAYING MONOSPACE TOTAL ROW COUNTS (`l.totalRows`); INTEGRATED STANDARD `TablePagination` COMPONENT CONSTRAINED TO 15 ITEMS PER PAGE WITH RECORD RANGE INDICATORS ("Showing X–Y of Z records"), PREV/NEXT CONTROLS, AND NUMBERED PAGE BUTTONS WITH ELLIPSIS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Missing Row Count Visibility in History**:
+   - The historical log table previously displayed `File Name`, `Status`, `Uploaded By`, `Approved By`, and `Date`, but lacked immediate visibility into the volume of employee rows imported per batch.
+   - Resolution: Added an `Uploaded Rows` column rendering `l.totalRows` with monospace tabular numbers (e.g. `1 row`, `15 rows`).
+2. **Missing Pagination in History Table**:
+   - The history table rendered an unpaginated list of all historical records, which degraded usability as log volume scaled.
+   - Resolution: Integrated `TablePagination` with a fixed `HISTORY_PAGE_SIZE = 15`, dynamic page calculation with safe clamping, and smooth pagination controls flush with the card container border.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`; `MikaImportModal.tsx` has 0 errors and 0 warnings).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Fix MIKA Import False Ghost Detection & Account Banner Cross-Check (ohm#v7g3p9m1)
 
 **Status: COMPLETE ON MAIN; ROOT-CAUSED FALSE GHOST EMPLOYEE DETECTION ON ACTIVE PLANTILLA PERSONNEL (E.G. `2030-36363` / DELA CRUZ, JUAN SANTOS) TO `MikaImportModal.tsx` QUERYING NON-EXISTENT COLUMN `is_active` ON `public.plantilla`, CAUSING POSTGREST 400 ERRORS THAT RETURNED NULL RECORDS AND AN EMPTY LOOKUP MAP; REPLACED WITH VALID COLUMNS (`status`, `is_deleted`, `deactivated_at`, `store_name`, `account`) AND HYDRATED ACTIVE ROVING STORE ALLOCATIONS VIA `public.employee_store_allocations`; EXPANDED SPREADSHEET ACCOUNT VALIDATION TO MATCH AGAINST BOTH ACCOUNT PORTFOLIO (E.G. `ACTISERVE`) AND ASSIGNED STORE / CHAIN BANNERS (E.G. `SUPER 8 DAU` / `SUPER 8`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
