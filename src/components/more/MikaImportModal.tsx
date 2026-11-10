@@ -165,41 +165,37 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
       setStagedRows(converted);
       setIsParsing(false);
 
-      // Perform cross-check with active plantilla
+      // Perform cross-check with active plantilla and official accounts
       setIsCrossChecking(true);
       const supabase = createClient();
       const empNos = converted.map((r) => r.employeeNo).filter(Boolean);
+
+      // 1. Fetch official active accounts
+      const { data: accountsData } = await supabase
+        .from("accounts")
+        .select("account_name")
+        .eq("is_active", true);
+
+      const officialAccountSet = new Set(
+        (accountsData ?? [])
+          .map((a) => (a.account_name ?? "").trim().toUpperCase())
+          .filter(Boolean)
+      );
+
+      // 2. Fetch plantilla records for the batch
       const { data: plantilla, error: plantillaError } = await supabase
         .from("plantilla")
-        .select("employee_no, account, store_name, status, is_deleted, deactivated_at")
+        .select("employee_no, account, status, is_deleted, deactivated_at")
         .in("employee_no", empNos.slice(0, 500));
 
       if (plantillaError) {
         console.error("Plantilla cross-check query error:", plantillaError);
       }
 
-      // Fetch active store allocations for roving employees
-      const { data: storeAllocations } = await supabase
-        .from("employee_store_allocations")
-        .select("employee_no, store_name")
-        .in("employee_no", empNos.slice(0, 500))
-        .eq("is_active", true);
-
-      const allocationStoreMap = new Map<string, string[]>();
-      (storeAllocations ?? []).forEach((alloc) => {
-        if (alloc.employee_no && alloc.store_name) {
-          const key = String(alloc.employee_no).trim().toUpperCase();
-          const list = allocationStoreMap.get(key) ?? [];
-          list.push(String(alloc.store_name).trim());
-          allocationStoreMap.set(key, list);
-        }
-      });
-
       const plantillaMap = new Map<
         string,
         {
           account: string;
-          storeNames: string[];
           status: string;
           isActive: boolean;
         }
@@ -208,15 +204,6 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
       (plantilla ?? []).forEach((p) => {
         if (p.employee_no) {
           const key = String(p.employee_no).trim().toUpperCase();
-          const stores: string[] = [];
-          if (p.store_name) stores.push(String(p.store_name).trim());
-          const allocStores = allocationStoreMap.get(key) ?? [];
-          allocStores.forEach((s) => {
-            if (!stores.some((existing) => existing.toUpperCase() === s.toUpperCase())) {
-              stores.push(s);
-            }
-          });
-
           const isActive =
             p.status === "Active" &&
             p.is_deleted !== true &&
@@ -224,7 +211,6 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
 
           plantillaMap.set(key, {
             account: String(p.account ?? "").trim(),
-            storeNames: stores,
             status: String(p.status ?? "Unknown"),
             isActive,
           });
@@ -233,7 +219,9 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
 
       const evaluated = converted.map((row) => {
         const key = row.employeeNo.trim().toUpperCase();
+        const inputAccountUpper = row.account.trim().toUpperCase();
         const match = plantillaMap.get(key);
+
         if (!match) {
           return { ...row, flagType: "ghost" as const, flagReason: "Possible Ghost Employee (No Plantilla match)" };
         }
@@ -245,30 +233,27 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
           };
         }
 
-        const inputAccountUpper = row.account.trim().toUpperCase();
-        const matchAccountUpper = match.account.toUpperCase();
-        const matchesAccount =
-          inputAccountUpper === matchAccountUpper ||
-          matchAccountUpper.includes(inputAccountUpper) ||
-          inputAccountUpper.includes(matchAccountUpper);
-
-        const matchesStore = match.storeNames.some((st) => {
-          const stUpper = st.toUpperCase();
-          return stUpper === inputAccountUpper || stUpper.includes(inputAccountUpper) || inputAccountUpper.includes(stUpper);
-        });
-
-        if (!matchesAccount && !matchesStore) {
-          const expectedTarget =
-            match.storeNames.length > 0
-              ? `"${match.account}" / "${match.storeNames[0]}"`
-              : `"${match.account}"`;
+        // Check 1: Account must exist in the official accounts list
+        const isOfficialAccount = officialAccountSet.has(inputAccountUpper);
+        if (!isOfficialAccount) {
           return {
             ...row,
             flagType: "blocked" as const,
-            flagReason: `Account mismatch: MIKA has "${row.account}", Plantilla has ${expectedTarget}`,
+            flagReason: `Invalid Account: "${row.account}" is not in the official accounts list.`,
           };
         }
-        return { ...row, flagType: "matched" as const };
+
+        // Check 2: Account must match the employee's assigned account in Plantilla
+        const matchAccountUpper = match.account.toUpperCase();
+        if (inputAccountUpper !== matchAccountUpper) {
+          return {
+            ...row,
+            flagType: "blocked" as const,
+            flagReason: `Account mismatch: MIKA has "${row.account}", Plantilla has "${match.account}".`,
+          };
+        }
+
+        return { ...row, flagType: "matched" as const, flagReason: "Verified match" };
       });
 
       setStagedRows(evaluated);

@@ -473,7 +473,7 @@ export const MIKA_OPTIONAL_HEADERS = [
 export const MIKA_SAMPLE_ROW = [
   "10001",
   "DELA CRUZ, JUAN SANTOS",
-  "SUPER 8",
+  "ACTISERVE",
   "Merchandiser",
   "1990-05-15",
   "SINGLE",

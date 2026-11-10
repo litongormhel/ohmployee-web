@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Strict Official Accounts Whitelist & Block Mismatched Accounts in MIKA Import (ohm#b9k2m7v4)
+
+**Status: COMPLETE ON MAIN; ENFORCED STRICT OFFICIAL ACCOUNTS WHITELIST AND BLOCKED MISMATCHES IN MIKA BIOMETRIC IMPORT (`src/components/more/MikaImportModal.tsx` AND `src/lib/utils/data_control_xlsx.ts`); REPLACED RETAIL STORE / CHAIN BANNER FALLBACK MATCHING WITH EXPLICIT `public.accounts` VALIDATION; PROHIBITED ARBITRARY STORE NAMES (E.G. "SUPER 8") AS VALID ACCOUNTS; FLAGGED UNLISTED ACCOUNTS AND ACCOUNTS MISMATCHING PLANTILLA ASSIGNMENTS AS "BLOCKED" (MISMATCH) WITH EXPLICIT REASONING; UPDATED DOWNLOADABLE TEMPLATE SAMPLE ROW TO "ACTISERVE"; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Separation of Account Portfolios vs. Store Banners**:
+   - In OHMployee architecture, **Accounts** (`public.accounts`) denote client portfolios (e.g., `ACTISERVE`, `BOUNTY`, `ALTURAS`), whereas **Stores** (e.g., `SUPER 8`, `SUPER 8 DAU`) represent retail outlets.
+   - Previously, a loose heuristic allowed store banners to match, which erroneously categorized employee `2030-36363` (`DELA CRUZ, JUAN SANTOS`) with account `"SUPER 8"` as `matched` because their assigned primary store was `"SUPER 8 DAU"`.
+   - The user mandated: `"this should be BLOCK. All accounts na wala sa list must be blocked."`
+2. **Strict Official Account Whitelist Validation (`MikaImportModal.tsx`)**:
+   - Added query to fetch active official accounts from `public.accounts` (`select("account_name").eq("is_active", true)`).
+   - Removed store/chain banner fallback check (`matchesStore`) and store allocation map queries.
+   - Enforced Check 1 (Official Account Whitelist): If `row.account` is not in `officialAccountSet`, the row is flagged as `"blocked"` with reason: `Invalid Account: "${row.account}" is not in the official accounts list.`
+   - Enforced Check 2 (Plantilla Account Match): If `row.account` differs from the employee's assigned account in `public.plantilla`, the row is flagged as `"blocked"` with reason: `Account mismatch: MIKA has "${row.account}", Plantilla has "${match.account}".`
+   - Verified matches strictly require an active employee in Plantilla whose assigned account exactly matches the row's account.
+3. **Template Sample Row Correction (`data_control_xlsx.ts`)**:
+   - Updated `MIKA_SAMPLE_ROW` from `"SUPER 8"` to `"ACTISERVE"` to prevent users who download the official template from adopting invalid store names as accounts.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Security Hardening Batch A (ohm#k7q2m9x4)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED SECURITY HARDENING BATCH A ACROSS `./src`; ADDED SHARED PostgREST `.or()` SANITIZER `sanitizeOrTerm` (`src/lib/utils/postgrest.ts`) STRIPPING `, ( ) " \` WHILE PRESERVING `.` FOR FUZZY SEARCH (ILIKE); GUARDED EXACT-MATCH / ID SITES IN `hr_emploc.ts` AND `plantilla.ts` REJECTING DELIMITER CHARACTERS WITHOUT MUTATING VALUES; ADDED ACTIVE WEB PROFILE & ROLE GUARD TO `/api/ohmni` ROUTE VIA `get_web_current_user_context` (FAILING CLOSED WITH 403 BEFORE LLM/TOOL EXECUTION); ADDED FORMULA INJECTION ESCAPING TO `exportToCsv` IN `reports_export.ts` PREFIXING `'` TO STRING CELLS STARTING WITH `=`, `+`, `-`, `@`, `\t`, `\r` WHILE EXEMPTING PURE-NUMERIC STRINGS; REMOVED DEAD "Forgot?" LINK ON LOGIN PAGE; MECHANICAL GATES CLEAN (`pnpm lint`: 0 ERRORS; `pnpm test`: 28/28 PASSED)**
