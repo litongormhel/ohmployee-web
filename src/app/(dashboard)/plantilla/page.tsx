@@ -1227,6 +1227,7 @@ function PlantillaPageContent() {
           hcTotal: 1,
           hcDisplay: "0/1",
           lastActivityAt: null,
+          remarks: emp.separationRemarks || emp.remarks || null,
           stageBadge: "Vacancy - Open",
           rowCapabilities: {
             canViewDetail: true,
@@ -1303,8 +1304,9 @@ function PlantillaPageContent() {
         const pos = (v.position_title || "").toLowerCase();
         const vcode = (v.vcode || v.cgCode || "").toLowerCase();
         const applicant = (v.applicantName || "").toLowerCase();
+        const remarks = (v.remarks || v.opsRemarks || v.recruitmentRemarks || v.hrRemarks || "").toLowerCase();
         const stageStr = stage.toLowerCase();
-        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q) && !applicant.includes(q) && !stageStr.includes(q)) return false;
+        if (!store.includes(q) && !pos.includes(q) && !vcode.includes(q) && !applicant.includes(q) && !remarks.includes(q) && !stageStr.includes(q)) return false;
       }
 
       if (areaCityFilter) {
@@ -3592,7 +3594,14 @@ function StoreVacancyTable({
               const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : "—";
               const stage = resolveVacancyWorkflowStage(row);
               const agingDaysDisplay = row.agingDays != null ? `${row.agingDays}d` : "—";
-              const remarksText = row.closureReason?.trim() || "—";
+              const remarksText = (
+                row.remarks ||
+                row.opsRemarks ||
+                row.recruitmentRemarks ||
+                row.hrRemarks ||
+                row.closureReason ||
+                ""
+              ).trim() || "—";
               const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
               const rowHcFilled = row.hcFilled ?? 0;
               const remainingCapacity = getVacancyRemainingCapacity(row);
@@ -4525,6 +4534,14 @@ function VacancyCard({
   const rowHcFilled = row.hcFilled ?? 0;
   const remainingCapacity = getVacancyRemainingCapacity(row);
   const slotDisplay = remainingCapacity;
+  const remarksDisplay = (
+    row.remarks ||
+    row.opsRemarks ||
+    row.recruitmentRemarks ||
+    row.hrRemarks ||
+    row.closureReason ||
+    ""
+  ).trim();
 
   return (
     <div
@@ -4590,6 +4607,14 @@ function VacancyCard({
         ) : (
           <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-dashed border-border-subtle bg-surface-muted/20 px-2.5 py-1.5 text-xs text-text-muted">
             <span>No active applicant assigned</span>
+          </div>
+        )}
+
+        {remarksDisplay && (
+          <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-border-subtle bg-surface-muted/30 px-2.5 py-1.5 text-xs text-text-secondary" title={remarksDisplay}>
+            <span className="truncate italic font-medium">
+              &ldquo;{remarksDisplay}&rdquo;
+            </span>
           </div>
         )}
       </div>

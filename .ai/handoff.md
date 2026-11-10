@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
+
+**Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Plantilla Vacancy Table Remarks (`StoreVacancyTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, updated the `Remarks` column resolution in `StoreVacancyTable`. Instead of exclusively reading `row.closureReason` (which defaulted to `—` for all active vacancies), it now resolves with waterfall priority: `row.remarks || row.opsRemarks || row.recruitmentRemarks || row.hrRemarks || row.closureReason || "—"`.
+   - In `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`), added a remarks quote box rendering `remarksDisplay` whenever operational/recruitment remarks exist, preserving Table and Cards view-mode parity (Permanent Architectural Rule #3).
+   - In `filteredVacancies` client-side search, included remarks in the search predicate so users can search across remarks directly.
+2. **Vacancy Data Query Layer (`listVacancies`)**:
+   - In `src/lib/queries/vacancy.ts`, extended `VacancyListItem` interface with optional `remarks`, `opsRemarks`, `recruitmentRemarks`, and `hrRemarks`.
+   - In `listVacancies`, added `recruitment_remarks, ops_remarks, remarks` to candidate queries from `public.applicants`, and `ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason` to `public.hr_emploc` queries.
+   - For each vacancy row, resolved remarks based on the active workflow stage:
+     - **HR Emploc Priority**: Resolves `hr_remarks` (deficiency/rejection comments when an issue is tagged), issue notes in `correction_reason`, `ops_remarks`, or `employee_lookup_remarks`.
+     - **ATS Pipeline Priority**: Resolves latest of `ops_remarks`, `recruitment_remarks`, or general `remarks`.
+     - **Open/Synthesized Priority**: Falls back to vacancy requisition remarks or separation remarks from vacated inactive plantilla.
+3. **HR Emploc Remarks Queue Prioritization (`normalizeHrEmplocRemarks`)**:
+   - In `src/lib/queries/hr_emploc.ts`, refined `normalizeHrEmplocRemarks`: when records are in correction or review queues (`isIssueQueue`), `hr_remarks` and correction notes take precedence over older ops notes so that active deficiencies/issues are immediately visible.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
 
 **Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4395,6 +4420,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
+
+**Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Plantilla Vacancy Table Remarks (`StoreVacancyTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, updated the `Remarks` column resolution in `StoreVacancyTable`. Instead of exclusively reading `row.closureReason` (which defaulted to `—` for all active vacancies), it now resolves with waterfall priority: `row.remarks || row.opsRemarks || row.recruitmentRemarks || row.hrRemarks || row.closureReason || "—"`.
+   - In `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`), added a remarks quote box rendering `remarksDisplay` whenever operational/recruitment remarks exist, preserving Table and Cards view-mode parity (Permanent Architectural Rule #3).
+   - In `filteredVacancies` client-side search, included remarks in the search predicate so users can search across remarks directly.
+2. **Vacancy Data Query Layer (`listVacancies`)**:
+   - In `src/lib/queries/vacancy.ts`, extended `VacancyListItem` interface with optional `remarks`, `opsRemarks`, `recruitmentRemarks`, and `hrRemarks`.
+   - In `listVacancies`, added `recruitment_remarks, ops_remarks, remarks` to candidate queries from `public.applicants`, and `ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason` to `public.hr_emploc` queries.
+   - For each vacancy row, resolved remarks based on the active workflow stage:
+     - **HR Emploc Priority**: Resolves `hr_remarks` (deficiency/rejection comments when an issue is tagged), issue notes in `correction_reason`, `ops_remarks`, or `employee_lookup_remarks`.
+     - **ATS Pipeline Priority**: Resolves latest of `ops_remarks`, `recruitment_remarks`, or general `remarks`.
+     - **Open/Synthesized Priority**: Falls back to vacancy requisition remarks or separation remarks from vacated inactive plantilla.
+3. **HR Emploc Remarks Queue Prioritization (`normalizeHrEmplocRemarks`)**:
+   - In `src/lib/queries/hr_emploc.ts`, refined `normalizeHrEmplocRemarks`: when records are in correction or review queues (`isIssueQueue`), `hr_remarks` and correction notes take precedence over older ops notes so that active deficiencies/issues are immediately visible.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
 
 **Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4918,6 +4968,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
+
+**Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Plantilla Vacancy Table Remarks (`StoreVacancyTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, updated the `Remarks` column resolution in `StoreVacancyTable`. Instead of exclusively reading `row.closureReason` (which defaulted to `—` for all active vacancies), it now resolves with waterfall priority: `row.remarks || row.opsRemarks || row.recruitmentRemarks || row.hrRemarks || row.closureReason || "—"`.
+   - In `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`), added a remarks quote box rendering `remarksDisplay` whenever operational/recruitment remarks exist, preserving Table and Cards view-mode parity (Permanent Architectural Rule #3).
+   - In `filteredVacancies` client-side search, included remarks in the search predicate so users can search across remarks directly.
+2. **Vacancy Data Query Layer (`listVacancies`)**:
+   - In `src/lib/queries/vacancy.ts`, extended `VacancyListItem` interface with optional `remarks`, `opsRemarks`, `recruitmentRemarks`, and `hrRemarks`.
+   - In `listVacancies`, added `recruitment_remarks, ops_remarks, remarks` to candidate queries from `public.applicants`, and `ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason` to `public.hr_emploc` queries.
+   - For each vacancy row, resolved remarks based on the active workflow stage:
+     - **HR Emploc Priority**: Resolves `hr_remarks` (deficiency/rejection comments when an issue is tagged), issue notes in `correction_reason`, `ops_remarks`, or `employee_lookup_remarks`.
+     - **ATS Pipeline Priority**: Resolves latest of `ops_remarks`, `recruitment_remarks`, or general `remarks`.
+     - **Open/Synthesized Priority**: Falls back to vacancy requisition remarks or separation remarks from vacated inactive plantilla.
+3. **HR Emploc Remarks Queue Prioritization (`normalizeHrEmplocRemarks`)**:
+   - In `src/lib/queries/hr_emploc.ts`, refined `normalizeHrEmplocRemarks`: when records are in correction or review queues (`isIssueQueue`), `hr_remarks` and correction notes take precedence over older ops notes so that active deficiencies/issues are immediately visible.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
 
 ## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
 
@@ -5466,6 +5541,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
+
+**Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Plantilla Vacancy Table Remarks (`StoreVacancyTable`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, updated the `Remarks` column resolution in `StoreVacancyTable`. Instead of exclusively reading `row.closureReason` (which defaulted to `—` for all active vacancies), it now resolves with waterfall priority: `row.remarks || row.opsRemarks || row.recruitmentRemarks || row.hrRemarks || row.closureReason || "—"`.
+   - In `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`), added a remarks quote box rendering `remarksDisplay` whenever operational/recruitment remarks exist, preserving Table and Cards view-mode parity (Permanent Architectural Rule #3).
+   - In `filteredVacancies` client-side search, included remarks in the search predicate so users can search across remarks directly.
+2. **Vacancy Data Query Layer (`listVacancies`)**:
+   - In `src/lib/queries/vacancy.ts`, extended `VacancyListItem` interface with optional `remarks`, `opsRemarks`, `recruitmentRemarks`, and `hrRemarks`.
+   - In `listVacancies`, added `recruitment_remarks, ops_remarks, remarks` to candidate queries from `public.applicants`, and `ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason` to `public.hr_emploc` queries.
+   - For each vacancy row, resolved remarks based on the active workflow stage:
+     - **HR Emploc Priority**: Resolves `hr_remarks` (deficiency/rejection comments when an issue is tagged), issue notes in `correction_reason`, `ops_remarks`, or `employee_lookup_remarks`.
+     - **ATS Pipeline Priority**: Resolves latest of `ops_remarks`, `recruitment_remarks`, or general `remarks`.
+     - **Open/Synthesized Priority**: Falls back to vacancy requisition remarks or separation remarks from vacated inactive plantilla.
+3. **HR Emploc Remarks Queue Prioritization (`normalizeHrEmplocRemarks`)**:
+   - In `src/lib/queries/hr_emploc.ts`, refined `normalizeHrEmplocRemarks`: when records are in correction or review queues (`isIssueQueue`), `hr_remarks` and correction notes take precedence over older ops notes so that active deficiencies/issues are immediately visible.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
 
 ## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
 

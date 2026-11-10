@@ -230,21 +230,40 @@ export class HrEmplocDataError extends Error {
 export function normalizeHrEmplocRemarks(row?: unknown, caps?: unknown): string | null {
   const r = asObject(row);
   const c = asObject(caps);
-  const candidates = [
-    r.ops_remarks,
-    r.opsRemarks,
-    c.ops_remarks,
-    c.opsRemarks,
-    c.remarks,
-    r.remarks,
-    r.hr_remarks,
-    r.hrRemarks,
-    c.hr_remarks,
-    r.hrco_remarks,
-    r.hrcoRemarks,
-    r.notes,
-    c.notes,
-  ];
+  const statusStr = (asString(r.hr_status ?? r.hrStatus ?? r.status) || "").toLowerCase().trim();
+  const isIssueQueue = statusStr.includes("correction") || statusStr.includes("review");
+
+  const candidates = isIssueQueue
+    ? [
+        r.hr_remarks,
+        r.hrRemarks,
+        c.hr_remarks,
+        r.ops_remarks,
+        r.opsRemarks,
+        c.ops_remarks,
+        c.opsRemarks,
+        c.remarks,
+        r.remarks,
+        r.hrco_remarks,
+        r.hrcoRemarks,
+        r.notes,
+        c.notes,
+      ]
+    : [
+        r.ops_remarks,
+        r.opsRemarks,
+        c.ops_remarks,
+        c.opsRemarks,
+        r.hr_remarks,
+        r.hrRemarks,
+        c.hr_remarks,
+        c.remarks,
+        r.remarks,
+        r.hrco_remarks,
+        r.hrcoRemarks,
+        r.notes,
+        c.notes,
+      ];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.trim().length > 0) {
       return candidate.trim();

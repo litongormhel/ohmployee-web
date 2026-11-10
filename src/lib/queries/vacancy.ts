@@ -87,6 +87,10 @@ export type VacancyListItem = {
   hiredDate?: string | null;
   daysToFill?: number | null;
   stageBadge?: string | null;
+  remarks?: string | null;
+  opsRemarks?: string | null;
+  recruitmentRemarks?: string | null;
+  hrRemarks?: string | null;
   closureReason?: string | null;
   closureRequestedBy?: string | null;
   closureRequestedAt?: string | null;
@@ -606,6 +610,10 @@ function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     hiredDate,
     profileEditCount: asNumber(row.profile_edit_count ?? row.applicant_profile_edit_count) ?? 0,
     stageBadge: asString(row.stage_badge ?? row.stage ?? row.top_applicant_status),
+    remarks: asString(row.remarks ?? row.hrco_remarks ?? row.notes),
+    opsRemarks: asString(row.ops_remarks ?? row.opsRemarks),
+    recruitmentRemarks: asString(row.recruitment_remarks ?? row.recruitmentRemarks),
+    hrRemarks: asString(row.hr_remarks ?? row.hrRemarks),
     closureReason: asString(row.closure_reason ?? row.reason),
     closureRequestedBy: asString(row.closure_requested_by ?? row.requested_by ?? row.requested_by_name),
     closureRequestedAt: asString(row.closure_requested_at ?? row.requested_at),
@@ -1233,6 +1241,9 @@ export async function listVacancies(params: VacancyListParams) {
           full_name,
           contact_number,
           status,
+          recruitment_remarks,
+          ops_remarks,
+          remarks,
           created_at,
           updated_at,
           profile_edit_count,
@@ -1399,6 +1410,9 @@ export async function listVacancies(params: VacancyListParams) {
             endorsedByName: asString(c.recruited_by_name) || null,
             hiredDate: null,
             stageBadge,
+            remarks: asString(c.ops_remarks ?? c.recruitment_remarks ?? c.remarks) || null,
+            opsRemarks: asString(c.ops_remarks) || null,
+            recruitmentRemarks: asString(c.recruitment_remarks) || null,
             profileEditCount: asNumber(c.profile_edit_count) ?? 0,
             hasPenalty: false,
             penaltyExposure: 0,
@@ -1654,6 +1668,9 @@ export async function listVacancies(params: VacancyListParams) {
           has_pending_closure,
           closure_request_status,
           status,
+          recruitment_remarks,
+          ops_remarks,
+          remarks,
           created_at,
           updated_at,
           hrco_name,
@@ -2279,13 +2296,13 @@ export async function listVacancies(params: VacancyListParams) {
       const [applicantsRes, emplocRes, plantillaRes] = await Promise.all([
         supabase
           .from("applicants")
-          .select("id, vacancy_vcode, first_name, last_name, middle_name, full_name, contact_number, status, hired_date, backout_reason, backout_date, created_at, updated_at")
+          .select("id, vacancy_vcode, first_name, last_name, middle_name, full_name, contact_number, status, hired_date, backout_reason, backout_date, recruitment_remarks, ops_remarks, remarks, created_at, updated_at")
           .in("vacancy_vcode", allVcodes)
           .eq("is_archived", false)
           .order("created_at", { ascending: false }),
         supabase
           .from("hr_emploc")
-          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, created_at, updated_at")
+          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at")
           .in("vcode", allVcodes)
           .is("deleted_at", null)
           .neq("status", "Moved to Plantilla")
@@ -2378,6 +2395,27 @@ export async function listVacancies(params: VacancyListParams) {
               row.stageBadge = "HR Emploc - Pending";
             }
             row.pipelineStatus = row.stageBadge;
+
+            // Resolve latest remarks for HR Emploc
+            const hrRem = asString(emploc.hr_remarks)?.trim() || null;
+            const opsRem = asString(emploc.ops_remarks)?.trim() || null;
+            let issueRem: string | null = null;
+            if (emploc.correction_reason) {
+              const cr = emploc.correction_reason;
+              if (Array.isArray(cr) && cr.length > 0) {
+                const first = asObject(cr[0]);
+                issueRem = asString(first.comment ?? first.label ?? first.code)?.trim() || null;
+              } else if (typeof cr === "object" && cr !== null) {
+                const crObj = asObject(cr);
+                issueRem = asString(crObj.comment ?? crObj.reason ?? crObj.label)?.trim() || null;
+              }
+            }
+            const lookupRem = asString(emploc.employee_lookup_remarks)?.trim() || null;
+            // If in HR Emploc and has an issue, hr_remarks or issue reason takes priority, then ops_remarks
+            const latestEmplocRemarks = hrRem || issueRem || opsRem || lookupRem || null;
+            row.hrRemarks = hrRem;
+            row.opsRemarks = opsRem;
+            row.remarks = latestEmplocRemarks || row.remarks || null;
           } else if (active) {
             // Priority 2: Candidate in initial recruitment pipeline
             row.applicantId = asString(active.id);
@@ -2409,6 +2447,16 @@ export async function listVacancies(params: VacancyListParams) {
               row.stageBadge = "Vacancy - Pipeline";
             }
             row.pipelineStatus = row.stageBadge;
+
+            // Resolve latest remarks for ATS Pipeline applicant: Ops / Recruitment remarks
+            const appOpsRem = asString(active.ops_remarks)?.trim() || null;
+            const appRecRem = asString(active.recruitment_remarks)?.trim() || null;
+            const appRem = asString(active.remarks)?.trim() || null;
+            const latestAppRemarks = appOpsRem || appRecRem || appRem || null;
+
+            row.opsRemarks = appOpsRem;
+            row.recruitmentRemarks = appRecRem;
+            row.remarks = latestAppRemarks || row.remarks || null;
           } else {
             // Priority 3: Vacant slot with no applicant attached
             row.applicantId = null;

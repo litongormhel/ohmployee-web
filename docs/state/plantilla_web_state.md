@@ -95,7 +95,7 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
      6. `Aging`: Aging days (`Xd`) calculated from Effective Vacancy Date (`vacantDate`).
      7. `Position`: Position title.
      8. `Slot`: Dynamic capacity badge: `${remainingCapacity} Vacant (${hcFilled}/${hcTotal})` for multi-headcount requisitions or `${remainingCapacity || 1} Vacant` for single-slot lines.
-     9. `Remarks`: Free-text notes (empty state: `—`).
+     9. `Remarks`: Displays latest operational/recruitment remarks (`ops_remarks`, `recruitment_remarks`, or general `remarks` from candidate pipeline, or `hr_remarks`, `correction_reason`, or `ops_remarks` from HR Emploc issues, with fallback to vacancy requisition remarks or empty state: `—`). Also rendered as a quote pill in Card view for full view-mode parity.
    - **Row Interaction**: Entire row has `cursor: pointer` and opens the interactive `VacancyDetailDrawer` with inline editable Effective Vacancy Date (`vacantDate`) for instant reactive aging recalculation.
 
 4. **Tab 4: Floating** (All Floating Employees Only)
