@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Refactor Plantilla Directory Account Cards (ohm#d7k2p9x1)
+
+**Status: COMPLETE ON MAIN; PLANTILLA DIRECTORY ACCOUNT CARDS REFACTORED (REMOVED CHEVRON, INTEGRATED CONCURRENT LEAVE COUNT WITH ZERO-STATE PRESERVATION); SCOPE-EXPANSION SYNTAX FIX APPLIED TO `src/app/(dashboard)/users/page.tsx`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Removed Chevron Icon**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, removed the top-right `<ChevronRight className="h-4 w-4 text-text-secondary/60 ... shrink-0" />` from the header group of each directory account card.
+   - Retained the status badge (`Pool` / `Warning`) and the three-dots action menu (`⋮`, `MoreVertical`) with `e.stopPropagation()` protection.
+   - Preserved full card container clickability via `handleSelectAccount(account.id)` and keyboard accessibility (`Enter` / `Space`).
+2. **Added Leave Count**:
+   - In `accountMetricsQuery` (`src/app/(dashboard)/plantilla/page.tsx`), executed concurrent query to `public.plantilla` (`status IN ('On Leave', 'on_leave')`, not deleted, not archived, not deactivated/separated) to compute live leave headcount per account alongside `v_account_allocation_kpi`.
+   - Updated `getAccountSummary` and `sortedAccounts` to include `leave`.
+   - Rendered `• Leave {count}` in the stats row alongside `HC`, `Vacant`, and `Pipeline`. Zero-state is handled cleanly by rendering `• Leave {count}` conditionally when `account.leave > 0`, preserving layout space on cards without active leaves.
+3. **Approved Scope-Expansion Fix (`src/app/(dashboard)/users/page.tsx`)**:
+   - Resolved pre-existing JSX syntax error from merge commit `b8887f5` (`TS17008: JSX element 'div' has no corresponding closing tag`) by closing `<div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-xs">` at line 376.
+   - Added missing imports (`UserMetricsCards`, `UserX`) and restored the `pageFeedback` banner.
+
+### 2. Verification & Mechanical Gates
+- `npx eslint "src/app/(dashboard)/plantilla/page.tsx"`: 0 errors, 0 warnings.
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Fix Migration `20262606000079` Null `slot_ordinal` in `plantilla_slots` (ohm#fix-mig-23502-slot-ordinal)
 
 **Status: COMPLETE ON MAIN; MIGRATION `20262606000079_reopen_vacancies_for_inactive_plantilla.sql` SURGICALLY PATCHED (ADDED `slot_ordinal` WITH CANONICAL DERIVATION `COALESCE(MAX(slot_ordinal), 0) + 1` TO `INSERT INTO public.plantilla_slots`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

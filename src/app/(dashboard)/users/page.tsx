@@ -3,9 +3,9 @@
 import { useState, useMemo } from "react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
-import { SegmentedTabs } from "@/components/shared/SegmentedTabs";
 import { Modal } from "@/components/shared/Modal";
 import { UsersTable } from "@/components/users/UsersTable";
+import { UserMetricsCards } from "@/components/users/UserMetricsCards";
 import { UserDetailDrawer } from "@/components/users/UserDetailDrawer";
 import { CreateUserModal } from "@/components/users/CreateUserModal";
 import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
@@ -26,6 +26,7 @@ import {
   UserPlus,
   ShieldAlert,
   UserCheck,
+  UserX,
   Clock,
   AlertTriangle,
   CheckCircle2,
@@ -298,6 +299,23 @@ export default function UsersPage() {
         }
       />
 
+      {/* Page Feedback Banner */}
+      {pageFeedback && (
+        <div
+          className={`flex items-center gap-2 rounded-xl p-3 text-xs font-medium border ${
+            pageFeedback.type === "success"
+              ? "bg-surface-subtle text-text-primary border-border-default"
+              : "bg-danger-subtle text-danger-text border-danger-border"
+          }`}
+        >
+          {pageFeedback.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-pct-high" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-danger-icon" />
+          )}
+          <span>{pageFeedback.text}</span>
+        </div>
+      )}
 
       {/* Top KPI Metrics Grid */}
       <UserMetricsCards
@@ -373,6 +391,7 @@ export default function UsersPage() {
             </button>
           </div>
         </div>
+      </div>
 
       {/* Main Directory Container */}
       <div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-2xs">

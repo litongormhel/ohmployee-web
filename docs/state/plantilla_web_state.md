@@ -993,6 +993,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Regression Test Suite (`scripts/tests/plantilla_import_regression.sql`)**:
     - Enhanced test harness asserting: stationary evaluation, roving submission (`pending_approval`, 0 flagged), roving approval, rollback readiness, vacant-only batch lineage immunity, direct executor execution denial (`42501`), protected occupant abort, real request then approve flow, zero-edit lock enforcement, and full 6-table post-rollback baseline comparison (stores active, slots total/occupied/open, allocations, plantilla, store_links, vacancies). All assertions verified passing on Staging with zero rows persisted.
 
+- **Plantilla Directory Account Cards Refactor (`ohm#d7k2p9x1` — 2026-11-10)**:
+  - **Header Cleanup (Chevron Removal)**: Removed right-chevron (`>`) icon from the top-right header of each directory account card. Retained the status badge (`Pool` / `Warning`) and the three-dots action menu (`⋮`) with `stopPropagation()` isolation. Entire card container remains fully interactive and clickable (`role="button"`, `onClick={() => handleSelectAccount(account.id)}`, keyboard accessible).
+  - **Leave Count Metric Integration**: In `accountMetricsQuery` (`src/app/(dashboard)/plantilla/page.tsx`), added concurrent query to `public.plantilla` (`status IN ('On Leave', 'on_leave')`, not deleted, not archived, not deactivated/separated) to tally active on-leave headcount per account. Added `• Leave {count}` to the card's stats row alongside `HC`, `Vacant`, and `Pipeline`, conditionally rendered when `leave > 0` to preserve horizontal layout space.
+
+
 
 
 

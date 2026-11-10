@@ -773,15 +773,37 @@ function PlantillaPageContent() {
     queryKey: ["plantilla", "account-allocation-kpi"],
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("v_account_allocation_kpi")
-        .select("account_id, actual_hc, slot_vacant_hc, pipeline_count, required_hc");
-      if (error) {
-        console.warn("[Plantilla] Could not fetch batch account metrics from v_account_allocation_kpi:", error);
-        return new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number }>();
+      const [kpiRes, leaveRes] = await Promise.all([
+        supabase
+          .from("v_account_allocation_kpi")
+          .select("account_id, actual_hc, slot_vacant_hc, pipeline_count, required_hc"),
+        supabase
+          .from("plantilla")
+          .select("account_id")
+          .in("status", ["On Leave", "on_leave"])
+          .is("deactivated_at", null)
+          .is("date_of_separation", null)
+          .or("is_deleted.is.null,is_deleted.eq.false")
+          .or("is_archived.is.null,is_archived.eq.false"),
+      ]);
+
+      if (kpiRes.error) {
+        console.warn("[Plantilla] Could not fetch batch account metrics from v_account_allocation_kpi:", kpiRes.error);
+        return new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number; leave: number }>();
       }
-      const map = new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number }>();
-      (data ?? []).forEach((row) => {
+
+      const leaveMap = new Map<string, number>();
+      if (!leaveRes.error && Array.isArray(leaveRes.data)) {
+        for (const row of leaveRes.data) {
+          if (row.account_id) {
+            const accId = String(row.account_id);
+            leaveMap.set(accId, (leaveMap.get(accId) ?? 0) + 1);
+          }
+        }
+      }
+
+      const map = new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number; leave: number }>();
+      (kpiRes.data ?? []).forEach((row) => {
         let actual = Number(row.actual_hc ?? 0);
         let vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
         const hrProcess = Number(row.pipeline_count ?? 0);
@@ -792,7 +814,8 @@ function PlantillaPageContent() {
           vacant = 3;
         }
         const fillRate = required > 0 ? (actual / required) * 100 : 0;
-        map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate });
+        const leave = leaveMap.get(String(row.account_id)) ?? 0;
+        map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate, leave });
       });
       return map;
     },
@@ -1492,7 +1515,7 @@ function PlantillaPageContent() {
     if (accountMetricsQuery.data?.has(accId)) {
       return accountMetricsQuery.data.get(accId)!;
     }
-    return { required: 0, actual: 0, hrProcess: 0, vacant: 0, fillRate: 0 };
+    return { required: 0, actual: 0, hrProcess: 0, vacant: 0, fillRate: 0, leave: 0 };
   }
 
   function handleSwitchView(mode: PlantillaViewMode) {
@@ -1662,6 +1685,7 @@ function PlantillaPageContent() {
                   const actual = summary.actual;
                   const vacant = summary.vacant;
                   const hrProcess = summary.hrProcess;
+                  const leave = summary.leave;
                   const required = actual + vacant;
                   const fillRate = required > 0 ? (actual / required) * 100 : 0;
 
@@ -1670,6 +1694,7 @@ function PlantillaPageContent() {
                     actual,
                     vacant,
                     hrProcess,
+                    leave,
                     required,
                     fillRate,
                   };
@@ -1831,8 +1856,6 @@ function PlantillaPageContent() {
                               </div>
                             )}
                           </div>
-
-                          <ChevronRight className="h-4 w-4 text-text-secondary/60 transition-transform group-hover:translate-x-0.5 shrink-0" />
                         </div>
                       </div>
 
@@ -1850,6 +1873,14 @@ function PlantillaPageContent() {
                             <span className="text-text-secondary/40">•</span>
                             <span>
                               Pipeline <strong className="text-text-primary font-bold">{account.hrProcess}</strong>
+                            </span>
+                          </>
+                        )}
+                        {account.leave > 0 && (
+                          <>
+                            <span className="text-text-secondary/40">•</span>
+                            <span>
+                              Leave <strong className="text-text-primary font-bold">{account.leave}</strong>
                             </span>
                           </>
                         )}
