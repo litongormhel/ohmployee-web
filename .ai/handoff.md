@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Fix MIKA Import False Ghost Detection & Account Banner Cross-Check (ohm#v7g3p9m1)
+
+**Status: COMPLETE ON MAIN; ROOT-CAUSED FALSE GHOST EMPLOYEE DETECTION ON ACTIVE PLANTILLA PERSONNEL (E.G. `2030-36363` / DELA CRUZ, JUAN SANTOS) TO `MikaImportModal.tsx` QUERYING NON-EXISTENT COLUMN `is_active` ON `public.plantilla`, CAUSING POSTGREST 400 ERRORS THAT RETURNED NULL RECORDS AND AN EMPTY LOOKUP MAP; REPLACED WITH VALID COLUMNS (`status`, `is_deleted`, `deactivated_at`, `store_name`, `account`) AND HYDRATED ACTIVE ROVING STORE ALLOCATIONS VIA `public.employee_store_allocations`; EXPANDED SPREADSHEET ACCOUNT VALIDATION TO MATCH AGAINST BOTH ACCOUNT PORTFOLIO (E.G. `ACTISERVE`) AND ASSIGNED STORE / CHAIN BANNERS (E.G. `SUPER 8 DAU` / `SUPER 8`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Non-Existent Column `is_active` in Plantilla Cross-Check**:
+   - Root cause: In `MikaImportModal.tsx` (line 153), the spreadsheet cross-check performed:
+     ```ts
+     const { data: plantilla } = await supabase
+       .from("plantilla")
+       .select("employee_no, account, is_active")
+       .in("employee_no", empNos.slice(0, 500));
+     ```
+   - PostgreSQL schema for `public.plantilla` tracks active deployment via `status` ('Active', 'On Leave', etc.), `deactivated_at`, and `is_deleted`. There is **no `is_active` column**.
+   - PostgREST returned error `PGRST204: Could not find the 'is_active' column of 'plantilla' in the schema cache` with `data: null`.
+   - `plantillaMap` remained empty for every uploaded employee. Consequently, every active employee was flagged as:
+     `flagType: "ghost"`, `flagReason: "Possible Ghost Employee (No Plantilla match)"`.
+2. **Account Portfolio vs Store Banner Discrepancy**:
+   - Root cause: Merchandisers and store operations frequently fill in the store chain banner (e.g. `SUPER 8`) rather than the mother account portfolio (e.g. `ACTISERVE`) in the MIKA Account column (the MIKA download template itself provides `SUPER 8` in its sample row).
+   - Strict equality against only `plantilla.account` would block valid personnel under `"Account mismatch: MIKA has 'SUPER 8', Plantilla has 'ACTISERVE'"`.
+3. **Surgical Cross-Check Hardening**:
+   - In `MikaImportModal.tsx`, updated the query to:
+     ```ts
+     .select("employee_no, account, store_name, status, is_deleted, deactivated_at")
+     ```
+   - Also fetched active roving allocations from `employee_store_allocations` (`eq("is_active", true)`).
+   - Verified active state using `p.status === 'Active' && !p.is_deleted && !p.deactivated_at`.
+   - Allowed cross-check matches if `row.account` matches either the employee's account portfolio (case-insensitive substring) OR any of their assigned store / chain banner names (e.g. `"SUPER 8"` matches `"SUPER 8 DAU"`).
+   - Flagged genuinely inactive/separated personnel as `"Inactive in Plantilla (status: ...)"` and truly missing personnel as `"Possible Ghost Employee (No Plantilla match)"`.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`; `MikaImportModal.tsx` has 0 errors and 0 warnings).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Fix Column Mapping date_hired in MIKA Import Row Ingestion (ohm#m1k8f4p2)
 
 **Status: COMPLETE ON MAIN; RESOLVED MIKA IMPORT SUBMISSION FAILURE ("Failed to submit MIKA import log."); ROOT-CAUSED TO CAMELCASE `dateHired` COLUMN KEY BEING PASSED TO `public.mika_import_rows` INSERTION IN `submitMikaImport` (`src/lib/queries/dataControl.ts`), FAILING AGAINST POSTGRESQL SCHEMA COLUMN `date_hired`; SURGICALLY CORRECTED TO `date_hired: r.dateHired ?? null`; ADDED AUTOMATIC HEADER LOG CLEANUP (`await supabase.from("mika_import_logs").delete().eq("id", importLogId)`) TO PREVENT ORPHANED HEADER RECORDS ON INGESTION FAILURE; HARDENED ERROR EXTRACTION IN `src/components/more/MikaImportModal.tsx` TO TRANSPARENTLY SURFACE ERROR MESSAGES ACROSS `handleSubmit`, `handleApproveLog`, AND `handleRejectLog`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
