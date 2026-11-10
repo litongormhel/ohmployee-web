@@ -380,11 +380,13 @@ Per **Rule #5 (Employee Detail Navigation & State Preservation Contract)**, clic
   - Avatar initials, Employee Full Name, Semantic Status Badge (`Active`, `On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
   - Metadata strip: Employee ID (`Emploc#`), VCode, Assigned Store, Position, Date Hired, and dynamic Tenure calculation.
 - **Always-Visible Personnel Actions Bar**:
-  - `Update Employment Status` (Primary brand button) → Opens `UpdateEmploymentStatusModal`.
-  - `Transfer Employee` → Opens `TransferPersonnelModal`.
-  - `Reassign HRCO` → Submits HR coordinator assignment review.
-  - `Request Deactivation` → Opens `RequestDeactivationModal` (disabled for Active/On-Leave; shows `"Deactivation Pending"` if pending).
-  - `Request Deletion` → Routes deletion request to operations queue.
+  - `Update Employment Status` (Primary brand button) → Opens `UpdateEmploymentStatusModal` (disabled when Inactive or Deactivated).
+  - `Transfer Employee` → Opens `TransferPersonnelModal` (disabled when Inactive or Deactivated).
+  - `Reassign HRCO` → Submits HR coordinator assignment review (disabled when Inactive or Deactivated).
+  - `Request Deactivation` → Opens `RequestDeactivationModal` (disabled for Active/On-Leave; disabled with "Deactivated" label when already deactivated; shows `"Deactivation Pending"` if pending).
+  - `Request Deletion` → Routes deletion request to operations queue (disabled when Deactivated).
+- **Deactivated State Action Lock**:
+  - When an employee is Deactivated (`status === 'Deactivated'`), ALL mutation and action controls across the profile (`Update Employment Status`, `Transfer`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`, `Edit Schedule & Allocations`, `Sync from MIKA`) are strictly disabled with clear muted styling (`disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted`) and informative tooltips explaining that the employee is offboarded and read-only. A prominent offboarding notice banner is displayed below the summary card.
 
 ### C. Category Tabs Structure
 The full-width content area is structured into 4 clean, uncluttered Category Tabs:

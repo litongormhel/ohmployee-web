@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Lock Profile Actions and Mutation Controls for Deactivated Personnel (ohm#d3a8k1p9)
+
+**Status: COMPLETE ON MAIN; COMPREHENSIVE ACTION & MUTATION LOCK IMPLEMENTED FOR DEACTIVATED EMPLOYEES ON DEDICATED PROFILE VIEW (`/plantilla/[id]`); UPDATE EMPLOYMENT STATUS, TRANSFER, REASSIGN HRCO, REQUEST DEACTIVATION, REQUEST DELETION, EDIT SCHEDULE & ALLOCATIONS, AND SYNC FROM MIKA ALL PROPERLY DISABLED WITH VISUAL MUTED STYLING AND READ-ONLY OFFBOARDING NOTICE; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Deactivation Status Resolution (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Explicitly resolved `isDeactivated = status === "deactivated" || status.includes("deactivated")`.
+   - Updated `isDeactivationEligible = (isInactive || status === "floating") && !isDeactivated` to prevent re-requesting deactivation when an employee has already completed deactivation.
+2. **Top Personnel Actions Bar Lockdown**:
+   - **Update Employment Status**: Disabled when `isDeactivated || isInactive`. Applied disabled visual styles (`disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default`) and tooltip explaining `Employee is deactivated and offboarded`.
+   - **Transfer Employee**: Disabled when `isDeactivated || isInactive` with `Cannot transfer a deactivated employee` tooltip.
+   - **Reassign HRCO**: Disabled when `isDeactivated || isInactive` with `Cannot reassign HRCO for a deactivated employee` tooltip.
+   - **Request Deactivation**: Disabled when `isDeactivated`, rendered with `Deactivated` label and `Employee is already deactivated` tooltip.
+   - **Request Deletion**: Disabled when `isDeactivated` with `disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted` and `Cannot request deletion for a deactivated employee` tooltip.
+3. **Dedicated Category Tabs Action Lock**:
+   - **Schedule & Store Coverage Tab**: In `Edit Schedule & Allocations`, added `disabled={isDeactivated || isInactive}` with disabled styling and tooltip `Cannot edit schedule for a deactivated employee`.
+   - **Activity & System Info Tab**: In `Sync from MIKA`, added `disabled={syncMutation.isPending || isDeactivated}` with disabled styling and tooltip `Cannot sync a deactivated employee from external HRIS`.
+4. **Offboarding Finalization Notice**:
+   - Added notice callout below the top header when `isDeactivated`: `Personnel offboarding finalized. Record is deactivated and read-only.` with check icon.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Redesign Inactive Table: Position beside Emploc ID, Area/City beside VCode, Status & Request Deactivation Action (ohm#r4d8n1k5)
 
 **Status: COMPLETE ON MAIN; INACTIVE EMPLOYEES TABLE & CARDS REDESIGNED (POSITION INTEGRATED BESIDE EMPLOC ID, AREA & CITY BESIDE VCODE, STATUS COLUMN ADDED FOR DEACTIVATION LIFECYCLE, AND ACTION COLUMN WIRED TO REQUEST DEACTIVATION MODAL WITH AUTOMATIC DISABLING FOR EXISTING REQUESTS); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

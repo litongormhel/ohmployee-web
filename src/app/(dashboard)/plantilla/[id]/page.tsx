@@ -26,6 +26,7 @@ import {
   UserCheck,
   UserMinus,
   AlertTriangle,
+  CheckCircle2,
   FileText,
   Building2,
 } from "lucide-react";
@@ -309,15 +310,16 @@ function PlantillaEmployeeDetailContent() {
   const isAuthorized = isPlantillaLifecycleRole(currentUser?.roleKey);
 
   const status = (data?.plantillaStatus ?? "").trim().toLowerCase();
+  const isDeactivated = status === "deactivated" || status.includes("deactivated");
+  const isPendingDeactivation =
+    status === "pending deactivation" || status === "pending_deactivation";
   const isInactive =
     status === "inactive" ||
     status === "terminated" ||
     status === "resigned" ||
     status === "awol" ||
-    status === "deactivated";
-  const isPendingDeactivation =
-    status === "pending deactivation" || status === "pending_deactivation";
-  const isDeactivationEligible = isInactive || status === "floating";
+    isDeactivated;
+  const isDeactivationEligible = (isInactive || status === "floating") && !isDeactivated;
 
   const coveredStores = data?.coveredStores ?? [];
   const hasMultiStores = coveredStores.length > 1;
@@ -457,8 +459,15 @@ function PlantillaEmployeeDetailContent() {
                   <button
                     type="button"
                     onClick={() => setIsStatusModalOpen(true)}
-                    disabled={!isAuthorized || isInactive}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand-primary hover:bg-brand-secondary text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!isAuthorized || isInactive || isDeactivated}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand-primary hover:bg-brand-secondary text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
+                    title={
+                      isDeactivated
+                        ? "Employee is deactivated and offboarded."
+                        : isInactive
+                        ? "Employee is already inactive."
+                        : undefined
+                    }
                   >
                     <UserCheck className="w-4 h-4" />
                     <span>Update Employment Status</span>
@@ -468,8 +477,15 @@ function PlantillaEmployeeDetailContent() {
                   <button
                     type="button"
                     onClick={() => setIsTransferModalOpen(true)}
-                    disabled={!isAuthorized || isInactive}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                    disabled={!isAuthorized || isInactive || isDeactivated}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                    title={
+                      isDeactivated
+                        ? "Cannot transfer a deactivated employee."
+                        : isInactive
+                        ? "Cannot transfer an inactive employee."
+                        : undefined
+                    }
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5 text-brand-primary" />
                     <span>Transfer</span>
@@ -484,8 +500,15 @@ function PlantillaEmployeeDetailContent() {
                         message: "HR Coordinator assignment request submitted for review.",
                       });
                     }}
-                    disabled={!isAuthorized || isInactive}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                    disabled={!isAuthorized || isInactive || isDeactivated}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                    title={
+                      isDeactivated
+                        ? "Cannot reassign HRCO for a deactivated employee."
+                        : isInactive
+                        ? "Cannot reassign HRCO for an inactive employee."
+                        : undefined
+                    }
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
                     <span>Reassign HRCO</span>
@@ -495,10 +518,12 @@ function PlantillaEmployeeDetailContent() {
                   <button
                     type="button"
                     onClick={() => setIsDeactivationModalOpen(true)}
-                    disabled={!isAuthorized || isPendingDeactivation || !isDeactivationEligible}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                    disabled={!isAuthorized || isPendingDeactivation || isDeactivated || !isDeactivationEligible}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
                     title={
-                      isPendingDeactivation
+                      isDeactivated
+                        ? "Employee is already deactivated."
+                        : isPendingDeactivation
                         ? "A deactivation request is already pending review."
                         : !isDeactivationEligible
                         ? "Employee must be set to Floating or Inactive before requesting deactivation."
@@ -506,7 +531,13 @@ function PlantillaEmployeeDetailContent() {
                     }
                   >
                     <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
-                    <span>{isPendingDeactivation ? "Deactivation Pending" : "Request Deactivation"}</span>
+                    <span>
+                      {isDeactivated
+                        ? "Deactivated"
+                        : isPendingDeactivation
+                        ? "Deactivation Pending"
+                        : "Request Deactivation"}
+                    </span>
                   </button>
 
                   {/* Request Deletion */}
@@ -518,8 +549,13 @@ function PlantillaEmployeeDetailContent() {
                         message: "Deletion request logged and routed to operations queue.",
                       });
                     }}
-                    disabled={!isAuthorized}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-danger-bg/40 hover:bg-danger-bg text-danger-text border border-danger-border text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                    disabled={!isAuthorized || isDeactivated}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-danger-bg/40 hover:bg-danger-bg text-danger-text border border-danger-border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border-border-default shadow-2xs"
+                    title={
+                      isDeactivated
+                        ? "Cannot request deletion for a deactivated employee."
+                        : undefined
+                    }
                   >
                     <Trash2 className="w-3.5 h-3.5 text-danger-text" />
                     <span>Request Deletion</span>
@@ -527,13 +563,18 @@ function PlantillaEmployeeDetailContent() {
                 </div>
               </div>
 
-              {/* Status Notice Callout if pending deactivation */}
-              {isPendingDeactivation && (
+              {/* Status Notice Callout if pending deactivation or deactivated */}
+              {isDeactivated ? (
+                <div className="mt-4 pt-3 border-t border-border-subtle flex items-center gap-2 text-xs text-text-muted font-medium">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>Personnel offboarding finalized. Record is deactivated and read-only.</span>
+                </div>
+              ) : isPendingDeactivation ? (
                 <div className="mt-4 pt-3 border-t border-border-subtle flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 font-medium">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>Deactivation request submitted and pending operations review.</span>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Category Navigation Tabs */}
@@ -826,7 +867,15 @@ function PlantillaEmployeeDetailContent() {
                       <button
                         type="button"
                         onClick={() => setIsScheduleModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0"
+                        disabled={isDeactivated || isInactive}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
+                        title={
+                          isDeactivated
+                            ? "Cannot edit schedule for a deactivated employee."
+                            : isInactive
+                            ? "Cannot edit schedule for an inactive employee."
+                            : undefined
+                        }
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         <span>Edit Schedule & Allocations</span>
@@ -1115,8 +1164,13 @@ function PlantillaEmployeeDetailContent() {
                   <button
                     type="button"
                     onClick={() => syncMutation.mutate()}
-                    disabled={syncMutation.isPending}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-default bg-surface hover:bg-surface-muted text-brand-primary text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+                    disabled={syncMutation.isPending || isDeactivated}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-default bg-surface hover:bg-surface-muted text-brand-primary text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted"
+                    title={
+                      isDeactivated
+                        ? "Cannot sync a deactivated employee from external HRIS."
+                        : undefined
+                    }
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`} />
                     <span>{syncMutation.isPending ? "Syncing with MIKA…" : "Sync from MIKA"}</span>
