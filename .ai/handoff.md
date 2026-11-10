@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
+
+**Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Header Name Collision & Truncation**:
+   - Root cause: The header card previously sat the 5 action buttons (`Update Employment Status`, `Transfer`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) on the same horizontal row as the identity block on `xl` viewports. Because the buttons consumed ~650–750px, the identity block had squeezed horizontal real estate, causing long names (`DELA CRUZ JR, JESSIE GALEN`) to immediately truncate with ellipsis.
+   - Resolution: Redesigned the header card into a consistent 2-row stacked layout (`flex flex-col gap-5`):
+     - **Row 1**: Avatar circle + 100% available width identity block. Name uses `line-clamp-2 break-words text-xl sm:text-2xl font-bold` allowing clean wrap up to 2 lines without truncation. Active status dot or status badge is positioned inline directly after the name with `shrink-0`. Sub-row (`ID: ... • Position • Hired: ...`) wraps cleanly on narrow screens.
+     - **Row 2**: Full-width responsive action bar below a subtle divider (`pt-4 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5`), grouping primary/secondary actions on the left and destructive actions on the right.
+2. **Coverage Group Code (CGCode) Invisibility & "–" Render**:
+   - Root cause: Under ADR-002 Invariants 3 & 4, roving personnel ($N \ge 2$ stores) have fractional HC auto-calculated ($1/N$), but Coverage Group overlays (`CGCODE`) are assigned asynchronously by the Data Team. When an employee is roving without a Coverage Group overlay attached, `data.cgCode` is genuinely `null`. The previous UI conditionally swapped the Permanent VCODE label for CGCode (`isRoving ? "Coverage Group Code" : "Permanent VCODE"`) and evaluated `data.cgCode || ... || "—"`, rendering a bare dash `"—"`, hiding whether CGCode was unassigned and completely obscuring the employee's Permanent VCODE.
+   - Resolution:
+     - Promoted **CGCode** to its own dedicated first compact field with monospace formatting (`font-mono font-bold text-sm`) and an accessible copy button (`Copy` / `Check` feedback). When null/empty, it displays an explicit muted italic label `"Not assigned"` instead of a bare dash.
+     - Kept **Permanent VCODE** as a separate compact field with monospace formatting and copy affordance, ensuring the permanent store anchor code is always visible.
+     - Standardized the entire specifications section into an equal-height 3-column grid (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs`, `p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle min-h-[72px]`), eliminating oversized empty cards.
+3. **Assigned Store Allocations (Numeric Only)**:
+   - Root cause: Store allocations were previously shoehorned inside a single grid cell of the 3-column specifications grid, causing all adjacent grid cards in that row to stretch vertically into huge empty boxes, while allocation values were wrapped in bordered pill chrome with an `"HC"` suffix.
+   - Resolution:
+     - Positioned Assigned Store Allocations as a full-width dedicated section within the specifications container.
+     - Card title row features `Assigned Store Allocations` (or `Assigned Primary Store` for stationary), the `ROVING • N STORES` summary chip, and an `HC` column header on the right.
+     - Per-store rows render: `[● primary dot] STORE NAME` (bold uppercase) + `PRIMARY` badge if primary + store code / VCode sub-line $\dots$ plain numeric allocation value on the right (e.g. `0.50`, right-aligned, `font-mono font-bold tabular-nums text-text-primary text-xs sm:text-sm`). Completely removed the `"HC"` suffix and bordered pill chrome.
+     - Multi-store records include a summary total row (`Σ Total Allocated` $\dots$ `1.00`, numeric only, right-aligned monospace tabular figures). Preserved all underlying 2-decimal precision and fractional math.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files `UsersTable.tsx` and `VacancyTable.tsx`; `page.tsx` has 0 errors and 0 warnings).
+- Layout verification: Verified responsive wrap for long names (e.g. 40+ chars), roving multi-store allocations ($N \ge 2$), and unassigned CGCode fallbacks (`"Not assigned"`).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Fix Schema Error on employee_store_allocations in update_plantilla_schedule RPC (ohm#x5v3m7d1)
 
 **Status: COMPLETE ON MAIN; ROOT-CAUSED SCHEDULE PERSISTENCE FAILURE TO POSTGRESQL ERROR `42703: column "updated_at" of relation "employee_store_allocations" does not exist`; SURGICALLY UPDATED `update_plantilla_schedule` RPC AND `src/lib/queries/plantilla.ts` TO REMOVE `updated_at` FROM ALL `employee_store_allocations` MUTATIONS (RETAINING `updated_at` SOLELY ON `public.plantilla`); RE-APPLIED MIGRATION TO STAGING AND CONFIRMED LIVE VERIFICATION; VALIDATED DIRECTLY IN DATABASE THAT ROVING SCHEDULES (`MON, TUE, WED` FOR PUREGOLD CENTENIAL KAWIT, `THU, FRI, SAT` FOR EMILUS TANZA, REST DAY `SUN`) PERSISTED ACROSS `public.plantilla` AND `public.employee_store_allocations`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4716,6 +4747,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
+
+**Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Header Name Collision & Truncation**:
+   - Root cause: The header card previously sat the 5 action buttons (`Update Employment Status`, `Transfer`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) on the same horizontal row as the identity block on `xl` viewports. Because the buttons consumed ~650–750px, the identity block had squeezed horizontal real estate, causing long names (`DELA CRUZ JR, JESSIE GALEN`) to immediately truncate with ellipsis.
+   - Resolution: Redesigned the header card into a consistent 2-row stacked layout (`flex flex-col gap-5`):
+     - **Row 1**: Avatar circle + 100% available width identity block. Name uses `line-clamp-2 break-words text-xl sm:text-2xl font-bold` allowing clean wrap up to 2 lines without truncation. Active status dot or status badge is positioned inline directly after the name with `shrink-0`. Sub-row (`ID: ... • Position • Hired: ...`) wraps cleanly on narrow screens.
+     - **Row 2**: Full-width responsive action bar below a subtle divider (`pt-4 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5`), grouping primary/secondary actions on the left and destructive actions on the right.
+2. **Coverage Group Code (CGCode) Invisibility & "–" Render**:
+   - Root cause: Under ADR-002 Invariants 3 & 4, roving personnel ($N \ge 2$ stores) have fractional HC auto-calculated ($1/N$), but Coverage Group overlays (`CGCODE`) are assigned asynchronously by the Data Team. When an employee is roving without a Coverage Group overlay attached, `data.cgCode` is genuinely `null`. The previous UI conditionally swapped the Permanent VCODE label for CGCode (`isRoving ? "Coverage Group Code" : "Permanent VCODE"`) and evaluated `data.cgCode || ... || "—"`, rendering a bare dash `"—"`, hiding whether CGCode was unassigned and completely obscuring the employee's Permanent VCODE.
+   - Resolution:
+     - Promoted **CGCode** to its own dedicated first compact field with monospace formatting (`font-mono font-bold text-sm`) and an accessible copy button (`Copy` / `Check` feedback). When null/empty, it displays an explicit muted italic label `"Not assigned"` instead of a bare dash.
+     - Kept **Permanent VCODE** as a separate compact field with monospace formatting and copy affordance, ensuring the permanent store anchor code is always visible.
+     - Standardized the entire specifications section into an equal-height 3-column grid (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs`, `p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle min-h-[72px]`), eliminating oversized empty cards.
+3. **Assigned Store Allocations (Numeric Only)**:
+   - Root cause: Store allocations were previously shoehorned inside a single grid cell of the 3-column specifications grid, causing all adjacent grid cards in that row to stretch vertically into huge empty boxes, while allocation values were wrapped in bordered pill chrome with an `"HC"` suffix.
+   - Resolution:
+     - Positioned Assigned Store Allocations as a full-width dedicated section within the specifications container.
+     - Card title row features `Assigned Store Allocations` (or `Assigned Primary Store` for stationary), the `ROVING • N STORES` summary chip, and an `HC` column header on the right.
+     - Per-store rows render: `[● primary dot] STORE NAME` (bold uppercase) + `PRIMARY` badge if primary + store code / VCode sub-line $\dots$ plain numeric allocation value on the right (e.g. `0.50`, right-aligned, `font-mono font-bold tabular-nums text-text-primary text-xs sm:text-sm`). Completely removed the `"HC"` suffix and bordered pill chrome.
+     - Multi-store records include a summary total row (`Σ Total Allocated` $\dots$ `1.00`, numeric only, right-aligned monospace tabular figures). Preserved all underlying 2-decimal precision and fractional math.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files `UsersTable.tsx` and `VacancyTable.tsx`; `page.tsx` has 0 errors and 0 warnings).
+- Layout verification: Verified responsive wrap for long names (e.g. 40+ chars), roving multi-store allocations ($N \ge 2$), and unassigned CGCode fallbacks (`"Not assigned"`).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
 
 **Status: COMPLETE ON MAIN; LATEST OPS/RECRUITMENT REMARKS REFLECTED IN PLANTILLA VACANCY TABLE & CARD VIEWS AND HR EMPLOC QUEUES; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -5264,6 +5326,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
+
+**Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Header Name Collision & Truncation**:
+   - Root cause: The header card previously sat the 5 action buttons (`Update Employment Status`, `Transfer`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) on the same horizontal row as the identity block on `xl` viewports. Because the buttons consumed ~650–750px, the identity block had squeezed horizontal real estate, causing long names (`DELA CRUZ JR, JESSIE GALEN`) to immediately truncate with ellipsis.
+   - Resolution: Redesigned the header card into a consistent 2-row stacked layout (`flex flex-col gap-5`):
+     - **Row 1**: Avatar circle + 100% available width identity block. Name uses `line-clamp-2 break-words text-xl sm:text-2xl font-bold` allowing clean wrap up to 2 lines without truncation. Active status dot or status badge is positioned inline directly after the name with `shrink-0`. Sub-row (`ID: ... • Position • Hired: ...`) wraps cleanly on narrow screens.
+     - **Row 2**: Full-width responsive action bar below a subtle divider (`pt-4 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5`), grouping primary/secondary actions on the left and destructive actions on the right.
+2. **Coverage Group Code (CGCode) Invisibility & "–" Render**:
+   - Root cause: Under ADR-002 Invariants 3 & 4, roving personnel ($N \ge 2$ stores) have fractional HC auto-calculated ($1/N$), but Coverage Group overlays (`CGCODE`) are assigned asynchronously by the Data Team. When an employee is roving without a Coverage Group overlay attached, `data.cgCode` is genuinely `null`. The previous UI conditionally swapped the Permanent VCODE label for CGCode (`isRoving ? "Coverage Group Code" : "Permanent VCODE"`) and evaluated `data.cgCode || ... || "—"`, rendering a bare dash `"—"`, hiding whether CGCode was unassigned and completely obscuring the employee's Permanent VCODE.
+   - Resolution:
+     - Promoted **CGCode** to its own dedicated first compact field with monospace formatting (`font-mono font-bold text-sm`) and an accessible copy button (`Copy` / `Check` feedback). When null/empty, it displays an explicit muted italic label `"Not assigned"` instead of a bare dash.
+     - Kept **Permanent VCODE** as a separate compact field with monospace formatting and copy affordance, ensuring the permanent store anchor code is always visible.
+     - Standardized the entire specifications section into an equal-height 3-column grid (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs`, `p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle min-h-[72px]`), eliminating oversized empty cards.
+3. **Assigned Store Allocations (Numeric Only)**:
+   - Root cause: Store allocations were previously shoehorned inside a single grid cell of the 3-column specifications grid, causing all adjacent grid cards in that row to stretch vertically into huge empty boxes, while allocation values were wrapped in bordered pill chrome with an `"HC"` suffix.
+   - Resolution:
+     - Positioned Assigned Store Allocations as a full-width dedicated section within the specifications container.
+     - Card title row features `Assigned Store Allocations` (or `Assigned Primary Store` for stationary), the `ROVING • N STORES` summary chip, and an `HC` column header on the right.
+     - Per-store rows render: `[● primary dot] STORE NAME` (bold uppercase) + `PRIMARY` badge if primary + store code / VCode sub-line $\dots$ plain numeric allocation value on the right (e.g. `0.50`, right-aligned, `font-mono font-bold tabular-nums text-text-primary text-xs sm:text-sm`). Completely removed the `"HC"` suffix and bordered pill chrome.
+     - Multi-store records include a summary total row (`Σ Total Allocated` $\dots$ `1.00`, numeric only, right-aligned monospace tabular figures). Preserved all underlying 2-decimal precision and fractional math.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files `UsersTable.tsx` and `VacancyTable.tsx`; `page.tsx` has 0 errors and 0 warnings).
+- Layout verification: Verified responsive wrap for long names (e.g. 40+ chars), roving multi-store allocations ($N \ge 2$), and unassigned CGCode fallbacks (`"Not assigned"`).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
 
 ## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
 
@@ -5837,6 +5930,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
+
+**Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Header Name Collision & Truncation**:
+   - Root cause: The header card previously sat the 5 action buttons (`Update Employment Status`, `Transfer`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`) on the same horizontal row as the identity block on `xl` viewports. Because the buttons consumed ~650–750px, the identity block had squeezed horizontal real estate, causing long names (`DELA CRUZ JR, JESSIE GALEN`) to immediately truncate with ellipsis.
+   - Resolution: Redesigned the header card into a consistent 2-row stacked layout (`flex flex-col gap-5`):
+     - **Row 1**: Avatar circle + 100% available width identity block. Name uses `line-clamp-2 break-words text-xl sm:text-2xl font-bold` allowing clean wrap up to 2 lines without truncation. Active status dot or status badge is positioned inline directly after the name with `shrink-0`. Sub-row (`ID: ... • Position • Hired: ...`) wraps cleanly on narrow screens.
+     - **Row 2**: Full-width responsive action bar below a subtle divider (`pt-4 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5`), grouping primary/secondary actions on the left and destructive actions on the right.
+2. **Coverage Group Code (CGCode) Invisibility & "–" Render**:
+   - Root cause: Under ADR-002 Invariants 3 & 4, roving personnel ($N \ge 2$ stores) have fractional HC auto-calculated ($1/N$), but Coverage Group overlays (`CGCODE`) are assigned asynchronously by the Data Team. When an employee is roving without a Coverage Group overlay attached, `data.cgCode` is genuinely `null`. The previous UI conditionally swapped the Permanent VCODE label for CGCode (`isRoving ? "Coverage Group Code" : "Permanent VCODE"`) and evaluated `data.cgCode || ... || "—"`, rendering a bare dash `"—"`, hiding whether CGCode was unassigned and completely obscuring the employee's Permanent VCODE.
+   - Resolution:
+     - Promoted **CGCode** to its own dedicated first compact field with monospace formatting (`font-mono font-bold text-sm`) and an accessible copy button (`Copy` / `Check` feedback). When null/empty, it displays an explicit muted italic label `"Not assigned"` instead of a bare dash.
+     - Kept **Permanent VCODE** as a separate compact field with monospace formatting and copy affordance, ensuring the permanent store anchor code is always visible.
+     - Standardized the entire specifications section into an equal-height 3-column grid (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs`, `p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle min-h-[72px]`), eliminating oversized empty cards.
+3. **Assigned Store Allocations (Numeric Only)**:
+   - Root cause: Store allocations were previously shoehorned inside a single grid cell of the 3-column specifications grid, causing all adjacent grid cards in that row to stretch vertically into huge empty boxes, while allocation values were wrapped in bordered pill chrome with an `"HC"` suffix.
+   - Resolution:
+     - Positioned Assigned Store Allocations as a full-width dedicated section within the specifications container.
+     - Card title row features `Assigned Store Allocations` (or `Assigned Primary Store` for stationary), the `ROVING • N STORES` summary chip, and an `HC` column header on the right.
+     - Per-store rows render: `[● primary dot] STORE NAME` (bold uppercase) + `PRIMARY` badge if primary + store code / VCode sub-line $\dots$ plain numeric allocation value on the right (e.g. `0.50`, right-aligned, `font-mono font-bold tabular-nums text-text-primary text-xs sm:text-sm`). Completely removed the `"HC"` suffix and bordered pill chrome.
+     - Multi-store records include a summary total row (`Σ Total Allocated` $\dots$ `1.00`, numeric only, right-aligned monospace tabular figures). Preserved all underlying 2-decimal precision and fractional math.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files `UsersTable.tsx` and `VacancyTable.tsx`; `page.tsx` has 0 errors and 0 warnings).
+- Layout verification: Verified responsive wrap for long names (e.g. 40+ chars), roving multi-store allocations ($N \ge 2$), and unassigned CGCode fallbacks (`"Not assigned"`).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
 
 ## Execution Report — Reflect Latest Ops/Recruitment Remarks in Vacancy & HR Emploc Table (ohm#v3m7r8k2)
 

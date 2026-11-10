@@ -32,6 +32,8 @@ import {
   CheckCircle2,
   FileText,
   Building2,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   getWebPlantillaDetail,
@@ -311,6 +313,16 @@ function PlantillaEmployeeDetailContent() {
     type: "info" | "success" | "error";
     message: string;
   } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, fieldKey: string) => {
+    if (!text || text === "—") return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldKey);
+    setTimeout(() => {
+      setCopiedField((prev) => (prev === fieldKey ? null : prev));
+    }, 2000);
+  };
 
   // Modals state
   const [isSeparationModalOpen, setIsSeparationModalOpen] = useState(false);
@@ -395,12 +407,41 @@ function PlantillaEmployeeDetailContent() {
     isDeactivated;
   const isDeactivationEligible = (isInactive || status === "floating") && !isDeactivated;
 
-  const coveredStores = data?.coveredStores ?? [];
+  const coveredStores = useMemo(() => data?.coveredStores ?? [], [data?.coveredStores]);
   const hasMultiStores = coveredStores.length > 1;
   const isRoving =
     (data?.assignmentType ?? "").toLowerCase() === "roving" ||
     (data?.employmentType ?? "").toLowerCase() === "roving" ||
     hasMultiStores;
+
+  const displayStores = useMemo(() => {
+    if (coveredStores.length > 0) return coveredStores;
+    return [
+      {
+        stableKey: `primary-store-${data?.id ?? "default"}`,
+        storeId: data?.storeId || "",
+        storeName: data?.primaryStoreName || "Assigned Primary Store",
+        vcode: data?.vcode || null,
+        allocationPercent: 100,
+        isPrimary: true,
+      },
+    ];
+  }, [coveredStores, data?.id, data?.storeId, data?.primaryStoreName, data?.vcode]);
+
+  const totalAllocation = useMemo(() => {
+    return displayStores
+      .reduce((sum, s) => {
+        const val =
+          s.allocationPercent != null
+            ? s.allocationPercent / 100
+            : 1 / displayStores.length;
+        return sum + val;
+      }, 0)
+      .toFixed(2);
+  }, [displayStores]);
+
+  const resolvedCgCode =
+    data?.cgCode || (data?.vcode?.startsWith("CG-") ? data.vcode : null);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-background text-text-primary">
@@ -486,23 +527,23 @@ function PlantillaEmployeeDetailContent() {
 
             {/* Top Summary Header Card & Prominent Actions Bar */}
             <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                {/* Employee Info Header */}
-                <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
-                  <div className="w-16 h-16 rounded-2xl bg-brand-50 border-2 border-brand-200 text-brand-700 font-extrabold text-xl flex items-center justify-center shrink-0 shadow-xs dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
+              <div className="flex flex-col gap-5">
+                {/* Row 1: Employee Identity Block (Full Available Width) */}
+                <div className="flex items-start sm:items-center gap-4 min-w-0 w-full">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-brand-50 border-2 border-brand-200 text-brand-700 font-extrabold text-xl flex items-center justify-center shrink-0 shadow-xs dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
                     {initials}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-                      <h1 className="text-xl font-bold text-text-primary tracking-tight flex items-center gap-2 min-w-0 max-w-full">
-                        <span className="truncate">{displayName}</span>
-                        {status === "active" && (
-                          <span
-                            className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0"
-                            title="Active Employee"
-                          />
-                        )}
+                      <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight leading-snug break-words line-clamp-2">
+                        {displayName}
                       </h1>
+                      {status === "active" && (
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0 self-center"
+                          title="Active Employee"
+                        />
+                      )}
                       {status !== "active" && data.plantillaStatus && (
                         <StatusBadge
                           variant={statusVariant(data.plantillaStatus)}
@@ -510,15 +551,17 @@ function PlantillaEmployeeDetailContent() {
                         />
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-secondary mt-1.5 font-medium">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-text-secondary mt-1.5 font-medium">
                       <span className="flex items-center gap-1 font-mono text-text-primary">
                         <IdCard className="w-3.5 h-3.5 text-brand-primary shrink-0" />
                         ID: {data.employeeNo || "—"}
                       </span>
+                      <span className="text-text-muted">•</span>
                       <span className="flex items-center gap-1">
                         <Briefcase className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         {data.positionTitle || "Position Unassigned"}
                       </span>
+                      <span className="text-text-muted">•</span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         Hired: {formatDate(data.dateHired || data.dateDeployed)} ({data.tenureDescription || computeTenure(data.dateDeployed || data.dateHired)})
@@ -527,113 +570,119 @@ function PlantillaEmployeeDetailContent() {
                   </div>
                 </div>
 
-                {/* Capability-Aware Personnel Actions Bar (Always Visible at Top) */}
-                <div className="flex flex-wrap items-center gap-2 pt-4 xl:pt-0 border-t xl:border-t-0 border-border-subtle shrink-0">
-                  {/* Primary: Update Employment Status */}
-                  <button
-                    type="button"
-                    onClick={() => setIsStatusModalOpen(true)}
-                    disabled={!isAuthorized || isInactive || isDeactivated}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand-primary hover:bg-brand-secondary text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
-                    title={
-                      isDeactivated
-                        ? "Employee is deactivated and offboarded."
-                        : isInactive
-                        ? "Employee is already inactive."
-                        : undefined
-                    }
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    <span>Update Employment Status</span>
-                  </button>
+                {/* Row 2: Capability-Aware Personnel Actions Bar (Full-Width Responsive Wrap) */}
+                <div className="pt-4 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5 w-full">
+                  {/* Primary & Secondary Personnel Actions */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Primary: Update Employment Status */}
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusModalOpen(true)}
+                      disabled={!isAuthorized || isInactive || isDeactivated}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-brand-primary hover:bg-brand-secondary text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
+                      title={
+                        isDeactivated
+                          ? "Employee is deactivated and offboarded."
+                          : isInactive
+                          ? "Employee is already inactive."
+                          : undefined
+                      }
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Update Employment Status</span>
+                    </button>
 
-                  {/* Transfer Employee */}
-                  <button
-                    type="button"
-                    onClick={() => setIsTransferModalOpen(true)}
-                    disabled={!isAuthorized || isInactive || isDeactivated}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
-                    title={
-                      isDeactivated
-                        ? "Cannot transfer a deactivated employee."
-                        : isInactive
-                        ? "Cannot transfer an inactive employee."
-                        : undefined
-                    }
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 text-brand-primary" />
-                    <span>Transfer</span>
-                  </button>
+                    {/* Secondary: Transfer Employee */}
+                    <button
+                      type="button"
+                      onClick={() => setIsTransferModalOpen(true)}
+                      disabled={!isAuthorized || isInactive || isDeactivated}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                      title={
+                        isDeactivated
+                          ? "Cannot transfer a deactivated employee."
+                          : isInactive
+                          ? "Cannot transfer an inactive employee."
+                          : undefined
+                      }
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-brand-primary" />
+                      <span>Transfer</span>
+                    </button>
 
-                  {/* Reassign HRCO */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionFeedback({
-                        type: "info",
-                        message: "HR Coordinator assignment request submitted for review.",
-                      });
-                    }}
-                    disabled={!isAuthorized || isInactive || isDeactivated}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
-                    title={
-                      isDeactivated
-                        ? "Cannot reassign HRCO for a deactivated employee."
-                        : isInactive
-                        ? "Cannot reassign HRCO for an inactive employee."
-                        : undefined
-                    }
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
-                    <span>Reassign HRCO</span>
-                  </button>
+                    {/* Secondary: Reassign HRCO */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionFeedback({
+                          type: "info",
+                          message: "HR Coordinator assignment request submitted for review.",
+                        });
+                      }}
+                      disabled={!isAuthorized || isInactive || isDeactivated}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                      title={
+                        isDeactivated
+                          ? "Cannot reassign HRCO for a deactivated employee."
+                          : isInactive
+                          ? "Cannot reassign HRCO for an inactive employee."
+                          : undefined
+                      }
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
+                      <span>Reassign HRCO</span>
+                    </button>
+                  </div>
 
-                  {/* Request Deactivation */}
-                  <button
-                    type="button"
-                    onClick={() => setIsDeactivationModalOpen(true)}
-                    disabled={!isAuthorized || isPendingDeactivation || isDeactivated || !isDeactivationEligible}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
-                    title={
-                      isDeactivated
-                        ? "Employee is already deactivated."
-                        : isPendingDeactivation
-                        ? "A deactivation request is already pending review."
-                        : !isDeactivationEligible
-                        ? "Employee must be set to Floating or Inactive before requesting deactivation."
-                        : undefined
-                    }
-                  >
-                    <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
-                    <span>
-                      {isDeactivated
-                        ? "Deactivated"
-                        : isPendingDeactivation
-                        ? "Deactivation Pending"
-                        : "Request Deactivation"}
-                    </span>
-                  </button>
+                  {/* Destructive / Separation Actions (Right-aligned / Last) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Request Deactivation */}
+                    <button
+                      type="button"
+                      onClick={() => setIsDeactivationModalOpen(true)}
+                      disabled={!isAuthorized || isPendingDeactivation || isDeactivated || !isDeactivationEligible}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                      title={
+                        isDeactivated
+                          ? "Employee is already deactivated."
+                          : isPendingDeactivation
+                          ? "A deactivation request is already pending review."
+                          : !isDeactivationEligible
+                          ? "Employee must be set to Floating or Inactive before requesting deactivation."
+                          : undefined
+                      }
+                    >
+                      <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
+                      <span>
+                        {isDeactivated
+                          ? "Deactivated"
+                          : isPendingDeactivation
+                          ? "Deactivation Pending"
+                          : "Request Deactivation"}
+                      </span>
+                    </button>
 
-                  {/* Request Deletion */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionFeedback({
-                        type: "info",
-                        message: "Deletion request logged and routed to operations queue.",
-                      });
-                    }}
-                    disabled={!isAuthorized || isDeactivated}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-danger-bg/40 hover:bg-danger-bg text-danger-text border border-danger-border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border-border-default shadow-2xs"
-                    title={
-                      isDeactivated
-                        ? "Cannot request deletion for a deactivated employee."
-                        : undefined
-                    }
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-danger-text" />
-                    <span>Request Deletion</span>
-                  </button>
+                    {/* Request Deletion */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionFeedback({
+                          type: "info",
+                          message: "Deletion request logged and routed to operations queue.",
+                        });
+                      }}
+                      disabled={!isAuthorized || isDeactivated}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-danger-bg/40 hover:bg-danger-bg text-danger-text border border-danger-border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border-border-default shadow-2xs"
+                      title={
+                        isDeactivated
+                          ? "Cannot request deletion for a deactivated employee."
+                          : undefined
+                      }
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-danger-text" />
+                      <span>Request Deletion</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -769,119 +818,237 @@ function PlantillaEmployeeDetailContent() {
                     <Briefcase className="w-4 h-4 text-brand-primary" />
                     <span>Employment & Placement Specifications</span>
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">
-                        {isRoving || hasMultiStores ? "Coverage Group Code (CGCode)" : "Permanent VCODE"}
-                      </span>
-                      <p className="font-bold text-text-primary text-sm mt-1 font-mono">
-                        {isRoving || hasMultiStores
-                          ? (data.cgCode || (data.vcode?.startsWith("CG-") ? data.vcode : null) || "—")
-                          : (data.vcode || "—")}
-                      </p>
-                    </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-text-secondary font-medium">
-                            {hasMultiStores ? "Assigned Store Allocations" : "Assigned Primary Store"}
-                          </span>
-                          {isRoving && (
-                            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
-                              Roving{hasMultiStores ? ` • ${coveredStores.length} Stores` : ""}
-                            </span>
-                          )}
-                        </div>
 
-                        {hasMultiStores ? (
-                          <div className="mt-2 space-y-1.5">
-                            {coveredStores.map((store, idx) => {
-                              const isPrimary = Boolean(store.isPrimary || idx === 0);
-                              const hcShare =
-                                store.allocationPercent != null
-                                  ? (store.allocationPercent / 100).toFixed(2)
-                                  : (1 / coveredStores.length).toFixed(2);
-                              return (
-                                <div
-                                  key={store.stableKey || `store-alloc-${idx}`}
-                                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface border border-border-default/70 shadow-2xs"
-                                >
-                                  <div className="min-w-0 flex items-center gap-2">
-                                    <span
-                                      className={`w-2 h-2 rounded-full shrink-0 ${
-                                        isPrimary ? "bg-emerald-500" : "bg-text-muted"
-                                      }`}
-                                    />
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span
-                                          className="font-bold text-text-primary text-xs truncate"
-                                          title={store.storeName}
-                                        >
-                                          {store.storeName}
-                                        </span>
-                                        {isPrimary && (
-                                          <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
-                                            Primary
-                                          </span>
-                                        )}
-                                      </div>
-                                      {store.vcode && (
-                                        <span className="font-mono text-[10px] text-text-muted block mt-0.5">
-                                          {store.vcode}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <span className="font-mono font-bold text-xs text-brand-primary bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded border border-brand-200 dark:border-brand-800 shrink-0">
-                                    {hcShare} HC
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
+                  {/* 3-Column Equal-Height Specifications Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+                    {/* Field 1: Promoted CGCode */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Coverage Group Code (CGCode)
+                      </span>
+                      <div className="flex items-center justify-between gap-1.5 mt-1">
+                        {resolvedCgCode ? (
+                          <>
+                            <span
+                              className="font-bold text-text-primary text-sm font-mono truncate"
+                              title={resolvedCgCode}
+                            >
+                              {resolvedCgCode}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(resolvedCgCode, "cgCode")}
+                              className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
+                              title="Copy CGCode"
+                            >
+                              {copiedField === "cgCode" ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </>
                         ) : (
-                          <p className="font-bold text-text-primary text-sm mt-1">
-                            {data.primaryStoreName || data.vcode || "—"}
-                          </p>
+                          <span className="text-xs text-text-muted italic font-medium">
+                            Not assigned
+                          </span>
                         )}
                       </div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Area / City / Province</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {[data.area, data.province].filter(Boolean).join(" • ") || "—"}
-                      </p>
+
+                    {/* Field 2: Permanent VCODE */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Permanent VCODE
+                      </span>
+                      <div className="flex items-center justify-between gap-1.5 mt-1">
+                        {data.vcode ? (
+                          <>
+                            <span
+                              className="font-bold text-text-primary text-sm font-mono truncate"
+                              title={data.vcode}
+                            >
+                              {data.vcode}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(data.vcode!, "vcode")}
+                              className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
+                              title="Copy Permanent VCODE"
+                            >
+                              {copiedField === "vcode" ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-text-muted italic font-medium">
+                            Unassigned
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Designated Position</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
+
+                    {/* Field 3: Designated Position */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Designated Position
+                      </span>
+                      <p
+                        className="font-bold text-text-primary text-sm mt-1 truncate"
+                        title={data.positionTitle || "—"}
+                      >
                         {data.positionTitle || "—"}
                       </p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Employment / Assignment Type</span>
+
+                    {/* Field 4: Employment / Assignment Type */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Employment / Assignment Type
+                      </span>
                       <p className="font-bold text-text-primary text-sm mt-1">
-                        {isRoving ? "Roving" : (data.employmentType || data.assignmentType || "Stationary")}
+                        {isRoving
+                          ? "Roving"
+                          : data.employmentType || data.assignmentType || "Stationary"}
                       </p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Date Hired / Deployed</span>
+
+                    {/* Field 5: Account Portfolio */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Account Portfolio
+                      </span>
+                      <p
+                        className="font-bold text-text-primary text-sm mt-1 truncate"
+                        title={data.accountName || "—"}
+                      >
+                        {data.accountName || "—"}
+                      </p>
+                    </div>
+
+                    {/* Field 6: Area / City / Province */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Area / City / Province
+                      </span>
+                      <p
+                        className="font-bold text-text-primary text-sm mt-1 truncate"
+                        title={
+                          [data.area, data.province].filter(Boolean).join(" • ") || "—"
+                        }
+                      >
+                        {[data.area, data.province].filter(Boolean).join(" • ") || "—"}
+                      </p>
+                    </div>
+
+                    {/* Field 7: Date Hired / Deployed */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
+                      <span className="text-text-secondary font-medium">
+                        Date Hired / Deployed
+                      </span>
                       <p className="font-bold text-text-primary text-sm mt-1">
                         {formatDate(data.dateHired || data.dateDeployed)}
                       </p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
+
+                    {/* Field 8: Tenure */}
+                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
                       <span className="text-text-secondary font-medium">Tenure</span>
                       <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.tenureDescription || computeTenure(data.dateDeployed || data.dateHired)}
+                        {data.tenureDescription ||
+                          computeTenure(data.dateDeployed || data.dateHired)}
                       </p>
                     </div>
-                    <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle">
-                      <span className="text-text-secondary font-medium">Account Portfolio</span>
-                      <p className="font-bold text-text-primary text-sm mt-1">
-                        {data.accountName || "—"}
-                      </p>
+                  </div>
+
+                  {/* Assigned Store Allocations (Full Width Section - Numbers Only) */}
+                  <div className="mt-5 pt-5 border-t border-border-subtle">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Store className="w-4 h-4 text-brand-primary" />
+                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                          {hasMultiStores
+                            ? "Assigned Store Allocations"
+                            : "Assigned Primary Store"}
+                        </span>
+                        {isRoving && (
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
+                            Roving{hasMultiStores ? ` • ${coveredStores.length} Stores` : ""}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+                        HC
+                      </span>
+                    </div>
+
+                    {/* Store Allocation List (Numbers Only) */}
+                    <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
+                      {displayStores.map((store, idx) => {
+                        const isPrimary = Boolean(store.isPrimary || idx === 0);
+                        const hcShare =
+                          store.allocationPercent != null
+                            ? (store.allocationPercent / 100).toFixed(2)
+                            : (1 / displayStores.length).toFixed(2);
+                        return (
+                          <div
+                            key={store.stableKey || `store-alloc-${idx}`}
+                            className="flex items-center justify-between gap-4 px-4 py-3 bg-surface hover:bg-surface-muted/30 transition text-xs"
+                          >
+                            <div className="min-w-0 flex items-center gap-3">
+                              <span
+                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                  isPrimary
+                                    ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                                    : "bg-text-muted"
+                                }`}
+                                title={isPrimary ? "Primary Store" : "Assigned Store"}
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span
+                                    className="font-bold text-text-primary text-xs truncate uppercase tracking-tight"
+                                    title={store.storeName}
+                                  >
+                                    {store.storeName}
+                                  </span>
+                                  {isPrimary && (
+                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                                      Primary
+                                    </span>
+                                  )}
+                                </div>
+                                {(store.vcode || data.vcode) && (
+                                  <span className="font-mono text-[10px] text-text-muted block mt-0.5">
+                                    {store.vcode || data.vcode}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-mono font-bold text-sm text-text-primary tabular-nums">
+                                {hcShare}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Total Allocation Row for multi-store records */}
+                      {hasMultiStores && (
+                        <div className="flex items-center justify-between gap-4 px-4 py-2.5 bg-surface-muted/60 text-xs font-bold text-text-primary border-t border-border-subtle">
+                          <span className="flex items-center gap-1.5 text-text-secondary">
+                            <span>Σ</span>
+                            <span>Total Allocated</span>
+                          </span>
+                          <span className="font-mono tabular-nums text-text-primary font-bold text-sm text-right">
+                            {totalAllocation}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
