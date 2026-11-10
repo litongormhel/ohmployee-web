@@ -2105,14 +2105,78 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
   }
 
   // -------------------------------------------------------------------------
-  // Resilient Audit Timeline Aggregator
-  // Hydrates deactivation, separation, and deployment events
+  // Resilient Universal Audit Timeline Aggregator
+  // Hydrates employment status updates (On Leave, Active, Floating, Separated),
+  // transfers, schedules, HRCO assignments, MIKA sync, and deactivations
   // -------------------------------------------------------------------------
   try {
     const timelineItems: PlantillaAuditTimelineItem[] = [...normalized.auditTimeline];
     const actorIds = new Set<string>();
 
-    // 1. Check employee_deactivation_audit_log for authoritative deactivation trail
+    // 1. Check public.audit_logs for comprehensive operational field mutations
+    type AuditLogRow = {
+      id: string;
+      action: string;
+      actor_id: string | null;
+      role: string | null;
+      old_data: Record<string, unknown> | null;
+      new_data: Record<string, unknown> | null;
+      timestamp: string;
+    };
+    let rawAuditLogs: AuditLogRow[] = [];
+    try {
+      const { data: auditData } = await supabase
+        .from("audit_logs")
+        .select("id, action, actor_id, role, old_data, new_data, timestamp")
+        .eq("record_id", normalized.id)
+        .order("timestamp", { ascending: false })
+        .limit(50);
+
+      if (auditData && auditData.length > 0) {
+        rawAuditLogs = auditData as unknown as AuditLogRow[];
+        for (const log of rawAuditLogs) {
+          if (log.actor_id) {
+            actorIds.add(asString(log.actor_id) || "");
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] audit_logs query exception:", err);
+    }
+
+    // 2. Check public.employee_transfers for store movements
+    type TransferRow = {
+      id: string;
+      from_store: string | null;
+      to_store: string | null;
+      transfer_date: string | null;
+      reason: string | null;
+      requested_by: string | null;
+      status: string | null;
+      reviewed_by: string | null;
+      reviewed_at: string | null;
+      created_at: string;
+      approved_by_user_id: string | null;
+    };
+    let rawTransfers: TransferRow[] = [];
+    try {
+      const { data: transfers } = await supabase
+        .from("employee_transfers")
+        .select("id, from_store, to_store, transfer_date, reason, requested_by, status, reviewed_by, reviewed_at, created_at, approved_by_user_id")
+        .eq("plantilla_id", normalized.id)
+        .order("created_at", { ascending: false });
+
+      if (transfers && transfers.length > 0) {
+        rawTransfers = transfers as unknown as TransferRow[];
+        for (const tr of rawTransfers) {
+          if (tr.approved_by_user_id) actorIds.add(asString(tr.approved_by_user_id) || "");
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] employee_transfers query exception:", err);
+    }
+
+    // 3. Check employee_deactivation_audit_log for authoritative deactivation trail
     type DeactLogRow = {
       id: string;
       action: string;
@@ -2140,7 +2204,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       console.warn("[Plantilla] employee_deactivation_audit_log query exception:", err);
     }
 
-    // 2. Check employee_deactivation_requests
+    // 4. Check employee_deactivation_requests
     type DeactReqRow = {
       id: string;
       status: string;
@@ -2170,7 +2234,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       console.warn("[Plantilla] employee_deactivation_requests query exception:", err);
     }
 
-    // 3. Fallback to direct plantilla record milestones (deactivated_at, for_deactivation_at, date_of_separation)
+    // 5. Fallback to direct plantilla record milestones
     type PlantillaAuditRow = {
       deactivated_at: string | null;
       for_deactivation_at: string | null;
@@ -2183,6 +2247,9 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       date_deployed: string | null;
       date_hired: string | null;
       updated_at: string | null;
+      updated_by: string | null;
+      last_mika_synced_at: string | null;
+      last_mika_synced_by: string | null;
       for_deactivation_by: string | null;
       deactivated_by: string | null;
       inactive_by: string | null;
@@ -2191,12 +2258,14 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     try {
       const { data: pRec } = await supabase
         .from("plantilla")
-        .select("deactivated_at, for_deactivation_at, inactive_at, date_of_separation, separation_status, remarks, deactivation_reason, status, date_deployed, date_hired, updated_at, for_deactivation_by, deactivated_by, inactive_by")
+        .select("deactivated_at, for_deactivation_at, inactive_at, date_of_separation, separation_status, remarks, deactivation_reason, status, date_deployed, date_hired, updated_at, updated_by, last_mika_synced_at, last_mika_synced_by, for_deactivation_by, deactivated_by, inactive_by")
         .eq(isUuid ? "id" : "employee_no", plantillaId)
         .maybeSingle();
 
       if (pRec) {
         rawPRec = pRec as unknown as PlantillaAuditRow;
+        if (rawPRec.updated_by) actorIds.add(asString(rawPRec.updated_by) || "");
+        if (rawPRec.last_mika_synced_by) actorIds.add(asString(rawPRec.last_mika_synced_by) || "");
         if (rawPRec.for_deactivation_by) actorIds.add(asString(rawPRec.for_deactivation_by) || "");
         if (rawPRec.deactivated_by) actorIds.add(asString(rawPRec.deactivated_by) || "");
         if (rawPRec.inactive_by) actorIds.add(asString(rawPRec.inactive_by) || "");
@@ -2246,7 +2315,150 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
     }
 
-    // Populate timelineItems from employee_deactivation_audit_log
+    // Helper to push deduplicated timeline items
+    const pushTimelineItem = (item: PlantillaAuditTimelineItem) => {
+      const isDuplicate = timelineItems.some((existing) => {
+        if (existing.eventLabel !== item.eventLabel) return false;
+        const timeDiff = Math.abs(
+          new Date(existing.createdAt || 0).getTime() - new Date(item.createdAt || 0).getTime()
+        );
+        return timeDiff < 60000; // within 1 minute
+      });
+      if (!isDuplicate) {
+        timelineItems.push(item);
+      }
+    };
+
+    // A. Hydrate items from public.audit_logs
+    for (const log of rawAuditLogs) {
+      const oldData = asObject(log.old_data);
+      const newData = asObject(log.new_data);
+      const actorName = (log.actor_id ? actorNameMap.get(log.actor_id) : null) || null;
+
+      // Status mutations
+      const oldStatus = asString(oldData.status);
+      const newStatus = asString(newData.status);
+      if (newStatus && (!oldStatus || newStatus !== oldStatus)) {
+        let eventLabel = `Status Changed: ${newStatus}`;
+        let eventDescription: string | null = null;
+        const leaveRemarks = asString(newData.remarks ?? newData.reason);
+
+        if (newStatus === "On Leave") {
+          eventLabel = "Tagged as On Leave";
+          eventDescription = leaveRemarks ? `Reason/Remarks: ${leaveRemarks}` : "Personnel employment status updated to On Leave.";
+        } else if (newStatus === "Active") {
+          eventLabel = "Returned to Active";
+          eventDescription = "Personnel employment status returned to Active.";
+        } else if (newStatus === "Floating") {
+          eventLabel = "Transferred to Floating";
+          eventDescription = leaveRemarks ? `Remarks: ${leaveRemarks}` : "Personnel transitioned to floating status.";
+        } else if (newStatus === "Resigned" || newStatus === "AWOL" || newStatus === "Terminated") {
+          eventLabel = `Personnel Separated (${newStatus})`;
+          eventDescription = leaveRemarks ? `Remarks: ${leaveRemarks}` : `Personnel separation processed as ${newStatus}.`;
+        } else if (newStatus === "Deactivated") {
+          eventLabel = "Personnel Deactivated";
+          eventDescription = leaveRemarks ? `Deactivation finalized (${leaveRemarks})` : "Personnel deactivated and offboarded.";
+        }
+
+        pushTimelineItem({
+          stableKey: `audit-status-${log.id}`,
+          eventId: log.id,
+          eventLabel,
+          eventDescription,
+          createdAt: asString(log.timestamp),
+          profileName: actorName,
+        });
+      }
+
+      // Schedule & Allocation updates
+      const oldDays = asString(oldData.schedule_days ?? oldData.schedule);
+      const newDays = asString(newData.schedule_days ?? newData.schedule);
+      const oldTime = asString(oldData.schedule_time);
+      const newTime = asString(newData.schedule_time);
+      const oldDayoff = asString(oldData.dayoff ?? oldData.rest_day);
+      const newDayoff = asString(newData.dayoff ?? newData.rest_day);
+      if (
+        (newDays && newDays !== oldDays) ||
+        (newTime && newTime !== oldTime) ||
+        (newDayoff && newDayoff !== oldDayoff)
+      ) {
+        pushTimelineItem({
+          stableKey: `audit-sched-${log.id}`,
+          eventId: log.id,
+          eventLabel: "Work Schedule & Allocation Updated",
+          eventDescription: `Schedule: ${newDays || "—"} (${newTime || "—"}) • Rest Day: ${newDayoff || "—"}`,
+          createdAt: asString(log.timestamp),
+          profileName: actorName,
+        });
+      }
+
+      // Store transfer via audit_logs
+      const oldStore = asString(oldData.store_name);
+      const newStore = asString(newData.store_name);
+      if (newStore && oldStore && newStore !== oldStore) {
+        pushTimelineItem({
+          stableKey: `audit-transfer-${log.id}`,
+          eventId: log.id,
+          eventLabel: "Personnel Transferred",
+          eventDescription: `Transferred from ${oldStore} to ${newStore}.`,
+          createdAt: asString(log.timestamp),
+          profileName: actorName,
+        });
+      }
+
+      // HR Coordinator Reassignment via audit_logs
+      const oldHrco = asString(oldData.coordinator ?? oldData.hrco_name);
+      const newHrco = asString(newData.coordinator ?? newData.hrco_name);
+      if (newHrco && oldHrco && newHrco !== oldHrco) {
+        pushTimelineItem({
+          stableKey: `audit-hrco-${log.id}`,
+          eventId: log.id,
+          eventLabel: "HR Coordinator Reassigned",
+          eventDescription: `Assigned to ${newHrco}.`,
+          createdAt: asString(log.timestamp),
+          profileName: actorName,
+        });
+      }
+
+      // MIKA Synchronized via audit_logs
+      const oldMika = asString(oldData.last_mika_synced_at);
+      const newMika = asString(newData.last_mika_synced_at);
+      if (newMika && newMika !== oldMika) {
+        pushTimelineItem({
+          stableKey: `audit-mika-${log.id}`,
+          eventId: log.id,
+          eventLabel: "Synchronized from MIKA",
+          eventDescription: "Personnel details synchronized with external HRIS master record.",
+          createdAt: asString(log.timestamp),
+          profileName: actorName,
+        });
+      }
+    }
+
+    // B. Hydrate items from public.employee_transfers
+    for (const tr of rawTransfers) {
+      if (tr.status === "Approved") {
+        pushTimelineItem({
+          stableKey: `transfer-approved-${tr.id}`,
+          eventId: tr.id,
+          eventLabel: "Personnel Transfer Approved",
+          eventDescription: `Transferred from ${tr.from_store || "Store"} to ${tr.to_store || "Store"}${tr.reason ? ` (Reason: ${tr.reason})` : ""}`,
+          createdAt: asString(tr.reviewed_at ?? tr.created_at),
+          profileName: (tr.approved_by_user_id ? actorNameMap.get(tr.approved_by_user_id) : null) || tr.reviewed_by || null,
+        });
+      } else {
+        pushTimelineItem({
+          stableKey: `transfer-req-${tr.id}`,
+          eventId: tr.id,
+          eventLabel: "Personnel Transfer Requested",
+          eventDescription: `Transfer to ${tr.to_store || "Store"} requested${tr.reason ? ` (Reason: ${tr.reason})` : ""}`,
+          createdAt: asString(tr.created_at),
+          profileName: tr.requested_by || null,
+        });
+      }
+    }
+
+    // C. Hydrate items from employee_deactivation_audit_log
     if (rawDeactLogs.length > 0) {
       for (const dLog of rawDeactLogs) {
         const action = asString(dLog.action);
@@ -2278,7 +2490,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
           (performerId ? actorNameMap.get(performerId) : null) ||
           null;
 
-        timelineItems.push({
+        pushTimelineItem({
           stableKey: `deact-log-${dLog.id}`,
           eventId: asString(dLog.id) || "",
           eventLabel,
@@ -2289,7 +2501,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
     }
 
-    // Populate timelineItems from employee_deactivation_requests
+    // D. Hydrate items from employee_deactivation_requests
     if (rawDeactReqs.length > 0) {
       for (const req of rawDeactReqs) {
         const reqStatus = asString(req.status);
@@ -2299,7 +2511,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
           !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")
         ) {
           const processorId = asString(req.processed_by_profile_id);
-          timelineItems.push({
+          pushTimelineItem({
             stableKey: `deact-req-appr-${req.id}`,
             eventId: asString(req.id) || "",
             eventLabel: "Personnel Deactivated",
@@ -2310,7 +2522,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
         }
         if (!timelineItems.some((t) => t.eventLabel === "Deactivation Requested")) {
           const requestorId = asString(req.requestor_profile_id);
-          timelineItems.push({
+          pushTimelineItem({
             stableKey: `deact-req-${req.id}`,
             eventId: asString(req.id) || "",
             eventLabel: "Deactivation Requested",
@@ -2322,16 +2534,58 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
     }
 
+    // E. Fallbacks for current active state milestones
+    const s = asString(rawPRec?.status ?? normalized.status)?.toLowerCase() ?? "";
+
+    // On Leave milestone
+    if (s === "on leave" && !timelineItems.some((t) => t.eventLabel === "Tagged as On Leave")) {
+      const updaterId = asString(rawPRec?.updated_by);
+      pushTimelineItem({
+        stableKey: `current-on-leave-${normalized.id}`,
+        eventId: "on-leave",
+        eventLabel: "Tagged as On Leave",
+        eventDescription: normalized.remarks ? `Reason/Remarks: ${normalized.remarks}` : "Personnel employment status updated to On Leave.",
+        createdAt: asString(rawPRec?.updated_at ?? normalized.updatedAt ?? new Date().toISOString()),
+        profileName: (updaterId ? actorNameMap.get(updaterId) : null) || null,
+      });
+    }
+
+    // Floating milestone
+    if (s === "floating" && !timelineItems.some((t) => t.eventLabel === "Transferred to Floating")) {
+      const updaterId = asString(rawPRec?.updated_by);
+      pushTimelineItem({
+        stableKey: `current-floating-${normalized.id}`,
+        eventId: "floating",
+        eventLabel: "Transferred to Floating",
+        eventDescription: normalized.remarks ? `Remarks: ${normalized.remarks}` : "Personnel transitioned to floating status.",
+        createdAt: asString(rawPRec?.updated_at ?? normalized.updatedAt ?? new Date().toISOString()),
+        profileName: (updaterId ? actorNameMap.get(updaterId) : null) || null,
+      });
+    }
+
+    // MIKA Sync milestone
+    const mikaSyncedAt = asString(rawPRec?.last_mika_synced_at ?? normalized.lastMikaSyncedAt);
+    if (mikaSyncedAt && !timelineItems.some((t) => t.eventLabel === "Synchronized from MIKA")) {
+      const syncerId = asString(rawPRec?.last_mika_synced_by ?? normalized.lastMikaSyncedBy);
+      pushTimelineItem({
+        stableKey: `current-mika-${normalized.id}`,
+        eventId: "mika-sync",
+        eventLabel: "Synchronized from MIKA",
+        eventDescription: "Personnel details synchronized with external HRIS master record.",
+        createdAt: mikaSyncedAt,
+        profileName: (syncerId ? actorNameMap.get(syncerId) : null) || null,
+      });
+    }
+
     // Populate from direct plantilla record if milestones are not yet captured
     if (rawPRec) {
-      const s = asString(rawPRec.status)?.toLowerCase() ?? "";
       const isDeact = s === "deactivated" || s.includes("deactivated") || Boolean(rawPRec.deactivated_at);
       const reason = asString(rawPRec.deactivation_reason ?? rawPRec.remarks);
 
       // Deactivated milestone
       if (isDeact && !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")) {
         const deactId = asString(rawPRec.deactivated_by ?? rawPRec.inactive_by);
-        timelineItems.push({
+        pushTimelineItem({
           stableKey: `plantilla-deact-${normalized.id}`,
           eventId: "deactivated",
           eventLabel: "Personnel Deactivated",
@@ -2347,7 +2601,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
         !timelineItems.some((t) => t.eventLabel === "Deactivation Requested")
       ) {
         const reqId = asString(rawPRec.for_deactivation_by);
-        timelineItems.push({
+        pushTimelineItem({
           stableKey: `plantilla-for-deact-${normalized.id}`,
           eventId: "for-deactivation",
           eventLabel: "Deactivation Requested",
@@ -2365,7 +2619,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       ) {
         const sepLabel = sepStatus || (s === "resigned" ? "Resigned" : s === "awol" ? "AWOL" : s === "terminated" ? "Terminated" : "Separated");
         const sepActorId = asString(rawPRec.inactive_by ?? rawPRec.deactivated_by);
-        timelineItems.push({
+        pushTimelineItem({
           stableKey: `plantilla-sep-${normalized.id}`,
           eventId: "separated",
           eventLabel: `Personnel Separated (${sepLabel})`,
@@ -2376,9 +2630,9 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       }
     }
 
-    // 4. Initial store deployment milestone
+    // F. Initial store deployment milestone
     if (!timelineItems.some((t) => t.eventLabel.startsWith("Personnel deployed to Plantilla"))) {
-      timelineItems.push({
+      pushTimelineItem({
         stableKey: `deployed-${normalized.id}`,
         eventId: "deployed",
         eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || normalized.storeName || "Store"}`,
@@ -2388,7 +2642,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       });
     }
 
-    // 5. Sort newest first (descending)
+    // G. Sort newest first (descending)
     timelineItems.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -2397,7 +2651,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
 
     normalized.auditTimeline = timelineItems;
   } catch (err) {
-    console.warn("[Plantilla] audit timeline aggregation exception:", err);
+    console.warn("[Plantilla] universal audit timeline aggregation exception:", err);
   }
 
   return normalized;

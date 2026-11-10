@@ -9,6 +9,7 @@ import {
   ArrowRightLeft,
   Briefcase,
   Calendar,
+  CalendarClock,
   Clock,
   CreditCard,
   Eye,
@@ -18,6 +19,7 @@ import {
   IdCard,
   Pencil,
   RefreshCw,
+  Share2,
   Shield,
   ShieldCheck,
   Store,
@@ -1203,9 +1205,33 @@ function PlantillaEmployeeDetailContent() {
                         } else if (l.includes("deactivation") || l.includes("pending")) {
                           iconBadgeClass = "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300";
                           IconComponent = AlertTriangle;
+                        } else if (l.includes("on leave") || l.includes("leave")) {
+                          iconBadgeClass = "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300";
+                          IconComponent = CalendarClock;
+                        } else if (l.includes("active") && !l.includes("deactive")) {
+                          iconBadgeClass = "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300";
+                          IconComponent = UserCheck;
+                        } else if (l.includes("floating")) {
+                          iconBadgeClass = "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300";
+                          IconComponent = Share2;
                         } else if (l.includes("separated") || l.includes("resigned") || l.includes("awol") || l.includes("terminated")) {
                           iconBadgeClass = "bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-300";
                           IconComponent = UserX;
+                        } else if (l.includes("schedule") || l.includes("allocation")) {
+                          iconBadgeClass = "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300";
+                          IconComponent = Calendar;
+                        } else if (l.includes("transfer")) {
+                          iconBadgeClass = "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300";
+                          IconComponent = ArrowRightLeft;
+                        } else if (l.includes("hr coordinator") || l.includes("hrco")) {
+                          iconBadgeClass = "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300";
+                          IconComponent = ShieldCheck;
+                        } else if (l.includes("mika")) {
+                          iconBadgeClass = "bg-cyan-50 border-cyan-200 text-cyan-700 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-300";
+                          IconComponent = RefreshCw;
+                        } else if (l.includes("deletion")) {
+                          iconBadgeClass = "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300";
+                          IconComponent = Trash2;
                         }
 
                         return (

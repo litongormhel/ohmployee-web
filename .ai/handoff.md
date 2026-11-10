@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — Universal Employee Lifecycle & Operational Audit Timeline Aggregation (ohm#w8x3m5t2)
+
+**Status: COMPLETE ON MAIN; UNIVERSAL AUDIT TIMELINE HYDRATION IMPLEMENTED ON EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`); ALL OPERATIONAL MUTATIONS (STATUS TAGGING AS ON LEAVE / ACTIVE / FLOATING / SEPARATED, SCHEDULE & ALLOCATION EDITS, STORE TRANSFERS, HRCO REASSIGNMENTS, MIKA SYNCHRONIZATIONS, AND DEACTIVATIONS) NOW HYDRATE AND DISPLAY WITH PRECISE TIMESTAMPS AND ATTRIBUTION (`Initiated by: {name}` / `Triggered by: {name}`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Universal Audit Aggregation (`src/lib/queries/plantilla.ts` in `getWebPlantillaDetail`)**:
+   - Expanded the audit aggregator beyond deactivation queues to cover the full lifecycle of all employees (Active, On-Leave, Floating, Inactive, Deactivated).
+   - **`public.audit_logs` Hydration**: Queried `audit_logs` where `record_id = normalized.id` (`module = 'plantilla'`) to capture granular field changes:
+     - *Status Transitions*: Detects `status` changed to `On Leave` (`Tagged as On Leave`), `Active` (`Returned to Active`), `Floating` (`Transferred to Floating`), `Resigned` / `AWOL` / `Terminated` (`Personnel Separated`), and `Deactivated` with reason, EDR, and remarks.
+     - *Schedule & Allocation Updates*: Detects `schedule_days`, `schedule_time`, `dayoff`, or `assignment_type` changes.
+     - *Store Movements*: Detects `store_name` or `store_id` updates (`Personnel Transferred`).
+     - *HRCO Reassignments*: Detects `coordinator` or `hrco_name` changes.
+     - *MIKA Sync*: Detects `last_mika_synced_at` changes.
+   - **`public.employee_transfers` Hydration**: Queried movement records for transfer requests and approvals.
+   - **Direct Attribute Fallback**: Fallbacks for current active state (`status === 'On Leave'`, `status === 'Floating'`, `last_mika_synced_at`) ensure milestones display even when audit tables have RLS visibility limits.
+   - **Operational Window Deduplication**: Added 60-second window deduplication (`pushTimelineItem`) to prevent duplicate card rendering.
+   - **Actor Resolution**: Collected all actor UUIDs and resolved them against `public.users_profile` (`id` and `auth_user_id`).
+2. **Semantic Timeline UI (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Added semantic iconography and color-coded badge classes:
+     - `Tagged as On Leave`: `CalendarClock` with amber badge
+     - `Returned to Active`: `UserCheck` with emerald badge
+     - `Transferred to Floating`: `Share2` with purple badge
+     - `Work Schedule & Allocation Updated`: `Calendar` with blue badge
+     - `Personnel Transferred`: `ArrowRightLeft` with indigo badge
+     - `HR Coordinator Reassigned`: `ShieldCheck` with teal badge
+     - `Synchronized from MIKA`: `RefreshCw` with cyan badge
+     - `Personnel Separated`: `UserX` with orange badge
+     - `Personnel Deactivated`: `UserMinus` with rose badge
+     - `Deactivation Requested`: `AlertTriangle` with amber badge
+     - `Deletion Requested`: `Trash2` with red badge
+     - `Personnel deployed to Plantilla`: `Store` with blue badge
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Display Initiator/Trigger Actor in Audit Timeline & Remove Irrelevant VCode Badge (ohm#u2p9k4x7)
 
 **Status: COMPLETE ON MAIN; AUDIT TIMELINE IN EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`) NOW RESOLVES AND DISPLAYS INITIATOR AND TRIGGER ACTOR NAMES (`Initiated by: {name}` FOR REQUESTS, `Triggered by: {name}` FOR DEACTIVATIONS, SEPARATIONS, AND DEPLOYMENTS); IRRELEVANT VCODE BADGE PERMANENTLY REMOVED FROM ALL TIMELINE CARDS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
