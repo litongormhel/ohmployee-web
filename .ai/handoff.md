@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Fix UpdateSchedule Schema Error, Standardize Rest Day Pill Sizing, and Streamline Subtitle (ohm#e6q3m8w1)
+
+**Status: COMPLETE ON MAIN; POSTGREST SCHEMA CACHE ERROR IN `updatePlantillaSchedule` RESOLVED (REMOVED NON-EXISTENT `assignment_type` UPDATE ON `plantilla` TABLE IN FAVOR OF VALID `deployment_type`); STANDARDIZED "DESIGNATED REST DAYS (DAY OFF)" PILL SIZING AND PROPORTIONS TO EXACTLY MATCH DUTY DAYS BUTTONS (`gap-1`, `py-1 text-[11px] font-bold rounded`); STREAMLINED MODAL SUBTITLE TO OMIT EMPLOYEE NAME AND NUMBER (`Configuring rest days, per-store duty days, and shift time windows`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Schema Fix in `updatePlantillaSchedule` (`src/lib/queries/plantilla.ts`)**:
+   - Removed `updatePayload.assignment_type = "Roving";` and `updatePayload.assignment_type = "Stationary";` prior to updating the `plantilla` table.
+   - The PostgreSQL `plantilla` table exclusively maintains `deployment_type`, whereas `assignment_type` is an `hr_emploc` table column. Retaining only `updatePayload.deployment_type` permanently prevents PostgREST `42703` schema cache failures (`Could not find the 'assignment_type' column of 'plantilla' in the schema cache`).
+2. **Rest Day Pill Sizing & Visual Alignment (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Refined the "Designated Rest Days (Day Off)" pill buttons from `py-2 text-xs font-bold rounded-lg` and `gap-1.5` to `py-1 text-[11px] font-bold rounded` and `gap-1`.
+   - Rest days and duty days selector buttons now have identical height, typography, padding, and corner radius across the modal.
+3. **Modal Subtitle Streamlining (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Removed the employee name and employee number injection from the header subtitle.
+   - Subtitle now displays clean static text: `"Configuring rest days, per-store duty days, and shift time windows"`.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Simplify Activity Audit Feed to Human-Readable Single-Line Sentence Format (ohm#s5k8m2d4)
 
 **Status: COMPLETE ON MAIN; LIFECYCLE EVENT LOG & AUDIT TIMELINE ON EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`) REDESIGNED INTO A STREAMLINED SINGLE-LINE HUMAN-READABLE ACTIVITY FEED (`[Icon] {User} {action} {timestamp}`, e.g., `Litong, Ohm update the status to On Leave ... Nov 10, 2026, 1:13 PM`); HEAVY 3-LEVEL CARD CONTAINERS REPLACED WITH CLEAN HORIZONTAL ROWS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

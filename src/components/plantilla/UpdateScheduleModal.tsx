@@ -491,15 +491,7 @@ export function UpdateScheduleModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Schedule & Work Terms"
-      subtitle={
-        employeeName ? (
-          <span className="text-text-secondary text-xs">
-            Configuring rest days, per-store duty days, and shift time windows for{" "}
-            <strong className="text-text-primary font-semibold">{employeeName}</strong>
-            {employeeNo && <span className="font-mono ml-1">({employeeNo})</span>}
-          </span>
-        ) : undefined
-      }
+      subtitle="Configuring rest days, per-store duty days, and shift time windows"
       icon={Clock}
       isSubmitting={isSubmitting}
       isDirty={isDirty}
@@ -533,7 +525,7 @@ export function UpdateScheduleModal({
 
           {/* Multi-Select Rest Day Pills */}
           <div>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-7 gap-1">
               {DAYS_OF_WEEK.map((d) => {
                 const isSelected = selectedDayoffs.includes(d);
                 return (
@@ -541,7 +533,7 @@ export function UpdateScheduleModal({
                     key={d}
                     type="button"
                     onClick={() => handleToggleDayoff(d)}
-                    className={`py-2 text-xs font-bold rounded-lg border transition cursor-pointer text-center ${
+                    className={`py-1 text-[11px] font-bold rounded border transition cursor-pointer text-center ${
                       isSelected
                         ? "bg-brand-primary text-white border-brand-primary shadow-xs"
                         : "bg-surface border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-muted"

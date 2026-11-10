@@ -2900,10 +2900,8 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
 
   if (params.storeAllocations && params.storeAllocations.length > 0) {
     if (params.storeAllocations.length > 1) {
-      updatePayload.assignment_type = "Roving";
       updatePayload.deployment_type = "Roving";
     } else {
-      updatePayload.assignment_type = "Stationary";
       updatePayload.deployment_type = "Stationary";
     }
   }
