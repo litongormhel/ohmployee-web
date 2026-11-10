@@ -95,8 +95,15 @@ export function NewStoreDataTable({
   const forwardMutation = useForwardNewStoreRequest();
 
   const currentUser = useCurrentUser();
+  const roleKey = currentUser?.roleKey?.toLowerCase() ?? "";
+  const roleName = currentUser?.roleName?.toLowerCase() ?? "";
   const userRoleLevel = currentUser?.role_level ?? 0;
-  const isSuperOrHeadAdmin = userRoleLevel >= 90;
+  const isSuperOrHeadAdmin =
+    roleKey === "super_admin" ||
+    roleKey === "head_admin" ||
+    roleName.includes("super admin") ||
+    roleName.includes("head admin") ||
+    userRoleLevel >= 90;
 
   const isAllSelected =
     paginatedRequests.length > 0 && paginatedRequests.every((r) => selectedIds.has(r.id));

@@ -12,7 +12,7 @@ export interface RequestDeactivationModalProps {
   employeeName: string;
   employeeNo: string;
   currentStatus?: string | null;
-  onNavigateStatusTab?: (tab: string) => void;
+  onNavigateStatusTab?: (tab: "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive") => void;
   onSuccess?: () => void;
 }
 

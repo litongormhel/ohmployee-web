@@ -132,6 +132,7 @@ export type PlantillaCoveredStore = {
   vcode?: string | null;
   scheduleDays?: string | null;
   scheduleTime?: string | null;
+  remarks?: string | null;
   area?: string | null;
   city?: string | null;
   province?: string | null;
@@ -254,6 +255,7 @@ export type PlantillaEmployeeListItem = {
   separationDate?: string | null;
   clearanceStatus?: string | null;
   separationRemarks?: string | null;
+  remarks?: string | null;
   isActive?: boolean;
   rowCapabilities: PlantillaRowCapabilities;
   totalCount: number;
@@ -332,11 +334,14 @@ export type PlantillaDetailItem = {
   islandGroup?: string | null;
   scheduleDays?: string | null;
   scheduleTime?: string | null;
+  remarks?: string | null;
   dayoff?: string | null;
   birthDate?: string | null;
   civilStatus?: string | null;
   contactNumber?: string | null;
   residentialAddress?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   rowCapabilities: PlantillaRowCapabilities;
 };
 
@@ -718,6 +723,7 @@ function normalizeEmployeeListRow(row: PlantillaRpcRow): PlantillaEmployeeListIt
     ),
     clearanceStatus: asString(row.clearance_status ?? row.clearanceStatus),
     separationRemarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
+    remarks: asString(row.remarks ?? row.separation_remarks ?? row.separationRemarks),
     isActive: isActiveBool,
     rowCapabilities: normalizeEmployeeCapabilities(row.row_capabilities),
     totalCount: asCount(row.total_count),
@@ -2670,7 +2676,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
 
     // E. Fallbacks for current active state milestones
-    const s = asString(rawPRec?.status ?? normalized.status)?.toLowerCase() ?? "";
+    const s = asString(rawPRec?.status ?? normalized.plantillaStatus)?.toLowerCase() ?? "";
 
     // On Leave milestone
     if (s === "on leave" && !timelineItems.some((t) => t.eventLabel === "Tagged as On Leave")) {
@@ -2770,7 +2776,7 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
       pushTimelineItem({
         stableKey: `deployed-${normalized.id}`,
         eventId: "deployed",
-        eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || normalized.storeName || "Store"}`,
+        eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || "Store"}`,
         eventDescription: "Initial operational deployment to store branch.",
         createdAt: asString(normalized.dateDeployed || normalized.dateHired),
         profileName: normalized.coordinator || normalized.hrcoName || null,
@@ -3105,6 +3111,7 @@ export interface StoreAllocationInput {
   vcode?: string | null;
   scheduleDays?: string | null;
   scheduleTime?: string | null;
+  remarks?: string | null;
   allocationPercent: number; // e.g. 50 = 0.50 HC, 100 = 1.00 HC
 }
 
@@ -3113,6 +3120,7 @@ export interface UpdatePlantillaScheduleParams {
   employeeNo?: string | null;
   scheduleDays?: string | null;
   scheduleTime?: string | null;
+  remarks?: string | null;
   dayoff?: string | null;
   storeAllocations?: StoreAllocationInput[];
 }

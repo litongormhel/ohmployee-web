@@ -18,6 +18,8 @@ export type WebCurrentUserContext = {
   email: string | null;
   roleKey: string | null;
   roleName: string | null;
+  role_level?: number | null;
+  roleLevel?: number | null;
   groupScope: {
     mode: "all" | "scoped" | "none";
     ids: string[];

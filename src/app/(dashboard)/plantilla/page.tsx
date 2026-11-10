@@ -592,6 +592,10 @@ function PlantillaPageContent() {
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState<number>(10);
 
+  // Store View table pagination (default 15 rows per page)
+  const [storePage, setStorePage] = useState<number>(1);
+  const [storePageSize, setStorePageSize] = useState<number>(15);
+
   function handlePageChange(newPage: number) {
     setPage(newPage);
     const params = new URLSearchParams(searchParams.toString());
@@ -1338,9 +1342,70 @@ function PlantillaPageContent() {
     });
   }, [allVacancies, vacancySubFilter, search, areaCityFilter, storeLookupMap]);
 
+  // Discover stores deployed to employees or vacancies that are not directly
+  // under account_id in the stores table (e.g., 'Super 8 Dau')
+  const unmappedStoreNames = useMemo(() => {
+    const knownKeys = new Set((storesUnderAccountQuery.data ?? []).map((s) => s.name.toLowerCase().trim()));
+    const missing = new Set<string>();
+    allEmployees.forEach((emp) => {
+      const name = emp.primaryStoreName?.trim();
+      if (name && !knownKeys.has(name.toLowerCase())) {
+        missing.add(name);
+      }
+    });
+    allVacancies.forEach((v) => {
+      const name = v.storeName?.trim();
+      if (name && !knownKeys.has(name.toLowerCase())) {
+        missing.add(name);
+      }
+    });
+    return Array.from(missing);
+  }, [storesUnderAccountQuery.data, allEmployees, allVacancies]);
+
+  const unmappedStoresQuery = useQuery({
+    queryKey: ["plantilla", "unmapped-stores", unmappedStoreNames.sort().join(",")],
+    queryFn: async () => {
+      if (unmappedStoreNames.length === 0) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("stores")
+        .select("id, store_name, vcode, area_city, area_province, province")
+        .in("store_name", unmappedStoreNames)
+        .limit(50);
+      if (error) {
+        console.warn("Could not fetch unmapped stores metadata:", error);
+        return [];
+      }
+      return (data ?? []).map((s) => ({
+        id: s.id as string,
+        name: s.store_name as string,
+        code: (s.vcode as string | null) ?? null,
+        city: (s.area_city as string | null) ?? null,
+        province: ((s.area_province ?? s.province) as string | null) ?? null,
+      }));
+    },
+    enabled: unmappedStoreNames.length > 0,
+    staleTime: 60000,
+  });
+
+  const effectiveStoreLookupMap = useMemo(() => {
+    const map = new Map<string, { id?: string; city: string | null; province: string | null; code: string | null }>();
+    const combined = [
+      ...(storesUnderAccountQuery.data ?? []),
+      ...(unmappedStoresQuery.data ?? []),
+    ];
+    combined.forEach((s) => {
+      const info = { id: s.id, city: s.city, province: s.province, code: s.code };
+      map.set(s.name.toLowerCase().trim(), info);
+      map.set(s.id, info);
+    });
+    return map;
+  }, [storesUnderAccountQuery.data, unmappedStoresQuery.data]);
+
   // Store Capacity Table Data (for mainView === "store")
+  // Logic Update: The Store View should ONLY populate stores that have at least one
+  // associated record in the following states: Active OR On-Leave OR Open Vacancy.
   const storeCapacityRows = useMemo(() => {
-    const stores = storesUnderAccountQuery.data ?? [];
     const staffingList = storeStaffingQuery.data?.data ?? [];
     const staffingMap = new Map<string, typeof staffingList[0]>();
     staffingList.forEach((s) => {
@@ -1373,17 +1438,105 @@ function PlantillaPageContent() {
       }
     });
 
-    return stores.map((st) => {
+    // Consolidated candidate stores across:
+    // 1. Stores registered under account
+    // 2. Extra stores discovered from unmappedStoresQuery
+    // 3. Active/On-leave employee stores (e.g. 'Super 8 Dau')
+    // 4. Open vacancy stores
+    const candidateStoreMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        code: string | null;
+        city: string | null;
+        province: string | null;
+      }
+    >();
+
+    const knownStoreList = [
+      ...(storesUnderAccountQuery.data ?? []),
+      ...(unmappedStoresQuery.data ?? []),
+    ];
+
+    knownStoreList.forEach((st) => {
       const key = st.name.toLowerCase().trim();
+      if (key && !candidateStoreMap.has(key)) {
+        candidateStoreMap.set(key, {
+          id: st.id,
+          name: st.name,
+          code: st.code,
+          city: st.city,
+          province: st.province,
+        });
+      }
+    });
+
+    allEmployees.forEach((emp) => {
+      const name = emp.primaryStoreName?.trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!candidateStoreMap.has(key)) {
+        const lookup = effectiveStoreLookupMap.get(key);
+        candidateStoreMap.set(key, {
+          id: lookup?.id || `store-emp-${key.replace(/[^a-z0-9]+/g, "-")}`,
+          name,
+          code: emp.vcode || lookup?.code || null,
+          city: lookup?.city || null,
+          province: lookup?.province || null,
+        });
+      }
+    });
+
+    allVacancies.forEach((v) => {
+      const name = v.storeName?.trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!candidateStoreMap.has(key)) {
+        const lookup = effectiveStoreLookupMap.get(key);
+        candidateStoreMap.set(key, {
+          id: v.storeId || lookup?.id || `store-vac-${key.replace(/[^a-z0-9]+/g, "-")}`,
+          name,
+          code: v.vcode || lookup?.code || null,
+          city: lookup?.city || null,
+          province: lookup?.province || null,
+        });
+      }
+    });
+
+    const rows: {
+      id: string;
+      storeBranch: string;
+      code: string | null;
+      city: string | null;
+      province: string | null;
+      plantillaRequired: number;
+      activeDeployed: number;
+      onLeave: number;
+      openVacancy: number;
+      isFulfilled: boolean;
+    }[] = [];
+
+    candidateStoreMap.forEach((st, key) => {
       const staffRow = staffingMap.get(st.id);
 
       const activeDeployed = storeActiveCountMap.get(key) ?? staffRow?.onboardCount ?? 0;
       const onLeave = storeOnLeaveCountMap.get(key) ?? 0;
       const openVacancy = storeVacancyCountMap.get(key) ?? staffRow?.openHeadcount ?? 0;
+
+      // Logic Update: The Store View should ONLY populate stores that have at least one
+      // associated record in the following states: Active OR On-Leave OR Open Vacancy.
+      // Orphaned stores having 0 Active, 0 On-Leave, and 0 Vacancies (e.g. Festival Mall, SM Caloocan)
+      // are removed / hidden from this view.
+      const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
+      if (!hasAssociatedRecord) {
+        return;
+      }
+
       const required = staffRow?.requiredHeadcount ?? Math.max(activeDeployed + openVacancy, 1);
       const isFulfilled = activeDeployed >= required && required > 0;
 
-      return {
+      rows.push({
         id: st.id,
         storeBranch: st.name,
         code: st.code,
@@ -1394,9 +1547,18 @@ function PlantillaPageContent() {
         onLeave,
         openVacancy,
         isFulfilled,
-      };
+      });
     });
-  }, [storesUnderAccountQuery.data, storeStaffingQuery.data?.data, allEmployees, allVacancies]);
+
+    return rows.sort((a, b) => a.storeBranch.localeCompare(b.storeBranch));
+  }, [
+    storesUnderAccountQuery.data,
+    unmappedStoresQuery.data,
+    effectiveStoreLookupMap,
+    storeStaffingQuery.data?.data,
+    allEmployees,
+    allVacancies,
+  ]);
 
   const filteredStoreCapacityRows = useMemo(() => {
     return storeCapacityRows.filter((st) => {
@@ -1526,9 +1688,9 @@ function PlantillaPageContent() {
   }, [currentTabRows, page, pageSize]);
 
   const paginatedStoreRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredStoreCapacityRows.slice(start, start + pageSize);
-  }, [filteredStoreCapacityRows, page, pageSize]);
+    const start = (storePage - 1) * storePageSize;
+    return filteredStoreCapacityRows.slice(start, start + storePageSize);
+  }, [filteredStoreCapacityRows, storePage, storePageSize]);
 
   const hasActiveFilters = Boolean(search.trim() || areaCityFilter || assignmentType);
 
@@ -1566,6 +1728,7 @@ function PlantillaPageContent() {
     setAssignmentType("");
     setInternalStatusTab("active");
     setPage(1);
+    setStorePage(1);
     setSelectorGroupId("");
     setAccountSearch("");
 
@@ -1582,6 +1745,7 @@ function PlantillaPageContent() {
     setAssignmentType("");
     setInternalStatusTab("active");
     setPage(1);
+    setStorePage(1);
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("accountId");
@@ -1594,6 +1758,7 @@ function PlantillaPageContent() {
     setAreaCityFilter("");
     setAssignmentType("");
     setPage(1);
+    setStorePage(1);
   }
 
   // -------------------------------------------------------------------------
@@ -2117,7 +2282,7 @@ function PlantillaPageContent() {
                       type="button"
                       onClick={() => {
                         setMainView("store");
-                        setPage(1);
+                        setStorePage(1);
                       }}
                       className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
                         mainView === "store"
@@ -2950,16 +3115,27 @@ function PlantillaPageContent() {
             {/* Pagination Controls */}
             {currentTotalCount > 0 && (
               <TablePagination
-                page={page}
-                pageSize={pageSize}
+                page={mainView === "store" ? storePage : page}
+                pageSize={mainView === "store" ? storePageSize : pageSize}
                 totalCount={currentTotalCount}
-                pageSizeOptions={[10, 25, 50]}
-                onPageChange={handlePageChange}
-                onPageSizeChange={(newPageSize) => {
-                  setPageSize(newPageSize);
-                  setPage(1);
+                pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 25, 50]}
+                onPageChange={(newPage) => {
+                  if (mainView === "store") {
+                    setStorePage(newPage);
+                  } else {
+                    handlePageChange(newPage);
+                  }
                 }}
-                isLoading={employeeQuery.isLoading}
+                onPageSizeChange={(newPageSize) => {
+                  if (mainView === "store") {
+                    setStorePageSize(newPageSize);
+                    setStorePage(1);
+                  } else {
+                    setPageSize(newPageSize);
+                    setPage(1);
+                  }
+                }}
+                isLoading={mainView === "store" ? (storesUnderAccountQuery.isLoading || employeeQuery.isLoading) : employeeQuery.isLoading}
                 className="mt-2 pt-2 border-t border-border-default px-0 shrink-0"
               />
             )}
@@ -3050,7 +3226,7 @@ function PlantillaPageContent() {
                 vacancyListQuery.refetch();
               }}
               onNavigateStatusTab={(tab) => {
-                handleSelectStatusTab(tab);
+                handleSelectStatusTab(tab as StatusSubTab);
               }}
             />
           )}
@@ -3069,7 +3245,7 @@ function PlantillaPageContent() {
                 summaryQuery.refetch();
               }}
               onNavigateStatusTab={(tab) => {
-                handleSelectStatusTab(tab);
+                handleSelectStatusTab(tab as StatusSubTab);
               }}
             />
           )}
@@ -4693,7 +4869,7 @@ function VacancyCard({
 
         <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
           <span className="font-medium text-text-secondary truncate">
-            {row.positionTitle ? formatPosition(row.positionTitle) : "Store Personnel"}
+            {row.position_title ? formatPosition(row.position_title) : "Store Personnel"}
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-muted">
             <Clock className="h-3 w-3" />

@@ -489,7 +489,7 @@ export function UpdateScheduleModal({
   };
 
   // Toggle single duty day for a store
-  const toggleStoreDay = (index: number, day: string) => {
+  const toggleStoreDay = (index: number, day: DayCode) => {
     const alloc = allocations[index];
     const daySet = parseDaysToSet(alloc.scheduleDays);
     if (daySet.has(day)) {

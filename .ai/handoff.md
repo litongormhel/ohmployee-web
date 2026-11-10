@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
+
+**Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**
+
+### 1. Root Cause & Investigation Summary
+1. **Orphaned Stores in Store View**:
+   - `storeCapacityRows` in `src/app/(dashboard)/plantilla/page.tsx` was previously mapping strictly over `storesUnderAccountQuery.data` (which queried `public.stores WHERE account_id = :accountId AND is_active = true`).
+   - Stores like `Festival Mall` (`ACT-G5-010`) and `SM CALOOCAN` (including `SM CALOOCAN 1` and `SM CALOOCAN 2`), which had 0 active personnel, 0 on-leave personnel, and 0 open vacancies, were displayed as empty rows (`Required = 1, Active = 0, Leave = 0, Vacant = 0`).
+   - On staging (`qqiiznmqxfoamqytjica`), auditing ACTISERVE (`4fba7c47-f19e-47fb-9074-6acab754721f`) revealed 11 orphaned stores (Festival Mall, Gateway Mall, SM Aura, SM CALOOCAN, SM CALOOCAN 1, SM CALOOCAN 2, SM Fairview, SM KALINGA, SM Megamall, SM North EDSA, Trinoma) displaying in this view without any operational staffing activity.
+2. **Missing Active Deployed Stores ('Super 8 Dau')**:
+   - Active employee `JUAN DELA CRUZ` (`2030-36363`) is deployed to `Super 8 Dau` (`VAC-MNL-099`) under ACTISERVE, but has `store_id = NULL` on his `public.plantilla` row.
+   - In `public.stores`, `Super 8 Dau` was registered under other account portfolios (in Angeles, Pampanga) and not directly under ACTISERVE's `account_id`.
+   - Because `storeCapacityRows` only mapped `storesUnderAccountQuery.data`, `Super 8 Dau` was completely dropped from the Store View despite having an active deployed employee.
+3. **Store View Pagination Default**:
+   - The Store View shared a generic 10-row pagination controller with Employee View rather than defaulting to 15 rows per page as required.
+
+### 2. Changes Made
+1. **SQL / Query Audit Script (`scripts/audit_orphaned_stores_store_view.sql`)**:
+   - Authored complete audit script with Section 1 (Per-Account Scoped Audit with sample for ACTISERVE), Section 2 (Global Cross-Account Audit across all active stores), and Section 3 (Presence status summary metrics).
+   - Classifies every store into `POPULATE (SHOW)` vs `ORPHANED (HIDE)` based on `active_count > 0 OR on_leave_count > 0 OR open_vacancies > 0`.
+2. **Store View Population Gate & Store Discovery (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `unmappedStoreNames` and `unmappedStoresQuery` to detect stores referenced by active/on-leave employees or open vacancies that lack direct rows under `accountId` in `public.stores`.
+   - Merged registered account stores, discovered unmapped store metadata, employee stores, and vacancy stores into a consolidated `candidateStoreMap`.
+   - Enforced the strict presence filter:
+     ```typescript
+     const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
+     if (!hasAssociatedRecord) return;
+     ```
+     This automatically excludes all orphaned stores (Festival Mall, SM Caloocan, etc.) from the view and correctly includes active stores like `Super 8 Dau`.
+3. **15-Item Store View Table Pagination (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added independent pagination state for Store View: `storePage` (default 1) and `storePageSize` (default 15).
+   - In `TablePagination`, dynamically passed:
+     - `page={mainView === "store" ? storePage : page}`
+     - `pageSize={mainView === "store" ? storePageSize : pageSize}`
+     - `pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 25, 50]}`
+   - Connected `setStorePage(1)` and `setPage(1)` resets to `handleSelectAccount`, `handleBackToSelection`, and `handleResetFilters`.
+4. **Type Harmonization Fixes**:
+   - Added `remarks` to `PlantillaEmployeeListItem` and `PlantillaDetailItem` (`src/lib/queries/plantilla.ts`).
+   - Harmonized `onNavigateStatusTab` type in `RequestDeactivationModal.tsx` and `plantilla/page.tsx`.
+   - Resolved `position_title` property in `plantilla/page.tsx` and `DayCode` in `UpdateScheduleModal.tsx`.
+   - Added `role_level?: number | null` to `WebCurrentUserContext` in `src/lib/auth.ts` and updated `isSuperOrHeadAdmin` checks in `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+- `npm test`: Clean (28/28 unit and regression tests passing).
+- `npm run build`: Next.js 16.2.4 compiled successfully and emitted all 20 static/dynamic routes with zero errors.
+
+---
+
 ## Execution Report — Fix MIKA Benefits Sync & Employee Profile Statutory Hydration (ohm#s8m4v1p7)
 
 **Status: COMPLETE ON MAIN; RESOLVED MISSING STATUTORY & BENEFITS NUMBERS (SSS, PHILHEALTH, PAG-IBIG, TIN, PAYROLL ATM ACCOUNT) IN DEDICATED EMPLOYEE PROFILE (`/plantilla/[id]`) AFTER MIKA IMPORT AND "SYNC FROM MIKA" ACTIONS (`src/lib/queries/plantilla.ts` AND `src/lib/queries/dataControl.ts`); UPDATED `syncPlantillaMika` TO QUERY LATEST MIKA ROW DATA AND DIRECTLY PERSIST NON-NULL STATUTORY, DEMOGRAPHIC, ADDRESS, AND CONTACT FIELDS TO `public.plantilla` AND `public.employees` (FOR `tin_no`); EXTENDED `getWebPlantillaDetail` WITH TIER 1.5 MIKA FALLBACK HYDRATION AND `tin` MAPPING; UPDATED `approveMikaImport` TO AUTOMATICALLY PROPAGATE APPROVED MATCHED ROWS TO PLANTILLA; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4924,6 +4973,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
+
+**Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**
+
+### 1. Root Cause & Investigation Summary
+1. **Orphaned Stores in Store View**:
+   - `storeCapacityRows` in `src/app/(dashboard)/plantilla/page.tsx` was previously mapping strictly over `storesUnderAccountQuery.data` (which queried `public.stores WHERE account_id = :accountId AND is_active = true`).
+   - Stores like `Festival Mall` (`ACT-G5-010`) and `SM CALOOCAN` (including `SM CALOOCAN 1` and `SM CALOOCAN 2`), which had 0 active personnel, 0 on-leave personnel, and 0 open vacancies, were displayed as empty rows (`Required = 1, Active = 0, Leave = 0, Vacant = 0`).
+   - On staging (`qqiiznmqxfoamqytjica`), auditing ACTISERVE (`4fba7c47-f19e-47fb-9074-6acab754721f`) revealed 11 orphaned stores (Festival Mall, Gateway Mall, SM Aura, SM CALOOCAN, SM CALOOCAN 1, SM CALOOCAN 2, SM Fairview, SM KALINGA, SM Megamall, SM North EDSA, Trinoma) displaying in this view without any operational staffing activity.
+2. **Missing Active Deployed Stores ('Super 8 Dau')**:
+   - Active employee `JUAN DELA CRUZ` (`2030-36363`) is deployed to `Super 8 Dau` (`VAC-MNL-099`) under ACTISERVE, but has `store_id = NULL` on his `public.plantilla` row.
+   - In `public.stores`, `Super 8 Dau` was registered under other account portfolios (in Angeles, Pampanga) and not directly under ACTISERVE's `account_id`.
+   - Because `storeCapacityRows` only mapped `storesUnderAccountQuery.data`, `Super 8 Dau` was completely dropped from the Store View despite having an active deployed employee.
+3. **Store View Pagination Default**:
+   - The Store View shared a generic 10-row pagination controller with Employee View rather than defaulting to 15 rows per page as required.
+
+### 2. Changes Made
+1. **SQL / Query Audit Script (`scripts/audit_orphaned_stores_store_view.sql`)**:
+   - Authored complete audit script with Section 1 (Per-Account Scoped Audit with sample for ACTISERVE), Section 2 (Global Cross-Account Audit across all active stores), and Section 3 (Presence status summary metrics).
+   - Classifies every store into `POPULATE (SHOW)` vs `ORPHANED (HIDE)` based on `active_count > 0 OR on_leave_count > 0 OR open_vacancies > 0`.
+2. **Store View Population Gate & Store Discovery (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `unmappedStoreNames` and `unmappedStoresQuery` to detect stores referenced by active/on-leave employees or open vacancies that lack direct rows under `accountId` in `public.stores`.
+   - Merged registered account stores, discovered unmapped store metadata, employee stores, and vacancy stores into a consolidated `candidateStoreMap`.
+   - Enforced the strict presence filter:
+     ```typescript
+     const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
+     if (!hasAssociatedRecord) return;
+     ```
+     This automatically excludes all orphaned stores (Festival Mall, SM Caloocan, etc.) from the view and correctly includes active stores like `Super 8 Dau`.
+3. **15-Item Store View Table Pagination (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added independent pagination state for Store View: `storePage` (default 1) and `storePageSize` (default 15).
+   - In `TablePagination`, dynamically passed:
+     - `page={mainView === "store" ? storePage : page}`
+     - `pageSize={mainView === "store" ? storePageSize : pageSize}`
+     - `pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 25, 50]}`
+   - Connected `setStorePage(1)` and `setPage(1)` resets to `handleSelectAccount`, `handleBackToSelection`, and `handleResetFilters`.
+4. **Type Harmonization Fixes**:
+   - Added `remarks` to `PlantillaEmployeeListItem` and `PlantillaDetailItem` (`src/lib/queries/plantilla.ts`).
+   - Harmonized `onNavigateStatusTab` type in `RequestDeactivationModal.tsx` and `plantilla/page.tsx`.
+   - Resolved `position_title` property in `plantilla/page.tsx` and `DayCode` in `UpdateScheduleModal.tsx`.
+   - Added `role_level?: number | null` to `WebCurrentUserContext` in `src/lib/auth.ts` and updated `isSuperOrHeadAdmin` checks in `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+- `npm test`: Clean (28/28 unit and regression tests passing).
+- `npm run build`: Next.js 16.2.4 compiled successfully and emitted all 20 static/dynamic routes with zero errors.
+
+---
+
 ## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
 
 **Status: COMPLETE ON MAIN; REDESIGNED PLANTILLA EMPLOYEE PROFILE (`src/app/(dashboard)/plantilla/[id]/page.tsx`) RESOLVING 3 TARGET ISSUES; STACKED SUMMARY HEADER CARD (ROW 1: AVATAR + FULL-WIDTH 2-LINE WRAPPED NAME + INLINE STATUS DOT + WRAPPED SUB-ROW; ROW 2: FULL-WIDTH RESPONSIVE ACTION BAR WITH CLEAN SEPARATION); PROMOTED CGCODE INTO DEDICATED COMPACT FIELD WITH MONOSPACE VALUE, COPY AFFORDANCE, AND EXPLICIT "Not assigned" MUTED LABEL WHEN NULL (LEAVING PERMANENT VCODE UNTOUCHED IN ITS OWN COMPACT FIELD); STANDARDIZED EMPLOYMENT SPECIFICATIONS INTO EQUAL-HEIGHT 3-COLUMN COMPACT GRID; REDESIGNED ASSIGNED STORE ALLOCATIONS TO RENDER RIGHT-ALIGNED PLAIN NUMERIC ALLOCATIONS (0.50, NO "HC" SUFFIX, NO BORDERED PILL CHROME) WITH HC COLUMN HEADER, PRIMARY BADGE, ROVING CHIP, AND SUMMARY TOTAL ROW (Σ Total Allocated ... 1.00); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -5503,6 +5601,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
+
+**Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**
+
+### 1. Root Cause & Investigation Summary
+1. **Orphaned Stores in Store View**:
+   - `storeCapacityRows` in `src/app/(dashboard)/plantilla/page.tsx` was previously mapping strictly over `storesUnderAccountQuery.data` (which queried `public.stores WHERE account_id = :accountId AND is_active = true`).
+   - Stores like `Festival Mall` (`ACT-G5-010`) and `SM CALOOCAN` (including `SM CALOOCAN 1` and `SM CALOOCAN 2`), which had 0 active personnel, 0 on-leave personnel, and 0 open vacancies, were displayed as empty rows (`Required = 1, Active = 0, Leave = 0, Vacant = 0`).
+   - On staging (`qqiiznmqxfoamqytjica`), auditing ACTISERVE (`4fba7c47-f19e-47fb-9074-6acab754721f`) revealed 11 orphaned stores (Festival Mall, Gateway Mall, SM Aura, SM CALOOCAN, SM CALOOCAN 1, SM CALOOCAN 2, SM Fairview, SM KALINGA, SM Megamall, SM North EDSA, Trinoma) displaying in this view without any operational staffing activity.
+2. **Missing Active Deployed Stores ('Super 8 Dau')**:
+   - Active employee `JUAN DELA CRUZ` (`2030-36363`) is deployed to `Super 8 Dau` (`VAC-MNL-099`) under ACTISERVE, but has `store_id = NULL` on his `public.plantilla` row.
+   - In `public.stores`, `Super 8 Dau` was registered under other account portfolios (in Angeles, Pampanga) and not directly under ACTISERVE's `account_id`.
+   - Because `storeCapacityRows` only mapped `storesUnderAccountQuery.data`, `Super 8 Dau` was completely dropped from the Store View despite having an active deployed employee.
+3. **Store View Pagination Default**:
+   - The Store View shared a generic 10-row pagination controller with Employee View rather than defaulting to 15 rows per page as required.
+
+### 2. Changes Made
+1. **SQL / Query Audit Script (`scripts/audit_orphaned_stores_store_view.sql`)**:
+   - Authored complete audit script with Section 1 (Per-Account Scoped Audit with sample for ACTISERVE), Section 2 (Global Cross-Account Audit across all active stores), and Section 3 (Presence status summary metrics).
+   - Classifies every store into `POPULATE (SHOW)` vs `ORPHANED (HIDE)` based on `active_count > 0 OR on_leave_count > 0 OR open_vacancies > 0`.
+2. **Store View Population Gate & Store Discovery (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `unmappedStoreNames` and `unmappedStoresQuery` to detect stores referenced by active/on-leave employees or open vacancies that lack direct rows under `accountId` in `public.stores`.
+   - Merged registered account stores, discovered unmapped store metadata, employee stores, and vacancy stores into a consolidated `candidateStoreMap`.
+   - Enforced the strict presence filter:
+     ```typescript
+     const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
+     if (!hasAssociatedRecord) return;
+     ```
+     This automatically excludes all orphaned stores (Festival Mall, SM Caloocan, etc.) from the view and correctly includes active stores like `Super 8 Dau`.
+3. **15-Item Store View Table Pagination (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added independent pagination state for Store View: `storePage` (default 1) and `storePageSize` (default 15).
+   - In `TablePagination`, dynamically passed:
+     - `page={mainView === "store" ? storePage : page}`
+     - `pageSize={mainView === "store" ? storePageSize : pageSize}`
+     - `pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 25, 50]}`
+   - Connected `setStorePage(1)` and `setPage(1)` resets to `handleSelectAccount`, `handleBackToSelection`, and `handleResetFilters`.
+4. **Type Harmonization Fixes**:
+   - Added `remarks` to `PlantillaEmployeeListItem` and `PlantillaDetailItem` (`src/lib/queries/plantilla.ts`).
+   - Harmonized `onNavigateStatusTab` type in `RequestDeactivationModal.tsx` and `plantilla/page.tsx`.
+   - Resolved `position_title` property in `plantilla/page.tsx` and `DayCode` in `UpdateScheduleModal.tsx`.
+   - Added `role_level?: number | null` to `WebCurrentUserContext` in `src/lib/auth.ts` and updated `isSuperOrHeadAdmin` checks in `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+- `npm test`: Clean (28/28 unit and regression tests passing).
+- `npm run build`: Next.js 16.2.4 compiled successfully and emitted all 20 static/dynamic routes with zero errors.
+
+---
 
 ## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
 
@@ -6107,6 +6254,55 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
+
+**Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**
+
+### 1. Root Cause & Investigation Summary
+1. **Orphaned Stores in Store View**:
+   - `storeCapacityRows` in `src/app/(dashboard)/plantilla/page.tsx` was previously mapping strictly over `storesUnderAccountQuery.data` (which queried `public.stores WHERE account_id = :accountId AND is_active = true`).
+   - Stores like `Festival Mall` (`ACT-G5-010`) and `SM CALOOCAN` (including `SM CALOOCAN 1` and `SM CALOOCAN 2`), which had 0 active personnel, 0 on-leave personnel, and 0 open vacancies, were displayed as empty rows (`Required = 1, Active = 0, Leave = 0, Vacant = 0`).
+   - On staging (`qqiiznmqxfoamqytjica`), auditing ACTISERVE (`4fba7c47-f19e-47fb-9074-6acab754721f`) revealed 11 orphaned stores (Festival Mall, Gateway Mall, SM Aura, SM CALOOCAN, SM CALOOCAN 1, SM CALOOCAN 2, SM Fairview, SM KALINGA, SM Megamall, SM North EDSA, Trinoma) displaying in this view without any operational staffing activity.
+2. **Missing Active Deployed Stores ('Super 8 Dau')**:
+   - Active employee `JUAN DELA CRUZ` (`2030-36363`) is deployed to `Super 8 Dau` (`VAC-MNL-099`) under ACTISERVE, but has `store_id = NULL` on his `public.plantilla` row.
+   - In `public.stores`, `Super 8 Dau` was registered under other account portfolios (in Angeles, Pampanga) and not directly under ACTISERVE's `account_id`.
+   - Because `storeCapacityRows` only mapped `storesUnderAccountQuery.data`, `Super 8 Dau` was completely dropped from the Store View despite having an active deployed employee.
+3. **Store View Pagination Default**:
+   - The Store View shared a generic 10-row pagination controller with Employee View rather than defaulting to 15 rows per page as required.
+
+### 2. Changes Made
+1. **SQL / Query Audit Script (`scripts/audit_orphaned_stores_store_view.sql`)**:
+   - Authored complete audit script with Section 1 (Per-Account Scoped Audit with sample for ACTISERVE), Section 2 (Global Cross-Account Audit across all active stores), and Section 3 (Presence status summary metrics).
+   - Classifies every store into `POPULATE (SHOW)` vs `ORPHANED (HIDE)` based on `active_count > 0 OR on_leave_count > 0 OR open_vacancies > 0`.
+2. **Store View Population Gate & Store Discovery (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `unmappedStoreNames` and `unmappedStoresQuery` to detect stores referenced by active/on-leave employees or open vacancies that lack direct rows under `accountId` in `public.stores`.
+   - Merged registered account stores, discovered unmapped store metadata, employee stores, and vacancy stores into a consolidated `candidateStoreMap`.
+   - Enforced the strict presence filter:
+     ```typescript
+     const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
+     if (!hasAssociatedRecord) return;
+     ```
+     This automatically excludes all orphaned stores (Festival Mall, SM Caloocan, etc.) from the view and correctly includes active stores like `Super 8 Dau`.
+3. **15-Item Store View Table Pagination (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added independent pagination state for Store View: `storePage` (default 1) and `storePageSize` (default 15).
+   - In `TablePagination`, dynamically passed:
+     - `page={mainView === "store" ? storePage : page}`
+     - `pageSize={mainView === "store" ? storePageSize : pageSize}`
+     - `pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 25, 50]}`
+   - Connected `setStorePage(1)` and `setPage(1)` resets to `handleSelectAccount`, `handleBackToSelection`, and `handleResetFilters`.
+4. **Type Harmonization Fixes**:
+   - Added `remarks` to `PlantillaEmployeeListItem` and `PlantillaDetailItem` (`src/lib/queries/plantilla.ts`).
+   - Harmonized `onNavigateStatusTab` type in `RequestDeactivationModal.tsx` and `plantilla/page.tsx`.
+   - Resolved `position_title` property in `plantilla/page.tsx` and `DayCode` in `UpdateScheduleModal.tsx`.
+   - Added `role_level?: number | null` to `WebCurrentUserContext` in `src/lib/auth.ts` and updated `isSuperOrHeadAdmin` checks in `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx`.
+
+### 3. Verification & Mechanical Gates
+- `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+- `npm test`: Clean (28/28 unit and regression tests passing).
+- `npm run build`: Next.js 16.2.4 compiled successfully and emitted all 20 static/dynamic routes with zero errors.
+
+---
 
 ## Execution Report — Plantilla Employee Profile: Header Overlap Fix, CGCode Visibility & Numeric Store Allocations (ohm#7k3q9m2x)
 
