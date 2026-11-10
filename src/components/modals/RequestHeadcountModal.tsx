@@ -1056,10 +1056,10 @@ function RequestHeadcountModalDialog({
                                   <button
                                     type="button"
                                     onClick={() => setIsNsrModalOpen(true)}
-                                    className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:opacity-90 transition-colors"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-brand-button hover:bg-brand-button-hover text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                                   >
                                     <Plus className="h-3.5 w-3.5" />
-                                    <span>+ Request New Store</span>
+                                    <span>Request New Store</span>
                                   </button>
                                   {(storeSearch || selectedProvince || selectedCity) && (
                                     <button

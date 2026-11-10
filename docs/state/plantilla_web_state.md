@@ -8,6 +8,15 @@
 
 This document specifies the target architecture, visual structures, data contracts, and user workflows for the **Plantilla Web** module of the OHMployee Web dashboard. 
 
+### Permanent Architectural Rule Locks
+1. **Rule #1 (Inactive Roster Persistence):** Employees who are disengaged, separated, or pending deactivation (`Resigned`, `AWOL`, `Terminated`) must **always** remain visible in the Inactive Tab for historical and reporting continuity. They must never be filtered out or hidden into isolated views that remove them from historical logs. Tab 5 (Deactivation) serves as an action queue for pending deactivation processing, while Tab 6 (Inactive) is the persistent historical roster.
+2. **Rule #2 (Safe Audit Logging):** Audit log triggers (`fn_audit_log`) and audit log callers (`log_audit_event`) must always use safe actor ID resolution (`resolve_audit_actor_id`) with fallbacks to `NULL` on `foreign_key_violation`. In addition, a universal trigger (`trg_safe_audit_logs_actor_id` on `public.audit_logs`) guarantees that any unresolvable actor ID not found in `auth.users` is automatically converted to `NULL` before constraint evaluation, permanently preventing operational mutation failures (e.g. during employment status updates, Floating, Resigned, AWOL, Terminated) due to missing auth users or FK constraints. 
+3. **Rule #3 (Plantilla Table & Universal Cards Contract):** The Deactivation Tab roster strictly enforces column layout `Emploc# / Member / VCode / Store / Position / Assignment / Status` (with Actions column completely removed); the Inactive Tab roster strictly removes `Clearance Status` and dynamically resolves operational/separation remarks from `plantilla.remarks` with waterfall fallback to `audit_logs`; and the `Table / Cards` view toggle must remain fully supported and crash-free across all status tabs (Active, On-Leave, Vacancy, Floating, Deactivation, Inactive).
+4. **Rule #4 (Floating Compliance, Layout & Store Slot Restriction):** Floating records must continuously track duration and days elapsed for DOLE compliance monitoring (Article 301 maximum 180-day temporary layoff limit) via reactive countdown badges across table and card views. The Floating tab table strictly excludes the `Details` action button and the `Status` column, maintaining `Assign Store` as the single primary action. Store assignments for floating personnel in `AssignStoreModal` are strictly restricted to locations with open or available slots (`hc_filled < hc_total`, e.g., `1/2`), with fully occupied stores (`1/1`, `2/2`) filtered out and hidden to prevent over-allocation. 
+5. **Rule #5 (Employee Detail Navigation & State Preservation Contract):** Clicking an employee record across all status tabs (Active, On-Leave, Floating, Deactivation, Inactive) in both table and card views navigates to the dedicated full-page Employee Profile view (`/plantilla/[id]`), replacing the cramped right-side `PlantillaDetailDrawer`. The full-page view organizes employee data into 4 dedicated category tabs (Employment & Allocation, Schedule & Store Coverage, Benefits & Statutory, Activity & System Info) and features an always-visible top summary card and capability-aware actions bar (`Update Employment Status`, `Transfer Employee`, `Reassign HRCO`, `Request Deactivation`, `Request Deletion`). The return navigation link (`← Back to Plantilla`) strictly preserves the originating context (status tab, view mode `table` vs `cards`, search filter, account scope, and pagination page) via URL parameters, guaranteeing zero disruption of operational context when returning to the plantilla roster. 
+6. **Rule #6 (Store-Level Schedule & HC Allocation Matrix):** Merchandiser and store personnel scheduling supports granular, store-level duty day and shift time assignments paired with fractional Headcount (HC) Share distribution (e.g. Store 1: `MON-TUE-WED`, `8:00 AM - 5:00 PM`, `0.50 HC`; Store 2: `THU-FRI-SAT`, `8:00 AM - 5:00 PM`, `0.50 HC`). In the Dedicated Employee Profile (`/plantilla/[id]`), the previous separate 'Work Schedule & Rate' and 'Stores & Coverage' tabs are permanently consolidated into a single comprehensive **`Schedule & Store Coverage`** tab. It features a top global terms bar (Daily Wage, Designated Rest Days supporting 1, 2, or more days off, Assigned HR Coordinator) and a Store Schedule & Headcount Allocation Matrix displaying store branch, VCode, duty days, shift window, HC share, and external visibility presence badges (`DAYS • HC Share`). In `UpdateScheduleModal`, Store Name, VCode, and HC Share are strictly read-only to prevent encoding errors; store additions and deletions are completely removed (store assignments are governed exclusively by official Plantilla / Movement allocations); rest days support multi-select (e.g., Saturday and Sunday); and duty days and shift hours are fully configurable per store. 
+7. **Rule #7 (Floating to Active Transition):** When assigning a Store to a Floating employee (selecting a Vacant store with available slots), the system must immediately change the employee's status to **Active** (not Inactive), auto-set assignment type to **Stationary** (`deployment_type: 'Stationary'`), and bind their `vcode` to the target store's vacancy code (`vcode: targetStore.code`), releasing the previous store's slot. Because deployment from floating to a single store is strictly Stationary, the assignment type selector in `AssignStoreModal` is removed and auto-persisted behind the scenes. The employee is now deployed to that store, which consumes the vacancy slot and makes them appear in the Active Tab. All previous floating or separation dates, timestamps, and remarks (`separation_status`, `inactive_at`, `inactive_by`, `date_of_separation`, `resignation_date`, `remarks`, `deactivation_reason`, `for_deactivation_at`, `for_deactivation_by`, `deactivated_at`, `deactivated_by`) are strictly cleared/nullified upon deployment. 
+
 The **Plantilla** module is the final authority and active directory for all deployed personnel across the organization. In the operational hiring and deployment pipeline, a record progresses through the following canonical stages:
 
 ```
@@ -50,17 +59,17 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
 
 1. **Tab 1: Active** (All Active Employees Only)
    - **Filter**: Employees with status `Active` (`employee != null` and `status == Active`).
-   - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role + Tier) | `Assignment` (Stationary/Roving) | `Status` (`Active` green badge) | `Actions` (`Details` button).
+   - **Columns**: `Member` (Avatar, Name, Emp No) | `Store` (Store Name + Area/City pill) | `Position` (Role) | `Assignment` (Stationary/Roving) | `Actions` (`Update` button opening `UpdateEmploymentStatusModal`). (Note: Redundant `Status` column, redundant Details button, and legacy "Standard Tier" subtitle under Position removed).
 
 2. **Tab 2: On-Leave** (All On-Leave Employees Only)
    - **Filter**: Employees on official approved leave (`On-Leave` or `On Leave`).
    - **Columns**:
      - `Member` (Avatar, Name, Emp No)
      - `Store` (Store Name + Area/City pill)
-     - `Position` (Role + Tier)
+     - `Position` (Role)
      - `Leave Details` (Leave Type e.g., Maternity/Medical Leave + Date Range)
      - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays muted italic `Unassigned` with a `+ Assign Reliever` action button opening `AssignRelieverModal`.
-     - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`) + `Details` button.
+     - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`). Row click navigates to full profile view.
 
 3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)
    - **Filter**: Unfilled required slots (`1 Row = 1 Individual Slot`), housing both unassigned vacancies (`Status: Vacancy - Open`) and onboarding candidates (`Status: Vacancy - Pipeline` or `HR Emploc - *`) until Day-1 store deployment. Loaded via `listVacancies` with `pageSize: 2000` (supported by `MAX_PAGE_SIZE = 5000` in `vacancy.ts`), with applicant and HR Emploc status enrichment. Requisitions with unfulfilled capacity (`v.hcFilled < v.hcTotal`) are protected from premature deduplication drops.
@@ -90,23 +99,51 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
 
 4. **Tab 4: Floating** (All Floating Employees Only)
    - **Filter**: Employees with status `Floating` (active employees temporarily awaiting store redeployment).
-   - **Columns**: `Member` | `Store` (`Unassigned` + Area/City) | `Position` | `Assignment` | `Status` (`Floating` blue badge) | `Actions`: `Assign Store` button (opens `AssignStoreModal` prioritizing vacant stores) + `Details` button.
+   - **DOLE Compliance Tracking**: Every floating record tracks days elapsed since effective separation/floating date (`separationDate` with fallback to `updatedAt` / `createdAt`) and renders a prominent color-coded countdown badge against the DOLE Article 301 180-day statutory temporary layoff ceiling (<30d: Fresh, 30–60d: Active aging, 60–120d: Elevated risk, >120d: Critical, ≥180d: DOLE Breach).
+   - **Columns (Strict 5-Column Sequence, Status column and Details action removed)**:
+     1. `Member`: Avatar initials, display name, monospace employee/VCode ID, and inline `FloatingDoleBadge`.
+     2. `Store`: Muted italic `Unassigned` with store area/city location pill.
+     3. `Position`: Position title with plantilla tier tag.
+     4. `Assignment`: `Roving` or `Stationary` assignment badge.
+     5. `Actions`: Dedicated `Assign Store` action button only (`Details` button and `Status` column are strictly removed).
+   - **Store Slot Restriction**: The `Assign Store` modal filters stores strictly to those with available headcount slots (`hc_filled < hc_total` or open vacancy slots > 0). Fully occupied stores (`1/1`, `2/2`) are hidden to prevent over-allocation.
+   - **Row Interaction**: The entire row is clickable (`cursor: pointer`), triggering the interactive `PlantillaDetailDrawer`.
 
 5. **Tab 5: Deactivation** (Pending Offboarding & Deactivation Requests)
    - **Filter**: Employees with pending/for-approval offboarding or deactivation requests (`pending for deactivation`, `for deactivation`).
-   - **Columns**: `Member` | `Store` | `Position` | `Assignment` | `Status` (`Pending for Deactivation` amber badge) | `Actions` (`Details` button).
+   - **Columns (Strict 7-Column Sequence, Actions column removed)**:
+     1. `Emploc#`: Monospace employee ID number (`row.employeeNo`).
+     2. `Member`: Avatar initials circle with display name (`formatPersonName(...)`).
+     3. `VCode`: Dedicated monospace `VCode` or `CGCode`.
+     4. `Store`: Primary store branch name with location tag pill (`city • province`).
+     5. `Position`: Position title with plantilla tier tag.
+     6. `Assignment`: `Roving` or `Stationary` assignment badge.
+     7. `Status`: Semantic status badge (`Pending for Deactivation` amber badge, `Deactivated` red badge).
+   - **Row Interaction**: The entire row is clickable (`cursor: pointer`), triggering the interactive `PlantillaDetailDrawer`. The legacy `Actions` column has been completely removed to provide cleaner horizontal real estate.
 
 6. **Tab 6: Inactive** (Historical & Attrition Archive)
-   - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`. When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`.
-   - **Columns (8 Recommended Schema Columns)**:
+   - **Filter**: Separated personnel marked as `Resigned`, `AWOL`, or `Terminated`, as well as personnel undergoing deactivation / separation (`isActive === false` or deactivation/separation statuses). When an employee transitions to Inactive, their vacated slot immediately spawns in the `Vacancy` tab and `Vacancy Module` with `Effective Vacancy Date = Separation Date`. Personnel requested for deactivation remain permanently visible in this tab for historical and reporting continuity even while actively tracked in Tab 5.
+   - **Columns (Strict 7-Column Sequence, Clearance Status removed)**:
      1. `Member / Employee`: Avatar initials, employee name, monospace employee ID.
      2. `Last Store Branch`: Store branch name + `VCode`/`CGCode`, with `Roving` badge if roving.
      3. `Area & City`: Store location badge.
      4. `Position`: Last held position title.
      5. `Separation Type`: Semantic status badge (`Resigned` warning, `AWOL` danger, `Terminated` danger).
      6. `Separation Date`: Formatted separation date with relative time.
-     7. `Clearance Status`: Clearance status badge (`Cleared` success, `Pending Clearance` warning, `With Liability` danger).
-     8. `Remarks`: Separation notes / remarks (empty state `—`).
+     7. `Remarks`: Dynamically reflects the operational remarks / separation notes entered during employee status updates (resolved from `plantilla.remarks` with waterfall fallback to `audit_logs`), preventing default blank `—` displays.
+
+---
+
+### Universal Cards View Support Across All Tabs
+The `Table / Cards` view toggle (`displayView: "table" | "cards"`) is universally supported and fully functional across all 6 status tabs:
+- **Active**: Renders `EmployeeCard` with avatar, employee number, vcode, store, position, and status.
+- **On-Leave**: Renders `EmployeeOnLeaveCard` with leave details, active coverage status (assigned reliever vs unassigned), and quick actions (`Assign Reliever`, `Return to Active`).
+- **Vacancy**: Renders `VacancyCard` with VCode, store branch, position, dynamic slot capacity (`X Vacant`), workflow stage, aging days, and applicant badge.
+- **Floating**: Renders `EmployeeFloatingCard` with status badge and `Assign Store` action button.
+- **Deactivation**: Renders `EmployeeDeactivationCard` with Emploc#, VCode, store, position, and deactivation status badge.
+- **Inactive**: Renders `EmployeeInactiveCard` with separation type, separation date, and resolved operational/separation remarks.
+
+All card views implement the responsive 3-column layout (`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3`), smooth scrolling, empty states, and pagination integration.
 
 ---
 
@@ -329,71 +366,36 @@ Retailers often require temporary, seasonal, or campaign-based personnel who sit
 
 ---
 
-## 8. Plantilla Detail Drawer UX & Content Structure
+## 8. Dedicated Employee Profile View (`/plantilla/[id]`) & Navigation Contract
 
-When a row is clicked in the main grid, the Plantilla Detail Drawer slides overlaying the list from the right. It utilizes the `DetailDrawer` shared container, locked to `drawer-width-lg` (`640px`) to handle dense layouts.
+Per **Rule #5 (Employee Detail Navigation & State Preservation Contract)**, clicking any employee row or card across the 5 employee status tabs (Active, On-Leave, Floating, Deactivation, Inactive) navigates to a dedicated full-page Employee Profile view at `/plantilla/[id]`, replacing the cramped slide-over drawer (`PlantillaDetailDrawer`).
 
-```
-+-----------------------------------------------------------------------+
-|  Account / Location Hierarchy Breadcrumbs                        [X]  |
-|                                                                       |
-|  [H1] SANTOS, MARIA                                                   |
-|  Employee ID: EMP-001042 (Monospace Badge)                            |
-|  Type: [Budgeted]        Status: [Active (success)]                    |
-+-----------------------------------------------------------------------+
-|  Employment & Allocation (Grid)                                       |
-|  - Date Deployed: 2025-01-15     - Position: Field Merchandiser       |
-|  - Account: Cebu Regional Account- Primary Store: Cebu Mall           |
-|  - Base Rate: ₱560.00 / day      - Tenure: 1 Year, 4 Months           |
-+-----------------------------------------------------------------------+
-|  Roving Coverage Assignments                                          |
-|  [Assignment: Roving]                                                 |
-|  - Cebu Mall (Primary - 60% Allocation)                               |
-|  - Cebu Plaza Store (Roving - 20% Allocation)                         |
-|  - Mandaue Hub (Roving - 20% Allocation)                              |
-+-----------------------------------------------------------------------+
-|  Clearance & Offboarding Audits                                       |
-|  [Status: Pending Separation (resignation)]                            |
-|  [ ] Uniform Returned            [x] Company ID Card Surrendered      |
-|  [ ] SIM/Device Returned         [x] Handover Document Uploaded       |
-|  HR Remarks: "Awaiting uniform return from HRCO before final archive" |
-+-----------------------------------------------------------------------+
-|  SLA & Transition Performance                                         |
-|  - Pending Separation Age: 4 Days                                     |
-|  - [!] SLA Breach: Clearance approval has exceeded the 48h SLA window.|
-+-----------------------------------------------------------------------+
-|  Roster Audit History                                                 |
-|  o [Separation Requested] - 4 days ago by Santos, Maria (HRCO)        |
-|  o [Transfer Approved]    - 6 months ago by Dela Cruz, Ana (HeadAdmin)|
-|  o [Deployed to Plantilla]- 1.3 years ago by System Automatic Trigger |
-+-----------------------------------------------------------------------+
-|  Capability-Aware Actions (Sticky Bottom)                             |
-|  [ Transfer Personnel ]  [ Initiate Separation ]  [ Complete Clearance]|
-+-----------------------------------------------------------------------+
-```
+### A. Navigation & URL State Preservation
+- **State Continuity**: On row or card click, the parent page context is preserved in URL query parameters (`status` or `fromTab`, `display` mode `table` or `cards`, `page`, `search`, `accountId`).
+- **Return Contract**: Clicking the top **`← Back to Plantilla`** link returns the operator to the exact status tab, display view mode, search filter query, and pagination page they originated from.
 
-### Drawer Layout Components:
-1. **Header Identification Area**:
-   - Employee primary display name (`last_name, first_name`).
-   - `employee_no` rendered as a prominent monospace badge.
-   - Status Badge and Plantilla Type pill (`Budgeted` vs. `AH`).
-   - Location breadcrumbs (`Account / Primary Store / Regional Group`).
-2. **Employment Details Grid**:
-   - Dynamic data fields: `date_deployed`, `position_title`, `tenure` (calculated dynamically as `now() - date_deployed`), and `base_rate` (rendered as `₱***.**` or fully visible depending on role capability).
-3. **Roving Coverage Component**:
-   - Displayed only if `assignment_type == 'Roving'`.
-   - Renders a micro-grid of covered stores extracted from the `roving_stores` array.
-   - Lists the allocation weight (e.g., `60% primary`, `20% secondary`) or active weekly roster coverage.
-4. **Clearance Panel**:
-   - Active only when `plantilla_status == 'Pending Separation'`.
-   - Renders checklist checkboxes, file attachments for signed clearances, and HR coordinator notes.
-5. **SLA Warning Block**:
-   - Highlighted in soft red if active transitions (like transfers or separations) breach standard operational SLAs.
-6. **Roster Audit History Timeline**:
-   - Collapsible micro-list of chronological movements, promotions, and changes captured from the database audit log table (`plantilla_audit_logs`).
-7. **Capability-Controlled Action Bar**:
-   - Uses the shared `CapabilityActionBar` to display context actions dynamically based on resolved `row_capabilities`.
-   - Displays actions such as: `Initiate Transfer`, `Initiate Separation`, `Edit Roving Stores`, `Approve Clearance`, and `Toggle Suspend`.
+### B. Layout Architecture: Top Header & Prominent Action Bar
+- **Top Summary Card**:
+  - Avatar initials, Employee Full Name, Semantic Status Badge (`Active`, `On Leave`, `Floating`, `Pending Deactivation`, `Inactive`).
+  - Metadata strip: Employee ID (`Emploc#`), VCode, Assigned Store, Position, Date Hired, and dynamic Tenure calculation.
+- **Always-Visible Personnel Actions Bar**:
+  - `Update Employment Status` (Primary brand button) → Opens `UpdateEmploymentStatusModal`.
+  - `Transfer Employee` → Opens `TransferPersonnelModal`.
+  - `Reassign HRCO` → Submits HR coordinator assignment review.
+  - `Request Deactivation` → Opens `RequestDeactivationModal` (disabled for Active/On-Leave; shows `"Deactivation Pending"` if pending).
+  - `Request Deletion` → Routes deletion request to operations queue.
+
+### C. Category Tabs Structure
+The full-width content area is structured into 4 clean, uncluttered Category Tabs:
+1. **Employment & Allocation**: Divided into two dedicated sections:
+   - *Employment & Placement Specifications*: Code Card (displays `Permanent VCODE` for stationary personnel; dynamically switches to `Coverage Group Code (CGCode)` showing `cgCode` for roving personnel across > 1 store), Store Allocation (shows single primary store for stationary personnel; dynamically expands to `Assigned Store Allocations` with `Roving • N Stores` badge and breakdown of all assigned locations, individual store VCodes, primary badges, and fractional Headcount HC shares e.g. `0.50 HC` for roving personnel), Area/Province, Position, Employment Type (`Stationary` / `Roving`), Date Hired, Tenure, and DOLE floating compliance countdown (if floating). Plantilla Tier removed.
+   - *Personal & Demographic Information*: 3-column card grid displaying Date of Birth (formatted with computed age and timezone-safe date parsing), Contact Number, Civil Status (formatted in uppercase), and full-width Residential Address. Guarded by an un-nested 5-tier hydration cascade in `getWebPlantillaDetail` (`public.plantilla` table, `public.v_plantilla_safe` view, `public.hr_emploc` onboarding snapshots, `public.employees` directory, and `public.plantilla_import_rows` batch import records), guaranteeing demographic completeness even when backend RPCs or intermediate tables omit fields.
+2. **Schedule & Store Coverage**: Consolidated tab per **Rule #6**, uniting global compensation/scheduling terms and store allocations:
+   - *Top Summary Bar*: Base Daily Wage / Statutory Rate, Designated Rest Days (supporting multi-day off configurations with dynamic rest days count badge), and Assigned HR Coordinator / Supervisor.
+   - *Store Schedule & Headcount Allocation Matrix*: Breakdown of assigned stores with Store Branch Name, VCode, Duty Days (e.g. `MON-TUE-WED`), Shift Window (e.g. `08:00 AM - 05:00 PM`), Headcount (HC) Share (e.g. `0.50 HC`), and presence badge (`DAYS • HC Share`). Includes a live Total Allocation balance meter (`1.00 / 1.00 HC`).
+   - *Edit Modal (`UpdateScheduleModal`)*: Interactive modal allowing adjustments to duty days (multi-select pill toggles + presets) and shift time windows per store card, plus multi-select designated rest days. Store Name, VCode, and Headcount (HC) Share are strictly read-only, and store mutation buttons (`+ Add Store`, `Delete Store`) are disabled/removed, ensuring store assignments remain strictly governed by official Plantilla / Movement approvals. Guarded by `isScheduleComplete` (blocking save on blank/incomplete schedules) and `isHcValid` (validating headcount balance).
+3. **Benefits & Statutory**: Maskable government statutory IDs (SSS, PhilHealth, Pag-IBIG, TIN, ATM Payroll Account) with mask/reveal toggle (`Eye` / `EyeOff`), plus MIKA HRIS master synchronization trigger card.
+4. **Activity & System Info**: Chronological audit timeline (`auditTimeline` / Lifecycle Event Log & Audit Timeline) with event labels, descriptions, timestamps, and actors (internal system record metadata card removed to maintain operational UI focus).
 
 ---
 
@@ -776,6 +778,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - Right-side desktop drawer (`max-w-2xl bg-slate-50`) with deep blue banner (`bg-[#1e3a8a]`), circular initials avatar, employee ID (`IdCard`), deployed date (`Calendar`), and active status badge.
   - **4-Tab Navigation**:
     - **Profile**: 2-column Employment & Allocation grid (VCODE, Position, Store, Employment Type, Date Hired, Tenure computed via `computeTenure`), Work Schedule & Rate card (`Schedule Days`, `Schedule Time`, `Day Off`, `Daily Rate`, `Coordinator`) with modal launcher `UpdateScheduleModal`, System Information collapsible accordion, and Capability-Aware Personnel Actions toolbar (Transfer, Reassign HRCO, Request Deactivation, Request Deletion, Update Employment Status).
+      - *Deactivation Eligibility Gate*: The "Request Deactivation" button is strictly disabled when the employee is in an operational status (`Active` or `On Leave`). It is only enabled when the employee is already `Inactive` (Separated: `Resigned`, `AWOL`, `Terminated`) or `Floating` (`isDeactivationEligible = isInactive || status === "floating"`), accompanied by helper guidance: *"Employee must be set to Floating or Inactive before requesting deactivation."* When a deactivation request is submitted, the record immediately transfers to the **Deactivation** tab (`isDeactivationRecord` takes precedence over `isInactiveRecord`), the UI automatically routes to the Deactivation tab, the action button switches to `"Deactivation Pending"` (disabled), and the drawer renders a confirmation notice (*"Deactivation request submitted and pending review."*).
     - **Benefits**: SSS, PhilHealth, Pag-IBIG, and ATM Number with an interactive Eye toggle for masking (`••••-••••-1234` vs unmasked), plus MIKA sync card with timestamp and dedicated `syncPlantillaMika` RPC mutation with 5-minute cooldown handling.
     - **Stores**: Current Stores vs Past Stores count summary cards and active store allocation details with live status indicator, VCODE, Area, and HC Share.
     - **Activity**: Audit trail logs and deployment history with timestamps, profile actors, and snapshot details.
@@ -811,6 +814,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Client Error Hardening**:
     - `dataControl.ts`: `submitPlantillaBaselineImport` now wraps Postgrest error messages into `new Error(...)`.
     - `PlantillaImportModal.tsx`: catch block safely extracts `(err as { message?: string })?.message` fallback, preventing real database error messages from being swallowed by generic banner text.
+
+- **Vacancy Reopening On Separation: Applicant Archiving & Clean Unoccupied State (Migration `20262606000086`)**:
+  - **Prior Hire Archiving**: Updated `public.reopen_or_create_vacancy_for_plantilla` and `public.fn_plantilla_separation_to_vacancy` so that when a separated employee's slot reopens in the Vacancy Pending/Open Tab, any prior onboarded applicants under `vacancy_vcode` are automatically archived (`is_archived = true, archived_at = NOW()`).
+  - **Accurate Vacancy Metrics**: Archiving prior hires resets `confirmed_onboard_count` to 0, ensuring `vw_vacancy_list` accurately calculates `derived_status = 'Open'`, `hc_filled = 0`, and renders the vacancy as clean and unoccupied rather than tagging the resigned employee.
+  - **Plantilla Inactive History Preserved**: The separated employee's historical assignment record in `public.plantilla` (`status = 'Inactive'`, `separation_status = 'Resigned'|'AWOL'|'Terminated'`, `store_id`, `store_name`, `vcode`) remains 100% intact so the Inactive Tab retains complete historical audit context.
 
 - **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
   - **Database Migration (`20262606000062`) Applied to Live Staging**:
@@ -851,6 +859,31 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Table Column Header Renaming**:
     - Renamed Vacancy table column header from `"Status"` to `"Stage"` in `StoreVacancyTable`.
 
+- **Plantilla Floating Routing, Deactivation Optional Remarks & NSR Data Team Workflow (`Branch2` — 2026-11-05)**:
+  - **Fixed 42703 `column "is_roving" does not exist` on Status Changes**:
+    - Created & applied migration `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`.
+    - Patched `fn_plantilla_separation_to_vacancy()` to replace invalid `vacancies.is_roving` checks with `COALESCE(employment_type, '') = 'Roving'` and set `employment_type = 'Roving'` in `INSERT INTO public.vacancies`.
+  - **Floating Status Routing (`plantilla/page.tsx` & `UpdateEmploymentStatusModal.tsx`)**:
+    - Updated `isFloatingRecord()` to evaluate both `emp.plantillaStatus` and `emp.separationType`.
+    - Updated `isInactiveRecord()`, `isDeactivationRecord()`, and `isOnLeaveRecord()` with defensive `if (isFloatingRecord(emp)) return false;` guards so floating personnel route directly to Tab 4 `[ Floating ]` rather than getting captured by `isInactiveRecord` (`isActive === false` / `status === 'Inactive'`).
+    - Wired `onNavigateStatusTab?.("floating")` callback from `UpdateEmploymentStatusModal` via `PlantillaDetailDrawer` so setting an employee to Floating navigates directly to the Floating Tab.
+  - **Smart Toggle & Clean UI in `UpdateEmploymentStatusModal.tsx`**:
+    - Hid `Active` option under Operational Duty Status when the employee is already Active; only rendered `Active` when current status is `On Leave` or `Floating`.
+    - Removed verbose gray notice boxes across all statuses (`Setting this employee to Floating...` box and `ADR-001 Slot Vacation Notice:` wrapper/box for `Resigned`, `AWOL`, `Terminated`).
+    - Kept `Effective Separation Date *` date picker as a clean standalone field directly above `Operational Remarks (Optional)`.
+  - **Deactivation Remarks Optional (`RequestDeactivationModal.tsx` & `queries/plantilla.ts`)**:
+    - Updated `CreateDeactivationRequestParams.remarks` to optional `remarks?: string | null;`.
+    - Removed mandatory `if (!remarks.trim())` validation block and submit button disable constraint.
+    - Removed the gray `Standard 15-Day Clearance Notice` banner box at the top.
+  - **New Store Request (NSR) Two-Tier Review Workflow & High-Contrast Button**:
+    - In `RequestHeadcountModal.tsx`, fixed the "Request New Store" button in the Store Not Found card to high-contrast navy styling `bg-brand-600 text-white hover:bg-brand-700`.
+    - In `NewStoreRequestModal.tsx`, updated confirmation copy to state submission for Data Team review.
+    - Updated NSR schema constraint `nsr_status_chk` to include `'pending_super_admin'`.
+    - Updated RLS `nsr_select` on `public.new_store_requests` to grant read access to Data Team (`role_level >= 30`).
+    - Updated `public.approve_new_store_request` and `public.reject_new_store_request` to allow Data Team (`role_level >= 30`) and accept status `pending` or `pending_super_admin`.
+    - Added `public.forward_new_store_request_to_super_admin(uuid, text)` to set `status = 'pending_super_admin'`, record Data Team review metadata, and notify executive sign-off roles.
+    - Updated `NewStoreApprovalCard.tsx` and `NewStoreDataTable.tsx` with dynamic status badges (`Pending Data Team Review`, `Pending Super Admin Sign-off`), Data Team validation notes, and two-tier actions (Approve Store / Reject / Approve & Forward to Super Admin).
+
 - **Employment Status & Separation Workflow Integration (`ohm#plan05`)**:
   - Integrated separation statuses (`Resigned`, `AWOL`, `Terminated`) into `UpdateEmploymentStatusModal.tsx` grouped into Operational Duty Status (`Active`, `On Leave`, `Floating`) vs Personnel Separation (`Resigned`, `AWOL`, `Terminated`).
   - Added conditional effective separation date picker and ADR-001 slot vacation notice.
@@ -874,10 +907,21 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Excluded any slot (`ps.id` or `cs.id`) already counted in `hr_emploc` (`hr_status IN ('Pending', 'Complete') AND employee_no IS NULL AND deleted_at IS NULL`) so each slot is counted at most once across `actual`, `hrProcess`, and `vacant`.
   - Updated `public.v_account_allocation_kpi` (`20261027092200_fix_account_allocation_kpi_closed_slot_filter.sql`, `security_invoker = true`) to enforce `ps.closed_at IS NULL` in both `slot_vacant_non_roving` and `slot_vacant_roving`, aligning `ACTISERVE` `required_hc` (`14.0000 -> 12.0000`) and `slot_vacant_hc` (`10.0000 -> 8.0000`) 1:1 with `get_web_plantilla_summary`.
 
-- **Plantilla Slot-Vacant Remaining Capacity & Slot Reopen/Sync Hardening (`ohm#4x7n2k9w` — Phase 5 REVISED, `20261028005821` & `20261028005902`)**:
+- **Floating "Assign Store" Auto-Stationary Assignment & UI Simplification (`ohm#branch2-floating-assign-stationary` — 2026-11-06)**:
+  - **Assignment Type UI Removal (`src/components/plantilla/AssignStoreModal.tsx`)**:
+    - Completely removed the "Assignment Type" (Stationary / Roving) radio buttons from the Assign Store modal form.
+    - Floating employees assigned to a single target store are inherently Stationary, eliminating logical mismatches where single-store personnel could be mislabeled as Roving.
+  - **Auto-Persisted Stationary Status (`src/components/plantilla/AssignStoreModal.tsx` & `src/lib/queries/plantilla.ts`)**:
+    - Updated `assignFloatingEmployeeToStore` mutation call in `AssignStoreModal.tsx` to automatically set `assignmentType: "Stationary"`.
+    - In `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`), made `assignmentType` parameter optional with a default of `"Stationary"` and explicitly persisted `deployment_type: "Stationary"` in the database update payload (omitting non-existent `assignment_type` column to prevent schema cache errors).
+
+- **Plantilla Slot-Vacant Remaining Capacity & Slot Reopen/Sync Hardening (`ohm#4x7n2k9w`, `ohm#branch2-vacancy-slot-recon`, & `ohm#branch2-summary-slot-recon` — 2026-11-06)**:
   - **Plantilla Web Slot-Based Vacant Capacity (`src/app/(dashboard)/plantilla/page.tsx`)**:
-    - Per locked Decision D2 (`ohm#plan09` approved for Plantilla web slot-vacant count only), updated `getVacancyRemainingCapacity(v)` to `Math.max(0, total - filled - hrProcessing)` using `v.hrProcessingCount ?? 0` from `vw_vacancy_list` / `list_web_vacancies` (does NOT subtract `pipeline_count`, since sourcing slots remain vacant on the Plantilla page).
-    - Confirmed `vacancyListQuery` fetches `listVacancies` with `status: undefined` (`p_status = NULL`, returning Open ∪ Pipeline in a single query), keeping slot-vacant pipeline requisitions such as `ACT-G5-008` visible on Plantilla while excluding pool vacancies (`BUN-GHQ-00015`).
+    - Unified remaining capacity calculation across table, cards, and KPI summaries via `getVacancyRemainingCapacity(v)` to strictly compute `Math.max(0, total - filled)` based on `hc_total - hc_filled`, with a resilient safeguard ensuring that open vacancy requisitions in `allVacancies` (`stageBadge === "Vacancy - Open"` or `vacancyStatus === "Open"`) maintain at least 1 open slot capacity even amidst legacy occupant vcode mismatches.
+    - Updated `StoreVacancyTable` and `VacancyCard` to use `getVacancyRemainingCapacity(row)` directly, eliminating the decoupled `remainingCapacity || 1` discrepancy.
+    - Reconciled `storesWithAvailableSlots` so stores with open vacancies compute `hcFilled = Math.max(0, hcTotal - openSlots)`, correctly displaying available capacity in `AssignStoreModal`.
+    - Updated `assignFloatingEmployeeToStore` (`src/lib/queries/plantilla.ts`) and `AssignStoreModal` (`src/components/plantilla/AssignStoreModal.tsx`) to bind deployed employees to the target store's vcode (`targetStore.code`), preventing floating personnel transfers from falsely occupying prior store vacancy codes in backend views.
+    - Sanitized staging database record for Joven Asana (`7d3f6a1a-34d4-42d9-b3b6-ff31e79e51cd`) to point to Divimart General Trias (`CPRVJV13`), releasing Emilus Rosario (`CPSAJV31`) to 0/1 filled (1 open slot) and achieving 100% parity across table rows, tab badges (`3`), and the Open Vacancies KPI card (3 slots total).
   - **Slot Reopen Metadata Clearing & Closed-Slot Sync Protection (`20261028005902_fix_slot_status_reopen_clear_closed_and_sync_closed_filter.sql`, Staging `qqiiznmqxfoamqytjica`)**:
     - Updated `public.fn_set_slot_status` to clear `closed_at = NULL`, `closed_by = NULL`, and `closure_reason_code = NULL` whenever `p_new_status = 'open'` (leaving `qa_archive_batch_id` intact because `fn_qa_rollback_operational_data_reset` and `fn_rollback_archive_batch` read it).
     - Updated `public.fn_sync_vacancy_slot_open_pipeline` to enforce `AND closed_at IS NULL` on both the `'open'` release loop and the `'pipeline'` claim loop, and added deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC` on the `'open' -> 'pipeline'` claim loop.

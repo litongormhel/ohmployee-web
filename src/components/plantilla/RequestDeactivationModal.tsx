@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Clock, FileText, Loader2, ShieldAlert } from "lucide-react";
+import { AlertCircle, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { useCreateDeactivationRequest } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
 
@@ -12,6 +12,7 @@ export interface RequestDeactivationModalProps {
   employeeName: string;
   employeeNo: string;
   currentStatus?: string | null;
+  onNavigateStatusTab?: (tab: string) => void;
   onSuccess?: () => void;
 }
 
@@ -30,6 +31,7 @@ export function RequestDeactivationModal({
   employeeName,
   employeeNo,
   currentStatus,
+  onNavigateStatusTab,
   onSuccess,
 }: RequestDeactivationModalProps) {
   const [reason, setReason] = useState<string>(DEACTIVATION_REASONS[0]);
@@ -44,19 +46,15 @@ export function RequestDeactivationModal({
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!remarks.trim()) {
-      setErrorMessage("Mandatory remarks/justification are required to submit a deactivation request.");
-      return;
-    }
-
     mutation.mutate(
       {
         plantillaId,
         reason,
-        remarks: remarks.trim(),
+        remarks: remarks.trim() || undefined,
       },
       {
         onSuccess: () => {
+          onNavigateStatusTab?.("deactivation");
           onSuccess?.();
           onClose();
         },
@@ -83,19 +81,6 @@ export function RequestDeactivationModal({
       maxWidthClass="max-w-lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* 15-day clearance policy notice */}
-        <div className="rounded-lg border border-border-default bg-surface-muted p-3.5 flex items-start gap-3">
-          <Clock className="h-5 w-5 shrink-0 text-text-secondary mt-0.5" />
-          <div className="text-xs text-text-primary leading-relaxed">
-            <span className="font-semibold text-text-primary">Standard 15-Day Clearance Notice:</span>
-            <p className="mt-0.5 text-text-secondary">
-              Standard operating policy mandates a 15-day clearance and asset recovery window before final
-              Super Admin / Head Admin deactivation approval. Submitting this request places the personnel
-              record in the <strong className="text-text-primary">Approvals Center</strong> queue.
-            </p>
-          </div>
-        </div>
-
         {/* Deactivation Reason Category */}
         <div className="space-y-1.5">
           <label htmlFor="deactivation-reason" className="block text-xs font-semibold text-text-secondary">
@@ -115,18 +100,17 @@ export function RequestDeactivationModal({
           </select>
         </div>
 
-        {/* Mandatory Remarks Textarea */}
+        {/* Remarks Textarea (Optional) */}
         <div className="space-y-1.5">
           <label htmlFor="deactivation-remarks" className="block text-xs font-semibold text-text-secondary">
-            Mandatory Remarks &amp; Clearance Notes <span className="text-danger-text">*</span>
+            Remarks &amp; Clearance Notes (Optional)
           </label>
           <textarea
             id="deactivation-remarks"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}
-            required
-            placeholder="State the detailed justification, clearance verification status, or exit notes (required)..."
+            placeholder="State any detailed justification, clearance verification status, or exit notes (optional)..."
             className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-muted shadow-xs focus:border-brand-primary focus:outline-hidden"
           />
           <p className="text-[11px] text-text-secondary">
@@ -154,7 +138,7 @@ export function RequestDeactivationModal({
           </button>
           <button
             type="submit"
-            disabled={mutation.isPending || !remarks.trim()}
+            disabled={mutation.isPending}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover disabled:bg-surface-muted disabled:text-text-secondary disabled:border-border-default disabled:cursor-not-allowed disabled:shadow-none transition-colors cursor-pointer"
           >
             {mutation.isPending ? (

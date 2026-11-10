@@ -319,7 +319,7 @@ function NewStoreRequestModalDialog({
                   <strong className="text-text-primary font-semibold">
                     {initialAccountName || "Scoped Account"}
                   </strong>{" "}
-                  has been submitted for Head Admin / Super Admin review.
+                  has been submitted for Data Team review.
                 </p>
               </div>
 

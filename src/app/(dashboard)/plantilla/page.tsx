@@ -14,7 +14,6 @@ import {
   RotateCcw,
   X,
   MapPin,
-  Eye,
   Briefcase,
   LayoutGrid,
   List,
@@ -27,6 +26,10 @@ import {
   MoreVertical,
   Archive,
   ArrowRightLeft,
+  Clock,
+  CheckCircle2,
+  User,
+  Calendar,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
@@ -43,6 +46,8 @@ import {
   fetchActiveCoverageForAccount,
   fetchPlantillaScopedAccounts,
   deriveDeactivationOverlay,
+  usePlantillaInactiveRemarks,
+  getFloatingDurationDays,
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
 } from "@/lib/queries/plantilla";
@@ -58,7 +63,6 @@ import {
   formatAccountName,
   formatDisplayText,
 } from "@/lib/utils/displayText";
-import { PlantillaDetailDrawer } from "@/components/plantilla/PlantillaDetailDrawer";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 import { MosesHqPoolView } from "@/components/plantilla/MosesHqPoolView";
@@ -66,6 +70,7 @@ import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalytic
 import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
+import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
 import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
@@ -314,8 +319,18 @@ export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean 
 export function getVacancyRemainingCapacity(v: VacancyListItem): number {
   const total = v.hcTotal ?? v.headcount ?? 1;
   const filled = v.hcFilled ?? 0;
-  const hrProcessing = v.hrProcessingCount ?? 0;
-  return Math.max(0, total - filled - hrProcessing);
+  const remaining = Math.max(0, total - filled);
+  // An open vacancy requisition represents at least 1 unfilled slot
+  if (
+    remaining === 0 &&
+    (v.stageBadge === "Vacancy - Open" ||
+      v.pipelineStatus === "Vacancy - Open" ||
+      v.vacancyStatus === "Open" ||
+      v.derivedStatus === "Open")
+  ) {
+    return 1;
+  }
+  return remaining;
 }
 
 export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
@@ -384,9 +399,104 @@ export default function PlantillaPage() {
   );
 }
 
-// Helper check for inactive / separated employees (Resigned, AWOL, Terminated)
+// Helper check for deactivation statuses (pending offboarding approval or deactivated archive)
+function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
+  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
+  return (
+    overlay.isPendingSeparation ||
+    s === "pending for deactivation" ||
+    s === "pending_for_deactivation" ||
+    s === "pending deactivation" ||
+    s === "pending_deactivation" ||
+    s === "for deactivation" ||
+    s === "pending separation" ||
+    s === "pending_separation" ||
+    s === "deactivated" ||
+    sep === "pending deactivation" ||
+    sep === "pending_deactivation" ||
+    sep === "for deactivation" ||
+    sep === "deactivated"
+  );
+}
+
+// Helper check for floating status
+function isFloatingRecord(emp: PlantillaEmployeeListItem) {
+  if (isDeactivationRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
+  return s === "floating" || sep === "floating";
+}
+
+// DOLE Art. 301 compliance countdown badge (180-day maximum floating status / temporary layoff period)
+function FloatingDoleBadge({ days }: { days: number }) {
+  const remaining = Math.max(0, 180 - days);
+
+  if (days >= 180) {
+    return (
+      <span
+        title="DOLE Art. 301 limit breached (maximum 180-day floating period exceeded). Immediate recall or statutory separation required."
+        className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 border border-red-300 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
+        <span>{days}d • DOLE Breach</span>
+      </span>
+    );
+  }
+
+  if (days >= 120) {
+    return (
+      <span
+        title={`Critical aging: ${days} days floating (${remaining} days remaining until DOLE 180-day temporary layoff maximum).`}
+        className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  if (days >= 60) {
+    return (
+      <span
+        title={`Aged floating: ${days} days in pool (${remaining} days until DOLE 180-day limit).`}
+        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  if (days >= 30) {
+    return (
+      <span
+        title={`Active floating: ${days} days (${remaining} days until DOLE 180-day limit).`}
+        className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 shrink-0"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+        <span>{days}d • {remaining}d left</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      title={`Fresh floating: ${days} days elapsed (${remaining} days until DOLE 180-day limit).`}
+      className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 shrink-0"
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      <span>{days}d • {remaining}d left</span>
+    </span>
+  );
+}
+
+// Helper check for inactive / separated employees (Resigned, AWOL, Terminated, Deactivation)
 function isInactiveRecord(emp: PlantillaEmployeeListItem) {
-  const s = (emp.plantillaStatus || "").toLowerCase();
+  if (isFloatingRecord(emp)) return false;
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
+  const sep = (emp.separationType || "").toLowerCase().trim();
   const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
   return (
     s === "resigned" ||
@@ -394,39 +504,33 @@ function isInactiveRecord(emp: PlantillaEmployeeListItem) {
     s === "terminated" ||
     s === "inactive" ||
     s === "separated" ||
-    overlay.showDeactivatedBanner ||
+    s === "pending for deactivation" ||
+    s === "pending_for_deactivation" ||
+    s === "pending deactivation" ||
+    s === "pending_deactivation" ||
+    s === "for deactivation" ||
+    s === "pending separation" ||
+    s === "pending_separation" ||
+    s === "deactivated" ||
+    sep === "resigned" ||
+    sep === "awol" ||
+    sep === "terminated" ||
+    sep === "separated" ||
+    sep === "pending deactivation" ||
+    sep === "pending_deactivation" ||
+    sep === "for deactivation" ||
+    sep === "deactivated" ||
+    overlay.isPendingSeparation ||
     emp.isActive === false
   );
 }
 
-// Helper check for deactivation statuses (pending offboarding approval)
-function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
-  if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
-  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-  return (
-    overlay.isPendingSeparation ||
-    s === "pending for deactivation" ||
-    s === "pending_for_deactivation" ||
-    s === "pending deactivation" ||
-    s === "for deactivation" ||
-    s === "pending separation" ||
-    s === "pending_separation" ||
-    s === "deactivated"
-  );
-}
-
-// Helper check for floating status
-function isFloatingRecord(emp: PlantillaEmployeeListItem) {
-  if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
-  return s === "floating";
-}
-
 // Helper check for on-leave status
 function isOnLeaveRecord(emp: PlantillaEmployeeListItem) {
+  if (isDeactivationRecord(emp)) return false;
+  if (isFloatingRecord(emp)) return false;
   if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase();
+  const s = (emp.plantillaStatus || "").toLowerCase().trim();
   return s === "on leave" || s === "on_leave";
 }
 
@@ -443,7 +547,8 @@ function PlantillaPageContent() {
   const [internalStatusTab, setInternalStatusTab] = useState<StatusSubTab>("active");
   const urlStatusParam = (
     searchParams.get("status") ||
-    searchParams.get("statusTab")
+    searchParams.get("statusTab") ||
+    searchParams.get("fromTab")
   )?.toLowerCase();
   const statusTab: StatusSubTab =
     urlStatusParam &&
@@ -454,22 +559,50 @@ function PlantillaPageContent() {
       : internalStatusTab;
 
   const [vacancySubFilter, setVacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
-  const [displayView, setDisplayView] = useState<DisplayView>("table");
+
+  const urlDisplayParam = (
+    searchParams.get("display") ||
+    searchParams.get("displayView") ||
+    searchParams.get("viewMode")
+  )?.toLowerCase();
+  const [displayView, setDisplayView] = useState<DisplayView>(
+    urlDisplayParam === "cards" ? "cards" : "table"
+  );
+
+  function handleSetDisplayView(view: DisplayView) {
+    setDisplayView(view);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("display", view);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   function handleSelectStatusTab(tab: StatusSubTab) {
     setInternalStatusTab(tab);
     setPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("status", tab);
+    params.delete("page");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  // Table pagination state
-  const [page, setPage] = useState(1);
+  // Table pagination state with URL synchronization
+  const urlPageParam = searchParams.get("page");
+  const initialPage = urlPageParam ? Math.max(1, parseInt(urlPageParam, 10) || 1) : 1;
+  const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState<number>(10);
 
+  function handlePageChange(newPage: number) {
+    setPage(newPage);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) {
+      params.set("page", newPage.toString());
+    } else {
+      params.delete("page");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   // Detail drawers and modals
-  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
 
@@ -501,6 +634,14 @@ function PlantillaPageContent() {
     displayName: string;
     employeeNo: string;
     positionTitle?: string | null;
+    floatingDays?: number;
+  } | null>(null);
+
+  const [updateStatusTargetEmployee, setUpdateStatusTargetEmployee] = useState<{
+    id: string;
+    displayName: string;
+    employeeNo: string;
+    currentStatus?: string | null;
   } | null>(null);
 
   // Search query specifically for the account selector list
@@ -535,8 +676,9 @@ function PlantillaPageContent() {
     }, 4500);
   }, [setToastMessage, setToastVariant]);
 
-  // Directory filter state
-  const [search, setSearch] = useState("");
+  // Directory filter state with URL restoration
+  const urlSearchParam = searchParams.get("search") ?? "";
+  const [search, setSearch] = useState(urlSearchParam);
   const [areaCityFilter, setAreaCityFilter] = useState(""); // "" | "area:Name" | "city:Name"
   const [assignmentType, setAssignmentType] = useState(""); // "" | "stationary" | "roving"
 
@@ -597,6 +739,27 @@ function PlantillaPageContent() {
     return "";
   }, [hasAllScope, allowedAccountsQuery.data]);
   const accountId = urlAccountId || singleScopedId;
+
+  // Navigation to Dedicated Full-Page Employee Profile (/plantilla/[id]) with context preservation
+  const handleNavigateToEmployee = useCallback((empId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("status", statusTab);
+    params.set("display", displayView);
+    if (page > 1) {
+      params.set("page", page.toString());
+    } else {
+      params.delete("page");
+    }
+    if (search.trim()) {
+      params.set("search", search.trim());
+    } else {
+      params.delete("search");
+    }
+    if (accountId) {
+      params.set("accountId", accountId);
+    }
+    router.push(`/plantilla/${empId}?${params.toString()}`);
+  }, [searchParams, statusTab, displayView, page, search, accountId, router]);
 
   // Verify that accountId is authorized for the current user
   const isAccountAuthorized = useMemo(() => {
@@ -920,9 +1083,24 @@ function PlantillaPageContent() {
   }, [allEmployees]);
 
   // Tab 6: Inactive (Resigned / AWOL / Terminated)
-  const inactiveEmployees = useMemo(() => {
+  const baseInactiveEmployees = useMemo(() => {
     return allEmployees.filter(isInactiveRecord);
   }, [allEmployees]);
+
+  const inactiveEmployeeIds = useMemo(() => {
+    return baseInactiveEmployees.map((e) => e.id);
+  }, [baseInactiveEmployees]);
+
+  const inactiveRemarksQuery = usePlantillaInactiveRemarks(inactiveEmployeeIds);
+  const inactiveRemarksMap = inactiveRemarksQuery.data;
+
+  const inactiveEmployees = useMemo(() => {
+    if (!inactiveRemarksMap || inactiveRemarksMap.size === 0) return baseInactiveEmployees;
+    return baseInactiveEmployees.map((emp) => {
+      const rem = inactiveRemarksMap.get(emp.id);
+      return rem ? { ...emp, separationRemarks: rem } : emp;
+    });
+  }, [baseInactiveEmployees, inactiveRemarksMap]);
 
   // Active employees' occupied VCodes
   const activeOccupiedVcodes = useMemo(() => {
@@ -1198,6 +1376,65 @@ function PlantillaPageContent() {
       return true;
     });
   }, [storeCapacityRows, search, areaCityFilter]);
+
+  // Stores with open/available slots for AssignStoreModal (strictly hc_filled < hc_total).
+  // Fully occupied stores (1/1, 2/2) are filtered out and hidden to prevent over-allocation.
+  const storesWithAvailableSlots = useMemo(() => {
+    const rawStores = storesUnderAccountQuery.data ?? [];
+    const capacityMap = new Map<string, (typeof storeCapacityRows)[0]>();
+    storeCapacityRows.forEach((row) => {
+      capacityMap.set(row.id, row);
+      capacityMap.set(row.storeBranch.toLowerCase().trim(), row);
+    });
+
+    const storeVacancyMap = new Map<string, { filled: number; total: number; remaining: number }>();
+    allVacancies.forEach((v) => {
+      const keys = [v.storeId, v.storeName?.toLowerCase().trim()].filter(Boolean) as string[];
+      const total = v.hcTotal ?? v.headcount ?? 1;
+      const filled = v.hcFilled ?? 0;
+      const remaining = getVacancyRemainingCapacity(v);
+      keys.forEach((k) => {
+        const prev = storeVacancyMap.get(k) ?? { filled: 0, total: 0, remaining: 0 };
+        storeVacancyMap.set(k, {
+          filled: prev.filled + filled,
+          total: prev.total + total,
+          remaining: prev.remaining + remaining,
+        });
+      });
+    });
+
+    return rawStores
+      .map((st) => {
+        const key = st.name.toLowerCase().trim();
+        const cap = capacityMap.get(st.id) ?? capacityMap.get(key);
+        const vac = storeVacancyMap.get(st.id) ?? storeVacancyMap.get(key);
+
+        let hcFilled = cap?.activeDeployed ?? vac?.filled ?? 0;
+        let hcTotal = cap?.plantillaRequired ?? vac?.total ?? 1;
+        let openSlots = cap?.openVacancy ?? vac?.remaining ?? Math.max(0, hcTotal - hcFilled);
+
+        if (vac && vac.remaining > 0) {
+          openSlots = Math.max(openSlots, vac.remaining);
+          hcTotal = vac.total;
+          hcFilled = Math.max(0, hcTotal - openSlots);
+        }
+
+        return {
+          id: st.id,
+          name: st.name,
+          city: st.city,
+          province: st.province,
+          code: st.code,
+          hcFilled,
+          hcTotal,
+          openSlots,
+        };
+      })
+      .filter((st) => {
+        // Strictly filter to stores that have open or available slots (hc_filled < hc_total or openSlots > 0)
+        return st.openSlots > 0 || st.hcFilled < st.hcTotal;
+      });
+  }, [storesUnderAccountQuery.data, storeCapacityRows, allVacancies]);
 
   // Derived counts for KPI cards and badges
   const summaryData = summaryQuery.data;
@@ -2174,7 +2411,7 @@ function PlantillaPageContent() {
                 <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
                   <button
                     type="button"
-                    onClick={() => setDisplayView("table")}
+                    onClick={() => handleSetDisplayView("table")}
                     aria-label="Table View"
                     title="Table View"
                     className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
@@ -2188,7 +2425,7 @@ function PlantillaPageContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDisplayView("cards")}
+                    onClick={() => handleSetDisplayView("cards")}
                     aria-label="Cards View"
                     title="Cards View"
                     className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
@@ -2333,8 +2570,16 @@ function PlantillaPageContent() {
               ) : displayView === "table" ? (
                 <EmployeeActiveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
+                  onUpdateStatus={(emp) => {
+                    setUpdateStatusTargetEmployee({
+                      id: emp.id,
+                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                      employeeNo: emp.employeeNo,
+                      currentStatus: emp.plantillaStatus || "Active",
+                    });
+                  }}
                 />
               ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -2343,7 +2588,7 @@ function PlantillaPageContent() {
                       <EmployeeCard
                         key={row.id}
                         row={row}
-                        onSelect={() => setSelectedPlantillaId(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
                         storeLookupMap={storeLookupMap}
                       />
                     ))}
@@ -2358,11 +2603,11 @@ function PlantillaPageContent() {
                   onResetFilters={handleResetFilters}
                   tabLabel="on-leave employees"
                 />
-              ) : (
+              ) : displayView === "table" ? (
                 <EmployeeOnLeaveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
                   activeCoverageMap={activeCoverageMap}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                   onAssignReliever={(emp) => {
                     const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
@@ -2392,6 +2637,47 @@ function PlantillaPageContent() {
                     });
                   }}
                 />
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                      <EmployeeOnLeaveCard
+                        key={row.id}
+                        row={row}
+                        coverageItem={activeCoverageMap.get(row.id)}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
+                        storeLookupMap={storeLookupMap}
+                        onAssignReliever={(emp) => {
+                          const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
+                          setRelieverTargetEmployee({
+                            id: emp.id,
+                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                            employeeNo: emp.employeeNo,
+                            storeId: storeInfo?.id ?? null,
+                            storeName: emp.primaryStoreName,
+                          });
+                        }}
+                        onReturnToActive={(emp, reliever) => {
+                          setReturnToActiveTarget({
+                            employee: {
+                              id: emp.id,
+                              displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                              employeeNo: emp.employeeNo,
+                              storeName: emp.primaryStoreName,
+                            },
+                            reliever: reliever
+                              ? {
+                                  id: reliever.employeeId,
+                                  name: reliever.employeeName,
+                                  employeeNumber: reliever.employeeNumber,
+                                }
+                              : null,
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               )
             ) : statusTab === "vacancy" ? (
               /* Tab 3: Vacancy */
@@ -2464,11 +2750,24 @@ function PlantillaPageContent() {
                     }}
                     tabLabel="vacant slots"
                   />
-                ) : (
+                ) : displayView === "table" ? (
                   <StoreVacancyTable
                     rows={paginatedRows as VacancyListItem[]}
                     onSelectVacancy={(v) => setSelectedVacancyId(v.id)}
                   />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as VacancyListItem[]).map((row) => (
+                        <VacancyCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => setSelectedVacancyId(row.id)}
+                          storeLookupMap={storeLookupMap}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             ) : statusTab === "floating" ? (
@@ -2479,10 +2778,10 @@ function PlantillaPageContent() {
                   onResetFilters={handleResetFilters}
                   tabLabel="floating employees"
                 />
-              ) : (
+              ) : displayView === "table" ? (
                 <EmployeeFloatingTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                   onAssignStore={(emp) => {
                     setAssignStoreTargetEmployee({
@@ -2490,9 +2789,32 @@ function PlantillaPageContent() {
                       displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
                       employeeNo: emp.employeeNo,
                       positionTitle: emp.positionTitle,
+                      floatingDays: getFloatingDurationDays(emp),
                     });
                   }}
                 />
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                      <EmployeeFloatingCard
+                        key={row.id}
+                        row={row}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
+                        storeLookupMap={storeLookupMap}
+                        onAssignStore={(emp) => {
+                          setAssignStoreTargetEmployee({
+                            id: emp.id,
+                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                            employeeNo: emp.employeeNo,
+                            positionTitle: emp.positionTitle,
+                            floatingDays: getFloatingDurationDays(emp),
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               )
             ) : statusTab === "deactivation" ? (
               /* Tab 5: Deactivation */
@@ -2502,12 +2824,25 @@ function PlantillaPageContent() {
                   onResetFilters={handleResetFilters}
                   tabLabel="pending deactivation personnel"
                 />
-              ) : (
+              ) : displayView === "table" ? (
                 <EmployeeDeactivationTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                 />
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                      <EmployeeDeactivationCard
+                        key={row.id}
+                        row={row}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
+                        storeLookupMap={storeLookupMap}
+                      />
+                    ))}
+                  </div>
+                </div>
               )
             ) : (
               /* Tab 6: Inactive (Resigned / AWOL / Terminated) */
@@ -2517,12 +2852,25 @@ function PlantillaPageContent() {
                   onResetFilters={handleResetFilters}
                   tabLabel="inactive or separated personnel"
                 />
-              ) : (
+              ) : displayView === "table" ? (
                 <EmployeeInactiveTable
                   rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={setSelectedPlantillaId}
+                  onRowClick={handleNavigateToEmployee}
                   storeLookupMap={storeLookupMap}
                 />
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                      <EmployeeInactiveCard
+                        key={row.id}
+                        row={row}
+                        onSelect={() => handleNavigateToEmployee(row.id)}
+                        storeLookupMap={storeLookupMap}
+                      />
+                    ))}
+                  </div>
+                </div>
               )
             )}
             </div>
@@ -2534,7 +2882,7 @@ function PlantillaPageContent() {
                 pageSize={pageSize}
                 totalCount={currentTotalCount}
                 pageSizeOptions={[10, 25, 50]}
-                onPageChange={(p) => setPage(p)}
+                onPageChange={handlePageChange}
                 onPageSizeChange={(newPageSize) => {
                   setPageSize(newPageSize);
                   setPage(1);
@@ -2546,11 +2894,6 @@ function PlantillaPageContent() {
           </div>
 
           {/* Drawers & Modals */}
-          <PlantillaDetailDrawer
-            plantillaId={selectedPlantillaId}
-            onClose={() => setSelectedPlantillaId(null)}
-          />
-
           <VacancyDetailDrawer
             vacancyId={selectedVacancyId}
             onClose={() => {
@@ -2610,12 +2953,32 @@ function PlantillaPageContent() {
               isOpen={Boolean(assignStoreTargetEmployee)}
               onClose={() => setAssignStoreTargetEmployee(null)}
               employee={assignStoreTargetEmployee}
-              stores={storesUnderAccountQuery.data ?? []}
+              stores={storesWithAvailableSlots}
               vacantStoreIds={vacantStoreIds}
               onSuccess={() => {
                 employeeQuery.refetch();
                 summaryQuery.refetch();
                 vacancyListQuery.refetch();
+              }}
+            />
+          )}
+
+          {/* Update Employment Status Modal (from Active Tab) */}
+          {updateStatusTargetEmployee && (
+            <UpdateEmploymentStatusModal
+              isOpen={Boolean(updateStatusTargetEmployee)}
+              onClose={() => setUpdateStatusTargetEmployee(null)}
+              plantillaId={updateStatusTargetEmployee.id}
+              employeeName={updateStatusTargetEmployee.displayName}
+              employeeNo={updateStatusTargetEmployee.employeeNo}
+              currentStatus={updateStatusTargetEmployee.currentStatus}
+              onSuccess={() => {
+                employeeQuery.refetch();
+                summaryQuery.refetch();
+                vacancyListQuery.refetch();
+              }}
+              onNavigateStatusTab={(tab) => {
+                handleSelectStatusTab(tab);
               }}
             />
           )}
@@ -2704,10 +3067,12 @@ function EmployeeActiveTable({
   rows,
   onRowClick,
   storeLookupMap,
+  onUpdateStatus,
 }: {
   rows: PlantillaEmployeeListItem[];
   onRowClick: (id: string) => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onUpdateStatus: (emp: PlantillaEmployeeListItem) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
@@ -2726,9 +3091,6 @@ function EmployeeActiveTable({
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
               </th>
               <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
@@ -2791,14 +3153,9 @@ function EmployeeActiveTable({
                   </td>
 
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   <td className="px-3.5 py-2">
@@ -2807,24 +3164,18 @@ function EmployeeActiveTable({
                     </span>
                   </td>
 
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
-                      Active
-                    </span>
-                  </td>
-
                   <td className="px-3.5 py-2 text-right">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRowClick(row.id);
+                        onUpdateStatus(row);
                       }}
                       className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                      aria-label={`View details for ${displayName}`}
+                      aria-label={`Update employment status for ${displayName}`}
                     >
-                      <Eye className="h-3 w-3" />
-                      <span>Details</span>
+                      <UserCheck className="h-3 w-3" />
+                      <span>Update</span>
                     </button>
                   </td>
                 </tr>
@@ -2942,14 +3293,9 @@ function EmployeeOnLeaveTable({
 
                   {/* 3. Position */}
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   {/* 4. Leave Details */}
@@ -3007,18 +3353,6 @@ function EmployeeOnLeaveTable({
                       >
                         <RotateCw className="h-3 w-3" />
                         <span>Return to Active</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRowClick(row.id);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                        aria-label={`View details for ${displayName}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>Details</span>
                       </button>
                     </div>
                   </td>
@@ -3095,11 +3429,8 @@ function StoreVacancyTable({
               const remarksText = row.closureReason?.trim() || "—";
               const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
               const rowHcFilled = row.hcFilled ?? 0;
-              const remainingCapacity = Math.max(0, rowHcTotal - rowHcFilled);
-              const capacityBadgeText =
-                rowHcTotal > 1
-                  ? `${remainingCapacity} Vacant (${rowHcFilled}/${rowHcTotal})`
-                  : `${remainingCapacity || 1} Vacant`;
+              const remainingCapacity = getVacancyRemainingCapacity(row);
+              const slotDisplay = remainingCapacity;
 
               return (
                 <tr
@@ -3156,8 +3487,15 @@ function StoreVacancyTable({
                     {row.position_title || "General Staff"}
                   </td>
                   <td className="px-3.5 py-2 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0">
-                      {capacityBadgeText}
+                    <span
+                      title={
+                        rowHcTotal > 1
+                          ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
+                          : `${slotDisplay} open slot`
+                      }
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
+                    >
+                      {slotDisplay}
                     </span>
                   </td>
                   <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>
@@ -3206,9 +3544,6 @@ function EmployeeFloatingTable({
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Assignment
               </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
-              </th>
               <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actions
               </th>
@@ -3229,6 +3564,7 @@ function EmployeeFloatingTable({
                 ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
                 : null;
               const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+              const floatingDays = getFloatingDurationDays(row);
 
               return (
                 <tr
@@ -3248,8 +3584,11 @@ function EmployeeFloatingTable({
                         <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
                           {displayName}
                         </span>
-                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
-                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-[11px] text-table-text-muted">
+                            {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
+                          </span>
+                          <FloatingDoleBadge days={floatingDays} />
                         </div>
                       </div>
                     </div>
@@ -3268,14 +3607,9 @@ function EmployeeFloatingTable({
                   </td>
 
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
                   <td className="px-3.5 py-2">
@@ -3284,36 +3618,18 @@ function EmployeeFloatingTable({
                     </span>
                   </td>
 
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                      Floating
-                    </span>
-                  </td>
-
                   <td className="px-3.5 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAssignStore(row);
                         }}
-                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
                       >
                         <Building2 className="h-3 w-3" />
                         <span>Assign Store</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRowClick(row.id);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                        aria-label={`View details for ${displayName}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>Details</span>
                       </button>
                     </div>
                   </td>
@@ -3347,7 +3663,13 @@ function EmployeeDeactivationTable({
           <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
             <tr className="border-b border-table-rule">
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Emploc#
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Member
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                VCode
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Store
@@ -3360,9 +3682,6 @@ function EmployeeDeactivationTable({
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Status
-              </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Actions
               </th>
             </tr>
           </thead>
@@ -3392,24 +3711,37 @@ function EmployeeDeactivationTable({
                   onClick={() => onRowClick(row.id)}
                   tabIndex={0}
                   role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onRowClick(row.id);
+                    }
+                  }}
                   aria-label={`View deactivation details for ${displayName}`}
                 >
+                  {/* 1. Emploc# */}
+                  <td className="px-3.5 py-2 font-mono text-xs font-medium text-table-text whitespace-nowrap">
+                    {row.employeeNo || "—"}
+                  </td>
+
+                  {/* 2. Member */}
                   <td className="px-3.5 py-2">
                     <div className="flex items-center gap-2.5">
                       <div className="h-7.5 w-7.5 rounded-full bg-surface-muted border border-border-default text-text-muted font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
                         {initials}
                       </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
-                          {displayName}
-                        </span>
-                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
-                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
-                        </div>
-                      </div>
+                      <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
+                        {displayName}
+                      </span>
                     </div>
                   </td>
 
+                  {/* 3. VCode */}
+                  <td className="px-3.5 py-2 font-mono text-xs text-table-text whitespace-nowrap">
+                    {row.vcode || row.cgCode || "—"}
+                  </td>
+
+                  {/* 4. Store */}
                   <td className="px-3.5 py-2 text-table-text">
                     <div className="min-w-0">
                       <div className="font-medium text-table-text text-xs">
@@ -3424,23 +3756,21 @@ function EmployeeDeactivationTable({
                     </div>
                   </td>
 
+                  {/* 5. Position */}
                   <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-table-text text-xs">
-                        {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                      </span>
-                      <span className="text-[11px] text-table-text-muted mt-0.5">
-                        {row.plantillaType ? `${row.plantillaType} Position` : "Standard Tier"}
-                      </span>
-                    </div>
+                    <span className="font-medium text-table-text text-xs">
+                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
+                    </span>
                   </td>
 
+                  {/* 6. Assignment */}
                   <td className="px-3.5 py-2">
                     <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
                       {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
                     </span>
                   </td>
 
+                  {/* 7. Status */}
                   <td className="px-3.5 py-2">
                     {isDeactivated ? (
                       <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
@@ -3451,21 +3781,6 @@ function EmployeeDeactivationTable({
                         Pending for Deactivation
                       </span>
                     )}
-                  </td>
-
-                  <td className="px-3.5 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRowClick(row.id);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                      aria-label={`View details for ${displayName}`}
-                    >
-                      <Eye className="h-3 w-3" />
-                      <span>Details</span>
-                    </button>
                   </td>
                 </tr>
               );
@@ -3515,9 +3830,6 @@ function EmployeeInactiveTable({
                 Separation Date
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Clearance Status
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Remarks
               </th>
             </tr>
@@ -3562,19 +3874,7 @@ function EmployeeInactiveTable({
               const sepDateRaw = row.separationDate || row.dateDeployed;
               const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
 
-              // 7. Clearance Status
-              const rawClearance = (row.clearanceStatus || "Cleared").toLowerCase();
-              let clearanceVariant: "success" | "warning" | "danger" = "success";
-              let clearanceLabel = "Cleared";
-              if (rawClearance.includes("pending") || rawClearance.includes("progress")) {
-                clearanceVariant = "warning";
-                clearanceLabel = "Pending Clearance";
-              } else if (rawClearance.includes("block") || rawClearance.includes("liab") || rawClearance.includes("hold")) {
-                clearanceVariant = "danger";
-                clearanceLabel = "With Liability";
-              }
-
-              // 8. Remarks
+              // 7. Remarks
               const remarks = row.separationRemarks?.trim() || "—";
 
               return (
@@ -3651,13 +3951,8 @@ function EmployeeInactiveTable({
                     {formattedDate}
                   </td>
 
-                  {/* 7. Clearance Status */}
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    <StatusBadge variant={clearanceVariant} text={clearanceLabel} />
-                  </td>
-
-                  {/* 8. Remarks */}
-                  <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[180px] truncate" title={remarks !== "—" ? remarks : undefined}>
+                  {/* 7. Remarks */}
+                  <td className="px-3.5 py-2 text-[11px] text-text-secondary max-w-[240px] truncate" title={remarks !== "—" ? remarks : undefined}>
                     {remarks}
                   </td>
                 </tr>
@@ -3788,7 +4083,7 @@ function StoreCapacityTable({
 }
 
 // ---------------------------------------------------------------------------
-// Employee Card Component (Optional Cards View)
+// Employee Card Component (Active)
 // ---------------------------------------------------------------------------
 
 function EmployeeCard({
@@ -3873,6 +4168,539 @@ function EmployeeCard({
         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
           {row.assignmentType || "Stationary"}
         </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Employee On-Leave Card Component
+// ---------------------------------------------------------------------------
+
+function EmployeeOnLeaveCard({
+  row,
+  coverageItem,
+  onSelect,
+  storeLookupMap,
+  onAssignReliever,
+  onReturnToActive,
+}: {
+  row: PlantillaEmployeeListItem;
+  coverageItem: ActiveCoverageItem | null | undefined;
+  onSelect: () => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onAssignReliever: (emp: PlantillaEmployeeListItem) => void;
+  onReturnToActive: (emp: PlantillaEmployeeListItem, reliever: ActiveCoverageItem | null) => void;
+}) {
+  const displayName =
+    formatPersonName(
+      row.firstName,
+      row.lastName,
+      null,
+      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+    ) || "—";
+
+  const initials = getInitials(row.firstName, row.lastName);
+  const storeInfo = row.primaryStoreName
+    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+    : null;
+  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-amber-500"
+    >
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300">
+            {initials}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
+              {displayName}
+            </h4>
+
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-semibold text-text-secondary truncate">
+                {row.positionTitle || "General Staff"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <StatusBadge variant="warning" text="On Leave" />
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        {/* Reliever Coverage Status */}
+        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-xs">
+          {coverageItem ? (
+            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Covered by {coverageItem.employeeName}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>No Reliever Assigned</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+        <div className="flex items-center gap-1.5 truncate max-w-[55%]">
+          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+          <span className="truncate font-medium text-text-secondary">
+            {formatStoreName(row.primaryStoreName || "—")}
+            {locationLabel ? ` (${locationLabel})` : ""}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAssignReliever(row);
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-[11px] font-semibold text-text-secondary hover:text-brand-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
+          >
+            <UserCheck className="h-3 w-3" />
+            <span>Reliever</span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReturnToActive(row, coverageItem ?? null);
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-950 dark:text-brand-300 transition-colors shadow-2xs cursor-pointer"
+          >
+            <RotateCw className="h-3 w-3" />
+            <span>Return</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Vacancy Card Component
+// ---------------------------------------------------------------------------
+
+function VacancyCard({
+  row,
+  onSelect,
+}: {
+  row: VacancyListItem;
+  onSelect: () => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+}) {
+  const codeDisplay = row.vcode || row.cgCode || "—";
+  const rawName = row.storeName || "Unnamed Store";
+  const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
+  const isRoving = Boolean(
+    row.employmentType?.toLowerCase() === "roving" ||
+    row.cgCode ||
+    row.vcode?.startsWith("CG-")
+  );
+  const hasApplicant = Boolean(row.applicantName && row.applicantName.trim() !== "" && row.applicantName.trim() !== "—");
+  const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : null;
+  const stage = resolveVacancyWorkflowStage(row);
+  const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
+  const rowHcFilled = row.hcFilled ?? 0;
+  const remainingCapacity = getVacancyRemainingCapacity(row);
+  const slotDisplay = remainingCapacity;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-sky-500"
+    >
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-text-primary">
+                {codeDisplay}
+              </span>
+              {isRoving && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
+                  Roving
+                </span>
+              )}
+            </div>
+            <h4 className="text-sm font-bold text-text-primary truncate mt-0.5 group-hover:text-brand-primary transition-colors">
+              {cleanStoreName}
+            </h4>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              title={
+                rowHcTotal > 1
+                  ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
+                  : `${slotDisplay} open slot`
+              }
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
+            >
+              {slotDisplay}
+            </span>
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+          <span className="font-medium text-text-secondary truncate">
+            {row.positionTitle ? formatPosition(row.positionTitle) : "Store Personnel"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-muted">
+            <Clock className="h-3 w-3" />
+            {row.agingDays != null ? `${row.agingDays}d aging` : "—"}
+          </span>
+        </div>
+
+        {applicantDisplay ? (
+          <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface-muted/50 px-2.5 py-1.5 text-xs text-text-secondary">
+            <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
+            <span className="truncate font-medium">{applicantDisplay}</span>
+          </div>
+        ) : (
+          <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-dashed border-border-subtle bg-surface-muted/20 px-2.5 py-1.5 text-xs text-text-muted">
+            <span>No active applicant assigned</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-surface-muted text-text-secondary border border-border-default">
+          {stage}
+        </span>
+        <span className="text-[11px] text-text-muted font-mono">
+          Slot Capacity: {rowHcTotal}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Employee Floating Card Component
+// ---------------------------------------------------------------------------
+
+function EmployeeFloatingCard({
+  row,
+  onSelect,
+  onAssignStore,
+}: {
+  row: PlantillaEmployeeListItem;
+  onSelect: () => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+  onAssignStore: (emp: PlantillaEmployeeListItem) => void;
+}) {
+  const displayName =
+    formatPersonName(
+      row.firstName,
+      row.lastName,
+      null,
+      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+    ) || "—";
+
+  const initials = getInitials(row.firstName, row.lastName);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-indigo-500"
+    >
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-indigo-950 dark:border-indigo-800 dark:text-indigo-300">
+            {initials}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
+              {displayName}
+            </h4>
+
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-semibold text-text-secondary truncate">
+                {row.positionTitle || "General Staff"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <StatusBadge variant="neutral" text="Floating" />
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/40 px-3 py-2 text-xs flex items-center justify-between gap-2">
+          <span className="text-text-muted text-[11px]">DOLE Tracking:</span>
+          <FloatingDoleBadge days={getFloatingDurationDays(row)} />
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
+        <span className="font-mono text-[11px] text-text-muted">
+          {row.vcode || row.cgCode || "No VCode"}
+        </span>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAssignStore(row);
+          }}
+          className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-950 dark:text-brand-300 transition-colors shadow-2xs cursor-pointer"
+        >
+          <Building className="h-3 w-3" />
+          <span>Assign Store</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Employee Deactivation Card Component
+// ---------------------------------------------------------------------------
+
+function EmployeeDeactivationCard({
+  row,
+  onSelect,
+  storeLookupMap,
+}: {
+  row: PlantillaEmployeeListItem;
+  onSelect: () => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+}) {
+  const displayName =
+    formatPersonName(
+      row.firstName,
+      row.lastName,
+      null,
+      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+    ) || "—";
+
+  const initials = getInitials(row.firstName, row.lastName);
+  const storeInfo = row.primaryStoreName
+    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+    : null;
+  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+  const s = (row.plantillaStatus || "").toLowerCase();
+  const isDeactivated = s === "deactivated" || row.plantillaStatus?.toLowerCase().includes("deactivated");
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-rose-500"
+    >
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-rose-950 dark:border-rose-800 dark:text-rose-300">
+            {initials}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
+              {displayName}
+            </h4>
+
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-mono text-text-muted">{row.vcode || row.cgCode || "—"}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isDeactivated ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
+                Deactivated
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
+                Pending for Deactivation
+              </span>
+            )}
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        <div className="mt-2.5 text-xs text-text-secondary">
+          <span className="font-medium text-text-secondary">{row.positionTitle || "General Staff"}</span>
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+          <span className="truncate font-medium text-text-secondary">
+            {formatStoreName(row.primaryStoreName || "—")}
+            {locationLabel ? ` (${locationLabel})` : ""}
+          </span>
+        </div>
+
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
+          {row.assignmentType || "Stationary"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Employee Inactive Card Component
+// ---------------------------------------------------------------------------
+
+function EmployeeInactiveCard({
+  row,
+  onSelect,
+  storeLookupMap,
+}: {
+  row: PlantillaEmployeeListItem;
+  onSelect: () => void;
+  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
+}) {
+  const displayName =
+    formatPersonName(
+      row.firstName,
+      row.lastName,
+      null,
+      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
+    ) || "—";
+
+  const initials = getInitials(row.firstName, row.lastName);
+  const storeInfo = row.primaryStoreName
+    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
+    : null;
+  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+
+  const rawType = (row.separationType || row.plantillaStatus || "Resigned").toLowerCase();
+  let sepBadgeVariant: "warning" | "danger" | "neutral" = "neutral";
+  let sepLabel = "Separated";
+  if (rawType.includes("resigned") || rawType.includes("resignation")) {
+    sepBadgeVariant = "warning";
+    sepLabel = "Resigned";
+  } else if (rawType.includes("awol")) {
+    sepBadgeVariant = "danger";
+    sepLabel = "AWOL";
+  } else if (rawType.includes("terminat")) {
+    sepBadgeVariant = "danger";
+    sepLabel = "Terminated";
+  }
+
+  const sepDateRaw = row.separationDate || row.dateDeployed;
+  const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
+  const remarks = row.separationRemarks?.trim() || "";
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-slate-400"
+    >
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-surface-muted border border-border-default text-text-secondary font-bold text-xs flex items-center justify-center shadow-xs">
+            {initials}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
+              {displayName}
+            </h4>
+
+            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
+              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
+              <span className="text-text-muted/40">•</span>
+              <span className="font-semibold text-text-secondary truncate">
+                {row.positionTitle || "General Staff"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
+            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        {/* Remarks box */}
+        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/50 px-3 py-2 text-xs">
+          <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-0.5">
+            Remarks
+          </div>
+          <div className="text-text-secondary truncate" title={remarks || undefined}>
+            {remarks || "No operational remarks recorded"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+        <div className="flex items-center gap-1.5 truncate max-w-[60%]">
+          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
+          <span className="truncate font-medium text-text-secondary">
+            {formatStoreName(row.primaryStoreName || "—")}
+            {locationLabel ? ` (${locationLabel})` : ""}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 text-[11px] font-mono text-text-muted">
+          <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+          <span>{formattedDate}</span>
+        </div>
       </div>
     </div>
   );
