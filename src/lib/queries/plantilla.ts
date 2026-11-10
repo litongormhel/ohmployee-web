@@ -2983,7 +2983,6 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
           schedule_time: alloc.scheduleTime ?? params.scheduleTime ?? null,
           vcode: alloc.vcode ?? null,
           is_active: true,
-          updated_at: new Date().toISOString(),
         });
 
       if (alloc.storeId) {
@@ -3009,7 +3008,6 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
         .update({
           schedule_days: params.scheduleDays ?? null,
           schedule_time: params.scheduleTime ?? null,
-          updated_at: new Date().toISOString(),
         });
       if (params.employeeNo) {
         query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);

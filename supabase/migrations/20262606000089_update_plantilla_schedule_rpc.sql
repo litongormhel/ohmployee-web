@@ -74,8 +74,7 @@ BEGIN
         filled_hc = COALESCE(v_filled_hc, filled_hc),
         schedule_days = v_sched_days,
         schedule_time = v_sched_time,
-        vcode = COALESCE(v_vcode, vcode),
-        updated_at = NOW()
+        vcode = COALESCE(v_vcode, vcode)
       WHERE (plantilla_id = p_plantilla_id OR (v_emp_no IS NOT NULL AND employee_no = v_emp_no))
         AND is_active = true
         AND (
@@ -91,8 +90,7 @@ BEGIN
     UPDATE public.employee_store_allocations
     SET
       schedule_days = COALESCE(p_schedule_days, schedule_days),
-      schedule_time = COALESCE(p_schedule_time, schedule_time),
-      updated_at = NOW()
+      schedule_time = COALESCE(p_schedule_time, schedule_time)
     WHERE (plantilla_id = p_plantilla_id OR (v_emp_no IS NOT NULL AND employee_no = v_emp_no))
       AND is_active = true;
   END IF;

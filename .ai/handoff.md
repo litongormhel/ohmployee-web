@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Fix Schema Error on employee_store_allocations in update_plantilla_schedule RPC (ohm#x5v3m7d1)
+
+**Status: COMPLETE ON MAIN; ROOT-CAUSED SCHEDULE PERSISTENCE FAILURE TO POSTGRESQL ERROR `42703: column "updated_at" of relation "employee_store_allocations" does not exist`; SURGICALLY UPDATED `update_plantilla_schedule` RPC AND `src/lib/queries/plantilla.ts` TO REMOVE `updated_at` FROM ALL `employee_store_allocations` MUTATIONS (RETAINING `updated_at` SOLELY ON `public.plantilla`); RE-APPLIED MIGRATION TO STAGING AND CONFIRMED LIVE VERIFICATION; VALIDATED DIRECTLY IN DATABASE THAT ROVING SCHEDULES (`MON, TUE, WED` FOR PUREGOLD CENTENIAL KAWIT, `THU, FRI, SAT` FOR EMILUS TANZA, REST DAY `SUN`) PERSISTED ACROSS `public.plantilla` AND `public.employee_store_allocations`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Schema Mismatch on `employee_store_allocations`**:
+   - Root cause: In `20262606000089_update_plantilla_schedule_rpc.sql` and `updatePlantillaSchedule`, the SQL update statement attempted to execute `updated_at = NOW()` on `public.employee_store_allocations`.
+   - Inspection of `information_schema.columns` revealed that `employee_store_allocations` has `created_at`, but **does NOT have** an `updated_at` column.
+   - Consequently, calling `update_plantilla_schedule` failed with `ERROR 42703: column "updated_at" of relation "employee_store_allocations" does not exist`. The silent error-handling swallowed the exception, misleading the user with a false success while leaving both store allocations locked on `"MON-SAT"`.
+2. **Surgical RPC & Mutation Fix**:
+   - In `20262606000089_update_plantilla_schedule_rpc.sql`, removed `updated_at = NOW()` from all `employee_store_allocations` UPDATE statements, while preserving `updated_at = NOW()` on `public.plantilla`.
+   - Re-applied migration to staging and verified `pg_get_functiondef` live.
+   - In `src/lib/queries/plantilla.ts` (`updatePlantillaSchedule`), removed `updated_at` from the fallback mutations to prevent 42703 errors.
+3. **End-to-End Live Verification**:
+   - Executed `public.update_plantilla_schedule` for employee `4dde6cd3-ec31-44ef-b219-c1d7cf6169fe` (`DELA CRUZ JR, JESSIE GALEN` / `2021-09660`).
+   - Query verified:
+     - `public.plantilla`: `schedule_days = 'MON, TUE, WED'`, `schedule_time = '08:00 AM - 05:00 PM'`, `rest_day = 'SUN'`, `dayoff = 'SUN'`, `deployment_type = 'Roving'`.
+     - `public.employee_store_allocations`:
+       - `PUREGOLD CENTENIAL KAWIT` (`CPRVJV11`): `schedule_days = 'MON, TUE, WED'`, `schedule_time = '08:00 AM - 05:00 PM'`.
+       - `EMILUS TANZA` (`CPSAJV12`): `schedule_days = 'THU, FRI, SAT'`, `schedule_time = '08:00 AM - 05:00 PM'`.
+   - The conflict alert in `UpdateScheduleModal` is fully resolved because Store 1 and Store 2 now have disjoint duty days in the database.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Supabase Staging Migration: Re-applied and verified via live `pg_get_functiondef`.
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Persist Store Allocation Schedules via update_plantilla_schedule RPC & Fix Header Name Collision (ohm#p2k7m9v4)
 
 **Status: COMPLETE ON MAIN; ROOT-CAUSED ROVING STORE SCHEDULES NOT REFLECTING IN THE MATRIX TO DIRECT CLIENT MUTATIONS ON `public.employee_store_allocations` FAILING UNDER `REVOKE UPDATE` (42501 PERMISSION DENIED); CREATED MIGRATION `20262606000089_update_plantilla_schedule_rpc.sql` WITH AUTHORITATIVE `SECURITY DEFINER` RPC `update_plantilla_schedule` AND APPLIED TO STAGING; UPDATED `updatePlantillaSchedule` IN `src/lib/queries/plantilla.ts` TO INVOKE THE RPC WITH RESILIENT FALLBACK; FIXED EMPLOYEE NAME COLLIDING/OVERLAPPING WITH ACTION BUTTONS IN `/plantilla/[id]` BY TRANSITIONING BREAKPOINT TO `xl:flex-row`, ADDING `flex-1 min-w-0`, AND TRUNCATING `{displayName}`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
