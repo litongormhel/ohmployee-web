@@ -1,5 +1,25 @@
 # AI Handoff
 
+## Execution Report — Clickable MIKA Import History with Rows Preview Modal (ohm#k3n9m7v2)
+
+**Status: COMPLETE ON MAIN; ENHANCED MIKA IMPORT HISTORY VIEW (`src/components/more/MikaImportModal.tsx`); MADE HISTORICAL BATCH LOG ROWS CLICKABLE WITH HOVER AFFORDANCE; INTEGRATED DEDICATED `Modal` PREVIEW DIALOG DISPLAYING BATCH TELEMETRY, METRIC BADGES (TOTAL, MATCHED, GHOST, BLOCKED), AND A FULL SCROLLABLE ROWS PREVIEW TABLE (`Emp No`, `Name`, `Account`, `Position`, `Status badge`, `Remarks / Reason`) HYDRATED VIA `useMikaImportRowsQuery`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Interactive Row Drilldown in History**:
+   - Previously, clicking records in the historical MIKA import log table had no effect, preventing users from seeing which specific employee records were contained inside an approved or rejected batch.
+   - Resolution: Made each historical row clickable (`cursor-pointer hover:bg-surface-hover/70 transition-colors`).
+2. **Rows Preview Modal**:
+   - Integrated `Modal` with `maxWidthClass="max-w-4xl"` linked to `viewingHistoryLog`.
+   - Displays header info: File Name, Batch Status badge, Log ID, Uploader, Date.
+   - Summarizes counts across Total Uploaded, Matched Clean, Possible Ghost, and Blocked Mismatch.
+   - Displays a responsive, scrollable preview table with `Emp No`, `Name`, `Account`, `Position`, `Status badge` (`matched`, `ghost`, `blocked`), and `Remarks / Reason`, loaded via `useMikaImportRowsQuery`.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`; `MikaImportModal.tsx` has 0 errors and 0 warnings).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — MIKA Import History 15-Item Pagination & Uploaded Rows Column (ohm#h8p4m2x9)
 
 **Status: COMPLETE ON MAIN; ENHANCED MIKA IMPORT HISTORY VIEW (`src/components/more/MikaImportModal.tsx`); ADDED DEDICATED "Uploaded Rows" COLUMN TO THE IMPORT HISTORY TABLE DISPLAYING MONOSPACE TOTAL ROW COUNTS (`l.totalRows`); INTEGRATED STANDARD `TablePagination` COMPONENT CONSTRAINED TO 15 ITEMS PER PAGE WITH RECORD RANGE INDICATORS ("Showing X–Y of Z records"), PREV/NEXT CONTROLS, AND NUMBERED PAGE BUTTONS WITH ELLIPSIS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

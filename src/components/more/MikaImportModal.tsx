@@ -21,6 +21,7 @@ import {
 import {
   approveMikaImport,
   MikaEmployeeRow,
+  MikaImportLogItem,
   rejectMikaImport,
   submitMikaImport,
   useMikaImportLogs,
@@ -29,6 +30,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { BatchImportPageShell } from "@/components/more/BatchImportPageShell";
 import { TablePagination } from "@/components/shared/TablePagination";
+import { Modal } from "@/components/shared/Modal";
 
 export interface MikaImportModalProps {
   isOpen?: boolean;
@@ -71,6 +73,12 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
     const startIndex = (safeHistoryPage - 1) * HISTORY_PAGE_SIZE;
     return historyLogs.slice(startIndex, startIndex + HISTORY_PAGE_SIZE);
   }, [historyLogs, safeHistoryPage]);
+
+  // History Row Preview Modal state
+  const [viewingHistoryLog, setViewingHistoryLog] = useState<MikaImportLogItem | null>(null);
+  const { data: historyRows = [], isLoading: isLoadingHistoryRows } = useMikaImportRowsQuery(
+    viewingHistoryLog?.id ?? null
+  );
 
   const canApprove = useMemo(() => {
     const role = (currentUser?.roleKey || currentUser?.roleName || "").toLowerCase();
@@ -726,8 +734,14 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                     </thead>
                     <tbody className="divide-y divide-border-subtle bg-surface-primary">
                       {paginatedHistoryLogs.map((l) => (
-                        <tr key={l.id} className="hover:bg-surface-hover/50">
-                          <td className="py-2.5 px-4 font-semibold text-text-primary">{l.fileName}</td>
+                        <tr
+                          key={l.id}
+                          onClick={() => setViewingHistoryLog(l)}
+                          className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
+                        >
+                          <td className="py-2.5 px-4 font-semibold text-text-primary group-hover:text-brand-primary transition-colors">
+                            {l.fileName}
+                          </td>
                           <td className="py-2.5 px-4 font-mono text-xs font-semibold text-text-primary">
                             {l.totalRows} {l.totalRows === 1 ? "row" : "rows"}
                           </td>
@@ -763,6 +777,119 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
           )}
         </div>
       </div>
+
+      {/* Historical Batch Rows Preview Modal */}
+      {viewingHistoryLog && (
+        <Modal
+          isOpen={!!viewingHistoryLog}
+          onClose={() => setViewingHistoryLog(null)}
+          title={
+            <div className="flex items-center gap-2.5">
+              <span className="truncate">{viewingHistoryLog.fileName}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  viewingHistoryLog.status.toLowerCase() === "rejected"
+                    ? "bg-danger-surface text-danger-text border border-danger-border"
+                    : "bg-surface-subtle text-text-primary border border-border-default"
+                }`}
+              >
+                {viewingHistoryLog.status}
+              </span>
+            </div>
+          }
+          subtitle={`Log #${viewingHistoryLog.id.slice(0, 8)} • Uploaded by ${viewingHistoryLog.uploadedBy} on ${new Date(viewingHistoryLog.submittedAt).toLocaleDateString()}`}
+          icon={FileSpreadsheet}
+          maxWidthClass="max-w-4xl"
+          footer={
+            <div className="flex justify-between items-center w-full">
+              <span className="text-xs text-text-muted">
+                Showing {historyRows.length} uploaded {historyRows.length === 1 ? "record" : "records"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewingHistoryLog(null)}
+                className="rounded-xl border border-border-default bg-surface-primary px-4 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                <span className="text-xs text-text-secondary block">Total Uploaded</span>
+                <span className="text-lg font-bold font-mono text-text-primary">{viewingHistoryLog.totalRows}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                <span className="text-xs text-text-secondary block">Matched Clean</span>
+                <span className="text-lg font-bold font-mono text-text-primary">{viewingHistoryLog.matchedCount}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                <span className="text-xs text-text-secondary block">Possible Ghost</span>
+                <span className="text-lg font-bold font-mono text-text-primary">{viewingHistoryLog.ghostCount}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-surface-muted/50 border border-border-subtle">
+                <span className="text-xs text-text-secondary block">Blocked Mismatch</span>
+                <span className="text-lg font-bold font-mono text-text-primary">{viewingHistoryLog.blockedCount}</span>
+              </div>
+            </div>
+
+            {/* Rows Table */}
+            {isLoadingHistoryRows ? (
+              <div className="flex justify-center items-center p-12 text-xs text-text-muted">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-brand-primary" /> Loading batch rows...
+              </div>
+            ) : historyRows.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border-default p-8 text-center text-xs text-text-muted">
+                No individual row records found for this batch.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border-default bg-surface-primary overflow-hidden max-h-[420px] overflow-y-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-surface-subtle border-b border-border-default sticky top-0 text-xs text-text-muted font-bold z-10">
+                    <tr>
+                      <th className="py-2 px-3">Emp No</th>
+                      <th className="py-2 px-3">Name</th>
+                      <th className="py-2 px-3">Account</th>
+                      <th className="py-2 px-3">Position</th>
+                      <th className="py-2 px-3">Status</th>
+                      <th className="py-2 px-3">Remarks / Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle bg-surface-primary text-xs">
+                    {historyRows.map((r, i) => (
+                      <tr key={i} className="hover:bg-surface-hover/50">
+                        <td className="py-2 px-3 font-mono font-semibold text-text-primary">{r.employeeNo}</td>
+                        <td className="py-2 px-3 font-medium text-text-primary">
+                          {[r.lastName, r.firstName, r.middleName].filter(Boolean).join(", ")}
+                        </td>
+                        <td className="py-2 px-3 text-text-secondary">{r.account}</td>
+                        <td className="py-2 px-3 text-text-secondary">{r.position || "—"}</td>
+                        <td className="py-2 px-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              r.flagType === "matched"
+                                ? "bg-surface-subtle text-text-primary border border-border-default"
+                                : r.flagType === "ghost"
+                                ? "bg-surface-subtle text-text-secondary border border-border-default"
+                                : "bg-danger-surface text-danger-text border border-danger-border"
+                            }`}
+                          >
+                            {r.flagType}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-text-muted">{r.flagReason || "Verified match"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </BatchImportPageShell>
   );
 }
