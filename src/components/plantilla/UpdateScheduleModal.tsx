@@ -100,9 +100,31 @@ function parseShiftWindow(raw?: string | null): { timeIn: string; timeOut: strin
   if (!raw || !raw.trim()) return { timeIn: "08:00 AM", timeOut: "05:00 PM" };
   const parts = raw.split("-").map((p) => p.trim());
   if (parts.length >= 2) {
-    return { timeIn: parts[0] || "", timeOut: parts[1] || "" };
+    return { timeIn: parts[0] || "08:00 AM", timeOut: parts[1] || "05:00 PM" };
   }
-  return { timeIn: raw, timeOut: "" };
+  return { timeIn: raw.trim(), timeOut: "05:00 PM" };
+}
+
+function timeStringToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null;
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === "PM" && hours < 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function parseShiftInterval(shiftStr?: string | null): { start: number; end: number } | null {
+  if (!shiftStr) return null;
+  const parts = shiftStr.split("-").map((p) => p.trim());
+  if (parts.length < 2) return null;
+  const start = timeStringToMinutes(parts[0]);
+  const end = timeStringToMinutes(parts[1]);
+  if (start === null || end === null) return null;
+  return { start, end };
 }
 
 function parse12HourTime(raw?: string): { hours: string; minutes: string; period: "AM" | "PM" } {
@@ -303,8 +325,8 @@ export function UpdateScheduleModal({
         storeId: a.storeId ?? "",
         storeName: a.storeName || "Primary Store",
         vcode: a.vcode ?? "",
-        scheduleDays: a.scheduleDays ?? initialScheduleDays ?? "MON-SAT",
-        scheduleTime: a.scheduleTime ?? initialScheduleTime ?? "08:00 AM - 05:00 PM",
+        scheduleDays: (a.scheduleDays && a.scheduleDays.trim()) || (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT",
+        scheduleTime: (a.scheduleTime && a.scheduleTime.trim()) || (initialScheduleTime && initialScheduleTime.trim()) || "08:00 AM - 05:00 PM",
         allocationPercent:
           a.allocationPercent ??
           (initialStoreAllocations.length > 1
@@ -317,8 +339,8 @@ export function UpdateScheduleModal({
         storeId: "",
         storeName: "Primary Store Assignment",
         vcode: "",
-        scheduleDays: initialScheduleDays ?? "MON-SAT",
-        scheduleTime: initialScheduleTime ?? "08:00 AM - 05:00 PM",
+        scheduleDays: (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT",
+        scheduleTime: (initialScheduleTime && initialScheduleTime.trim()) || "08:00 AM - 05:00 PM",
         allocationPercent: 100,
       },
     ];
@@ -345,9 +367,9 @@ export function UpdateScheduleModal({
     if (selectedDayoffs.length === 0) return false;
     return allocations.every((a) => {
       const days = (a.scheduleDays || "").trim();
-      const time = (a.scheduleTime || "").trim();
+      const time = (a.scheduleTime || "08:00 AM - 05:00 PM").trim();
       if (!days) return false;
-      if (!time || time.includes("--") || time === "-") return false;
+      if (time.includes("--") || time === "-") return false;
       const parts = time.split("-").map((p) => p.trim());
       if (parts.length < 2 || !parts[0] || !parts[1]) return false;
       return true;
@@ -390,6 +412,55 @@ export function UpdateScheduleModal({
     return Array.from(conflicts);
   }, [allocations, selectedDayoffs]);
 
+  // Strict Roving Policy: Detect overlapping duty days and shift windows across stores
+  const rovingOverlapConflicts = useMemo(() => {
+    if (allocations.length <= 1) return [];
+    const conflicts: Array<{
+      storeA: string;
+      storeB: string;
+      days: string[];
+      timeA: string;
+      timeB: string;
+    }> = [];
+
+    for (let i = 0; i < allocations.length; i++) {
+      for (let j = i + 1; j < allocations.length; j++) {
+        const allocA = allocations[i];
+        const allocB = allocations[j];
+        const daysA = parseDaysToSet(allocA.scheduleDays);
+        const daysB = parseDaysToSet(allocB.scheduleDays);
+        const sharedDays = DAYS_OF_WEEK.filter((d) => daysA.has(d) && daysB.has(d));
+
+        if (sharedDays.length > 0) {
+          const timeA = (allocA.scheduleTime || "08:00 AM - 05:00 PM").trim();
+          const timeB = (allocB.scheduleTime || "08:00 AM - 05:00 PM").trim();
+          const intervalA = parseShiftInterval(timeA);
+          const intervalB = parseShiftInterval(timeB);
+
+          // If intervals cannot be parsed or if start/end overlap in time
+          const overlaps =
+            !intervalA ||
+            !intervalB ||
+            Math.max(intervalA.start, intervalB.start) < Math.min(intervalA.end, intervalB.end);
+
+          if (overlaps) {
+            conflicts.push({
+              storeA: allocA.storeName || `Store ${i + 1}`,
+              storeB: allocB.storeName || `Store ${j + 1}`,
+              days: sharedDays,
+              timeA,
+              timeB,
+            });
+          }
+        }
+      }
+    }
+    return conflicts;
+  }, [allocations]);
+
+  const hasRovingConflict = rovingOverlapConflicts.length > 0;
+  const hasRestDayConflict = conflictingDays.length > 0;
+
   const isDirty = useMemo(() => {
     const initialDayoffs = parseDayoffString(initialDayoff);
     const dayoffsChanged =
@@ -431,19 +502,15 @@ export function UpdateScheduleModal({
 
   const handleTimeInChange = (idx: number, newTimeIn: string) => {
     const current = parseShiftWindow(allocations[idx]?.scheduleTime);
-    const updated =
-      newTimeIn && current.timeOut
-        ? `${newTimeIn} - ${current.timeOut}`
-        : newTimeIn || current.timeOut;
+    const timeOut = current.timeOut || "05:00 PM";
+    const updated = newTimeIn ? `${newTimeIn} - ${timeOut}` : "";
     updateAllocation(idx, { scheduleTime: updated });
   };
 
   const handleTimeOutChange = (idx: number, newTimeOut: string) => {
     const current = parseShiftWindow(allocations[idx]?.scheduleTime);
-    const updated =
-      current.timeIn && newTimeOut
-        ? `${current.timeIn} - ${newTimeOut}`
-        : current.timeIn || newTimeOut;
+    const timeIn = current.timeIn || "08:00 AM";
+    const updated = newTimeOut ? `${timeIn} - ${newTimeOut}` : "";
     updateAllocation(idx, { scheduleTime: updated });
   };
 
@@ -462,7 +529,7 @@ export function UpdateScheduleModal({
         storeName: a.storeName,
         vcode: a.vcode,
         scheduleDays: a.scheduleDays,
-        scheduleTime: a.scheduleTime,
+        scheduleTime: a.scheduleTime || "08:00 AM - 05:00 PM",
         allocationPercent: a.allocationPercent,
       }));
 
@@ -662,6 +729,28 @@ export function UpdateScheduleModal({
             })}
           </div>
 
+          {/* Strict Roving Policy Overlap Banner */}
+          {hasRovingConflict && (
+            <div className="rounded-xl border border-danger-border bg-danger-bg/40 p-3 text-xs text-danger-text flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold">Strict Roving Policy: Overlapping duty days and shift windows detected.</p>
+                <p className="text-[11px] leading-relaxed">
+                  Roving personnel cannot be assigned overlapping duty days and shift times across different stores:
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-2xs font-medium">
+                  {rovingOverlapConflicts.map((c, idx) => (
+                    <li key={idx}>
+                      <span className="font-semibold">{c.storeA}</span> and{" "}
+                      <span className="font-semibold">{c.storeB}</span> overlap on{" "}
+                      <strong className="underline">{c.days.join(", ")}</strong> ({c.timeA} vs {c.timeB}).
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* Allocation Governance Notice */}
           <div className="rounded-xl border border-border-subtle bg-surface-muted/40 p-3 flex items-start gap-2.5 text-xs text-text-secondary">
             <ShieldAlert className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
@@ -688,8 +777,20 @@ export function UpdateScheduleModal({
             <div className="text-xs">
               {!isScheduleComplete ? (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Schedule incomplete (cannot be saved while blank)</span>
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Schedule incomplete (each store requires at least 1 duty day)</span>
+                </span>
+              ) : hasRovingConflict ? (
+                <span className="text-danger-text font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Overlap conflict: {rovingOverlapConflicts[0].storeA} &amp; {rovingOverlapConflicts[0].storeB} on {rovingOverlapConflicts[0].days.join(", ")}
+                  </span>
+                </span>
+              ) : hasRestDayConflict ? (
+                <span className="text-danger-text font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Rest day conflict: duty days include rest day ({conflictingDays.join(", ")})</span>
                 </span>
               ) : !isHcValid ? (
                 <span className="text-danger-text font-bold">
@@ -715,7 +816,13 @@ export function UpdateScheduleModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !isScheduleComplete || !isHcValid}
+              disabled={
+                isSubmitting ||
+                !isScheduleComplete ||
+                !isHcValid ||
+                hasRovingConflict ||
+                hasRestDayConflict
+              }
               className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {isSubmitting ? (

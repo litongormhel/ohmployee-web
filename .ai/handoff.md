@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Resolve False Incomplete Schedule State & Enforce Strict Roving Overlap Policy (ohm#n4t8m2w6)
+
+**Status: COMPLETE ON MAIN; FIXED BUG IN `UpdateScheduleModal` WHERE VISUALLY FILLED SHIFT TIMES (`08:00 AM - 05:00 PM`) WERE STORED AS EMPTY STRINGS INTERNALLY, CAUSING FALSE "SCHEDULE INCOMPLETE (CANNOT BE SAVED WHILE BLANK)" WARNING ON VALID NON-CONFLICTING ROVING SCHEDULES (E.G. STORE 1: MON-WED, STORE 2: THU-SAT, REST DAY: SUN); IMPLEMENTED STRICT ROVING OVERLAP CONFLICT DETECTION (`rovingOverlapConflicts`) BLOCKING SAVES AND DETAILING CONFLICTING STORES/DAYS/TIMES; STRICTLY BLOCKED SAVING WHEN DUTY DAYS CLASH WITH DESIGNATED REST DAYS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **False Incomplete State Resolution (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Root cause: `parseShiftWindow` returned `{ timeIn: "08:00 AM", timeOut: "05:00 PM" }` when an allocation's `scheduleTime` was unset/empty. Visually, the user saw filled 12-hour time pickers (`08 : 00 AM` to `05 : 00 PM`), but the underlying state string was `""`. `isScheduleComplete` evaluated to `false`, erroneously locking the save button with `"Schedule incomplete (cannot be saved while blank)"`.
+   - Resolution: Hardened `defaultAllocations` and `isScheduleComplete` with resilient `08:00 AM - 05:00 PM` fallbacks whenever time strings are empty. In `handleSave`, empty allocations payload time strings safely default to `"08:00 AM - 05:00 PM"`.
+2. **Strict Roving Schedule Overlap Guard (`src/components/plantilla/UpdateScheduleModal.tsx`)**:
+   - Implemented `rovingOverlapConflicts` detecting pairs of assigned stores sharing duty days ($D_A \cap D_B \neq \emptyset$) during overlapping shift intervals via `parseShiftInterval` and `timeStringToMinutes`.
+   - When an overlap occurs (e.g. Store 1: MON 8am-5pm and Store 2: MON 8am-5pm), saving is blocked and a prominent alert banner lists the specific stores, shared days, and shift windows.
+   - Enforced strict mutual exclusion between duty days and designated rest days (`hasRestDayConflict`), disabling save whenever any duty day clashes with a day off.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Hydrate Shift Window Schedule Time from Plantilla & Sync Rest Day (ohm#k9r4m1t7)
 
 **Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE EDITED SHIFT TIME WINDOW (E.G. 07:00 AM - 04:00 PM) DID NOT REFLECT IN EMPLOYEE PROFILE OR MODAL AFTER SUCCESSFUL SAVE; GUARANTEED SCHEDULE TERMS HYDRATION (`schedule_time`, `schedule_days`, `rest_day`, `dayoff`) FROM `public.plantilla` IN `getWebPlantillaDetail` TO COMPENSATE FOR RPC OMISSION; SYNCHRONIZED `rest_day` ALONGSIDE `dayoff` AND DECOUPLED `employee_store_allocations` UPDATES FROM REQUIRING `employeeNo`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
