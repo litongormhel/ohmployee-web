@@ -529,6 +529,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
             <LoadingSkeleton />
           ) : errorKind === "access_denied" ? (
             <AccessDeniedState />
+          ) : errorKind === "not_found" ? (
+            <NotFoundState />
           ) : isError ? (
             <ErrorState errorMsg={error instanceof Error ? error.message : "Unable to load vacancy details"} onRetry={refetch} />
           ) : !detail ? (

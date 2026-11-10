@@ -8,6 +8,17 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Vacated Plantilla Slot Detail Resolution & Access Denied Fix (`ohm#v6m1p9x3`)**:
+  - **Inactive Plantilla Parity Fallback ID & Metadata Alignment**:
+    - In `listVacancies` (`src/lib/queries/vacancy.ts`), when inactive plantilla records are queried to represent vacated slots on the Open tab, the query now matches candidate VCodes against `public.vacancies` to retrieve any existing vacancy record (`vac.id`).
+    - If a vacancy record exists, `row.id` is bound to `vac.id` with enriched store location, HRCO, and quota data.
+  - **Plantilla & VCode Fallback in `getVacancyDetail`**:
+    - When `get_web_vacancy_detail` raises SQLSTATE `42501` (which bundles "out of scope" and "does not exist" or Filled/Closed statuses), `getVacancyDetail` now queries `public.plantilla` by ID to resolve the `vcode` and falls back to matching `vacancies` by `vcode`.
+    - If no `vacancies` row exists yet in the database for the vacated slot, a complete `VacancyDetailItem` is constructed directly from the inactive `plantilla` record (`status: "Open"`, `derivedStatus: "Open"`, zeroed pipeline counters, and matching store/account context).
+  - **Refined Error Kind & Drawer Routing**:
+    - In `getErrorKind`, errors containing `"does not exist"` or `"not found"` are categorized as `"not_found"` rather than false-positive `"access_denied"`.
+    - In `VacancyDetailDrawer.tsx`, `errorKind === "not_found"` explicitly routes to `<NotFoundState />`.
+
 - **Vacancy UI/UX & Data-Mapping Refinements (`ohm#vac-ui-refinements`)**:
   - **HRCO Resolution Across All 5 Tabs**:
     - Replaced raw table queries on `vacancies` in `pipeline`, `hired`, `closure`, `failed_backout`, and export routines with the canonical view `public.vw_vacancy_list`.

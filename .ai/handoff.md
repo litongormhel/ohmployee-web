@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Fix Vacated Plantilla Slot Access Denied in Vacancy Detail Drawer (ohm#v6m1p9x3)
+
+**Status: COMPLETE ON MAIN; RESOLVED "ACCESS DENIED" ERROR WHEN OPENING VACANCY DETAIL DRAWER FOR VACATED PLANTILLA SLOTS (`src/lib/queries/vacancy.ts` AND `src/components/vacancy/VacancyDetailDrawer.tsx`); ENRICHED `listVacancies` OPEN TAB PARITY FALLBACK TO MATCH VACANT VCODES AGAINST `public.vacancies`, BINDING `row.id` TO REAL VACANCY UUID AND HYDRATING STORE/LOCATION/HRCO METADATA; EXPANDED `getVacancyDetail` FALLBACK WHEN `get_web_vacancy_detail` THROWS 42501 (OUT-OF-SCOPE / DOES NOT EXIST) TO RESOLVE `public.plantilla` BY ID/VCODE AND `public.vacancies` BY VCODE; CONSTRUCTED COMPLETE VACANCY DETAIL ITEM FROM PLANTILLA WHEN NO EXPLICIT VACANCY ROW EXISTS; REFINED ERROR TAXONOMY IN `getErrorKind` TO MAP "DOES NOT EXIST" / "NOT FOUND" TO `not_found` STATE; VERIFICATION GATES ALL PASS CLEAN (`npm test` 28/28 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Plantilla Parity Fallback ID Mismatch**:
+   - In `listVacancies` (`src/lib/queries/vacancy.ts`), when inactive plantilla records were queried to represent vacated slots on the Open tab (e.g. `VCBPIG1_0165`), `finalRows.push` previously assigned `id: asString(pl.plantilla_id) ?? vac-inactive-${finalRows.length}`.
+   - When the user clicked this row, `selectedVacancyId` was set to the employee's `plantilla_id` (a UUID from `public.plantilla`), not a `vacancies.id`.
+2. **Database RPC 42501 Rejection**:
+   - The drawer invoked `public.get_web_vacancy_detail(p_vacancy_id: vacancyId)`.
+   - The RPC queried `public.vw_vacancy_detail vd WHERE vd.id = p_vacancy_id`. Since `p_vacancy_id` was a `plantilla_id`, no row was found.
+   - The RPC bundled "out of scope" and "does not exist" into a single check raising `RAISE EXCEPTION 'forbidden: vacancy is out of scope or does not exist' USING ERRCODE = '42501'`.
+3. **Fallback & Error Presentation Gap**:
+   - `getVacancyDetail`'s catch/fallback block checked `fn_get_hired_applicants`, `applicants`, and `vacancies` by ID, but never checked `public.plantilla` by ID or resolved the slot by VCode.
+   - Rethrowing the 42501 exception caused `getErrorKind` to classify the error as `"access_denied"`.
+   - `VacancyDetailDrawer` rendered `<AccessDeniedState />` ("Access Denied: You do not have permission to view this vacancy record. Access is restricted to your assigned scope."), misleading the Super Admin user.
+
+### 2. Changes Made
+1. **`listVacancies` Open Tab Parity Fallback (`src/lib/queries/vacancy.ts`)**:
+   - Gathered all candidate VCodes from inactive plantilla records.
+   - Queried `public.vacancies` (`.in("vcode", candidateVcodes).is("deleted_at", null)`) to find existing vacancy records.
+   - Bound `row.id` to `matchedVac.id` (falling back to `pl.plantilla_id`) and enriched store location, HRCO name, quota, and target fill date.
+2. **`getVacancyDetail` Expanded Fallback (`src/lib/queries/vacancy.ts`)**:
+   - Added direct checks for `public.plantilla` by `id = vacancyId` to extract `targetVcode`.
+   - Added checks if `vacancyId` itself is a VCode in `vacancies` or `plantilla`.
+   - When `vacRow` is located via `vcode`, loads and normalizes the full vacancy record.
+   - When no `vacancies` row exists yet in the database, synthesizes a complete `VacancyDetailItem` directly from `directPlantilla` with status `"Open"`, `derivedStatus: "Open"`, store location, position, and zeroed pipeline counters.
+3. **Refined Error Kind & Drawer Routing (`src/lib/queries/vacancy.ts` & `src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - In `getErrorKind`, if error message contains `"does not exist"` or `"not found"`, classifies the error as `"not_found"` instead of false-positive `"access_denied"`.
+   - In `VacancyDetailDrawer.tsx`, added `errorKind === "not_found"` to explicitly route to `<NotFoundState />`.
+
+### 3. Verification & Regressions
+- `npm test`: 28/28 tests passed.
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+- Zero database DDL or migrations executed.
+
+---
+
 ## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
 
 **Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**

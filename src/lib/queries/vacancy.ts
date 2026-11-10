@@ -410,6 +410,9 @@ function getErrorKind(error: PostgrestError): VacancyDataErrorKind {
     combined.includes("rls") ||
     error.code === "42501"
   ) {
+    if (combined.includes("does not exist") || combined.includes("not found")) {
+      return "not_found";
+    }
     return "access_denied";
   }
 
@@ -2586,58 +2589,100 @@ export async function listVacancies(params: VacancyListParams) {
         const existingVcodes = new Set(
           finalRows.map((r) => (r.vcode || "").trim().toUpperCase()).filter(Boolean),
         );
-        for (const pl of inactive) {
+
+        const candidateInactive = inactive.filter((pl: Record<string, unknown>) => {
           const vk = (asString(pl.vcode) || "").trim().toUpperCase();
           const occupied = vk ? (occupiedVcodeCountMap.get(vk) ?? 0) : 0;
-          if (vk && occupied === 0 && !existingVcodes.has(vk)) {
-            existingVcodes.add(vk);
-            finalRows.push({
-              id: asString(pl.plantilla_id) ?? `vac-inactive-${finalRows.length}`,
-              vcode: vk,
-              accountId: asString(pl.account_id) ?? targetAccountId,
-              accountName: asString(pl.account_name) ?? "ALTURAS",
-              groupId: asString(pl.group_id) ?? null,
-              groupName: asString(pl.group_name) ?? null,
-              storeId: asString(pl.store_id) ?? null,
-              storeName: asString(pl.store_name) ?? null,
-              storeLocation: null,
-              position_title: asString(pl.position_title) ?? "Motorized Collector",
-              department: null,
-              employmentType: asString(pl.deployment_type) ?? "Stationary",
-              vacancyStatus: "Open",
-              pipelineStatus: "Vacancy - Open",
-              derivedStatus: "Open",
-              activeApplicantCount: 0,
-              confirmedOnboardCount: 0,
-              hasRecentHire: false,
-              hasPendingClosure: false,
-              closureRequestStatus: null,
-              vacantDate: asString(pl.date_of_separation) ?? new Date().toISOString().substring(0, 10),
-              agingDays: null,
-              agingBucket: null,
-              targetFillDate: null,
-              urgencyLevel: "Standard",
-              hrcoName: "—",
-              applicantName: null,
-              hasPenalty: false,
-              penaltyExposure: 0,
-              penaltyAmount: null,
-              headcount: 1,
-              hcFilled: 0,
-              hcTotal: 1,
-              hcDisplay: "0/1",
-              lastActivityAt: null,
-              stageBadge: "Vacancy - Open",
-              rowCapabilities: {
-                canViewDetail: true,
-                canApprove: false,
-                canUpdateApplicantStatus: true,
-                canRequestClosure: true,
-                raw: {},
-              },
-              totalCount: finalRows.length + 1,
-            });
+          return vk && occupied === 0 && !existingVcodes.has(vk);
+        });
+
+        const candidateVcodes = Array.from(
+          new Set(
+            candidateInactive
+              .map((pl: Record<string, unknown>) => (asString(pl.vcode) || "").trim().toUpperCase())
+              .filter(Boolean),
+          ),
+        );
+
+        const vacByVcode = new Map<string, Record<string, unknown>>();
+        if (candidateVcodes.length > 0) {
+          try {
+            const { data: vacsData } = await supabase
+              .from("vacancies")
+              .select("id, vcode, store_name, store_branch, store_id, area_city, area_province, province, hrco_name, created_at, vacant_date, position, account, account_id, group_id, required_headcount, headcount, urgency_level, target_fill_date, employment_type")
+              .in("vcode", candidateVcodes)
+              .is("deleted_at", null);
+            if (vacsData && vacsData.length > 0) {
+              for (const v of vacsData) {
+                const vkUpper = (asString(v.vcode) || "").trim().toUpperCase();
+                if (vkUpper && !vacByVcode.has(vkUpper)) {
+                  vacByVcode.set(vkUpper, v as Record<string, unknown>);
+                }
+              }
+            }
+          } catch {
+            // Graceful fallback
           }
+        }
+
+        for (const pl of candidateInactive) {
+          const vk = (asString(pl.vcode) || "").trim().toUpperCase();
+          if (!vk || existingVcodes.has(vk)) continue;
+          existingVcodes.add(vk);
+
+          const matchedVac = vacByVcode.get(vk);
+          const vacId = asString(matchedVac?.id) ?? asString(pl.plantilla_id) ?? `vac-inactive-${finalRows.length}`;
+          const loc = [
+            asString(matchedVac?.area_city ?? pl.area_city),
+            asString(matchedVac?.area_province ?? matchedVac?.province ?? pl.province ?? pl.area_province),
+          ].filter(Boolean).join(" • ") || null;
+
+          finalRows.push({
+            id: vacId,
+            vcode: vk,
+            accountId: asString(matchedVac?.account_id ?? pl.account_id) ?? targetAccountId,
+            accountName: asString(matchedVac?.account ?? pl.account_name) ?? "ALTURAS",
+            groupId: asString(matchedVac?.group_id ?? pl.group_id) ?? null,
+            groupName: asString(pl.group_name) ?? null,
+            storeId: asString(matchedVac?.store_id ?? pl.store_id) ?? null,
+            storeName: asString(matchedVac?.store_name ?? matchedVac?.store_branch ?? pl.store_name) ?? null,
+            storeLocation: loc,
+            position_title: asString(matchedVac?.position ?? pl.position_title) ?? "Motorized Collector",
+            department: null,
+            employmentType: asString(matchedVac?.employment_type ?? pl.deployment_type) ?? "Stationary",
+            vacancyStatus: "Open",
+            pipelineStatus: "Vacancy - Open",
+            derivedStatus: "Open",
+            activeApplicantCount: 0,
+            confirmedOnboardCount: 0,
+            hasRecentHire: false,
+            hasPendingClosure: false,
+            closureRequestStatus: null,
+            vacantDate: asString(matchedVac?.vacant_date ?? pl.date_of_separation ?? matchedVac?.created_at) ?? new Date().toISOString().substring(0, 10),
+            agingDays: null,
+            agingBucket: null,
+            targetFillDate: asString(matchedVac?.target_fill_date) ?? null,
+            urgencyLevel: asString(matchedVac?.urgency_level) ?? "Standard",
+            hrcoName: asString(matchedVac?.hrco_name ?? pl.hrco_name) ?? "—",
+            applicantName: null,
+            hasPenalty: false,
+            penaltyExposure: 0,
+            penaltyAmount: null,
+            headcount: asNumber(matchedVac?.required_headcount ?? matchedVac?.headcount) ?? 1,
+            hcFilled: 0,
+            hcTotal: asNumber(matchedVac?.required_headcount ?? matchedVac?.headcount) ?? 1,
+            hcDisplay: `0/${asNumber(matchedVac?.required_headcount ?? matchedVac?.headcount) ?? 1}`,
+            lastActivityAt: null,
+            stageBadge: "Vacancy - Open",
+            rowCapabilities: {
+              canViewDetail: true,
+              canApprove: false,
+              canUpdateApplicantStatus: true,
+              canRequestClosure: true,
+              raw: {},
+            },
+            totalCount: finalRows.length + 1,
+          });
         }
       }
     } catch {
@@ -2791,9 +2836,10 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
           }
         }
 
-        // 2. Direct fallback for Filled / Closed / Archived vacancies (including dropouts)
+        // 2. Direct fallback for Filled / Closed / Archived vacancies (including dropouts and vacated plantilla slots)
         let vacRow: Record<string, unknown> | null = null;
         let targetVcode: string | null = null;
+        let directPlantilla: Record<string, unknown> | null = null;
 
         // Check if vacancyId is an applicant id
         const { data: directApp } = await supabase
@@ -2804,6 +2850,21 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
 
         if (directApp?.vacancy_vcode) {
           targetVcode = directApp.vacancy_vcode as string;
+        }
+
+        // Check if vacancyId is a plantilla id
+        if (!targetVcode) {
+          const { data: plData } = await supabase
+            .from("plantilla")
+            .select("*")
+            .eq("id", vacancyId)
+            .maybeSingle();
+          if (plData) {
+            directPlantilla = plData as Record<string, unknown>;
+            if (plData.vcode) {
+              targetVcode = plData.vcode as string;
+            }
+          }
         }
 
         // Fetch vacancy by ID or vcode
@@ -2825,6 +2886,35 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
           vacRow = vData;
           if (vacRow?.vcode) {
             targetVcode = vacRow.vcode as string;
+          }
+        }
+
+        // Also check if vacancyId itself is a VCode in vacancies
+        if (!vacRow && !targetVcode) {
+          const { data: vDataByVcode } = await supabase
+            .from("vacancies")
+            .select("*")
+            .eq("vcode", vacancyId)
+            .is("deleted_at", null)
+            .maybeSingle();
+          if (vDataByVcode) {
+            vacRow = vDataByVcode;
+            targetVcode = vDataByVcode.vcode as string;
+          }
+        }
+
+        // Or if vacancyId is a VCode in plantilla
+        if (!vacRow && !targetVcode && !directPlantilla) {
+          const { data: plByVcode } = await supabase
+            .from("plantilla")
+            .select("*")
+            .eq("vcode", vacancyId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (plByVcode) {
+            directPlantilla = plByVcode as Record<string, unknown>;
+            targetVcode = (plByVcode.vcode as string) || vacancyId;
           }
         }
 
@@ -2924,6 +3014,147 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             areaCity,
             areaProvince,
             storeBranch: asString(vacRow.store_branch),
+            requestedById: null,
+            requestedByName: null,
+            approvedById: null,
+            approvedByName: null,
+            approvedAt: null,
+            headcountRequestId: null,
+            vacancyReason: null,
+            jobDescription: null,
+            closureRequestedAt: null,
+            closureRequestedBy: null,
+            closureReason: null,
+            activeApplicantsList: appsList.map((a: Record<string, unknown>) => ({
+              applicantId: asString(a.id) ?? "",
+              displayName: formatPersonName(
+                asString(a.first_name),
+                asString(a.last_name),
+                asString(a.middle_name),
+                asString(a.full_name) || "Applicant",
+              ),
+              lastName: asString(a.last_name),
+              firstName: asString(a.first_name),
+              middleName: asString(a.middle_name),
+              contactNumber: asString(a.contact_number),
+              statusLabel: asString(a.status) || "Active",
+              onboardDate: asString(a.hired_at ?? a.hired_date),
+              updatedAt: asString(a.updated_at),
+              recruiterName: null,
+              deployedByName: null,
+            })),
+            activityHistory: [],
+          };
+        }
+
+        // 3. Fallback for vacated Plantilla slots that do not have an explicit vacancies row
+        if (!vacRow && (directPlantilla || targetVcode)) {
+          const vcode = targetVcode ?? asString(directPlantilla?.vcode) ?? "Uncoded";
+          const { data: allApps } = await supabase
+            .from("applicants")
+            .select("*")
+            .eq("vacancy_vcode", vcode)
+            .order("created_at", { ascending: false });
+
+          const appsList = (allApps ?? []) as Array<Record<string, unknown>>;
+          const primaryApp = directApp || appsList[0] || null;
+
+          const areaCity = asString(directPlantilla?.area_city);
+          const areaProvince = asString(directPlantilla?.area_province ?? directPlantilla?.province);
+          const storeLocation = [areaCity, areaProvince].filter(Boolean).join(" • ") || null;
+          const vacDate =
+            asString(directPlantilla?.date_of_separation ?? directPlantilla?.deactivated_at ?? directPlantilla?.created_at) ||
+            new Date().toISOString().substring(0, 10);
+
+          const lName = asString(primaryApp?.last_name);
+          const fName = asString(primaryApp?.first_name);
+          const mName = asString(primaryApp?.middle_name);
+          const rawFull = asString(primaryApp?.full_name);
+          const candidateName = formatPersonName(fName, lName, mName, rawFull || "Candidate");
+
+          const storeName = asString(directPlantilla?.store_name ?? directPlantilla?.store_branch);
+          const confirmedCount = appsList.filter(
+            (a) => (asString(a.status) || "").toLowerCase().trim() === "confirmed onboard",
+          ).length;
+          const activeCount = appsList.filter((a) => !asBoolean(a.is_archived)).length;
+          const reqHc = 1;
+          const occupiedCount = confirmedCount + activeCount;
+
+          let agingDays: number | null = null;
+          if (vacDate) {
+            const vDate = new Date(vacDate);
+            if (!isNaN(vDate.getTime())) {
+              const diffMs = Date.now() - vDate.getTime();
+              agingDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+            }
+          }
+
+          let agingBucket: string | null = null;
+          if (agingDays !== null) {
+            if (agingDays <= 7) agingBucket = "0_7";
+            else if (agingDays <= 14) agingBucket = "8_14";
+            else if (agingDays <= 30) agingBucket = "15_30";
+            else agingBucket = "31_plus";
+          }
+
+          return {
+            vacancyId: asString(directPlantilla?.id) ?? vacancyId,
+            vcode,
+            accountId: asString(directPlantilla?.account_id),
+            accountName: asString(directPlantilla?.account_name ?? directPlantilla?.account) || "ALTURAS",
+            groupId: asString(directPlantilla?.group_id),
+            groupName: asString(directPlantilla?.group_name),
+            storeId: asString(directPlantilla?.store_id),
+            storeName,
+            position_title: asString(directPlantilla?.position_title) ?? "Motorized Collector",
+            department: asString(directPlantilla?.department),
+            employmentType: asString(directPlantilla?.deployment_type) ?? "Stationary",
+            vacancyStatus: "Open",
+            pipelineStatus: "Vacancy - Open",
+            derivedStatus: "Open",
+            activeApplicantCount: activeCount,
+            confirmedOnboardCount: confirmedCount,
+            hasRecentHire: confirmedCount > 0,
+            hasPendingClosure: false,
+            closureRequestStatus: null,
+            vacantDate: vacDate,
+            daysToFill: null,
+            agingDays,
+            agingBucket,
+            targetFillDate: null,
+            urgencyLevel: "Standard",
+            hrcoName: asString(directPlantilla?.hrco_name) ?? "—",
+            lastActivityAt: asString(directPlantilla?.updated_at ?? directPlantilla?.created_at),
+            rowCapabilities: {
+              canViewDetail: true,
+              canApprove: false,
+              canUpdateApplicantStatus: true,
+              canRequestClosure: true,
+              raw: {},
+            },
+            contactNumber: asString(primaryApp?.contact_number),
+            onboardDate: asString(primaryApp?.hired_at ?? primaryApp?.hired_date),
+            relieverOnDuty: null,
+            hasReliever: false,
+            hrcoRemarks: null,
+            recruiterName: null,
+            deployedByName: null,
+            hasPenalty: false,
+            penaltyExposure: 0,
+            penaltyAmount: null,
+            headcount: reqHc,
+            hcFilled: occupiedCount,
+            hcTotal: reqHc,
+            hcDisplay: `${occupiedCount}/${reqHc}`,
+            applicantLastName: lName,
+            applicantFirstName: fName,
+            applicantMiddleName: mName,
+            applicantName: candidateName,
+            applicantId: asString(primaryApp?.id),
+            storeLocation,
+            areaCity,
+            areaProvince,
+            storeBranch: asString(directPlantilla?.store_branch),
             requestedById: null,
             requestedByName: null,
             approvedById: null,
