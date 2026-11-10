@@ -298,40 +298,81 @@ export default function UsersPage() {
         }
       />
 
-      {/* Page Feedback Banner */}
-      {pageFeedback && (
-        <div
-          className={`flex items-center gap-2 rounded-xl p-3 text-xs font-medium border ${
-            pageFeedback.type === "success"
-              ? "bg-surface-subtle text-text-primary border-border-default"
-              : "bg-danger-subtle text-danger-text border-danger-border"
-          }`}
-        >
-          {pageFeedback.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-pct-high" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-danger-icon" />
-          )}
-          <span>{pageFeedback.text}</span>
-        </div>
-      )}
 
-      {/* Unified Tab Group (Compact KPIs replacing large KPI cards) */}
-      <div className="flex items-center justify-between">
-        <SegmentedTabs
-          activeKey={activeTab}
-          onChange={(key) => {
-            setActiveTab(key as "all" | "active" | "inactive");
-            setPage(1);
-          }}
-          tabs={[
-            { key: "all", label: "All Users", count: totalCount },
-            { key: "active", label: "Active", count: activeCount },
-            { key: "inactive", label: "Inactive", count: inactiveCount },
-          ]}
-          ariaLabel="Filter users by activity status"
-        />
-      </div>
+      {/* Top KPI Metrics Grid */}
+      <UserMetricsCards
+        totalCount={totalCount}
+        activeCount={activeCount}
+        inactiveCount={inactiveCount}
+        isLoading={isLoading}
+      />
+
+      {/* Directory Main Card */}
+      <div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-xs">
+        {/* Segmented Control Tabs */}
+        <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none" role="tablist" aria-label="User Status Tabs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "active"}
+              onClick={() => setActiveTab("active")}
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                activeTab === "active"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <UserCheck
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  activeTab === "active"
+                    ? "text-tab-active-text"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
+              <span>Active</span>
+              <span
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                  activeTab === "active"
+                    ? "bg-brand-button text-white"
+                    : "border border-border-default bg-surface-subtle text-text-secondary"
+                }`}
+              >
+                {activeCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "inactive"}
+              onClick={() => setActiveTab("inactive")}
+              className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                activeTab === "inactive"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <UserX
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  activeTab === "inactive"
+                    ? "text-tab-active-text"
+                    : "text-text-muted group-hover:text-text-secondary"
+                }`}
+              />
+              <span>Inactive</span>
+              <span
+                className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 font-sans tabular-nums text-xs font-semibold shadow-2xs transition-colors ${
+                  activeTab === "inactive"
+                    ? "bg-brand-button text-white"
+                    : "border border-border-default bg-surface-subtle text-text-secondary"
+                }`}
+              >
+                {inactiveCount}
+              </span>
+            </button>
+          </div>
+        </div>
 
       {/* Main Directory Container */}
       <div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-2xs">

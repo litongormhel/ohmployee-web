@@ -434,7 +434,7 @@ export function VacancyTable({
                             <div className="font-medium text-table-text flex items-center gap-1.5">
                               <span className="truncate">{formatStoreName(storeInfo.displayText)}</span>
                               {storeInfo.isMulti && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0">
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                                   +{storeInfo.extraCount}
                                 </span>
                               )}
@@ -452,9 +452,38 @@ export function VacancyTable({
                     {/* 5. HRCO */}
                     <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
                       {row.hrcoName && row.hrcoName !== "—" && row.hrcoName !== "-" ? (
-                        <div className="font-medium text-table-text">
-                          {formatPersonName(formatHrcoName(row.hrcoName))}
-                        </div>
+                        (() => {
+                          const raw = row.hrcoName.trim();
+                          const plusMatch = raw.match(/^(.*?)\s*\+(\d+)(\s*more)?$/i);
+                          if (plusMatch) {
+                            return (
+                              <div className="font-medium text-table-text flex items-center gap-1.5" title={raw}>
+                                <span className="truncate">{formatPersonName(formatHrcoName(plusMatch[1]))}</span>
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                  +{plusMatch[2]}
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (raw.includes(";") || raw.includes("\n")) {
+                            const parts = raw.split(/[;\n]+/).map((p) => p.trim()).filter(Boolean);
+                            if (parts.length > 1) {
+                              return (
+                                <div className="font-medium text-table-text flex items-center gap-1.5" title={raw}>
+                                  <span className="truncate">{formatPersonName(formatHrcoName(parts[0]))}</span>
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                    +{parts.length - 1}
+                                  </span>
+                                </div>
+                              );
+                            }
+                          }
+                          return (
+                            <div className="font-medium text-table-text">
+                              {formatPersonName(formatHrcoName(raw))}
+                            </div>
+                          );
+                        })()
                       ) : (
                         <span className="inline-flex items-center rounded-md border border-table-rule bg-table-header px-2 py-0.5 text-xs text-table-text-muted">
                           Unassigned
@@ -634,7 +663,7 @@ export function VacancyTable({
                                     onSelect(row);
                                   }
                                 }}
-                                className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs"
+                                className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-700"
                                 title={`Add applicant for ${row.vcode}`}
                               >
                                 <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -665,7 +694,7 @@ export function VacancyTable({
                                       e.stopPropagation();
                                       onMarkHired(row);
                                     }}
-                                    className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/25"
                                     title={`Approve placement / mark ${row.applicantName || row.vcode} as hired`}
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -699,7 +728,7 @@ export function VacancyTable({
                                         e.stopPropagation();
                                         onReviewClosure(row, "Approved");
                                       }}
-                                      className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer"
+                                      className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/25"
                                       title={`Approve closure request for ${row.vcode}`}
                                     >
                                       <Check className="h-3 w-3" aria-hidden="true" />
