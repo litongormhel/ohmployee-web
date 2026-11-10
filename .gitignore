@@ -45,3 +45,5 @@ scratch/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+__pycache__/
