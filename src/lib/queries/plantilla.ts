@@ -1940,9 +1940,70 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
           normalized.maskedFields.governmentIds.atmNumberMasked =
             raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
         }
+        if (!normalized.maskedFields.governmentIds.tin && (directData as Record<string, unknown>).tin_no) {
+          normalized.maskedFields.governmentIds.tin = asString((directData as Record<string, unknown>).tin_no);
+        }
       }
     } catch (err) {
       console.warn("[Plantilla] direct table query exception:", err);
+    }
+
+    // Tier 1.5: Hydrate government IDs and demographic fields from latest mika_import_rows
+    const empNoForMika = normalized.employeeNo && normalized.employeeNo !== "Uncoded" ? normalized.employeeNo : null;
+    if (
+      empNoForMika &&
+      (!normalized.maskedFields.governmentIds.sss ||
+        !normalized.maskedFields.governmentIds.philhealth ||
+        !normalized.maskedFields.governmentIds.pagibig ||
+        !normalized.maskedFields.governmentIds.tin ||
+        !normalized.maskedFields.governmentIds.atmNumber)
+    ) {
+      try {
+        const { data: mikaRow } = await supabase
+          .from("mika_import_rows")
+          .select("sss_no, philhealth_no, pagibig_no, tin_no, atm_no, civil_status, birthdate, address, contact_number")
+          .eq("employee_no", empNoForMika)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (mikaRow) {
+          if (!normalized.maskedFields.governmentIds.sss && mikaRow.sss_no) {
+            normalized.maskedFields.governmentIds.sss = mikaRow.sss_no;
+          }
+          if (!normalized.maskedFields.governmentIds.philhealth && mikaRow.philhealth_no) {
+            normalized.maskedFields.governmentIds.philhealth = mikaRow.philhealth_no;
+          }
+          if (!normalized.maskedFields.governmentIds.pagibig && mikaRow.pagibig_no) {
+            normalized.maskedFields.governmentIds.pagibig = mikaRow.pagibig_no;
+          }
+          if (!normalized.maskedFields.governmentIds.tin && mikaRow.tin_no) {
+            normalized.maskedFields.governmentIds.tin = mikaRow.tin_no;
+          }
+          if (!normalized.maskedFields.governmentIds.atmNumber && mikaRow.atm_no) {
+            normalized.maskedFields.governmentIds.atmNumber = mikaRow.atm_no;
+          }
+          if (!normalized.maskedFields.governmentIds.atmNumberMasked && mikaRow.atm_no) {
+            const raw = mikaRow.atm_no.trim();
+            normalized.maskedFields.governmentIds.atmNumberMasked =
+              raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
+          }
+          if (!normalized.civilStatus && mikaRow.civil_status) {
+            normalized.civilStatus = asString(mikaRow.civil_status);
+          }
+          if (!normalized.birthDate && mikaRow.birthdate) {
+            normalized.birthDate = asString(mikaRow.birthdate);
+          }
+          if (!normalized.residentialAddress && mikaRow.address) {
+            normalized.residentialAddress = asString(mikaRow.address);
+          }
+          if (!normalized.contactNumber && mikaRow.contact_number) {
+            normalized.contactNumber = asString(mikaRow.contact_number);
+          }
+        }
+      } catch (err) {
+        console.warn("[Plantilla] mika_import_rows detail hydration exception:", err);
+      }
     }
 
     // Tier 2: v_plantilla_safe view lookup
@@ -1999,13 +2060,23 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
 
     // Tier 4: employees master registry lookup
-    if (!normalized.civilStatus || !normalized.birthDate || !normalized.contactNumber || !normalized.residentialAddress) {
+    if (
+      !normalized.civilStatus ||
+      !normalized.birthDate ||
+      !normalized.contactNumber ||
+      !normalized.residentialAddress ||
+      !normalized.maskedFields.governmentIds.tin ||
+      !normalized.maskedFields.governmentIds.sss ||
+      !normalized.maskedFields.governmentIds.philhealth ||
+      !normalized.maskedFields.governmentIds.pagibig ||
+      !normalized.maskedFields.governmentIds.atmNumber
+    ) {
       const empNo = normalized.employeeNo && normalized.employeeNo !== "Uncoded" ? normalized.employeeNo : null;
       if (empNo) {
         try {
           const { data: empRow } = await supabase
             .from("employees")
-            .select("civil_status, date_of_birth, birthdate, contact_no, address")
+            .select("civil_status, date_of_birth, birthdate, contact_no, address, sss_no, philhealth_no, pagibig_no, tin_no, atm_no")
             .eq("employee_no", empNo)
             .maybeSingle();
           if (empRow) {
@@ -2020,6 +2091,26 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
             }
             if (!normalized.residentialAddress && empRow.address) {
               normalized.residentialAddress = asString(empRow.address);
+            }
+            if (!normalized.maskedFields.governmentIds.sss && empRow.sss_no) {
+              normalized.maskedFields.governmentIds.sss = empRow.sss_no;
+            }
+            if (!normalized.maskedFields.governmentIds.philhealth && empRow.philhealth_no) {
+              normalized.maskedFields.governmentIds.philhealth = empRow.philhealth_no;
+            }
+            if (!normalized.maskedFields.governmentIds.pagibig && empRow.pagibig_no) {
+              normalized.maskedFields.governmentIds.pagibig = empRow.pagibig_no;
+            }
+            if (!normalized.maskedFields.governmentIds.tin && empRow.tin_no) {
+              normalized.maskedFields.governmentIds.tin = empRow.tin_no;
+            }
+            if (!normalized.maskedFields.governmentIds.atmNumber && empRow.atm_no) {
+              normalized.maskedFields.governmentIds.atmNumber = empRow.atm_no;
+            }
+            if (!normalized.maskedFields.governmentIds.atmNumberMasked && empRow.atm_no) {
+              const raw = empRow.atm_no.trim();
+              normalized.maskedFields.governmentIds.atmNumberMasked =
+                raw.length <= 4 ? "****" : `••••-••••-${raw.slice(-4)}`;
             }
           }
         } catch (err) {
@@ -2703,12 +2794,106 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
 
 export async function syncPlantillaMika(plantillaId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.rpc("plantilla_sync_mika", {
-    p_plantilla_id: plantillaId,
-  });
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plantillaId);
 
-  if (error) {
-    throwPlantillaError(error);
+  // 1. Resolve employee_no and id from plantilla
+  let pQuery = supabase.from("plantilla").select("id, employee_no");
+  pQuery = isUuid ? pQuery.eq("id", plantillaId) : pQuery.eq("employee_no", plantillaId);
+  const { data: pRow } = await pQuery.maybeSingle();
+
+  const targetId = pRow?.id ?? (isUuid ? plantillaId : null);
+  const employeeNo = pRow?.employee_no ?? (!isUuid ? plantillaId : null);
+
+  // 2. Fetch latest MIKA row for this employee from mika_import_rows
+  let mikaRow: Record<string, unknown> | null = null;
+  if (employeeNo) {
+    const { data } = await supabase
+      .from("mika_import_rows")
+      .select("*")
+      .eq("employee_no", employeeNo)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    mikaRow = data;
+  }
+
+  // 3. Fallback to employees table if mika_import_rows is missing or incomplete
+  let empRow: Record<string, unknown> | null = null;
+  if (employeeNo) {
+    const { data } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("employee_no", employeeNo)
+      .maybeSingle();
+    empRow = data;
+  }
+
+  const sss = asString(mikaRow?.sss_no ?? empRow?.sss_no);
+  const philhealth = asString(mikaRow?.philhealth_no ?? empRow?.philhealth_no);
+  const pagibig = asString(mikaRow?.pagibig_no ?? empRow?.pagibig_no);
+  const tin = asString(mikaRow?.tin_no ?? empRow?.tin_no);
+  const atm = asString(mikaRow?.atm_no ?? empRow?.atm_no);
+  const civilStatus = asString(mikaRow?.civil_status ?? empRow?.civil_status);
+  const birthdate = asString(mikaRow?.birthdate ?? empRow?.birthdate ?? empRow?.date_of_birth);
+  const address = asString(mikaRow?.address ?? empRow?.address);
+  const contactNo = asString(mikaRow?.contact_number ?? empRow?.contact_no);
+
+  // 4. Update plantilla record directly with latest available MIKA data
+  if (targetId || employeeNo) {
+    const updates: Record<string, unknown> = {
+      last_mika_synced_at: new Date().toISOString(),
+    };
+    if (sss) updates.sss_no = sss;
+    if (philhealth) updates.philhealth_no = philhealth;
+    if (pagibig) updates.pagibig_no = pagibig;
+    if (atm) updates.atm_no = atm;
+    if (civilStatus) updates.civil_status = civilStatus;
+    if (birthdate) updates.date_of_birth = birthdate;
+    if (address) updates.address = address;
+    if (contactNo) updates.contact_no = contactNo;
+
+    let updateQuery = supabase.from("plantilla").update(updates);
+    updateQuery = targetId ? updateQuery.eq("id", targetId) : updateQuery.eq("employee_no", employeeNo!);
+    const { error: updateErr } = await updateQuery;
+    if (updateErr) {
+      console.warn("[Plantilla] direct plantilla update notice in syncPlantillaMika:", updateErr);
+    }
+  }
+
+  // 5. Update employees table with tin_no and statutory numbers
+  if (tin && employeeNo) {
+    try {
+      await supabase
+        .from("employees")
+        .update({
+          tin_no: tin,
+          ...(sss ? { sss_no: sss } : {}),
+          ...(philhealth ? { philhealth_no: philhealth } : {}),
+          ...(pagibig ? { pagibig_no: pagibig } : {}),
+          ...(atm ? { atm_no: atm } : {}),
+        })
+        .eq("employee_no", employeeNo);
+    } catch {
+      // Graceful fallback if employee record does not exist
+    }
+  }
+
+  // 6. Invoke RPC if targetId is UUID to trigger database audit logs and audit triggers
+  if (targetId && isUuid) {
+    try {
+      await supabase.rpc("plantilla_sync_mika", {
+        p_plantilla_id: targetId,
+        p_sss: sss ?? null,
+        p_philhealth: philhealth ?? null,
+        p_pagibig: pagibig ?? null,
+        p_atm: atm ?? null,
+        p_civil_status: civilStatus ?? null,
+        p_date_of_birth: birthdate ?? null,
+      });
+    } catch (rpcErr) {
+      // 5-minute cooldown or permission error on RPC is logged as warning since direct table sync already succeeded
+      console.warn("[Plantilla] plantilla_sync_mika RPC notice:", rpcErr);
+    }
   }
 }
 

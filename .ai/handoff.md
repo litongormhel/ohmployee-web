@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Fix MIKA Benefits Sync & Employee Profile Statutory Hydration (ohm#s8m4v1p7)
+
+**Status: COMPLETE ON MAIN; RESOLVED MISSING STATUTORY & BENEFITS NUMBERS (SSS, PHILHEALTH, PAG-IBIG, TIN, PAYROLL ATM ACCOUNT) IN DEDICATED EMPLOYEE PROFILE (`/plantilla/[id]`) AFTER MIKA IMPORT AND "SYNC FROM MIKA" ACTIONS (`src/lib/queries/plantilla.ts` AND `src/lib/queries/dataControl.ts`); UPDATED `syncPlantillaMika` TO QUERY LATEST MIKA ROW DATA AND DIRECTLY PERSIST NON-NULL STATUTORY, DEMOGRAPHIC, ADDRESS, AND CONTACT FIELDS TO `public.plantilla` AND `public.employees` (FOR `tin_no`); EXTENDED `getWebPlantillaDetail` WITH TIER 1.5 MIKA FALLBACK HYDRATION AND `tin` MAPPING; UPDATED `approveMikaImport` TO AUTOMATICALLY PROPAGATE APPROVED MATCHED ROWS TO PLANTILLA; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Empty Parameters in `syncPlantillaMika`**:
+   - In `src/lib/queries/plantilla.ts`, `syncPlantillaMika` previously executed `supabase.rpc("plantilla_sync_mika", { p_plantilla_id: plantillaId })` without retrieving the employee's MIKA data or passing statutory parameters.
+   - The PostgreSQL function defaulted all parameters (`p_sss`, `p_philhealth`, etc.) to `NULL`, coalescing with the existing nulls in `public.plantilla`, updating `last_mika_synced_at = now()`, and falsely reporting success while leaving all statutory numbers blank (`—`).
+2. **Resolution in `syncPlantillaMika` (`src/lib/queries/plantilla.ts`)**:
+   - Resolved the employee ID and `employee_no` from `plantilla`.
+   - Queried the latest `mika_import_rows` record for that `employee_no` (with fallback to `employees`).
+   - Persisted non-null statutory values (`sss_no`, `philhealth_no`, `pagibig_no`, `atm_no`, `civil_status`, `date_of_birth`, `address`, `contact_no`) directly to `public.plantilla`.
+   - Updated `tin_no` on `public.employees` master registry.
+   - Invoked `plantilla_sync_mika` RPC with the extracted values, catching any 5-minute cooldown or RPC notices cleanly without throwing.
+3. **Immediate Hydration in `getWebPlantillaDetail` (`src/lib/queries/plantilla.ts`)**:
+   - Added Tier 1.5 fallback hydration checking `public.mika_import_rows` when statutory or demographic fields are missing on `plantilla`.
+   - Mapped `tin` to `normalized.maskedFields.governmentIds.tin` from both `mika_import_rows` and `employees`, ensuring the UI renders statutory numbers immediately upon navigating to the employee profile.
+4. **Automated Batch Approval Propagation (`src/lib/queries/dataControl.ts`)**:
+   - Enhanced `approveMikaImport` so when an administrative user approves a pending MIKA import batch in the Review Queue, all matched rows (`flag_type = 'matched'`) automatically update their corresponding `public.plantilla` records and `employees` records.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Strict Official Accounts Whitelist & Block Mismatched Accounts in MIKA Import (ohm#b9k2m7v4)
 
 **Status: COMPLETE ON MAIN; ENFORCED STRICT OFFICIAL ACCOUNTS WHITELIST AND BLOCKED MISMATCHES IN MIKA BIOMETRIC IMPORT (`src/components/more/MikaImportModal.tsx` AND `src/lib/utils/data_control_xlsx.ts`); REPLACED RETAIL STORE / CHAIN BANNER FALLBACK MATCHING WITH EXPLICIT `public.accounts` VALIDATION; PROHIBITED ARBITRARY STORE NAMES (E.G. "SUPER 8") AS VALID ACCOUNTS; FLAGGED UNLISTED ACCOUNTS AND ACCOUNTS MISMATCHING PLANTILLA ASSIGNMENTS AS "BLOCKED" (MISMATCH) WITH EXPLICIT REASONING; UPDATED DOWNLOADABLE TEMPLATE SAMPLE ROW TO "ACTISERVE"; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

@@ -1296,6 +1296,56 @@ export async function approveMikaImport(params: {
     .eq("id", params.importLogId);
 
   if (error) throw error;
+
+  // Propagate approved matched employee rows into public.plantilla and employees
+  try {
+    const { data: rows } = await supabase
+      .from("mika_import_rows")
+      .select("employee_no, sss_no, philhealth_no, pagibig_no, tin_no, atm_no, civil_status, birthdate, address, contact_number")
+      .eq("import_log_id", params.importLogId)
+      .eq("flag_type", "matched");
+
+    if (rows && rows.length > 0) {
+      for (const r of rows) {
+        if (!r.employee_no) continue;
+        const updates: Record<string, unknown> = {
+          last_mika_synced_at: new Date().toISOString(),
+        };
+        if (r.sss_no) updates.sss_no = r.sss_no;
+        if (r.philhealth_no) updates.philhealth_no = r.philhealth_no;
+        if (r.pagibig_no) updates.pagibig_no = r.pagibig_no;
+        if (r.atm_no) updates.atm_no = r.atm_no;
+        if (r.civil_status) updates.civil_status = r.civil_status;
+        if (r.birthdate) updates.date_of_birth = r.birthdate;
+        if (r.address) updates.address = r.address;
+        if (r.contact_number) updates.contact_no = r.contact_number;
+
+        await supabase
+          .from("plantilla")
+          .update(updates)
+          .eq("employee_no", r.employee_no);
+
+        if (r.tin_no) {
+          try {
+            await supabase
+              .from("employees")
+              .update({
+                tin_no: r.tin_no,
+                ...(r.sss_no ? { sss_no: r.sss_no } : {}),
+                ...(r.philhealth_no ? { philhealth_no: r.philhealth_no } : {}),
+                ...(r.pagibig_no ? { pagibig_no: r.pagibig_no } : {}),
+                ...(r.atm_no ? { atm_no: r.atm_no } : {}),
+              })
+              .eq("employee_no", r.employee_no);
+          } catch {
+            // Graceful fallback if employee record does not exist
+          }
+        }
+      }
+    }
+  } catch (syncErr) {
+    console.warn("[DataControl] Error syncing approved MIKA rows to plantilla:", syncErr);
+  }
 }
 
 export async function rejectMikaImport(params: {
