@@ -2915,6 +2915,36 @@ export interface UpdatePlantillaScheduleParams {
 
 export async function updatePlantillaSchedule(params: UpdatePlantillaScheduleParams): Promise<void> {
   const supabase = createClient();
+
+  // 1. Authoritative path: Call SECURITY DEFINER RPC update_plantilla_schedule
+  try {
+    const { error: rpcError } = await supabase.rpc("update_plantilla_schedule", {
+      p_plantilla_id: params.plantillaId,
+      p_schedule_days: params.scheduleDays ?? null,
+      p_schedule_time: params.scheduleTime ?? null,
+      p_dayoff: params.dayoff ?? null,
+      p_store_allocations:
+        params.storeAllocations && params.storeAllocations.length > 0
+          ? params.storeAllocations.map((a) => ({
+              storeId: a.storeId || null,
+              storeName: a.storeName || null,
+              vcode: a.vcode || null,
+              scheduleDays: a.scheduleDays || params.scheduleDays || null,
+              scheduleTime: a.scheduleTime || params.scheduleTime || null,
+              allocationPercent: a.allocationPercent,
+            }))
+          : null,
+    });
+
+    if (!rpcError) {
+      return;
+    }
+    console.warn("[Plantilla] update_plantilla_schedule RPC failed, applying direct table fallback:", rpcError);
+  } catch (err) {
+    console.warn("[Plantilla] update_plantilla_schedule RPC exception, applying direct table fallback:", err);
+  }
+
+  // 2. Resilient fallback: Direct table mutation on public.plantilla
   const updatePayload: Record<string, unknown> = {
     schedule_days: params.scheduleDays ?? null,
     schedule: params.scheduleDays ?? null,

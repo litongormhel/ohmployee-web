@@ -486,16 +486,16 @@ function PlantillaEmployeeDetailContent() {
 
             {/* Top Summary Header Card & Prominent Actions Bar */}
             <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
                 {/* Employee Info Header */}
-                <div className="flex items-start sm:items-center gap-4 min-w-0">
+                <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
                   <div className="w-16 h-16 rounded-2xl bg-brand-50 border-2 border-brand-200 text-brand-700 font-extrabold text-xl flex items-center justify-center shrink-0 shadow-xs dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
                     {initials}
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <h1 className="text-xl font-bold text-text-primary tracking-tight truncate flex items-center gap-2">
-                        <span>{displayName}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                      <h1 className="text-xl font-bold text-text-primary tracking-tight flex items-center gap-2 min-w-0 max-w-full">
+                        <span className="truncate">{displayName}</span>
                         {status === "active" && (
                           <span
                             className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0"
@@ -512,15 +512,15 @@ function PlantillaEmployeeDetailContent() {
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-secondary mt-1.5 font-medium">
                       <span className="flex items-center gap-1 font-mono text-text-primary">
-                        <IdCard className="w-3.5 h-3.5 text-brand-primary" />
+                        <IdCard className="w-3.5 h-3.5 text-brand-primary shrink-0" />
                         ID: {data.employeeNo || "—"}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Briefcase className="w-3.5 h-3.5 text-text-muted" />
+                        <Briefcase className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         {data.positionTitle || "Position Unassigned"}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-text-muted" />
+                        <Calendar className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         Hired: {formatDate(data.dateHired || data.dateDeployed)} ({data.tenureDescription || computeTenure(data.dateDeployed || data.dateHired)})
                       </span>
                     </div>
@@ -528,7 +528,7 @@ function PlantillaEmployeeDetailContent() {
                 </div>
 
                 {/* Capability-Aware Personnel Actions Bar (Always Visible at Top) */}
-                <div className="flex flex-wrap items-center gap-2 pt-4 lg:pt-0 border-t lg:border-t-0 border-border-subtle shrink-0">
+                <div className="flex flex-wrap items-center gap-2 pt-4 xl:pt-0 border-t xl:border-t-0 border-border-subtle shrink-0">
                   {/* Primary: Update Employment Status */}
                   <button
                     type="button"

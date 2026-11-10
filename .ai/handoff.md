@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Persist Store Allocation Schedules via update_plantilla_schedule RPC & Fix Header Name Collision (ohm#p2k7m9v4)
+
+**Status: COMPLETE ON MAIN; ROOT-CAUSED ROVING STORE SCHEDULES NOT REFLECTING IN THE MATRIX TO DIRECT CLIENT MUTATIONS ON `public.employee_store_allocations` FAILING UNDER `REVOKE UPDATE` (42501 PERMISSION DENIED); CREATED MIGRATION `20262606000089_update_plantilla_schedule_rpc.sql` WITH AUTHORITATIVE `SECURITY DEFINER` RPC `update_plantilla_schedule` AND APPLIED TO STAGING; UPDATED `updatePlantillaSchedule` IN `src/lib/queries/plantilla.ts` TO INVOKE THE RPC WITH RESILIENT FALLBACK; FIXED EMPLOYEE NAME COLLIDING/OVERLAPPING WITH ACTION BUTTONS IN `/plantilla/[id]` BY TRANSITIONING BREAKPOINT TO `xl:flex-row`, ADDING `flex-1 min-w-0`, AND TRUNCATING `{displayName}`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Root Cause & Refactor Summary
+1. **Store Schedule Allocation Mutation (`update_plantilla_schedule` RPC)**:
+   - Root cause: In `public.employee_store_allocations`, `REVOKE INSERT, UPDATE, DELETE FROM authenticated` was enforced for headcount governance security, with authenticated clients having `SELECT` only. Direct client `.update()` calls from `updatePlantillaSchedule` failed silently with error 42501, leaving roving store allocations permanently locked on their default `"MON-SAT"` values in the database.
+   - Resolution: Created migration `20262606000089_update_plantilla_schedule_rpc.sql` providing an authoritative `SECURITY DEFINER` RPC `public.update_plantilla_schedule(p_plantilla_id uuid, p_schedule_days text, p_schedule_time text, p_dayoff text, p_store_allocations jsonb)`. Applied to Supabase staging and verified live `pg_get_functiondef` against the migration file.
+   - The RPC updates `public.plantilla` (`schedule_days`, `schedule`, `schedule_time`, `dayoff`, `rest_day`, `deployment_type`, `updated_at`) and atomically iterates over all assigned stores in `p_store_allocations`, updating `public.employee_store_allocations` (`filled_hc`, `schedule_days`, `schedule_time`, `vcode`, `updated_at`) matching on `plantilla_id` / `employee_no` and `vcode` / `store_id` / `store_name`.
+   - Updated `updatePlantillaSchedule` (`src/lib/queries/plantilla.ts`) to call the RPC as the primary authoritative path, with direct table fallback.
+2. **Employee Header Card Name Collision & Responsive Overflow (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Root cause: The header card used `lg:flex-row lg:items-center justify-between gap-6`. On screens between 1024px and 1280px (laptop/standard viewports), the 5 action buttons occupied ~650px, leaving narrow horizontal space. The employee info container lacked `flex-1 min-w-0`, and inside `<h1 className="... flex items-center gap-2">`, `<span>{displayName}</span>` lacked `truncate min-w-0`, causing long names like `DELA CRUZ JR, JESSIE GALEN` to overflow into the `Update Employment Status` button.
+   - Resolution: Adjusted breakpoint from `lg:flex-row` to `xl:flex-row xl:items-center justify-between gap-6`. On screens <1280px, action buttons wrap cleanly below the employee header with clear breathing room. Added `flex-1 min-w-0` to the employee container and enforced `<span className="truncate">{displayName}</span>` on the name header.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Supabase Staging Migration: Applied and verified via live `pg_get_functiondef`.
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Resolve False Incomplete Schedule State & Enforce Strict Roving Overlap Policy (ohm#n4t8m2w6)
 
 **Status: COMPLETE ON MAIN; FIXED BUG IN `UpdateScheduleModal` WHERE VISUALLY FILLED SHIFT TIMES (`08:00 AM - 05:00 PM`) WERE STORED AS EMPTY STRINGS INTERNALLY, CAUSING FALSE "SCHEDULE INCOMPLETE (CANNOT BE SAVED WHILE BLANK)" WARNING ON VALID NON-CONFLICTING ROVING SCHEDULES (E.G. STORE 1: MON-WED, STORE 2: THU-SAT, REST DAY: SUN); IMPLEMENTED STRICT ROVING OVERLAP CONFLICT DETECTION (`rovingOverlapConflicts`) BLOCKING SAVES AND DETAILING CONFLICTING STORES/DAYS/TIMES; STRICTLY BLOCKED SAVING WHEN DUTY DAYS CLASH WITH DESIGNATED REST DAYS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
