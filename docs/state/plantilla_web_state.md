@@ -67,8 +67,9 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
      - `Member` (Avatar, Name, Emp No)
      - `Store` (Store Name + Area/City pill)
      - `Position` (Role)
-     - `Leave Details` (Leave Type e.g., Maternity/Medical Leave + Date Range)
-     - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays muted italic `Unassigned` with a `+ Assign Reliever` action button opening `AssignRelieverModal`.
+     - `Leave Reason`: Displays the leave reason matching the modal dropdown options (`Sick / Medical Leave`, `Maternity / Paternity Leave`, `Vacation Leave`, `Emergency Family Leave`, `Other Authorized Leave`), dynamically resolved via `resolveLeaveDetails` from `plantilla.remarks` and `audit_logs` (with waterfall fallback to valid dropdown reasons).
+     - `EDR`: Expected Date of Return displayed as a formatted date (resolved from active reliever temporary coverage `endDate` in `v_workforce_store_temporary_coverage` or remarks/metadata, displaying em dash `—` if unassigned).
+     - `Reliever (Moses HQ)`: If a reliever is assigned via `workforce_assignments` (`v_workforce_store_temporary_coverage`), shows `Reliever Name` and `Reliever Emp ID`. If unassigned, displays only the action button `+ Assign Reliever` (opening `AssignRelieverModal`) without the redundant `Unassigned` label.
      - `Actions`: `Return to Active` button (opens `ReturnToActiveModal` with return date picker and Reliever Auto-Release notice, invoking `updatePlantillaEmploymentStatus`). Row click navigates to full profile view.
 
 3. **Tab 3: Vacancy** (All Open Slots + HR Onboarding Pipeline)

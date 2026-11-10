@@ -1091,9 +1091,24 @@ function PlantillaPageContent() {
   }, [allEmployees]);
 
   // Tab 2: On-Leave
-  const onLeaveEmployees = useMemo(() => {
+  const rawOnLeaveEmployees = useMemo(() => {
     return allEmployees.filter(isOnLeaveRecord);
   }, [allEmployees]);
+
+  const onLeaveEmployeeIds = useMemo(() => {
+    return rawOnLeaveEmployees.map((e) => e.id);
+  }, [rawOnLeaveEmployees]);
+
+  const onLeaveRemarksQuery = usePlantillaInactiveRemarks(onLeaveEmployeeIds);
+  const onLeaveRemarksMap = onLeaveRemarksQuery.data;
+
+  const onLeaveEmployees = useMemo(() => {
+    if (!onLeaveRemarksMap || onLeaveRemarksMap.size === 0) return rawOnLeaveEmployees;
+    return rawOnLeaveEmployees.map((emp) => {
+      const rem = onLeaveRemarksMap.get(emp.id);
+      return rem ? { ...emp, separationRemarks: rem } : emp;
+    });
+  }, [rawOnLeaveEmployees, onLeaveRemarksMap]);
 
   // Tab 4: Floating
   const floatingEmployees = useMemo(() => {
@@ -3223,6 +3238,61 @@ function EmployeeActiveTable({
 // Tab 2: On-Leave Employees Table (Leave Details & Reliever Flows)
 // ---------------------------------------------------------------------------
 
+const VALID_LEAVE_REASONS = [
+  "Sick / Medical Leave",
+  "Maternity / Paternity Leave",
+  "Vacation Leave",
+  "Emergency Family Leave",
+  "Other Authorized Leave",
+] as const;
+
+function resolveLeaveDetails(
+  emp: PlantillaEmployeeListItem,
+  coverage?: ActiveCoverageItem | null,
+): { reason: string; edr: string | null } {
+  const remarks = (emp.separationRemarks || "").trim();
+
+  let reason = "";
+  if (remarks) {
+    const match = remarks.match(/Reason:\s*([^|]+)/i);
+    const candidate = (match ? match[1] : remarks).trim();
+    const found = VALID_LEAVE_REASONS.find(
+      (r) => r.toLowerCase() === candidate.toLowerCase() || candidate.toLowerCase().includes(r.toLowerCase()),
+    );
+    if (found) {
+      reason = found;
+    } else if (/maternity|paternity/i.test(candidate)) {
+      reason = "Maternity / Paternity Leave";
+    } else if (/sick|medical/i.test(candidate)) {
+      reason = "Sick / Medical Leave";
+    } else if (/vacation/i.test(candidate)) {
+      reason = "Vacation Leave";
+    } else if (/emergency/i.test(candidate)) {
+      reason = "Emergency Family Leave";
+    } else if (/authorized|other/i.test(candidate)) {
+      reason = "Other Authorized Leave";
+    } else if (candidate) {
+      reason = candidate;
+    }
+  }
+
+  if (!reason) {
+    reason = "Sick / Medical Leave";
+  }
+
+  let edr: string | null = null;
+  if (coverage?.endDate) {
+    edr = coverage.endDate;
+  } else if (remarks) {
+    const edrMatch = remarks.match(/EDR:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}|[^\s|]+)/i);
+    if (edrMatch) {
+      edr = edrMatch[1].trim();
+    }
+  }
+
+  return { reason, edr };
+}
+
 function EmployeeOnLeaveTable({
   rows,
   activeCoverageMap,
@@ -3241,7 +3311,7 @@ function EmployeeOnLeaveTable({
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[1020px] text-left text-xs">
+        <table className="w-full min-w-[1050px] text-left text-xs">
           <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
             <tr className="border-b border-table-rule">
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
@@ -3254,7 +3324,10 @@ function EmployeeOnLeaveTable({
                 Position
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Leave Details
+                Leave Reason
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                EDR
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Reliever (Moses HQ)
@@ -3280,6 +3353,7 @@ function EmployeeOnLeaveTable({
                 : null;
               const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
               const assignedReliever = activeCoverageMap.get(row.id) ?? null;
+              const leaveInfo = resolveLeaveDetails(row, assignedReliever);
 
               return (
                 <tr
@@ -3329,19 +3403,23 @@ function EmployeeOnLeaveTable({
                     </span>
                   </td>
 
-                  {/* 4. Leave Details */}
+                  {/* 4. Leave Reason */}
                   <td className="px-3.5 py-2">
                     <div className="flex flex-col">
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit">
-                        On-Leave
-                      </span>
-                      <span className="text-[10px] text-table-text-muted mt-0.5">
-                        Active Leave Coverage
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit">
+                        {leaveInfo.reason}
                       </span>
                     </div>
                   </td>
 
-                  {/* 5. Reliever (Moses HQ) */}
+                  {/* 5. EDR */}
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <span className="font-mono text-xs text-table-text">
+                      {formatDate(leaveInfo.edr)}
+                    </span>
+                  </td>
+
+                  {/* 6. Reliever (Moses HQ) */}
                   <td className="px-3.5 py-2">
                     {assignedReliever ? (
                       <div className="flex flex-col">
@@ -3354,24 +3432,23 @@ function EmployeeOnLeaveTable({
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5">
-                        <span className="italic text-text-muted text-xs">Unassigned</span>
+                      <div className="flex items-center">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             onAssignReliever(row);
                           }}
-                          className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition shadow-2xs cursor-pointer dark:bg-brand-950 dark:border-brand-800 dark:text-brand-300"
+                          className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition shadow-2xs cursor-pointer dark:bg-brand-950 dark:border-brand-800 dark:text-brand-300"
                         >
                           <Plus className="h-2.5 w-2.5" />
-                          <span>+ Assign Reliever</span>
+                          <span>Assign Reliever</span>
                         </button>
                       </div>
                     )}
                   </td>
 
-                  {/* 6. Actions */}
+                  {/* 7. Actions */}
                   <td className="px-3.5 py-2 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
@@ -4236,6 +4313,8 @@ function EmployeeOnLeaveCard({
     ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
     : null;
   const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
+  const assignedReliever = coverageItem ?? null;
+  const leaveInfo = resolveLeaveDetails(row, assignedReliever);
 
   return (
     <div
@@ -4271,15 +4350,20 @@ function EmployeeOnLeaveCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <StatusBadge variant="warning" text="On Leave" />
+            <span
+              className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 max-w-[140px] truncate"
+              title={leaveInfo.reason}
+            >
+              {leaveInfo.reason}
+            </span>
             <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
           </div>
         </div>
 
-        {/* Reliever Coverage Status */}
-        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-xs">
+        {/* Reliever Coverage Status & EDR */}
+        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-xs flex items-center justify-between gap-2">
           {coverageItem ? (
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-medium">
+            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-medium min-w-0">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Covered by {coverageItem.employeeName}</span>
             </div>
@@ -4287,6 +4371,11 @@ function EmployeeOnLeaveCard({
             <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
               <span>No Reliever Assigned</span>
+            </div>
+          )}
+          {leaveInfo.edr && (
+            <div className="text-[11px] font-mono text-text-muted shrink-0">
+              EDR: <span className="font-semibold text-text-primary">{formatDate(leaveInfo.edr)}</span>
             </div>
           )}
         </div>

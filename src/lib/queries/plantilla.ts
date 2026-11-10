@@ -2252,6 +2252,26 @@ export async function updatePlantillaEmploymentStatus(params: UpdateEmploymentSt
     if (error) {
       throwPlantillaError(error);
     }
+
+    if (params.reason || params.expectedReturnDate || params.remarks) {
+      const formattedRemarks = [
+        params.reason ? `Reason: ${params.reason}` : null,
+        params.expectedReturnDate ? `EDR: ${params.expectedReturnDate}` : null,
+        params.remarks?.trim() ? `Remarks: ${params.remarks.trim()}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      try {
+        await supabase
+          .from("plantilla")
+          .update({ remarks: formattedRemarks })
+          .eq("id", params.plantillaId);
+      } catch (e) {
+        console.warn("Could not persist leave remarks:", e);
+      }
+    }
+
     return data;
   }
 

@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Renamed Column to `Leave Reason` & Dropdown Normalization**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), renamed column header `Leave Details` to `Leave Reason`.
+   - Replaced static badge `[On-Leave] Active Leave Coverage` with the leave reason matching the options in `UpdateEmploymentStatusModal` (`Sick / Medical Leave`, `Maternity / Paternity Leave`, `Vacation Leave`, `Emergency Family Leave`, `Other Authorized Leave`).
+   - Implemented `resolveLeaveDetails` which maps remarks/audit-log data against `VALID_LEAVE_REASONS` with clean keyword fallback and defaults to a valid dropdown reason.
+   - Connected `onLeaveEmployees` to `usePlantillaInactiveRemarks(onLeaveEmployeeIds)` to fetch `plantilla.remarks` and `audit_logs` for on-leave personnel.
+2. **Added `EDR` Column**:
+   - Added a dedicated `EDR` column between `Leave Reason` and `Reliever (Moses HQ)`.
+   - Renders formatted date via `formatDate(leaveInfo.edr)` derived from active coverage `endDate` (from `activeCoverageMap`) or `remarks`/metadata, showing `—` if no return date is set.
+   - Adjusted table container width to `min-w-[1050px]` for clean horizontal layout.
+3. **Cleaned `Reliever (Moses HQ)` Action**:
+   - Removed the muted italic `Unassigned` text when no reliever is assigned.
+   - Kept only the action button `+ Assign Reliever` without duplicate plus symbols.
+4. **Card View Parity (`EmployeeOnLeaveCard`)**:
+   - Replaced static `On Leave` badge with dynamic `leaveInfo.reason` badge.
+   - Added `EDR: {formatDate(leaveInfo.edr)}` display in the coverage status bar.
+5. **Mutation Query Support (`src/lib/queries/plantilla.ts`)**:
+   - In `updatePlantillaEmploymentStatus`, formatted `reason`, `expectedReturnDate`, and `remarks` into `Reason: <reason> | EDR: <date> | Remarks: <remarks>` to persist in `remarks` upon moving an employee to `On Leave`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Refactor Plantilla Directory Account Cards (ohm#d7k2p9x1)
 
 **Status: COMPLETE ON MAIN; PLANTILLA DIRECTORY ACCOUNT CARDS REFACTORED (REMOVED CHEVRON, INTEGRATED CONCURRENT LEAVE COUNT WITH ZERO-STATE PRESERVATION); SCOPE-EXPANSION SYNTAX FIX APPLIED TO `src/app/(dashboard)/users/page.tsx`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4336,6 +4365,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Renamed Column to `Leave Reason` & Dropdown Normalization**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), renamed column header `Leave Details` to `Leave Reason`.
+   - Replaced static badge `[On-Leave] Active Leave Coverage` with the leave reason matching the options in `UpdateEmploymentStatusModal` (`Sick / Medical Leave`, `Maternity / Paternity Leave`, `Vacation Leave`, `Emergency Family Leave`, `Other Authorized Leave`).
+   - Implemented `resolveLeaveDetails` which maps remarks/audit-log data against `VALID_LEAVE_REASONS` with clean keyword fallback and defaults to a valid dropdown reason.
+   - Connected `onLeaveEmployees` to `usePlantillaInactiveRemarks(onLeaveEmployeeIds)` to fetch `plantilla.remarks` and `audit_logs` for on-leave personnel.
+2. **Added `EDR` Column**:
+   - Added a dedicated `EDR` column between `Leave Reason` and `Reliever (Moses HQ)`.
+   - Renders formatted date via `formatDate(leaveInfo.edr)` derived from active coverage `endDate` (from `activeCoverageMap`) or `remarks`/metadata, showing `—` if no return date is set.
+   - Adjusted table container width to `min-w-[1050px]` for clean horizontal layout.
+3. **Cleaned `Reliever (Moses HQ)` Action**:
+   - Removed the muted italic `Unassigned` text when no reliever is assigned.
+   - Kept only the action button `+ Assign Reliever` without duplicate plus symbols.
+4. **Card View Parity (`EmployeeOnLeaveCard`)**:
+   - Replaced static `On Leave` badge with dynamic `leaveInfo.reason` badge.
+   - Added `EDR: {formatDate(leaveInfo.edr)}` display in the coverage status bar.
+5. **Mutation Query Support (`src/lib/queries/plantilla.ts`)**:
+   - In `updatePlantillaEmploymentStatus`, formatted `reason`, `expectedReturnDate`, and `remarks` into `Reason: <reason> | EDR: <date> | Remarks: <remarks>` to persist in `remarks` upon moving an employee to `On Leave`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
 **Status: COMPLETE ON MAIN; WEB REPO IMPLEMENTATION VERIFIED; MECHANICAL GATES CLEAN (`npx tsc --noEmit`: 0 ERRORS; `npm run lint`: 0 ERRORS)**
@@ -4800,6 +4858,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Renamed Column to `Leave Reason` & Dropdown Normalization**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), renamed column header `Leave Details` to `Leave Reason`.
+   - Replaced static badge `[On-Leave] Active Leave Coverage` with the leave reason matching the options in `UpdateEmploymentStatusModal` (`Sick / Medical Leave`, `Maternity / Paternity Leave`, `Vacation Leave`, `Emergency Family Leave`, `Other Authorized Leave`).
+   - Implemented `resolveLeaveDetails` which maps remarks/audit-log data against `VALID_LEAVE_REASONS` with clean keyword fallback and defaults to a valid dropdown reason.
+   - Connected `onLeaveEmployees` to `usePlantillaInactiveRemarks(onLeaveEmployeeIds)` to fetch `plantilla.remarks` and `audit_logs` for on-leave personnel.
+2. **Added `EDR` Column**:
+   - Added a dedicated `EDR` column between `Leave Reason` and `Reliever (Moses HQ)`.
+   - Renders formatted date via `formatDate(leaveInfo.edr)` derived from active coverage `endDate` (from `activeCoverageMap`) or `remarks`/metadata, showing `—` if no return date is set.
+   - Adjusted table container width to `min-w-[1050px]` for clean horizontal layout.
+3. **Cleaned `Reliever (Moses HQ)` Action**:
+   - Removed the muted italic `Unassigned` text when no reliever is assigned.
+   - Kept only the action button `+ Assign Reliever` without duplicate plus symbols.
+4. **Card View Parity (`EmployeeOnLeaveCard`)**:
+   - Replaced static `On Leave` badge with dynamic `leaveInfo.reason` badge.
+   - Added `EDR: {formatDate(leaveInfo.edr)}` display in the coverage status bar.
+5. **Mutation Query Support (`src/lib/queries/plantilla.ts`)**:
+   - In `updatePlantillaEmploymentStatus`, formatted `reason`, `expectedReturnDate`, and `remarks` into `Reason: <reason> | EDR: <date> | Remarks: <remarks>` to persist in `remarks` upon moving an employee to `On Leave`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
@@ -5289,6 +5376,35 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Renamed Column to `Leave Reason` & Dropdown Normalization**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), renamed column header `Leave Details` to `Leave Reason`.
+   - Replaced static badge `[On-Leave] Active Leave Coverage` with the leave reason matching the options in `UpdateEmploymentStatusModal` (`Sick / Medical Leave`, `Maternity / Paternity Leave`, `Vacation Leave`, `Emergency Family Leave`, `Other Authorized Leave`).
+   - Implemented `resolveLeaveDetails` which maps remarks/audit-log data against `VALID_LEAVE_REASONS` with clean keyword fallback and defaults to a valid dropdown reason.
+   - Connected `onLeaveEmployees` to `usePlantillaInactiveRemarks(onLeaveEmployeeIds)` to fetch `plantilla.remarks` and `audit_logs` for on-leave personnel.
+2. **Added `EDR` Column**:
+   - Added a dedicated `EDR` column between `Leave Reason` and `Reliever (Moses HQ)`.
+   - Renders formatted date via `formatDate(leaveInfo.edr)` derived from active coverage `endDate` (from `activeCoverageMap`) or `remarks`/metadata, showing `—` if no return date is set.
+   - Adjusted table container width to `min-w-[1050px]` for clean horizontal layout.
+3. **Cleaned `Reliever (Moses HQ)` Action**:
+   - Removed the muted italic `Unassigned` text when no reliever is assigned.
+   - Kept only the action button `+ Assign Reliever` without duplicate plus symbols.
+4. **Card View Parity (`EmployeeOnLeaveCard`)**:
+   - Replaced static `On Leave` badge with dynamic `leaveInfo.reason` badge.
+   - Added `EDR: {formatDate(leaveInfo.edr)}` display in the coverage status bar.
+5. **Mutation Query Support (`src/lib/queries/plantilla.ts`)**:
+   - In `updatePlantillaEmploymentStatus`, formatted `reason`, `expectedReturnDate`, and `remarks` into `Reason: <reason> | EDR: <date> | Remarks: <remarks>` to persist in `remarks` upon moving an employee to `On Leave`.
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
 
 ## Execution Report — Bugfix: Vacancy Management Open Queue & Plantilla Directory Parity Reconciled (ohm#vacparsync)
 
