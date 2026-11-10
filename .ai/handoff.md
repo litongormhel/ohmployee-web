@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Simplify Activity Audit Feed to Human-Readable Single-Line Sentence Format (ohm#s5k8m2d4)
+
+**Status: COMPLETE ON MAIN; LIFECYCLE EVENT LOG & AUDIT TIMELINE ON EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`) REDESIGNED INTO A STREAMLINED SINGLE-LINE HUMAN-READABLE ACTIVITY FEED (`[Icon] {User} {action} {timestamp}`, e.g., `Litong, Ohm update the status to On Leave ... Nov 10, 2026, 1:13 PM`); HEAVY 3-LEVEL CARD CONTAINERS REPLACED WITH CLEAN HORIZONTAL ROWS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Activity Sentence Builder (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Implemented `getActivitySentence(item, primaryStoreName)` mapping all operational lifecycle events into clear, concise action sentences:
+     - *On Leave*: `{User} update the status to On Leave`
+     - *Active*: `{User} return the status to Active`
+     - *Floating*: `{User} transfer employee to Floating`
+     - *Separation*: `{User} process separation as {Resigned|AWOL|Terminated}`
+     - *Deactivation Request*: `{User} request employee deactivation`
+     - *Deactivation Finalized*: `{User} finalize employee deactivation`
+     - *Schedule & Allocation*: `{User} update the work schedule & allocation`
+     - *Transfer*: `{User} transfer employee to new store`
+     - *HR Coordinator*: `{User} reassign HR Coordinator`
+     - *MIKA Sync*: `{User} sync employee details from MIKA`
+     - *Deletion Request*: `{User} request employee deletion`
+     - *Deployment*: `{User} deploy employee to {Store}`
+   - Defaults to `Operations` or `System` when the actor is unassigned.
+   - Preserves underlying reason / remarks (e.g. leave notes, EDR) as a subtle, compact secondary line below the main sentence without cluttering the primary view.
+2. **Compact Single-Line UI Styling (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Restructured each activity row to `py-3 px-4 rounded-xl flex items-center gap-3.5` with a compact `w-7 h-7` semantic icon badge.
+   - Displays bold user name with high-contrast text (`<span className="font-semibold">{User}</span> <span className="text-text-secondary">{action}</span>`) aligned with right-justified monospace timestamp (`Nov 10, 2026, 1:13 PM`).
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Universal Employee Lifecycle & Operational Audit Timeline Aggregation (ohm#w8x3m5t2)
 
 **Status: COMPLETE ON MAIN; UNIVERSAL AUDIT TIMELINE HYDRATION IMPLEMENTED ON EMPLOYEE PROFILE TAB 4 (`/plantilla/[id]`); ALL OPERATIONAL MUTATIONS (STATUS TAGGING AS ON LEAVE / ACTIVE / FLOATING / SEPARATED, SCHEDULE & ALLOCATION EDITS, STORE TRANSFERS, HRCO REASSIGNMENTS, MIKA SYNCHRONIZATIONS, AND DEACTIVATIONS) NOW HYDRATE AND DISPLAY WITH PRECISE TIMESTAMPS AND ATTRIBUTION (`Initiated by: {name}` / `Triggered by: {name}`); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

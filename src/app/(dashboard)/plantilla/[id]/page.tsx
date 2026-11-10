@@ -39,6 +39,7 @@ import {
   deriveDeactivationOverlay,
   deriveTransferOverlay,
   PlantillaDataError,
+  type PlantillaAuditTimelineItem,
 } from "@/lib/queries/plantilla";
 import { useCurrentUser, isPlantillaLifecycleRole } from "@/lib/auth";
 import { DataState } from "@/components/shared/DataState";
@@ -136,6 +137,76 @@ function formatEventDate(isoStr: string | null | undefined): string {
   } catch {
     return isoStr;
   }
+}
+
+function getActivitySentence(
+  item: PlantillaAuditTimelineItem,
+  defaultStore?: string | null,
+): { actor: string; action: string; note: string | null } {
+  const actor = item.profileName?.trim() || "Operations";
+  const label = item.eventLabel.toLowerCase();
+  let action = "performed an operational update";
+  let note = item.eventDescription?.trim() || null;
+
+  if (label.includes("on leave") || label.includes("leave")) {
+    action = "update the status to On Leave";
+  } else if (label.includes("returned to active") || (label.includes("status") && label.includes("active"))) {
+    action = "return the status to Active";
+  } else if (label.includes("floating")) {
+    action = "transfer employee to Floating";
+  } else if (label.includes("resigned")) {
+    action = "process separation as Resigned";
+  } else if (label.includes("awol")) {
+    action = "process separation as AWOL";
+  } else if (label.includes("terminated")) {
+    action = "process separation as Terminated";
+  } else if (label.includes("separated")) {
+    action = "process employee separation";
+  } else if (label.includes("deactivation requested") || label.includes("request deactivation")) {
+    action = "request employee deactivation";
+  } else if (label.includes("deactivation request rejected")) {
+    action = "reject employee deactivation request";
+  } else if (label.includes("deactivation request resubmitted")) {
+    action = "resubmit employee deactivation request";
+  } else if (label.includes("deactivated")) {
+    action = "finalize employee deactivation";
+  } else if (label.includes("archived")) {
+    action = "archive employee record";
+  } else if (label.includes("schedule") || label.includes("allocation")) {
+    action = "update the work schedule & allocation";
+  } else if (label.includes("transfer approved")) {
+    action = "approve employee transfer";
+  } else if (label.includes("transfer requested")) {
+    action = "request employee transfer";
+  } else if (label.includes("transferred")) {
+    action = "transfer employee to new store";
+  } else if (label.includes("hr coordinator") || label.includes("hrco")) {
+    action = "reassign HR Coordinator";
+  } else if (label.includes("mika")) {
+    action = "sync employee details from MIKA";
+  } else if (label.includes("deletion")) {
+    action = "request employee deletion";
+  } else if (label.includes("deployed")) {
+    const store = defaultStore || "store branch";
+    action = `deploy employee to ${store}`;
+    if (note && note.toLowerCase().includes("initial operational deployment")) {
+      note = null;
+    }
+  }
+
+  // Clear note if redundant with action or label
+  if (
+    note &&
+    (note.toLowerCase() === label ||
+      note.toLowerCase().includes("personnel successfully deactivated") ||
+      note.toLowerCase().includes("deactivation request submitted") ||
+      note.toLowerCase().includes("employment status updated to on leave") ||
+      note.toLowerCase().includes("employment status returned to active"))
+  ) {
+    note = null;
+  }
+
+  return { actor, action, note };
 }
 
 function computeTenure(dateStr: string | null | undefined): string {
@@ -1234,52 +1305,48 @@ function PlantillaEmployeeDetailContent() {
                           IconComponent = Trash2;
                         }
 
+                        const { actor, action, note } = getActivitySentence(item, data.primaryStoreName);
+
                         return (
                           <div
                             key={item.stableKey}
-                            className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-start gap-3.5"
+                            className="py-3 px-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-center gap-3.5 hover:bg-surface-muted/70 transition-colors"
                           >
-                            <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${iconBadgeClass}`}>
-                              <IconComponent className="w-4 h-4" />
+                            <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${iconBadgeClass}`}>
+                              <IconComponent className="w-3.5 h-3.5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h4 className="text-xs font-bold text-text-primary">
-                                  {item.eventLabel}
-                                </h4>
-                                <span className="text-[11px] text-text-muted font-mono">
+                            <div className="min-w-0 flex-1 flex flex-col justify-center">
+                              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                                <p className="text-xs text-text-primary">
+                                  <span className="font-semibold text-text-primary">{actor}</span>{" "}
+                                  <span className="text-text-secondary">{action}</span>
+                                </p>
+                                <span className="text-[11px] text-text-muted font-mono whitespace-nowrap ml-auto">
                                   {formatEventDate(item.createdAt)}
                                 </span>
                               </div>
-                              {item.eventDescription && (
-                                <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                                  {item.eventDescription}
+                              {note && (
+                                <p className="text-[11px] text-text-muted mt-0.5 truncate">
+                                  {note}
                                 </p>
-                              )}
-                              {item.profileName && (
-                                <div className="flex items-center gap-1.5 mt-1.5 text-[11px]">
-                                  <span className="text-text-muted">
-                                    {item.eventLabel.toLowerCase().includes("request") ? "Initiated by:" : "Triggered by:"}
-                                  </span>
-                                  <span className="font-medium text-text-secondary">{item.profileName}</span>
-                                </div>
                               )}
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <div className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-start gap-3.5">
-                        <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shrink-0 mt-0.5 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
-                          <Store className="w-4 h-4" />
+                      <div className="py-3 px-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-center gap-3.5">
+                        <div className="w-7 h-7 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shrink-0 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
+                          <Store className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-text-primary">
-                            Personnel deployed to Plantilla — {data.primaryStoreName || "Store"}
-                          </h4>
-                          <p className="text-[11px] text-text-muted mt-0.5 font-mono">
-                            {formatEventDate(data.dateDeployed || data.dateHired)}
+                        <div className="min-w-0 flex-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                          <p className="text-xs text-text-primary">
+                            <span className="font-semibold text-text-primary">{data.coordinator || data.hrcoName || "Operations"}</span>{" "}
+                            <span className="text-text-secondary">deploy employee to {data.primaryStoreName || "Store"}</span>
                           </p>
+                          <span className="text-[11px] text-text-muted font-mono whitespace-nowrap ml-auto">
+                            {formatEventDate(data.dateDeployed || data.dateHired)}
+                          </span>
                         </div>
                       </div>
                     )}
