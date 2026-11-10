@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Frontend Lapse & Breach Computation (`getEdrLapseStatus`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, introduced helper `getEdrLapseStatus(edr)` calculating elapsed calendar days between today and EDR.
+   - Categorizes status into:
+     - **Normal** (`daysLapsed <= 0`): Standard monochromatic date display.
+     - **Lapsed** (`daysLapsed` 1–2): Amber warning pill `Lapsed ({d}d) • HRCO Notified` alerting that the employee reached EDR and HRCO must update employment status or return to Active.
+     - **Breached** (`daysLapsed >= 3`): Critical red breach pill `Breached ({d}d) • OM Escalated` indicating 3+ days past EDR without HRCO action and SLA escalation to Operations Manager (OM).
+2. **Table & Card View Integration**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), enriched `EDR` cell to render two-line visual status (formatted date + lapse/breach badge).
+   - In `EmployeeOnLeaveCard` (`src/app/(dashboard)/plantilla/page.tsx`), integrated `Lapsed ({d}d)` or `Breached ({d}d)` badges directly into the coverage bar.
+3. **Database Migration (`supabase/migrations/20262606000088_on_leave_edr_lapse_sla_notifications.sql`)**:
+   - Created routine `public.check_on_leave_edr_sla() RETURNS jsonb`:
+     - Scans `public.plantilla` records with `status = 'On Leave'`.
+     - Resolves EDR from active temporary coverage (`workforce_assignments.end_date`) or `plantilla.remarks`.
+     - Compares EDR with `CURRENT_DATE`:
+       - **Days 1–2 (`v_days_lapsed < 3`)**: Dispatches notification to assigned HRCO (`public.notify_user`, title: `⚠️ EDR Lapsed: Return to Active or Update Status`, `sla_level = 0`).
+       - **Day 3+ (`v_days_lapsed >= 3`)**: Dispatches breach notification to OM (`public.notify_user`, title: `🚨 SLA BREACH: On-Leave Employee Overdue`, `sla_level = 1`) and logs to `activity_log`.
+     - Enforces same-day deduplication (`reference_type = 'plantilla_edr_lapse'` / `'plantilla_edr_breach'`) to prevent notification spamming.
+     - Schedules daily execution via `pg_cron` at 06:00 PHT (22:00 UTC).
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
 
 **Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4365,6 +4395,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Frontend Lapse & Breach Computation (`getEdrLapseStatus`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, introduced helper `getEdrLapseStatus(edr)` calculating elapsed calendar days between today and EDR.
+   - Categorizes status into:
+     - **Normal** (`daysLapsed <= 0`): Standard monochromatic date display.
+     - **Lapsed** (`daysLapsed` 1–2): Amber warning pill `Lapsed ({d}d) • HRCO Notified` alerting that the employee reached EDR and HRCO must update employment status or return to Active.
+     - **Breached** (`daysLapsed >= 3`): Critical red breach pill `Breached ({d}d) • OM Escalated` indicating 3+ days past EDR without HRCO action and SLA escalation to Operations Manager (OM).
+2. **Table & Card View Integration**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), enriched `EDR` cell to render two-line visual status (formatted date + lapse/breach badge).
+   - In `EmployeeOnLeaveCard` (`src/app/(dashboard)/plantilla/page.tsx`), integrated `Lapsed ({d}d)` or `Breached ({d}d)` badges directly into the coverage bar.
+3. **Database Migration (`supabase/migrations/20262606000088_on_leave_edr_lapse_sla_notifications.sql`)**:
+   - Created routine `public.check_on_leave_edr_sla() RETURNS jsonb`:
+     - Scans `public.plantilla` records with `status = 'On Leave'`.
+     - Resolves EDR from active temporary coverage (`workforce_assignments.end_date`) or `plantilla.remarks`.
+     - Compares EDR with `CURRENT_DATE`:
+       - **Days 1–2 (`v_days_lapsed < 3`)**: Dispatches notification to assigned HRCO (`public.notify_user`, title: `⚠️ EDR Lapsed: Return to Active or Update Status`, `sla_level = 0`).
+       - **Day 3+ (`v_days_lapsed >= 3`)**: Dispatches breach notification to OM (`public.notify_user`, title: `🚨 SLA BREACH: On-Leave Employee Overdue`, `sla_level = 1`) and logs to `activity_log`.
+     - Enforces same-day deduplication (`reference_type = 'plantilla_edr_lapse'` / `'plantilla_edr_breach'`) to prevent notification spamming.
+     - Schedules daily execution via `pg_cron` at 06:00 PHT (22:00 UTC).
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
+
 ## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
 
 **Status: COMPLETE ON MAIN; ON-LEAVE ROSTER REFACTORED (RENAMED `Leave Details` TO `Leave Reason` WITH DROPDOWN REASON NORMALIZATION, ADDED DEDICATED `EDR` COLUMN, REMOVED `Unassigned` LABEL FROM RELIEVER COLUMN WITH `+ Assign Reliever` ACTION CLEANUP, UPDATED CARD VIEW TO MATCH); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
@@ -4858,6 +4918,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Frontend Lapse & Breach Computation (`getEdrLapseStatus`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, introduced helper `getEdrLapseStatus(edr)` calculating elapsed calendar days between today and EDR.
+   - Categorizes status into:
+     - **Normal** (`daysLapsed <= 0`): Standard monochromatic date display.
+     - **Lapsed** (`daysLapsed` 1–2): Amber warning pill `Lapsed ({d}d) • HRCO Notified` alerting that the employee reached EDR and HRCO must update employment status or return to Active.
+     - **Breached** (`daysLapsed >= 3`): Critical red breach pill `Breached ({d}d) • OM Escalated` indicating 3+ days past EDR without HRCO action and SLA escalation to Operations Manager (OM).
+2. **Table & Card View Integration**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), enriched `EDR` cell to render two-line visual status (formatted date + lapse/breach badge).
+   - In `EmployeeOnLeaveCard` (`src/app/(dashboard)/plantilla/page.tsx`), integrated `Lapsed ({d}d)` or `Breached ({d}d)` badges directly into the coverage bar.
+3. **Database Migration (`supabase/migrations/20262606000088_on_leave_edr_lapse_sla_notifications.sql`)**:
+   - Created routine `public.check_on_leave_edr_sla() RETURNS jsonb`:
+     - Scans `public.plantilla` records with `status = 'On Leave'`.
+     - Resolves EDR from active temporary coverage (`workforce_assignments.end_date`) or `plantilla.remarks`.
+     - Compares EDR with `CURRENT_DATE`:
+       - **Days 1–2 (`v_days_lapsed < 3`)**: Dispatches notification to assigned HRCO (`public.notify_user`, title: `⚠️ EDR Lapsed: Return to Active or Update Status`, `sla_level = 0`).
+       - **Day 3+ (`v_days_lapsed >= 3`)**: Dispatches breach notification to OM (`public.notify_user`, title: `🚨 SLA BREACH: On-Leave Employee Overdue`, `sla_level = 1`) and logs to `activity_log`.
+     - Enforces same-day deduplication (`reference_type = 'plantilla_edr_lapse'` / `'plantilla_edr_breach'`) to prevent notification spamming.
+     - Schedules daily execution via `pg_cron` at 06:00 PHT (22:00 UTC).
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
 
 ## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
 
@@ -5376,6 +5466,36 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — On-Leave EDR Lapse & 3-Day SLA Breach Escalation (ohm#e9k2p7x4)
+
+**Status: COMPLETE ON MAIN; ON-LEAVE EDR LAPSE & SLA BREACH WORKFLOW IMPLEMENTED (FRONTEND LAPSE/BREACH STATUS BADGES ADDED TO TABLE & CARD VIEWS, DATABASE MIGRATION CREATED WITH `check_on_leave_edr_sla` ROUTINE FOR HRCO NOTIFICATION ON DAYS 1-2 AND OM SLA BREACH ESCALATION ON DAY 3+); MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Frontend Lapse & Breach Computation (`getEdrLapseStatus`)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, introduced helper `getEdrLapseStatus(edr)` calculating elapsed calendar days between today and EDR.
+   - Categorizes status into:
+     - **Normal** (`daysLapsed <= 0`): Standard monochromatic date display.
+     - **Lapsed** (`daysLapsed` 1–2): Amber warning pill `Lapsed ({d}d) • HRCO Notified` alerting that the employee reached EDR and HRCO must update employment status or return to Active.
+     - **Breached** (`daysLapsed >= 3`): Critical red breach pill `Breached ({d}d) • OM Escalated` indicating 3+ days past EDR without HRCO action and SLA escalation to Operations Manager (OM).
+2. **Table & Card View Integration**:
+   - In `EmployeeOnLeaveTable` (`src/app/(dashboard)/plantilla/page.tsx`), enriched `EDR` cell to render two-line visual status (formatted date + lapse/breach badge).
+   - In `EmployeeOnLeaveCard` (`src/app/(dashboard)/plantilla/page.tsx`), integrated `Lapsed ({d}d)` or `Breached ({d}d)` badges directly into the coverage bar.
+3. **Database Migration (`supabase/migrations/20262606000088_on_leave_edr_lapse_sla_notifications.sql`)**:
+   - Created routine `public.check_on_leave_edr_sla() RETURNS jsonb`:
+     - Scans `public.plantilla` records with `status = 'On Leave'`.
+     - Resolves EDR from active temporary coverage (`workforce_assignments.end_date`) or `plantilla.remarks`.
+     - Compares EDR with `CURRENT_DATE`:
+       - **Days 1–2 (`v_days_lapsed < 3`)**: Dispatches notification to assigned HRCO (`public.notify_user`, title: `⚠️ EDR Lapsed: Return to Active or Update Status`, `sla_level = 0`).
+       - **Day 3+ (`v_days_lapsed >= 3`)**: Dispatches breach notification to OM (`public.notify_user`, title: `🚨 SLA BREACH: On-Leave Employee Overdue`, `sla_level = 1`) and logs to `activity_log`.
+     - Enforces same-day deduplication (`reference_type = 'plantilla_edr_lapse'` / `'plantilla_edr_breach'`) to prevent notification spamming.
+     - Schedules daily execution via `pg_cron` at 06:00 PHT (22:00 UTC).
+
+### 2. Verification & Mechanical Gates
+- `npm run lint`: Clean with 0 errors (5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- Local commit on `main` staging only changed files explicitly.
+
+---
 
 ## Execution Report — Refactor Plantilla On-Leave: Leave Reason, EDR Column, and Reliever Action (ohm#e8k4n2v9)
 

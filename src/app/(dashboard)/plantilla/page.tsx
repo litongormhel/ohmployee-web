@@ -3293,6 +3293,32 @@ function resolveLeaveDetails(
   return { reason, edr };
 }
 
+function getEdrLapseStatus(edr: string | null | undefined): {
+  daysLapsed: number;
+  isLapsed: boolean;
+  isBreached: boolean;
+} {
+  if (!edr) return { daysLapsed: 0, isLapsed: false, isBreached: false };
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const returnDate = new Date(edr);
+    returnDate.setHours(0, 0, 0, 0);
+    if (isNaN(returnDate.getTime())) {
+      return { daysLapsed: 0, isLapsed: false, isBreached: false };
+    }
+    const diffTime = today.getTime() - returnDate.getTime();
+    const daysLapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return {
+      daysLapsed,
+      isLapsed: daysLapsed > 0 && daysLapsed < 3,
+      isBreached: daysLapsed >= 3,
+    };
+  } catch {
+    return { daysLapsed: 0, isLapsed: false, isBreached: false };
+  }
+}
+
 function EmployeeOnLeaveTable({
   rows,
   activeCoverageMap,
@@ -3354,6 +3380,7 @@ function EmployeeOnLeaveTable({
               const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
               const assignedReliever = activeCoverageMap.get(row.id) ?? null;
               const leaveInfo = resolveLeaveDetails(row, assignedReliever);
+              const lapseStatus = getEdrLapseStatus(leaveInfo.edr);
 
               return (
                 <tr
@@ -3413,10 +3440,41 @@ function EmployeeOnLeaveTable({
                   </td>
 
                   {/* 5. EDR */}
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    <span className="font-mono text-xs text-table-text">
-                      {formatDate(leaveInfo.edr)}
-                    </span>
+                  <td className="px-3.5 py-2">
+                    {leaveInfo.edr ? (
+                      <div className="flex flex-col">
+                        <span
+                          className={`font-mono text-xs ${
+                            lapseStatus.isBreached
+                              ? "font-bold text-red-600 dark:text-red-400"
+                              : lapseStatus.isLapsed
+                              ? "font-semibold text-amber-700 dark:text-amber-300"
+                              : "text-table-text"
+                          }`}
+                        >
+                          {formatDate(leaveInfo.edr)}
+                        </span>
+                        {lapseStatus.isBreached ? (
+                          <span
+                            className="inline-flex items-center gap-1 mt-0.5 rounded px-1.5 py-0.2 text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800 w-fit"
+                            title="SLA Breached: 3+ days past EDR without action. Escalated to Operations Manager (OM)."
+                          >
+                            <AlertCircle className="h-2.5 w-2.5 shrink-0 text-red-600" />
+                            <span>Breached ({lapseStatus.daysLapsed}d) • OM Escalated</span>
+                          </span>
+                        ) : lapseStatus.isLapsed ? (
+                          <span
+                            className="inline-flex items-center gap-1 mt-0.5 rounded px-1.5 py-0.2 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit"
+                            title="EDR lapsed: HRCO notified to update status or return to Active."
+                          >
+                            <Clock className="h-2.5 w-2.5 shrink-0 text-amber-700" />
+                            <span>Lapsed ({lapseStatus.daysLapsed}d) • HRCO Notified</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="font-mono text-xs text-text-muted">—</span>
+                    )}
                   </td>
 
                   {/* 6. Reliever (Moses HQ) */}
@@ -4315,6 +4373,7 @@ function EmployeeOnLeaveCard({
   const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
   const assignedReliever = coverageItem ?? null;
   const leaveInfo = resolveLeaveDetails(row, assignedReliever);
+  const lapseStatus = getEdrLapseStatus(leaveInfo.edr);
 
   return (
     <div
@@ -4374,8 +4433,28 @@ function EmployeeOnLeaveCard({
             </div>
           )}
           {leaveInfo.edr && (
-            <div className="text-[11px] font-mono text-text-muted shrink-0">
-              EDR: <span className="font-semibold text-text-primary">{formatDate(leaveInfo.edr)}</span>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono shrink-0">
+              <span className="text-text-muted">EDR:</span>
+              <span
+                className={`font-semibold ${
+                  lapseStatus.isBreached
+                    ? "text-red-600 dark:text-red-400 font-bold"
+                    : lapseStatus.isLapsed
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-text-primary"
+                }`}
+              >
+                {formatDate(leaveInfo.edr)}
+              </span>
+              {lapseStatus.isBreached ? (
+                <span className="rounded px-1 py-0.2 text-[9px] font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-200">
+                  Breached ({lapseStatus.daysLapsed}d)
+                </span>
+              ) : lapseStatus.isLapsed ? (
+                <span className="rounded px-1 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200">
+                  Lapsed ({lapseStatus.daysLapsed}d)
+                </span>
+              ) : null}
             </div>
           )}
         </div>
