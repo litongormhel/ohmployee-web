@@ -2091,11 +2091,30 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
 
   // Augment store-level schedules and headcount share allocations from employee_store_allocations
   try {
-    const { data: allocRows } = await supabase
+    const hasForbiddenChars =
+      (normalized.id && /[,()"\\]/.test(normalized.id)) ||
+      (normalized.employeeNo && /[,()"\\]/.test(normalized.employeeNo));
+
+    let allocQuery = supabase
       .from("employee_store_allocations")
       .select("id, store_id, store_name, vcode, filled_hc, schedule_days, schedule_time")
-      .or(`plantilla_id.eq.${normalized.id},employee_no.eq.${normalized.employeeNo}`)
       .eq("is_active", true);
+
+    if (hasForbiddenChars) {
+      if (normalized.id && !/[,()"\\]/.test(normalized.id)) {
+        allocQuery = allocQuery.eq("plantilla_id", normalized.id);
+      } else if (normalized.employeeNo && !/[,()"\\]/.test(normalized.employeeNo)) {
+        allocQuery = allocQuery.eq("employee_no", normalized.employeeNo);
+      }
+    } else if (normalized.id && normalized.employeeNo) {
+      allocQuery = allocQuery.or(`plantilla_id.eq.${normalized.id},employee_no.eq.${normalized.employeeNo}`);
+    } else if (normalized.id) {
+      allocQuery = allocQuery.eq("plantilla_id", normalized.id);
+    } else if (normalized.employeeNo) {
+      allocQuery = allocQuery.eq("employee_no", normalized.employeeNo);
+    }
+
+    const { data: allocRows } = await allocQuery;
 
     if (allocRows && allocRows.length > 0) {
       normalized.coveredStores = allocRows.map((al, idx) => ({
@@ -2990,10 +3009,14 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
       } else {
         query = query.eq("store_name", alloc.storeName);
       }
-      if (params.employeeNo) {
+      if (params.employeeNo && !/[,()"\\]/.test(params.employeeNo) && !/[,()"\\]/.test(params.plantillaId)) {
         query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
-      } else {
+      } else if (!/[,()"\\]/.test(params.plantillaId)) {
         query = query.eq("plantilla_id", params.plantillaId);
+      } else if (params.employeeNo && !/[,()"\\]/.test(params.employeeNo)) {
+        query = query.eq("employee_no", params.employeeNo);
+      } else {
+        continue;
       }
       try {
         await query;
@@ -3009,10 +3032,14 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
           schedule_days: params.scheduleDays ?? null,
           schedule_time: params.scheduleTime ?? null,
         });
-      if (params.employeeNo) {
+      if (params.employeeNo && !/[,()"\\]/.test(params.employeeNo) && !/[,()"\\]/.test(params.plantillaId)) {
         query = query.or(`plantilla_id.eq.${params.plantillaId},employee_no.eq.${params.employeeNo}`);
-      } else {
+      } else if (!/[,()"\\]/.test(params.plantillaId)) {
         query = query.eq("plantilla_id", params.plantillaId);
+      } else if (params.employeeNo && !/[,()"\\]/.test(params.employeeNo)) {
+        query = query.eq("employee_no", params.employeeNo);
+      } else {
+        return;
       }
       await query;
     } catch {

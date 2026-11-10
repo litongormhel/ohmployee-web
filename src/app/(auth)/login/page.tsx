@@ -107,9 +107,6 @@ export default function LoginPage() {
                 <label className="text-xs font-semibold text-text-secondary">
                   Password
                 </label>
-                <a href="/forgot-password" className="text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">
-                  Forgot?
-                </a>
               </div>
               <div className="relative">
                 <div className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted flex items-center justify-center">

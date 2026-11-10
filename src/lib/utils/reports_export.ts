@@ -33,6 +33,20 @@ export function exportMultiSheetXlsx(
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
+function escapeCsvCell(val: unknown): unknown {
+  if (typeof val === "string") {
+    // Exempt pure-numeric strings (e.g. "+123", "-45.67", "0")
+    if (/^[+-]?\d+(\.\d+)?$/.test(val.trim())) {
+      return val;
+    }
+    // Prefix single quote if string starts with formula trigger (=, +, -, @, tab, CR)
+    if (/^[\=\+\-\@\t\r]/.test(val)) {
+      return `'${val}`;
+    }
+  }
+  return val;
+}
+
 /**
  * Downloads tabular data as a CSV file.
  */
@@ -42,7 +56,15 @@ export function exportToCsv(
 ): void {
   if (typeof window === "undefined" || !data.length) return;
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const escapedData = data.map((row) => {
+    const escapedRow: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(row)) {
+      escapedRow[key] = escapeCsvCell(val);
+    }
+    return escapedRow;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(escapedData);
   const csv = XLSX.utils.sheet_to_csv(ws);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);

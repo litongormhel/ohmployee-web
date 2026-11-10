@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — Security Hardening Batch A (ohm#k7q2m9x4)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED SECURITY HARDENING BATCH A ACROSS `./src`; ADDED SHARED PostgREST `.or()` SANITIZER `sanitizeOrTerm` (`src/lib/utils/postgrest.ts`) STRIPPING `, ( ) " \` WHILE PRESERVING `.` FOR FUZZY SEARCH (ILIKE); GUARDED EXACT-MATCH / ID SITES IN `hr_emploc.ts` AND `plantilla.ts` REJECTING DELIMITER CHARACTERS WITHOUT MUTATING VALUES; ADDED ACTIVE WEB PROFILE & ROLE GUARD TO `/api/ohmni` ROUTE VIA `get_web_current_user_context` (FAILING CLOSED WITH 403 BEFORE LLM/TOOL EXECUTION); ADDED FORMULA INJECTION ESCAPING TO `exportToCsv` IN `reports_export.ts` PREFIXING `'` TO STRING CELLS STARTING WITH `=`, `+`, `-`, `@`, `\t`, `\r` WHILE EXEMPTING PURE-NUMERIC STRINGS; REMOVED DEAD "Forgot?" LINK ON LOGIN PAGE; MECHANICAL GATES CLEAN (`pnpm lint`: 0 ERRORS; `pnpm test`: 28/28 PASSED)**
+
+### 1. Root Cause & Refactor Summary
+1. **PostgREST `.or()` Filter Sanitization (`src/lib/utils/postgrest.ts`)**:
+   - Built and tested `sanitizeOrTerm(term)` which strips characters that can manipulate PostgREST filter structure: `,`, `(`, `)`, `"`, and `\`, while retaining `.` to preserve decimals and domain names.
+   - Applied to fuzzy search (ilike) interpolations in `src/lib/queries/workforcePool.ts` (`fetchPoolEmployees`), and `src/app/api/ohmni/route.ts` (`resolveGroupFilter`, `executePlantillaSummary`, `executeOpenVacancies`, `executeEmplocQueueStatus`, `executeHeadcountRequests`).
+   - For exact-match / ID lookups in `src/lib/queries/hr_emploc.ts` (`checkEcosystemEmployeeIdUnique`) and `src/lib/queries/plantilla.ts` (store allocations and schedule updates), inputs with delimiter characters are rejected or queried via safe `.eq()` fallbacks without transforming the input value.
+2. **Web-Access Guard on `/api/ohmni` (`src/app/api/ohmni/route.ts`)**:
+   - Gated the route immediately after Bearer token validation with `supabase.rpc("get_web_current_user_context")`.
+   - Verified that `access_status === "allowed"` and profile is active. On RPC error or unauthorized role/status, fails closed with HTTP 403 Forbidden before initiating Gemini streaming or executing any tool calls.
+3. **CSV Formula Injection Defense (`src/lib/utils/reports_export.ts`)**:
+   - Added `escapeCsvCell(val)` inside `exportToCsv`.
+   - Checks string values starting with formula prefix triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) and prefixes a single quote (`'`), neutralizing executable commands in Microsoft Excel / Google Sheets.
+   - Strictly exempts pure-numeric strings (`/^[+-]?\d+(\.\d+)?$/`) and non-string cells (numbers, dates, booleans), leaving `exportToXlsx` untouched.
+4. **Login Page Dead Link Cleanup (`src/app/(auth)/login/page.tsx`)**:
+   - Removed the broken `<a href="/forgot-password">Forgot?</a>` link which had no matching route and triggered 404 errors.
+5. **Lint & Test Suite**:
+   - Added `src/lib/utils/__tests__/security_hardening.test.mjs` verifying edge cases for `sanitizeOrTerm`.
+   - Updated `eslint.config.mjs` to ignore `.agents/**` so local skills are not evaluated as project source.
+   - Verified `pnpm lint` clean (0 errors) and `pnpm test` (28/28 tests passed).
+
+### 2. Verification Results
+- `pnpm lint`: PASSED (0 errors, 5 pre-existing warnings in `UsersTable.tsx` and `VacancyTable.tsx`).
+- `pnpm test`: PASSED (28 tests passed across normalizers, errors, image compression, and security hardening).
+- Branch: `main` (clean working directory, no branch created).
+
+---
+
 ## Execution Report — Clickable MIKA Import History with Rows Preview Modal (ohm#k3n9m7v2)
 
 **Status: COMPLETE ON MAIN; ENHANCED MIKA IMPORT HISTORY VIEW (`src/components/more/MikaImportModal.tsx`); MADE HISTORICAL BATCH LOG ROWS CLICKABLE WITH HOVER AFFORDANCE; INTEGRATED DEDICATED `Modal` PREVIEW DIALOG DISPLAYING BATCH TELEMETRY, METRIC BADGES (TOTAL, MATCHED, GHOST, BLOCKED), AND A FULL SCROLLABLE ROWS PREVIEW TABLE (`Emp No`, `Name`, `Account`, `Position`, `Status badge`, `Remarks / Reason`) HYDRATED VIA `useMikaImportRowsQuery`; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

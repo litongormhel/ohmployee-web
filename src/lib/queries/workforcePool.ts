@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { sanitizeOrTerm } from "@/lib/utils/postgrest";
 
 // ---------------------------------------------------------------------------
 // TypeScript Interfaces
@@ -344,8 +345,10 @@ export async function fetchPoolEmployees(params?: {
   }
 
   if (params?.search && params.search.trim()) {
-    const s = params.search.trim();
-    query = query.or(`full_name.ilike.%${s}%,employee_name.ilike.%${s}%,employee_no.ilike.%${s}%,vcode.ilike.%${s}%,position.ilike.%${s}%,primary_deployment_store.ilike.%${s}%`);
+    const s = sanitizeOrTerm(params.search);
+    if (s) {
+      query = query.or(`full_name.ilike.%${s}%,employee_name.ilike.%${s}%,employee_no.ilike.%${s}%,vcode.ilike.%${s}%,position.ilike.%${s}%,primary_deployment_store.ilike.%${s}%`);
+    }
   }
 
   const { data, error } = await query.order("full_name", { ascending: true });

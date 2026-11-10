@@ -9,6 +9,7 @@ import {
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { createScopedServerClient } from "@/lib/supabase/server";
+import { sanitizeOrTerm } from "@/lib/utils/postgrest";
 
 export const runtime = "nodejs";
 
@@ -88,22 +89,29 @@ async function resolveGroupFilter(
 
   let groupIds: string[] = [];
   try {
-    const orConds = [`group_name.ilike.%${trimmed}%`];
-    if (groupCodePattern) {
-      orConds.push(`group_name.ilike.%${groupCodePattern}%`);
+    const cleanTrimmed = sanitizeOrTerm(trimmed);
+    const cleanPattern = sanitizeOrTerm(groupCodePattern);
+    const orConds: string[] = [];
+    if (cleanTrimmed) {
+      orConds.push(`group_name.ilike.%${cleanTrimmed}%`);
+    }
+    if (cleanPattern) {
+      orConds.push(`group_name.ilike.%${cleanPattern}%`);
       if (groupMatch) {
-        orConds.push(`group_name.ilike.%Group ${groupMatch[1]}%`);
+        orConds.push(`group_name.ilike.%Group ${sanitizeOrTerm(groupMatch[1])}%`);
       }
     }
-    const { data: grpData } = await supabase
-      .from("groups")
-      .select("id")
-      .or(orConds.join(","));
+    if (orConds.length > 0) {
+      const { data: grpData } = await supabase
+        .from("groups")
+        .select("id")
+        .or(orConds.join(","));
 
-    if (grpData && grpData.length > 0) {
-      groupIds = grpData
-        .map((g: { id: string }) => g.id)
-        .filter(Boolean);
+      if (grpData && grpData.length > 0) {
+        groupIds = grpData
+          .map((g: { id: string }) => g.id)
+          .filter(Boolean);
+      }
     }
   } catch {
     // non-blocking fallback
@@ -278,20 +286,31 @@ async function executePlantillaSummary(
 
       if (resolvedGroup) {
         const groupOrParts: string[] = [];
-        if (resolvedGroup.groupCodePattern) {
-          groupOrParts.push(`legacy_vcode.ilike.%${resolvedGroup.groupCodePattern}%`);
+        const cleanPattern = sanitizeOrTerm(resolvedGroup.groupCodePattern);
+        const cleanText = sanitizeOrTerm(resolvedGroup.cleanText);
+        if (cleanPattern) {
+          groupOrParts.push(`legacy_vcode.ilike.%${cleanPattern}%`);
         }
-        groupOrParts.push(`legacy_vcode.ilike.%${resolvedGroup.cleanText}%`);
+        if (cleanText) {
+          groupOrParts.push(`legacy_vcode.ilike.%${cleanText}%`);
+        }
         for (const gid of resolvedGroup.groupIds) {
-          groupOrParts.push(`group_id.eq.${gid}`);
+          if (!/[,()"\\]/.test(gid)) {
+            groupOrParts.push(`group_id.eq.${gid}`);
+          }
         }
-        query = query.or(groupOrParts.join(","));
+        if (groupOrParts.length > 0) {
+          query = query.or(groupOrParts.join(","));
+        }
       }
 
       if (branchFilter && !looksLikeGroup) {
-        query = query.or(
-          `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
-        );
+        const cleanBranch = sanitizeOrTerm(branchFilter);
+        if (cleanBranch) {
+          query = query.or(
+            `legacy_vcode.ilike.%${cleanBranch}%,position.ilike.%${cleanBranch}%`
+          );
+        }
       }
 
       // Synchronously applied chaining: query is never unwrapped via an async return
@@ -387,18 +406,29 @@ async function executeOpenVacancies(
         query = query.eq("account_id", resolvedAccount.id);
       } else if (resolvedGroup) {
         const groupOrParts: string[] = [];
-        if (resolvedGroup.groupCodePattern) {
-          groupOrParts.push(`legacy_vcode.ilike.%${resolvedGroup.groupCodePattern}%`);
+        const cleanPattern = sanitizeOrTerm(resolvedGroup.groupCodePattern);
+        const cleanText = sanitizeOrTerm(resolvedGroup.cleanText);
+        if (cleanPattern) {
+          groupOrParts.push(`legacy_vcode.ilike.%${cleanPattern}%`);
         }
-        groupOrParts.push(`legacy_vcode.ilike.%${resolvedGroup.cleanText}%`);
+        if (cleanText) {
+          groupOrParts.push(`legacy_vcode.ilike.%${cleanText}%`);
+        }
         for (const gid of resolvedGroup.groupIds) {
-          groupOrParts.push(`group_id.eq.${gid}`);
+          if (!/[,()"\\]/.test(gid)) {
+            groupOrParts.push(`group_id.eq.${gid}`);
+          }
         }
-        query = query.or(groupOrParts.join(","));
+        if (groupOrParts.length > 0) {
+          query = query.or(groupOrParts.join(","));
+        }
       } else if (branchFilter && !looksLikeGroup) {
-        query = query.or(
-          `legacy_vcode.ilike.%${branchFilter}%,position.ilike.%${branchFilter}%`
-        );
+        const cleanBranch = sanitizeOrTerm(branchFilter);
+        if (cleanBranch) {
+          query = query.or(
+            `legacy_vcode.ilike.%${cleanBranch}%,position.ilike.%${cleanBranch}%`
+          );
+        }
       }
 
       // Synchronously applied chaining
@@ -451,9 +481,12 @@ async function executeEmplocQueueStatus(
         .is("deleted_at", null);
 
       if (employeeFilter) {
-        query = query.or(
-          `applicant_name.ilike.%${employeeFilter}%,employee_no.ilike.%${employeeFilter}%`
-        );
+        const cleanEmp = sanitizeOrTerm(employeeFilter);
+        if (cleanEmp) {
+          query = query.or(
+            `applicant_name.ilike.%${cleanEmp}%,employee_no.ilike.%${cleanEmp}%`
+          );
+        }
       }
       if (statusFilter) {
         query = query.ilike("status", `%${statusFilter}%`);
@@ -522,9 +555,12 @@ async function executeHeadcountRequests(
         query = query.ilike("status", `%${statusFilter}%`);
       }
       if (branchFilter) {
-        query = query.or(
-          `store_name_snapshot.ilike.%${branchFilter}%,account_name_snapshot.ilike.%${branchFilter}%`
-        );
+        const cleanBranch = sanitizeOrTerm(branchFilter);
+        if (cleanBranch) {
+          query = query.or(
+            `store_name_snapshot.ilike.%${cleanBranch}%,account_name_snapshot.ilike.%${cleanBranch}%`
+          );
+        }
       }
 
       const { data, error } = await query
@@ -838,6 +874,52 @@ export async function POST(req: Request) {
       }),
       {
         status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  // Active web profile & role guard: fail closed on RPC error or unauthorized access
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_web_current_user_context");
+    if (rpcError) {
+      console.error("[OHMni Auth] get_web_current_user_context RPC failure:", rpcError);
+      return new Response(
+        JSON.stringify({
+          error: "Forbidden. Access check unavailable.",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const rpcRow = Array.isArray(rpcData)
+      ? (rpcData[0] as Record<string, unknown> | undefined)
+      : (rpcData as Record<string, unknown> | null);
+
+    const accessStatus = rpcRow?.access_status ?? rpcRow?.status;
+    if (!rpcRow || accessStatus !== "allowed") {
+      console.warn("[OHMni Auth] User access blocked by web policy:", accessStatus);
+      return new Response(
+        JSON.stringify({
+          error: "Forbidden. Your account is not authorized for OHMni Web access.",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  } catch (err) {
+    console.error("[OHMni Auth] Unexpected failure verifying web access:", err);
+    return new Response(
+      JSON.stringify({
+        error: "Forbidden. Access verification error.",
+      }),
+      {
+        status: 403,
         headers: { "Content-Type": "application/json" },
       }
     );

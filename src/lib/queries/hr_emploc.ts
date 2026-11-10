@@ -1394,6 +1394,11 @@ export async function checkEcosystemEmployeeIdUnique(
     return { isUnique: false, message: "Employee ID is required." };
   }
 
+  // Reject inputs containing delimiter characters to prevent PostgREST query injection
+  if (/[,()"\\]/.test(cleanId) || (excludeHrEmplocId && /[,()"\\]/.test(excludeHrEmplocId))) {
+    return { isUnique: false, message: "Invalid characters in Employee ID." };
+  }
+
   const supabase = createClient();
 
   // 1. Try SECURITY DEFINER RPC first
