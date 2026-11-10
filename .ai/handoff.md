@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Hydrate Deactivation & Separation Audit Events in Profile Lifecycle Timeline (ohm#a7m4p2k8)
+
+**Status: COMPLETE ON MAIN; LIFECYCLE AUDIT TIMELINE HYDRATED AND RESTORED FOR PROFILE ACTIVITY TAB (`/plantilla/[id]`); DEACTIVATION EVENTS (FROM `employee_deactivation_audit_log` / `employee_deactivation_requests` / DIRECT `plantilla` MILESTONES), SEPARATION EVENTS, AND DEPLOYMENT MILESTONES RENDER CHRONOLOGICALLY WITH COLOR-CODED ICONS AND JUSTIFICATION DETAILS; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**
+
+### 1. Refactor Summary
+1. **Root Cause Analysis**:
+   - The primary database RPC `get_web_plantilla_detail` does not return an `audit_timeline` column.
+   - When normalizing employee details in `getWebPlantillaDetail` (`src/lib/queries/plantilla.ts`), `auditTimeline` defaulted to an empty array (`[]`).
+   - In `/plantilla/[id]` (`src/app/(dashboard)/plantilla/[id]/page.tsx`), the Activity tab had a static fallback rendering only a single hardcoded line: `Personnel deployed to Plantilla — Store`, omitting all deactivation, offboarding, and separation events.
+2. **Resilient Audit Timeline Aggregator (`getWebPlantillaDetail` in `src/lib/queries/plantilla.ts`)**:
+   - Before returning normalized details, aggregated audit milestones across four robust tiers:
+     - **Deactivation Audit Logs**: Queried `public.employee_deactivation_audit_log` for the employee's `plantilla_id`, capturing `REQUEST_CREATED`, `APPROVED` (final deactivation), `REJECTED`, `RESUBMITTED`, and `ARCHIVED` with performer profile and justification reason.
+     - **Deactivation Requests**: Queried `public.employee_deactivation_requests` to capture pending/approved request milestones and recorded justification reasons.
+     - **Direct Plantilla Record Milestones**: Checked `plantilla.deactivated_at`, `plantilla.for_deactivation_at`, `plantilla.date_of_separation`, `plantilla.separation_status`, `plantilla.remarks`, and `plantilla.deactivation_reason` as resilient fallbacks if audit tables lacked explicit records.
+     - **Initial Deployment Milestone**: Ensured the initial store deployment milestone (`Personnel deployed to Plantilla — {Store}`) is preserved.
+   - Sorted all timeline events in descending chronological order (newest first).
+3. **Visual Timeline Enhancements (`src/app/(dashboard)/plantilla/[id]/page.tsx`)**:
+   - Assigned semantic icons and color-coded badges per event type:
+     - **Personnel Deactivated**: Rose badge (`bg-rose-50 border-rose-200 text-rose-700`) with `UserMinus` icon.
+     - **Deactivation Requested**: Amber badge (`bg-amber-50 border-amber-200 text-amber-700`) with `AlertTriangle` icon.
+     - **Personnel Separated**: Orange badge (`bg-orange-50 border-orange-200 text-orange-700`) with `UserX` icon.
+     - **Personnel Deployed**: Blue badge (`bg-brand-50 border-brand-200 text-brand-700`) with `Store` icon.
+
+### 2. Verification Results
+- `npm run lint`: PASSED (0 errors, 5 pre-existing warnings in unrelated files).
+- Branch: `main` (clean working directory, zero unapproved changes).
+
+---
+
 ## Execution Report — Lock Profile Actions and Mutation Controls for Deactivated Personnel (ohm#d3a8k1p9)
 
 **Status: COMPLETE ON MAIN; COMPREHENSIVE ACTION & MUTATION LOCK IMPLEMENTED FOR DEACTIVATED EMPLOYEES ON DEDICATED PROFILE VIEW (`/plantilla/[id]`); UPDATE EMPLOYMENT STATUS, TRANSFER, REASSIGN HRCO, REQUEST DEACTIVATION, REQUEST DELETION, EDIT SCHEDULE & ALLOCATIONS, AND SYNC FROM MIKA ALL PROPERLY DISABLED WITH VISUAL MUTED STYLING AND READ-ONLY OFFBOARDING NOTICE; MECHANICAL GATES CLEAN (`npm run lint`: 0 ERRORS)**

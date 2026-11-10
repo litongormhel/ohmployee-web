@@ -25,6 +25,7 @@ import {
   User,
   UserCheck,
   UserMinus,
+  UserX,
   AlertTriangle,
   CheckCircle2,
   FileText,
@@ -1191,40 +1192,57 @@ function PlantillaEmployeeDetailContent() {
 
                   <div className="space-y-3">
                     {data.auditTimeline && data.auditTimeline.length > 0 ? (
-                      data.auditTimeline.map((item) => (
-                        <div
-                          key={item.stableKey}
-                          className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-start gap-3.5"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shrink-0 mt-0.5 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
-                            <Store className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h4 className="text-xs font-bold text-text-primary">
-                                {item.eventLabel}
-                              </h4>
-                              <span className="text-[11px] text-text-muted">
-                                {formatEventDate(item.createdAt)}
-                              </span>
+                      data.auditTimeline.map((item) => {
+                        const l = item.eventLabel.toLowerCase();
+                        let iconBadgeClass = "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300";
+                        let IconComponent = Store;
+
+                        if (l.includes("deactivated")) {
+                          iconBadgeClass = "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300";
+                          IconComponent = UserMinus;
+                        } else if (l.includes("deactivation") || l.includes("pending")) {
+                          iconBadgeClass = "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300";
+                          IconComponent = AlertTriangle;
+                        } else if (l.includes("separated") || l.includes("resigned") || l.includes("awol") || l.includes("terminated")) {
+                          iconBadgeClass = "bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-300";
+                          IconComponent = UserX;
+                        }
+
+                        return (
+                          <div
+                            key={item.stableKey}
+                            className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-start gap-3.5"
+                          >
+                            <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${iconBadgeClass}`}>
+                              <IconComponent className="w-4 h-4" />
                             </div>
-                            {item.eventDescription && (
-                              <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                                {item.eventDescription}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 mt-1.5 text-[11px] text-text-muted">
-                              {item.profileName && <span>By: {item.profileName}</span>}
-                              {data.vcode && (
-                                <>
-                                  <span>•</span>
-                                  <span className="font-mono text-brand-primary">{data.vcode}</span>
-                                </>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h4 className="text-xs font-bold text-text-primary">
+                                  {item.eventLabel}
+                                </h4>
+                                <span className="text-[11px] text-text-muted font-mono">
+                                  {formatEventDate(item.createdAt)}
+                                </span>
+                              </div>
+                              {item.eventDescription && (
+                                <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                                  {item.eventDescription}
+                                </p>
                               )}
+                              <div className="flex items-center gap-2 mt-1.5 text-[11px] text-text-muted">
+                                {item.profileName && <span>By: {item.profileName}</span>}
+                                {data.vcode && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="font-mono text-brand-primary">{data.vcode}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="p-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-start gap-3.5">
                         <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shrink-0 mt-0.5 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">
@@ -1234,7 +1252,7 @@ function PlantillaEmployeeDetailContent() {
                           <h4 className="text-xs font-bold text-text-primary">
                             Personnel deployed to Plantilla — {data.primaryStoreName || data.vcode || "Store"}
                           </h4>
-                          <p className="text-[11px] text-text-muted mt-0.5">
+                          <p className="text-[11px] text-text-muted mt-0.5 font-mono">
                             {formatEventDate(data.dateDeployed || data.dateHired)}
                           </p>
                         </div>

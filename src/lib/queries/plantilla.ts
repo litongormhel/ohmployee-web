@@ -2104,6 +2104,186 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     ];
   }
 
+  // -------------------------------------------------------------------------
+  // Resilient Audit Timeline Aggregator
+  // Hydrates deactivation, separation, and deployment events
+  // -------------------------------------------------------------------------
+  try {
+    const timelineItems: PlantillaAuditTimelineItem[] = [...normalized.auditTimeline];
+
+    // 1. Check employee_deactivation_audit_log for authoritative deactivation trail
+    try {
+      const { data: deactLogs } = await supabase
+        .from("employee_deactivation_audit_log")
+        .select("id, action, performed_at, metadata")
+        .eq("plantilla_id", normalized.id)
+        .order("performed_at", { ascending: false });
+
+      if (deactLogs && deactLogs.length > 0) {
+        for (const dLog of deactLogs) {
+          const action = asString(dLog.action);
+          let eventLabel = "Deactivation Event";
+          let eventDescription = "Personnel offboarding audit event.";
+          const meta = asObject(dLog.metadata);
+          const reason = asString(meta.reason ?? meta.deactivation_reason ?? meta.remarks);
+
+          if (action === "REQUEST_CREATED") {
+            eventLabel = "Deactivation Requested";
+            eventDescription = reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.";
+          } else if (action === "APPROVED") {
+            eventLabel = "Personnel Deactivated";
+            eventDescription = reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.";
+          } else if (action === "REJECTED") {
+            eventLabel = "Deactivation Request Rejected";
+            eventDescription = reason ? `Rejection rationale: ${reason}` : "Deactivation request was rejected.";
+          } else if (action === "RESUBMITTED") {
+            eventLabel = "Deactivation Request Resubmitted";
+            eventDescription = reason ? `Resubmission note: ${reason}` : "Deactivation request resubmitted.";
+          } else if (action === "ARCHIVED") {
+            eventLabel = "Personnel Archived";
+            eventDescription = "Personnel offboarding archive finalized.";
+          }
+
+          timelineItems.push({
+            stableKey: `deact-log-${dLog.id}`,
+            eventId: asString(dLog.id) || "",
+            eventLabel,
+            eventDescription,
+            createdAt: asString(dLog.performed_at),
+            profileName: asString(meta.performed_by_name ?? meta.performer_name),
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] employee_deactivation_audit_log query exception:", err);
+    }
+
+    // 2. Check employee_deactivation_requests
+    try {
+      const { data: deactReqs } = await supabase
+        .from("employee_deactivation_requests")
+        .select("id, status, created_at, updated_at, reason, remarks")
+        .eq("plantilla_id", normalized.id)
+        .order("created_at", { ascending: false });
+
+      if (deactReqs && deactReqs.length > 0) {
+        for (const req of deactReqs) {
+          const reqStatus = asString(req.status);
+          const reason = asString(req.reason ?? req.remarks);
+          if (
+            (reqStatus === "Approved" || reqStatus === "Deactivated") &&
+            !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")
+          ) {
+            timelineItems.push({
+              stableKey: `deact-req-appr-${req.id}`,
+              eventId: asString(req.id) || "",
+              eventLabel: "Personnel Deactivated",
+              eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
+              createdAt: asString(req.updated_at ?? req.created_at),
+              profileName: null,
+            });
+          }
+          if (!timelineItems.some((t) => t.eventLabel === "Deactivation Requested")) {
+            timelineItems.push({
+              stableKey: `deact-req-${req.id}`,
+              eventId: asString(req.id) || "",
+              eventLabel: "Deactivation Requested",
+              eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
+              createdAt: asString(req.created_at),
+              profileName: null,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] employee_deactivation_requests query exception:", err);
+    }
+
+    // 3. Fallback to direct plantilla record milestones (deactivated_at, for_deactivation_at, date_of_separation)
+    try {
+      const { data: pRec } = await supabase
+        .from("plantilla")
+        .select("deactivated_at, for_deactivation_at, inactive_at, date_of_separation, separation_status, remarks, deactivation_reason, status, date_deployed, date_hired, updated_at")
+        .eq(isUuid ? "id" : "employee_no", plantillaId)
+        .maybeSingle();
+
+      if (pRec) {
+        const s = asString(pRec.status)?.toLowerCase() ?? "";
+        const isDeact = s === "deactivated" || s.includes("deactivated") || Boolean(pRec.deactivated_at);
+        const reason = asString(pRec.deactivation_reason ?? pRec.remarks);
+
+        // Deactivated milestone
+        if (isDeact && !timelineItems.some((t) => t.eventLabel === "Personnel Deactivated")) {
+          timelineItems.push({
+            stableKey: `plantilla-deact-${normalized.id}`,
+            eventId: "deactivated",
+            eventLabel: "Personnel Deactivated",
+            eventDescription: reason ? `Deactivation finalized (${reason})` : "Personnel successfully deactivated and offboarded.",
+            createdAt: asString(pRec.deactivated_at ?? pRec.inactive_at ?? pRec.updated_at ?? normalized.dateDeployed ?? new Date().toISOString()),
+            profileName: null,
+          });
+        }
+
+        // Deactivation requested milestone
+        if (
+          (pRec.for_deactivation_at || s.includes("pending") || s.includes("for deactivation")) &&
+          !timelineItems.some((t) => t.eventLabel === "Deactivation Requested")
+        ) {
+          timelineItems.push({
+            stableKey: `plantilla-for-deact-${normalized.id}`,
+            eventId: "for-deactivation",
+            eventLabel: "Deactivation Requested",
+            eventDescription: reason ? `Reason: ${reason}` : "Deactivation request submitted for operations review.",
+            createdAt: asString(pRec.for_deactivation_at ?? pRec.inactive_at ?? normalized.dateDeployed),
+            profileName: null,
+          });
+        }
+
+        // Separation milestone
+        const sepStatus = asString(pRec.separation_status);
+        if (
+          (sepStatus || pRec.date_of_separation) &&
+          !timelineItems.some((t) => t.eventLabel.startsWith("Personnel Separated"))
+        ) {
+          const sepLabel = sepStatus || (s === "resigned" ? "Resigned" : s === "awol" ? "AWOL" : s === "terminated" ? "Terminated" : "Separated");
+          timelineItems.push({
+            stableKey: `plantilla-sep-${normalized.id}`,
+            eventId: "separated",
+            eventLabel: `Personnel Separated (${sepLabel})`,
+            eventDescription: reason ? `Remarks: ${reason}` : `Personnel marked as ${sepLabel}.`,
+            createdAt: asString(pRec.date_of_separation ?? pRec.inactive_at ?? pRec.deactivated_at),
+            profileName: null,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("[Plantilla] direct plantilla audit query exception:", err);
+    }
+
+    // 4. Initial store deployment milestone
+    if (!timelineItems.some((t) => t.eventLabel.startsWith("Personnel deployed to Plantilla"))) {
+      timelineItems.push({
+        stableKey: `deployed-${normalized.id}`,
+        eventId: "deployed",
+        eventLabel: `Personnel deployed to Plantilla — ${normalized.primaryStoreName || normalized.vcode || "Store"}`,
+        eventDescription: "Initial operational deployment to store branch.",
+        createdAt: asString(normalized.dateDeployed || normalized.dateHired),
+        profileName: null,
+      });
+    }
+
+    // 5. Sort newest first (descending)
+    timelineItems.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    normalized.auditTimeline = timelineItems;
+  } catch (err) {
+    console.warn("[Plantilla] audit timeline aggregation exception:", err);
+  }
+
   return normalized;
 }
 
