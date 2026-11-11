@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — Clean Up Orphan Stores, Ghost Vacancies, and Enforce Store Closure Lifecycle (ohm#x8p1v7m3)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); INVESTIGATED AND RESOLVED SYSTEMIC ORPHAN STORE AND GHOST VACANCY GENERATION IN PLANTILLA AND STORE CAPACITY VIEWS; ROOT CAUSE: (1) APPROVAL OF STORE CLOSURE VACANCY REQUESTS ("STORE CLOSED / OUTLET CEASED OPERATIONS") PREVIOUSLY ONLY UPDATED `public.vacancies`, LEAVING PHYSICAL STORES IN `public.stores` MARKED `is_active = true` AND DANGLING SLOTS IN `public.plantilla_slots` MARKED `open`; (2) CLIENT-SIDE SYNTHETIC VACANCY GENERATOR IN `src/app/(dashboard)/plantilla/page.tsx` UNCONDITIONALLY RESURRECTED OPEN VACANCY CARDS WITH HARDCODED `hrcoName: "—"` FOR INACTIVE EMPLOYEES (`FE DELA CRUZ`, `JETBOY DELA CRUZ`) REGARDLESS OF WHETHER THE STORE OR VACANCY WAS OFFICIALLY CLOSED; (3) ACTIVE EMPLOYEE `KIMI ANTONELLI` HAD A VCODE MISMATCH (`TEST007` INSTEAD OF `TEST009`); APPLIED STANDALONE MIGRATION `supabase/migrations/20262606000097_fix_orphan_stores_and_closure_lifecycle.sql` WHICH ARCHIVED CLOSED STORES (`SUPER 7`, `SUPER 10`, `S8 BANGAE`, AND OTHER CLOSED OUTLETS), CLOSED DANGLING SLOTS IN `plantilla_slots`, CORRECTED KIMI ANTONELLI'S VCODE TO `TEST009`, AND ENHANCED TRIGGER FUNCTION `handle_closure_approval` TO AUTOMATICALLY ARCHIVE STORES AND CLOSE SLOTS UPON FUTURE CLOSURE APPROVALS; HARDENED `src/app/(dashboard)/plantilla/page.tsx` WITH `closedVcodesQuery` AND STORE LOOKUP GUARDS TO PERMANENTLY SUPPRESS GHOST VACANCY SYNTHESIS FOR CLOSED OUTLETS; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Vacancy Closure Lifecycle**:
+   - In `public.handle_closure_approval()`, approving a closure request set `public.vacancies.status = 'Closed'` and `is_archived = true`, but omitted any update to `public.stores` and `public.plantilla_slots`.
+   - Consequently, outlets that ceased operations (`SUPER 7`, `SUPER 10`, `SM Megamall`, `SM Fairview`, `Gateway Mall`) remained `is_active = true, status = 'active'` in `public.stores`, while their slots remained `slot_status = 'open'`.
+2. **Ghost Vacancy Synthesis in Plantilla UI**:
+   - In `src/app/(dashboard)/plantilla/page.tsx` (lines 1196–1255), the frontend looped over `inactiveEmployees` and synthesized open vacancy objects for any vcode without active occupants.
+   - Because `list_web_vacancies` filters out archived vacancies, closed vcodes were absent from `seenVcodes`. The client-side logic assumed they were unrequisitioned open slots and created synthetic cards with `id: vac-inactive-${emp.id}` and hardcoded `hrcoName: "—"`.
+   - Because these were synthetic frontend objects without backend IDs, they lacked the "Request Closure / Deletion" action and polluted both the Vacancy tab and the Store Capacity table.
+3. **Data Mismatches in Staging**:
+   - Active employee `Kimi Antonelli` (`2026-136256`) was deployed to `SUPER 9` (`1307caef-2f7b-4734-ac44-4032b853864a`) but carried legacy `vcode: 'TEST007'`.
+   - Slot `c1060d20-fd7f-4dcd-b82b-03a5bf24d3f5` (`TEST007`) remained `slot_status = 'open'` despite closure approval.
+
+### 2. Changes Made
+1. **Database Migration (`supabase/migrations/20262606000097_fix_orphan_stores_and_closure_lifecycle.sql`)**:
+   - **Orphan Stores Cleanup**: Updated `public.stores` setting `is_active = false, is_archived = true, status = 'archived', updated_at = NOW()` for `TEST007`, `TEST010`, `BK-G1-0053`, `ACT-G5-001`, `ACT-G5-003`, `ACT-G5-005`, `ACT-G5-007`, `ACT-G5-009`, `VCSSG2_1600`, and explicitly targeting IDs for `SUPER 7`, `SUPER 10`, and `S8 BANGAE`.
+   - **Slot Reconciliation**: Updated `public.plantilla_slots` setting `slot_status = 'closed', closure_reason_code = 'STORE_CLOSED', updated_at = NOW()` for all open/pipeline slots tied to these closed vcodes.
+   - **VCode Alignment**: Updated `public.plantilla` setting `vcode = 'TEST009'` for `Kimi Antonelli` (`employee_no = '2026-136256'`).
+   - **Trigger Upgrade**: Updated `public.handle_closure_approval()` to automatically cascade future vacancy closure approvals:
+     - Deactivates & archives the corresponding store in `public.stores` if the closure reason indicates store/outlet closure.
+     - Closes all matching open/pipeline slots in `public.plantilla_slots` with `closure_reason_code = 'STORE_CLOSED'` or `'VACANCY_CLOSED'`.
+   - Pushed cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`. Verified live diff of `handle_closure_approval` matches committed migration 100%.
+2. **Frontend Safeguards (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Added `closedVcodesQuery` to fetch all closed and archived vcodes under the active account.
+   - Updated `storesUnderAccountQuery` and `unmappedStoresQuery` to filter `.eq("is_archived", false)`.
+   - Updated `allVacancies` synthesizer:
+     - Checks `closedVcodes.has(vk)` and immediately aborts synthesis for archived/closed vcodes.
+     - Checks `storeLookupMap.get(storeNameKey)` and immediately aborts synthesis if the employee's store is inactive, archived, or not active under the account.
+     - Enriches `storeId` and `storeLocation` from the active store record.
+3. **Documentation & State**:
+   - Updated `docs/state/plantilla_web_state.md` (§ Tab 3 Archived & Closed Outlet Protection).
+   - Updated `.ai/briefing.md` (§ Last Completed Tasks).
+
+### 3. Verification & Live Parity
+- Staging live checks:
+  - `stores`: `SUPER 7`, `SUPER 10`, `S8 BANGAE` confirmed `is_active: false`, `is_archived: true`, `status: 'archived'`.
+  - `plantilla_slots`: Slots for `TEST007` and `TEST010` confirmed `slot_status: 'closed'` with reason `STORE_CLOSED`.
+  - `plantilla`: `Kimi Antonelli` confirmed `vcode: 'TEST009'` and `store_name: 'SUPER 9'`.
+- Code Verification Gates:
+  - `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+  - `npm test`: 211/211 tests passing.
+  - `npm run build`: Next.js 16.2.4 compiled all 20 static and dynamic routes cleanly with exit code 0.
+
+---
+
 ## Execution Report — Establish User Management as Authoritative HRCO Source of Truth (ohm#u7m4s1t9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); AUDITED HRCO RESOLUTION ARCHITECTURE PER USER DIRECTIVE THAT USER MANAGEMENT (`public.user_scopes` + `public.users_profile` WITH ROLE `HRCO`) MUST OPERATE AS THE SINGLE SOURCE OF TRUTH; IDENTIFIED ROOT CAUSES FOR BANKO ACCOUNT AND GENERAL HRCO RESOLUTION: (1) `vw_vacancy_list` PRIORITIZED STATIC COLUMNS (`v.hrco_user_id`, `st.hrco_user_id`, `a.hrco_user_id`) BEFORE `user_scopes`, RISKING STALE HRCO RESOLUTION; (2) `v_plantilla_safe` RELIED ON LEGACY STATIC TEXT COLUMNS (`p.coordinator`, `p.hrco_name`) AND FAILED TO DYNAMICALLY DERIVE CURRENT HRCO FROM ACCOUNT USER SCOPES; (3) `public.accounts.hrco_user_id` WAS NOT SYNCHRONIZED AUTOMATICALLY WHEN SCOPES WERE MODIFIED IN USER MANAGEMENT; CREATED AND DEPLOYED MIGRATION `supabase/migrations/20262606000096_user_management_as_hrco_source_of_truth.sql` WHICH (A) ELEVATES `user_scopes` BY ACCOUNT AND GROUP AS PRIORITY #1 IN `vw_vacancy_list`, (B) ADDS DYNAMIC USER MANAGEMENT HRCO RESOLUTION TO `v_plantilla_safe`, AND (C) ENHANCES `fn_reevaluate_hrco_auto_tags` TO AUTO-SYNC `public.accounts.hrco_user_id`; VERIFIED LIVE PARITY: BANKO ACCOUNT IN STAGING DYNAMICALLY RESOLVES JANE BILARO ACROSS `accounts`, `vw_vacancy_list`, AND `v_plantilla_safe`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

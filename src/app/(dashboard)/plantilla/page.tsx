@@ -864,6 +864,7 @@ function PlantillaPageContent() {
         .select("id, store_name, vcode, area_city, area_province, province")
         .eq("account_id", accountId)
         .eq("is_active", true)
+        .eq("is_archived", false)
         .order("store_name");
       if (error) throw error;
       return (data ?? []).map((s) => ({
@@ -1021,6 +1022,27 @@ function PlantillaPageContent() {
       }),
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
+  });
+
+  // Query closed/archived vacancy codes under current account so synthetic vacancies never resurrect dead slots
+  const closedVcodesQuery = useQuery({
+    queryKey: ["plantilla", "closed-vcodes", accountId],
+    queryFn: async () => {
+      if (!accountId) return new Set<string>();
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("vacancies")
+        .select("vcode")
+        .eq("account_id", accountId)
+        .or("is_archived.eq.true,status.in.(Closed,Archived)");
+      const set = new Set<string>();
+      (data ?? []).forEach((r) => {
+        if (r.vcode) set.add(r.vcode.trim().toUpperCase());
+      });
+      return set;
+    },
+    enabled: !!accountId && isAccountAuthorized,
+    staleTime: 60000,
   });
 
   // Store staffing query for Store Capacity Table
@@ -1194,14 +1216,22 @@ function PlantillaPageContent() {
     });
 
     // Synthesize open vacancy slots for inactive employees whose VCodes are not occupied by active personnel
+    // Guardrail: Never resurrect closed/archived vcodes or vacancies for inactive/archived stores
+    const closedVcodes = closedVcodesQuery.data ?? new Set<string>();
     const synthesized: VacancyListItem[] = [];
     inactiveEmployees.forEach((emp) => {
       const vk = (emp.vcode || "").trim().toUpperCase();
-      const isOccupiedByActive = vk ? activeOccupiedVcodes.has(vk) : false;
-      const alreadyInVacancies = vk ? seenVcodes.has(vk) : false;
+      if (!vk || closedVcodes.has(vk)) return;
+
+      const storeNameKey = (emp.primaryStoreName || "").toLowerCase().trim();
+      const storeInfo = storeNameKey ? storeLookupMap.get(storeNameKey) : null;
+      if (!storeInfo) return; // Do not synthesize for stores that are closed, archived, or not active under account
+
+      const isOccupiedByActive = activeOccupiedVcodes.has(vk);
+      const alreadyInVacancies = seenVcodes.has(vk);
 
       if (!isOccupiedByActive && !alreadyInVacancies) {
-        if (vk) seenVcodes.add(vk);
+        seenVcodes.add(vk);
         synthesized.push({
           id: `vac-inactive-${emp.id}`,
           vcode: emp.vcode || `VC-${emp.id.substring(0, 8).toUpperCase()}`,
@@ -1210,9 +1240,9 @@ function PlantillaPageContent() {
           accountName: emp.accountName || selectedAccount?.name || null,
           groupId: null,
           groupName: null,
-          storeId: null,
+          storeId: storeInfo.id || null,
           storeName: emp.primaryStoreName || null,
-          storeLocation: null,
+          storeLocation: [storeInfo.city, storeInfo.province].filter(Boolean).join(" • ") || null,
           position_title: emp.positionTitle || "Motorized Collector",
           department: null,
           employmentType: emp.assignmentType || "Stationary",
@@ -1254,7 +1284,15 @@ function PlantillaPageContent() {
     });
 
     return [...filtered, ...synthesized];
-  }, [vacancyListQuery.data?.data, activeOccupiedVcodes, inactiveEmployees, accountId, selectedAccount?.name]);
+  }, [
+    vacancyListQuery.data?.data,
+    activeOccupiedVcodes,
+    inactiveEmployees,
+    closedVcodesQuery.data,
+    storeLookupMap,
+    accountId,
+    selectedAccount?.name,
+  ]);
 
   const vacantStoreIds = useMemo(() => {
     const set = new Set<string>();
@@ -1371,6 +1409,8 @@ function PlantillaPageContent() {
         .from("stores")
         .select("id, store_name, vcode, area_city, area_province, province")
         .in("store_name", unmappedStoreNames)
+        .eq("is_active", true)
+        .eq("is_archived", false)
         .limit(50);
       if (error) {
         console.warn("Could not fetch unmapped stores metadata:", error);
