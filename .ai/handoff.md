@@ -1,5 +1,37 @@
 ﻿# AI Handoff
 
+## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; REPLACED 5-MINUTE SLIDING-WINDOW BATCHING IN public.fn_get_recent_activity WITH INDIVIDUAL 1-BY-1 EVENT PROJECTION PER DISTINCT OPERATIONAL UPDATE; REMOVED SAMPLES ACCORDION / DISCLOSURE BUTTON AND EXPANDABLE SAMPLES LIST FROM src/components/dashboard/RecentActivityFeed.tsx; REMOVED BATCHCOUNT > 1 AGGREGATED BRANCHES FROM src/lib/utils/activity_formatter.tsx SO ALL ACTIVITIES RENDER CLEAN SUBJECT-FIRST INDIVIDUAL SENTENCES; VERIFIED CLEANLY VIA pg_get_functiondef LIVE DIFF MATCHING COMMITTED MIGRATION, npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Implementation Details
+- **Database Function & Migration (`supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`):**
+  - Updated `public.fn_get_recent_activity`:
+    - Preserved authentication, RBAC jurisdiction filters, and same-instant multi-trigger deduplication (`PARTITION BY pe.timestamp, pe.entity_key` in `deduped` CTE to prevent double logs when both `plantilla` and `hr_emploc` record the same transition).
+    - Removed `bucketed` and `batched` CTEs that previously collapsed updates within a 5-minute clock window (`date_bin`) into grouped batches with up to 3 `samples`.
+    - Directly projects individual deduped candidate events (`LIMIT v_limit`), extracting individual `subject`, `employee_no`, `account_name`, `store_name`, `position`, `vcode`, and `target_role` per row.
+    - Fixed `batch_count` to 1 and `samples` to empty array `[]` to maintain 100% backward compatibility with consumer interfaces and RPC signature.
+  - Successfully applied to Staging (`qqiiznmqxfoamqytjica`) via Supabase migration tool; live `pg_get_functiondef` matches committed migration file exactly.
+- **Frontend Dashboard Feed (`src/components/dashboard/RecentActivityFeed.tsx`):**
+  - Removed `useState` hook for tracking expanded rows (`expandedIds`, `toggleExpand`).
+  - Removed `ChevronDown` import and the `"N sample(s) ▾"` toggle button.
+  - Removed the expandable sample subjects drawer/list.
+  - Preserved full-width compact layout, relative time formatting (`formatRelativeTime`), and Super Admin gated `"View all →"` link.
+- **Activity Sentence Formatter (`src/lib/utils/activity_formatter.tsx`):**
+  - Removed `batchCount > 1` branches across `plantilla_deployed`, `vacancy_opened`, `vacancy_filled`, `vacancy_closed`, `vacancy_reopened`, `emploc_for_correction`, `emploc_for_review`, `emploc_approved`, and `emploc_deployed`.
+  - Every activity now formats as an individual subject-first sentence (e.g. `"<Actor>: <Subject> [<Employee No>] transferred to Plantilla [<Account>]"`, `"<Actor>: updated status for <Subject> to On Leave [<Account>]"`, etc.).
+- **State Documentation (`docs/state/dashboard_state.md`):**
+  - Updated section 4.4 to document individual 1-by-1 event streaming and removal of samples disclosures.
+
+### 2. Verification
+- **Staging Database Verification:** Migration applied and verified via live `pg_get_functiondef` diff against `supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`.
+- `npm run lint`: Clean (0 errors, 5 preexisting warnings).
+- `npm test`: 209/209 tests passed (1209ms).
+- `npm run build`: Production build succeeded with Next.js 16.2.4 (Turbopack, exit code 0).
+- Local commit on `main`.
+
+---
+
 ## Execution Report — Make Inter (Antigravity Sans UI) Default Font in OHMployee Web (ohm#9n3k8w2r)
 
 **Status: COMPLETE ON MAIN; STANDARDIZED INTER (ANTIGRAVITY SANS UI) AS THE AUTHORITATIVE DEFAULT UI FONT ACROSS OHMEMPLOYEE WEB; UPDATED ROOT HTML ELEMENT ATTRIBUTES AND PRE-HYDRATION BOOTSTRAP SCRIPT IN src/app/layout.tsx WITH data-font="Inter" FALLBACK TO PREVENT FLASH OF UNSTYLED TEXT (FOUT); CONFIGURED RUNTIME CSS VARIABLES IN src/app/globals.css TO BIND --font-active-sans AND --font-sans TO var(--font-inter) AT :root LEVEL WITH CLEAN TAILWIND TOKEN INTEGRATION; UPDATED src/providers/ThemeProvider.tsx TO FALLBACK TO "Inter" SELECTION; SYNCHRONIZED ARCHITECTURE & DESIGN SYSTEM SPECIFICATIONS IN docs/architecture/ui-standard.md AND docs/state/web_target_state.md; PRESERVED USER CUSTOMIZATION (SETTINGS > PREFERENCES) AND ALL TECHNICAL MONOSPACE TOKENS (JETBRAINS MONO / DM MONO); VERIFIED CLEANLY VIA npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
@@ -5219,6 +5251,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; REPLACED 5-MINUTE SLIDING-WINDOW BATCHING IN public.fn_get_recent_activity WITH INDIVIDUAL 1-BY-1 EVENT PROJECTION PER DISTINCT OPERATIONAL UPDATE; REMOVED SAMPLES ACCORDION / DISCLOSURE BUTTON AND EXPANDABLE SAMPLES LIST FROM src/components/dashboard/RecentActivityFeed.tsx; REMOVED BATCHCOUNT > 1 AGGREGATED BRANCHES FROM src/lib/utils/activity_formatter.tsx SO ALL ACTIVITIES RENDER CLEAN SUBJECT-FIRST INDIVIDUAL SENTENCES; VERIFIED CLEANLY VIA pg_get_functiondef LIVE DIFF MATCHING COMMITTED MIGRATION, npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Implementation Details
+- **Database Function & Migration (`supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`):**
+  - Updated `public.fn_get_recent_activity`:
+    - Preserved authentication, RBAC jurisdiction filters, and same-instant multi-trigger deduplication (`PARTITION BY pe.timestamp, pe.entity_key` in `deduped` CTE to prevent double logs when both `plantilla` and `hr_emploc` record the same transition).
+    - Removed `bucketed` and `batched` CTEs that previously collapsed updates within a 5-minute clock window (`date_bin`) into grouped batches with up to 3 `samples`.
+    - Directly projects individual deduped candidate events (`LIMIT v_limit`), extracting individual `subject`, `employee_no`, `account_name`, `store_name`, `position`, `vcode`, and `target_role` per row.
+    - Fixed `batch_count` to 1 and `samples` to empty array `[]` to maintain 100% backward compatibility with consumer interfaces and RPC signature.
+  - Successfully applied to Staging (`qqiiznmqxfoamqytjica`) via Supabase migration tool; live `pg_get_functiondef` matches committed migration file exactly.
+- **Frontend Dashboard Feed (`src/components/dashboard/RecentActivityFeed.tsx`):**
+  - Removed `useState` hook for tracking expanded rows (`expandedIds`, `toggleExpand`).
+  - Removed `ChevronDown` import and the `"N sample(s) ▾"` toggle button.
+  - Removed the expandable sample subjects drawer/list.
+  - Preserved full-width compact layout, relative time formatting (`formatRelativeTime`), and Super Admin gated `"View all →"` link.
+- **Activity Sentence Formatter (`src/lib/utils/activity_formatter.tsx`):**
+  - Removed `batchCount > 1` branches across `plantilla_deployed`, `vacancy_opened`, `vacancy_filled`, `vacancy_closed`, `vacancy_reopened`, `emploc_for_correction`, `emploc_for_review`, `emploc_approved`, and `emploc_deployed`.
+  - Every activity now formats as an individual subject-first sentence (e.g. `"<Actor>: <Subject> [<Employee No>] transferred to Plantilla [<Account>]"`, `"<Actor>: updated status for <Subject> to On Leave [<Account>]"`, etc.).
+- **State Documentation (`docs/state/dashboard_state.md`):**
+  - Updated section 4.4 to document individual 1-by-1 event streaming and removal of samples disclosures.
+
+### 2. Verification
+- **Staging Database Verification:** Migration applied and verified via live `pg_get_functiondef` diff against `supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`.
+- `npm run lint`: Clean (0 errors, 5 preexisting warnings).
+- `npm test`: 209/209 tests passed (1209ms).
+- `npm run build`: Production build succeeded with Next.js 16.2.4 (Turbopack, exit code 0).
+- Local commit on `main`.
+
+---
+
 ## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -5906,6 +5970,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; REPLACED 5-MINUTE SLIDING-WINDOW BATCHING IN public.fn_get_recent_activity WITH INDIVIDUAL 1-BY-1 EVENT PROJECTION PER DISTINCT OPERATIONAL UPDATE; REMOVED SAMPLES ACCORDION / DISCLOSURE BUTTON AND EXPANDABLE SAMPLES LIST FROM src/components/dashboard/RecentActivityFeed.tsx; REMOVED BATCHCOUNT > 1 AGGREGATED BRANCHES FROM src/lib/utils/activity_formatter.tsx SO ALL ACTIVITIES RENDER CLEAN SUBJECT-FIRST INDIVIDUAL SENTENCES; VERIFIED CLEANLY VIA pg_get_functiondef LIVE DIFF MATCHING COMMITTED MIGRATION, npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Implementation Details
+- **Database Function & Migration (`supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`):**
+  - Updated `public.fn_get_recent_activity`:
+    - Preserved authentication, RBAC jurisdiction filters, and same-instant multi-trigger deduplication (`PARTITION BY pe.timestamp, pe.entity_key` in `deduped` CTE to prevent double logs when both `plantilla` and `hr_emploc` record the same transition).
+    - Removed `bucketed` and `batched` CTEs that previously collapsed updates within a 5-minute clock window (`date_bin`) into grouped batches with up to 3 `samples`.
+    - Directly projects individual deduped candidate events (`LIMIT v_limit`), extracting individual `subject`, `employee_no`, `account_name`, `store_name`, `position`, `vcode`, and `target_role` per row.
+    - Fixed `batch_count` to 1 and `samples` to empty array `[]` to maintain 100% backward compatibility with consumer interfaces and RPC signature.
+  - Successfully applied to Staging (`qqiiznmqxfoamqytjica`) via Supabase migration tool; live `pg_get_functiondef` matches committed migration file exactly.
+- **Frontend Dashboard Feed (`src/components/dashboard/RecentActivityFeed.tsx`):**
+  - Removed `useState` hook for tracking expanded rows (`expandedIds`, `toggleExpand`).
+  - Removed `ChevronDown` import and the `"N sample(s) ▾"` toggle button.
+  - Removed the expandable sample subjects drawer/list.
+  - Preserved full-width compact layout, relative time formatting (`formatRelativeTime`), and Super Admin gated `"View all →"` link.
+- **Activity Sentence Formatter (`src/lib/utils/activity_formatter.tsx`):**
+  - Removed `batchCount > 1` branches across `plantilla_deployed`, `vacancy_opened`, `vacancy_filled`, `vacancy_closed`, `vacancy_reopened`, `emploc_for_correction`, `emploc_for_review`, `emploc_approved`, and `emploc_deployed`.
+  - Every activity now formats as an individual subject-first sentence (e.g. `"<Actor>: <Subject> [<Employee No>] transferred to Plantilla [<Account>]"`, `"<Actor>: updated status for <Subject> to On Leave [<Account>]"`, etc.).
+- **State Documentation (`docs/state/dashboard_state.md`):**
+  - Updated section 4.4 to document individual 1-by-1 event streaming and removal of samples disclosures.
+
+### 2. Verification
+- **Staging Database Verification:** Migration applied and verified via live `pg_get_functiondef` diff against `supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`.
+- `npm run lint`: Clean (0 errors, 5 preexisting warnings).
+- `npm test`: 209/209 tests passed (1209ms).
+- `npm run build`: Production build succeeded with Next.js 16.2.4 (Turbopack, exit code 0).
+- Local commit on `main`.
+
+---
 
 ## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
 
@@ -6618,6 +6714,38 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; REPLACED 5-MINUTE SLIDING-WINDOW BATCHING IN public.fn_get_recent_activity WITH INDIVIDUAL 1-BY-1 EVENT PROJECTION PER DISTINCT OPERATIONAL UPDATE; REMOVED SAMPLES ACCORDION / DISCLOSURE BUTTON AND EXPANDABLE SAMPLES LIST FROM src/components/dashboard/RecentActivityFeed.tsx; REMOVED BATCHCOUNT > 1 AGGREGATED BRANCHES FROM src/lib/utils/activity_formatter.tsx SO ALL ACTIVITIES RENDER CLEAN SUBJECT-FIRST INDIVIDUAL SENTENCES; VERIFIED CLEANLY VIA pg_get_functiondef LIVE DIFF MATCHING COMMITTED MIGRATION, npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Implementation Details
+- **Database Function & Migration (`supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`):**
+  - Updated `public.fn_get_recent_activity`:
+    - Preserved authentication, RBAC jurisdiction filters, and same-instant multi-trigger deduplication (`PARTITION BY pe.timestamp, pe.entity_key` in `deduped` CTE to prevent double logs when both `plantilla` and `hr_emploc` record the same transition).
+    - Removed `bucketed` and `batched` CTEs that previously collapsed updates within a 5-minute clock window (`date_bin`) into grouped batches with up to 3 `samples`.
+    - Directly projects individual deduped candidate events (`LIMIT v_limit`), extracting individual `subject`, `employee_no`, `account_name`, `store_name`, `position`, `vcode`, and `target_role` per row.
+    - Fixed `batch_count` to 1 and `samples` to empty array `[]` to maintain 100% backward compatibility with consumer interfaces and RPC signature.
+  - Successfully applied to Staging (`qqiiznmqxfoamqytjica`) via Supabase migration tool; live `pg_get_functiondef` matches committed migration file exactly.
+- **Frontend Dashboard Feed (`src/components/dashboard/RecentActivityFeed.tsx`):**
+  - Removed `useState` hook for tracking expanded rows (`expandedIds`, `toggleExpand`).
+  - Removed `ChevronDown` import and the `"N sample(s) ▾"` toggle button.
+  - Removed the expandable sample subjects drawer/list.
+  - Preserved full-width compact layout, relative time formatting (`formatRelativeTime`), and Super Admin gated `"View all →"` link.
+- **Activity Sentence Formatter (`src/lib/utils/activity_formatter.tsx`):**
+  - Removed `batchCount > 1` branches across `plantilla_deployed`, `vacancy_opened`, `vacancy_filled`, `vacancy_closed`, `vacancy_reopened`, `emploc_for_correction`, `emploc_for_review`, `emploc_approved`, and `emploc_deployed`.
+  - Every activity now formats as an individual subject-first sentence (e.g. `"<Actor>: <Subject> [<Employee No>] transferred to Plantilla [<Account>]"`, `"<Actor>: updated status for <Subject> to On Leave [<Account>]"`, etc.).
+- **State Documentation (`docs/state/dashboard_state.md`):**
+  - Updated section 4.4 to document individual 1-by-1 event streaming and removal of samples disclosures.
+
+### 2. Verification
+- **Staging Database Verification:** Migration applied and verified via live `pg_get_functiondef` diff against `supabase/migrations/20261111000003_fn_get_recent_activity_individual_events.sql`.
+- `npm run lint`: Clean (0 errors, 5 preexisting warnings).
+- `npm test`: 209/209 tests passed (1209ms).
+- `npm run build`: Production build succeeded with Next.js 16.2.4 (Turbopack, exit code 0).
+- Local commit on `main`.
+
+---
 
 ## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
 

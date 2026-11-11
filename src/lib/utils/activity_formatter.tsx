@@ -61,7 +61,7 @@ export function getActivityEventIcon(eventType: ActivityEventType): React.ReactE
 }
 
 export function formatRecentActivitySentence(item: RecentActivityItem): React.ReactNode {
-  const { actorName, eventType, details, batchCount } = item;
+  const { actorName, eventType, details } = item;
   const isSystem = !actorName || actorName.toLowerCase() === "system";
 
   // Approved actor format: bold actor with colon
@@ -144,13 +144,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "plantilla_deployed":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}transferred {batchCount} employees to Plantilla{accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}{subjectNode}{employeeBadge} transferred to Plantilla{accountTag}
@@ -189,15 +182,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_opened":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}opened {batchCount} vacancies for {positionNode}
-            {storeText}
-            {accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}opened vacancy for {positionNode}
@@ -207,15 +191,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_filled":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}filled {batchCount} vacancies for {positionNode}
-            {storeText}
-            {accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}filled vacancy for {positionNode}
@@ -225,15 +200,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_closed":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}closed {batchCount} vacancies for {positionNode}
-            {storeText}
-            {accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}closed vacancy for {positionNode}
@@ -243,15 +209,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "vacancy_reopened":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}reopened {batchCount} vacancies for {positionNode}
-            {storeText}
-            {accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}reopened vacancy for {positionNode}
@@ -269,13 +226,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "emploc_for_correction":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}flagged {batchCount} employees for correction{accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}flagged {subjectNode} for correction{accountTag}
@@ -283,13 +233,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "emploc_for_review":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}submitted corrections for {batchCount} employees{accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}submitted correction for {subjectNode}
@@ -298,13 +241,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "emploc_approved":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}approved {batchCount} HR Emplocs{accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}approved HR Emploc for {subjectNode}
@@ -313,13 +249,6 @@ export function formatRecentActivitySentence(item: RecentActivityItem): React.Re
       );
 
     case "emploc_deployed":
-      if (batchCount > 1) {
-        return (
-          <span>
-            {actorNode}deployed {batchCount} employees to Plantilla{accountTag}
-          </span>
-        );
-      }
       return (
         <span>
           {actorNode}{subjectNode}{employeeBadge} transferred to Plantilla{accountTag}

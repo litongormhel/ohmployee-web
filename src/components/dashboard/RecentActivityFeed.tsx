@@ -9,9 +9,9 @@
 
 "use client";
 
-import React, { memo, useState } from "react";
+import React, { memo } from "react";
 import Link from "next/link";
-import { History, ArrowRight, ChevronDown } from "lucide-react";
+import { History, ArrowRight } from "lucide-react";
 import { useRecentActivity, type RecentActivityItem } from "@/lib/queries/activity";
 import {
   getActivityEventIcon,
@@ -44,25 +44,11 @@ export const RecentActivityFeed = memo(function RecentActivityFeed({
   accountId,
   isSuperAdmin = false,
 }: RecentActivityFeedProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
   const { data: activities = [], isLoading, isError } = useRecentActivity({
     groupId,
     accountId,
     limit: 8,
   });
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   return (
     <section
@@ -107,96 +93,26 @@ export const RecentActivityFeed = memo(function RecentActivityFeed({
           </div>
         ) : (
           <ul className="divide-y divide-border-subtle">
-            {activities.slice(0, 8).map((item: RecentActivityItem) => {
-              const isExpanded = expandedIds.has(item.id);
-              const hasSamples = item.batchCount > 1 && item.samples && item.samples.length > 0;
-
-              return (
-                <li key={item.id} className="py-2.5 first:pt-2 last:pb-1">
-                  <div className="flex items-center justify-between gap-3 text-xs">
-                    {/* Left: Icon + Compact formatted sentence + Optional expand button */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-muted">
-                        {getActivityEventIcon(item.eventType)}
-                      </div>
-                      <div className="truncate text-text-secondary">
-                        {formatRecentActivitySentence(item)}
-                      </div>
-                      {hasSamples && (
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(item.id)}
-                          className="shrink-0 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-surface-muted text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
-                          title="Toggle sample subjects"
-                        >
-                          <span>
-                            {isExpanded
-                              ? "Hide"
-                              : `${item.samples.length} sample${item.samples.length > 1 ? "s" : ""}`}
-                          </span>
-                          <ChevronDown
-                            className={`h-3 w-3 transition-transform ${
-                              isExpanded ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
-                      )}
+            {activities.slice(0, 8).map((item: RecentActivityItem) => (
+              <li key={item.id} className="py-2.5 first:pt-2 last:pb-1">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  {/* Left: Icon + Compact formatted sentence */}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-muted">
+                      {getActivityEventIcon(item.eventType)}
                     </div>
-
-                    {/* Right: Relative time right-aligned */}
-                    <div className="shrink-0 text-[11px] font-mono text-text-muted text-right">
-                      {formatRelativeTime(item.timestamp)}
+                    <div className="truncate text-text-secondary">
+                      {formatRecentActivitySentence(item)}
                     </div>
                   </div>
 
-                  {/* Expandable Sample List */}
-                  {hasSamples && isExpanded && (
-                    <div className="mt-2 ml-7 pl-3 border-l-2 border-border-subtle py-1 space-y-1">
-                      <div className="text-[10px] uppercase font-semibold text-text-muted tracking-wider">
-                        Sample Subjects ({item.samples.length} of {item.batchCount}):
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 pt-0.5">
-                        {item.samples.map((s, idx) => (
-                          <div
-                            key={idx}
-                            className="text-xs text-text-secondary flex items-center gap-1 truncate"
-                          >
-                            {s.vcode ? (
-                              <>
-                                <span className="font-mono text-[11px] font-medium text-text-primary">
-                                  {s.vcode}
-                                </span>
-                                {s.position && (
-                                  <span className="text-text-secondary truncate">
-                                    — {s.position}
-                                  </span>
-                                )}
-                                {s.store_name && (
-                                  <span className="text-text-muted text-[11px] truncate">
-                                    ({s.store_name})
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <span className="font-medium text-text-primary truncate">
-                                  {s.name}
-                                </span>
-                                {s.employee_no && (
-                                  <span className="text-text-muted font-mono text-[10px] shrink-0">
-                                    [{s.employee_no}]
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+                  {/* Right: Relative time right-aligned */}
+                  <div className="shrink-0 text-[11px] font-mono text-text-muted text-right">
+                    {formatRelativeTime(item.timestamp)}
+                  </div>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </div>

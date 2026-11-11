@@ -69,13 +69,11 @@ Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components
 ### 4.4 Full-Width Recent Activity Feed (`src/components/dashboard/RecentActivityFeed.tsx`)
 - Full-width operational audit section mounted directly below the 12-column command workspace and above the telemetry footer.
 - Max 8 entries (`limit: 8`), one compact line per entry with right-aligned relative timestamps (`timeAgo`).
-- Collapse bulk multi-item events using fixed 5-minute clock-aligned `date_bin` buckets (`date_bin(interval '5 minutes', timestamp, timestamptz '2000-01-01 00:00:00Z')`, not a sliding window) by the same actor, event_type, and account into a single row (`batchCount`). Events crossing a 5-minute clock boundary (e.g. 12:04:59 and 12:05:01) fall into distinct buckets and produce separate batches rather than merging.
-- Non-employee events (vacancies) batch samples: samples do NOT place the position into `name`. Instead, `samples` objects contain `{ vcode, position, store_name }`, and the formatter renders active sentences (`<Actor>: opened N vacancies for <position> at <store> [<account>]`).
+- **Individual 1-by-1 Event Stream**: Operations affecting multiple employees or vacancies (e.g. bulk transfer to Plantilla or batch status updates) render as individual 1-by-1 operational activities per employee/record. Grouping into aggregated batches and expandable "sample subjects" disclosures are removed per operational specification.
 - User Management approvals (Option A integration): `fn_get_recent_activity` unifies approved `public.account_requests` into the feed for Data Team roles (Encoder, Head Admin, Super Admin), exposing only `full_name` and the assigned `role_name` within a 30-day window. Null approvers render as `System:`. These events originate directly from `public.account_requests` and do NOT appear in the Audit Logs viewer (`/more?tab=audit_logs`). Non-Data Team roles (OM, HRCO, Recruitment, HR Personnel, Back Office) receive 0 User Management rows.
 - Over-capacity vacancies: 12 vacancies in Groups 1 and 2 (created Oct 23 to 27) are classified as over-capacity vacancies because existing actual headcount already equals or exceeds required capacity (`actual >= required`), causing `normalizeSlotAuthorityMetrics` to clamp vacant slots to 0.
 - Subject-first formatting (`src/lib/utils/activity_formatter.tsx`):
-  - Single: `"<Actor>: <Subject> [<no>] transferred to Plantilla [<account>]"`
-  - Batched: `"<Actor>: transferred N employees to Plantilla [<account>]"` with an expandable sample list disclosure button.
+  - Every event is rendered as an individual, subject-first sentence: `"<Actor>: <Subject> [<no>] transferred to Plantilla [<account>]"`, `"<Actor>: updated status for <Subject> to <Status> [<account>]"`, `"<Actor>: marked separation for <Subject> [<account>]"`, `"<Actor>: opened vacancy for <Position> at <Store> [<account>]"`.
 - Reactively scoped to `selectedGroupScope` (`p_group_id` for retail groups, `p_account_id` for Moses HQ).
 - Footer `"View all →"` link to the Audit Logs modal gated strictly to Super Admin.
 
