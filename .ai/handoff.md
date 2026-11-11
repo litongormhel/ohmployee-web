@@ -1,5 +1,29 @@
 ﻿# AI Handoff
 
+## Execution Report — Weekly Coverage Preview — show VCode instead of store name (ohm#4m8w1c6e)
+
+**Status: COMPLETE ON MAIN; UPDATED "WEEKLY COVERAGE PREVIEW" STRIP IN src/components/plantilla/UpdateScheduleModal.tsx TO DISPLAY ASSIGNED STORE VCODE (ssignedStore.vcode || assignedStore.storeName) IN MONOSPACE FONT (ont-mono text-[10px] font-bold tracking-tight whitespace-nowrap) ON DAY CELL CAPTION LINE 1 PER APPROVED PDF MOCKUP; PRESERVED SHIFT TIME LINE, NUMBERED STORE BADGE, "REST" CELL, AND "NO STORE" DASHED WARNING CELL; FULL STORE NAME AND SCHEDULE DETAILS REMAIN ACCESSIBLE ON HOVER VIA 	itle TOOLTIP; VERIFIED CLEANLY VIA 
+pm run lint (0 ERRORS); ZERO DATABASE OR PAYLOAD MODIFICATIONS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Changes Made
+- **File Touched:** src/components/plantilla/UpdateScheduleModal.tsx
+- **Component:** Weekly Coverage Preview day cell caption (assigned store state).
+- **Update:** Replaced {assignedStore.storeName} with {assignedStore.vcode || assignedStore.storeName} styled with ont-mono text-[10px] font-bold text-text-primary tracking-tight whitespace-nowrap w-full px-0.5.
+- **Preserved:**
+  - Shift time line (	imeFormatted || "8 AM–5 PM")
+  - Numbered circular badge (①, ②, etc.)
+  - Rest day cell ("Rest")
+  - Unassigned day warning cell ("No store")
+  - Hover tooltip retains complete metadata: ${day}:  () · 
+  - Collapsible store cards below still prominently show the full store name.
+
+### 2. Verification
+- 
+pm run lint: Clean (0 errors).
+- No schema, migration, or backend payload changes.
+- Local commit on main.
+
+---
 ## Execution Report — Edit Schedule & Work Terms modal — UI redesign (ohm#7k2q9d4x)
 
 **Status: COMPLETE ON MAIN; REDESIGNED "EDIT SCHEDULE & WORK TERMS" MODAL (src/components/plantilla/UpdateScheduleModal.tsx) FOR ROVING PERSONNEL MATCHING APPROVED MOCKUP SPECIFICATION; DELIVERED STICKY FOOTER HOOKED INTO CANONICAL MODAL ooter SLOT WITH INDEPENDENT BODY SCROLL; ADDED LIVE 7-DAY WEEKLY COVERAGE STRIP (MON–SUN) WITH NUMBERED STORE BADGES (①), TRUNCATED STORE NAMES, FORMATTED TIME RANGES, REST PILLS, AND DASHED UNASSIGNED WARNING STATE ("No store"); IMPLEMENTED COMPACT REST DAY SELECTOR WITH AUTO-CARVING AND DISMISSIBLE NOTIFICATION BANNER; DELIVERED COLLAPSIBLE STORE ACCORDION CARDS (① name · VCode · Mon, Tue · 8 AM – 5 PM · 0.25 HC); IMPLEMENTED CROSS-STORE AWARE DUTY-DAY CHIPS (TAP TO TRANSFER FROM ANOTHER STORE, DISABLED REST DAY CHIPS); ADDED PER-DAY SHIFT DURATION CALCULATIONS WITH INLINE "Time-out must be later than time-in" VALIDATION; IMPLEMENTED "Apply this time to all stores" QUICK ACTION; DEMOTED HC SHARE TO READ-ONLY SUBDUED LABELS WITH 1.00 HC TOTAL NOTE; CONFIGURED DYNAMIC FOOTER STATUS DISPLAYING TOTAL WEEKLY HOURS (40 hrs/wk), NON-BLOCKING "N days without a store" WARNING, AND STRICT SAVE GATES FOR TIME ERRORS; PRESERVED 100% SAVE PAYLOAD INTEGRITY AND DATABASE RPC CONTRACTS; VERIFIED CLEANLY VIA 

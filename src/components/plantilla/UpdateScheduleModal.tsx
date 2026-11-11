@@ -917,14 +917,14 @@ export function UpdateScheduleModal({
                   <div
                     key={day}
                     className="rounded-lg border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-950/30 p-2 text-center flex flex-col items-center justify-between min-h-[64px]"
-                    title={`${day}: ${assignedStore.storeName} (${assignedStore.scheduleTime})`}
+                    title={`${day}: ${assignedStore.storeName} (${assignedStore.vcode || "No VCode"}) · ${assignedStore.scheduleTime}`}
                   >
                     <div className="flex items-center gap-1 justify-center w-full">
                       <span className="text-2xs font-extrabold text-brand-700 dark:text-brand-300">{day}</span>
                       <span className="text-xs font-bold text-brand-primary">{circled}</span>
                     </div>
-                    <p className="text-[10px] font-bold text-text-primary truncate w-full px-0.5">
-                      {assignedStore.storeName}
+                    <p className="font-mono text-[10px] font-bold text-text-primary tracking-tight whitespace-nowrap w-full px-0.5">
+                      {assignedStore.vcode || assignedStore.storeName}
                     </p>
                     <p className="text-[9px] font-medium text-text-muted truncate w-full">
                       {timeFormatted || "8 AM–5 PM"}
