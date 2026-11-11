@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Refine Pre-Upload Details/Validation Message Format (ohm#n4p2k8v1)
+
+**Status: COMPLETE ON MAIN; REFINED `formatFriendlyValidationMessage` IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT EMPLOYEE SURNAME PREFIX (`${lastName} — `) ACROSS ALL VALIDATION MESSAGES; THE EMPLOYEE'S FULL NAME IS ALREADY PROMINENTLY DISPLAYED IN THE ADJACENT `Employee Name` TABLE COLUMN, MAKING REPETITIVE SURNAME PREFIXES UNNECESSARY AND CLUTTERED; UPDATED HIRE DATE MISMATCH COPY TO EXACT SPECIFICATION `"Mismatched hired date across roving store rows."`; STREAMLINED FUNCTION SIGNATURE AND CALL SITES TO ELIMINATE UNUSED PARAMETER AND MAINTAIN ZERO LINT WARNINGS; UPDATED MODULE STATE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Context & User Request
+- **User Request**: "refinement in Details/Validation alisin na ung surname ng Employee name it should be "Mismatched hired date across roving store rows""
+- **Visual Friction**:
+  - In the Pre-Upload Validation preview table, each row already contains the `Employee Name` column displaying the full name (e.g. `BALLESTEROS, JOHN MARK MANANSALA`).
+  - Prepending `Ballesteros — ` in the `Details / Validation` column duplicated information and consumed horizontal space on every blocked row.
+
+### 2. Changes Made
+1. **Removed Surname Prefix in `formatFriendlyValidationMessage` (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Stripped `lastName` parsing and `${prefix}` generation.
+   - Simplified messages to direct sentences:
+     - Hire date mismatch: `"Mismatched hired date across roving store rows."`
+     - Underage: `"Underage employee. Minimum legal working age is 18."`
+     - DB hire date mismatch: `"Hire date does not match master record in database."`
+     - Name mismatch: `"Mismatched employee name across roving store rows."`
+     - Duplicate identity in batch: `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`
+2. **Clean Call Sites**:
+   - Simplified call signature from `formatFriendlyValidationMessage(err, row.employeeName)` to `formatFriendlyValidationMessage(err)` and `formatFriendlyValidationMessage({ msg })`.
+3. **State Specification (`docs/state/plantilla_web_state.md`)**:
+   - Documented the refined format and parameter simplification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (0 warnings in touched files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Fix approve_plantilla_import_batch approval_notes Schema Error (ohm#m2p9v4k7)
 
 **Status: COMPLETE ON MAIN; RESOLVED POSTGRESQL RUNTIME ERROR `column "approval_notes" of relation "plantilla_import_batches" does not exist` TRIGGERED DURING "APPROVE & APPLY" IN PLANTILLA BASELINE IMPORT REVIEW QUEUE (`/more?tab=data_control&subtab=batch_imports&import=plantilla`); AUDITED DATABASE SCHEMA FOR `public.plantilla_import_batches` AND DISCOVERED HALLUCINATED COLUMNS (`approval_notes`, `status = 'committing'`, `status = 'committed'`, `total_stores`, `total_vacant_slots`, `total_employees`) IN RECENT REVISIONS OF `public.approve_plantilla_import_batch`; RESTORED CANONICAL ADR-002 STATUS MACHINE (`status = 'approved'`, `status = 'commit_failed'`) AND RECORDING OF ERRORS INTO `commit_error`; RESTORED ROLLBACK GOVERNANCE ATTRIBUTES (`rollback_ready = true`, `committed_stores`, `committed_employees`, `stores_created`, `employees_created`, `allocations_created`, `approved_by_name`); PATCHED BASE MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` AND GENERATED STANDALONE MIGRATION `supabase/migrations/20262606000093_fix_plantilla_approve_batch_schema.sql`; UPDATED ARCHITECTURE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

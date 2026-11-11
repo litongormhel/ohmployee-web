@@ -85,28 +85,15 @@ function getActualErrorEntries(errorSummary?: Record<string, number | unknown>):
 }
 
 export function formatFriendlyValidationMessage(
-  err: { field?: string; conflictType?: string; msg?: string },
-  employeeName?: string
+  err: { field?: string; conflictType?: string; msg?: string }
 ): string {
   const rawMsg = err.msg || "";
   const conflictType = err.conflictType || "";
   const field = err.field || "";
 
-  // Extract last name from "BALLESTEROS, JOHN MARK MANANSALA" or "BALLESTEROS"
-  let lastName = "";
-  if (employeeName) {
-    const parts = employeeName.split(",");
-    const rawLast = parts[0]?.trim();
-    if (rawLast) {
-      lastName = rawLast.charAt(0).toUpperCase() + rawLast.slice(1).toLowerCase();
-    }
-  }
-
-  const prefix = lastName ? `${lastName} — ` : "";
-
-  // 1. Underage employee (e.g. Ballesteros — Underage employee. Minimum legal working age is 18.)
+  // 1. Underage employee
   if (conflictType === "underage_employee_under_18" || rawMsg.toLowerCase().includes("underage")) {
-    return `${prefix}Underage employee. Minimum legal working age is 18.`;
+    return "Underage employee. Minimum legal working age is 18.";
   }
 
   // 2. Mismatched date hired across rows
@@ -114,12 +101,12 @@ export function formatFriendlyValidationMessage(
     field === "DATE_HIRED" &&
     (conflictType === "core_identity_mismatch_in_batch" || rawMsg.toLowerCase().includes("distinct date_hired"))
   ) {
-    return `${prefix}Mismatched hire date across roving store rows.`;
+    return "Mismatched hired date across roving store rows.";
   }
 
   // 3. Mismatched date hired against DB
   if (field === "DATE_HIRED" && conflictType === "core_identity_mismatch_with_db") {
-    return `${prefix}Hire date does not match master record in database.`;
+    return "Hire date does not match master record in database.";
   }
 
   // 4. Mismatched name across rows in batch
@@ -127,7 +114,7 @@ export function formatFriendlyValidationMessage(
     ["LAST_NAME", "FIRST_NAME", "MIDDLE_NAME"].includes(field) &&
     conflictType === "core_identity_mismatch_in_batch"
   ) {
-    return `${prefix}Mismatched employee name across roving store rows.`;
+    return "Mismatched employee name across roving store rows.";
   }
 
   // 5. Mismatched name against DB
@@ -135,29 +122,29 @@ export function formatFriendlyValidationMessage(
     ["LAST_NAME", "FIRST_NAME", "MIDDLE_NAME"].includes(field) &&
     conflictType === "core_identity_mismatch_with_db"
   ) {
-    return `${prefix}Employee name does not match master record in database.`;
+    return "Employee name does not match master record in database.";
   }
 
   // 6. Duplicate identity (same person assigned multiple distinct employee numbers in batch)
   if (conflictType === "duplicate_identity_distinct_emp_no") {
     const empMatch = rawMsg.match(/\(([^)]+)\)/);
     const empList = empMatch ? ` (${empMatch[1]})` : "";
-    return `${prefix}Multiple employee numbers assigned to the same person${empList}. Roving employees must share the same Emp No.`;
+    return `Multiple employee numbers assigned to the same person${empList}. Roving employees must share the same Emp No.`;
   }
 
   // 7. Duplicate identity against DB
   if (conflictType === "duplicate_identity_db_mismatch") {
-    return `${prefix}Employee already exists in database with a different Emp No.`;
+    return "Employee already exists in database with a different Emp No.";
   }
 
   // 8. Inactive plantilla status lock
   if (conflictType === "inactive_or_archived_existing_record") {
-    return `${prefix}Employee exists in plantilla with inactive/archived status. Re-import blocked.`;
+    return "Employee exists in plantilla with inactive/archived status. Re-import blocked.";
   }
 
   // 9. Cross-account active employee
   if (conflictType === "cross_account_employee") {
-    return `${prefix}Employee is currently active under a different account.`;
+    return "Employee is currently active under a different account.";
   }
 
   // 10. Required fields
@@ -171,8 +158,7 @@ export function formatFriendlyValidationMessage(
   }
 
   // Fallback: strip technical bracket prefixes like "[FIELD]: "
-  const cleaned = rawMsg.replace(/^\[[^\]]+\]:\s*/, "");
-  return prefix ? `${prefix}${cleaned}` : cleaned;
+  return rawMsg.replace(/^\[[^\]]+\]:\s*/, "");
 }
 
 type TabType = "upload" | "review" | "history";
@@ -1002,13 +988,13 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                       {row.validationErrors && row.validationErrors.length > 0 ? (
                                         row.validationErrors.map((err: PlantillaRowValidationError, errIdx: number) => (
                                           <div key={errIdx} className="font-medium leading-relaxed">
-                                            {formatFriendlyValidationMessage(err, row.employeeName)}
+                                            {formatFriendlyValidationMessage(err)}
                                           </div>
                                         ))
                                       ) : (
                                         (row.validationMessages || []).map((msg: string, mIdx: number) => (
                                           <div key={mIdx} className="font-medium leading-relaxed">
-                                            {formatFriendlyValidationMessage({ msg }, row.employeeName)}
+                                            {formatFriendlyValidationMessage({ msg })}
                                           </div>
                                         ))
                                       )}

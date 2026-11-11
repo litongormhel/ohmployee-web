@@ -1008,6 +1008,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Regression Test Suite (`scripts/tests/plantilla_import_regression.sql`)**:
     - Enhanced test harness asserting: stationary evaluation, roving submission (`pending_approval`, 0 flagged), roving approval, rollback readiness, vacant-only batch lineage immunity, direct executor execution denial (`42501`), protected occupant abort, real request then approve flow, zero-edit lock enforcement, and full 6-table post-rollback baseline comparison (stores active, slots total/occupied/open, allocations, plantilla, store_links, vacancies). All assertions verified passing on Staging with zero rows persisted.
 
+- **Plantilla Pre-Upload Details/Validation Message Refinement (`ohm#n4p2k8v1` — 2026-11-11)**:
+  - **Surname Removal**: Refined `formatFriendlyValidationMessage` in `src/components/more/PlantillaImportModal.tsx` to omit the redundant employee surname prefix (e.g. `Ballesteros — `), as the employee's full name is already displayed directly adjacent in the `Employee Name` column.
+  - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
+  - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
+
 - **Plantilla Baseline Import Approval Schema Fix (`ohm#m2p9v4k7` — 2026-11-11)**:
   - **Root Cause & Schema Parity**: Resolved PostgreSQL error `column "approval_notes" of relation "plantilla_import_batches" does not exist` occurring during "Approve & Apply" on Plantilla Baseline Batch Import. In `public.approve_plantilla_import_batch`, previous draft changes introduced non-existent columns (`approval_notes`, `status = 'committing'`, `status = 'committed'`, `total_stores`, `total_vacant_slots`, `total_employees`) into `UPDATE public.plantilla_import_batches`.
   - **Canonical ADR-002 Fields Restored**:
