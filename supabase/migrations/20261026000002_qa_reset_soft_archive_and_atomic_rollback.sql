@@ -107,7 +107,7 @@ END $$;
 
 -- ── §3. Safe Actor ID Resolver for audit_logs (Fixes audit_logs_actor_id_fkey)
 
-CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)
+CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID DEFAULT NULL)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER

@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Root Cause Details
+- **Issue 1 (SQLSTATE 42P13):** During `supabase db push --remote --include-all`, Postgres threw `cannot remove parameter defaults from existing function (SQLSTATE 42P13)` on `CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)`. Staging already had a default `p_input_user_id UUID DEFAULT NULL` from a later migration (`87`). Updated line 110 of `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` to explicitly keep `DEFAULT NULL`.
+- **Issue 2 (SQLSTATE 23505 - Duplicate Migration Versions):** Nov 10 merge commit `d5d146e` (Branch 2) introduced 3 migration files that collided on the exact same 14-digit version timestamps (`20262606000085`, `20262606000086`, `20262606000087`) with existing migrations on `main`. Because `supabase_migrations.schema_migrations` uses `version VARCHAR PRIMARY KEY`, the second set failed to apply. Renumbered the unapplied Branch 2 files sequentially:
+  - `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` ➔ `20262606000090_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`
+  - `20262606000086_archive_previous_applicants_on_vacancy_reopen.sql` ➔ `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql`
+  - `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` ➔ `20262606000092_fix_audit_logs_actor_id_fk_and_safe_resolution.sql`
+- **Application & Parity Verification:**
+  - Ran `npx supabase db push --remote --include-all --yes`.
+  - Migrations `88`, `89`, `90`, `91`, and `92` applied successfully to Staging.
+  - Verified with `npx supabase db push --remote --include-all --dry-run`: `"Remote database is up to date."`.
+
+### 2. Verification
+- `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
+- `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Verify Vercel Production Build Health and Deployment Status (ohm#v3r8c1p9)
 
 **Status: COMPLETE ON MAIN; AUDITED AND VERIFIED VERCEL PRODUCTION DEPLOYMENT FOR ohmployee-web-p64x; CONFIRMED LOCAL COMPILATION HEALTH VIA npm run build (NEXT.JS 16.2.4 EXIT CODE 0) AND pnpm run build (EXIT CODE 0); CONFIRMED LINT CLEAN (0 ERRORS) AND TEST SUITE (209/209 PASSED); TRACED HISTORICAL FAILED DEPLOYMENT (23H AGO) TO INTERMEDIATE MERGE COMMITS (b8887f5 / d5d146e); VERIFIED THAT SUBSEQUENT PRODUCTION DEPLOYMENT 5amo4mmeq AND THE LATEST PRODUCTION DEPLOYMENT dx0i0iq83 (dpl_EoaoLf7yEYyQMejaY2iYPdqrgDiP) TRIGGERED BY COMMIT aad0459 BUILT CLEANLY AND ARE IN ● Ready STATUS; CONFIRMED LIVE ENDPOINT https://ohmployee-web.vercel.app RESPONDS HTTP 200 OK.**
@@ -35,6 +58,29 @@
 ---
 
 ﻿# AI Handoff
+
+## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Root Cause Details
+- **Issue 1 (SQLSTATE 42P13):** During `supabase db push --remote --include-all`, Postgres threw `cannot remove parameter defaults from existing function (SQLSTATE 42P13)` on `CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)`. Staging already had a default `p_input_user_id UUID DEFAULT NULL` from a later migration (`87`). Updated line 110 of `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` to explicitly keep `DEFAULT NULL`.
+- **Issue 2 (SQLSTATE 23505 - Duplicate Migration Versions):** Nov 10 merge commit `d5d146e` (Branch 2) introduced 3 migration files that collided on the exact same 14-digit version timestamps (`20262606000085`, `20262606000086`, `20262606000087`) with existing migrations on `main`. Because `supabase_migrations.schema_migrations` uses `version VARCHAR PRIMARY KEY`, the second set failed to apply. Renumbered the unapplied Branch 2 files sequentially:
+  - `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` ➔ `20262606000090_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`
+  - `20262606000086_archive_previous_applicants_on_vacancy_reopen.sql` ➔ `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql`
+  - `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` ➔ `20262606000092_fix_audit_logs_actor_id_fk_and_safe_resolution.sql`
+- **Application & Parity Verification:**
+  - Ran `npx supabase db push --remote --include-all --yes`.
+  - Migrations `88`, `89`, `90`, `91`, and `92` applied successfully to Staging.
+  - Verified with `npx supabase db push --remote --include-all --dry-run`: `"Remote database is up to date."`.
+
+### 2. Verification
+- `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
+- `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
 
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 
@@ -5287,6 +5333,29 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Root Cause Details
+- **Issue 1 (SQLSTATE 42P13):** During `supabase db push --remote --include-all`, Postgres threw `cannot remove parameter defaults from existing function (SQLSTATE 42P13)` on `CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)`. Staging already had a default `p_input_user_id UUID DEFAULT NULL` from a later migration (`87`). Updated line 110 of `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` to explicitly keep `DEFAULT NULL`.
+- **Issue 2 (SQLSTATE 23505 - Duplicate Migration Versions):** Nov 10 merge commit `d5d146e` (Branch 2) introduced 3 migration files that collided on the exact same 14-digit version timestamps (`20262606000085`, `20262606000086`, `20262606000087`) with existing migrations on `main`. Because `supabase_migrations.schema_migrations` uses `version VARCHAR PRIMARY KEY`, the second set failed to apply. Renumbered the unapplied Branch 2 files sequentially:
+  - `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` ➔ `20262606000090_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`
+  - `20262606000086_archive_previous_applicants_on_vacancy_reopen.sql` ➔ `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql`
+  - `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` ➔ `20262606000092_fix_audit_logs_actor_id_fk_and_safe_resolution.sql`
+- **Application & Parity Verification:**
+  - Ran `npx supabase db push --remote --include-all --yes`.
+  - Migrations `88`, `89`, `90`, `91`, and `92` applied successfully to Staging.
+  - Verified with `npx supabase db push --remote --include-all --dry-run`: `"Remote database is up to date."`.
+
+### 2. Verification
+- `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
+- `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; REPLACED 5-MINUTE SLIDING-WINDOW BATCHING IN public.fn_get_recent_activity WITH INDIVIDUAL 1-BY-1 EVENT PROJECTION PER DISTINCT OPERATIONAL UPDATE; REMOVED SAMPLES ACCORDION / DISCLOSURE BUTTON AND EXPANDABLE SAMPLES LIST FROM src/components/dashboard/RecentActivityFeed.tsx; REMOVED BATCHCOUNT > 1 AGGREGATED BRANCHES FROM src/lib/utils/activity_formatter.tsx SO ALL ACTIVITIES RENDER CLEAN SUBJECT-FIRST INDIVIDUAL SENTENCES; VERIFIED CLEANLY VIA pg_get_functiondef LIVE DIFF MATCHING COMMITTED MIGRATION, npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
@@ -6002,6 +6071,29 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - `npm run lint`: 0 errors, 4 warnings (`VacancyTable.tsx` unused callbacks).
   - `npm run build`: 0 errors, 19/19 static routes successfully prerendered.
   - `python3 .agents/scripts/gate.py`: `{"decision": "allow"}`.
+
+---
+
+# AI Handoff
+
+## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Root Cause Details
+- **Issue 1 (SQLSTATE 42P13):** During `supabase db push --remote --include-all`, Postgres threw `cannot remove parameter defaults from existing function (SQLSTATE 42P13)` on `CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)`. Staging already had a default `p_input_user_id UUID DEFAULT NULL` from a later migration (`87`). Updated line 110 of `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` to explicitly keep `DEFAULT NULL`.
+- **Issue 2 (SQLSTATE 23505 - Duplicate Migration Versions):** Nov 10 merge commit `d5d146e` (Branch 2) introduced 3 migration files that collided on the exact same 14-digit version timestamps (`20262606000085`, `20262606000086`, `20262606000087`) with existing migrations on `main`. Because `supabase_migrations.schema_migrations` uses `version VARCHAR PRIMARY KEY`, the second set failed to apply. Renumbered the unapplied Branch 2 files sequentially:
+  - `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` ➔ `20262606000090_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`
+  - `20262606000086_archive_previous_applicants_on_vacancy_reopen.sql` ➔ `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql`
+  - `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` ➔ `20262606000092_fix_audit_logs_actor_id_fk_and_safe_resolution.sql`
+- **Application & Parity Verification:**
+  - Ran `npx supabase db push --remote --include-all --yes`.
+  - Migrations `88`, `89`, `90`, `91`, and `92` applied successfully to Staging.
+  - Verified with `npx supabase db push --remote --include-all --dry-run`: `"Remote database is up to date."`.
+
+### 2. Verification
+- `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
+- `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
 
 ---
 
@@ -6746,6 +6838,29 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - `python3 .agents/scripts/gate.py`: cleanly caught `.env.local` host returning `{"decision": "continue", "reason": "local env points to production"}`.
   - Zero database access performed.
   - Single local commit on `main`.
+
+---
+
+# AI Handoff
+
+## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Root Cause Details
+- **Issue 1 (SQLSTATE 42P13):** During `supabase db push --remote --include-all`, Postgres threw `cannot remove parameter defaults from existing function (SQLSTATE 42P13)` on `CREATE OR REPLACE FUNCTION public.resolve_audit_actor_id(p_input_user_id UUID)`. Staging already had a default `p_input_user_id UUID DEFAULT NULL` from a later migration (`87`). Updated line 110 of `20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql` to explicitly keep `DEFAULT NULL`.
+- **Issue 2 (SQLSTATE 23505 - Duplicate Migration Versions):** Nov 10 merge commit `d5d146e` (Branch 2) introduced 3 migration files that collided on the exact same 14-digit version timestamps (`20262606000085`, `20262606000086`, `20262606000087`) with existing migrations on `main`. Because `supabase_migrations.schema_migrations` uses `version VARCHAR PRIMARY KEY`, the second set failed to apply. Renumbered the unapplied Branch 2 files sequentially:
+  - `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql` ➔ `20262606000090_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`
+  - `20262606000086_archive_previous_applicants_on_vacancy_reopen.sql` ➔ `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql`
+  - `20262606000087_fix_audit_logs_actor_id_fk_and_safe_resolution.sql` ➔ `20262606000092_fix_audit_logs_actor_id_fk_and_safe_resolution.sql`
+- **Application & Parity Verification:**
+  - Ran `npx supabase db push --remote --include-all --yes`.
+  - Migrations `88`, `89`, `90`, `91`, and `92` applied successfully to Staging.
+  - Verified with `npx supabase db push --remote --include-all --dry-run`: `"Remote database is up to date."`.
+
+### 2. Verification
+- `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
+- `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
 
 ---
 
