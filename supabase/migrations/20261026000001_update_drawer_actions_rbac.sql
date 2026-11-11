@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS public.role_permission_definitions_compat (
 CREATE INDEX IF NOT EXISTS idx_rpd_compat_lookup 
   ON public.role_permission_definitions_compat (module, action_item, role_level);
 
+-- Enable RLS and restrict permissions
+ALTER TABLE public.role_permission_definitions_compat ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.role_permission_definitions_compat FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.role_permission_definitions_compat FROM authenticated;
+
+DROP POLICY IF EXISTS rpd_compat_read_authenticated ON public.role_permission_definitions_compat;
+CREATE POLICY rpd_compat_read_authenticated
+  ON public.role_permission_definitions_compat
+  FOR SELECT
+  TO authenticated
+  USING (true);
+
 -- 2. Seed / Upsert the authoritative 55-item Drawer Actions & Mutations Matrix
 INSERT INTO public.role_permission_definitions_compat (module, action_item, role_level, allowed)
 VALUES

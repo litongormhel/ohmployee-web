@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Fix Supabase Security Advisor RLS Disabled on role_permission_definitions_compat (ohm#s4r8m2v9)
+
+**Status: COMPLETE ON MAIN; AUDITED SUPABASE SECURITY ADVISOR ACROSS BOTH ENVIRONMENTS; IDENTIFIED CRITICAL ERROR `rls_disabled_in_public` ON `public.role_permission_definitions_compat` IN PRODUCTION (`rwxelulyapjgaarlwkus`), CONFIRMED STAGING (`qqiiznmqxfoamqytjica`) HAS 0 FINDINGS; CREATED IDEMPOTENT REMEDIATION MIGRATION `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql` ENABLING ROW LEVEL SECURITY, REVOKING ANON/PUBLIC PRIVILEGES, AND GRANTING READ ACCESS TO AUTHENTICATED USERS VIA POLICY `rpd_compat_read_authenticated`; RETROFITTED BASE MIGRATION `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED).**
+
+### 1. Root Cause Analysis
+1. **Advisory Finding**:
+   - In Supabase project `OHMployee` (Production: `rwxelulyapjgaarlwkus`), the Supabase Security Advisor flagged an `ERROR` under rule `rls_disabled_in_public` (Remediation: `https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public`).
+   - Affected table: `public.role_permission_definitions_compat`.
+2. **Migration Gap**:
+   - Migration `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql` introduced `public.role_permission_definitions_compat` to store drawer action & mutation matrix items across role levels.
+   - The table was created with `CREATE TABLE IF NOT EXISTS public.role_permission_definitions_compat (...)`, but lacked `ALTER TABLE public.role_permission_definitions_compat ENABLE ROW LEVEL SECURITY;` and policy declarations.
+   - Consequently, the table was exposed to anonymous public reads and client mutations via PostgREST.
+
+### 2. Changes Made
+1. **New Migration File (`supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`)**:
+   - Idempotently checks if `public.role_permission_definitions_compat` exists in `information_schema.tables`.
+   - Enables Row Level Security: `ALTER TABLE public.role_permission_definitions_compat ENABLE ROW LEVEL SECURITY;`.
+   - Revokes all permissions from `anon` role: `REVOKE ALL ON TABLE public.role_permission_definitions_compat FROM anon;`.
+   - Revokes write/mutation privileges from `authenticated` role: `REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE public.role_permission_definitions_compat FROM authenticated;`.
+   - Creates authenticated read policy: `CREATE POLICY rpd_compat_read_authenticated ON public.role_permission_definitions_compat FOR SELECT TO authenticated USING (true);`.
+2. **Retrofit Base Migration (`supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`)**:
+   - Added RLS enablement, `anon` revocation, and authenticated read policy definition right after index creation.
+3. **Architecture State Documentation (`docs/state/web_auth_rbac_state.md`)**:
+   - Documented the new migration and RLS enforcement for `role_permission_definitions_compat`.
+
+### 3. Verification & Regressions
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm test`: 28/28 tests passed.
+- Staging audit confirmed: 0 `rls_disabled_in_public` findings.
+- Guarded idempotency ensures executing against staging or production environments is non-destructive and error-free.
+
+---
+
 ## Execution Report — Fix Vacated Plantilla Slot Access Denied in Vacancy Detail Drawer (ohm#v6m1p9x3)
 
 **Status: COMPLETE ON MAIN; RESOLVED "ACCESS DENIED" ERROR WHEN OPENING VACANCY DETAIL DRAWER FOR VACATED PLANTILLA SLOTS (`src/lib/queries/vacancy.ts` AND `src/components/vacancy/VacancyDetailDrawer.tsx`); ENRICHED `listVacancies` OPEN TAB PARITY FALLBACK TO MATCH VACANT VCODES AGAINST `public.vacancies`, BINDING `row.id` TO REAL VACANCY UUID AND HYDRATING STORE/LOCATION/HRCO METADATA; EXPANDED `getVacancyDetail` FALLBACK WHEN `get_web_vacancy_detail` THROWS 42501 (OUT-OF-SCOPE / DOES NOT EXIST) TO RESOLVE `public.plantilla` BY ID/VCODE AND `public.vacancies` BY VCODE; CONSTRUCTED COMPLETE VACANCY DETAIL ITEM FROM PLANTILLA WHEN NO EXPLICIT VACANCY ROW EXISTS; REFINED ERROR TAXONOMY IN `getErrorKind` TO MAP "DOES NOT EXIST" / "NOT FOUND" TO `not_found` STATE; VERIFICATION GATES ALL PASS CLEAN (`npm test` 28/28 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

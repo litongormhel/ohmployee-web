@@ -306,8 +306,8 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 - **10: Viewer** (Read-only presentation)
 
 ### Implementation Artifacts
-- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`
-  - Upserts definitions into `public.role_permission_definitions_compat`
+- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql` & `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`
+  - Upserts definitions into `public.role_permission_definitions_compat` with Row Level Security (RLS) enabled, `anon` access revoked, and authenticated `SELECT` policy (`rpd_compat_read_authenticated`).
   - Registers definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`)
   - Ensures deny-fill in `public.role_permission_matrix`
 - **TypeScript Types & Constants:** `src/types/rbac.ts`
