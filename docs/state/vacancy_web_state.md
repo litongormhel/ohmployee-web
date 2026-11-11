@@ -8,6 +8,17 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Restore `vw_vacancy_list` Columns & Fix Closure Query Schema (`ohm#v4k9p2r1`)**:
+  - **Restored Canonical View Columns on Staging**:
+    - Discovered that an accidental re-execution of older migration `20261014193500` at 15:26:49 reset `public.vw_vacancy_list` in Staging, dropping essential columns `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc`.
+    - Shipped migration `supabase/migrations/20262606000095_restore_vw_vacancy_list_columns.sql` to recreate `public.vw_vacancy_list` with 100% parity to Production, restoring all missing columns and granting `SELECT` to `authenticated` and `service_role`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+  - **Fixed Closure Tab Schema Selection**:
+    - In `src/lib/queries/vacancy.ts` (`listVacancies`, Closure tab query), removed hallucinated non-existent columns `recruitment_remarks`, `ops_remarks`, and `remarks` from `.select(...)` on `vw_vacancy_list`.
+    - Resolved PostgREST 400 Bad Request error `column "recruitment_remarks" does not exist` and `column "remarks" does not exist`.
+  - **Restored Queue Parity**:
+    - Pipeline, Closure, and Failed / Backout tabs now load live vacancy rows matching their top badge counts (Pipeline: 5, Closure: 2, Failed: 36).
+
 - **Vacated Plantilla Slot Detail Resolution & Access Denied Fix (`ohm#v6m1p9x3`)**:
   - **Inactive Plantilla Parity Fallback ID & Metadata Alignment**:
     - In `listVacancies` (`src/lib/queries/vacancy.ts`), when inactive plantilla records are queried to represent vacated slots on the Open tab, the query now matches candidate VCodes against `public.vacancies` to retrieve any existing vacancy record (`vac.id`).

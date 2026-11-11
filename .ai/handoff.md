@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Restore vw_vacancy_list Columns and Fix Vacancy Closure Query Schema Mismatch (ohm#v4k9p2r1)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); INVESTIGATED AND RESOLVED ISSUE WHERE VACANCY TABS (PIPELINE, CLOSURE, FAILED / BACKOUT) DISPLAYED ZERO ROWS ("NO VACANCIES FOUND") WHILE BADGE COUNTS (5, 2, 36) DISPLAYED NON-ZERO TOTALS; TRACED ROOT CAUSE TO: (1) MIGRATION ROLLBACK COLLISION AT 15:26:49 TODAY WHERE RE-EXECUTION OF OLD MIGRATION `20261014193500` ON STAGING DROPPED AND DOWNGRADED `public.vw_vacancy_list`, REMOVING CRITICAL COLUMNS `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, AND `affects_required_hc`, CAUSING POSTGREST 400 ERRORS ON REST QUERIES, AND (2) `src/lib/queries/vacancy.ts` (CLOSURE TAB) REQUESTING HALLUCINATED COLUMNS `recruitment_remarks`, `ops_remarks`, AND `remarks` FROM `vw_vacancy_list`; CREATED AND DEPLOYED MIGRATION `supabase/migrations/20262606000095_restore_vw_vacancy_list_columns.sql` RESTORING FULL CANONICAL PARITY WITH PRODUCTION; REMOVED HALLUCINATED COLUMNS IN `src/lib/queries/vacancy.ts`; CONFIRMED ZERO POSTGREST 400 ERRORS AND RESTORED ACTIVE ROWS ACROSS ALL QUEUES; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Accidental Migration Downgrade on Staging**:
+   - At 15:26:49 (07:26:49 UTC) today, migration `20261014193500_fix_vacancy_closure_lifecycle_and_tab_filtering.sql` was re-executed against Staging.
+   - It executed `DROP VIEW IF EXISTS public.vw_vacancy_list CASCADE` and recreated the October 14 schema of `vw_vacancy_list`.
+   - Later migrations (e.g. `20261028015509`) that added `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc` were skipped by the CLI as already applied in `supabase_migrations.schema_migrations`.
+   - Consequently, when the frontend queried `vw_vacancy_list` with `.select('..., hc_total, ..., is_pool_vacancy')` on the Pipeline, Closure, and Failed / Backout tabs, PostgREST returned HTTP 400 Bad Request (`column vw_vacancy_list.hc_total does not exist`).
+2. **Badge Count vs. Table Data Divergence**:
+   - Badge counts (`getVacancySummary`) rely on RPC `get_web_vacancy_summary` and direct table counts (`vacancy_closure_requests`, `applicants`, `vacancies`), which succeeded and displayed (Pipeline: 5, Closure: 2, Failed: 36).
+   - Table data (`listVacancies`) queries `vw_vacancy_list`. The client-side queries caught the 400 Bad Request errors and gracefully fell back to `[]`, causing the UI to display the empty state ("No vacancies found").
+3. **Closure Tab Field Hallucination**:
+   - In `src/lib/queries/vacancy.ts` (`listVacancies`, Closure tab), commit `f548f1f` had added `recruitment_remarks`, `ops_remarks`, and `remarks` to the `.select(...)` statement on `vw_vacancy_list`.
+   - `recruitment_remarks` and `ops_remarks` belong to `applicants`, not `vw_vacancy_list`. This guaranteed a 400 error on the Closure tab regardless of view state.
+
+### 2. Changes Made
+1. **Database Migration (`supabase/migrations/20262606000095_restore_vw_vacancy_list_columns.sql`)**:
+   - Recreated `public.vw_vacancy_list` with canonical schema matching Production (`20261028015509`).
+   - Restored columns `hc_filled`, `hc_total`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc`.
+   - Re-asserted permissions: `ALTER VIEW public.vw_vacancy_list OWNER TO postgres; GRANT SELECT ON public.vw_vacancy_list TO authenticated, service_role;`.
+   - Pushed cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+2. **Frontend Query Alignment (`src/lib/queries/vacancy.ts`)**:
+   - Removed `recruitment_remarks`, `ops_remarks`, and `remarks` from `.select(...)` in `listVacancies` Closure query.
+3. **Documentation**:
+   - Documented restoration in `docs/state/vacancy_web_state.md`, `.ai/briefing.md`, and `.ai/handoff.md`.
+
+### 3. Verification & Regressions
+- `SELECT column_name FROM information_schema.columns WHERE table_name = 'vw_vacancy_list' AND column_name IN ('hc_total', 'is_pool_vacancy');` returned both columns in Staging.
+- Direct REST / SQL queries for Pipeline, Closure, and Failed / Backout schemas returned HTTP 200 OK.
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated components).
+- `npm test`: 211/211 passed.
+- `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Wire coalescePlantillaBatch into Pre-Upload UI and ship Migration 094 (ohm#s8d1q4v9)
 
 **Status: COMPLETE ON MAIN; AUDITED AND RESOLVED VULNERABILITY WHERE DUPLICATE IDENTITIES (E.G. `ROSALES, GRACELYN BENITEZ` WITH `2060-001` ON ROW 1 AND `2060-005` ON ROW 2) WERE FALSELY EVALUATED AS VALID IN BOTH PRE-UPLOAD PREVIEW AND REVIEW QUEUE; DISCOVERED ROOT CAUSES: (1) `coalescePlantillaBatch` WAS IMPLEMENTED IN UTILS BUT NEVER WIRED INTO `src/components/more/PlantillaImportModal.tsx`, AND (2) DATABASE RPC `_evaluate_plantilla_import_rows` WAS EDITED INSIDE AN ALREADY-APPLIED MIGRATION (`20261111000002`), CAUSING REMOTE STAGING TO SKIP EXECUTION; WIRED `coalescePlantillaBatch` DIRECTLY INTO FILE SELECTION, VALIDATION MERGING, AND SUBMISSION GUARDS IN `PlantillaImportModal.tsx`; CREATED DEDICATED FORWARD MIGRATION `supabase/migrations/20262606000094_adr002_bidirectional_identity_lock.sql` DEFINING THE UPDATED `public._evaluate_plantilla_import_rows` FUNCTION FOR REMOTE DEPLOYMENT; UPDATED MODULE STATE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
