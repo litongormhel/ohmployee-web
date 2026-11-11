@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Hardcoded Overrides & Magic Numbers Elimination Across Plantilla, Vacancy & Dashboard (ohm#h4p9m2k8)
+
+**Status: COMPLETE ON MAIN; ELIMINATED LEGACY HARDCODED OVERRIDES, MAGIC NUMBERS, ARTIFICIAL BADGE INFLATIONS, AND HARDCODED UUIDs ACROSS `src/app/(dashboard)/plantilla/page.tsx`, `src/lib/queries/vacancy.ts`, AND `src/app/(dashboard)/dashboard/page.tsx`; ROOT CAUSE: LEGACY WORKAROUNDS PREVIOUSLY FORCED ALTURAS METRICS TO `actual = 752; vacant = 3;` INSTEAD OF TRUSTING `v_account_allocation_kpi`, ARTIFICIALLY INFLATED VACANCY OPEN BADGES BY `+2` FOR ALTURAS SCOPE, HARDCODED ALTURAS AS A FALLBACK ACCOUNT ID FOR VACATED PLANTILLA SLOT RESOLUTION, AND HARDCODED MOSES HQ POOL UUID (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`) ACROSS DASHBOARD AND PLANTILLA; REMOVED ALL ARTIFICIAL OVERRIDES AND PARAMETERIZED MOSES HQ RESOLUTION DYNAMICALLY VIA `is_pool_account = true` AND NAME MATCHING; ZERO DATABASE SCHEMA OR MIGRATION MUTATION; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Alturas Hardcoded Headcount**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, `if (row.account_id === "3126b9a8-29a6-4917-8b49-82e937d7cf88") { actual = 752; vacant = 3; }` overrode the authentic numbers returned from `v_account_allocation_kpi` (747 active allocations and 7 open slots).
+2. **Artificial Vacancy Badge Inflation**:
+   - In `src/lib/queries/vacancy.ts` (`getVacancySummary`), `baseSummary.open + (isAlturasScoped ? 2 : 0)` artificially added 2 to the open badge count whenever Alturas or all accounts were selected.
+3. **Alturas Hardcoded Fallback Account**:
+   - In `src/lib/queries/vacancy.ts` (`listVacancies`), `params.accountId || "3126b9a8-29a6-4917-8b49-82e937d7cf88"` forced vacated plantilla slot searches to Alturas only when `params.accountId` was null.
+4. **Hardcoded Moses HQ UUID**:
+   - Hardcoded `"3946ffdd-d826-4fc7-bb9e-356a32dcd152"` in `dashboard/page.tsx` and `plantilla/page.tsx` bypassed dynamic database configuration.
+
+### 2. Changes Made
+1. **Plantilla Metrics Cleanup (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Removed lines 841–845 (`actual = 752; vacant = 3;`), allowing metrics to reflect authentic values from `v_account_allocation_kpi`.
+   - Removed line 860 (`poolAccountIds.add("3946ffdd-...")`), relying purely on dynamic account attributes (`a.isPoolAccount || a.name.toLowerCase() === "moses hq"`).
+2. **Vacancy Queries Cleanup (`src/lib/queries/vacancy.ts`)**:
+   - Removed `isAlturasScoped` check and synthetic `+2` adjustment from `getVacancySummary`; open count is now direct `baseSummary.open`.
+   - Replaced hardcoded fallback in `listVacancies` with `const targetAccountId = params.accountId || null;`.
+3. **Dashboard Pool Resolution (`src/app/(dashboard)/dashboard/page.tsx`)**:
+   - Added dynamic `poolAccount` query selecting the active pool account ID where `is_pool_account = true` or `account_name ILIKE '%moses hq%'`.
+   - Updated `activeActivityScope` to use `poolAccount?.id ?? null` instead of the hardcoded UUID.
+
+### 3. Verification & Parity Results
+- **Zero Hardcoded UUIDs Remaining in Core Business Logic**: Confirmed zero magic numbers or static UUID overrides in `plantilla/page.tsx`, `vacancy.ts`, or `dashboard/page.tsx`.
+- **Automated Verification**:
+  - `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Problem-First Account Card Arrangement in Plantilla Directory (ohm#p4k1v9m8)
 
 **Status: COMPLETE ON MAIN; REORDERED ACCOUNT CARD GRID ON `/plantilla` SO THE MOST PROBLEMATIC ACCOUNTS (SEVEREST STAFFING SHORTAGES) APPEAR AT THE VERY FRONT (`PINAKA UNA`); ROOT CAUSE: AN OVERLY BROAD ZERO-CHECK `const isAFillRateZero = a.fillRate === 0; if (isAFillRateZero && !isBFillRateZero) return 1;` IN `src/app/(dashboard)/plantilla/page.tsx` CONFLATED UNCONFIGURED / EMPTY ACCOUNTS (`required === 0`, WHERE MFR RENDERS AS `"—"`) WITH ACTIVE ACCOUNTS SUFFERING A TRUE 0% STAFFING DEFICIT (SUCH AS `ZEBRA` WITH `HC 0/1 · Vacant 1 · MFR 0%`), PUSHING `ZEBRA` TO THE VERY BOTTOM BEHIND EVEN 100% HEALTHY ACCOUNTS; REPLACED WITH AN EXPLICIT MULTI-TIER SEVERITY COMPARATOR: ACCOUNTS WITH ACTIVE REQUIREMENTS (`required > 0`) STRICTLY PRECEDE BLANK MFR ACCOUNTS (`required === 0`), ACTIVE ACCOUNTS SORT BY LOWEST `fillRate` ASCENDING (0% FIRST, E.G. ZEBRA AT INDEX 0, FOLLOWED BY LOW-FILL ACCOUNTS, FOLLOWED BY 100%), WITH VACANCY COUNT TIE-BREAKING, AND BLANK ACCOUNTS NEATLY SETTLED AT THE BOTTOM SORTED ALPHABETICALLY; ZERO DATABASE MUTATION; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

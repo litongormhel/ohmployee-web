@@ -1018,6 +1018,10 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
+- **Hardcoded Overrides & Magic Numbers Elimination (`ohm#h4p9m2k8` — 2026-11-12)**:
+  - **Eliminated ALTURAS Hardcoded Allocations**: Removed the artificial override `if (row.account_id === '3126b9a8...') { actual = 752; vacant = 3; }` in `src/app/(dashboard)/plantilla/page.tsx`. Metrics now derive authentically from `v_account_allocation_kpi` without synthetic masking.
+  - **Removed Hardcoded Pool Account UUIDs**: Purged raw UUID string `"3946ffdd-d826-4fc7-bb9e-356a32dcd152"` across `plantilla/page.tsx` and `dashboard/page.tsx`. Workforce pool account resolution is now 100% dynamic via `is_pool_account = true` and `name.toLowerCase() === 'moses hq'`.
+
 - **Problem-First Account Card Arrangement (`ohm#p4k1v9m8` — 2026-11-11)**:
   - **Root Cause Resolved**: In `/plantilla` (Directory account selection grid), account card sorting previously checked `const isAFillRateZero = a.fillRate === 0; if (isAFillRateZero && !isBFillRateZero) return 1;`. This falsely conflated unconfigured/empty accounts (`required === 0`, where MFR renders as `"—"`) with active accounts that have severe staffing deficits (such as `ZEBRA` with `HC 0/1 · Vacant 1` and `MFR 0%`), pushing `ZEBRA` to the absolute bottom of the page behind even 100% fulfilled accounts.
   - **Problem-First Severity Hierarchy (`src/app/(dashboard)/plantilla/page.tsx`)**:

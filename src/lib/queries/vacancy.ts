@@ -1193,16 +1193,15 @@ export async function getVacancySummary(
       ? failedCountResult.value
       : 0;
 
-  const isAlturasScoped = !params.accountId || params.accountId === "3126b9a8-29a6-4917-8b49-82e937d7cf88";
-  const adjustedOpenCount = baseSummary.open + (isAlturasScoped ? 2 : 0);
+  const openCount = baseSummary.open;
 
   return {
     ...baseSummary,
-    open: adjustedOpenCount,
+    open: openCount,
     hired: hiredCount,
     closure: closureCount,
     failedBackout: failedCount,
-    total: adjustedOpenCount + baseSummary.pipeline + hiredCount + closureCount + failedCount,
+    total: openCount + baseSummary.pipeline + hiredCount + closureCount + failedCount,
   };
 }
 
@@ -2573,7 +2572,7 @@ export async function listVacancies(params: VacancyListParams) {
 
   // Parity fallback: ensure vacated slots from inactive plantilla personnel are included
   if (currentTab === "open" || !currentTab) {
-    const targetAccountId = params.accountId || "3126b9a8-29a6-4917-8b49-82e937d7cf88";
+    const targetAccountId = params.accountId || null;
     try {
       const { data: plantillaRows } = await supabase.rpc("list_web_plantilla_employees", {
         p_account_id: targetAccountId,

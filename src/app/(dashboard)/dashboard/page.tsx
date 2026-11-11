@@ -33,6 +33,7 @@ import { ScopeDropdown, type ScopeOption } from "@/components/shared/ScopeDropdo
 import { NeutralChip } from "@/components/shared/NeutralChip";
 import { Toast } from "@/components/shared/Toast";
 import { useCurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 
 // ---------------------------------------------------------------------------
@@ -263,20 +264,36 @@ export default function DashboardPage() {
     return key === "super_admin" || key === "super admin";
   }, [currentUser]);
 
+  // Dynamic pool account resolution
+  const { data: poolAccount } = useQuery({
+    queryKey: ["dashboard", "pool-account-id"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("accounts")
+        .select("id")
+        .or("is_pool_account.eq.true,account_name.ilike.%moses hq%")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 1000 * 60 * 30,
+  });
+
   // Derived activity feed scope parameter
   const activeActivityScope = useMemo(() => {
     if (selectedGroupScope === "all") {
       return { groupId: null, accountId: null };
     }
     if (selectedGroupScope === "MOSES HQ") {
-      // Moses HQ pool account ID
-      return { groupId: null, accountId: "3946ffdd-d826-4fc7-bb9e-356a32dcd152" };
+      return { groupId: null, accountId: poolAccount?.id ?? null };
     }
     const matched = groupKpiData?.find(
       (g) => g.groupName.toLowerCase().includes(selectedGroupScope.toLowerCase())
     );
     return { groupId: matched?.groupId ?? null, accountId: null };
-  }, [selectedGroupScope, groupKpiData]);
+  }, [selectedGroupScope, groupKpiData, poolAccount?.id]);
 
   // Scope Dropdown Options
   const scopeOptions: ScopeOption[] = useMemo(() => {

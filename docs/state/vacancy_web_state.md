@@ -8,6 +8,10 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Elimination of Hardcoded Overrides & Artificial Badge Inflation (`ohm#h4p9m2k8` — 2026-11-12)**:
+  - **Removed Artificial `+2` Badge Inflation**: In `src/lib/queries/vacancy.ts` (`getVacancySummary`), removed `const isAlturasScoped = !params.accountId || params.accountId === "3126b9a8..."; const adjustedOpenCount = baseSummary.open + (isAlturasScoped ? 2 : 0);`. Open summary badge now directly reflects true database open vacancies.
+  - **Removed Hardcoded Fallback Account ID**: In `src/lib/queries/vacancy.ts` (`listVacancies`), replaced `const targetAccountId = params.accountId || "3126b9a8-29a6-4917-8b49-82e937d7cf88";` with `const targetAccountId = params.accountId || null;` so unconstrained searches do not artificially narrow to Alturas.
+
 - **Multi-Headcount Display Parity in `list_web_vacancies` RPC (`ohm#n7k2m9x4`)**:
   - **RPC Payload Hardening (`supabase/migrations/20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql`)**:
     - Identified that `public.list_web_vacancies` RPC projected columns from `public.vw_vacancy_list` but omitted `vl.hc_filled`, `vl.hc_total`, `vl.hc_display`, and `vl.is_pool_vacancy` from its `row_capabilities` JSON payload and `RETURNS TABLE`.
