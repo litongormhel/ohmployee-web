@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
@@ -18,6 +57,45 @@
 ### 2. Verification
 - `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
 - `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
 
 ---
 
@@ -59,6 +137,45 @@
 
 ﻿# AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
@@ -77,6 +194,45 @@
 ### 2. Verification
 - `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
 - `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
 
 ---
 
@@ -5333,6 +5489,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
@@ -5351,6 +5546,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ### 2. Verification
 - `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
 - `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
 
 ---
 
@@ -6076,6 +6310,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
@@ -6094,6 +6367,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ### 2. Verification
 - `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
 - `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
 
 ---
 
@@ -6843,6 +7155,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); PRODUCTION STRICTLY UNTOUCHED; RESOLVED SQLSTATE 42P13 PARAMETER DEFAULT STRIPPING ERROR IN supabase/migrations/20261026000002_qa_reset_soft_archive_and_atomic_rollback.sql; RESOLVED PRIMARY KEY COLLISIONS IN supabase_migrations.schema_migrations BY RENUMBERING DUPLICATE BRANCH 2 MIGRATION VERSION PREFIXES 85 -> 90, 86 -> 91, AND 87 -> 92; SUCCESSFULLY EXECUTED npx supabase db push --remote --include-all --yes AGAINST STAGING; CONFIRMED STAGING DATABASE IS 100% UP TO DATE VIA DRY RUN; LINT VERIFIED CLEAN (0 ERRORS); LOCAL COMMIT ON MAIN.**
@@ -6861,6 +7212,45 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ### 2. Verification
 - `npx supabase db push --remote --include-all --dry-run`: `Remote database is up to date.`, exit code 0.
 - `npm run lint`: 0 errors (5 preexisting unused-var warnings), exit code 0.
+
+---
+
+# AI Handoff
+
+## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
+
+**Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (515 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (515 rows)
+  - Remote Production: `rwxelulyapjgaarlwkus` (502 rows)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 515 migration files in the local repository match the 515 applied migration records in Staging.
+- **Staging vs Production Discrepancy (13 Missing on Prod):**
+  - Exactly 13 migrations are present in Staging but missing/unapplied in Production:
+    1. `20261111000001` - `enable_rls_role_permission_definitions_compat`
+    2. `20261111000002` - `adr002_addendum_import_coalescing_and_invariants`
+    3. `20261111000003` - `fn_get_recent_activity_individual_events`
+    4. `20262606000083` - `hr_emploc_phase2a_fix_delta`
+    5. `20262606000084` - `hr_emploc_for_emploc_and_scoped_docs`
+    6. `20262606000085` - `fix_plantilla_roving_validation_and_approval_state`
+    7. `20262606000086` - `fix_plantilla_import_rollback_ready_and_store_closure_trigger`
+    8. `20262606000087` - `reset_incomplete_plantilla_rollback_lineage_and_lock_executor`
+    9. `20262606000088` - `on_leave_edr_lapse_sla_notifications`
+    10. `20262606000089` - `update_plantilla_schedule_rpc`
+    11. `20262606000090` - `fix_plantilla_separation_is_roving_and_nsr_data_team_workflow`
+    12. `20262606000091` - `archive_previous_applicants_on_vacancy_reopen`
+    13. `20262606000092` - `fix_audit_logs_actor_id_fk_and_safe_resolution`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Verification
+- Direct SQL query on `supabase_migrations.schema_migrations` on both remote databases:
+  - Staging: 515 rows
+  - Production: 502 rows
+- Local repository scan: 515 `.sql` files
 
 ---
 
