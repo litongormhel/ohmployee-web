@@ -914,3 +914,90 @@ test("Adversarial 6.3 [REMEDIATED]: CONTACT column alias coalesces cleanly acros
   assert.equal(result.coalescedRows[1].CONTACT, "09179998888", "CONTACT alias coalesces to blank sibling rows");
   assert.equal(result.coalescedRows[1].CONTACT_NO, "09179998888");
 });
+
+// ----------------------------------------------------------------------------
+// 7. Bi-Directional Identity Invariants (Same Full Name = Same EMPLOYEE_NO)
+// ----------------------------------------------------------------------------
+
+test("Adversarial 7.1: Identical full name with differing EMPLOYEE_NO (e.g. 2060-001 vs 2060-005) is hard-blocked", () => {
+  // Real user failure case: Gracelyn Benitez Rosales entered on Row 1 as 2060-001
+  // and on Row 2 as 2060-005 due to encoder employee number mistype.
+  const batch = [
+    {
+      EMPLOYEE_NO: "2060-001",
+      LAST_NAME: "ROSALES",
+      FIRST_NAME: "GRACELYN",
+      MIDDLE_NAME: "BENITEZ",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "MADAM001",
+      STORE_NAME: "Puregold Marikina",
+      POSITION: "Merchandiser",
+      RATE: "800",
+      CIVIL_STATUS: "SINGLE",
+      DATE_OF_BIRTH: "2004-10-10",
+      CONTACT_NO: "9632448685",
+      ADDRESS: "BLOCK 7 LOT 607 BAGONG SILANG SUCAT MUNTINLUPA",
+      SCHEDULE_DAYS: "MON-SAT",
+      DAYOFF: "SUN",
+    },
+    {
+      EMPLOYEE_NO: "2060-005", // Mismatched/mistyped employee number for same person
+      LAST_NAME: "ROSALES",
+      FIRST_NAME: "GRACELYN",
+      MIDDLE_NAME: "BENITEZ",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "MADAM002",
+      STORE_NAME: "Puregold Zabarte",
+      POSITION: "Merchandiser",
+      RATE: "800",
+      CIVIL_STATUS: "SINGLE",
+      DATE_OF_BIRTH: "2004-10-10",
+      CONTACT_NO: "9632448685",
+      ADDRESS: "BLOCK 7 LOT 607 BAGONG SILANG SUCAT MUNTINLUPA",
+      SCHEDULE_DAYS: "MON-SAT",
+      DAYOFF: "SUN",
+    },
+  ];
+
+  const result = coalescePlantillaBatch(batch);
+  const dupErrors = result.errors.filter((e) => e.conflictType === "duplicate_identity_distinct_emp_no");
+
+  assert.equal(dupErrors.length, 2, "Both rows must be flagged with duplicate_identity_distinct_emp_no error");
+  assert.equal(dupErrors[0].rowNumber, 1);
+  assert.equal(dupErrors[1].rowNumber, 2);
+  assert.match(dupErrors[0].msg, /ROSALES, GRACELYN BENITEZ/);
+  assert.match(dupErrors[0].msg, /2060-001/);
+  assert.match(dupErrors[0].msg, /2060-005/);
+});
+
+test("Adversarial 7.2: Legitimate roving employee sharing same EMPLOYEE_NO passes identity checks", () => {
+  const batch = [
+    {
+      EMPLOYEE_NO: "2060-001",
+      LAST_NAME: "ROSALES",
+      FIRST_NAME: "GRACELYN",
+      MIDDLE_NAME: "BENITEZ",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "MADAM001",
+      POSITION: "Merchandiser",
+      RATE: "800",
+      DATE_OF_BIRTH: "2004-10-10",
+    },
+    {
+      EMPLOYEE_NO: "2060-001", // Correct identical employee number
+      LAST_NAME: "ROSALES",
+      FIRST_NAME: "GRACELYN",
+      MIDDLE_NAME: "BENITEZ",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "MADAM002",
+      POSITION: "Merchandiser",
+      RATE: "800",
+      DATE_OF_BIRTH: "2004-10-10",
+    },
+  ];
+
+  const result = coalescePlantillaBatch(batch);
+  const dupErrors = result.errors.filter((e) => e.conflictType === "duplicate_identity_distinct_emp_no");
+  assert.equal(dupErrors.length, 0, "No duplicate identity error when EMPLOYEE_NO is identical");
+  assert.equal(result.errors.length, 0);
+});

@@ -1,5 +1,45 @@
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -21,6 +61,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -61,6 +141,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -82,6 +202,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
@@ -106,6 +266,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -127,6 +327,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -167,6 +407,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -188,6 +468,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Verify Vercel Production Build Health and Deployment Status (ohm#v3r8c1p9)
 
@@ -225,6 +545,46 @@
 
 ﻿# AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -246,6 +606,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -286,6 +686,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -307,6 +747,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
@@ -331,6 +811,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -352,6 +872,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -392,6 +952,46 @@
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -413,6 +1013,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 
@@ -5665,6 +6305,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -5686,6 +6366,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -5726,6 +6446,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -5747,6 +6507,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
@@ -5771,6 +6571,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -5792,6 +6632,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -5832,6 +6712,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -5853,6 +6773,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 
@@ -6574,6 +7534,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -6595,6 +7595,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -6635,6 +7675,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -6656,6 +7736,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
@@ -6680,6 +7800,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -6701,6 +7861,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -6741,6 +7941,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -6762,6 +8002,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 
@@ -7507,6 +8787,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -7528,6 +8848,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -7568,6 +8928,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -7589,6 +8989,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Fix Staging Remote Migration Push Collisions & Parameter Defaults (ohm#m4s8d1q9)
 
@@ -7613,6 +9053,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -7634,6 +9114,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
@@ -7674,6 +9194,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
 
 **Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
@@ -7695,6 +9255,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Unidirectional Forward Identity Checking**:
+   - Invariant #16 originally enforced: given an `EMPLOYEE_NO`, all rows sharing that `EMPLOYEE_NO` must have matching `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED`.
+   - However, the validation did not execute the inverse check: given a normalized full name (`LAST_NAME` + `FIRST_NAME` + `MIDDLE_NAME`), verify that all rows share the **exact same `EMPLOYEE_NO`**.
+2. **Real Failure Mode (User Production Example)**:
+   - Row 1: `VCODE = MADAM001`, `Store = Puregold Marikina`, `Emp No = 2060-001`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Row 2: `VCODE = MADAM002`, `Store = Puregold Zabarte`, `Emp No = 2060-005`, `Employee Name = ROSALES, GRACELYN BENITEZ`
+   - Because `2060-001` and `2060-005` had group size of 1 each, neither group failed `distinct_last_name_cnt > 1`.
+   - The system evaluated both rows as `VALID` with `Stationary · 1.00 HC`, treating them as two separate employees, inflating total headcount to 2.00 HC, and creating duplicate employee records.
+
+### 2. Changes Made
+1. **Client-Side Pre-Validation Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - In `coalescePlantillaBatch`, grouped rows by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)`.
+   - Evaluated `count(DISTINCT EMPLOYEE_NO)`. If $> 1$, hard-blocked all associated rows with `conflictType = 'duplicate_identity_distinct_emp_no'`:
+     `Duplicate identity conflict across rows for "{fullName}": assigned multiple distinct EMPLOYEE_NO values ({empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`
+2. **Database Evaluator RPC (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Added CTE `name_emp_conflicts AS MATERIALIZED` aggregating distinct `emp_no` counts and building comma-separated conflicting ID strings per `(last_name, first_name, middle_name)`.
+   - Added `LEFT JOIN name_emp_conflicts nec` in `evaluated`.
+   - Added `LEFT JOIN LATERAL` checks `db_name_conflict` (against `public.plantilla`) and `db_emp_name_conflict` (against `public.employees`) matching full names where `employee_no <> p.emp_no`.
+   - Emits hard-blocking error `duplicate_identity_distinct_emp_no` if distinct `emp_no` in batch $> 1$.
+   - Emits hard-blocking error `duplicate_identity_db_mismatch` if the employee already exists in DB with a different `EMPLOYEE_NO`.
+3. **Template & Documentation Updates**:
+   - Updated Rule #16 description in `src/lib/utils/data_control_xlsx.ts`.
+   - Updated `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` § Invariant 16 to formalize the Forward and Reverse Bi-Directional Identity Lock.
+   - Updated `docs/state/plantilla_web_state.md` § Permanent Architectural Rule Locks.
+4. **Adversarial Test Suite (`src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs`)**:
+   - Added `Adversarial 7.1`: Verifying identical full names with differing employee numbers (`2060-001` vs `2060-005`) are hard-blocked on both rows.
+   - Added `Adversarial 7.2`: Verifying legitimate roving employees sharing the same employee number pass cleanly.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 tests passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — Recent Activity Feed — Individual 1-by-1 Event Stream (No Batching, No Samples) (ohm#8d2n4x9w)
 

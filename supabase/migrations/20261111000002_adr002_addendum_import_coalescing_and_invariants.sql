@@ -139,6 +139,21 @@ BEGIN
     ) sub 
     WHERE sub.rn > 1
   ),
+  name_emp_conflicts AS MATERIALIZED (
+    SELECT
+      p.last_name,
+      p.first_name,
+      p.middle_name,
+      count(DISTINCT p.emp_no) AS distinct_emp_cnt,
+      string_agg(DISTINCT p.emp_no, ', ' ORDER BY p.emp_no) AS conflicting_emp_nos
+    FROM parsed p
+    WHERE p.last_name IS NOT NULL
+      AND p.first_name IS NOT NULL
+      AND p.middle_name IS NOT NULL
+      AND p.emp_no IS NOT NULL
+    GROUP BY p.last_name, p.first_name, p.middle_name
+    HAVING count(DISTINCT p.emp_no) > 1
+  ),
   emp_agg AS MATERIALIZED (
     SELECT
       p.emp_no,
@@ -257,6 +272,10 @@ BEGIN
           SELECT CASE WHEN p.emp_no IS NOT NULL AND ea.distinct_middle_name_cnt > 1 THEN jsonb_build_object('field','MIDDLE_NAME','conflict_type','core_identity_mismatch_in_batch','msg',format('Core identity mismatch across rows for EMPLOYEE_NO %s: distinct MIDDLE_NAME values in batch', p.emp_no)) END UNION ALL
           SELECT CASE WHEN p.emp_no IS NOT NULL AND ea.distinct_date_hired_cnt > 1 THEN jsonb_build_object('field','DATE_HIRED','conflict_type','core_identity_mismatch_in_batch','msg',format('Core identity mismatch across rows for EMPLOYEE_NO %s: distinct DATE_HIRED values in batch', p.emp_no)) END UNION ALL
 
+          -- R2 Bi-Directional Core Identity Invariant (1 Person = 1 EMPLOYEE_NO)
+          SELECT CASE WHEN p.emp_no IS NOT NULL AND nec.distinct_emp_cnt > 1 THEN jsonb_build_object('field','EMPLOYEE_NO','conflict_type','duplicate_identity_distinct_emp_no','msg',format('Duplicate identity conflict across rows for "%s, %s %s": assigned multiple distinct EMPLOYEE_NO values (%s). Roving employees must share the exact same EMPLOYEE_NO.', p.last_name, p.first_name, p.middle_name, nec.conflicting_emp_nos)) END UNION ALL
+          SELECT CASE WHEN p.emp_no IS NOT NULL AND COALESCE(db_name_conflict.employee_no, db_emp_name_conflict.employee_no) IS NOT NULL THEN jsonb_build_object('field','EMPLOYEE_NO','conflict_type','duplicate_identity_db_mismatch','msg',format('Duplicate identity conflict against DB master: "%s, %s %s" already exists with EMPLOYEE_NO "%s"; uploaded row specifies "%s".', p.last_name, p.first_name, p.middle_name, COALESCE(db_name_conflict.employee_no, db_emp_name_conflict.employee_no), p.emp_no)) END UNION ALL
+
           -- Inactive Plantilla Status Lock (Rule #1 Invariant)
           SELECT CASE WHEN p.emp_no IS NOT NULL AND db_plantilla.id IS NOT NULL AND db_plantilla.status IN ('Inactive','Rejected Deactivation') THEN jsonb_build_object('field','EMPLOYEE_NO','conflict_type','inactive_or_archived_existing_record','msg',format('Employee %s exists in plantilla with inactive/archived status ("%s"). Re-import blocked.', p.emp_no, db_plantilla.status)) END UNION ALL
 
@@ -314,6 +333,7 @@ BEGIN
     LEFT JOIN emp_store_counts esc ON esc.emp_no = p.emp_no
     LEFT JOIN emp_vcode_dups evd ON evd.row_num = p.row_num
     LEFT JOIN emp_agg ea ON ea.emp_no = p.emp_no
+    LEFT JOIN name_emp_conflicts nec ON nec.last_name = p.last_name AND nec.first_name = p.first_name AND nec.middle_name = p.middle_name
     LEFT JOIN LATERAL (
       SELECT s.id, s.account_id, s.group_id, s.store_name 
       FROM public.stores s 
@@ -344,6 +364,19 @@ BEGIN
     ) db_plantilla ON (p.emp_no IS NOT NULL)
     LEFT JOIN LATERAL (
       SELECT
+        pl.id,
+        pl.employee_no
+      FROM public.plantilla pl 
+      WHERE pl.is_deleted = false 
+        AND pl.employee_no IS NOT NULL 
+        AND upper(trim(pl.last_name)) = p.last_name 
+        AND upper(trim(pl.first_name)) = p.first_name 
+        AND upper(trim(pl.middle_name)) = p.middle_name 
+        AND pl.employee_no <> p.emp_no 
+      LIMIT 1
+    ) db_name_conflict ON (p.emp_no IS NOT NULL AND p.last_name IS NOT NULL AND p.first_name IS NOT NULL AND p.middle_name IS NOT NULL)
+    LEFT JOIN LATERAL (
+      SELECT
         e.id,
         upper(trim(e.last_name)) AS last_name,
         upper(trim(e.first_name)) AS first_name,
@@ -353,6 +386,18 @@ BEGIN
       WHERE e.employee_no = p.emp_no
       LIMIT 1
     ) db_emp ON (p.emp_no IS NOT NULL)
+    LEFT JOIN LATERAL (
+      SELECT
+        e.id,
+        e.employee_no
+      FROM public.employees e 
+      WHERE e.employee_no IS NOT NULL 
+        AND upper(trim(e.last_name)) = p.last_name 
+        AND upper(trim(e.first_name)) = p.first_name 
+        AND upper(trim(e.middle_name)) = p.middle_name 
+        AND e.employee_no <> p.emp_no 
+      LIMIT 1
+    ) db_emp_name_conflict ON (p.emp_no IS NOT NULL AND p.last_name IS NOT NULL AND p.first_name IS NOT NULL AND p.middle_name IS NOT NULL)
     LEFT JOIN LATERAL (
       SELECT u.id FROM public.users_profile u 
       WHERE p.hrco_email_raw IS NOT NULL 

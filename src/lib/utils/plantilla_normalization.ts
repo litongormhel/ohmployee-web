@@ -387,6 +387,41 @@ export function coalescePlantillaBatch(rawRows: Record<string, string>[]): Coale
     }
   });
 
+  // 1b. Bi-directional Core Identity: 1 Person (LAST_NAME + FIRST_NAME + MIDDLE_NAME) = 1 EMPLOYEE_NO
+  // A person with identical normalized names cannot be assigned multiple distinct EMPLOYEE_NOs in the batch.
+  const nameGroups = new Map<string, number[]>();
+  coalescedRows.forEach((row, idx) => {
+    const lastName = (row.LAST_NAME ?? "").trim().toUpperCase();
+    const firstName = (row.FIRST_NAME ?? "").trim().toUpperCase();
+    const middleName = (row.MIDDLE_NAME ?? "").trim().toUpperCase();
+    if (lastName && firstName && row.EMPLOYEE_NO) {
+      const nameKey = `${lastName}|${firstName}|${middleName}`;
+      if (!nameGroups.has(nameKey)) nameGroups.set(nameKey, []);
+      nameGroups.get(nameKey)!.push(idx);
+    }
+  });
+
+  for (const [nameKey, indices] of nameGroups.entries()) {
+    const empNos = new Set(
+      indices
+        .map((i) => (coalescedRows[i].EMPLOYEE_NO ?? "").trim().toUpperCase())
+        .filter(Boolean)
+    );
+    if (empNos.size > 1) {
+      const [lName, fName, mName] = nameKey.split("|");
+      const fullName = mName ? `${lName}, ${fName} ${mName}` : `${lName}, ${fName}`;
+      const empNoList = Array.from(empNos).join(", ");
+      for (const i of indices) {
+        errors.push({
+          rowNumber: i + 1,
+          field: "EMPLOYEE_NO",
+          conflictType: "duplicate_identity_distinct_emp_no",
+          msg: `Duplicate identity conflict across rows for "${fullName}": assigned multiple distinct EMPLOYEE_NO values (${empNoList}). Roving employees must share the exact same EMPLOYEE_NO.`,
+        });
+      }
+    }
+  }
+
   for (const [empNo, indices] of empGroups.entries()) {
     // 1. Core Identity Invariants: LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED
     const lastNames = new Set(indices.map((i) => coalescedRows[i].LAST_NAME).filter(Boolean));

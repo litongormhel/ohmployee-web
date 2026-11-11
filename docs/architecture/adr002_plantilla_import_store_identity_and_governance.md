@@ -83,8 +83,10 @@ Whenever `EMPLOYEE_NO` is populated:
 
 ## Addendum: Multi-Row Validation, Coalescing & Schedule Normalization (Rules #16 – #19)
 
-### Invariant 16 — Multi-Row Identity Invariant
-For multi-row `EMPLOYEE_NO` (roving) within an import batch and against existing DB master records (`plantilla` / `employees`), normalized `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED` must strictly match. Any mismatch is **HARD BLOCKED**.
+### Invariant 16 — Multi-Row & Bi-Directional Identity Invariant
+Employee identity mapping is strictly **bi-directional**:
+- **Forward Invariant (1 EMPLOYEE_NO = 1 Person):** For multi-row `EMPLOYEE_NO` (roving) within an import batch and against existing DB master records (`plantilla` / `employees`), normalized `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED` must strictly match. Any mismatch is **HARD BLOCKED**.
+- **Reverse Invariant (1 Person = 1 EMPLOYEE_NO):** A human identity defined by normalized `(LAST_NAME, FIRST_NAME, MIDDLE_NAME)` CANNOT be assigned multiple distinct `EMPLOYEE_NO`s within the same batch or against existing DB master records. Any duplicate person assigned a differing employee number is **HARD BLOCKED** (e.g. preventing typo errors such as assigning `2060-001` on row 1 and `2060-005` on row 2 to the same individual). Roving employees must share the exact same `EMPLOYEE_NO` across all assigned stores.
 
 ### Invariant 17 — Employee-Level Coalescing & Conflict Flag
 Employee-level fields (`POSITION`, `RATE`, `CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`, `DAYOFF`) silently coalesce across blank rows sharing the same `EMPLOYEE_NO`. Conflicting non-blank values trigger a non-blocking **WARNING FLAG** and apply **Last-Row-Wins** persistence upon batch commit.
