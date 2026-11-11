@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — Wire coalescePlantillaBatch into Pre-Upload UI and ship Migration 094 (ohm#s8d1q4v9)
+
+**Status: COMPLETE ON MAIN; AUDITED AND RESOLVED VULNERABILITY WHERE DUPLICATE IDENTITIES (E.G. `ROSALES, GRACELYN BENITEZ` WITH `2060-001` ON ROW 1 AND `2060-005` ON ROW 2) WERE FALSELY EVALUATED AS VALID IN BOTH PRE-UPLOAD PREVIEW AND REVIEW QUEUE; DISCOVERED ROOT CAUSES: (1) `coalescePlantillaBatch` WAS IMPLEMENTED IN UTILS BUT NEVER WIRED INTO `src/components/more/PlantillaImportModal.tsx`, AND (2) DATABASE RPC `_evaluate_plantilla_import_rows` WAS EDITED INSIDE AN ALREADY-APPLIED MIGRATION (`20261111000002`), CAUSING REMOTE STAGING TO SKIP EXECUTION; WIRED `coalescePlantillaBatch` DIRECTLY INTO FILE SELECTION, VALIDATION MERGING, AND SUBMISSION GUARDS IN `PlantillaImportModal.tsx`; CREATED DEDICATED FORWARD MIGRATION `supabase/migrations/20262606000094_adr002_bidirectional_identity_lock.sql` DEFINING THE UPDATED `public._evaluate_plantilla_import_rows` FUNCTION FOR REMOTE DEPLOYMENT; UPDATED MODULE STATE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Client-Side Disconnect**:
+   - `handleFileSelect` previously executed `normalizePlantillaRows`, which only performed row-level trimming and casing.
+   - It never executed `coalescePlantillaBatch(rows)`.
+   - In `useEffect`, only individual schedule errors were merged from client to server response. Batch-level identity errors were never checked or merged.
+2. **Migration Idempotency & Staging Desync**:
+   - The SQL for the bi-directional identity lock (`name_emp_conflicts`) was previously authored into `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`.
+   - Migration `20261111000002` was already applied on Staging days ago.
+   - The Supabase CLI skips already-recorded migrations in `supabase_migrations.schema_migrations`.
+   - Consequently, Staging's live database was running the old RPC code which treated Rosales' two rows as two separate employees, validating them both as stationary 1.00 HC.
+
+### 2. Changes Made
+1. **Client-Side Pre-Upload Wiring (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Imported `coalescePlantillaBatch` and replaced `normalizePlantillaRows` in `handleFileSelect`.
+   - In `useEffect`, executed `coalescePlantillaBatch(parsedRows)` and merged all client-side batch validation errors into `res.rows`, correctly marking conflicting rows as `validationStatus = "blocked"`, incrementing `res.blockedRows`, and updating `uploadPreviewFilter` to `"blocked"`.
+   - In `handleBaselineSubmit`, added hard guard checking `coalescePlantillaBatch(parsedRows).errors.length === 0` before submission.
+2. **Dedicated Forward Migration (`supabase/migrations/20262606000094_adr002_bidirectional_identity_lock.sql`)**:
+   - Authored clean, standalone migration deploying `public._evaluate_plantilla_import_rows` with `name_emp_conflicts` CTE and reverse checks against `public.plantilla` (`db_name_conflict`) and `public.employees` (`db_emp_name_conflict`).
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the fix, UI wiring, and Migration 094 details.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (clean).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Refine Pre-Upload Details/Validation Message Format (ohm#n4p2k8v1)
 
 **Status: COMPLETE ON MAIN; REFINED `formatFriendlyValidationMessage` IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT EMPLOYEE SURNAME PREFIX (`${lastName} — `) ACROSS ALL VALIDATION MESSAGES; THE EMPLOYEE'S FULL NAME IS ALREADY PROMINENTLY DISPLAYED IN THE ADJACENT `Employee Name` TABLE COLUMN, MAKING REPETITIVE SURNAME PREFIXES UNNECESSARY AND CLUTTERED; UPDATED HIRE DATE MISMATCH COPY TO EXACT SPECIFICATION `"Mismatched hired date across roving store rows."`; STREAMLINED FUNCTION SIGNATURE AND CALL SITES TO ELIMINATE UNUSED PARAMETER AND MAINTAIN ZERO LINT WARNINGS; UPDATED MODULE STATE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

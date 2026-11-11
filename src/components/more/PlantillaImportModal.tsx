@@ -31,7 +31,7 @@ import {
   PLANTILLA_REQUIRED_HEADERS,
   validateSpreadsheetScopeContext,
 } from "@/lib/utils/data_control_xlsx";
-import { normalizePlantillaRows } from "@/lib/utils/plantilla_normalization";
+import { coalescePlantillaBatch } from "@/lib/utils/plantilla_normalization";
 import {
   approvePlantillaImportBatch,
   approvePlantillaImportRollback,
@@ -385,8 +385,8 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
       if (missing.length > 0) {
         throw new Error(`Missing required columns: ${missing.join(", ")}`);
       }
-      const normalizedRows = normalizePlantillaRows(rows);
-      setParsedRows(normalizedRows);
+      const batchResult = coalescePlantillaBatch(rows);
+      setParsedRows(batchResult.coalescedRows);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : "Failed to parse spreadsheet file.");
       setParsedRows([]);
@@ -414,33 +414,39 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
           rows: parsedRows,
         });
         if (!isCancelled) {
+          const clientValidation = coalescePlantillaBatch(parsedRows);
           let additionalBlocked = 0;
-          for (let i = 0; i < parsedRows.length; i++) {
-            const schedErr = parsedRows[i].__scheduleError;
-            if (schedErr && res.rows[i]) {
-              const row = res.rows[i];
+
+          // Merge client-side batch validation errors (in-batch duplicate identity, schedule errors, etc.)
+          for (const err of clientValidation.errors) {
+            const rowIndex = err.rowNumber - 1;
+            const row = res.rows[rowIndex];
+            if (row) {
               row.validationErrors = row.validationErrors || [];
-              row.validationErrors.push({
-                field: "SCHEDULE_DAYS",
-                conflictType: "invalid_schedule_days",
-                msg: schedErr,
-              });
-              row.validationMessages = row.validationMessages || [];
-              row.validationMessages.push(`[SCHEDULE_DAYS] ${schedErr}`);
-              if (row.validationStatus === "valid" || row.validationStatus === "flagged") {
-                if (row.validationStatus === "valid") res.validRows--;
-                if (row.validationStatus === "flagged") res.flaggedRows--;
-                row.validationStatus = "blocked";
-                additionalBlocked++;
+              const exists = row.validationErrors.some(
+                (e) => e.conflictType === err.conflictType && e.field === err.field
+              );
+              if (!exists) {
+                row.validationErrors.push({
+                  field: err.field,
+                  conflictType: err.conflictType,
+                  msg: err.msg,
+                });
+                row.validationMessages = row.validationMessages || [];
+                row.validationMessages.push(`[${err.field || "VALIDATION"}] ${err.msg}`);
+                if (row.validationStatus === "valid" || row.validationStatus === "flagged") {
+                  if (row.validationStatus === "valid") res.validRows--;
+                  if (row.validationStatus === "flagged") res.flaggedRows--;
+                  row.validationStatus = "blocked";
+                  additionalBlocked++;
+                }
               }
             }
           }
+
           if (additionalBlocked > 0) {
             res.blockedRows += additionalBlocked;
             res.status = "invalid";
-            if (!res.errorSummary) res.errorSummary = {};
-            res.errorSummary.invalid_schedule_days =
-              (Number(res.errorSummary.invalid_schedule_days) || 0) + additionalBlocked;
           }
 
           setValidationResult(res);
@@ -489,6 +495,14 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
     if (parsedRows.some((r) => r.__scheduleError)) {
       setParseError("Cannot submit: file contains invalid schedule days or rest day conflicts.");
+      return;
+    }
+
+    const clientValidation = coalescePlantillaBatch(parsedRows);
+    if (clientValidation.errors.length > 0) {
+      setParseError(
+        `Cannot submit: file contains ${clientValidation.errors.length} blocking error(s) (e.g. duplicate identity or schedule errors).`
+      );
       return;
     }
 
