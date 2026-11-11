@@ -1018,13 +1018,13 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
-- **Plantilla Baseline Import Approval Schema Fix (`ohm#m2p9v4k7` — 2026-11-11)**:
-  - **Root Cause & Schema Parity**: Resolved PostgreSQL error `column "approval_notes" of relation "plantilla_import_batches" does not exist` occurring during "Approve & Apply" on Plantilla Baseline Batch Import. In `public.approve_plantilla_import_batch`, previous draft changes introduced non-existent columns (`approval_notes`, `status = 'committing'`, `status = 'committed'`, `total_stores`, `total_vacant_slots`, `total_employees`) into `UPDATE public.plantilla_import_batches`.
-  - **Canonical ADR-002 Fields Restored**:
-    - Removed premature update setting status to `'committing'` and writing to `approval_notes`.
-    - Restored canonical status update setting `status = 'approved'`, `approved_by_name = v_user_name`, `rollback_ready = true`, `committed_stores`, `committed_employees`, `stores_created`, `employees_created`, and `allocations_created`.
-    - In exception handler, restored `status = 'commit_failed'` and recorded error text to canonical `commit_error` column.
-    - Updated base migration `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` and generated dedicated migration `supabase/migrations/20262606000093_fix_plantilla_approve_batch_schema.sql` for deployment.
+- **Plantilla Directory Moses HQ & Workforce Pool Card Metrics Integration (`ohm#m8p4v2k9` — 2026-11-11)**:
+  - **Root Cause Resolved**: In `/plantilla` (Directory account selection grid), the Moses HQ account card rendered `HC 0/0 · Vacant 0` despite having 3 active employees assigned (`YAP, JAY UY`, `YAP, JEN UY`, and `YAP, JESSICA UY`). This occurred because `accountMetricsQuery` fetched solely from `v_account_allocation_kpi`, which intentionally filters out pool accounts (`WHERE COALESCE(is_pool_account, false) = false`) to isolate client-facing store MFRs.
+  - **Batch Pool Capacity Integration (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - Enhanced `accountMetricsQuery` to execute concurrent queries to `public.plantilla` (`is_pool_employee = true` or `account = 'Moses HQ'`) and `public.workforce_pool_slots` (`is_active = true`, `deleted_at IS NULL`).
+    - Dynamically resolves pool accounts (`isPoolAccount: true` or name matching `"Moses HQ"`), mapping live active headcount (`actual = 3`), open pool slots (`vacant = 20`), and total budgeted pool capacity (`required = 23`).
+    - Matches 100% parity with the internal `MosesHqPoolView` metric cards (Active: 3, Vacant: 20, Budgeted: 23), presenting `HC 3/23 · Vacant 20` on the Moses HQ card.
+
 
 
 

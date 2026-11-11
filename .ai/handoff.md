@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Plantilla Directory Moses HQ & Workforce Pool Card Metrics Integration (ohm#m8p4v2k9)
+
+**Status: COMPLETE ON MAIN; RESOLVED `0/0` MOSES HQ CARD ISSUE ON PLANTILLA ACCOUNT DIRECTORY SCREEN (`/plantilla`); ROOT CAUSE: `accountMetricsQuery` IN `src/app/(dashboard)/plantilla/page.tsx` FETCHED METRICS SOLELY FROM `public.v_account_allocation_kpi`, WHICH DELIBERATELY CONTAINS `WHERE a.is_active = true AND COALESCE(a.is_pool_account, false) = false` TO PREVENT INTERNAL POOL DATA FROM LEAKING INTO CLIENT-FACING RETAIL MFR/CENCOM VIEWS; BECAUSE MOSES HQ HAS `is_pool_account = true`, IT PRODUCED NO KPI ROW, RETURNING DEFAULT `0/0`; INTEGRATED PARALLEL BATCH RESOLUTION IN `accountMetricsQuery` TO QUERY `public.plantilla` (`status = 'Active'`, `is_pool_employee = true` OR `account = 'Moses HQ'`) AND `public.workforce_pool_slots` (`is_active = true`, `deleted_at IS NULL`); IDENTIFIED THE 3 ACTIVE EMPLOYEES (`YAP, JAY UY`, `YAP, JEN UY`, AND `YAP, JESSICA UY`) AND 20 OPEN SLOTS; RECONCILED MOSES HQ METRICS ON `/plantilla` TO `actual: 3`, `vacant: 20`, AND `required: 23` (`HC 3/23 · Vacant 20`), ACHIEVING 100% PARITY WITH THE INTERNAL `MosesHqPoolView` METRIC STRIP; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Deliberate Pool Filter in `v_account_allocation_kpi`**:
+   - `public.v_account_allocation_kpi` is the SQL engine backing retail client store allocation metrics, CENCOM account/group KPIs, and MFRs.
+   - It enforces `WHERE a.is_active = true AND COALESCE(a.is_pool_account, false) = false`.
+   - The Moses HQ account (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`) has `is_pool_account = true`.
+   - Consequently, `v_account_allocation_kpi` intentionally omits Moses HQ.
+2. **Missing Pool Fallback in Frontend KPI Query**:
+   - In `src/app/(dashboard)/plantilla/page.tsx` (lines 784–836), `accountMetricsQuery` queried only `v_account_allocation_kpi` and leave counts from `plantilla`.
+   - When rendering the account card (`getAccountSummary`), Moses HQ returned undefined in the map, defaulting to `{ actual: 0, vacant: 0, required: 0 }`.
+   - On line 2094, the UI rendered `HC 0/0 · Vacant 0`.
+
+### 2. Changes Made
+1. **Frontend Query Enhancement (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Extended `accountMetricsQuery` to execute concurrent queries to:
+     - `public.v_account_allocation_kpi` (for client accounts)
+     - `public.plantilla` (on-leave counts)
+     - `public.plantilla` (`eq("status", "Active")`, `or("is_pool_employee.eq.true,account.ilike.%moses hq%")`)
+     - `public.workforce_pool_slots` (`eq("is_active", true)`, `is("deleted_at", null)`)
+   - For all pool accounts (`isPoolAccount: true` or named `"Moses HQ"`), resolved:
+     - `actual`: live count of active pool employees (3: Jay Yap, Jen Yap, Jessica Yap)
+     - `vacant`: count of open pool slots (20)
+     - `required`: total pool slots (23 = 3 filled + 20 open)
+     - `fillRate`: `(actual / required) * 100` (13.04%)
+   - Populated the pool account into `map`, allowing the card to render `HC 3/23 · Vacant 20` without triggering warning badges or breaking other accounts.
+   - Pinned query reactivity to `allowedAccountsQuery.data` to immediately recompute if user scopes or account lists change.
+
+### 3. Verification & Parity Results
+- **Active Personnel Parity**: Verified 3 active employees in `public.plantilla` (`YAP, JAY UY`, `YAP, JEN UY`, `YAP, JESSICA UY` under Bundler Pool `BUN-GHQ-00014`).
+- **Slot Capacity Parity**: 23 total active slots in `workforce_pool_slots` (3 filled, 20 open), aligning 1:1 with `MosesHqPoolView`'s metric strip (Budgeted: 23, Active: 3, Available: 3, Vacant: 20).
+- **Zero Database / CENCOM Mutation**: Database schema, SQL views, and migration files untouched. Zero risk to CENCOM Group 1–5 MFR metrics.
+- **Automated Verification**:
+  - `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Strict Request Closure Lock when Active Applicants Exist (ohm#c3m8v1k4)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); AUDITED AND ENFORCED STRICT REQUEST CLOSURE LOCK ACROSS VACANCY MANAGEMENT WHENEVER ACTIVE APPLICANTS EXIST IN THE PIPELINE; REMOVED `isExemptFromClosureApplicantBlock` IN `src/components/vacancy/VacancyDetailDrawer.tsx` SO SUPER ADMIN, OPS, AND RECRUITMENT ROLES ARE NO LONGER EXEMPTED FROM THE DISABLED BUTTON STATE; SHIPPED STANDALONE MIGRATION `supabase/migrations/20262606000098_block_vacancy_closure_when_applicants_active.sql` ENHANCING DATABASE ASSERTION `public.fn_assert_vacancy_closeable` TO HARD-REJECT ANY CLOSURE REQUESTS WHEN NON-TERMINAL CANDIDATES EXIST FOR THAT VCODE IN `public.applicants`; POST-MIGRATION LIVE DIFF CONFIRMED 100% PARITY; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

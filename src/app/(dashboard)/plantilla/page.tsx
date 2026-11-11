@@ -782,10 +782,14 @@ function PlantillaPageContent() {
   }, [accountId, hasAllScope, allowedAccountsQuery.isSuccess, allowedAccountsQuery.data]);
 
   const accountMetricsQuery = useQuery({
-    queryKey: ["plantilla", "account-allocation-kpi"],
+    queryKey: [
+      "plantilla",
+      "account-allocation-kpi",
+      allowedAccountsQuery.data?.map((a) => a.id).join(","),
+    ],
     queryFn: async () => {
       const supabase = createClient();
-      const [kpiRes, leaveRes] = await Promise.all([
+      const [kpiRes, leaveRes, poolEmpRes, poolSlotsRes] = await Promise.all([
         supabase
           .from("v_account_allocation_kpi")
           .select("account_id, actual_hc, slot_vacant_hc, pipeline_count, required_hc"),
@@ -797,6 +801,20 @@ function PlantillaPageContent() {
           .is("date_of_separation", null)
           .or("is_deleted.is.null,is_deleted.eq.false")
           .or("is_archived.is.null,is_archived.eq.false"),
+        supabase
+          .from("plantilla")
+          .select("id, account_id, account")
+          .eq("status", "Active")
+          .or("is_pool_employee.eq.true,account.ilike.%moses hq%")
+          .is("deactivated_at", null)
+          .is("date_of_separation", null)
+          .or("is_deleted.is.null,is_deleted.eq.false")
+          .or("is_archived.is.null,is_archived.eq.false"),
+        supabase
+          .from("workforce_pool_slots")
+          .select("id, status")
+          .eq("is_active", true)
+          .is("deleted_at", null),
       ]);
 
       if (kpiRes.error) {
@@ -829,6 +847,43 @@ function PlantillaPageContent() {
         const leave = leaveMap.get(String(row.account_id)) ?? 0;
         map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate, leave });
       });
+
+      // Workforce Pool Account KPI integration (e.g. Moses HQ, is_pool_account: true)
+      // Pool accounts are intentionally excluded from v_account_allocation_kpi to isolate retail store MFRs.
+      // We resolve live headcount from plantilla and budgeted/vacant slots from workforce_pool_slots.
+      const poolAccountIds = new Set<string>();
+      (allowedAccountsQuery.data ?? []).forEach((a) => {
+        if (a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq") {
+          poolAccountIds.add(String(a.id));
+        }
+      });
+      poolAccountIds.add("3946ffdd-d826-4fc7-bb9e-356a32dcd152");
+
+      const poolEmployees = !poolEmpRes.error && Array.isArray(poolEmpRes.data) ? poolEmpRes.data : [];
+      const poolSlots = !poolSlotsRes.error && Array.isArray(poolSlotsRes.data) ? poolSlotsRes.data : [];
+      const openPoolSlotsCount = poolSlots.filter((s) => s.status === "open").length;
+
+      for (const poolId of poolAccountIds) {
+        const poolActiveHc = poolEmployees.filter(
+          (e) =>
+            String(e.account_id) === poolId ||
+            String(e.account ?? "").trim().toLowerCase() === "moses hq",
+        ).length;
+        const vacant = poolSlots.length > 0 ? openPoolSlotsCount : 0;
+        const required = poolSlots.length > 0 ? poolSlots.length : poolActiveHc;
+        const fillRate = required > 0 ? (poolActiveHc / required) * 100 : 0;
+        const leave = leaveMap.get(poolId) ?? 0;
+
+        map.set(poolId, {
+          actual: poolActiveHc,
+          vacant,
+          hrProcess: 0,
+          required,
+          fillRate,
+          leave,
+        });
+      }
+
       return map;
     },
     enabled: !!currentUser && !accountId && viewMode === "store",
