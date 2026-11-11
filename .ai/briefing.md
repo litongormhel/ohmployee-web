@@ -38,7 +38,8 @@ No DDL, function execution, or writes against any Supabase project without Ohm's
 - **Production:** `rwxelulyapjgaarlwkus`
 - **Staging:** `qqiiznmqxfoamqytjica`
 - Agent sessions and localhost must use staging (`qqiiznmqxfoamqytjica`).
-- NEVER connect to the production ref (`rwxelulyapjgaarlwkus`).
+- NEVER connect to or run commands against the production ref (`rwxelulyapjgaarlwkus`).
+- **Auto-Switch to Staging Guard**: If the current environment or Supabase CLI is detected pointing to Production (`rwxelulyapjgaarlwkus` in `.env` or `supabase/.temp/project-ref`), ALWAYS immediately switch back to Staging (`qqiiznmqxfoamqytjica`) via copying `.env.staging` -> `.env` and running `npx supabase link --project-ref qqiiznmqxfoamqytjica` before executing any task or command.
 
 ### After Every Completed Prompt (mandatory, in this order)
 1. `.ai/briefing.md` — prepend PROMPT ID + title to "Last Completed Tasks" (keep only 5)
@@ -47,6 +48,7 @@ No DDL, function execution, or writes against any Supabase project without Ohm's
 4. Local commit (see "Local Commit Rule" below)
 5. Branch close-out — if a branch exists, Ohm verifies (`npm run lint` / `npm run build` /
    manual test), merges into `main`, then deletes the branch. AI only reports the branch.
+6. Tip Callout — conclude the response with a helpful `> [!TIP]` callout covering immediate next operational actions, relevant verification steps, or deployment commands.
 
 ### Local Commit Rule (every prompt, after items 1-3)
 - Commit LOCALLY on `main`. NEVER `git push`, merge, rebase, amend, reset, or delete anything.

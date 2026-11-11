@@ -11,6 +11,8 @@
   to `main`, and deletes it.
 - After items 1-3 of the checklist, make a LOCAL commit of only the files this prompt changed
   (explicit paths, never `git add .`). NEVER push. Rules: `.ai/briefing.md` § Local Commit Rule.
+- Environment Safety Guard: If the workspace or Supabase CLI is detected pointing to Production (`rwxelulyapjgaarlwkus` in `.env` or `supabase/.temp/project-ref`), immediately switch back to Staging (`qqiiznmqxfoamqytjica` via `.env.staging` / `npx supabase link --project-ref qqiiznmqxfoamqytjica`) before executing tasks.
+- Conclude every turn report with a helpful `> [!TIP]` callout covering immediate next operational actions, verification steps, or deployment commands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
