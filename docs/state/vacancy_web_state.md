@@ -8,6 +8,14 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Multi-Headcount Display Parity in `list_web_vacancies` RPC (`ohm#n7k2m9x4`)**:
+  - **RPC Payload Hardening (`supabase/migrations/20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql`)**:
+    - Identified that `public.list_web_vacancies` RPC projected columns from `public.vw_vacancy_list` but omitted `vl.hc_filled`, `vl.hc_total`, `vl.hc_display`, and `vl.is_pool_vacancy` from its `row_capabilities` JSON payload and `RETURNS TABLE`.
+    - This caused frontend `normalizeListRow` in `src/lib/queries/vacancy.ts` to fall back to the default `hcTotal = 1`, incorrectly rendering multi-headcount vacancies (such as Moses HQ Seasonal `SEA-00007` requesting 10 headcount) as `0/1` instead of `0/10`.
+    - Embedded `'hc_filled'`, `'hc_total'`, `'hc_display'`, and `'is_pool_vacancy'` inside `jsonb_build_object(...) AS row_capabilities` in `public.list_web_vacancies`.
+    - Preserved exact `RETURNS TABLE(...)` column structure for 100% backward compatibility with all external callers.
+    - Shipped migration 099 to Staging (`qqiiznmqxfoamqytjica`), verified live via `prosrc` inspection, and confirmed `SEA-00007` correctly exposes `hc_total: 10`, `hc_filled: 0`, and `hc_display: '0/10'`.
+
 - **Strict Request Closure Lock when Active Applicants Exist (`ohm#c3m8v1k4`)**:
   - **Universal Frontend Block in `VacancyDetailDrawer.tsx`**:
     - Removed `isExemptFromClosureApplicantBlock` which previously exempted Super Admin, Operations, and Recruitment from the applicant closure block.

@@ -1,5 +1,55 @@
 # AI Handoff
 
+## Execution Report — Multi-Headcount Display Parity in list_web_vacancies RPC (ohm#n7k2m9x4)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); RESOLVED `0/1` HEADCOUNT FRACTION RENDER FOR MULTI-HEADCOUNT VACANCIES ON THE VACANCY OPEN TAB; ROOT CAUSE: WHILE `public.vw_vacancy_list` PRODUCED ACCURATE `hc_total = 10` AND `hc_display = '0/10'`, THE RPC `public.list_web_vacancies` OMITTED THESE FIELDS FROM ITS SELECT AND `row_capabilities` JSON PAYLOAD, CAUSING FRONTEND `normalizeListRow` IN `src/lib/queries/vacancy.ts` TO FALL BACK TO `hcTotal = 1` (`0/1`); DEPLOYED MIGRATIONS `20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql` AND `20262606000100_grant_list_web_vacancies_postgres.sql` TO EMBED `hc_filled`, `hc_total`, `hc_display`, AND `is_pool_vacancy` INTO `row_capabilities`; LIVE FUNCTION INSPECTION CONFIRMED 100% PARITY; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Database RPC Projection Gap**:
+   - `public.vw_vacancy_list` correctly derives `hc_total` (`GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric)::integer`), `hc_filled`, and `hc_display` (e.g., `'0/10'`).
+   - The RPC `public.list_web_vacancies` selected from `public.vw_vacancy_list vl`, but did not include `vl.hc_total`, `vl.hc_filled`, or `vl.hc_display` in its `RETURNS TABLE` columns or in its `row_capabilities` JSON payload.
+2. **Frontend Fallback Triggered**:
+   - In `normalizeListRow` (`src/lib/queries/vacancy.ts`):
+     ```typescript
+     const rowCaps = asObject(row.row_capabilities);
+     const hcFilled = asNumber(row.hc_filled ?? rowCaps.hc_filled) ?? asCount(row.confirmed_onboard_count);
+     const hcTotal = asNumber(row.hc_total ?? rowCaps.hc_total ?? row.required_headcount ?? row.headcount ?? row.hc) ?? 1;
+     const hcDisplay = asString(row.hc_display ?? rowCaps.hc_display) ?? `${hcFilled}/${hcTotal}`;
+     ```
+   - Because `row.hc_total`, `rowCaps.hc_total`, and `row.required_headcount` were all undefined, `hcTotal` defaulted to `1`.
+   - With `hcFilled = 0` and `hcTotal = 1`, `hcDisplay` computed `${0}/${1}` = `"0/1"` instead of `"0/10"`.
+
+### 2. Changes Made
+1. **Database Migration (`supabase/migrations/20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql`)**:
+   - Updated `public.list_web_vacancies` to embed `hc_filled`, `hc_total`, `hc_display`, and `is_pool_vacancy` directly inside `jsonb_build_object(...) AS row_capabilities`:
+     ```sql
+     jsonb_build_object(
+       'can_view_detail', true,
+       'hc_filled', vl.hc_filled,
+       'hc_total', vl.hc_total,
+       'hc_display', vl.hc_display,
+       'is_pool_vacancy', vl.is_pool_vacancy,
+       'can_request_closure_hint', ...
+       'authority', 'rls_action_rpcs'
+     ) AS row_capabilities
+     ```
+   - Maintained identical `RETURNS TABLE(...)` signature to ensure zero breaking changes or cache invalidation issues for external callers.
+2. **Administrative Access Migration (`supabase/migrations/20262606000100_grant_list_web_vacancies_postgres.sql`)**:
+   - Granted EXECUTE permissions on `public.list_web_vacancies` to `postgres` role for administrative querying and migration workflows.
+3. **Applied to Staging (`qqiiznmqxfoamqytjica`)**:
+   - Applied migrations 099 and 100 cleanly via `npx supabase db push --remote=qqiiznmqxfoamqytjica --yes`.
+   - Inspected live `prosrc` in `pg_proc` to verify exact matching function definition in Staging.
+
+### 3. Verification & Parity Results
+- **Database Parity Verification**: Live query of `prosrc` confirmed `vl.hc_filled`, `vl.hc_total`, `vl.hc_display`, and `vl.is_pool_vacancy` are present inside `row_capabilities`.
+- **Frontend Normalizer Parity**: With `rowCaps.hc_total = 10` and `rowCaps.hc_display = '0/10'`, `normalizeListRow` automatically resolves `hcDisplay: "0/10"`.
+- **Automated Verification**:
+  - `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Plantilla Directory Moses HQ & Workforce Pool Card Metrics Integration (ohm#m8p4v2k9)
 
 **Status: COMPLETE ON MAIN; RESOLVED `0/0` MOSES HQ CARD ISSUE ON PLANTILLA ACCOUNT DIRECTORY SCREEN (`/plantilla`); ROOT CAUSE: `accountMetricsQuery` IN `src/app/(dashboard)/plantilla/page.tsx` FETCHED METRICS SOLELY FROM `public.v_account_allocation_kpi`, WHICH DELIBERATELY CONTAINS `WHERE a.is_active = true AND COALESCE(a.is_pool_account, false) = false` TO PREVENT INTERNAL POOL DATA FROM LEAKING INTO CLIENT-FACING RETAIL MFR/CENCOM VIEWS; BECAUSE MOSES HQ HAS `is_pool_account = true`, IT PRODUCED NO KPI ROW, RETURNING DEFAULT `0/0`; INTEGRATED PARALLEL BATCH RESOLUTION IN `accountMetricsQuery` TO QUERY `public.plantilla` (`status = 'Active'`, `is_pool_employee = true` OR `account = 'Moses HQ'`) AND `public.workforce_pool_slots` (`is_active = true`, `deleted_at IS NULL`); IDENTIFIED THE 3 ACTIVE EMPLOYEES (`YAP, JAY UY`, `YAP, JEN UY`, AND `YAP, JESSICA UY`) AND 20 OPEN SLOTS; RECONCILED MOSES HQ METRICS ON `/plantilla` TO `actual: 3`, `vacant: 20`, AND `required: 23` (`HC 3/23 · Vacant 20`), ACHIEVING 100% PARITY WITH THE INTERNAL `MosesHqPoolView` METRIC STRIP; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
