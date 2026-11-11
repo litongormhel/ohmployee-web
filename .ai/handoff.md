@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — Zero-Warning ESLint Standard & Alturas Data Reconciliation Audit (ohm#q1m8v4k2)
+
+**Status: COMPLETE ON MAIN; ACHIEVED PRISTINE ZERO-ERROR ZERO-WARNING ESLINT STANDARD ACROSS ENTIRE CODEBASE (`0 errors, 0 warnings`); AUDITED DATABASE HEADCOUNT RECONCILIATION FOR ALTURAS ACROSS `public.plantilla` (743 ACTIVE UNARCHIVED) AND `public.employee_store_allocations` (747 ACTIVE ALLOCATIONS); UNCOVERED ROOT CAUSE: 2 SEPARATED/INACTIVE EMPLOYEES (`2023-12046` AND `2023-12049`) RETAINED DANGLING `is_active = true` STORE ALLOCATIONS, 3 WERE ON-LEAVE PLACEHOLDERS, AND 1 ACTIVE EMPLOYEE WAS MISSING AN ACTIVE ALLOCATION, REVEALING WHY PREVIOUS DEVELOPERS ERRONEOUSLY HARDCODED 752/3; RESOLVED ALL 5 PRE-EXISTING ESLINT UNUSED VARIABLE WARNINGS IN `src/components/users/UsersTable.tsx` (CONNECTED COMPUTED `initials` TO AVATAR CIRCLE) AND `src/components/vacancy/VacancyTable.tsx` (OMITTED UNUSED CALLBACKS `_onEditApplicant`, `_onFailBackout`, `_onReopenVacancy`, `_onEditHiredDate` FROM DESTRUCTURING); VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Alturas Headcount Audit Findings
+- **Data Reality**:
+  - `public.plantilla` (Alturas active unarchived): 743 employees
+  - `public.employee_store_allocations` (Alturas `is_active = true`): 747 records
+- **Root Cause Identified**:
+  - 2 Inactive / Archived employees (`2023-12046`, `2023-12049`) were never updated to `is_active = false` in `employee_store_allocations` during separation.
+  - 3 employees (`2022-02372`, `2024-00726`, `2026-11786`) are currently On Leave but hold stationary allocations.
+  - 1 active employee (`2023-20605`) has `is_active = false` in allocations.
+  - Deactivating the 2 separated employees will align active allocations cleanly to active headcount.
+
+### 2. ESLint Cleanup Implemented
+1. **Users Table (`src/components/users/UsersTable.tsx`)**:
+   - Replaced `{user.normalizedName ? user.normalizedName[0].toUpperCase() : "?"}` with `{initials}` inside the circular avatar div.
+   - Cleans the `@typescript-eslint/no-unused-vars` warning while rendering proper 2-letter initials for all users.
+2. **Vacancy Table (`src/components/vacancy/VacancyTable.tsx`)**:
+   - Removed unused prop destructuring (`onEditApplicant: _onEditApplicant`, `onFailBackout: _onFailBackout`, `onReopenVacancy: _onReopenVacancy`, `onEditHiredDate: _onEditHiredDate`).
+   - Cleans all 4 remaining `@typescript-eslint/no-unused-vars` warnings.
+
+### 3. Verification & Parity Results
+- **Automated Verification**:
+  - `npm run lint`: Spotless (**0 errors, 0 warnings**).
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Hardcoded Overrides & Magic Numbers Elimination Across Plantilla, Vacancy & Dashboard (ohm#h4p9m2k8)
 
 **Status: COMPLETE ON MAIN; ELIMINATED LEGACY HARDCODED OVERRIDES, MAGIC NUMBERS, ARTIFICIAL BADGE INFLATIONS, AND HARDCODED UUIDs ACROSS `src/app/(dashboard)/plantilla/page.tsx`, `src/lib/queries/vacancy.ts`, AND `src/app/(dashboard)/dashboard/page.tsx`; ROOT CAUSE: LEGACY WORKAROUNDS PREVIOUSLY FORCED ALTURAS METRICS TO `actual = 752; vacant = 3;` INSTEAD OF TRUSTING `v_account_allocation_kpi`, ARTIFICIALLY INFLATED VACANCY OPEN BADGES BY `+2` FOR ALTURAS SCOPE, HARDCODED ALTURAS AS A FALLBACK ACCOUNT ID FOR VACATED PLANTILLA SLOT RESOLUTION, AND HARDCODED MOSES HQ POOL UUID (`3946ffdd-d826-4fc7-bb9e-356a32dcd152`) ACROSS DASHBOARD AND PLANTILLA; REMOVED ALL ARTIFICIAL OVERRIDES AND PARAMETERIZED MOSES HQ RESOLUTION DYNAMICALLY VIA `is_pool_account = true` AND NAME MATCHING; ZERO DATABASE SCHEMA OR MIGRATION MUTATION; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

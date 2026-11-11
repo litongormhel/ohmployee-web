@@ -161,7 +161,7 @@ export function UsersTable({
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs">
-                        {user.normalizedName ? user.normalizedName[0].toUpperCase() : "?"}
+                        {initials}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
