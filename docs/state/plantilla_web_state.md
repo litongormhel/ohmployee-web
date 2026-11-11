@@ -1008,9 +1008,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Regression Test Suite (`scripts/tests/plantilla_import_regression.sql`)**:
     - Enhanced test harness asserting: stationary evaluation, roving submission (`pending_approval`, 0 flagged), roving approval, rollback readiness, vacant-only batch lineage immunity, direct executor execution denial (`42501`), protected occupant abort, real request then approve flow, zero-edit lock enforcement, and full 6-table post-rollback baseline comparison (stores active, slots total/occupied/open, allocations, plantilla, store_links, vacancies). All assertions verified passing on Staging with zero rows persisted.
 
-- **Plantilla Directory Account Cards Refactor (`ohm#d7k2p9x1` — 2026-11-10)**:
-  - **Header Cleanup (Chevron Removal)**: Removed right-chevron (`>`) icon from the top-right header of each directory account card. Retained the status badge (`Pool` / `Warning`) and the three-dots action menu (`⋮`) with `stopPropagation()` isolation. Entire card container remains fully interactive and clickable (`role="button"`, `onClick={() => handleSelectAccount(account.id)}`, keyboard accessible).
-  - **Leave Count Metric Integration**: In `accountMetricsQuery` (`src/app/(dashboard)/plantilla/page.tsx`), added concurrent query to `public.plantilla` (`status IN ('On Leave', 'on_leave')`, not deleted, not archived, not deactivated/separated) to tally active on-leave headcount per account. Added `• Leave {count}` to the card's stats row alongside `HC`, `Vacant`, and `Pipeline`, conditionally rendered when `leave > 0` to preserve horizontal layout space.
+- **Plantilla Baseline Import Approval Schema Fix (`ohm#m2p9v4k7` — 2026-11-11)**:
+  - **Root Cause & Schema Parity**: Resolved PostgreSQL error `column "approval_notes" of relation "plantilla_import_batches" does not exist` occurring during "Approve & Apply" on Plantilla Baseline Batch Import. In `public.approve_plantilla_import_batch`, previous draft changes introduced non-existent columns (`approval_notes`, `status = 'committing'`, `status = 'committed'`, `total_stores`, `total_vacant_slots`, `total_employees`) into `UPDATE public.plantilla_import_batches`.
+  - **Canonical ADR-002 Fields Restored**:
+    - Removed premature update setting status to `'committing'` and writing to `approval_notes`.
+    - Restored canonical status update setting `status = 'approved'`, `approved_by_name = v_user_name`, `rollback_ready = true`, `committed_stores`, `committed_employees`, `stores_created`, `employees_created`, and `allocations_created`.
+    - In exception handler, restored `status = 'commit_failed'` and recorded error text to canonical `commit_error` column.
+    - Updated base migration `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` and generated dedicated migration `supabase/migrations/20262606000093_fix_plantilla_approve_batch_schema.sql` for deployment.
+
 
 
 

@@ -571,15 +571,7 @@ BEGIN
     RAISE EXCEPTION 'NO_COMMITTABLE_ROWS: no valid or flagged rows to commit' USING ERRCODE = '22023';
   END IF;
 
-  -- Set status to committing
-  UPDATE public.plantilla_import_batches
-     SET status = 'committing',
-         approved_at = now(),
-         approved_by = v_uid,
-         approval_notes = 'Batch approved for commit'
-   WHERE id = p_batch_id;
-
-  v_approved_timestamp := now();
+  v_approved_timestamp := clock_timestamp();
 
   BEGIN
     -- ========================================================================
@@ -941,36 +933,48 @@ BEGIN
       END LOOP;
     END LOOP;
 
-    -- Update batch status to committed
+    -- Update batch status with ADR-002 rollback governance metadata
+    v_approved_timestamp := clock_timestamp();
     UPDATE public.plantilla_import_batches
-       SET status = 'committed',
-           committed_at = now(),
-           committed_by = v_uid,
-           total_stores = v_stores_done,
-           total_vacant_slots = v_vacant_slots,
-           total_employees = v_employees_done
+       SET status              = 'approved',
+           approved_by         = v_uid,
+           approved_at         = v_approved_timestamp,
+           approved_by_name    = v_user_name,
+           rejection_reason    = NULL,
+           commit_error        = NULL,
+           committed_stores    = v_stores_done,
+           committed_employees = v_employees_done,
+           stores_created      = v_stores_done,
+           employees_created   = v_employees_done,
+           allocations_created = v_alloc_done,
+           rollback_ready      = true,
+           updated_at          = v_approved_timestamp
      WHERE id = p_batch_id;
 
     RETURN jsonb_build_object(
       'success', true,
       'batch_id', p_batch_id,
-      'stores_committed', v_stores_done,
-      'vacant_slots_committed', v_vacant_slots,
-      'employees_committed', v_employees_done,
-      'allocations_committed', v_alloc_done
+      'status', 'approved',
+      'stores_processed', v_stores_done,
+      'employees_processed', v_employees_done,
+      'allocations_created', v_alloc_done,
+      'vacant_slots_created', v_vacant_slots,
+      'rollback_ready', true,
+      'approved_at', v_approved_timestamp
     );
 
   EXCEPTION WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS
       v_err_state = RETURNED_SQLSTATE,
       v_err_msg   = MESSAGE_TEXT;
+    v_err_out := format('[%s] %s', v_err_state, v_err_msg);
 
     UPDATE public.plantilla_import_batches
-       SET status = 'commit_failed',
-           approval_notes = format('Commit failed at %s: [%s] %s', now(), v_err_state, v_err_msg)
+       SET status       = 'commit_failed',
+           commit_error = v_err_out
      WHERE id = p_batch_id;
 
-    RAISE EXCEPTION 'APPROVAL_COMMIT_FAILED: [%] %', v_err_state, v_err_msg;
+    RAISE EXCEPTION 'COMMIT_FAILED: %', v_err_out USING ERRCODE = v_err_state;
   END;
 END;
 $function$;

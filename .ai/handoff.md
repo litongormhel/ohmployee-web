@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Fix approve_plantilla_import_batch approval_notes Schema Error (ohm#m2p9v4k7)
+
+**Status: COMPLETE ON MAIN; RESOLVED POSTGRESQL RUNTIME ERROR `column "approval_notes" of relation "plantilla_import_batches" does not exist` TRIGGERED DURING "APPROVE & APPLY" IN PLANTILLA BASELINE IMPORT REVIEW QUEUE (`/more?tab=data_control&subtab=batch_imports&import=plantilla`); AUDITED DATABASE SCHEMA FOR `public.plantilla_import_batches` AND DISCOVERED HALLUCINATED COLUMNS (`approval_notes`, `status = 'committing'`, `status = 'committed'`, `total_stores`, `total_vacant_slots`, `total_employees`) IN RECENT REVISIONS OF `public.approve_plantilla_import_batch`; RESTORED CANONICAL ADR-002 STATUS MACHINE (`status = 'approved'`, `status = 'commit_failed'`) AND RECORDING OF ERRORS INTO `commit_error`; RESTORED ROLLBACK GOVERNANCE ATTRIBUTES (`rollback_ready = true`, `committed_stores`, `committed_employees`, `stores_created`, `employees_created`, `allocations_created`, `approved_by_name`); PATCHED BASE MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` AND GENERATED STANDALONE MIGRATION `supabase/migrations/20262606000093_fix_plantilla_approve_batch_schema.sql`; UPDATED ARCHITECTURE SPECIFICATION IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Schema Mismatch**:
+   - When clicking "Approve & Apply" on a pending batch (e.g. Batch `#2e90990e`), the Web UI invokes the RPC `public.approve_plantilla_import_batch(p_batch_id)`.
+   - The RPC encountered PostgreSQL error `42703: column "approval_notes" of relation "plantilla_import_batches" does not exist`.
+2. **Hallucinated Attributes in RPC Implementation**:
+   - Examination of `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` revealed:
+     - Line 574–580: Attempted to set `status = 'committing'` and `approval_notes = 'Batch approved for commit'`.
+     - Lines 946–951: Attempted to set `status = 'committed'`, `committed_at`, `committed_by`, `total_stores`, `total_vacant_slots`, and `total_employees`.
+     - Line 970: In the `EXCEPTION` handler, attempted to write `approval_notes = format(...)`.
+   - None of those columns exist on `public.plantilla_import_batches`.
+   - The valid status values enforced by constraint `pib_status_check` are `'draft_uploaded'`, `'validation_failed'`, `'pending_approval'`, `'approved'`, `'rejected'`, and `'commit_failed'`.
+   - The canonical columns for error text and rollback readiness are `commit_error`, `rollback_ready`, `committed_stores`, `committed_employees`, etc., as authored in canonical migration `20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql`.
+
+### 2. Changes Made
+1. **Base Migration Correction (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - Removed lines 574–580 (the premature `committing` / `approval_notes` update).
+   - Restored post-commit batch update setting `status = 'approved'`, `approved_by = v_uid`, `approved_at = v_approved_timestamp`, `approved_by_name = v_user_name`, `commit_error = NULL`, `rejection_reason = NULL`, `rollback_ready = true`, `committed_stores`, `committed_employees`, `stores_created`, `employees_created`, `allocations_created`.
+   - Restored exception block setting `status = 'commit_failed'` and writing error message to `commit_error`.
+2. **Dedicated Schema Migration (`supabase/migrations/20262606000093_fix_plantilla_approve_batch_schema.sql`)**:
+   - Created standalone forward migration applying the corrected `public.approve_plantilla_import_batch` function definition for execution on Staging (`qqiiznmqxfoamqytjica`) and Production (`rwxelulyapjgaarlwkus`).
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the schema fix, restored ADR-002 rollback governance metadata, and canonical column mappings.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
