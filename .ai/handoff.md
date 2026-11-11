@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — Establish User Management as Authoritative HRCO Source of Truth (ohm#u7m4s1t9)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); AUDITED HRCO RESOLUTION ARCHITECTURE PER USER DIRECTIVE THAT USER MANAGEMENT (`public.user_scopes` + `public.users_profile` WITH ROLE `HRCO`) MUST OPERATE AS THE SINGLE SOURCE OF TRUTH; IDENTIFIED ROOT CAUSES FOR BANKO ACCOUNT AND GENERAL HRCO RESOLUTION: (1) `vw_vacancy_list` PRIORITIZED STATIC COLUMNS (`v.hrco_user_id`, `st.hrco_user_id`, `a.hrco_user_id`) BEFORE `user_scopes`, RISKING STALE HRCO RESOLUTION; (2) `v_plantilla_safe` RELIED ON LEGACY STATIC TEXT COLUMNS (`p.coordinator`, `p.hrco_name`) AND FAILED TO DYNAMICALLY DERIVE CURRENT HRCO FROM ACCOUNT USER SCOPES; (3) `public.accounts.hrco_user_id` WAS NOT SYNCHRONIZED AUTOMATICALLY WHEN SCOPES WERE MODIFIED IN USER MANAGEMENT; CREATED AND DEPLOYED MIGRATION `supabase/migrations/20262606000096_user_management_as_hrco_source_of_truth.sql` WHICH (A) ELEVATES `user_scopes` BY ACCOUNT AND GROUP AS PRIORITY #1 IN `vw_vacancy_list`, (B) ADDS DYNAMIC USER MANAGEMENT HRCO RESOLUTION TO `v_plantilla_safe`, AND (C) ENHANCES `fn_reevaluate_hrco_auto_tags` TO AUTO-SYNC `public.accounts.hrco_user_id`; VERIFIED LIVE PARITY: BANKO ACCOUNT IN STAGING DYNAMICALLY RESOLVES JANE BILARO ACROSS `accounts`, `vw_vacancy_list`, AND `v_plantilla_safe`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Resolution Hierarchy Misalignment**:
+   - In `vw_vacancy_list` (`20262606000095`), `COALESCE` evaluated `v.hrco_user_id`, `st.hrco_user_id`, and `a.hrco_user_id` *before* the `user_scopes` subqueries. If a store or vacancy had a legacy or empty ID, or an outdated account-level ID, User Management scopes could be bypassed.
+2. **Plantilla Static Text Disconnect**:
+   - `public.v_plantilla_safe` projected `p.coordinator` and `p.hrco_name` from static table columns populated at CSV import time. When an HR Coordinator was reassigned in User Management, plantilla records did not dynamically reflect the change.
+3. **Accounts Table Out-of-Sync**:
+   - `public.accounts.hrco_user_id` remained `NULL` or stale when User Management (`/users`) updated `user_scopes` via `upsert_user_profile_and_scopes`.
+   - In Production, no user in User Management was scoped to `BANKO` (`f26cc270-bac3-4a5b-b656-1bad68619a73`), causing HRCO to resolve as `Unassigned`.
+
+### 2. Changes Made
+1. **Database Migration (`supabase/migrations/20262606000096_user_management_as_hrco_source_of_truth.sql`)**:
+   - **`public.fn_reevaluate_hrco_auto_tags`**: Enhanced trigger function to automatically update `public.accounts.hrco_user_id = v_sole_profile_id` when exactly one HRCO is scoped to an account, or clear it to `NULL` when zero HRCOs are scoped.
+   - **`public.vw_vacancy_list`**: Recreated view with 48 columns (preserving canonical schema and `slot_stats` join), elevating User Management account scope and group scope to #1 priority for both `hrco_user_id` and `hrco_name`.
+   - **`public.v_plantilla_safe`**: Recreated view with 56 columns, dynamically deriving `coordinator`, `hrco_name`, `assigned_hrco_user_id`, and `assigned_hrco_name` from User Management scopes with fallback to snapshots.
+   - **Backfill**: Initialized synchronization loop across all active accounts on deployment.
+   - Pushed cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+2. **Documentation & State**:
+   - Updated `docs/state/vacancy_web_state.md` and `.ai/briefing.md`.
+
+### 3. Verification & Live Parity
+- Staging live queries:
+  - `SELECT a.id, a.account_name, a.hrco_user_id, up.full_name FROM public.accounts a LEFT JOIN public.users_profile up ON up.id = a.hrco_user_id WHERE a.account_name = 'BANKO';` returned `Jane Bilaro` (`bfd79584-6340-462c-aad2-212dd716d112`).
+  - `SELECT vcode, position, store_name, hrco_name FROM public.vw_vacancy_list WHERE account = 'BANKO';` returned `Jane Bilaro` across all vacancies (`TEST011`, `TEST005`, `BK-G1-0053`, `TEST007`, `TEST009`, `TEST010`).
+  - `SELECT employee_no, employee_name, coordinator, hrco_name FROM public.v_plantilla_safe WHERE account = 'BANKO' LIMIT 5;` returned `Jane Bilaro` across active personnel.
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm test`: 211/211 passed.
+- `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Restore vw_vacancy_list Columns and Fix Vacancy Closure Query Schema Mismatch (ohm#v4k9p2r1)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); INVESTIGATED AND RESOLVED ISSUE WHERE VACANCY TABS (PIPELINE, CLOSURE, FAILED / BACKOUT) DISPLAYED ZERO ROWS ("NO VACANCIES FOUND") WHILE BADGE COUNTS (5, 2, 36) DISPLAYED NON-ZERO TOTALS; TRACED ROOT CAUSE TO: (1) MIGRATION ROLLBACK COLLISION AT 15:26:49 TODAY WHERE RE-EXECUTION OF OLD MIGRATION `20261014193500` ON STAGING DROPPED AND DOWNGRADED `public.vw_vacancy_list`, REMOVING CRITICAL COLUMNS `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, AND `affects_required_hc`, CAUSING POSTGREST 400 ERRORS ON REST QUERIES, AND (2) `src/lib/queries/vacancy.ts` (CLOSURE TAB) REQUESTING HALLUCINATED COLUMNS `recruitment_remarks`, `ops_remarks`, AND `remarks` FROM `vw_vacancy_list`; CREATED AND DEPLOYED MIGRATION `supabase/migrations/20262606000095_restore_vw_vacancy_list_columns.sql` RESTORING FULL CANONICAL PARITY WITH PRODUCTION; REMOVED HALLUCINATED COLUMNS IN `src/lib/queries/vacancy.ts`; CONFIRMED ZERO POSTGREST 400 ERRORS AND RESTORED ACTIVE ROWS ACROSS ALL QUEUES; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

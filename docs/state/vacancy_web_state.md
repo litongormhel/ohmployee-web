@@ -8,6 +8,16 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Establish User Management as Authoritative HRCO Source of Truth (`ohm#u7m4s1t9`)**:
+  - **Database Migration 096 (`20262606000096_user_management_as_hrco_source_of_truth.sql`)**:
+    - Recreated `public.vw_vacancy_list` and `public.v_plantilla_safe` to position User Management (`public.user_scopes` joined to `public.users_profile` with `r.role_name = 'HRCO'`) as the #1 priority in resolving HRCO user ID and display name:
+      1. Account-level scope: `us_acc.account_id = account_id`
+      2. Group-level scope: `us_grp.group_id = group_id AND us_grp.account_id IS NULL`
+      3. Fallback to legacy/manual store and vacancy overrides only if unassigned in User Management.
+    - Enhanced `public.fn_reevaluate_hrco_auto_tags(p_account_id uuid)` to automatically synchronize `public.accounts.hrco_user_id` whenever `user_scopes` are modified via User Management (`upsert_user_profile_and_scopes`).
+    - Verified live resolution: BANKO account in Staging dynamically resolves Jane Bilaro (`bfd79584-6340-462c-aad2-212dd716d112`) across `public.accounts`, `public.vw_vacancy_list`, and `public.v_plantilla_safe`.
+    - Maintained full 48-column schema parity on `vw_vacancy_list` and 56-column schema parity on `v_plantilla_safe`.
+
 - **Restore `vw_vacancy_list` Columns & Fix Closure Query Schema (`ohm#v4k9p2r1`)**:
   - **Restored Canonical View Columns on Staging**:
     - Discovered that an accidental re-execution of older migration `20261014193500` at 15:26:49 reset `public.vw_vacancy_list` in Staging, dropping essential columns `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc`.
