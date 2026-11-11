@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -34,6 +56,28 @@
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -62,6 +106,28 @@
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -96,6 +162,28 @@
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -137,6 +225,28 @@
 
 ﻿# AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -171,6 +281,28 @@
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -199,6 +331,28 @@
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -233,6 +387,28 @@
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -5489,6 +5665,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -5523,6 +5721,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -5551,6 +5771,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -5585,6 +5827,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -6310,6 +6574,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -6344,6 +6630,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -6372,6 +6680,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -6406,6 +6736,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -7155,6 +7507,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -7189,6 +7563,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
@@ -7217,6 +7613,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+
+---
+
+# AI Handoff
+
 ## Execution Report — Audit Migration Parity Across Local, Staging and Production (ohm#c7k2v4m8)
 
 **Status: COMPLETE ON MAIN; AUDITED AND COMPARED MIGRATIONS ACROSS LOCAL REPOSITORY (supabase/migrations), STAGING (qqiiznmqxfoamqytjica), AND PRODUCTION (rwxelulyapjgaarlwkus); CONFIRMED LOCAL (515) AND STAGING (515) IN 100% PARITY; IDENTIFIED EXACTLY 13 MIGRATIONS APPLIED ON STAGING THAT ARE MISSING ON PRODUCTION (502 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; LOCAL COMMIT ON MAIN.**
@@ -7251,6 +7669,28 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
   - Staging: 515 rows
   - Production: 502 rows
 - Local repository scan: 515 `.sql` files
+
+---
+
+# AI Handoff
+
+## Execution Report — Verify Production Migration Push 100% Parity with Staging (ohm#p5r2m9v1)
+
+**Status: COMPLETE ON MAIN; VERIFIED PRODUCTION (rwxelulyapjgaarlwkus) REMOTE MIGRATION PUSH; EXECUTED DIRECT LIVE SQL AUDIT ON supabase_migrations.schema_migrations: CONFIRMED PRODUCTION HAS EXACTLY 515 MIGRATIONS APPLIED, ACHIEVING 100% PARITY WITH STAGING (515) AND LOCAL REPO (515); CONFIRMED ALL 13 PREVIOUSLY UNAPPLIED MIGRATIONS (20261111000001 THROUGH 20261111000003 AND 20262606000083 THROUGH 20262606000092) ARE APPLIED CLEANLY IN PRODUCTION WITH ZERO ERRORS; LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Verification Findings
+- **Production Migration Push Execution:**
+  - Ohm executed: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all`.
+  - All 13 pending migrations applied successfully with `Finished supabase db push.`.
+- **Live Database Audit (`supabase_migrations.schema_migrations`):**
+  - **Local Repository:** 515 SQL files
+  - **Staging (`qqiiznmqxfoamqytjica`):** 515 applied migrations
+  - **Production (`rwxelulyapjgaarlwkus`):** 515 applied migrations
+  - **Parity Status:** 100% parity across all environments. 0 missing in Production, 0 missing in Staging.
+
+### 2. Verification Query Results
+- Production query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
+- Staging query: `SELECT count(*) AS total_migrations FROM supabase_migrations.schema_migrations;` ➔ `515`.
 
 ---
 
