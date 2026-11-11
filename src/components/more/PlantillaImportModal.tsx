@@ -31,6 +31,7 @@ import {
   PLANTILLA_REQUIRED_HEADERS,
   validateSpreadsheetScopeContext,
 } from "@/lib/utils/data_control_xlsx";
+import { normalizePlantillaRows } from "@/lib/utils/plantilla_normalization";
 import {
   approvePlantillaImportBatch,
   approvePlantillaImportRollback,
@@ -307,7 +308,8 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
       if (missing.length > 0) {
         throw new Error(`Missing required columns: ${missing.join(", ")}`);
       }
-      setParsedRows(rows);
+      const normalizedRows = normalizePlantillaRows(rows);
+      setParsedRows(normalizedRows);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : "Failed to parse spreadsheet file.");
       setParsedRows([]);
@@ -335,6 +337,35 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
           rows: parsedRows,
         });
         if (!isCancelled) {
+          let additionalBlocked = 0;
+          for (let i = 0; i < parsedRows.length; i++) {
+            const schedErr = parsedRows[i].__scheduleError;
+            if (schedErr && res.rows[i]) {
+              const row = res.rows[i];
+              row.validationErrors = row.validationErrors || [];
+              row.validationErrors.push({
+                field: "SCHEDULE_DAYS",
+                conflictType: "invalid_schedule_days",
+                msg: schedErr,
+              });
+              row.validationMessages = row.validationMessages || [];
+              row.validationMessages.push(`[SCHEDULE_DAYS] ${schedErr}`);
+              if (row.validationStatus === "valid" || row.validationStatus === "flagged") {
+                if (row.validationStatus === "valid") res.validRows--;
+                if (row.validationStatus === "flagged") res.flaggedRows--;
+                row.validationStatus = "blocked";
+                additionalBlocked++;
+              }
+            }
+          }
+          if (additionalBlocked > 0) {
+            res.blockedRows += additionalBlocked;
+            res.status = "invalid";
+            if (!res.errorSummary) res.errorSummary = {};
+            res.errorSummary.invalid_schedule_days =
+              (Number(res.errorSummary.invalid_schedule_days) || 0) + additionalBlocked;
+          }
+
           setValidationResult(res);
           if (res.blockedRows > 0) {
             setUploadPreviewFilter("blocked");
@@ -376,6 +407,11 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
     );
     if (!scopeCheck.valid) {
       setParseError(scopeCheck.errors.join(" | "));
+      return;
+    }
+
+    if (parsedRows.some((r) => r.__scheduleError)) {
+      setParseError("Cannot submit: file contains invalid schedule days or rest day conflicts.");
       return;
     }
 

@@ -78,3 +78,19 @@ Whenever `EMPLOYEE_NO` is populated:
 - **SA Window Override**: Super Admin can override an expired ($> 72\text{h}$) window **ONLY IF** zero records in the batch were edited after import approval.
 - **Strict Zero-Edit Immutability Lock**: If **any** record in the batch was edited in Plantilla or allocations after import approval (e.g., Ops changed `dayoff`, `schedule_days`, `schedule_time`, rate, position, status, etc., causing `updated_at > approved_at`), rollback is **HARD BLOCKED** for all roles (even SA cannot override). The system returns an explicit error naming the exact employee number, employee name, and modification timestamp.
 - **Import History Visibility**: Import History must clearly surface Batch # (e.g. `#703cdbc4`), Stores/HC count (e.g. `11/10`), and Approved/Rejected By actor details along with rollback state indicators.
+
+---
+
+## Addendum: Multi-Row Validation, Coalescing & Schedule Normalization (Rules #16 – #19)
+
+### Invariant 16 — Multi-Row Identity Invariant
+For multi-row `EMPLOYEE_NO` (roving) within an import batch and against existing DB master records (`plantilla` / `employees`), normalized `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, and `DATE_HIRED` must strictly match. Any mismatch is **HARD BLOCKED**.
+
+### Invariant 17 — Employee-Level Coalescing & Conflict Flag
+Employee-level fields (`POSITION`, `RATE`, `CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`, `DAYOFF`) silently coalesce across blank rows sharing the same `EMPLOYEE_NO`. Conflicting non-blank values trigger a non-blocking **WARNING FLAG** and apply **Last-Row-Wins** persistence upon batch commit.
+
+### Invariant 18 — Minimum Age Enforcement (18+)
+If `DATE_OF_BIRTH` is provided (post-coalescing), the employee must be at least **18 years old** as of `DATE_HIRED`. Underage records are **HARD BLOCKED** across all rows associated with that `EMPLOYEE_NO`.
+
+### Invariant 19 — Canonical Schedule Day Expansion & Rest Day Carving
+Range formats (e.g., `MON-SAT`, wrap-arounds like `SAT-TUE`, hybrid lists) in `SCHEDULE_DAYS` and `DAYOFF` are automatically expanded into discrete canonical day tokens (`MON,TUE,WED,THU,FRI,SAT,SUN`) strictly ordered `MON` to `SUN`. Overlapping rest days are carved out from duty days to maintain mutually exclusive pill states in the Web UI (`Edit Schedule & Work Terms`).

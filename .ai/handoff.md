@@ -1,5 +1,64 @@
 # AI Handoff
 
+## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Architectural Context
+1. **Roving Multi-Row Import Ambiguity**:
+   - In the Plantilla Baseline Import (`IMPORT_TEMPLATE`), roving employees are represented across multiple rows sharing the same `EMPLOYEE_NO` (one row per assigned store slot/`VCODE`).
+   - Previously, there was no explicit boundary defining which attributes must strictly match across rows (Hard Block) vs. which attributes should silently coalesce or warn on conflict with last-row-wins persistence.
+2. **Minimum Age Invariant (18+)**:
+   - Lack of automated validation on hiring age allowed potentially underage records or typographical birth years into the system.
+3. **Schedule Representation Discrepancy**:
+   - Excel templates accept shorthand day ranges (e.g. `MON-SAT`, `SAT-TUE`, `MON,WED,FRI`), whereas the Web UI (`Edit Schedule & Work Terms`) requires a discrete 7-day pill toggle model (`MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN`).
+   - When rest days (`DAYOFF`) overlapped with duty days (`SCHEDULE_DAYS`), UI pill states lacked enforced mutual exclusivity.
+4. **ADR-002 Zero-Edit Immutability Lock**:
+   - Per ADR-002 Rule #14, once any post-approval edit occurs in Plantilla, the 72-hour rollback window is permanently blocked. Enforcing data normalization and coalescing before commit prevents encoding discrepancies from triggering premature rollback locks.
+
+### 2. Changes Made
+1. **Pre-Validation Normalization Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - `collapseAndUppercase`: Trims whitespace, collapses internal multiple spaces to a single space, and uppercases string fields (`LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `ADDRESS`, `POSITION`, `CIVIL_STATUS`).
+   - `canonicalizeMobileNumber`: Normalizes PH mobile numbers with prefixes (`+639`, `639`, `09`, `9`) to standard 11-digit `09xxxxxxxxx` format while stripping hyphens, parentheses, and spaces.
+   - `normalizeDateToIso`: Accurately parses Excel serials, ISO dates, `MM/DD/YYYY`, and `MM-DD-YYYY` into strict `YYYY-MM-DD` strings with calendar validation and zero timezone shifting.
+   - `computeAgeAtHire` / `isUnderageAtHire`: Calendar-accurate age calculation as of `DATE_HIRED` handling leap years (`Feb 29`).
+   - `coalescePlantillaBatch`: Client-side coalescing grouping by `EMPLOYEE_NO`, hard-blocking identity mismatches, silently auto-filling blank demographic/rate/rest-day attributes, and flagging conflicting non-blank fields.
+2. **Schedule Normalizer (`src/lib/utils/schedule_normalizer.ts`)**:
+   - `expandScheduleDays`: Expands linear ranges (`MON-SAT`), wrap-around ranges (`SAT-TUE`, `FRI-MON`), and hybrid comma-separated day lists into discrete, ordered 3-letter day codes strictly sorted `MON` to `SUN`. Disallows unrecognized day tokens with clear diagnostics.
+   - `resolveDutyAndRestDays`: Evaluates rest days (`DAYOFF`) against duty days (`SCHEDULE_DAYS`), carving out overlapping rest days to maintain mutually exclusive pill states in the UI.
+3. **Database Migration (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - `_evaluate_plantilla_import_rows`:
+     - Hard-blocks any row where `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, or `DATE_HIRED` mismatches another row sharing the same `EMPLOYEE_NO` in the batch or the database master record (`plantilla` / `employees`).
+     - Groups rows by `EMPLOYEE_NO` to silently coalesce blank demographic (`CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`), compensation (`RATE`), and rest day (`DAYOFF`) fields.
+     - Emits non-blocking warning flags (`conflict_<field>`) when conflicting non-blank values exist.
+     - Hard-blocks if `POSITION` is blank across all rows of an employee.
+     - Hard-blocks any records where the employee is under 18 years old as of `DATE_HIRED`.
+   - `approve_plantilla_import_batch`: Enforces last-row-wins persistence using `ORDER BY row_number DESC [1]` when creating or updating employee-level records.
+4. **Excel Template & Invariant Documentation (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Appended Invariant Rules #16–#19 to `VALIDATION_GUIDE` tab of `plantilla_import_template.xlsx`.
+   - Corrected sample row `2050-00002` DOB to satisfy the 18+ age invariant.
+5. **Modal Diagnostics Integration (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Wired client-side normalization and schedule diagnostics into pre-upload dry-run parsing.
+6. **Architecture & State Updates**:
+   - Updated `docs/state/plantilla_web_state.md` with Rules #16–#19.
+   - Appended Addendum to `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+7. **Comprehensive Test Suites (`src/lib/utils/__tests__/`)**:
+   - `plantilla_adr002_normalization.test.mjs` (56 tests)
+   - `plantilla_adr002_coalescing.test.mjs` (58 tests)
+   - `plantilla_normalization.test.mjs` (8 tests)
+   - `plantilla_coalescing.test.mjs` (9 tests)
+   - `plantilla_adversarial_challenger1.test.mjs` (33 tests)
+   - `adversarial_coalescing_and_age.test.mjs` (23 tests)
+   - Total test count: 209/209 tests passing.
+
+### 3. Verification & Regressions
+- `npm test`: 209/209 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+- Independent Sentinel Victory Audit: `VICTORY CONFIRMED` (0 mock facades, 0 shortcuts, authentic implementation).
+
+---
+
 ## Execution Report — Fix Supabase Security Advisor RLS Disabled on role_permission_definitions_compat (ohm#s4r8m2v9)
 
 **Status: COMPLETE ON MAIN; AUDITED SUPABASE SECURITY ADVISOR ACROSS BOTH ENVIRONMENTS; IDENTIFIED CRITICAL ERROR `rls_disabled_in_public` ON `public.role_permission_definitions_compat` IN PRODUCTION (`rwxelulyapjgaarlwkus`), CONFIRMED STAGING (`qqiiznmqxfoamqytjica`) HAS 0 FINDINGS; CREATED IDEMPOTENT REMEDIATION MIGRATION `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql` ENABLING ROW LEVEL SECURITY, REVOKING ANON/PUBLIC PRIVILEGES, AND GRANTING READ ACCESS TO AUTHENTICATED USERS VIA POLICY `rpd_compat_read_authenticated`; RETROFITTED BASE MIGRATION `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED).**
@@ -5045,6 +5104,65 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Architectural Context
+1. **Roving Multi-Row Import Ambiguity**:
+   - In the Plantilla Baseline Import (`IMPORT_TEMPLATE`), roving employees are represented across multiple rows sharing the same `EMPLOYEE_NO` (one row per assigned store slot/`VCODE`).
+   - Previously, there was no explicit boundary defining which attributes must strictly match across rows (Hard Block) vs. which attributes should silently coalesce or warn on conflict with last-row-wins persistence.
+2. **Minimum Age Invariant (18+)**:
+   - Lack of automated validation on hiring age allowed potentially underage records or typographical birth years into the system.
+3. **Schedule Representation Discrepancy**:
+   - Excel templates accept shorthand day ranges (e.g. `MON-SAT`, `SAT-TUE`, `MON,WED,FRI`), whereas the Web UI (`Edit Schedule & Work Terms`) requires a discrete 7-day pill toggle model (`MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN`).
+   - When rest days (`DAYOFF`) overlapped with duty days (`SCHEDULE_DAYS`), UI pill states lacked enforced mutual exclusivity.
+4. **ADR-002 Zero-Edit Immutability Lock**:
+   - Per ADR-002 Rule #14, once any post-approval edit occurs in Plantilla, the 72-hour rollback window is permanently blocked. Enforcing data normalization and coalescing before commit prevents encoding discrepancies from triggering premature rollback locks.
+
+### 2. Changes Made
+1. **Pre-Validation Normalization Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - `collapseAndUppercase`: Trims whitespace, collapses internal multiple spaces to a single space, and uppercases string fields (`LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `ADDRESS`, `POSITION`, `CIVIL_STATUS`).
+   - `canonicalizeMobileNumber`: Normalizes PH mobile numbers with prefixes (`+639`, `639`, `09`, `9`) to standard 11-digit `09xxxxxxxxx` format while stripping hyphens, parentheses, and spaces.
+   - `normalizeDateToIso`: Accurately parses Excel serials, ISO dates, `MM/DD/YYYY`, and `MM-DD-YYYY` into strict `YYYY-MM-DD` strings with calendar validation and zero timezone shifting.
+   - `computeAgeAtHire` / `isUnderageAtHire`: Calendar-accurate age calculation as of `DATE_HIRED` handling leap years (`Feb 29`).
+   - `coalescePlantillaBatch`: Client-side coalescing grouping by `EMPLOYEE_NO`, hard-blocking identity mismatches, silently auto-filling blank demographic/rate/rest-day attributes, and flagging conflicting non-blank fields.
+2. **Schedule Normalizer (`src/lib/utils/schedule_normalizer.ts`)**:
+   - `expandScheduleDays`: Expands linear ranges (`MON-SAT`), wrap-around ranges (`SAT-TUE`, `FRI-MON`), and hybrid comma-separated day lists into discrete, ordered 3-letter day codes strictly sorted `MON` to `SUN`. Disallows unrecognized day tokens with clear diagnostics.
+   - `resolveDutyAndRestDays`: Evaluates rest days (`DAYOFF`) against duty days (`SCHEDULE_DAYS`), carving out overlapping rest days to maintain mutually exclusive pill states in the UI.
+3. **Database Migration (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - `_evaluate_plantilla_import_rows`:
+     - Hard-blocks any row where `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, or `DATE_HIRED` mismatches another row sharing the same `EMPLOYEE_NO` in the batch or the database master record (`plantilla` / `employees`).
+     - Groups rows by `EMPLOYEE_NO` to silently coalesce blank demographic (`CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`), compensation (`RATE`), and rest day (`DAYOFF`) fields.
+     - Emits non-blocking warning flags (`conflict_<field>`) when conflicting non-blank values exist.
+     - Hard-blocks if `POSITION` is blank across all rows of an employee.
+     - Hard-blocks any records where the employee is under 18 years old as of `DATE_HIRED`.
+   - `approve_plantilla_import_batch`: Enforces last-row-wins persistence using `ORDER BY row_number DESC [1]` when creating or updating employee-level records.
+4. **Excel Template & Invariant Documentation (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Appended Invariant Rules #16–#19 to `VALIDATION_GUIDE` tab of `plantilla_import_template.xlsx`.
+   - Corrected sample row `2050-00002` DOB to satisfy the 18+ age invariant.
+5. **Modal Diagnostics Integration (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Wired client-side normalization and schedule diagnostics into pre-upload dry-run parsing.
+6. **Architecture & State Updates**:
+   - Updated `docs/state/plantilla_web_state.md` with Rules #16–#19.
+   - Appended Addendum to `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+7. **Comprehensive Test Suites (`src/lib/utils/__tests__/`)**:
+   - `plantilla_adr002_normalization.test.mjs` (56 tests)
+   - `plantilla_adr002_coalescing.test.mjs` (58 tests)
+   - `plantilla_normalization.test.mjs` (8 tests)
+   - `plantilla_coalescing.test.mjs` (9 tests)
+   - `plantilla_adversarial_challenger1.test.mjs` (33 tests)
+   - `adversarial_coalescing_and_age.test.mjs` (23 tests)
+   - Total test count: 209/209 tests passing.
+
+### 3. Verification & Regressions
+- `npm test`: 209/209 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+- Independent Sentinel Victory Audit: `VICTORY CONFIRMED` (0 mock facades, 0 shortcuts, authentic implementation).
+
+---
+
 ## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
 
 **Status: COMPLETE ON MAIN; AUDITED AND RESOLVED STORE VIEW DATA TABLE POPULATION AND PAGINATION IN PLANTILLA (`src/app/(dashboard)/plantilla/page.tsx` AND `scripts/audit_orphaned_stores_store_view.sql`); CREATED SQL/QUERY AUDIT SCRIPT ISOLATING ORPHANED STORES WITH 0 ACTIVE, 0 ON-LEAVE, AND 0 VACANCIES (E.G. FESTIVAL MALL, SM CALOOCAN 1/2) ACROSS ACCOUNTS; ENFORCED STRICT PRESENCE GATE IN STORE CAPACITY TABLE REQUIRING AT LEAST ONE ACTIVE, ON-LEAVE, OR VACANT RECORD (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`), PERMANENTLY HIDING ORPHANED STORES; DYNAMICALLY CONSOLIDATED UNREGISTERED STORES WITH ACTIVE DEPLOYED PERSONNEL (E.G. 'Super 8 Dau') WITH CROSS-STORE LOCATION (ANGELES, PAMPANGA) AND VCODE RESOLUTION; UPGRADED STORE VIEW TABLE PAGINATION TO INDEPENDENT CONTROLLER DEFAULTING TO 15 ROWS PER PAGE WITH [15, 30, 50] PAGE SIZE OPTIONS; VERIFICATION GATES ALL PASS CLEAN (`npm run lint` 0 ERRORS, `npm test` 28/28 PASSED, `npm run build` SUCCEEDED).**
@@ -5673,6 +5791,65 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Architectural Context
+1. **Roving Multi-Row Import Ambiguity**:
+   - In the Plantilla Baseline Import (`IMPORT_TEMPLATE`), roving employees are represented across multiple rows sharing the same `EMPLOYEE_NO` (one row per assigned store slot/`VCODE`).
+   - Previously, there was no explicit boundary defining which attributes must strictly match across rows (Hard Block) vs. which attributes should silently coalesce or warn on conflict with last-row-wins persistence.
+2. **Minimum Age Invariant (18+)**:
+   - Lack of automated validation on hiring age allowed potentially underage records or typographical birth years into the system.
+3. **Schedule Representation Discrepancy**:
+   - Excel templates accept shorthand day ranges (e.g. `MON-SAT`, `SAT-TUE`, `MON,WED,FRI`), whereas the Web UI (`Edit Schedule & Work Terms`) requires a discrete 7-day pill toggle model (`MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN`).
+   - When rest days (`DAYOFF`) overlapped with duty days (`SCHEDULE_DAYS`), UI pill states lacked enforced mutual exclusivity.
+4. **ADR-002 Zero-Edit Immutability Lock**:
+   - Per ADR-002 Rule #14, once any post-approval edit occurs in Plantilla, the 72-hour rollback window is permanently blocked. Enforcing data normalization and coalescing before commit prevents encoding discrepancies from triggering premature rollback locks.
+
+### 2. Changes Made
+1. **Pre-Validation Normalization Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - `collapseAndUppercase`: Trims whitespace, collapses internal multiple spaces to a single space, and uppercases string fields (`LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `ADDRESS`, `POSITION`, `CIVIL_STATUS`).
+   - `canonicalizeMobileNumber`: Normalizes PH mobile numbers with prefixes (`+639`, `639`, `09`, `9`) to standard 11-digit `09xxxxxxxxx` format while stripping hyphens, parentheses, and spaces.
+   - `normalizeDateToIso`: Accurately parses Excel serials, ISO dates, `MM/DD/YYYY`, and `MM-DD-YYYY` into strict `YYYY-MM-DD` strings with calendar validation and zero timezone shifting.
+   - `computeAgeAtHire` / `isUnderageAtHire`: Calendar-accurate age calculation as of `DATE_HIRED` handling leap years (`Feb 29`).
+   - `coalescePlantillaBatch`: Client-side coalescing grouping by `EMPLOYEE_NO`, hard-blocking identity mismatches, silently auto-filling blank demographic/rate/rest-day attributes, and flagging conflicting non-blank fields.
+2. **Schedule Normalizer (`src/lib/utils/schedule_normalizer.ts`)**:
+   - `expandScheduleDays`: Expands linear ranges (`MON-SAT`), wrap-around ranges (`SAT-TUE`, `FRI-MON`), and hybrid comma-separated day lists into discrete, ordered 3-letter day codes strictly sorted `MON` to `SUN`. Disallows unrecognized day tokens with clear diagnostics.
+   - `resolveDutyAndRestDays`: Evaluates rest days (`DAYOFF`) against duty days (`SCHEDULE_DAYS`), carving out overlapping rest days to maintain mutually exclusive pill states in the UI.
+3. **Database Migration (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - `_evaluate_plantilla_import_rows`:
+     - Hard-blocks any row where `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, or `DATE_HIRED` mismatches another row sharing the same `EMPLOYEE_NO` in the batch or the database master record (`plantilla` / `employees`).
+     - Groups rows by `EMPLOYEE_NO` to silently coalesce blank demographic (`CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`), compensation (`RATE`), and rest day (`DAYOFF`) fields.
+     - Emits non-blocking warning flags (`conflict_<field>`) when conflicting non-blank values exist.
+     - Hard-blocks if `POSITION` is blank across all rows of an employee.
+     - Hard-blocks any records where the employee is under 18 years old as of `DATE_HIRED`.
+   - `approve_plantilla_import_batch`: Enforces last-row-wins persistence using `ORDER BY row_number DESC [1]` when creating or updating employee-level records.
+4. **Excel Template & Invariant Documentation (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Appended Invariant Rules #16–#19 to `VALIDATION_GUIDE` tab of `plantilla_import_template.xlsx`.
+   - Corrected sample row `2050-00002` DOB to satisfy the 18+ age invariant.
+5. **Modal Diagnostics Integration (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Wired client-side normalization and schedule diagnostics into pre-upload dry-run parsing.
+6. **Architecture & State Updates**:
+   - Updated `docs/state/plantilla_web_state.md` with Rules #16–#19.
+   - Appended Addendum to `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+7. **Comprehensive Test Suites (`src/lib/utils/__tests__/`)**:
+   - `plantilla_adr002_normalization.test.mjs` (56 tests)
+   - `plantilla_adr002_coalescing.test.mjs` (58 tests)
+   - `plantilla_normalization.test.mjs` (8 tests)
+   - `plantilla_coalescing.test.mjs` (9 tests)
+   - `plantilla_adversarial_challenger1.test.mjs` (33 tests)
+   - `adversarial_coalescing_and_age.test.mjs` (23 tests)
+   - Total test count: 209/209 tests passing.
+
+### 3. Verification & Regressions
+- `npm test`: 209/209 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+- Independent Sentinel Victory Audit: `VICTORY CONFIRMED` (0 mock facades, 0 shortcuts, authentic implementation).
+
+---
 
 ## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
 
@@ -6326,6 +6503,65 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Architectural Context
+1. **Roving Multi-Row Import Ambiguity**:
+   - In the Plantilla Baseline Import (`IMPORT_TEMPLATE`), roving employees are represented across multiple rows sharing the same `EMPLOYEE_NO` (one row per assigned store slot/`VCODE`).
+   - Previously, there was no explicit boundary defining which attributes must strictly match across rows (Hard Block) vs. which attributes should silently coalesce or warn on conflict with last-row-wins persistence.
+2. **Minimum Age Invariant (18+)**:
+   - Lack of automated validation on hiring age allowed potentially underage records or typographical birth years into the system.
+3. **Schedule Representation Discrepancy**:
+   - Excel templates accept shorthand day ranges (e.g. `MON-SAT`, `SAT-TUE`, `MON,WED,FRI`), whereas the Web UI (`Edit Schedule & Work Terms`) requires a discrete 7-day pill toggle model (`MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN`).
+   - When rest days (`DAYOFF`) overlapped with duty days (`SCHEDULE_DAYS`), UI pill states lacked enforced mutual exclusivity.
+4. **ADR-002 Zero-Edit Immutability Lock**:
+   - Per ADR-002 Rule #14, once any post-approval edit occurs in Plantilla, the 72-hour rollback window is permanently blocked. Enforcing data normalization and coalescing before commit prevents encoding discrepancies from triggering premature rollback locks.
+
+### 2. Changes Made
+1. **Pre-Validation Normalization Engine (`src/lib/utils/plantilla_normalization.ts`)**:
+   - `collapseAndUppercase`: Trims whitespace, collapses internal multiple spaces to a single space, and uppercases string fields (`LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, `ADDRESS`, `POSITION`, `CIVIL_STATUS`).
+   - `canonicalizeMobileNumber`: Normalizes PH mobile numbers with prefixes (`+639`, `639`, `09`, `9`) to standard 11-digit `09xxxxxxxxx` format while stripping hyphens, parentheses, and spaces.
+   - `normalizeDateToIso`: Accurately parses Excel serials, ISO dates, `MM/DD/YYYY`, and `MM-DD-YYYY` into strict `YYYY-MM-DD` strings with calendar validation and zero timezone shifting.
+   - `computeAgeAtHire` / `isUnderageAtHire`: Calendar-accurate age calculation as of `DATE_HIRED` handling leap years (`Feb 29`).
+   - `coalescePlantillaBatch`: Client-side coalescing grouping by `EMPLOYEE_NO`, hard-blocking identity mismatches, silently auto-filling blank demographic/rate/rest-day attributes, and flagging conflicting non-blank fields.
+2. **Schedule Normalizer (`src/lib/utils/schedule_normalizer.ts`)**:
+   - `expandScheduleDays`: Expands linear ranges (`MON-SAT`), wrap-around ranges (`SAT-TUE`, `FRI-MON`), and hybrid comma-separated day lists into discrete, ordered 3-letter day codes strictly sorted `MON` to `SUN`. Disallows unrecognized day tokens with clear diagnostics.
+   - `resolveDutyAndRestDays`: Evaluates rest days (`DAYOFF`) against duty days (`SCHEDULE_DAYS`), carving out overlapping rest days to maintain mutually exclusive pill states in the UI.
+3. **Database Migration (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`)**:
+   - `_evaluate_plantilla_import_rows`:
+     - Hard-blocks any row where `LAST_NAME`, `FIRST_NAME`, `MIDDLE_NAME`, or `DATE_HIRED` mismatches another row sharing the same `EMPLOYEE_NO` in the batch or the database master record (`plantilla` / `employees`).
+     - Groups rows by `EMPLOYEE_NO` to silently coalesce blank demographic (`CIVIL_STATUS`, `DATE_OF_BIRTH`, `CONTACT_NO`, `ADDRESS`), compensation (`RATE`), and rest day (`DAYOFF`) fields.
+     - Emits non-blocking warning flags (`conflict_<field>`) when conflicting non-blank values exist.
+     - Hard-blocks if `POSITION` is blank across all rows of an employee.
+     - Hard-blocks any records where the employee is under 18 years old as of `DATE_HIRED`.
+   - `approve_plantilla_import_batch`: Enforces last-row-wins persistence using `ORDER BY row_number DESC [1]` when creating or updating employee-level records.
+4. **Excel Template & Invariant Documentation (`src/lib/utils/data_control_xlsx.ts`)**:
+   - Appended Invariant Rules #16–#19 to `VALIDATION_GUIDE` tab of `plantilla_import_template.xlsx`.
+   - Corrected sample row `2050-00002` DOB to satisfy the 18+ age invariant.
+5. **Modal Diagnostics Integration (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Wired client-side normalization and schedule diagnostics into pre-upload dry-run parsing.
+6. **Architecture & State Updates**:
+   - Updated `docs/state/plantilla_web_state.md` with Rules #16–#19.
+   - Appended Addendum to `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`.
+7. **Comprehensive Test Suites (`src/lib/utils/__tests__/`)**:
+   - `plantilla_adr002_normalization.test.mjs` (56 tests)
+   - `plantilla_adr002_coalescing.test.mjs` (58 tests)
+   - `plantilla_normalization.test.mjs` (8 tests)
+   - `plantilla_coalescing.test.mjs` (9 tests)
+   - `plantilla_adversarial_challenger1.test.mjs` (33 tests)
+   - `adversarial_coalescing_and_age.test.mjs` (23 tests)
+   - Total test count: 209/209 tests passing.
+
+### 3. Verification & Regressions
+- `npm test`: 209/209 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+- Independent Sentinel Victory Audit: `VICTORY CONFIRMED` (0 mock facades, 0 shortcuts, authentic implementation).
+
+---
 
 ## Execution Report — Audit and Fix Store View Data Table Logic and 15-Item Pagination (ohm#s9t4p2v1)
 

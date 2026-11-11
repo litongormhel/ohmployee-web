@@ -81,6 +81,34 @@ export const PLANTILLA_SAMPLE_ROW = [
   "",
 ];
 
+export const PLANTILLA_SAMPLE_ROW_2 = [
+  "GROUP 2",
+  "SUPER 8",
+  "SUPER 8",
+  "PG-DAU-002",
+  "Super 8 Angeles Dau",
+  "Pampanga",
+  "Angeles",
+  "Merchandiser",
+  "2050-00002",
+  "DELA CRUZ",
+  "JUAN",
+  "SANTOS",
+  "2026-01-15",
+  "SINGLE",
+  "610.00",
+  "1998-08-20",
+  "09171234567",
+  "123 MacArthur Hwy Angeles",
+  "MON-SAT",
+  "08:00 AM - 05:00 PM",
+  "SUN",
+  "Operations Coordinator",
+  "",
+];
+
+export const PLANTILLA_SAMPLE_ROWS = [PLANTILLA_SAMPLE_ROW, PLANTILLA_SAMPLE_ROW_2];
+
 export async function downloadPlantillaImportTemplate(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
@@ -170,19 +198,21 @@ export async function downloadPlantillaImportTemplate(): Promise<void> {
     };
   });
 
-  // Add Sample Row
-  const sampleRow = wsTemplate.addRow(PLANTILLA_SAMPLE_ROW);
-  sampleRow.height = 20;
-  sampleRow.eachCell((cell) => {
-    cell.font = { name: "Calibri", size: 10 };
-    cell.alignment = { vertical: "middle" };
-    cell.border = {
-      top: { style: "thin", color: { argb: "FFE5E7EB" } },
-      left: { style: "thin", color: { argb: "FFE5E7EB" } },
-      bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
-      right: { style: "thin", color: { argb: "FFE5E7EB" } },
-    };
-  });
+  // Add Sample Rows (illustrates stationary slot & roving/multi-row entry)
+  for (const sRow of PLANTILLA_SAMPLE_ROWS) {
+    const sampleRow = wsTemplate.addRow(sRow);
+    sampleRow.height = 20;
+    sampleRow.eachCell((cell) => {
+      cell.font = { name: "Calibri", size: 10 };
+      cell.alignment = { vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE5E7EB" } },
+        left: { style: "thin", color: { argb: "FFE5E7EB" } },
+        bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+        right: { style: "thin", color: { argb: "FFE5E7EB" } },
+      };
+    });
+  }
 
   // Free-form text input is permitted on all schedule columns (SCHEDULE_DAYS, SCHEDULE_TIME, DAYOFF)
   // without dropdown list restrictions or validation prompts.
@@ -264,6 +294,10 @@ export async function downloadPlantillaImportTemplate(): Promise<void> {
     ["13. Rollback Governance (72h Window)", "RULE", "Data Team uploader can request rollback within 72h of approval; HA and SA can approve or reject."],
     ["14. Strict Zero-Edit Immutability Lock", "RULE", "If any record was modified in Plantilla post-approval, rollback is HARD BLOCKED for all roles."],
     ["15. Downstream VCODE Enforcement", "RULE", "Vacancy and HR Emploc imports reject any VCODE not already established in Plantilla."],
+    ["16. Multi-Row Identity Invariant", "RULE", "Normalized core identity fields (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED) must strictly match across multi-row roving entries and existing DB records; mismatches are hard-blocked."],
+    ["17. Employee-Level Coalescing & Conflict Flag", "RULE", "Employee-level demographic, compensation, and rest day fields silently coalesce across blank rows for the same employee; conflicting non-blank values emit warning flags and apply last-row-wins."],
+    ["18. Minimum Age Enforcement (18+)", "RULE", "Employees with birth dates must be at least 18 years old as of date hired (or current date); underage records are hard-blocked."],
+    ["19. Canonical Schedule Day Expansion", "RULE", "Shorthand day ranges (e.g. MON-SAT, MON-FRI, SAT-TUE wrap-around) in SCHEDULE_DAYS and DAYOFF are expanded into discrete canonical 3-letter day codes strictly ordered MON to SUN."],
   ];
 
   for (const r of guideData) {
