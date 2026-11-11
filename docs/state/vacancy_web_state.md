@@ -8,6 +8,18 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Strict Request Closure Lock when Active Applicants Exist (`ohm#c3m8v1k4`)**:
+  - **Universal Frontend Block in `VacancyDetailDrawer.tsx`**:
+    - Removed `isExemptFromClosureApplicantBlock` which previously exempted Super Admin, Operations, and Recruitment from the applicant closure block.
+    - `isClosureBlockedByApplicants` now strictly evaluates `hasActiveApplicants` for all users unconditionally:
+      - The **Request Closure** button is disabled (`disabled:opacity-60 disabled:cursor-not-allowed`) for all roles whenever `activeApplicantCount > 0` or active pipeline candidates exist.
+      - Displays the explanatory tooltip: *"Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."*
+  - **Server-Side Enforcement in Database Migration 098 (`20262606000098_block_vacancy_closure_when_applicants_active.sql`)**:
+    - Updated `public.fn_assert_vacancy_closeable(p_vcode text)` to explicitly assert that no active applicants exist in the recruitment pipeline (`public.applicants` with non-terminal status) before permitting closure requests via `rpc_submit_vacancy_closure_request` or direct closures.
+    - Terminal statuses permitted to proceed: `'failed'`, `'backout'`, `'rejected'`, `'did_not_report'`, `'rejected_by_ops'`, `'withdrew'`, `'withdrawn'`, `'cancelled'`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+
+
 - **Establish User Management as Authoritative HRCO Source of Truth (`ohm#u7m4s1t9`)**:
   - **Database Migration 096 (`20262606000096_user_management_as_hrco_source_of_truth.sql`)**:
     - Recreated `public.vw_vacancy_list` and `public.v_plantilla_safe` to position User Management (`public.user_scopes` joined to `public.users_profile` with `r.role_name = 'HRCO'`) as the #1 priority in resolving HRCO user ID and display name:

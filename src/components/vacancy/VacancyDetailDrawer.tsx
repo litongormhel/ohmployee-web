@@ -51,7 +51,6 @@ import {
 } from "@/lib/utils/displayText";
 import { useCurrentUser } from "@/lib/auth";
 import {
-  AppRole,
   canAddApplicant,
   canEditApplicantProfile,
   canEditHiredDate,
@@ -63,7 +62,6 @@ import {
   canReviseHeadcountQuota,
   hasFullAccess,
   isOpsTeam,
-  normalizeRole,
 } from "@/lib/rbac";
 import { ReviseHeadcountQuotaModal } from "@/components/modals/ReviseHeadcountQuotaModal";
 import { RequestHeadcountAdjustmentModal } from "@/components/modals/RequestHeadcountAdjustmentModal";
@@ -254,7 +252,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   } | null>(null);
 
   const currentUser = useCurrentUser();
-  const userRole = currentUser?.roleKey ?? currentUser?.roleName;
   const canReviseQuota = canReviseHeadcountQuota(currentUser);
   const canRequestAdjustment = canRequestHeadcountAdjustment(currentUser);
   const isUserFullAccess = hasFullAccess(currentUser);
@@ -266,11 +263,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const userCanEditHiredDate = canEditHiredDate(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userCanRequestClosure = canRequestVacancyClosure(currentUser);
-  const isExemptFromClosureApplicantBlock = Boolean(
-    isUserFullAccess ||
-    userIsOps ||
-    normalizeRole(userRole) === AppRole.RECRUITMENT
-  );
 
   const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
   const updateEffectiveVacancyDateMutation = useUpdateEffectiveVacancyDate();
@@ -362,7 +354,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
       (detail.activeApplicantsList && detail.activeApplicantsList.length > 0))
   );
 
-  const isClosureBlockedByApplicants = hasActiveApplicants && !isExemptFromClosureApplicantBlock;
+  const isClosureBlockedByApplicants = hasActiveApplicants;
 
   const statusLabel = isPendingClosure
     ? "Pending Clearance"

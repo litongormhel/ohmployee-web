@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Strict Request Closure Lock when Active Applicants Exist (ohm#c3m8v1k4)
+
+**Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); AUDITED AND ENFORCED STRICT REQUEST CLOSURE LOCK ACROSS VACANCY MANAGEMENT WHENEVER ACTIVE APPLICANTS EXIST IN THE PIPELINE; REMOVED `isExemptFromClosureApplicantBlock` IN `src/components/vacancy/VacancyDetailDrawer.tsx` SO SUPER ADMIN, OPS, AND RECRUITMENT ROLES ARE NO LONGER EXEMPTED FROM THE DISABLED BUTTON STATE; SHIPPED STANDALONE MIGRATION `supabase/migrations/20262606000098_block_vacancy_closure_when_applicants_active.sql` ENHANCING DATABASE ASSERTION `public.fn_assert_vacancy_closeable` TO HARD-REJECT ANY CLOSURE REQUESTS WHEN NON-TERMINAL CANDIDATES EXIST FOR THAT VCODE IN `public.applicants`; POST-MIGRATION LIVE DIFF CONFIRMED 100% PARITY; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Context & Changes Made
+1. **Frontend Guard Lock (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Removed role-based exemption `isExemptFromClosureApplicantBlock` that previously let Super Admin, Operations, and Recruitment submit closure requests even when candidates were in the pipeline.
+   - Tied `isClosureBlockedByApplicants = hasActiveApplicants;` directly to active applicant presence.
+   - Cleaned up unused imports and variables (`AppRole`, `normalizeRole`, `userRole`).
+2. **Database Assertion Guard (`supabase/migrations/20262606000098_block_vacancy_closure_when_applicants_active.sql`)**:
+   - Upgraded `public.fn_assert_vacancy_closeable(p_vacancy_id uuid, p_role text DEFAULT NULL::text)` to check `public.applicants` for non-terminal statuses:
+     `LOWER(TRIM(REPLACE(REPLACE(COALESCE(status, ''), '-', '_'), ' ', '_'))) NOT IN ('failed', 'backout', 'rejected', 'did_not_report', 'rejected_by_ops', 'withdrew', 'withdrawn', 'cancelled')`.
+   - Rejection message: `CLOSURE_BLOCKED: Vacancy % has active applicants in pipeline. Process or drop candidates before requesting closure.`.
+   - Deployed to Staging via `npx supabase db push --remote --include-all --yes`.
+3. **Verification**:
+   - `npm run lint`: Clean (0 errors).
+   - `npm test`: 211/211 tests passed.
+   - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Clean Up Orphan Stores, Ghost Vacancies, and Enforce Store Closure Lifecycle (ohm#x8p1v7m3)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); INVESTIGATED AND RESOLVED SYSTEMIC ORPHAN STORE AND GHOST VACANCY GENERATION IN PLANTILLA AND STORE CAPACITY VIEWS; ROOT CAUSE: (1) APPROVAL OF STORE CLOSURE VACANCY REQUESTS ("STORE CLOSED / OUTLET CEASED OPERATIONS") PREVIOUSLY ONLY UPDATED `public.vacancies`, LEAVING PHYSICAL STORES IN `public.stores` MARKED `is_active = true` AND DANGLING SLOTS IN `public.plantilla_slots` MARKED `open`; (2) CLIENT-SIDE SYNTHETIC VACANCY GENERATOR IN `src/app/(dashboard)/plantilla/page.tsx` UNCONDITIONALLY RESURRECTED OPEN VACANCY CARDS WITH HARDCODED `hrcoName: "—"` FOR INACTIVE EMPLOYEES (`FE DELA CRUZ`, `JETBOY DELA CRUZ`) REGARDLESS OF WHETHER THE STORE OR VACANCY WAS OFFICIALLY CLOSED; (3) ACTIVE EMPLOYEE `KIMI ANTONELLI` HAD A VCODE MISMATCH (`TEST007` INSTEAD OF `TEST009`); APPLIED STANDALONE MIGRATION `supabase/migrations/20262606000097_fix_orphan_stores_and_closure_lifecycle.sql` WHICH ARCHIVED CLOSED STORES (`SUPER 7`, `SUPER 10`, `S8 BANGAE`, AND OTHER CLOSED OUTLETS), CLOSED DANGLING SLOTS IN `plantilla_slots`, CORRECTED KIMI ANTONELLI'S VCODE TO `TEST009`, AND ENHANCED TRIGGER FUNCTION `handle_closure_approval` TO AUTOMATICALLY ARCHIVE STORES AND CLOSE SLOTS UPON FUTURE CLOSURE APPROVALS; HARDENED `src/app/(dashboard)/plantilla/page.tsx` WITH `closedVcodesQuery` AND STORE LOOKUP GUARDS TO PERMANENTLY SUPPRESS GHOST VACANCY SYNTHESIS FOR CLOSED OUTLETS; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
