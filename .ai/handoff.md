@@ -1,5 +1,72 @@
-# AI Handoff
+﻿# AI Handoff
 
+## Execution Report — Edit Schedule & Work Terms modal — UI redesign (ohm#7k2q9d4x)
+
+**Status: COMPLETE ON MAIN; REDESIGNED "EDIT SCHEDULE & WORK TERMS" MODAL (src/components/plantilla/UpdateScheduleModal.tsx) FOR ROVING PERSONNEL MATCHING APPROVED MOCKUP SPECIFICATION; DELIVERED STICKY FOOTER HOOKED INTO CANONICAL MODAL ooter SLOT WITH INDEPENDENT BODY SCROLL; ADDED LIVE 7-DAY WEEKLY COVERAGE STRIP (MON–SUN) WITH NUMBERED STORE BADGES (①), TRUNCATED STORE NAMES, FORMATTED TIME RANGES, REST PILLS, AND DASHED UNASSIGNED WARNING STATE ("No store"); IMPLEMENTED COMPACT REST DAY SELECTOR WITH AUTO-CARVING AND DISMISSIBLE NOTIFICATION BANNER; DELIVERED COLLAPSIBLE STORE ACCORDION CARDS (① name · VCode · Mon, Tue · 8 AM – 5 PM · 0.25 HC); IMPLEMENTED CROSS-STORE AWARE DUTY-DAY CHIPS (TAP TO TRANSFER FROM ANOTHER STORE, DISABLED REST DAY CHIPS); ADDED PER-DAY SHIFT DURATION CALCULATIONS WITH INLINE "Time-out must be later than time-in" VALIDATION; IMPLEMENTED "Apply this time to all stores" QUICK ACTION; DEMOTED HC SHARE TO READ-ONLY SUBDUED LABELS WITH 1.00 HC TOTAL NOTE; CONFIGURED DYNAMIC FOOTER STATUS DISPLAYING TOTAL WEEKLY HOURS (40 hrs/wk), NON-BLOCKING "N days without a store" WARNING, AND STRICT SAVE GATES FOR TIME ERRORS; PRESERVED 100% SAVE PAYLOAD INTEGRITY AND DATABASE RPC CONTRACTS; VERIFIED CLEANLY VIA 
+pm run lint (0 ERRORS), 
+pm test (209/209 PASSED), AND 
+pm run build (NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Architectural Scope & Context
+- **Target Component:** src/components/plantilla/UpdateScheduleModal.tsx
+- **Objective:** Pure UI/UX redesign of the "Edit Schedule & Work Terms" modal for roving and stationary plantilla personnel.
+- **Strict Invariants Preserved:**
+  - Zero database migrations, schema changes, or backend RPC payload modifications.
+  - Read-only preservation of Store Name, VCode, and Headcount (HC) Shares to prevent encoding corruption (Rule #6).
+  - Save payload contract: Calls updatePlantillaSchedule({ plantillaId, employeeNo, scheduleDays, scheduleTime, dayoff, storeAllocations }) with the identical data schema.
+
+### 2. Implemented Design Changes
+1. **Sticky Footer Architecture**:
+   - Leveraged canonical [Modal](src/components/shared/Modal.tsx) ooter slot, rendering the Reset action, live status indicators, Cancel, and Save buttons in an always-visible bottom bar (shrink-0).
+   - Modal body (max-h-[85vh] overflow-y-auto) scrolls independently.
+   - Form submission connected via HTML5 orm="update-schedule-form" attribute on the Save button.
+2. **Weekly Coverage Strip (MON–SUN)**:
+   - Rendered a live, dynamic 7-column preview strip at the top of the modal body.
+   - Per-day card derivation:
+     - **Rest day**: Subdued badge labeled "Rest".
+     - **Assigned store**: Store number badge (①, ②, etc.), store name, and formatted shift time (e.g. 8 AM–5 PM).
+     - **Unassigned day**: Dashed warning border (order-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/40), warning icon, and explicit text label "No store".
+     - Completely accessible (does not rely on color alone).
+3. **Compacted Rest Day Selector with Auto-Carving**:
+   - Compact single-row selector directly above the weekly coverage strip.
+   - Supports multi-select rest days.
+   - Toggling a rest day automatically carves out that day from any assigned store's duty days, displaying a dismissible notification banner (e.g., TUE marked as rest day. Removed from SM Megamall.). Banner dismisses on user action or via manual ✕.
+4. **Collapsible Store Cards (Accordion)**:
+   - Accordion state allowing only one store card to be expanded at a time (defaults to first store open).
+   - Collapsed summary format: ① [Store Name] · [VCode] · [Assigned Days, e.g. Mon, Tue] · [8 AM – 5 PM] · [0.25 HC].
+   - Chevron toggle indicators (ChevronDown / ChevronUp).
+5. **Cross-Store Aware Duty-Day Chips**:
+   - **Rest Day**: Chip disabled with subdued styling.
+   - **Current Store Day**: Active filled brand chip. Tapping unassigns it from current store.
+   - **Other Store Day**: Muted chip showing [DAY] · In N (e.g., TUE · In 2). Tapping immediately transfers the day to the current store.
+   - **Unassigned Day**: Standard selectable chip. Tapping assigns it to current store.
+6. **Shift Time Window & Duration Indicator**:
+   - Preserved TimeSegmentInput with 12-hour typing and native time picker.
+   - Added live per-day duration text (e.g., 9 hrs/day).
+   - Added inline validation error: "Time-out must be later than time-in" whenever 	imeOut <= timeIn.
+7. **"Apply this time to all stores" Action**:
+   - Quick-action button inside expanded card that copies the active store's scheduleTime to all other store allocations.
+8. **HC Share Read-Only Display**:
+   - Demoted to small subdued text (	ext-2xs text-text-muted font-normal) on each store card.
+   - Bottom note displays total HC share (Total Headcount Share: 1.00 HC).
+9. **Footer Status & Save Gate**:
+   - Displays live total weekly hours across all assigned store days (e.g., 40 hrs/wk).
+   - Displays "N days without a store" as an informational warning only (does not block Save).
+   - Blocks Save (disabled state + error status text) if any store has a time error (	imeOut <= timeIn), if HC share sum is invalid, or if any store has 0 duty days.
+   - Reset button triggers existing reset confirmation dialog.
+
+### 3. Verification & Regressions Checked
+- 
+pm run lint: Clean (0 errors across entire workspace).
+- 
+pm test: 209/209 unit and adversarial tests passed cleanly (
+ode --test).
+- 
+pm run build: Production Next.js 16.2.4 build exited with code 0 (all 20 static and dynamic routes compiled).
+- Zero database changes, migrations, or RPC modifications.
+- Local commit on main.
+
+---
 ## Execution Report — ADR-002 Addendum: Plantilla Import Multi-Row Validation, Coalescing & Schedule Normalization (ohm#p7m2r4v1)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED ADR-002 ADDENDUM (INVARIANTS #16–#19) ACROSS NORMALIZATION UTILITIES, PREVIEW MODAL, SCHEDULE PARSER, DATABASE MIGRATION RPCS, AND EXCEL TEMPLATES; CREATED PURE NORMALIZATION ENGINE `src/lib/utils/plantilla_normalization.ts` (STRING TRIMMING/COLLAPSING/UPPERCASING, CANONICAL 11-DIGIT PH MOBILE NUMBER FORMATTING, STRICT ISO YYYY-MM-DD DATE PARSING WITH ZERO UTC SHIFTS, AND CALENDAR-ACCURATE LEAP-DAY 18+ AGE COMPUTATION); IMPLEMENTED SCHEDULE RANGE EXPANDER `src/lib/utils/schedule_normalizer.ts` EXPANDING LINEAR RANGES, WRAP-AROUND RANGES (E.G. `SAT-TUE`), AND HYBRID LISTS INTO MON..SUN CANONICAL TOKENS WHILE CARVING OUT REST DAYS FOR MUTUALLY EXCLUSIVE UI PILL STATES; CREATED MIGRATION `supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` UPDATING `_evaluate_plantilla_import_rows` AND `approve_plantilla_import_batch` TO ENFORCE MULTI-ROW IDENTITY HARD-BLOCKS (LAST_NAME, FIRST_NAME, MIDDLE_NAME, DATE_HIRED), SILENT DEMOGRAPHIC/RATE/REST-DAY COALESCING, CONFLICT WARNING FLAGS WITH LAST-ROW-WINS PERSISTENCE, AND 18+ AGE INVARIANT; APPENDED RULES #16–#19 TO `VALIDATION_GUIDE` AND CORRECTED SAMPLE ROW DOB IN `src/lib/utils/data_control_xlsx.ts`; AUTHORED 5 TEST SUITES COVERING TIERS 1–5 (209/209 PASSING); INDEPENDENT VICTORY AUDITOR VERDICT "VICTORY CONFIRMED"; VERIFICATION GATES ALL PASS CLEAN (`npm test` 209/209 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
