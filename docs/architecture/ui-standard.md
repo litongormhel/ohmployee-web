@@ -116,9 +116,9 @@ Centralized in [`src/lib/utils/thresholds.ts`](file:///Users/armanjr/Projects/OH
 
 ## 4. Typography Standard
 
-- **Default Font:** **DM Sans** (`var(--font-dm-sans)`), loaded via Next.js Google font loader in `src/app/layout.tsx`.
-- **Monospace Font:** **DM Mono** (`var(--font-dm-mono)`), used strictly for technical codes (VCODE, Employee No, RPC identifiers).
-- **Tabular Numerals:** **Mandatory** across all numerical displays (`tabular-nums` / `font-variant-numeric: tabular-nums`). DM Sans fully supports OpenType tabular numbers.
+- **Default Font:** **Inter (Antigravity Sans UI)** (`var(--font-inter)`), loaded via Next.js Google font loader in `src/app/layout.tsx`.
+- **Monospace Font:** **JetBrains Mono** (`var(--font-jetbrains-mono)`) / **DM Mono** (`var(--font-dm-mono)`), used strictly for technical codes (VCODE, Employee No, RPC identifiers).
+- **Tabular Numerals:** **Mandatory** across all numerical displays (`tabular-nums` / `font-variant-numeric: tabular-nums`). Inter fully supports OpenType tabular numbers.
 - **Scale & Floors:**
 
 | Role | Size | Weight | Tracking | Minimum Floor |

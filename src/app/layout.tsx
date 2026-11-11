@@ -60,6 +60,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-font="Inter"
       suppressHydrationWarning
       className={`h-full antialiased ${dmSans.variable} ${dmMono.variable} ${inter.variable} ${geistSans.variable} ${jetbrainsMono.variable} ${robotoMono.variable}`}
     >
@@ -70,7 +71,7 @@ export default function RootLayout({
               (function() {
                 try {
                   var stored = localStorage.getItem('ohmployee_theme_mode');
-                  var storedFont = localStorage.getItem('ohm_font_preference');
+                  var storedFont = localStorage.getItem('ohm_font_preference') || 'Inter';
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var theme = stored || 'light';
                   var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
@@ -78,9 +79,7 @@ export default function RootLayout({
                   root.setAttribute('data-theme', theme);
                   root.setAttribute('data-resolved-theme', isDark ? 'dark' : 'light');
                   root.style.colorScheme = isDark ? 'dark' : 'light';
-                  if (storedFont) {
-                    root.setAttribute('data-font', storedFont);
-                  }
+                  root.setAttribute('data-font', storedFont);
                   if (isDark) {
                     root.classList.add('dark');
                     root.classList.remove('light');

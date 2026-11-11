@@ -215,6 +215,8 @@ To maintain high-fidelity visual aesthetics (premium dashboard layouts), all ext
 - **Border Spacing**: Standard thin grey divisions (`border-b border-gray-100` inside drawers; `border-b border-gray-200` for major sections).
 
 ### Typography Hierarchy
+- **Default UI Font**: **Inter** (Antigravity Sans UI, `--font-inter` via `next/font/google`), mapped to `--font-active-sans` and `--font-sans`.
+- **Technical Monospace Font**: **JetBrains Mono** / **DM Mono** (`--font-mono`) for VCodes, slot IDs, and timestamps.
 - **Module Title**: `text-xl font-semibold tracking-normal text-gray-900`
 - **Section Headers**: `text-sm font-semibold text-gray-900`
 - **Upper Meta labels**: `text-xs font-semibold uppercase tracking-wider text-gray-400`

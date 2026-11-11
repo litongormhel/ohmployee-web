@@ -65,12 +65,10 @@ This section documents the read-only audit of the Plantilla module UI in the web
 
 ### E. Design Tokens & Styling
 - **CSS Architecture**: Exposes semantic surface, text, border, table-specific, and status tokens under `@theme inline` in [globals.css](file:///d:/Projects/ohmployee-web/src/app/globals.css).
-- **Typography & Font Divergence**:
-  - Blueprints in `docs/state/web_design_tokens.md` specify DM Sans and DM Mono.
-  - However, [globals.css](file:///d:/Projects/ohmployee-web/src/app/globals.css) maps fonts to:
-    - `--font-sans: Arial, Helvetica, sans-serif;`
-    - `--font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;`
-  - Standard system fallbacks are used; the project currently diverges by not loading the DM font families.
+- **Typography & Default Font**:
+  - Authoritative default sans font is **Inter** (Antigravity Sans UI, `--font-inter`), loaded via `next/font/google` in [layout.tsx](file:///d:/Projects/ohmployee-web/src/app/layout.tsx) and mapped in [globals.css](file:///d:/Projects/ohmployee-web/src/app/globals.css) via `--font-active-sans` / `--font-sans`.
+  - Monospace tokens use JetBrains Mono / DM Mono (`--font-mono`).
+  - User customization across Inter, Geist Sans, DM Sans, Plus Jakarta Sans, Manrope, and SF Pro is supported via `data-font` attribute and Settings > Preferences.
 
 ---
 

@@ -104,13 +104,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings?.themeMode]);
 
-  // Synchronize remote or local font preference with document attribute
+  // Synchronize remote or local font preference with document attribute (defaulting to Inter)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const activeFont = settings?.fontFamily || localStorage.getItem("ohm_font_preference");
-      if (activeFont) {
-        document.documentElement.setAttribute("data-font", activeFont);
-      }
+      const activeFont = settings?.fontFamily || localStorage.getItem("ohm_font_preference") || "Inter";
+      document.documentElement.setAttribute("data-font", activeFont);
     }
   }, [settings?.fontFamily]);
 

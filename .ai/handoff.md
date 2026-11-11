@@ -1,5 +1,29 @@
 ﻿# AI Handoff
 
+## Execution Report — Make Inter (Antigravity Sans UI) Default Font in OHMployee Web (ohm#9n3k8w2r)
+
+**Status: COMPLETE ON MAIN; STANDARDIZED INTER (ANTIGRAVITY SANS UI) AS THE AUTHORITATIVE DEFAULT UI FONT ACROSS OHMEMPLOYEE WEB; UPDATED ROOT HTML ELEMENT ATTRIBUTES AND PRE-HYDRATION BOOTSTRAP SCRIPT IN src/app/layout.tsx WITH data-font="Inter" FALLBACK TO PREVENT FLASH OF UNSTYLED TEXT (FOUT); CONFIGURED RUNTIME CSS VARIABLES IN src/app/globals.css TO BIND --font-active-sans AND --font-sans TO var(--font-inter) AT :root LEVEL WITH CLEAN TAILWIND TOKEN INTEGRATION; UPDATED src/providers/ThemeProvider.tsx TO FALLBACK TO "Inter" SELECTION; SYNCHRONIZED ARCHITECTURE & DESIGN SYSTEM SPECIFICATIONS IN docs/architecture/ui-standard.md AND docs/state/web_target_state.md; PRESERVED USER CUSTOMIZATION (SETTINGS > PREFERENCES) AND ALL TECHNICAL MONOSPACE TOKENS (JETBRAINS MONO / DM MONO); VERIFIED CLEANLY VIA npm run lint (0 ERRORS), npm test (209/209 PASSED), AND npm run build (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Implementation Details
+- **Root Layout & Pre-Hydration Sync (`src/app/layout.tsx`):**
+  - Added `data-font="Inter"` directly to the root `<html>` tag to ensure SSR markup matches default styling.
+  - In the `<head>` inline bootstrap script, updated font preference evaluation to default to `'Inter'` (`localStorage.getItem('ohm_font_preference') || 'Inter'`), eliminating FOUT and ensuring parity across server and client render passes.
+- **Design Token System (`src/app/globals.css`):**
+  - Injected `--font-active-sans: var(--font-inter), Arial, Helvetica, sans-serif;` into the baseline `:root` block so the Inter font family is immediately active before and during attribute selector matching.
+  - Refactored `--font-sans` in `@theme inline` to cleanly resolve `var(--font-active-sans, var(--font-inter), Arial, Helvetica, sans-serif)` instead of relying on legacy nested fallbacks.
+- **Theme & Font Preference Provider (`src/providers/ThemeProvider.tsx`):**
+  - Updated font synchronization `useEffect` to fallback to `"Inter"` when neither remote user preferences nor `localStorage` has a custom selection.
+- **Design System Documentation (`docs/architecture/ui-standard.md`, `docs/state/web_target_state.md`, `docs/state/web_ui_system_state.md`):**
+  - Updated typography standards to establish Inter (Antigravity Sans UI) as the authoritative default UI sans font, with JetBrains Mono / DM Mono retained for technical monospace tokens.
+
+### 2. Verification & Guardrails
+- `npm run lint`: Clean (0 errors, 5 existing warnings).
+- `npm test`: 209/209 tests passed across all normalization and invariant suites.
+- `npm run build`: Production build succeeded cleanly (Next.js 16.2.4 Turbopack, exit code 0).
+- User font overrides in **Settings > Preferences** remain 100% operational via dynamic `[data-font="..."]` selectors.
+
+---
+
 ## Execution Report — Weekly Coverage Preview — show VCode instead of store name (ohm#4m8w1c6e)
 
 **Status: COMPLETE ON MAIN; UPDATED "WEEKLY COVERAGE PREVIEW" STRIP IN src/components/plantilla/UpdateScheduleModal.tsx TO DISPLAY ASSIGNED STORE VCODE (ssignedStore.vcode || assignedStore.storeName) IN MONOSPACE FONT (ont-mono text-[10px] font-bold tracking-tight whitespace-nowrap) ON DAY CELL CAPTION LINE 1 PER APPROVED PDF MOCKUP; PRESERVED SHIFT TIME LINE, NUMBERED STORE BADGE, "REST" CELL, AND "NO STORE" DASHED WARNING CELL; FULL STORE NAME AND SCHEDULE DETAILS REMAIN ACCESSIBLE ON HOVER VIA 	itle TOOLTIP; VERIFIED CLEANLY VIA 

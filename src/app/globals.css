@@ -28,6 +28,9 @@
   --warn: #b7791f;
   --pillbg: #eef2ff;
 
+  /* Default Typography Sans: Inter (Antigravity Sans UI) */
+  --font-active-sans: var(--font-inter), Arial, Helvetica, sans-serif;
+
   /* Core brand base */
   --background: var(--bg); /* #ffffff - page background */
   --foreground: var(--text); /* #16161a - primary text */
@@ -654,7 +657,7 @@
   --color-warn: var(--warn);
   --color-pillbg: var(--pillbg);
 
-  --font-sans: var(--font-active-sans, var(--font-inter, var(--font-dm-sans), Arial, Helvetica, sans-serif));
+  --font-sans: var(--font-active-sans, var(--font-inter), Arial, Helvetica, sans-serif);
   --font-mono: var(--font-jetbrains-mono), var(--font-roboto-mono), var(--font-dm-mono), "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
