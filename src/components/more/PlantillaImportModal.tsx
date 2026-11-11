@@ -84,6 +84,97 @@ function getActualErrorEntries(errorSummary?: Record<string, number | unknown>):
     .map(([key, val]) => [key, Number(val)]);
 }
 
+export function formatFriendlyValidationMessage(
+  err: { field?: string; conflictType?: string; msg?: string },
+  employeeName?: string
+): string {
+  const rawMsg = err.msg || "";
+  const conflictType = err.conflictType || "";
+  const field = err.field || "";
+
+  // Extract last name from "BALLESTEROS, JOHN MARK MANANSALA" or "BALLESTEROS"
+  let lastName = "";
+  if (employeeName) {
+    const parts = employeeName.split(",");
+    const rawLast = parts[0]?.trim();
+    if (rawLast) {
+      lastName = rawLast.charAt(0).toUpperCase() + rawLast.slice(1).toLowerCase();
+    }
+  }
+
+  const prefix = lastName ? `${lastName} — ` : "";
+
+  // 1. Underage employee (e.g. Ballesteros — Underage employee. Minimum legal working age is 18.)
+  if (conflictType === "underage_employee_under_18" || rawMsg.toLowerCase().includes("underage")) {
+    return `${prefix}Underage employee. Minimum legal working age is 18.`;
+  }
+
+  // 2. Mismatched date hired across rows
+  if (
+    field === "DATE_HIRED" &&
+    (conflictType === "core_identity_mismatch_in_batch" || rawMsg.toLowerCase().includes("distinct date_hired"))
+  ) {
+    return `${prefix}Mismatched hire date across roving store rows.`;
+  }
+
+  // 3. Mismatched date hired against DB
+  if (field === "DATE_HIRED" && conflictType === "core_identity_mismatch_with_db") {
+    return `${prefix}Hire date does not match master record in database.`;
+  }
+
+  // 4. Mismatched name across rows in batch
+  if (
+    ["LAST_NAME", "FIRST_NAME", "MIDDLE_NAME"].includes(field) &&
+    conflictType === "core_identity_mismatch_in_batch"
+  ) {
+    return `${prefix}Mismatched employee name across roving store rows.`;
+  }
+
+  // 5. Mismatched name against DB
+  if (
+    ["LAST_NAME", "FIRST_NAME", "MIDDLE_NAME"].includes(field) &&
+    conflictType === "core_identity_mismatch_with_db"
+  ) {
+    return `${prefix}Employee name does not match master record in database.`;
+  }
+
+  // 6. Duplicate identity (same person assigned multiple distinct employee numbers in batch)
+  if (conflictType === "duplicate_identity_distinct_emp_no") {
+    const empMatch = rawMsg.match(/\(([^)]+)\)/);
+    const empList = empMatch ? ` (${empMatch[1]})` : "";
+    return `${prefix}Multiple employee numbers assigned to the same person${empList}. Roving employees must share the same Emp No.`;
+  }
+
+  // 7. Duplicate identity against DB
+  if (conflictType === "duplicate_identity_db_mismatch") {
+    return `${prefix}Employee already exists in database with a different Emp No.`;
+  }
+
+  // 8. Inactive plantilla status lock
+  if (conflictType === "inactive_or_archived_existing_record") {
+    return `${prefix}Employee exists in plantilla with inactive/archived status. Re-import blocked.`;
+  }
+
+  // 9. Cross-account active employee
+  if (conflictType === "cross_account_employee") {
+    return `${prefix}Employee is currently active under a different account.`;
+  }
+
+  // 10. Required fields
+  if (rawMsg.includes("is required")) {
+    return rawMsg.replace(/_/g, " ");
+  }
+
+  // 11. Schedule errors
+  if (conflictType === "invalid_schedule_days" || field === "SCHEDULE_DAYS") {
+    return rawMsg;
+  }
+
+  // Fallback: strip technical bracket prefixes like "[FIELD]: "
+  const cleaned = rawMsg.replace(/^\[[^\]]+\]:\s*/, "");
+  return prefix ? `${prefix}${cleaned}` : cleaned;
+}
+
 type TabType = "upload" | "review" | "history";
 
 export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImportModalProps) {
@@ -827,8 +918,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                           <th className="py-2.5 px-3">Status</th>
                           <th className="py-2.5 px-3">VCode</th>
                           <th className="py-2.5 px-3">Store Name</th>
-                          <th className="py-2.5 px-3">Position</th>
-                          <th className="py-2.5 px-3">Emp No</th>
+                          <th className="py-2.5 px-3 whitespace-nowrap">Emp No</th>
                           <th className="py-2.5 px-3">Employee Name</th>
                           <th className="py-2.5 px-3">Details / Validation</th>
                         </tr>
@@ -858,7 +948,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                           if (rowsToDisplay.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={8} className="py-6 text-center text-xs text-[var(--text-muted)]">
+                                <td colSpan={7} className="py-6 text-center text-xs text-[var(--text-muted)]">
                                   No rows matching &quot;{uploadPreviewFilter}&quot; filter.
                                 </td>
                               </tr>
@@ -890,12 +980,11 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                     {row.validationStatus}
                                   </span>
                                 </td>
-                                <td className="py-2 px-3 font-semibold font-mono text-[var(--foreground)]">
+                                <td className="py-2 px-3 font-semibold font-mono text-[var(--foreground)] whitespace-nowrap">
                                   {row.vcode || "—"}
                                 </td>
                                 <td className="py-2 px-3 text-[var(--foreground)]">{row.storeName || "—"}</td>
-                                <td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>
-                                <td className="py-2 px-3 font-mono font-bold text-[var(--foreground)]">
+                                <td className="py-2 px-3 font-mono font-bold text-[var(--foreground)] whitespace-nowrap">
                                   {row.employeeNo || (
                                     <span className="italic text-[var(--text-muted)] font-sans font-normal">
                                       (Vacant Slot)
@@ -909,16 +998,18 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                                 </td>
                                 <td className="py-2 px-3">
                                   {isBlocked ? (
-                                    <div className="space-y-0.5 text-xs text-[var(--danger-text)]">
+                                    <div className="space-y-1 text-xs text-[var(--danger-text)]">
                                       {row.validationErrors && row.validationErrors.length > 0 ? (
                                         row.validationErrors.map((err: PlantillaRowValidationError, errIdx: number) => (
-                                          <div key={errIdx} className="font-semibold">
-                                            [{err.field || "Error"}]: {err.msg}
+                                          <div key={errIdx} className="font-medium leading-relaxed">
+                                            {formatFriendlyValidationMessage(err, row.employeeName)}
                                           </div>
                                         ))
                                       ) : (
                                         (row.validationMessages || []).map((msg: string, mIdx: number) => (
-                                          <div key={mIdx}>{msg}</div>
+                                          <div key={mIdx} className="font-medium leading-relaxed">
+                                            {formatFriendlyValidationMessage({ msg }, row.employeeName)}
+                                          </div>
                                         ))
                                       )}
                                     </div>

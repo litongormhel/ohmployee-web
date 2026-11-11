@@ -983,6 +983,7 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Web Pre-Upload Validation & UI Enhancements (`src/components/more/PlantillaImportModal.tsx`, `src/lib/queries/dataControl.ts`)**:
     - Added dry-run pre-upload validation using `validatePlantillaBaselineImport` RPC as single source of truth; any blocked row hard-blocks the submission button with a visible error banner.
     - Formatted employee names consistently as `Last, First` across preview and row inspection via `formatPersonName`.
+    - Optimized Pre-Upload Validation preview layout: removed redundant `Position` column, applied `whitespace-nowrap` to `Emp No` to prevent wrapping, and formatted `Details / Validation` errors with human-friendly messages prefixed by employee last name in Title Case (e.g. `Ballesteros — Underage employee. Minimum legal working age is 18.`).
     - Removed misleading "Needs HRCO" chip from Inspect Batch Rows; renders neutral note `Roving · N stores · X.XX HC`.
     - Batch cards and upload banner display breakdown `N valid · N warnings · N blocked`.
     - Approve button disabled with clear reason unless `(batch.status === 'pending_approval' || batch.status === 'commit_failed') && batch.blockedRows === 0`.

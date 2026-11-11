@@ -1,5 +1,45 @@
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -61,6 +101,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -141,6 +221,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -202,6 +322,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -266,6 +426,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -327,6 +527,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -407,6 +647,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -468,6 +748,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -545,6 +865,46 @@
 
 ﻿# AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -606,6 +966,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -686,6 +1086,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -747,6 +1187,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -811,6 +1291,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -872,6 +1392,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -952,6 +1512,46 @@
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -1013,6 +1613,46 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -6305,6 +6945,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -6366,6 +7046,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -6446,6 +7166,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -6507,6 +7267,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -6571,6 +7371,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -6632,6 +7472,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -6712,6 +7592,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -6773,6 +7693,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -7534,6 +8494,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -7595,6 +8595,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -7675,6 +8715,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -7736,6 +8816,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -7800,6 +8920,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -7861,6 +9021,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -7941,6 +9141,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -8002,6 +9242,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -8787,6 +10067,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -8848,6 +10168,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -8928,6 +10288,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -8989,6 +10389,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -9053,6 +10493,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -9114,6 +10594,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
@@ -9194,6 +10714,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
 **Status: COMPLETE ON MAIN; IMPLEMENTED BI-DIRECTIONAL IDENTITY LOCK (INVARIANT #16 EXTENSION) ACROSS CLIENT NORMALIZATION PIPELINE (`src/lib/utils/plantilla_normalization.ts`), DATABASE RPC `_evaluate_plantilla_import_rows` (`supabase/migrations/20261111000002_adr002_addendum_import_coalescing_and_invariants.sql`), EXCEL TEMPLATE GUIDE (`src/lib/utils/data_control_xlsx.ts`), ARCHITECTURE SPECIFICATION (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), AND STATE SPECIFICATION (`docs/state/plantilla_web_state.md`); RESOLVED CRITICAL INTEGRITY VULNERABILITY WHERE ROVING/MULTI-ROW EMPLOYEES WITH MISTYPED OR MISMATCHED `EMPLOYEE_NO`S (E.G. ROW 1 `2060-001` VS ROW 2 `2060-005` FOR `ROSALES, GRACELYN BENITEZ`) EVADED DETECTION AND WERE FALSELY MARKED AS VALID STATIONARY 1.00 HC EMPLOYEES, PREVENTING PHANTOM DUPLICATE EMPLOYEE CREATION AND UNWARRANTED HEADCOUNT INFLATION; ADDED ADVERSARIAL UNIT TESTS IN `src/lib/utils/__tests__/adversarial_coalescing_and_age.test.mjs` (211/211 TESTS PASSING); VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -9255,6 +10815,46 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
+
+**Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause & Visual Layout Friction
+1. **Redundant Column & Horizontal Space Constraint**:
+   - In the Pre-Upload Validation table on `PlantillaImportModal.tsx`, the `Position` column repeatedly rendered `MERCHANDISER` for every row, consuming horizontal width without adding decision value during batch pre-check.
+   - Consequently, the `Emp No` column was squeezed, causing numbers like `2060-002` to break onto two lines (`2060-` on line 1, `002` on line 2).
+2. **Technical Error Presentation**:
+   - The `Details / Validation` column previously rendered raw database messages with brackets and SQL-like descriptions:
+     `[DATE_HIRED]: Core identity mismatch across rows for EMPLOYEE_NO 2060-002: distinct DATE_HIRED values in batch`
+     `[DATE_OF_BIRTH]: Underage employee: computed age as of DATE_HIRED (2026-01-15) is under 18 years old (DOB: 2010-10-26, age: 15). Minimum legal working age is 18.`
+   - These messages were verbose and hard to scan quickly for non-technical operations and HR coordinators.
+
+### 2. Changes Made
+1. **Pre-Upload Validation Table Optimization (`src/components/more/PlantillaImportModal.tsx`)**:
+   - Removed `<th className="py-2.5 px-3">Position</th>` from table header.
+   - Removed `<td className="py-2 px-3 text-[var(--text-muted)]">{row.position || "—"}</td>` from row renderers.
+   - Updated empty state fallback `colSpan` from `8` to `7`.
+   - Applied `whitespace-nowrap` to `Emp No` header and body cell to guarantee single-line display.
+2. **Human-Friendly Validation Formatter (`formatFriendlyValidationMessage`)**:
+   - Created pure formatter utility extracting the employee's Last Name in Title Case (`BALLESTEROS` $\rightarrow$ `Ballesteros`) as a readable subject prefix:
+     - **Underage check**: `Ballesteros — Underage employee. Minimum legal working age is 18.`
+     - **Date hired mismatch**: `Ballesteros — Mismatched hire date across roving store rows.`
+     - **Date hired DB mismatch**: `Ballesteros — Hire date does not match master record in database.`
+     - **Name mismatch in batch**: `Ballesteros — Mismatched employee name across roving store rows.`
+     - **Duplicate identity (multi-ID in batch)**: `Rosales — Multiple employee numbers assigned to the same person (2060-001, 2060-005). Roving employees must share the same Emp No.`
+     - **Duplicate identity against DB**: `Rosales — Employee already exists in database with a different Emp No.`
+     - **Required fields**: Replaced underscores with spaces (`VCODE is required`, `STORE NAME is required`).
+     - **Fallback**: Stripped technical bracket prefixes like `[FIELD]: `.
+3. **Architecture Documentation (`docs/state/plantilla_web_state.md`)**:
+   - Documented the layout optimization and human-friendly formatting rules in the Plantilla Web state specification.
+
+### 3. Verification & Regressions
+- `npm test`: 211/211 passed (100% pass rate).
+- `npm run lint`: 0 errors (5 pre-existing warnings in unrelated files).
+- `npm run build`: Compiled successfully; Next.js 16.2.4 exit code 0.
+
+---
 
 ## Execution Report — ADR-002 Invariant #16 Bi-Directional Identity Lock: 1 Person = 1 EMPLOYEE_NO (ohm#d9k4p1v7)
 
