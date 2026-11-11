@@ -1,5 +1,52 @@
 # AI Handoff
 
+## Execution Report — Problem-First Account Card Arrangement in Plantilla Directory (ohm#p4k1v9m8)
+
+**Status: COMPLETE ON MAIN; REORDERED ACCOUNT CARD GRID ON `/plantilla` SO THE MOST PROBLEMATIC ACCOUNTS (SEVEREST STAFFING SHORTAGES) APPEAR AT THE VERY FRONT (`PINAKA UNA`); ROOT CAUSE: AN OVERLY BROAD ZERO-CHECK `const isAFillRateZero = a.fillRate === 0; if (isAFillRateZero && !isBFillRateZero) return 1;` IN `src/app/(dashboard)/plantilla/page.tsx` CONFLATED UNCONFIGURED / EMPTY ACCOUNTS (`required === 0`, WHERE MFR RENDERS AS `"—"`) WITH ACTIVE ACCOUNTS SUFFERING A TRUE 0% STAFFING DEFICIT (SUCH AS `ZEBRA` WITH `HC 0/1 · Vacant 1 · MFR 0%`), PUSHING `ZEBRA` TO THE VERY BOTTOM BEHIND EVEN 100% HEALTHY ACCOUNTS; REPLACED WITH AN EXPLICIT MULTI-TIER SEVERITY COMPARATOR: ACCOUNTS WITH ACTIVE REQUIREMENTS (`required > 0`) STRICTLY PRECEDE BLANK MFR ACCOUNTS (`required === 0`), ACTIVE ACCOUNTS SORT BY LOWEST `fillRate` ASCENDING (0% FIRST, E.G. ZEBRA AT INDEX 0, FOLLOWED BY LOW-FILL ACCOUNTS, FOLLOWED BY 100%), WITH VACANCY COUNT TIE-BREAKING, AND BLANK ACCOUNTS NEATLY SETTLED AT THE BOTTOM SORTED ALPHABETICALLY; ZERO DATABASE MUTATION; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
+
+### 1. Root Cause Analysis
+1. **Flawed Conflation of Blank MFR vs 0% MFR**:
+   - In `src/app/(dashboard)/plantilla/page.tsx` (lines 1993–1996), the sort comparator had:
+     ```typescript
+     const isAFillRateZero = a.fillRate === 0;
+     const isBFillRateZero = b.fillRate === 0;
+     if (isAFillRateZero && !isBFillRateZero) return 1;
+     if (!isAFillRateZero && isBFillRateZero) return -1;
+     ```
+   - Intended to sink "empty/no data" accounts to the bottom, this code actually tested `fillRate === 0`.
+   - Accounts with `required === 0` (no slots, no required headcount) have `fillRate = 0` and display `MFR: —`.
+   - Accounts with `required > 0` and `actual === 0` (such as `ZEBRA` with 1 required, 0 filled, 1 vacant) also have `fillRate = 0`, but display `MFR: 0%`.
+   - As a result, `ZEBRA` (the most critical account with 0% staffing fulfillment) was treated as empty and pushed after 100% staffed accounts.
+   - Tied at `fillRate = 0`, alphabetical tie-breaking (`a.name.localeCompare(b.name)`) placed `ZEBRA` (starting with 'Z') at the absolute end of the entire directory.
+
+### 2. Changes Made
+1. **Frontend Comparator Rewrite (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Implemented an unambiguous 4-tier problem-first sorting hierarchy:
+     1. **Active Quota Precedence**:
+        `const aHasRequirements = a.required > 0; const bHasRequirements = b.required > 0;`
+        If `aHasRequirements && !bHasRequirements` return `-1` (active precedes blank).
+        If `!aHasRequirements && bHasRequirements` return `1` (blank sinks to bottom).
+     2. **Lowest Fill Rate First (Problem Severity)**:
+        `if (a.fillRate !== b.fillRate) return a.fillRate - b.fillRate;`
+        Elevates `0%` accounts (e.g. `ZEBRA`) to index 0 (`pinaka una`), followed by low-fulfillment accounts (e.g. `Moses HQ` at 13.04%, 50%, etc.), followed by fully-staffed accounts (100%+).
+     3. **Vacancy Count Tie-Breaker**:
+        `if (b.vacant !== a.vacant) return b.vacant - a.vacant;`
+        When fill rates match, accounts with more open vacancies are placed higher.
+     4. **Alphabetical Fallback**:
+        `return a.name.localeCompare(b.name);`
+        Applies cleanly for equal-metric accounts and organizes blank MFR accounts at the bottom alphabetically.
+
+### 3. Verification & Parity Results
+- **Card Ordering Parity**: Confirmed that `ZEBRA` (`required: 1`, `actual: 0`, `vacant: 1`, `fillRate: 0%`) now surfaces at index 0 (top left of the grid).
+- **Blank MFR Retention**: Unused or empty accounts (`required: 0`, `MFR: —`) are cleanly segregated at the bottom of the grid.
+- **Zero Database Mutation**: No SQL views, tables, or database functions were altered.
+- **Automated Verification**:
+  - `npm run lint`: Clean (0 errors, 5 pre-existing warnings in unrelated files).
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run build`: Next.js 16.2.4 exit code 0.
+
+---
+
 ## Execution Report — Multi-Headcount Display Parity in list_web_vacancies RPC (ohm#n7k2m9x4)
 
 **Status: COMPLETE ON MAIN; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); RESOLVED `0/1` HEADCOUNT FRACTION RENDER FOR MULTI-HEADCOUNT VACANCIES ON THE VACANCY OPEN TAB; ROOT CAUSE: WHILE `public.vw_vacancy_list` PRODUCED ACCURATE `hc_total = 10` AND `hc_display = '0/10'`, THE RPC `public.list_web_vacancies` OMITTED THESE FIELDS FROM ITS SELECT AND `row_capabilities` JSON PAYLOAD, CAUSING FRONTEND `normalizeListRow` IN `src/lib/queries/vacancy.ts` TO FALL BACK TO `hcTotal = 1` (`0/1`); DEPLOYED MIGRATIONS `20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql` AND `20262606000100_grant_list_web_vacancies_postgres.sql` TO EMBED `hc_filled`, `hc_total`, `hc_display`, AND `is_pool_vacancy` INTO `row_capabilities`; LIVE FUNCTION INSPECTION CONFIRMED 100% PARITY; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**

@@ -1985,19 +1985,27 @@ function PlantillaPageContent() {
                   };
                 })
                 .sort((a, b) => {
-                  const isAMoses = a.name.trim().toLowerCase() === "moses hq";
-                  const isBMoses = b.name.trim().toLowerCase() === "moses hq";
-                  if (isAMoses && !isBMoses) return -1;
-                  if (!isAMoses && isBMoses) return 1;
+                  const aHasRequirements = a.required > 0;
+                  const bHasRequirements = b.required > 0;
 
-                  const isAFillRateZero = a.fillRate === 0;
-                  const isBFillRateZero = b.fillRate === 0;
-                  if (isAFillRateZero && !isBFillRateZero) return 1;
-                  if (!isAFillRateZero && isBFillRateZero) return -1;
+                  // 1. Accounts with active headcount requirements (MFR calculated)
+                  //    always precede accounts with blank MFR (required === 0)
+                  if (aHasRequirements && !bHasRequirements) return -1;
+                  if (!aHasRequirements && bHasRequirements) return 1;
 
-                  if (a.fillRate !== b.fillRate) {
-                    return a.fillRate - b.fillRate;
+                  // 2. Both have active headcount requirements:
+                  //    Sort by most problematic (lowest fillRate first, e.g. Zebra 0% first)
+                  if (aHasRequirements && bHasRequirements) {
+                    if (a.fillRate !== b.fillRate) {
+                      return a.fillRate - b.fillRate;
+                    }
+                    // Tie-breaker: higher vacant slots first
+                    if (b.vacant !== a.vacant) {
+                      return b.vacant - a.vacant;
+                    }
                   }
+
+                  // 3. Fallback / blank MFR tie-breaker: alphabetical by account name
                   return a.name.localeCompare(b.name);
                 });
 
