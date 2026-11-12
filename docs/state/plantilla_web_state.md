@@ -994,7 +994,16 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Tests roving validation (14 rows -> valid, 0 flags, pending_approval), approval (14 stores, 14 slots, 14 allocations, 4 plantilla employees, 14 links), server-side blocking (`BATCH_BLOCKED: ...`), rejection state machine + audit trail, and rolls back 100% via `RAISE EXCEPTION`.
     - Proved idempotency on staging: re-submitting and re-approving the same 14 roving rows detects 14 existing stores, 0 new stores, and yields identical counts without duplication.
 
-- **Plantilla Baseline Import Rollback Readiness, Lineage Reset & Executor Lockdown (`ohm#r4t7y2bn` — 2026-11-06 / 2026-11-09)**:
+- **Plantilla Baseline Import Approval Store Columns Fix (`ohm#c4k9m2v7` — 2026-11-12)**:
+  - **Root Cause Resolved**: In `approve_plantilla_import_batch`, Phase A store creation and update referenced non-existent column `city` (`column "city" of relation "stores" does not exist`, PostgreSQL error `42703`) and non-existent column `source_import_batch_id`. This caused the "Approve & Apply" action on valid or flagged batches in the Plantilla Import Review Queue (`/more?tab=data_control&subtab=batch_imports&import=plantilla`) to abort into status `commit_failed` with `COMMIT_FAILED: [42703] column "city" of relation "stores" does not exist`.
+  - **Dedicated Forward Migration 105 (`20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`)**:
+    - Re-declared `public.approve_plantilla_import_batch` to strictly target the canonical columns on `public.stores`:
+      - Replaced `city` with `area_city` on both `INSERT INTO public.stores` and `UPDATE public.stores`.
+      - Populated both `area_province` and `province` from `v_srow.area_province`.
+      - Replaced `source_import_batch_id` with `source_import_id` on `INSERT INTO public.stores` (preserving `source_import_batch_id` for `employee_store_allocations`).
+    - Maintained 100% parity with ADR-002 rollback governance, commit snapshots, and status transitions (`approved` / `commit_failed`).
+
+
   - **ADR-002 Invariant 10 Rollback Lineage & Migration 086 (`20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql`)**:
     - **Root Cause & BUG-06 Overwrite Resolved**: Migration `20262606000059_fix_plantilla_field_inheritance_and_mapping.sql` (`ohm#f7m2w9x4`) had replaced `approve_plantilla_import_batch` with a function template omitting `rollback_ready = true` (and `committed_stores`/`committed_employees`), carried forward into `062` and `064`. Before 086, snapshots existed for store, plantilla and Phase B1 vacant slots. allocation (insert) snapshots and Phase B2 slot snapshots (occupied or claimed) were first written by 086. Legacy batches have allocation (update) snapshots only.
     - **Approval RPC Restored**: `approve_plantilla_import_batch` now captures snapshots for `store` (insert/update), `plantilla` (insert/update), Phase B1 vacant `plantilla_slots` (insert), `employee_store_allocations` (insert), and Phase B2 `plantilla_slots` (insert/update) and `vacancies` (update); sets `rollback_ready = true` (with `rollback_expires_at` defaulting to `approved_at + INTERVAL '72 hours'`); populates `committed_stores`, `committed_employees`, and `approved_by_name`.

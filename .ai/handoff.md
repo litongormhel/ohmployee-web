@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Fix approve_plantilla_import_batch Store Relation Column Errors (ohm#c4k9m2v7)
+
+**Status: COMPLETE ON MAIN; CREATED DEDICATED FORWARD MIGRATION `20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`; RESOLVED POSTGRES ERROR `[42703] column "city" of relation "stores" does not exist` TRIGGERED UPON "APPROVE & APPLY" IN PLANTILLA BASELINE BATCH IMPORT REVIEW QUEUE (`/more?tab=data_control&subtab=batch_imports&import=plantilla`); AUDITED DATABASE SCHEMA FOR `public.stores` AND REPLACED HALLUCINATED COLUMNS `city` -> `area_city` AND `source_import_batch_id` -> `source_import_id`; POPULATED BOTH `area_province` AND `province` FROM `v_srow.area_province`; PRESERVED 100% PARITY WITH ADR-002 ROLLBACK SNAPSHOTS, COMMIT METRICS, STATUS MACHINE (`approved` / `commit_failed`), AND STATEMENT TIMEOUT (60s); UPDATED ARCHITECTURE SPECIFICATION IN `docs/state/plantilla_web_state.md`; ALL VERIFICATION GATES PASSED CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Request / Issue**: User uploaded a screenshot showing `COMMIT_FAILED: [42703] column "city" of relation "stores" does not exist` when clicking "Approve & Apply" on Batch `#6d995cc9` (template `plantilla_import_template (7).xlsx`) in the Plantilla Import Review Queue.
+- **Root Cause**:
+  1. In `approve_plantilla_import_batch`, Phase A store creation (`INSERT INTO public.stores`) and store update (`UPDATE public.stores`) referenced non-existent column `city` instead of `area_city`.
+  2. In store insertion, the statement referenced `source_import_batch_id`, but the column on `public.stores` is `source_import_id` (`source_import_batch_id` resides on `employee_store_allocations`).
+  3. PostgreSQL threw `42703 Undefined Column`, which was captured by the RPC exception handler, updated the batch to `commit_failed`, and raised `COMMIT_FAILED: [42703] column "city" of relation "stores" does not exist`.
+- **Actions & Results**:
+  1. **Created Forward Migration**:
+     - `supabase/migrations/20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`:
+       - Re-declared `public.approve_plantilla_import_batch(p_batch_id uuid)`.
+       - Replaced `city` with `area_city` on both `INSERT INTO public.stores` and `UPDATE public.stores`.
+       - Populated both `area_province` and `province` from `v_srow.area_province`.
+       - Replaced `source_import_batch_id` with `source_import_id` on store insertion.
+       - Preserved all other phases: pre-commit blocked row guard, committable row requirement, Phase B1 vacant slot generation, Phase B2 employee last-row-wins coalescing and upserts, allocation insertions, commit snapshots, rollback metadata (`rollback_ready = true`, `committed_stores`, `committed_employees`, `allocations_created`), and exception logging into `commit_error`.
+  2. **Documentation**:
+     - Updated `docs/state/plantilla_web_state.md` with the fix details and schema column mapping.
+     - Prepended task entry in `.ai/briefing.md` under Last Completed Tasks (retained 5 items).
+- **Verification**:
+  - `npm run check:adr` → `FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40)`.
+  - `npm test` → 211/211 passed across all test suites.
+  - `npm run lint` → 0 errors.
+  - `npm run build` → Next.js 16.2.4 compiled and built static routes with exit code 0.
+- **ADR updates needed**: None (ADR-002 already establishes `stores` identity and rollback governance; this fix reconciles SQL column references to the physical database schema).
+
+---
+
 ## Execution Report — Workflow: Sync ADR-002 to Mobile Source of Truth & Mirror Guard (ohm#y7m2k9v4)
 
 **Status: COMPLETE ON MAIN; DOCS + SCRIPT TOOLING; LOCAL COMMIT ON MAIN.**
