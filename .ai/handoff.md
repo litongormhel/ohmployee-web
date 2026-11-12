@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Audit Migration Parity Across Local, Staging, and Production (ohm#m2p9v4k1)
+
+**Status: COMPLETE ON MAIN; AUDITED AND VERIFIED MIGRATION PARITY ACROSS LOCAL REPOSITORY (`supabase/migrations/*.sql`), STAGING (`qqiiznmqxfoamqytjica`), AND PRODUCTION (`rwxelulyapjgaarlwkus`); CONFIRMED LOCAL (523) AND STAGING (523) IN 100% PERFECT PARITY (0 MISSING); IDENTIFIED EXACTLY 6 MIGRATIONS APPLIED ON STAGING THAT ARE PENDING APPLICATION TO PRODUCTION (517 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; NO CODE OR DATABASE MUTATIONS PERFORMED; VERIFIED CLI AND RUNTIME REMAIN SECURELY LINKED TO STAGING (`qqiiznmqxfoamqytjica`); LOCAL COMMIT ON MAIN.**
+
+### 1. Scope & Audit Findings
+- **Audit Target:** Compare `supabase_migrations.schema_migrations` between:
+  - Local repository: `d:/Projects/ohmployee-web/supabase/migrations` (523 SQL files)
+  - Remote Staging: `qqiiznmqxfoamqytjica` (523 migrations)
+  - Remote Production: `rwxelulyapjgaarlwkus` (517 migrations)
+- **Local vs Staging Parity:**
+  - 100% aligned. All 523 migration files in the local repository match the 523 applied migration records in Staging.
+- **Staging vs Production Delta (6 Pending on Production):**
+  - Exactly 6 migrations are applied on Staging but pending push to Production:
+    1. `20262606000095_restore_vw_vacancy_list_columns`
+    2. `20262606000096_user_management_as_hrco_source_of_truth`
+    3. `20262606000097_fix_orphan_stores_and_closure_lifecycle`
+    4. `20262606000098_block_vacancy_closure_when_applicants_active`
+    5. `20262606000099_expose_hc_in_list_web_vacancies_row_capabilities`
+    6. `20262606000100_grant_list_web_vacancies_postgres`
+- **Production vs Staging Discrepancy:**
+  - 0 migrations exist on Production that are missing on Staging.
+
+### 2. Detailed Summary of Pending Migrations
+1. `20262606000095_restore_vw_vacancy_list_columns.sql`:
+   - Restores canonical `vw_vacancy_list` schema ensuring `hc_total`, `hc_filled`, and `is_pool_vacancy` are properly projected.
+2. `20262606000096_user_management_as_hrco_source_of_truth.sql`:
+   - Establishes User Management (`user_scopes` + `users_profile` with role HRCO) as the authoritative Single Source of Truth for HRCO assignments across `vw_vacancy_list`, `v_plantilla_safe`, and `public.accounts`.
+3. `20262606000097_fix_orphan_stores_and_closure_lifecycle.sql`:
+   - Cleans up orphan stores whose vacancies have been closed, closes dangling open slots in `public.plantilla_slots`, corrects Kimi Antonelli's vcode to TEST009, and updates `handle_closure_approval` trigger.
+4. `20262606000098_block_vacancy_closure_when_applicants_active.sql`:
+   - Updates `public.fn_assert_vacancy_closeable` to strictly block vacancy closure requests when active applicants exist in the pipeline.
+5. `20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql`:
+   - Embeds `hc_filled`, `hc_total`, `hc_display`, and `is_pool_vacancy` into `row_capabilities` inside RPC `public.list_web_vacancies` for multi-headcount fractional displays.
+6. `20262606000100_grant_list_web_vacancies_postgres.sql`:
+   - Grants execute on `list_web_vacancies` to the `postgres` role for maintenance and direct administrative query execution.
+
+### 3. Environment & Security Verification
+- Staging Project Link: `qqiiznmqxfoamqytjica` (Active in `supabase/.temp/project-ref` and `.env`).
+- Production Project: Read-only query executed via Supabase API (`list_migrations`), zero mutations performed.
+
+---
+
 ## Execution Report — Zero-Warning ESLint Standard & Alturas Data Reconciliation Audit (ohm#q1m8v4k2)
 
 **Status: COMPLETE ON MAIN; ACHIEVED PRISTINE ZERO-ERROR ZERO-WARNING ESLINT STANDARD ACROSS ENTIRE CODEBASE (`0 errors, 0 warnings`); AUDITED DATABASE HEADCOUNT RECONCILIATION FOR ALTURAS ACROSS `public.plantilla` (743 ACTIVE UNARCHIVED) AND `public.employee_store_allocations` (747 ACTIVE ALLOCATIONS); UNCOVERED ROOT CAUSE: 2 SEPARATED/INACTIVE EMPLOYEES (`2023-12046` AND `2023-12049`) RETAINED DANGLING `is_active = true` STORE ALLOCATIONS, 3 WERE ON-LEAVE PLACEHOLDERS, AND 1 ACTIVE EMPLOYEE WAS MISSING AN ACTIVE ALLOCATION, REVEALING WHY PREVIOUS DEVELOPERS ERRONEOUSLY HARDCODED 752/3; RESOLVED ALL 5 PRE-EXISTING ESLINT UNUSED VARIABLE WARNINGS IN `src/components/users/UsersTable.tsx` (CONNECTED COMPUTED `initials` TO AVATAR CIRCLE) AND `src/components/vacancy/VacancyTable.tsx` (OMITTED UNUSED CALLBACKS `_onEditApplicant`, `_onFailBackout`, `_onReopenVacancy`, `_onEditHiredDate` FROM DESTRUCTURING); VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
