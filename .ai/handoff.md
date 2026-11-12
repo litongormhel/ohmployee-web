@@ -24,6 +24,10 @@
 - `npm run lint`: Clean (0 errors).
 - `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes compiled).
 
+### 4. ADR updates needed (Ohm applies in mobile repo)
+- **ADR-001 Section Update (Rule #8 Vacancy Pipeline Candidate-Level Headcount Contract)**:
+  - Add Rule #8: "In Vacancy Management (`/vacancy`), the Pipeline tab (both badge counter and data table rows) strictly operates on candidate-level granularity (1 row = 1 applicant / per tao). Even when multiple candidates are active under the same store or requisition code (`vcode`), each applicant represents an individual headcount unit in the pipeline badge and renders as a distinct row with independent candidate contact details, stage progression, and action capabilities. Under no circumstances should the Pipeline count or table be collapsed to distinct store/requisition records."
+
 ---
 
 ## Execution Report — Custom Report Builder: Custom Date Range & Semi-Monthly Cut-off Selection (ohm#d4r9k2c7)
